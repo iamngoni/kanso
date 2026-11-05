@@ -175,14 +175,67 @@ fn the_screen_round_trips_as_json() {
     assert_eq!(serde_json::from_str::<Screen>(&json).unwrap(), screen);
 }
 
+/// A library key as its 24 words, single-spaced, or numbered one per line
+/// the way a person might paste them.
+fn key_words() -> impl Strategy<Value = String> {
+    (any::<[u8; 32]>(), any::<bool>()).prop_map(|(bytes, numbered)| {
+        let words = kanso_store::LibraryKey::from_bytes(bytes).to_words();
+        if !numbered {
+            return words.to_string();
+        }
+        words
+            .split(' ')
+            .enumerate()
+            .map(|(ix, word)| format!("{}. {word}", ix + 1))
+            .collect::<Vec<_>>()
+            .join("\n")
+    })
+}
+
 fn secret() -> impl Strategy<Value = String> {
     prop_oneof![
-        "[0-9a-f]{64}",
-        "[A-Za-z0-9+_=-]{44}",
-        "kcl_[A-Za-z0-9]{40}",
+        "[0-9a-f]{64}".boxed(),
+        "[A-Za-z0-9+_=-]{44}".boxed(),
+        "kcl_[A-Za-z0-9]{40}".boxed(),
         // Standard base64 of 32 bytes: slashes, and one `=` at the end.
-        "[A-Za-z0-9+/]{43}=",
+        "[A-Za-z0-9+/]{43}=".boxed(),
+        key_words().boxed(),
     ]
+}
+
+/// A key written as words is hidden, plain or numbered; the window's own
+/// text, which is ordinary English, is not touched.
+#[test]
+fn redact_hides_a_key_written_as_words() {
+    let words = kanso_store::LibraryKey::from_bytes([7; 32]).to_words();
+    let out = redact(&format!(
+        "could not read {} from the backup",
+        words.as_str()
+    ));
+    assert_eq!(out, "could not read [hidden] from the backup");
+    let numbered: Vec<String> = words
+        .split(' ')
+        .enumerate()
+        .map(|(ix, word)| format!("{}. {word}", ix + 1))
+        .collect();
+    assert_eq!(redact(&numbered.join(" ")), "1. [hidden]");
+    // Half a key still goes; a few key words in a sentence stay.
+    let half: Vec<&str> = words.split(' ').take(12).collect();
+    assert_eq!(redact(&half.join(" ")), "[hidden]");
+    let few: Vec<&str> = words.split(' ').take(11).collect();
+    assert_eq!(redact(&few.join(" ")), few.join(" "));
+}
+
+/// The text Kanso writes itself (titles, messages and steps) comes through
+/// redaction as it is, so a rule for keys hides nothing a person needs.
+#[test]
+fn redact_keeps_the_windows_own_text() {
+    for pick in 0..12 {
+        let screen = describe(&nth_failure(pick, "the file is missing"), dir());
+        for piece in screen.texts() {
+            assert_eq!(redact(piece), piece, "{pick}");
+        }
+    }
 }
 
 /// A path made of ordinary folder names: each shorter than a key, with

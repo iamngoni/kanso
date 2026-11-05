@@ -94,7 +94,72 @@ impl Screen {
 /// on a path after one space or dot (`Application Support/…`) and has a `+` or
 /// mixes digits with upper- and lowercase letters; it becomes `[hidden]`
 /// too. A path keeps its ordinary folder names.
+///
+/// A library key written out as words (issue #243 step 11) goes too: 12 or
+/// more library key words in a row, numbered or not, become `[hidden]`.
+/// Ordinary English has too many words that aren't on that list (`the`,
+/// `is`, `to`, `of`) to make such a run.
 pub fn redact(text: &str) -> String {
+    redact_keys(&redact_key_phrases(text))
+}
+
+/// How many library key words in a row count as a key: half of one, so a
+/// key cut in two still goes.
+const PHRASE_RUN: usize = 12;
+
+/// The most characters between two words of one phrase: a space, or a
+/// number such as `12. ` (on a line of its own or not).
+const PHRASE_GAP: usize = 6;
+
+fn redact_key_phrases(text: &str) -> String {
+    // The byte ranges of the runs of letters.
+    let mut words: Vec<(usize, usize)> = Vec::new();
+    let mut start = None;
+    for (ix, c) in text.char_indices().chain([(text.len(), ' ')]) {
+        match (c.is_ascii_alphabetic(), start) {
+            (true, None) => start = Some(ix),
+            (false, Some(from)) => {
+                words.push((from, ix));
+                start = None;
+            }
+            _ => {}
+        }
+    }
+    // The phrases: runs of key words with only short gaps between them.
+    let mut hide: Vec<(usize, usize)> = Vec::new();
+    let mut run: Vec<(usize, usize)> = Vec::new();
+    let mut close = |run: &mut Vec<(usize, usize)>| {
+        if run.len() >= PHRASE_RUN {
+            hide.push((run[0].0, run[run.len() - 1].1));
+        }
+        run.clear();
+    };
+    for &(from, to) in &words {
+        let joins = run
+            .last()
+            .is_none_or(|&(_, end)| text[end..from].chars().count() <= PHRASE_GAP);
+        if !joins {
+            close(&mut run);
+        }
+        if kanso_store::is_key_word(&text[from..to]) {
+            run.push((from, to));
+        } else {
+            close(&mut run);
+        }
+    }
+    close(&mut run);
+    let mut out = String::with_capacity(text.len());
+    let mut at = 0;
+    for (from, to) in hide {
+        out.push_str(&text[at..from]);
+        out.push_str("[hidden]");
+        at = to;
+    }
+    out.push_str(&text[at..]);
+    out
+}
+
+fn redact_keys(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut word = String::new();
     // Whether the last word was in a path and one space or dot came after
