@@ -52,6 +52,8 @@ CanvasView fakeView({
   bool canRedo = false,
   String title = 'Sketch',
   String rev = '1-a',
+  bool shared = false,
+  bool readOnly = false,
 }) => CanvasView(
   noteId: 'canvas-1',
   rev: rev,
@@ -68,6 +70,8 @@ CanvasView fakeView({
   canUndo: canUndo,
   canRedo: canRedo,
   dirty: dirty,
+  shared: shared,
+  readOnly: readOnly,
 );
 
 /// A document that keeps a list of strokes and records what it was asked.
@@ -84,6 +88,25 @@ class FakeCanvasDocument implements CanvasDocument {
   bool canUndo = false;
   bool canRedo = false;
   CanvasBudget budget = CanvasBudget.ok;
+  bool shared = false;
+  bool readOnly = false;
+
+  /// What the next pulse says the others did: a stroke to add, once.
+  CanvasStroke? remote;
+
+  /// Whether the next pulse reports a changed canvas.
+  bool remoteChanged = false;
+  List<CanvasPointerRow> others = <CanvasPointerRow>[];
+
+  /// The answer to the next stream: true when someone erased the stroke.
+  bool erasedUnderPen = false;
+  final List<List<PenSample>> streamed = <List<PenSample>>[];
+  final List<(double, double, String)> told = <(double, double, String)>[];
+  int cancelled = 0;
+  int closed = 0;
+  int reconnected = 0;
+  int pulses = 0;
+  int clearedPointer = 0;
   ApplicationError? saveError;
   ApplicationError? drawError;
   int saves = 0;
@@ -106,6 +129,8 @@ class FakeCanvasDocument implements CanvasDocument {
       dirty: dirty,
       canUndo: canUndo,
       canRedo: canRedo,
+      shared: shared,
+      readOnly: readOnly,
     );
   }
 
@@ -240,6 +265,69 @@ class FakeCanvasDocument implements CanvasDocument {
     return Right<ApplicationError, CanvasSaved>(
       CanvasSaved(rev: '${saves + 1}-a', bytes: 1200, merged: false),
     );
+  }
+
+  @override
+  Future<CanvasResult<CanvasPulse>> pulse(List<String> known) async {
+    pulses++;
+    calls.add('pulse');
+    dirty = false;
+    final changed = remoteChanged;
+    remoteChanged = false;
+    final stroke = remote;
+    remote = null;
+    if (stroke != null) {
+      strokes.add(stroke);
+    }
+    return Right<ApplicationError, CanvasPulse>(
+      CanvasPulse(
+        view: changed ? current(known) : null,
+        pointers: others,
+      ),
+    );
+  }
+
+  @override
+  Future<CanvasResult<List<CanvasPointerRow>>> pointers() async =>
+      Right<ApplicationError, List<CanvasPointerRow>>(others);
+
+  @override
+  Future<CanvasResult<bool>> streamStroke(
+    InkStyle style,
+    List<PenSample> samples,
+  ) async {
+    streamed.add(samples);
+    return Right<ApplicationError, bool>(erasedUnderPen);
+  }
+
+  @override
+  Future<CanvasResult<Unit>> cancelStroke() async {
+    cancelled++;
+    return const Right<ApplicationError, Unit>(unit);
+  }
+
+  @override
+  Future<CanvasResult<Unit>> setPointer(double x, double y, String tool) async {
+    told.add((x, y, tool));
+    return const Right<ApplicationError, Unit>(unit);
+  }
+
+  @override
+  Future<CanvasResult<Unit>> clearPointer() async {
+    clearedPointer++;
+    return const Right<ApplicationError, Unit>(unit);
+  }
+
+  @override
+  Future<CanvasResult<Unit>> reconnect() async {
+    reconnected++;
+    return const Right<ApplicationError, Unit>(unit);
+  }
+
+  @override
+  Future<CanvasResult<Unit>> close() async {
+    closed++;
+    return const Right<ApplicationError, Unit>(unit);
   }
 
   @override

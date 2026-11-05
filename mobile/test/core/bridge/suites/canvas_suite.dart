@@ -194,6 +194,27 @@ void canvasSuite(OpenLibrary open) {
       expect(view.cards, hasLength(1));
     });
 
+    test('a private canvas has no room: the shared calls do nothing', () async {
+      final (_, _, canvas) = await fresh();
+      final view = await canvas.view(known: const <String>[]);
+      expect(view.shared, isFalse);
+      expect(view.readOnly, isFalse);
+      final pulse = await canvas.pulse(known: const <String>[]);
+      expect(pulse.view, isNull);
+      expect(pulse.pointers, isEmpty);
+      // Nothing streams, nothing is told, and there is nothing to take back.
+      expect(
+        await canvas.streamStroke(style: _pen, samples: _line(0, 0)),
+        isFalse,
+      );
+      await canvas.cancelStroke();
+      await canvas.setPointer(x: 4, y: 5, tool: 'pen');
+      await canvas.clearPointer();
+      expect(await canvas.pointers(), isEmpty);
+      await canvas.reconnect();
+      await canvas.close();
+    });
+
     test('a selection moves to a canvas of its own', () async {
       final (library, id, canvas) = await fresh();
       await canvas.draw(

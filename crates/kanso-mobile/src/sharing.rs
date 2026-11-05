@@ -44,6 +44,7 @@ use crate::sharing_model::{
 use crate::stream::Listeners;
 use crate::syncing::SyncHandle;
 
+mod canvas;
 mod comments;
 
 /// How often a live note's text is handed to the engine.
@@ -479,7 +480,10 @@ impl SharedNotes {
             engine.attach(&share_id).map_err(|err| collab_error(&err))?;
             let stop = Arc::new(AtomicBool::new(false));
             let ended = Arc::new(AtomicBool::new(false));
-            let editor = Arc::new(AtomicBool::new(false));
+            // A canvas is merged by drawing, never as text: no pump for it.
+            let editor = Arc::new(AtomicBool::new(
+                engine.kind(&share_id) == Some(kanso_store::SharedKind::Canvas),
+            ));
             let connected = Arc::new(AtomicBool::new(false));
             let turn = Arc::new(Mutex::new(()));
             // A session already open on the note merges as soon as the room
@@ -952,7 +956,9 @@ fn changed_comment_notes(
 
 /// The share a note's mark says it is, and this account's role in it, from
 /// the library: what is known of a shared note signed out.
-fn share_mark(extra: &serde_json::Map<String, serde_json::Value>) -> Option<(String, Role)> {
+pub(crate) fn share_mark(
+    extra: &serde_json::Map<String, serde_json::Value>,
+) -> Option<(String, Role)> {
     let mark = extra.get(kanso_core::model::SHARE_FIELD)?.as_object()?;
     let share_id = mark.get("shareId")?.as_str()?.to_owned();
     let role = mark
