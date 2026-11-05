@@ -329,6 +329,14 @@ fn write_calls(ids: &[String], books: &[String]) -> Vec<(&'static str, Value)> {
             "patch-note",
             json!({ "_id": note, "_rev": "1-x", "old_string": "a", "new_string": "b" }),
         ),
+        (
+            "kanso-create-canvas",
+            json!({ "title": "x", "bookId": book }),
+        ),
+        (
+            "kanso-edit-canvas",
+            json!({ "noteId": note, "ops": [{ "op": "rename", "title": "x" }] }),
+        ),
         ("create-tag", json!({ "name": "x" })),
         (
             "update-tag",

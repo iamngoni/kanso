@@ -12,6 +12,8 @@ pub(crate) struct ApiError {
     pub status: StatusCode,
     pub error: &'static str,
     pub reason: String,
+    /// More fields for the body, beside `error` and `reason`.
+    pub details: Option<serde_json::Value>,
 }
 
 pub(crate) type ApiResult<T> = Result<T, ApiError>;
@@ -22,6 +24,21 @@ impl ApiError {
             status,
             error,
             reason: reason.into(),
+            details: None,
+        }
+    }
+
+    /// A 404 that says what was missing, for an item inside a note.
+    pub fn not_found_because(reason: impl Into<String>) -> Self {
+        Self::new(StatusCode::NOT_FOUND, "not_found", reason)
+    }
+
+    /// A 409 for a canvas edit made on out-of-date reading: `details` holds
+    /// the revision and versions now.
+    pub fn stale(reason: String, details: serde_json::Value) -> Self {
+        ApiError {
+            details: Some(details),
+            ..Self::new(StatusCode::CONFLICT, "conflict", reason)
         }
     }
 
@@ -102,7 +119,13 @@ impl From<StoreError> for ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let body = Json(json!({ "error": self.error, "reason": self.reason }));
+        let mut body = json!({ "error": self.error, "reason": self.reason });
+        if let (Some(serde_json::Value::Object(more)), Some(fields)) =
+            (self.details.clone(), body.as_object_mut())
+        {
+            fields.extend(more);
+        }
+        let body = Json(body);
         let mut response = (self.status, body).into_response();
         if self.status == StatusCode::UNAUTHORIZED {
             response.headers_mut().insert(

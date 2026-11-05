@@ -256,6 +256,9 @@ pub struct Services {
     /// local API's `/mcp` while it listens on this computer only, and on
     /// the agents' private listener.
     pub(crate) agent_tokens: TokenStore,
+    /// How the local API changes a shared canvas: through the signed-in
+    /// session's engine (`collab::engine`).
+    pub(crate) shared_canvases: Arc<crate::shared_canvases::EngineHost>,
     /// The agent tasks running or waiting for review (`agent_task.rs`).
     pub tasks: kanso_engine::agent_task::runner::Tasks,
     /// The agents' private listener, started while the local API is off (or
@@ -527,7 +530,10 @@ pub fn apply_server_settings(cx: &mut App) {
                 } else {
                     TokenStore::new()
                 };
-                let handle = kanso_server::spawn_with_tokens(store, config, tokens, keys);
+                let canvases: Arc<dyn kanso_server::SharedCanvases> =
+                    services.shared_canvases.clone();
+                let handle =
+                    kanso_server::spawn_with_canvases(store, config, tokens, keys, Some(canvases));
                 let api = api_state(&handle, settings.port);
                 if matches!(api, ApiState::Running(_)) {
                     services.server = Some(handle);
