@@ -454,3 +454,90 @@ fn a_refused_edit_shows_its_problem(cx: &mut TestAppContext) {
     app.update(cx, |e, _, cx| e.dismiss_problems(cx));
     assert!(cx.read(|cx| editor.read(cx).shared_problems().is_empty()));
 }
+
+fn canvas_pen(points: &[(f64, f64)]) -> kanso_core::canvas::Stroke {
+    kanso_core::canvas::Stroke {
+        tool: "pen".into(),
+        color: "#1e1e1e".into(),
+        width: 2.0,
+        points: points
+            .iter()
+            .map(|&(x, y)| kanso_core::canvas::Point::new(x, y, 0.5))
+            .collect(),
+        ..Default::default()
+    }
+}
+
+#[gpui_kit::test]
+fn a_shared_canvas_takes_the_others_drawing_and_sends_its_own(cx: &mut TestAppContext) {
+    let server = MemoryCollab::new();
+    let (owner, member) = (device(&server, 1), device(&server, 2));
+    let book = owner
+        .store
+        .put(DocType::Book, json!({"name": "B"}), Put::Upsert, Origin::Ui)
+        .unwrap()
+        .id;
+    let id = owner
+        .store
+        .put(
+            DocType::Note,
+            json!({
+                "title": "Board",
+                "bookId": book,
+                "doctype": "canvas",
+                "body": kanso_core::canvas::to_body(&kanso_core::canvas::Canvas::default()),
+            }),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    owner.engine.person("user2").unwrap();
+    let share = owner
+        .engine
+        .share(&id, &[("user2".to_owned(), Role::Edit)])
+        .unwrap();
+    member.engine.refresh().unwrap();
+    member.engine.accept(&share).unwrap();
+    let note = member.store.note_with_share(&share).unwrap().unwrap();
+    let app = open(cx, &member, &note);
+    let editor = app.editor(cx);
+    let view = cx.read(|cx| editor.read(cx).canvas_for_test());
+    let strokes = |cx: &mut TestAppContext| {
+        view.update(cx, |v, _| {
+            v.state_for_test()
+                .map_or(0, |s| s.canvas.live_strokes().count())
+        })
+    };
+    assert_eq!(strokes(cx), 0);
+
+    // The owner draws; the room says so; the member's canvas takes it.
+    owner.engine.attach(&share).unwrap();
+    let mut mine = owner.engine.canvas(&share).unwrap();
+    mine.draw(canvas_pen(&[(0.0, 0.0), (30.0, 30.0)]), 1)
+        .unwrap();
+    owner.engine.sync_canvas(&share, &mine).unwrap();
+    owner.engine.sync_note(&share).unwrap();
+    member.engine.sync_note(&share).unwrap();
+    app.update(cx, |e, _, cx| e.canvas_sync_for_test(cx));
+    assert_eq!(strokes(cx), 1);
+
+    // The member draws; it reaches the owner through the engine.
+    view.update(cx, |v, _| {
+        v.state_for_test()
+            .unwrap()
+            .canvas
+            .draw(canvas_pen(&[(50.0, 0.0), (80.0, 30.0)]), 2)
+            .unwrap();
+    });
+    app.update(cx, |e, _, cx| e.canvas_sync_for_test(cx));
+    for _ in 0..2 {
+        member.engine.sync_note(&share).unwrap();
+        owner.engine.sync_note(&share).unwrap();
+    }
+    let seen = owner.engine.sync_canvas(&share, &mine).unwrap().canvas;
+    assert_eq!(seen.live_strokes().count(), 2);
+    // The text editor stays out of it.
+    let editor = app.editor(cx);
+    assert!(cx.read(|cx| !editor.read(cx).has_unsaved_edits(cx)));
+}

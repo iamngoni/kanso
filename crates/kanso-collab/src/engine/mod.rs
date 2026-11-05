@@ -17,7 +17,7 @@
 //! the CRDT's after every merge. While a shared note is open, the editor's
 //! text reaches the library through [`Engine::sync_editor`] only.
 
-mod canvas;
+pub mod canvas;
 pub mod live;
 mod log;
 mod people;
@@ -28,7 +28,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use kanso_core::canvas::Canvas;
 use kanso_core::now_ms;
-use kanso_store::{SharedNote, SharedStatus, SharedText, Store, StoreError};
+use kanso_store::{SharedKind, SharedNote, SharedStatus, SharedText, Store, StoreError};
 use serde_json::{Value, json};
 
 use crate::api::{Caller, CollabApi, CollabError, Result};
@@ -900,6 +900,11 @@ impl Engine {
             .flatten()
             .filter(|n| n.status == SharedStatus::Active)
             .map(|n| n.share_id)
+    }
+
+    /// Whether the shared note is text or a canvas.
+    pub fn kind(&self, share_id: &str) -> Option<SharedKind> {
+        self.loaded(share_id).ok().map(|l| lock(&l).doc.kind())
     }
 
     /// The note's role for this account.

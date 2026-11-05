@@ -188,15 +188,7 @@ impl Canvas {
         if !(keep_id && !stroke.id.is_empty() && !taken.contains(&stroke.id)) {
             stroke.id = unique_id("s", &taken);
         }
-        stroke.points = points
-            .into_iter()
-            .map(|p| Point {
-                x: round(p.x - ox, 100.0),
-                y: round(p.y - oy, 100.0),
-                pressure: round(p.pressure.clamp(0.0, 1.0), 1000.0),
-                tilt: p.tilt.map(|(a, b)| (round(a, 1000.0), round(b, 1000.0))),
-            })
-            .collect();
+        stroke.points = points.iter().map(|p| stored(p, (ox, oy))).collect();
         stroke.width = if stroke.width.is_finite() && stroke.width > 0.0 {
             stroke.width.min(200.0)
         } else {
@@ -635,25 +627,54 @@ pub fn in_polygon(p: (f64, f64), polygon: &[(f64, f64)]) -> bool {
 /// Drops samples nearer than [`MIN_SAMPLE_DISTANCE`] to the last one kept
 /// (always keeping the first and the last) and any that aren't finite. Pure.
 pub fn thin(points: &[Point]) -> Vec<Point> {
-    let finite: Vec<Point> = points
+    let mut out = thin_so_far(points);
+    let end = points
         .iter()
-        .copied()
-        .filter(|p| p.x.is_finite() && p.y.is_finite())
-        .collect();
-    let mut out: Vec<Point> = Vec::with_capacity(finite.len());
-    for p in &finite {
-        match out.last() {
-            Some(last) if (p.x - last.x).hypot(p.y - last.y) < MIN_SAMPLE_DISTANCE => {}
-            _ => out.push(*p),
-        }
-    }
-    if let (Some(end), Some(kept)) = (finite.last(), out.last().copied())
+        .rev()
+        .find(|p| p.x.is_finite() && p.y.is_finite());
+    if let (Some(end), Some(kept)) = (end, out.last().copied())
         && out.len() > 1
         && (end.x, end.y) != (kept.x, kept.y)
     {
         out.push(*end);
     }
     out
+}
+
+/// [`thin`] without the last sample it would add: what a stroke still being
+/// drawn has kept so far, which is always the start of what [`thin`] gives
+/// when the stroke ends. Pure.
+pub fn thin_so_far(points: &[Point]) -> Vec<Point> {
+    let mut out: Vec<Point> = Vec::with_capacity(points.len());
+    for p in points.iter().filter(|p| p.x.is_finite() && p.y.is_finite()) {
+        match out.last() {
+            Some(last) if (p.x - last.x).hypot(p.y - last.y) < MIN_SAMPLE_DISTANCE => {}
+            _ => out.push(*p),
+        }
+    }
+    out
+}
+
+/// A drawn sample as the document stores it: relative to its ink node's
+/// origin, rounded for a compact document.
+fn stored(p: &Point, (ox, oy): (f64, f64)) -> Point {
+    Point {
+        x: round(p.x - ox, 100.0),
+        y: round(p.y - oy, 100.0),
+        pressure: round(p.pressure.clamp(0.0, 1.0), 1000.0),
+        tilt: p.tilt.map(|(a, b)| (round(a, 1000.0), round(b, 1000.0))),
+    }
+}
+
+/// The points of a stroke still being drawn, as they will be stored once it
+/// ends (canvas coordinates in, the ink node's at `origin`): a shared
+/// canvas streams these, and the finished stroke starts with them. Pure.
+pub fn streamed_points(points: &[Point], origin: (f64, f64)) -> Vec<Point> {
+    thin_so_far(points)
+        .iter()
+        .take(MAX_STROKE_POINTS)
+        .map(|p| stored(p, origin))
+        .collect()
 }
 
 fn round(v: f64, scale: f64) -> f64 {

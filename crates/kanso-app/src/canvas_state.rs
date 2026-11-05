@@ -153,6 +153,8 @@ pub struct CanvasState {
 /// layer's coordinates, for the version it was built from.
 struct Painted {
     version: u64,
+    /// A stroke someone else is still drawing grows without a new version.
+    points: usize,
     bounds: Option<canvas::Bounds>,
     polygon: Arc<Vec<[f64; 2]>>,
 }
@@ -171,6 +173,21 @@ pub struct VisibleInk {
 struct Live {
     points: Vec<Point>,
     tool: Tool,
+    /// The stroke's ID from the first sample: on a shared canvas its points
+    /// stream to the others under it, and the finished stroke keeps it.
+    id: String,
+}
+
+/// The stroke being drawn, as a shared canvas streams it: its head and its
+/// points so far, relative to the ink node.
+pub struct Streaming {
+    pub ink: String,
+    pub id: String,
+    pub tool: String,
+    pub color: String,
+    pub width: f64,
+    pub z: f64,
+    pub points: Vec<Point>,
 }
 
 /// An eraser or a lasso move in progress.
@@ -254,9 +271,16 @@ impl CanvasState {
         match tool {
             Tool::Pen | Tool::Pencil | Tool::Marker | Tool::Highlighter => {
                 self.selection.clear();
+                let taken: std::collections::HashSet<String> = self
+                    .canvas
+                    .stroke_ids()
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect();
                 self.live = Some(Live {
                     points: vec![sample.point()],
                     tool,
+                    id: unique_id("s", &taken),
                 });
                 Outcome::Nothing
             }
@@ -392,13 +416,14 @@ impl CanvasState {
             return Outcome::Nothing;
         };
         let stroke = Stroke {
+            id: live.id,
             tool: name.into(),
             color: self.color.clone(),
             width: self.width,
             points: live.points,
             ..Stroke::default()
         };
-        match self.canvas.draw(stroke, now) {
+        match self.canvas.draw_as(stroke, now) {
             Ok((_, action)) => {
                 self.push(action);
                 Outcome::Changed
@@ -709,6 +734,65 @@ impl CanvasState {
         out
     }
 
+    /// The stroke being drawn with a pen, for a shared canvas to stream:
+    /// `None` when there is none or it is still a single dot. The ink layer
+    /// the points go in is made now if the canvas has none, which is a change
+    /// to send before the points (`layer_made`).
+    pub fn streaming(&mut self, now: i64) -> Option<(Streaming, bool)> {
+        let live = self.live.as_ref()?;
+        let name = live.tool.pen()?;
+        if live.points.len() < 2 {
+            return None;
+        }
+        let (id, tool, raw) = (live.id.clone(), name.to_owned(), live.points.clone());
+        let had_layer = self
+            .canvas
+            .nodes
+            .iter()
+            .any(|n| n.kind == canvas::INK && !n.deleted);
+        let ink = self.canvas.ink_layer(now);
+        let origin = self.canvas.node(&ink).map_or((0.0, 0.0), |n| (n.x, n.y));
+        let z = self
+            .canvas
+            .nodes
+            .iter()
+            .flat_map(|n| std::iter::once(n.kanso_z).chain(n.strokes.iter().map(|s| s.kanso_z)))
+            .chain(self.canvas.edges.iter().map(|e| e.kanso_z))
+            .fold(0.0, f64::max)
+            + 1.0;
+        Some((
+            Streaming {
+                ink,
+                id,
+                tool,
+                color: self.color.clone(),
+                width: self.width,
+                z,
+                points: canvas::streamed_points(&raw, origin),
+            },
+            !had_layer,
+        ))
+    }
+
+    /// Takes the canvas a shared canvas's engine gives back, keeping the
+    /// view, the tool and what is still there of the selection.
+    pub fn take_canvas(&mut self, canvas: Canvas) {
+        self.canvas = canvas;
+        let canvas = &self.canvas;
+        self.selection.retain(|r| {
+            canvas
+                .live_strokes()
+                .any(|(node, s)| node.id == r.node && s.id == r.stroke)
+        });
+        if self
+            .card_selection
+            .as_deref()
+            .is_some_and(|id| canvas.node(id).is_none())
+        {
+            self.card_selection = None;
+        }
+    }
+
     /// The outline of the stroke in progress, with `predicted` samples
     /// appended for this frame only. Rebuilt every frame: it is one stroke.
     pub fn live_outline(&self, predicted: &[PenSample]) -> Option<(Stroke, Vec<[f64; 2]>)> {
@@ -732,12 +816,13 @@ impl CanvasState {
 fn painted<'a>(cache: &'a mut HashMap<String, Painted>, stroke: &Stroke) -> &'a Painted {
     let fresh = cache
         .get(stroke.id.as_str())
-        .is_none_or(|p| p.version != stroke.kanso_version);
+        .is_none_or(|p| p.version != stroke.kanso_version || p.points != stroke.points.len());
     if fresh {
         cache.insert(
             stroke.id.clone(),
             Painted {
                 version: stroke.kanso_version,
+                points: stroke.points.len(),
                 bounds: stroke.bounds(),
                 polygon: Arc::new(pen::outline(stroke, true)),
             },

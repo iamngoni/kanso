@@ -41,7 +41,12 @@ const LABEL_HEIGHT: f32 = 15.;
 impl NoteEditor {
     /// Whether the open note's text goes through the engine.
     pub(super) fn collab_attached(&self) -> bool {
-        self.shared.as_ref().is_some_and(|s| !s.ended)
+        self.shared.as_ref().is_some_and(|s| !s.ended && !s.canvas)
+    }
+
+    /// Whether the open note is a shared canvas the engine holds.
+    pub(super) fn collab_canvas(&self) -> bool {
+        self.shared.as_ref().is_some_and(|s| !s.ended && s.canvas)
     }
 
     /// Whether the open note was shared with this account to view or
@@ -84,6 +89,7 @@ impl NoteEditor {
             return;
         };
         let role = engine.role(&share_id).unwrap_or(role);
+        let canvas = engine.kind(&share_id) == Some(kanso_store::SharedKind::Canvas);
         let (tx, rx) = async_channel::unbounded::<LiveNotice>();
         let live = Engine::go_live(
             &engine,
@@ -108,10 +114,11 @@ impl NoteEditor {
         });
         let note_id = self.note.as_ref().map(|n| n.id.clone()).unwrap_or_default();
         self.shared = Some(OpenShare {
-            share_id,
+            share_id: share_id.clone(),
             note_id,
             role,
-            engine,
+            canvas,
+            engine: engine.clone(),
             live: Some(live),
             connected: false,
             ended: false,
@@ -130,6 +137,19 @@ impl NoteEditor {
             _notices: notices_task,
         });
         self.set_text_read_only(!role.may_edit(), cx);
+        if canvas {
+            // The canvas view draws on the engine's document from now on.
+            let read_only = self.account_read_only
+                || !role.may_edit()
+                || self.note.as_ref().is_some_and(|n| n.is_trashed());
+            self.canvas.update(cx, |view, cx| {
+                view.share(engine, &share_id, cx);
+                view.set_read_only(read_only, cx);
+            });
+            self.collab_footer(cx);
+            self.refresh_problems(cx);
+            return;
+        }
         // What other writers put in the library meanwhile comes in now.
         self.collab_sync(window, cx);
         self.refresh_comments(cx);
@@ -143,6 +163,9 @@ impl NoteEditor {
         let Some(open) = self.shared.take() else {
             return;
         };
+        if open.canvas {
+            self.canvas.update(cx, |view, cx| view.unshare(cx));
+        }
         if !open.ended {
             open.engine.detach(&open.share_id);
         }
@@ -410,6 +433,8 @@ impl NoteEditor {
             None => self.collab_ended(window, cx),
             Some((_, role, _)) => {
                 let library = (latest.title.clone(), latest.body.clone());
+                let old_title = self.note.as_ref().map(|n| n.title.clone());
+                let title = latest.title.clone();
                 self.note = Some(latest);
                 let Some(open) = self.shared.as_mut() else {
                     return;
@@ -417,8 +442,25 @@ impl NoteEditor {
                 let role = open.engine.role(&open.share_id).unwrap_or(role);
                 if open.role != role {
                     open.role = role;
+                    let is_canvas = open.canvas;
                     self.set_text_read_only(!role.may_edit(), cx);
+                    if is_canvas {
+                        let read_only = self.account_read_only || !role.may_edit();
+                        self.canvas
+                            .update(cx, |view, cx| view.set_read_only(read_only, cx));
+                    }
                     self.collab_footer(cx);
+                }
+                // A canvas is merged by drawing: only its title comes from
+                // the library (the body is the engine's projection).
+                if self.shared.as_ref().is_some_and(|s| s.canvas) {
+                    let shown = self.title.read(cx).value().to_string();
+                    if old_title.as_deref() == Some(shown.as_str()) && shown != title {
+                        self.title
+                            .update(cx, |state, cx| state.set_value(title, window, cx));
+                    }
+                    cx.notify();
+                    return;
                 }
                 // Another writer changed the text: the engine takes it in.
                 if self.shared.as_ref().is_some_and(|s| s.synced != library) {
@@ -451,8 +493,20 @@ impl NoteEditor {
             tints.clear(cx);
         }
         let id = open.note_id.clone();
+        let was_canvas = open.canvas;
         self.set_text_read_only(false, cx);
+        if was_canvas {
+            self.canvas.update(cx, |view, cx| view.unshare(cx));
+        }
         if let Ok(Some(latest)) = self.store.note(&id) {
+            // The canvas goes on as a private one, as it was last written.
+            if was_canvas {
+                let read_only = self.account_read_only || latest.is_trashed();
+                self.canvas_body = Some(latest.body.clone());
+                let (id, body) = (latest.id.clone(), latest.body.clone());
+                self.canvas
+                    .update(cx, |view, cx| view.open(&id, &body, read_only, cx));
+            }
             self.note = Some(latest);
         }
         self.collab_footer(cx);
@@ -464,6 +518,7 @@ impl NoteEditor {
 
     /// What the live room said.
     fn on_live(&mut self, batch: Vec<LiveNotice>, window: &mut Window, cx: &mut Context<Self>) {
+        let canvas = self.shared.as_ref().is_some_and(|s| s.canvas);
         let mut text = false;
         let mut presence = false;
         let mut comments = false;
@@ -488,10 +543,14 @@ impl NoteEditor {
                 _ => {}
             }
         }
-        if text {
+        if text && canvas {
+            self.canvas.update(cx, |view, cx| view.sync_shared(cx));
+        } else if text {
             self.collab_sync(window, cx);
         }
-        if presence {
+        if presence && canvas {
+            self.canvas.update(cx, |view, cx| view.refresh_pointers(cx));
+        } else if presence {
             self.refresh_cursors(cx);
         }
         if comments {
@@ -904,6 +963,14 @@ impl NoteEditor {
     pub fn select_for_test(&mut self, range: std::ops::Range<usize>, cx: &mut Context<Self>) {
         self.body
             .update(cx, |state, cx| state.set_selected_range(range, cx));
+    }
+
+    pub fn canvas_for_test(&self) -> Entity<crate::canvas_view::CanvasView> {
+        self.canvas.clone()
+    }
+
+    pub fn canvas_sync_for_test(&mut self, cx: &mut Context<Self>) {
+        self.canvas.update(cx, |view, cx| view.sync_shared(cx));
     }
 
     pub fn collab_sync_for_test(&mut self, window: &mut Window, cx: &mut Context<Self>) {

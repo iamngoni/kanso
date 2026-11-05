@@ -1426,7 +1426,9 @@ impl NoteEditor {
         self.note.as_ref().is_some_and(|note| {
             self.title.read(cx).value() != note.title.as_str()
                 || match &self.canvas_body {
-                    Some(canvas) => *canvas != note.body,
+                    // A shared canvas is the engine's: only its title is
+                    // saved from here.
+                    Some(canvas) => !self.collab_canvas() && *canvas != note.body,
                     None => !pieces_eq(self.body.read(cx).text().chunks(), &note.body),
                 }
         })
@@ -1996,7 +1998,9 @@ impl NoteEditor {
             return false;
         }
         let mut note = base.clone();
-        if !self.collab_attached() {
+        if self.collab_canvas() {
+            note.title = self.title.read(cx).value().to_string();
+        } else if !self.collab_attached() {
             let (title, body) = self.current_text(cx);
             note.title = title;
             note.body = body;
@@ -2109,7 +2113,7 @@ impl NoteEditor {
         if change.id != note.id || note.rev.as_deref() == Some(change.rev.as_str()) {
             return;
         }
-        if self.collab_attached() {
+        if self.collab_attached() || self.collab_canvas() {
             self.collab_store_change(change.deleted, window, cx);
             return;
         }
