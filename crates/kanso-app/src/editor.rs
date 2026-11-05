@@ -2613,14 +2613,32 @@ impl NoteEditor {
             return;
         }
         let body = self.body.read(cx).value().to_string();
+        // Pencil ink too big for the note goes to its attachment first.
+        let with_ink = |annotations: &kanso_pdf::Annotations| {
+            let mut annotations = annotations.clone();
+            kanso_store::pdf_ink::publish_ink(&self.store, &mut annotations, &body)
+                .map(|()| annotations)
+        };
         let edit = match write {
-            Write::Save(annotations) => annotations.save_edit(&body),
+            Write::Save(annotations) => match with_ink(annotations) {
+                Ok(annotations) => annotations.save_edit(&body),
+                Err(why) => {
+                    cx.emit(EditorEvent::Notice(why));
+                    return;
+                }
+            },
             Write::Quote {
                 annotations,
                 id,
                 name,
             } => Ok(annotations.quote_edit(&body, id, name)),
-            Write::Restore(annotations) => annotations.restore_edit(&body),
+            Write::Restore(annotations) => match with_ink(annotations) {
+                Ok(annotations) => annotations.restore_edit(&body),
+                Err(why) => {
+                    cx.emit(EditorEvent::Notice(why));
+                    return;
+                }
+            },
         };
         match edit {
             Ok(Some(edit)) => self.apply_body_edit(&edit, window, cx),
