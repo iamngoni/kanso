@@ -802,6 +802,9 @@ pub struct AppConfig {
     /// them (issue #243). Recorded the first time the file is read, kept for
     /// good, and what the API keys notice checks.
     pub had_login: bool,
+    /// The person chose "I've saved it" on the library key's sheet (issue
+    /// #243 step 11). Until then the sheet comes back at each launch.
+    pub library_key_saved: bool,
     pub sync: SyncSettings,
     pub appearance: Appearance,
     pub launch_at_login: bool,
@@ -862,6 +865,7 @@ impl Default for AppConfig {
             version: CONFIG_VERSION,
             server: ServerSettings::default(),
             had_login: false,
+            library_key_saved: false,
             sync: SyncSettings::default(),
             appearance: Appearance::default(),
             launch_at_login: false,
@@ -1349,6 +1353,7 @@ mod tests {
                         ..ServerSettings::default()
                     },
                     had_login: false,
+                    library_key_saved: login,
                     sync,
                     appearance: Appearance {
                         theme,
