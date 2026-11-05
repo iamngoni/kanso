@@ -3,8 +3,8 @@
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    InterruptedLock, KansoError, LockCopyNotice, LockEvent, LockSession, LockStatus, LockSummary,
-    Saved, SealProgress,
+    FilesMigration, InterruptedLock, KansoError, LockCopyNotice, LockEvent, LockSession,
+    LockStatus, LockSummary, MigrationOutcome, Saved, SealProgress,
 };
 
 #[frb(opaque)]
@@ -153,6 +153,31 @@ impl KansoLocks {
     /// Undoes the lock that stopped on note `id`.
     pub fn undo_locking(&self, id: String, password: Option<String>) -> Result<(), KansoError> {
         self.0.undo_locking(&id, password)
+    }
+
+    /// The notes locked before attachments were sealed, and what sealing
+    /// theirs would do.
+    pub fn files_migration(&self) -> Result<FilesMigration, KansoError> {
+        self.0.files_migration()
+    }
+
+    /// "Later" at the first-launch prompt.
+    pub fn postpone_files_migration(&self) -> Result<(), KansoError> {
+        self.0.postpone_files_migration()
+    }
+
+    /// Seals the attachments of every locked note the held keys, or
+    /// `password`, open. Progress comes on `lock_progress`.
+    pub fn seal_locked_attachments(
+        &self,
+        password: Option<String>,
+    ) -> Result<MigrationOutcome, KansoError> {
+        self.0.seal_locked_attachments(password)
+    }
+
+    /// Undoes a stopped sealing pass.
+    pub fn undo_files_migration(&self, password: Option<String>) -> Result<u32, KansoError> {
+        self.0.undo_files_migration(password)
     }
 
     /// Each time the notes open or close, until Dart stops listening.

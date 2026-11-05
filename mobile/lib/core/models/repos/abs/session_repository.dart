@@ -131,4 +131,23 @@ abstract interface class SessionRepository {
   /// also shows them, once, for the sentence said after it; null when it
   /// copied none.
   Future<Either<ApplicationError, LockCopyNotice?>> takeCopyNotice();
+  /// The notes locked before attachments were sealed, and what sealing theirs
+  /// would do: counted only while a key that opens them is held.
+  Future<Either<ApplicationError, FilesMigration>> filesMigration();
+
+  /// "Later" at the first-launch prompt: it is not asked again and a quiet
+  /// reminder stays until the attachments are sealed.
+  Future<Either<ApplicationError, Unit>> postponeFilesMigration();
+
+  /// Seals the attachments of every locked note the held keys, or [password],
+  /// open. [lockProgress] counts the files and [cancelLock] stops it between
+  /// two; running it again finishes. [LockedError] when no key is held and no
+  /// password given; [AuthError] when the password opens no waiting note.
+  Future<Either<ApplicationError, MigrationOutcome>> sealLockedAttachments({
+    String? password,
+  });
+
+  /// Undoes a sealing pass that stopped, with [password] as for
+  /// [sealLockedAttachments]. Returns how many files it undid.
+  Future<Either<ApplicationError, int>> undoFilesMigration({String? password});
 }

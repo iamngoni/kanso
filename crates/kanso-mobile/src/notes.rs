@@ -526,10 +526,17 @@ impl Library {
         let view = held(&self.inner.keys).reveal(note, None);
         if view == LockView::Open {
             let locks = self.locks();
-            // Opening a note never writes: a note locked before attachments
-            // were sealed keeps its plain files until its first edit-save,
-            // as on the desktop (`LockSession::seal_open_files`).
             locks.cache_note_file_keys_for_note(note);
+            // A note an older Kanso locked has its files sealed as it opens,
+            // as on the desktop. The session's lock is not held here.
+            if note.is_locked()
+                && !note
+                    .extra
+                    .contains_key(kanso_core::model::KANSO_FILES_FIELD)
+                && let Err(error) = locks.migrate_note_attachments(note)
+            {
+                eprintln!("kanso: locked notes: couldn't seal an attachment list: {error}");
+            }
         }
         view
     }

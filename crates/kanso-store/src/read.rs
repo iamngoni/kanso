@@ -393,6 +393,24 @@ impl Store {
         })
     }
 
+    /// Live notes that aren't locked (the trash included) whose stored JSON
+    /// names `file_id` at all. The owners Empty Trash keeps a file for
+    /// (`still_owned`) beyond `note_files`: a canvas card the canvas parser
+    /// rejects still shows the file. A lock goes by this before it seals a
+    /// file in place, so an unlocked note is never left without one it shows.
+    pub fn unlocked_notes_naming(&self, file_id: &str) -> Result<Vec<String>> {
+        self.read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id FROM docs WHERE type = 'note' AND deleted = 0
+                 AND json_extract(json, '$.kansoLock') IS NULL AND instr(json, ?1) > 0
+                 ORDER BY id",
+            )?;
+            Ok(stmt
+                .query_map([file_id], |row| row.get(0))?
+                .collect::<rusqlite::Result<_>>()?)
+        })
+    }
+
     /// Live note IDs (the trash included) whose `kansoFiles` list names
     /// `file_id`: the notes holding a wrapped key for it. Unlike
     /// [`Store::file_owners`] this includes a plain note carrying a stopped

@@ -12274,10 +12274,166 @@ abstract class AppLocalizations {
   /// **'That didn\'t work. Try again.'**
   String get lockInterruptedFailed;
 
+  /// Closes the notice about the attachments of locked notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get lockFilesNoticeDismiss;
+
+  /// The title of the sheet that seals the attachments of notes locked before attachments were sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'Seal attachments of locked notes'**
+  String get lockMigrationTitle;
+
+  /// What the first-launch prompt says.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachments of your locked notes aren\'t sealed yet. Enter your lock password to seal them now.'**
+  String get lockMigrationPrompt;
+
+  /// How many locked notes still have attachments that are not sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 locked note still has pictures and files stored in plain form.} other{{count} locked notes still have pictures and files stored in plain form.}}'**
+  String lockMigrationNotes(int count);
+
+  /// How many attachments, and how much, sealing will do, when the notes are open.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 attachment ({size}) will be sealed.} other{{count} attachments ({size}) will be sealed.}}'**
+  String lockMigrationCounted(int count, String size);
+
+  /// Says that attachments an unlocked note also shows are copied.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 attachment is also used by another note: the locked note gets its own sealed copy, and the other note keeps the original.} other{{count} attachments are also used by other notes: each locked note gets its own sealed copy, and the other notes keep theirs.}}'**
+  String lockMigrationShared(int count);
+
+  /// Said when the notes are closed and the attachments cannot be counted yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso counts them, and their size, once the password opens the notes.'**
+  String get lockMigrationUncounted;
+
+  /// The button that starts sealing.
+  ///
+  /// In en, this message translates to:
+  /// **'Seal now'**
+  String get lockMigrationSealNow;
+
+  /// Leaves sealing for later; a quiet reminder stays.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get lockMigrationLater;
+
+  /// Explains why the lock password is asked before sealing.
+  ///
+  /// In en, this message translates to:
+  /// **'Type your lock password. Kanso seals the attachments of every locked note it opens.'**
+  String get lockMigrationPasswordMessage;
+
+  /// The title of the progress sheet while the attachments of locked notes are sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sealing attachments'**
+  String get lockMigrationSealing;
+
+  /// The title when an earlier sealing pass stopped part way.
+  ///
+  /// In en, this message translates to:
+  /// **'Sealing didn\'t finish'**
+  String get lockMigrationStoppedTitle;
+
+  /// Explains a sealing pass that stopped part way.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 locked note was left half done.} other{{count} locked notes were left half done.}} Some attachments are sealed, and none is lost. Finish sealing, or undo it to keep everything as it was.'**
+  String lockMigrationStoppedMessage(int count);
+
+  /// Finishes a sealing pass that stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish sealing'**
+  String get lockMigrationFinish;
+
+  /// Undoes a sealing pass that stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get lockMigrationUndo;
+
+  /// Said when sealing is done.
+  ///
+  /// In en, this message translates to:
+  /// **'{files, plural, =1{Sealed 1 attachment} other{Sealed {files} attachments}} in {notes, plural, =1{1 locked note} other{{notes} locked notes}}.'**
+  String lockMigrationDone(int files, int notes);
+
+  /// Said when sealing found nothing to seal.
+  ///
+  /// In en, this message translates to:
+  /// **'{notes, plural, =1{Checked 1 locked note: no attachments needed sealing.} other{Checked {notes} locked notes: no attachments needed sealing.}}'**
+  String lockMigrationNothing(int notes);
+
+  /// Said after sealing made copies of shared attachments.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 attachment also used by another note has its own sealed copy.} other{{count} attachments also used by other notes have their own sealed copies.}}'**
+  String lockMigrationCopies(int count);
+
+  /// Said when some notes were not opened by the password.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 locked note uses another lock password and was left as it is.} other{{count} locked notes use another lock password and were left as they are.}}'**
+  String lockMigrationUnopened(int count);
+
+  /// Said when some notes could not be sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 locked note couldn\'t be sealed and stays as it was.} other{{count} locked notes couldn\'t be sealed and stay as they were.}}'**
+  String lockMigrationFailedNotes(int count);
+
+  /// Said when Cancel stopped the sealing.
+  ///
+  /// In en, this message translates to:
+  /// **'Sealing stopped. Open Settings, then Locked notes, to finish it.'**
+  String get lockMigrationStopped;
+
+  /// Said after a stopped sealing pass was undone.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Undone. 1 attachment is readable again, as before.} other{Undone. {count} attachments are readable again, as before.}}'**
+  String lockMigrationUndone(int count);
+
+  /// The quiet reminder shown until the attachments are sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Attachments of 1 locked note aren\'t sealed yet.} other{Attachments of {count} locked notes aren\'t sealed yet.}}'**
+  String lockMigrationReminder(int count);
+
+  /// Opens the sheet that seals the attachments of notes locked before attachments were sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'Seal attachments of locked notes…'**
+  String get settingsSealAttachments;
+
+  /// How many locked notes wait to have their attachments sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 note} other{{count} notes}}'**
+  String settingsSealAttachmentsValue(int count);
+
+  /// Closes the sheet that says how sealing the attachments of locked notes went.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get lockMigrationClose;
+
   /// The one-time notice about notes locked before attachments were sealed, with what to do on other devices.
   ///
   /// In en, this message translates to:
-  /// **'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you edit it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.'**
+  /// **'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.'**
   String get lockFilesNotice;
 }
 

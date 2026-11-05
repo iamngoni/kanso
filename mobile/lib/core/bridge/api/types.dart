@@ -1418,6 +1418,49 @@ class ExportedPage {
           fileName == other.fileName;
 }
 
+class FilesMigration {
+  final int notes;
+  final int stopped;
+  final bool postponed;
+  final bool counted;
+  final int files;
+  final int bytes;
+  final int shared;
+
+  const FilesMigration({
+    required this.notes,
+    required this.stopped,
+    required this.postponed,
+    required this.counted,
+    required this.files,
+    required this.bytes,
+    required this.shared,
+  });
+
+  @override
+  int get hashCode =>
+      notes.hashCode ^
+      stopped.hashCode ^
+      postponed.hashCode ^
+      counted.hashCode ^
+      files.hashCode ^
+      bytes.hashCode ^
+      shared.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FilesMigration &&
+          runtimeType == other.runtimeType &&
+          notes == other.notes &&
+          stopped == other.stopped &&
+          postponed == other.postponed &&
+          counted == other.counted &&
+          files == other.files &&
+          bytes == other.bytes &&
+          shared == other.shared;
+}
+
 class FoldState {
   final List<String> open;
   final String? foldedAt;
@@ -3116,6 +3159,45 @@ class MentionSpan {
           runtimeType == other.runtimeType &&
           start == other.start &&
           end == other.end;
+}
+
+class MigrationOutcome {
+  final int notes;
+  final int sealed;
+  final int copied;
+  final int unopened;
+  final int failed;
+  final bool stopped;
+
+  const MigrationOutcome({
+    required this.notes,
+    required this.sealed,
+    required this.copied,
+    required this.unopened,
+    required this.failed,
+    required this.stopped,
+  });
+
+  @override
+  int get hashCode =>
+      notes.hashCode ^
+      sealed.hashCode ^
+      copied.hashCode ^
+      unopened.hashCode ^
+      failed.hashCode ^
+      stopped.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MigrationOutcome &&
+          runtimeType == other.runtimeType &&
+          notes == other.notes &&
+          sealed == other.sealed &&
+          copied == other.copied &&
+          unopened == other.unopened &&
+          failed == other.failed &&
+          stopped == other.stopped;
 }
 
 class MonthGrid {

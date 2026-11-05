@@ -627,6 +627,17 @@ sent raw.
 - **Matching bytes to a version.** The opened bytes must match the file document's `md5digest`. A
   mismatch counts as missing, and a later ordinary sync fetches them again ("Sync with encryption ›
   Files").
+- **Notes locked before attachments were sealed.** Their files cross the wire as ordinary files,
+  plain inside this envelope, until the owner types the lock password once and the app seals them
+  (**Seal Attachments of Locked Notes…**, offered at the first launch after the update). That pass
+  is made of ordinary writes, so it syncs like any edit: each file document becomes a sealed file
+  (a file never turns plain again except through the app's own unseal), a file an unlocked note
+  also shows gets a sealed copy under a new file ID and the original stays, and the note gains its
+  `kansoFiles` list in the same write that rewrites its sealed text. The wraps are written to the
+  note before any file is sealed, so a pass that stopped can be finished or undone from any device
+  that has the password. A device that never types the password never seals them, and the server
+  can't: until then those attachments are as readable as before the update, to the account's
+  devices only.
 
 ### Sealed device names
 

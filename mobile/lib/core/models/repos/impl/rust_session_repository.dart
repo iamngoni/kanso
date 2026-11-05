@@ -169,4 +169,23 @@ class RustSessionRepository implements SessionRepository {
   @override
   Future<Either<ApplicationError, LockCopyNotice?>> takeCopyNotice() =>
       attempt(_locks.takeCopyNotice);
+  Future<Either<ApplicationError, FilesMigration>> filesMigration() =>
+      attempt(_locks.filesMigration);
+
+  @override
+  Future<Either<ApplicationError, Unit>> postponeFilesMigration() =>
+      attempt(() async {
+        await _locks.postponeFilesMigration();
+        return unit;
+      });
+
+  @override
+  Future<Either<ApplicationError, MigrationOutcome>> sealLockedAttachments({
+    String? password,
+  }) => attempt(() => _locks.sealLockedAttachments(password: password));
+
+  @override
+  Future<Either<ApplicationError, int>> undoFilesMigration({
+    String? password,
+  }) => attempt(() => _locks.undoFilesMigration(password: password));
 }
