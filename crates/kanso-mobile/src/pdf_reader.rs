@@ -37,7 +37,7 @@ use crate::pdf_reader_model::{
 /// What a PDF in a locked note answers while the note is closed: unlocking
 /// opens it (its bytes are sealed with the lock, and are opened with the file
 /// keys of this session; nothing derived from it is ever written unsealed).
-pub const PDF_IN_LOCKED_NOTE_OPEN: &str = "Unlock this note to open its PDF.";
+pub const PDF_IN_LOCKED_NOTE_OPEN: &str = "Unlock the note to open its PDF.";
 
 /// The most hits of a search handed to the app at once.
 pub const FIND_HITS_SHOWN: usize = 500;

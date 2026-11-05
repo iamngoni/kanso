@@ -2821,13 +2821,15 @@ impl NoteEditor {
         let Ok(Some(meta)) = self.store.file_meta(&id) else {
             return;
         };
-        if meta.content_type != "application/pdf" {
+        // A locked note is readable here only while this session holds its
+        // lock key. The reader opens sealed bytes with the matching file key.
+        if self.lock.is_closed() {
+            if meta.is_sealed() || meta.content_type == "application/pdf" {
+                cx.emit(EditorEvent::Notice(PDF_IN_LOCKED_NOTE_OPEN.to_owned()));
+            }
             return;
         }
-        // A locked note's PDF waits for sealed attachments (issue #43, step
-        // 12): the reader would show its pixels in the clear.
-        if self.note_is_locked() || self.lock != LockView::Plain {
-            cx.emit(EditorEvent::Notice(PDF_IN_LOCKED_NOTE_OPEN.to_owned()));
+        if meta.content_type != "application/pdf" && !meta.is_sealed() {
             return;
         }
         let (store, name) = (self.store.clone(), meta.name);
@@ -3617,13 +3619,6 @@ impl NoteEditor {
                     bytes,
                 })
             })
-    }
-
-    /// Whether the open note is locked, or in a locked notebook.
-    fn note_is_locked(&self) -> bool {
-        self.note
-            .as_ref()
-            .is_some_and(|n| n.is_locked() || self.store.note_is_locked(&n.id).unwrap_or(false))
     }
 
     /// File › Attach PDF…: asks for PDFs and attaches them at the caret.
@@ -5443,9 +5438,8 @@ fn is_pdf_path(path: &std::path::Path) -> bool {
 const PDF_NOTE_READ_ONLY: &str =
     "This note can't be edited right now, so the highlight wasn't saved to it.";
 
-/// What opening a PDF in a locked note says: the PDF reader still reads the
-/// store directly and cannot open the attachment through the lock session.
-const PDF_IN_LOCKED_NOTE_OPEN: &str = "PDFs in locked notes can't be opened yet. Unlock the note first, or move the PDF to a note that isn't locked.";
+/// What opening a PDF in a closed locked note says.
+const PDF_IN_LOCKED_NOTE_OPEN: &str = "Unlock the note to open its PDF.";
 
 /// What a pasted or dropped file becomes in the note: an attached image's
 /// Markdown, or a drawing's fenced block (kept in the note itself, so it
@@ -7985,16 +7979,23 @@ mod writing_tests {
         );
     }
 
-    /// A locked note refuses to open its PDF in the reader, in words, and
-    /// the reader closes when the note changes.
+    /// A sealed PDF opens only while its note's key is in this session, and
+    /// the reader closes when the note locks or changes.
     // no-prop-test: drives one window.
     #[gpui_kit::test]
-    fn a_locked_notes_pdf_stays_shut_and_the_reader_leaves_with_the_note(cx: &mut TestAppContext) {
-        let open = Open::new(cx, "[Report](inkdrop://file:ghost-1)\n");
+    fn a_locked_notes_pdf_opens_only_while_the_note_is_unlocked(cx: &mut TestAppContext) {
+        let open = Open::new(cx, "Report\n");
         let pdf =
             kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
                 .unwrap();
         let url = format!("inkdrop://{pdf}");
+
+        // The note owns this PDF, so locking it seals the attachment with
+        // the session's per-file key.
+        open.with(cx, |editor, window, cx| {
+            editor.edit_for_test(&format!("[Report]({url})\n"), window, cx);
+            editor.flush(cx);
+        });
 
         // The reader leaves with its note.
         let (shown, link) = (open.id.clone(), url.clone());
@@ -8007,7 +8008,8 @@ mod writing_tests {
             assert!(editor.pdf.is_none());
         });
 
-        // A locked note refuses.
+        // Locking keeps the note open in this session; the sealed-file path
+        // must still open it, using the session's file key.
         let notices = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
         let seen = notices.clone();
         cx.update(|cx| {
@@ -8018,27 +8020,65 @@ mod writing_tests {
             })
             .detach();
         });
-        let url_after = url.clone();
-        open.with(cx, move |editor, window, cx| {
+        let key = cx.update(|cx| {
             let key = kanso_sync::lock::LockKey::create(
                 &kanso_sync::lock::LockPassword::new("long enough").unwrap(),
                 kanso_sync::KdfParams::TEST,
             )
             .unwrap();
+            crate::locked::LockKeys::add(key, cx);
+            crate::locked::LockKeys::current(cx).unwrap()
+        });
+        let key_for_lock = key.clone();
+        let link = url.clone();
+        open.with(cx, move |editor, window, cx| {
             // Open on the plain note, then lock it: the reader goes too.
-            editor.open_file_link(&url, window, cx);
+            editor.open_file_link(&link, window, cx);
             assert!(editor.pdf.is_some());
-            editor.lock_with(&std::sync::Arc::new(key), window, cx);
+            editor.lock_with(&key_for_lock, window, cx);
         });
         // The lock finishes on the next turn of the window.
         cx.run_until_parked();
-        open.with(cx, move |editor, window, cx| {
+        open.with(cx, |editor, window, cx| {
             assert!(
                 editor.pdf.is_none(),
                 "the reader stayed open on a locked note"
             );
-            editor.open_file_link(&url_after, window, cx);
-            assert!(editor.pdf.is_none(), "a locked note's PDF opened");
+            assert_eq!(editor.lock, crate::locked::LockView::Open);
+            assert!(editor.note.as_ref().is_some_and(|note| note.is_locked()));
+            assert!(open.store.file_meta(&pdf).unwrap().unwrap().is_sealed());
+            assert!(open.store.attachment(&pdf).unwrap().is_none());
+            match crate::attachments::open_with(
+                &open.store,
+                &pdf,
+                &crate::attachments::FileKeys::peek(cx),
+            ) {
+                crate::attachments::Opened::Opened(file) => {
+                    assert_eq!(file.content_type, "application/pdf");
+                    assert_eq!(file.bytes, b"%PDF-1.7\n%body");
+                }
+                state => panic!("session did not open sealed PDF: {state:?}"),
+            }
+            editor.open_file_link(&url, window, cx);
+            assert!(
+                editor.pdf.is_some(),
+                "the unlocked note's sealed PDF did not open"
+            );
+        });
+        cx.run_until_parked();
+
+        // Lock Notes Now drops file keys and closes the reader immediately.
+        let editor = open.editor.clone();
+        cx.update_window(open.window, move |_, window, cx| {
+            crate::locked::lock_now(&editor, window, cx)
+        })
+        .unwrap();
+        let closed_url = url.clone();
+        open.with(cx, move |editor, window, cx| {
+            assert!(editor.lock.is_closed());
+            assert!(editor.pdf.is_none());
+            editor.open_file_link(&closed_url, window, cx);
+            assert!(editor.pdf.is_none(), "a closed note's PDF opened");
         });
         cx.run_until_parked();
         assert_eq!(*notices.borrow(), [super::PDF_IN_LOCKED_NOTE_OPEN]);

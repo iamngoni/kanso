@@ -37,7 +37,7 @@ pub struct Job {
 /// What the thread tells the reader.
 pub enum Event {
     /// The document is open. Sizes are in points, in page order.
-    Opened { sizes: Vec<[f32; 2]> },
+    Opened { name: String, sizes: Vec<[f32; 2]> },
     /// The document needs a password (`wrong`: the one given was not it).
     NeedsPassword { wrong: bool },
     /// A page drawn, as a texture.
@@ -193,9 +193,9 @@ fn run(
         return;
     };
     // A sealed PDF opens only with the file key this session holds for it.
-    let bytes = match crate::attachments::open_with(store, file_id, keys) {
+    let (name, bytes) = match crate::attachments::open_with(store, file_id, keys) {
         crate::attachments::Opened::Opened(file) if file.content_type == "application/pdf" => {
-            file.bytes
+            (file.name, file.bytes)
         }
         _ => {
             send(Event::Failed(NOT_READABLE.to_owned()));
@@ -241,7 +241,7 @@ fn run(
         }
     };
     drop(bytes);
-    if !send(Event::Opened { sizes }) {
+    if !send(Event::Opened { name, sizes }) {
         worker.close();
         return;
     }
