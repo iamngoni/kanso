@@ -6257,11 +6257,6 @@ fn snapshots() {
         if name.ends_with("-remove") || name.ends_with("-plugin-developer") {
             plugin_shot.dialog_sample_y = Some(30.);
         }
-        // The Record sheet is tall and starts near the window's top, so 30
-        // lands on its border; sample just below it, above the title.
-        if name.contains("-record-system-") {
-            plugin_shot.dialog_sample_y = Some(45.);
-        }
         shots.push(plugin_shot);
     }
     // The Themes page whole, in both of Kanso's themes and in another.

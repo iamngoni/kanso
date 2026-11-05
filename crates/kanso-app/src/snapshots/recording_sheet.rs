@@ -51,6 +51,9 @@ fn zoom() -> SystemSource {
 }
 
 fn open(cx: &mut HeadlessAppContext, window: AnyWindowHandle, fixed: Fixed) {
+    // Without it the dialog is drawn mid slide-in, higher on each run's
+    // first shot than on the rest.
+    cx.update(|cx| cx.set_reduce_motion(true));
     cx.update_window(window, |_, window, cx| {
         crate::record_sheet::open_with(None, Some(fixed), window, cx);
     })
