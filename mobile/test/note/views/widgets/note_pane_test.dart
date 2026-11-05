@@ -286,8 +286,6 @@ void main() {
               enabled: aiOn,
               provider: 'anthropic',
               host: 'api.anthropic.com',
-              isRemote: true,
-              privacy: '',
             ),
           ),
         );
