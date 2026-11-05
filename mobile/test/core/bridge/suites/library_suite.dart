@@ -1000,6 +1000,8 @@ void librarySuite(OpenLibrary open) {
         ids: <String>[doomed],
         change: const NoteChange.trash(),
       );
+      // None of what is in this trash is locked.
+      expect(await library.lockedInTrash(), 0);
       expect(await library.emptyTrash(), greaterThanOrEqualTo(1));
       expect((await library.overview()).trash, 0);
     });

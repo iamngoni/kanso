@@ -149,6 +149,10 @@ class RustLibraryRepository implements LibraryRepository {
       right(KansoLibrary.statuses());
 
   @override
+  Future<Either<ApplicationError, int>> lockedInTrash() =>
+      attempt(_library.lockedInTrash);
+
+  @override
   Future<Either<ApplicationError, int>> emptyTrash() =>
       attempt(_library.emptyTrash);
 

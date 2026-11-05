@@ -19,6 +19,7 @@ import 'linking.dart';
 import 'locks.dart';
 import 'metrics.dart';
 import 'notebook_home.dart';
+import 'notices_types.dart';
 import 'overview_types.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'people.dart';
@@ -144,6 +145,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   KansoDiscovery discovery();
 
+  /// Hides the card on this phone for good.
+  Future<void> dismissUpdateNotice({required String id});
+
   KansoDrafting drafting();
 
   static DueChipRow? dueChip({
@@ -162,7 +166,8 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// Opens note `id` for editing. Locked while it is locked and closed.
   Future<KansoEditor> edit({required String id});
 
-  /// Deletes every note in the trash for good; says how many.
+  /// Deletes every note in the trash for good, locked ones and their
+  /// sealed attachments too; says how many notes.
   Future<int> emptyTrash();
 
   /// Send feedback and My feedback for this library.
@@ -226,7 +231,13 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   Future<NoteList> list({required ListQuery query});
 
+  /// How many notes in the trash are locked.
+  Future<int> lockedInTrash();
+
   KansoLocks locks();
+
+  /// Hides the card because the person fixed what it said.
+  Future<void> markUpdateNoticeFixed({required String id});
 
   /// The anonymous usage count and its notice state for this library.
   KansoMetrics metrics();
@@ -495,6 +506,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   KansoTriage triage();
 
   Future<int> undo({required int ticket});
+
+  /// The card to show now. `signed_in_to_sync` is whether this phone has
+  /// an account.
+  Future<PhoneNotices> updateNotices({required bool signedInToSync});
 
   /// The notebook rows that show with `folds` applied, around the notebook
   /// showing.

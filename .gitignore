@@ -8,3 +8,12 @@
 # The apt signing key's backup (scripts/apt-setup.sh) belongs outside the
 # repository; never commit one that ends up here.
 kanso-apt-signing-key-BACKUP.*
+
+# The PDFium libraries scripts/fetch-pdfium.sh downloads.
+/vendor/pdfium/
+
+# cargo-fuzz's build, seeds and crashes for the PDF worker protocol
+# (crates/kanso-pdf/fuzz; scripts/pdf-fuzz.sh makes the seeds).
+/crates/kanso-pdf/fuzz/target/
+/crates/kanso-pdf/fuzz/corpus/
+/crates/kanso-pdf/fuzz/artifacts/

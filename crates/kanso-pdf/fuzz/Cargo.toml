@@ -1,0 +1,24 @@
+[package]
+name = "kanso-pdf-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+kanso-pdf = { path = ".." }
+
+# Not part of the repository's workspace: it builds with nightly and
+# sanitizers (`cargo fuzz`), and has its own lockfile.
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "frame"
+path = "fuzz_targets/frame.rs"
+test = false
+doc = false
+bench = false
