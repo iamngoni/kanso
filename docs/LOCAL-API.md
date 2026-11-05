@@ -32,9 +32,9 @@ turned back into it. If you lose a key, revoke it and make another.
 A key looks like `kcl_` followed by 43 characters (47 in all). The prefix tells it
 apart from the short-lived tokens Kanso gives its own agents, and makes a leaked key
 easy to search for. Keys live in your library, never sync, and work on this computer
-only. A backup holds the keys as they were when it was made, so restoring one brings
-those keys back, including any you revoked since. Check Settings › API keys after a
-restore.
+only. Restoring a backup never brings back the keys it held: the library keeps the keys
+it has now, so a key you revoked stays revoked and one made after the backup keeps
+working.
 
 No setup is a terminal command: a key in a command's arguments would be in the process
 list and the shell's history. Every agent's setup is an entry for its config file.

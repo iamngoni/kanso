@@ -218,6 +218,10 @@ fn open(data_dir: &Path) -> Result<(kanso_store::DataDirLock, Store)> {
     }
     let lock = kanso_store::lock_data_dir(data_dir)?
         .ok_or_else(|| anyhow!("{} is in use by Kanso; quit it first", data_dir.display()))?;
+    // Only the app applies a staged restore, so it can say so.
+    if kanso_store::restore_staged(&data_dir.join("kanso.db")) {
+        eprintln!("A restore is waiting; open Kanso to apply it.");
+    }
     let store = kanso_sync::open_library(&data_dir.join("kanso.db"), &*secrets(data_dir)?)?.store;
     Ok((lock, store))
 }

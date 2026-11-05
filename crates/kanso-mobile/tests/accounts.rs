@@ -46,13 +46,20 @@ fn log<T: Send + 'static>() -> (Arc<Mutex<Vec<T>>>, impl FnMut(T) -> bool + Send
     })
 }
 
+/// How long a wait for another thread or device may take before it is called
+/// a failure. A wait ends the moment its condition holds, so only a real
+/// failure spends this; it is long because one step is many seconds of
+/// debug-build key derivation behind a 2 s poll, and a machine running the
+/// whole workspace's tests at once multiplies that (60 s was not enough).
+const WAIT: Duration = Duration::from_secs(600);
+
 /// Waits until `done` holds for what `seen` has, and returns it.
 fn wait_for<T: Clone>(
     seen: &Arc<Mutex<Vec<T>>>,
     what: &str,
     done: impl Fn(&[T]) -> bool,
 ) -> Vec<T> {
-    let end = Instant::now() + Duration::from_secs(60);
+    let end = Instant::now() + WAIT;
     loop {
         let now = seen.lock().unwrap().clone();
         if done(&now) {
@@ -184,7 +191,7 @@ fn session_of(secrets: &MemorySecrets) -> Session {
 /// shows up, as the sheet of the desktop does: it challenges, opens the
 /// named request and approves. Returns the code it showed.
 fn approve(server: &Arc<MemoryServer>, approver: &Session) -> String {
-    let end = Instant::now() + Duration::from_secs(60);
+    let end = Instant::now() + WAIT;
     let mut key: Option<ApproverKey> = None;
     let mut challenged = false;
     loop {

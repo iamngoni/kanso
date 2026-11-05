@@ -355,8 +355,25 @@ pub(crate) fn drawing(job: &Job, rich: &Rich) -> Option<Arc<Outcome>> {
     if let Some(outcome) = kanso_render::cached(job) {
         return Some(outcome);
     }
+    ask(job, rich)
+}
+
+/// Asks for a drawing that isn't ready: a render worker makes it and wakes
+/// the view.
+#[cfg(not(test))]
+fn ask(job: &Job, rich: &Rich) -> Option<Arc<Outcome>> {
     kanso_render::request(job.clone(), rich.waker());
     None
+}
+
+/// GPUI's test scheduler fails a test on "activity on another thread", and a
+/// render worker waking the waiting view is exactly that, at a moment that
+/// depends on how busy the machine is: a drawing finished before the view
+/// asked was never a problem, one finished after was. Tests draw on the
+/// test's own thread, so the answer is there at once.
+#[cfg(test)]
+fn ask(job: &Job, _rich: &Rich) -> Option<Arc<Outcome>> {
+    Some(kanso_render::render_blocking(job))
 }
 
 /// Decoded images by job: GPUI caches a rasterized image by the image, so
