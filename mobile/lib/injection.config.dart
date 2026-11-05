@@ -235,6 +235,10 @@ import 'recording/models/repos/impl/rust_recording_repository.dart' as _i804;
 import 'recording/services/recording_audio_session.dart' as _i133;
 import 'recording/state/player/player_bloc.dart' as _i186;
 import 'recording/state/recording/recording_bloc.dart' as _i181;
+import 'recording_summary/models/repos/abs/recording_summary_repository.dart'
+    as _i34;
+import 'recording_summary/models/repos/impl/rust_recording_summary_repository.dart'
+    as _i821;
 import 'reminders/state/reminders_settings/reminders_settings_bloc.dart'
     as _i420;
 import 'reminders/utils/reminders_coordinator.dart' as _i303;
@@ -647,6 +651,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i455.KansoLibrary>(),
         gh<_i35.KansoAi>(),
       ),
+    );
+    gh.lazySingleton<_i34.RecordingSummaryRepository>(
+      () => _i821.RustRecordingSummaryRepository(gh<_i455.KansoLibrary>()),
     );
     gh.factory<_i553.BoardBloc>(
       () => _i553.BoardBloc(

@@ -4,6 +4,9 @@
 //! `cargo test -p kanso-store --release --test encryption_speed -- --ignored --nocapture`
 //!
 //! `KANSO_SPEED_MB` sets the library's size on disk (default 150).
+//!
+//! The run fails when encryption costs more than the budget in `within`.
+//! CI runs it on master (`.github/workflows/ci.yml`, job `encryption-speed`).
 
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -61,6 +64,18 @@ fn search(store: &Store, term: &str) -> usize {
         })
         .unwrap()
         .len()
+}
+
+/// How much slower than plain an encrypted step may be: five times, plus
+/// 50 ms of slack for steps too short to time. Measured on 150 MB: opens and
+/// searches run 0.9x to 2x, a save and a backup (which ciphers every page)
+/// about 3.6x. The budget catches a real regression (no page cache, a key
+/// derived for every statement) without failing on a noisy runner.
+const SLOWER_BY: f64 = 5.0;
+const SLACK_MS: f64 = 50.0;
+
+fn within(plain_ms: f64, keyed_ms: f64) -> bool {
+    keyed_ms <= plain_ms * SLOWER_BY + SLACK_MS
 }
 
 struct Numbers {
@@ -205,4 +220,64 @@ fn a_150_mb_library_is_about_as_quick_encrypted() {
     );
     row("one save", ms(plain.put), ms(keyed.put), "ms");
     row("backup", ms(plain.backup), ms(keyed.backup), "ms");
+    let over: Vec<&str> = [
+        ("open (cold)", plain.open, keyed.open),
+        ("word search", plain.word_search, keyed.word_search),
+        (
+            "fragment search",
+            plain.fragment_search,
+            keyed.fragment_search,
+        ),
+        ("one save", plain.put, keyed.put),
+        ("backup", plain.backup, keyed.backup),
+    ]
+    .into_iter()
+    .filter(|(_, plain, keyed)| !within(ms(*plain), ms(*keyed)))
+    .map(|(name, ..)| name)
+    .collect();
+    assert!(
+        over.is_empty(),
+        "encryption is more than {SLOWER_BY}x slower (plus {SLACK_MS} ms) for: {}. \
+         Check that the page cache and the key setup are not repeated per statement.",
+        over.join(", ")
+    );
+}
+
+mod budget {
+    use proptest::prelude::*;
+    use proptest::test_runner::{Config, RngSeed};
+
+    use super::{SLACK_MS, SLOWER_BY, within};
+
+    proptest! {
+        #![proptest_config(Config {
+            cases: 256,
+            rng_seed: RngSeed::Fixed(0x006b_616e_736f),
+            failure_persistence: None,
+            ..Config::default()
+        })]
+
+        /// Equal times, or a faster encrypted step, are always within budget.
+        #[test]
+        fn prop_no_slower_is_always_within(plain in 0.0f64..1e6, gain in 0.0f64..1e6) {
+            prop_assert!(within(plain, (plain - gain).max(0.0)));
+            prop_assert!(within(plain, plain));
+        }
+
+        /// A step over the budget is refused; one at the edge is not.
+        #[test]
+        fn prop_the_budget_is_the_stated_ratio_plus_slack(plain in 0.0f64..1e6, extra in 1.0f64..1e6) {
+            let edge = plain * SLOWER_BY + SLACK_MS;
+            prop_assert!(!within(plain, edge + extra));
+            prop_assert!(within(plain, edge));
+        }
+
+        /// A slower plain step never makes the same encrypted time fail.
+        #[test]
+        fn prop_slower_plain_loosens_the_budget(
+            plain in 0.0f64..1e6, more in 0.0f64..1e6, keyed in 0.0f64..1e7,
+        ) {
+            prop_assert!(!within(plain, keyed) || within(plain + more, keyed));
+        }
+    }
 }
