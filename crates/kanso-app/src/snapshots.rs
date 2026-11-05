@@ -7,6 +7,9 @@
 //!     cargo test -p kanso-app snapshots -- --ignored --nocapture
 //! ```
 //!
+//! The theme thumbnails test (`theme_thumbnails`) also matches that filter;
+//! it skips unless `KANSO_THEME_THUMBS_DIR` is set.
+//!
 //! Without `KANSO_SNAPSHOT_DB` a demo library is used, with the clock fixed
 //! so every run draws the same picture. The database is copied first, so the
 //! original is never written. Each shot also checks that the panes are
@@ -5345,15 +5348,21 @@ const THUMB_GAP: f32 = 12.;
 /// Renders each theme's three cards (UI, syntax, preview) to
 /// `<file stem>.png` in `KANSO_THEME_THUMBS_DIR`: the themes in
 /// `KANSO_THEMES_DIR` when set (a checkout of the themes repository, say),
-/// else the built-in ones. `themes/scripts/check.sh` runs it.
+/// else the built-in ones. `themes/scripts/check.sh` runs it. Without
+/// `KANSO_THEME_THUMBS_DIR` it skips with a note, so the documented snapshot
+/// command (which matches it) passes with only `KANSO_SNAPSHOT_DIR` set.
 #[test]
 #[ignore = "writes PNGs; run on demand with KANSO_THEME_THUMBS_DIR set"]
 fn theme_thumbnails() {
     use crate::settings_themes::{CARD_WIDTH, THUMB_HEIGHT};
     use crate::theme_file::ThemeFile;
     use crate::themes::ThemeEntry;
-    let out =
-        PathBuf::from(std::env::var("KANSO_THEME_THUMBS_DIR").expect("set KANSO_THEME_THUMBS_DIR"));
+    // The snapshot filter (`snapshots -- --ignored`) matches this test too;
+    // without its own directory there is nowhere to write, so it skips.
+    let Some(out) = std::env::var_os("KANSO_THEME_THUMBS_DIR").map(PathBuf::from) else {
+        eprintln!("theme_thumbnails: skipped, KANSO_THEME_THUMBS_DIR is not set");
+        return;
+    };
     std::fs::create_dir_all(&out).unwrap();
     let themes: Vec<(String, Arc<ThemeEntry>)> = match std::env::var_os("KANSO_THEMES_DIR") {
         Some(dir) => {
@@ -6306,6 +6315,32 @@ fn snapshots() {
             Split,
             pdf::reader_original_page,
         ),
+        Shot {
+            size: size(px(1900.), px(900.)),
+            ..shot("dark-pdf-highlights", Dark, Split, pdf::reader_highlights)
+        },
+        Shot {
+            size: size(px(1900.), px(900.)),
+            ..shot("light-pdf-highlights", Light, Split, pdf::reader_highlights)
+        },
+        Shot {
+            size: size(px(1900.), px(900.)),
+            ..shot(
+                "dark-pdf-highlights-restore",
+                Dark,
+                Split,
+                pdf::reader_highlights_restore,
+            )
+        },
+        Shot {
+            size: size(px(1900.), px(900.)),
+            ..shot(
+                "light-pdf-highlights-restore",
+                Light,
+                Split,
+                pdf::reader_highlights_restore,
+            )
+        },
         shot("dark-pdf-password", Dark, Split, pdf::reader_password),
         shot("light-pdf-password", Light, Split, pdf::reader_password),
         shot(

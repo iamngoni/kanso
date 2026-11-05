@@ -101,6 +101,35 @@ pub fn words_problem(err: WordsError) -> String {
     err.to_string()
 }
 
+/// Why a restore isn't staged while the library is signed in to sync (issue
+/// #243): the restored notes would meet the account's with nobody asked
+/// how. A restored library comes back signed out and unbound, so signing in
+/// again asks, as for any library with notes (docs/ACCOUNTS.md › Library
+/// binding).
+pub const RESTORE_SIGNED_IN: &str = "This library is signed in to sync, so it can't be restored now. Sign out first (Settings › Account), then restore the backup. When you sign in again, Kanso asks whether to add the restored notes to your account or replace them with your account's notes.";
+
+/// Why a staged restore waits at launch: the library was signed in after it
+/// was staged (`library_open`). Shown after "Couldn't restore the backup
+/// yet:".
+pub const RESTORE_SIGNED_IN_AT_LAUNCH: &str = "this library is signed in to sync. Sign out (Settings › Account), then quit Kanso and open it again";
+
+/// Whether a restore must wait for the person to sign out. It goes ahead
+/// only when the account is signed out (or its session was ended by the
+/// server, which leaves no session behind) and nothing about an account is
+/// under way: `pending` is a sign-in waiting on its key, a provider or the
+/// binding question, an account task, or the launch's keychain read.
+pub fn restore_refusal(
+    account: &kanso_engine::sync::AccountState,
+    pending: bool,
+) -> Option<&'static str> {
+    use kanso_engine::sync::AccountState;
+    let quiet = matches!(
+        account,
+        AccountState::SignedOut | AccountState::SessionEnded { .. }
+    );
+    (!quiet || pending).then_some(RESTORE_SIGNED_IN)
+}
+
 /// What a finished restore says, once it is staged.
 pub const STAGED: &str = "The backup is ready. Quit Kanso and open it again to finish. The library you have now is kept as a backup.";
 
@@ -199,6 +228,32 @@ mod tests {
             );
             prop_assert!(!key_saved(None, Some(&ours)));
             prop_assert!(!key_saved(Some(&ours.fingerprint()), None));
+        }
+
+        /// Invariants: anything pending refuses a restore; otherwise only a
+        /// session there or being made does (signed in, locked, or an
+        /// account task such as a sign-in under way), and every refusal says
+        /// to sign out first.
+        #[test]
+        fn prop_restore_waits_for_a_quiet_signed_out_library(
+            account in prop_oneof![
+                crate::services::strategies::account(),
+                "[a-z]{3,12}".prop_map(|username| {
+                    kanso_engine::sync::AccountState::SignedInLocked { username }
+                }),
+            ],
+            pending in any::<bool>(),
+        ) {
+            use kanso_engine::sync::AccountState;
+            let session = matches!(
+                account,
+                AccountState::SignedIn { .. }
+                    | AccountState::SignedInLocked { .. }
+                    | AccountState::Busy(_)
+            );
+            let refused = restore_refusal(&account, pending);
+            prop_assert_eq!(refused.is_some(), session || pending);
+            prop_assert!(refused.is_none_or(|why| why.contains("Sign out first")));
         }
 
         /// Invariants: sync holds the notes only when signed in with

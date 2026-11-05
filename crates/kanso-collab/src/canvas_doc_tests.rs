@@ -988,3 +988,165 @@ proptest! {
         prop_assert_eq!(one.to_canvas().validate(), Ok(()));
     }
 }
+
+// ------------------------------------------------- the local API's batches
+
+mod api_batches {
+    use kanso_core::canvas::{Batch, BatchContext, apply_batch};
+    use serde_json::{Value, json};
+
+    use super::*;
+
+    fn known(id: &str) -> bool {
+        id == "note:known"
+    }
+
+    fn none(_: &str) -> bool {
+        false
+    }
+
+    /// What `Engine::edit_canvas` does for the local API: applies the batch
+    /// to the canvas as the CRDT has it, and writes the difference as updates.
+    fn api_edit(replica: &mut Replica, ops: &Value, now: i64) -> bool {
+        let batch = Batch::from_json(&json!({ "ops": ops })).unwrap();
+        let base = replica.doc.view();
+        let ctx = BatchContext {
+            now,
+            shared: true,
+            note_exists: &known,
+            attachment_ok: &none,
+        };
+        let Ok((next, _)) = apply_batch(&base, &batch, &ctx) else {
+            return false;
+        };
+        for update in replica.doc.edit(&base, &next, PART) {
+            replica.outbox.push(update);
+        }
+        // The replica's own view takes the new state, as a view's next sync does.
+        replica.base = replica.doc.view();
+        replica.view = replica.base.clone();
+        replica.check();
+        true
+    }
+
+    fn seeded() -> (Replica, Replica) {
+        let mut canvas = Canvas::default();
+        canvas.put_node(text_card("t1", "one"), 1);
+        canvas.put_node(text_card("t2", "two"), 1);
+        let ink = canvas.ink_layer(1);
+        canvas.add_stroke(
+            &ink,
+            Stroke {
+                id: "s1".into(),
+                tool: "pen".into(),
+                color: "#000000".into(),
+                width: 2.0,
+                points: vec![Point::new(1.0, 1.0, 0.5), Point::new(9.0, 9.0, 0.5)],
+                ..Stroke::default()
+            },
+            1,
+        );
+        let state = CanvasDoc::from_canvas("", &canvas).encode_state();
+        (
+            Replica::new(0, CanvasDoc::load(&state).unwrap()),
+            Replica::new(1, CanvasDoc::load(&state).unwrap()),
+        )
+    }
+
+    #[test]
+    fn an_agents_batch_and_a_persons_edit_both_arrive() {
+        let (mut agent, mut person) = seeded();
+        assert!(api_edit(
+            &mut agent,
+            &json!([
+                { "op": "addNode", "type": "text", "x": 5, "y": 5, "text": "from the agent", "id": "a1" },
+                { "op": "moveNode", "id": "t1", "x": 90, "y": 90 },
+            ]),
+            10
+        ));
+        // Meanwhile the person recolours the card the agent moved.
+        let mut card = person.view.node("t1").cloned().unwrap();
+        card.color = Some("4".into());
+        person.view.put_card(card, 11);
+        exchange(&mut agent, &mut person);
+        exchange(&mut agent, &mut person);
+        for replica in [&agent, &person] {
+            let canvas = replica.doc.to_canvas();
+            assert!(canvas.node("a1").is_some());
+            let card = canvas.node("t1").unwrap();
+            assert_eq!((card.x, card.y), (90.0, 90.0));
+            assert_eq!(card.color.as_deref(), Some("4"));
+        }
+        assert_eq!(agent.doc.to_canvas(), person.doc.to_canvas());
+    }
+
+    #[test]
+    fn two_agents_removing_and_moving_one_card_leave_it_removed() {
+        let (mut a, mut b) = seeded();
+        assert!(api_edit(
+            &mut a,
+            &json!([{ "op": "removeNode", "id": "t2" }]),
+            10
+        ));
+        assert!(api_edit(
+            &mut b,
+            &json!([{ "op": "moveNode", "id": "t2", "x": 1, "y": 1 }]),
+            11
+        ));
+        exchange(&mut a, &mut b);
+        exchange(&mut a, &mut b);
+        assert!(a.doc.to_canvas().node("t2").is_none());
+        assert_eq!(a.doc.to_canvas(), b.doc.to_canvas());
+    }
+
+    fn api_ops() -> impl Strategy<Value = Value> {
+        let id = prop::sample::select(vec!["t1", "t2", "a1", "a2", "ghost"]);
+        let n = prop_oneof![0.0f64..800.0, Just(1e13)];
+        prop_oneof![
+            (id.clone(), n.clone(), n.clone()).prop_map(|(i, x, y)| json!({ "op": "addNode", "type": "text", "x": x, "y": y, "text": "q", "id": i })),
+            (id.clone(), n.clone(), n.clone()).prop_map(|(i, x, y)| json!({ "op": "moveNode", "id": i, "x": x, "y": y })),
+            id.clone().prop_map(|i| json!({ "op": "removeNode", "id": i })),
+            id.clone().prop_map(|i| json!({ "op": "updateNode", "id": i, "text": "t", "color": "3" })),
+            (id.clone(), id.clone()).prop_map(|(a, b)| json!({ "op": "addEdge", "fromNode": a, "toNode": b })),
+            n.clone().prop_map(|p| json!({ "op": "addStrokes", "node": "ink-1", "strokes": [{ "points": [[p, p, 0.5], [p, 1.0, 0.5]] }] })),
+            Just(json!({ "op": "removeStrokes", "node": "ink-1", "strokes": ["s1"] })),
+            Just(json!({ "op": "moveStrokes", "node": "ink-1", "strokes": ["s1"], "dx": 3, "dy": 4 })),
+        ]
+    }
+
+    proptest! {
+        #![proptest_config(crate::tests::config(96))]
+
+        /// Batches from two API clients and edits from a person, in any
+        /// order, converge, and the projection stays a canvas the view opens
+        /// (`Replica::check` at every step).
+        #[test]
+        fn api_batches_and_people_converge(
+            first in prop::collection::vec(prop::collection::vec(api_ops(), 1..5), 0..4),
+            second in prop::collection::vec(prop::collection::vec(api_ops(), 1..5), 0..4),
+            person in prop::collection::vec(op().prop_map(|op| Step::Do(0, op)), 0..12),
+        ) {
+            let (mut a, mut b) = seeded();
+            let mut now = 10;
+            for ops in &first {
+                now += 1;
+                api_edit(&mut a, &Value::Array(ops.clone()), now);
+            }
+            for ops in &second {
+                now += 1;
+                api_edit(&mut b, &Value::Array(ops.clone()), now);
+            }
+            let mut replicas = vec![a, b];
+            run_person(&mut replicas[1], &person);
+            settle(&mut replicas);
+            prop_assert_eq!(replicas[0].doc.to_canvas(), replicas[1].doc.to_canvas());
+            prop_assert_eq!(replicas[0].doc.view(), replicas[1].doc.view());
+            prop_assert_eq!(replicas[0].doc.to_canvas().validate(), Ok(()));
+        }
+    }
+
+    /// A person's edits on one replica. Only edits: syncing is `settle`'s.
+    fn run_person(replica: &mut Replica, steps: &[Step]) {
+        run(std::slice::from_mut(replica), steps);
+    }
+}

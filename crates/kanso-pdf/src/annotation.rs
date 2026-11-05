@@ -12,7 +12,7 @@ use serde_json::Value;
 use crate::PdfError;
 use crate::model::{
     BLOCK_FENCE, BLOCK_VERSION, Highlight, MAX_BLOCK_CHARS, MAX_COMMENT_CHARS, MAX_QUADS,
-    MAX_QUOTE_CHARS, PdfBlock,
+    MAX_QUOTE_CHARS, MAX_REMOVED, PdfBlock,
 };
 use crate::quote::Edit;
 
@@ -81,6 +81,11 @@ impl PdfBlock {
         if block.version == 0 || !block.file.starts_with("file:") || block.file.len() <= 5 {
             return Err(PdfError::Malformed("it names no attachment".into()));
         }
+        if block.removed.len() > MAX_REMOVED || !block.removed.iter().all(|id| valid_id(id)) {
+            return Err(PdfError::Malformed(
+                "its deleted highlights are not valid".into(),
+            ));
+        }
         let mut seen = HashSet::new();
         for h in &block.highlights {
             validate_highlight(h)?;
@@ -119,11 +124,17 @@ impl PdfBlock {
         Ok(())
     }
 
-    /// Removes a highlight; whether it was there.
+    /// Removes a highlight; whether it was there. Its id is remembered in
+    /// `removed`, so a merge with a version that still has it (another
+    /// device's, another editor's) leaves it deleted.
     pub fn remove_highlight(&mut self, id: &str) -> bool {
         let n = self.highlights.len();
         self.highlights.retain(|h| h.id != id);
-        self.highlights.len() != n
+        let gone = self.highlights.len() != n;
+        if gone {
+            crate::merge::remember_removed(&mut self.removed, id);
+        }
+        gone
     }
 
     /// Sets or clears a highlight's comment (blank clears it).
@@ -139,9 +150,11 @@ impl PdfBlock {
             .ok_or_else(|| PdfError::Invalid("That highlight no longer exists.".into()))?;
         let old = h.comment.take();
         h.comment = comment.map(str::to_string);
+        h.rev = h.rev.saturating_add(1);
         if let Err(e) = self.to_json() {
             if let Some(h) = self.highlights.iter_mut().find(|h| h.id == id) {
                 h.comment = old;
+                h.rev = h.rev.saturating_sub(1);
             }
             return Err(e);
         }
@@ -175,6 +188,9 @@ fn write_block(b: &PdfBlock) -> String {
     }
     if let Some(f) = &b.ink_file {
         tail.push(format!("  \"inkFile\": {}", json(f)));
+    }
+    if !b.removed.is_empty() {
+        tail.push(format!("  \"removed\": {}", json(&b.removed)));
     }
     for (k, v) in &b.extra {
         tail.push(format!("  {}: {}", json(k), json(v)));
@@ -210,6 +226,9 @@ fn write_highlight(h: &Highlight) -> String {
         f.push(format!("      \"comment\": {}", json(c)));
     }
     f.push(format!("      \"createdAt\": {}", h.created_at));
+    if h.rev > 0 {
+        f.push(format!("      \"rev\": {}", h.rev));
+    }
     for (k, v) in &h.extra {
         f.push(format!("      {}: {}", json(k), json(v)));
     }
@@ -360,6 +379,7 @@ mod tests {
             color: Color::Yellow,
             comment: None,
             created_at: 1_761_212_345_678,
+            rev: 0,
             extra: Default::default(),
         }
     }
@@ -554,6 +574,7 @@ mod tests {
                     color,
                     comment,
                     created_at,
+                    rev: 0,
                     extra: Default::default(),
                 }
             })

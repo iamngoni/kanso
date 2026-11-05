@@ -17,6 +17,9 @@ pub const MAX_COMMENT_CHARS: usize = 10_000;
 pub const MAX_QUOTE_CHARS: usize = 1_000;
 /// The block format this build writes and reads.
 pub const BLOCK_VERSION: u32 = 1;
+/// Deleted highlights' ids a block remembers, so a sync merge never brings
+/// one back. Far more than the block's ~2,000 highlights ever leave.
+pub const MAX_REMOVED: usize = 4_096;
 
 /// A box on a page, `[x0, y0, x1, y1]`, normalised to the displayed page box
 /// with the origin at the top-left. Values are kept to four decimals.
@@ -108,6 +111,11 @@ pub struct Highlight {
     pub comment: Option<String>,
     #[serde(default)]
     pub created_at: i64,
+    /// How many times its colour or comment was changed. Of two versions of
+    /// the same highlight (two devices, two editors), the one changed more
+    /// often wins a merge. Not written while 0.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub rev: u32,
     /// Fields a newer Kanso added; kept so a save loses nothing.
     #[serde(flatten)]
     pub extra: Map<String, Value>,
@@ -131,8 +139,16 @@ pub struct PdfBlock {
     /// The companion ink attachment, when the strokes outgrew the block.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ink_file: Option<String>,
+    /// The ids of deleted highlights, sorted: a merge with a version that
+    /// still has one leaves it deleted. Not written while empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub removed: Vec<String>,
     #[serde(flatten)]
     pub extra: Map<String, Value>,
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
 }
 
 impl PdfBlock {
@@ -144,6 +160,7 @@ impl PdfBlock {
             highlights: Vec::new(),
             ink: Vec::new(),
             ink_file: None,
+            removed: Vec::new(),
             extra: Map::new(),
         }
     }

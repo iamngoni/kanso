@@ -32,6 +32,7 @@ pub fn call(
     let state = AppState {
         store: store.clone(),
         tokens: tokens.clone(),
+        canvases: None,
     };
     call_with_state(&state, token, scope, name, arguments)
 }

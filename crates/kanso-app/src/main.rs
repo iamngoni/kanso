@@ -185,6 +185,8 @@ mod related;
 mod reminders;
 mod replace;
 mod restore_sheet;
+#[cfg(test)]
+mod restore_waiting_tests;
 mod resurface;
 mod review_queue;
 #[cfg(test)]
@@ -210,6 +212,7 @@ mod settings_voice;
 #[cfg(test)]
 mod settings_window_tests;
 mod share_sheet;
+mod shared_canvases;
 mod shared_inbox;
 #[cfg(test)]
 mod shortcuts_parity_tests;

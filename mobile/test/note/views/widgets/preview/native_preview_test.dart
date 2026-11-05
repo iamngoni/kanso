@@ -26,6 +26,7 @@ import 'package:kanso/note/views/widgets/preview/native_preview.dart';
 import 'package:kanso/note/views/widgets/preview/preview_blocks.dart';
 import 'package:kanso/note/views/widgets/preview/preview_code.dart';
 import 'package:kanso/note/views/widgets/preview/preview_list.dart';
+import 'package:kanso/note/views/widgets/preview/preview_pdf_notes.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../../../helpers/kanso_test_app.dart';
@@ -322,6 +323,21 @@ void main() {
       ]);
       expect(find.byType(SvgPicture), findsOneWidget);
       expect(tester.getSize(find.byType(SvgPicture)), const Size(40, 20));
+    });
+
+    testWidgets('a PDF block is a quiet line, not its data', (tester) async {
+      await pump(tester, <PreviewBlock>[
+        const PreviewBlock.pdfNotes(
+          url: 'inkdrop://file:abc123',
+          summary: '4 highlights · 1 comment',
+        ),
+      ]);
+      expect(find.text('4 highlights · 1 comment'), findsOneWidget);
+      // Without a note to open the list for, it only reads.
+      expect(find.byType(PreviewPdfNotes), findsOneWidget);
+      await tester.tap(find.text('4 highlights · 1 comment'));
+      await tester.pump();
+      expect(tapped, isEmpty);
     });
 
     testWidgets('a table shows its header and cells', (tester) async {
