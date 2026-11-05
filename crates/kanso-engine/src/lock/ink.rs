@@ -359,8 +359,13 @@ mod tests {
             Fetched::Sealed
         );
 
-        unseal_or_copy(&store, &mut note, &key, &mut watch)
+        let (body, _, unsealing) = unseal_or_copy(&store, &mut note, &key, &mut watch)
             .expect("unlocking opens the companion attachment");
+        note.body = body;
+        Envelope::store(None, &mut note.extra);
+        store
+            .unlock_note_unsealing(serde_json::to_value(&note).unwrap(), unsealing)
+            .expect("unlocking writes the note and its companion together");
         assert_eq!(store.attachment_state(id).unwrap(), AttachmentState::Plain);
         assert_eq!(store.attachment(id).unwrap().unwrap().1.data, bytes);
     }
