@@ -226,10 +226,7 @@ mod tests {
             let [b2, g2, r2] = invert_pixel([b, g, r]);
             let before = r.max(g).max(b) - r.min(g).min(b);
             let after = r2.max(g2).max(b2) - r2.min(g2).min(b2);
-            assert!(
-                after <= before + 1,
-                "({r},{g},{b}) became ({r2},{g2},{b2})"
-            );
+            assert!(after <= before + 1, "({r},{g},{b}) became ({r2},{g2},{b2})");
         }
         // And paper stays a dark page, ink a light one.
         assert!(invert_pixel([240, 250, 255]).iter().all(|&v| v < 60));
