@@ -191,7 +191,7 @@ fn capture(data_dir: &Path, request: &CaptureRequest) -> Result<String> {
             "Kanso is open but isn't answering on its local link. Wait a moment and try again; if it keeps failing, quit and reopen Kanso."
         );
     };
-    let store = Store::open(crate::paths::db_path(data_dir))?;
+    let store = crate::library_open::open_store(data_dir)?;
     add_note(&store, request, Origin::Api)
         .map(|(_, place)| place)
         .map_err(anyhow::Error::msg)
@@ -327,7 +327,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let big = format!("Big\n{}", "x".repeat(crate::capture_request::MAX_BODY + 1));
         run_cli(dir.path(), std::slice::from_ref(&big)).unwrap();
-        let store = Store::open(crate::paths::db_path(dir.path())).unwrap();
+        let store = crate::library_open::open_store(dir.path()).unwrap();
         assert_eq!(count(&store), 1);
         drop(store);
         let _lock = lock_data_dir(dir.path()).unwrap().unwrap();
@@ -340,14 +340,14 @@ mod tests {
     fn captures_into_the_store_without_the_app() {
         let dir = tempfile::tempdir().unwrap();
         super::run_cli(dir.path(), &["Idea:".into(), "kites".into()]).unwrap();
-        let store = Store::open(crate::paths::db_path(dir.path())).unwrap();
+        let store = crate::library_open::open_store(dir.path()).unwrap();
         let books = store.books().unwrap();
         assert_eq!(books.len(), 1);
         assert_eq!(books[0].id, "book:inbox");
         assert!(super::run_cli(dir.path(), &[" ".into()]).is_err());
         // --book by ID or name; a name nothing has is an error, and
         // nothing is saved.
-        let store = Store::open(crate::paths::db_path(dir.path())).unwrap();
+        let store = crate::library_open::open_store(dir.path()).unwrap();
         let ideas = store
             .put(
                 kanso_core::DocType::Book,
@@ -366,7 +366,7 @@ mod tests {
         super::run_cli(dir.path(), &[format!("--book={ideas}"), "Gliders".into()]).unwrap();
         assert!(super::run_cli(dir.path(), &["--book".into(), "Nope".into(), "x".into()]).is_err());
         assert!(super::run_cli(dir.path(), &["x".into(), "--book".into()]).is_err());
-        let store = Store::open(crate::paths::db_path(dir.path())).unwrap();
+        let store = crate::library_open::open_store(dir.path()).unwrap();
         let titles: Vec<String> = store
             .search_summaries(&Default::default())
             .unwrap()

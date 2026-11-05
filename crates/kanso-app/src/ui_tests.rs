@@ -4654,12 +4654,16 @@ fn how_to_fix_marks_a_notice_fixed_and_can_be_closed(cx: &mut TestAppContext) {
     f.draw(&mut vcx);
     if crate::layout::LIGHTS_IN_BAND {
         let lights_end = crate::layout::TRAFFIC_LIGHTS.0 + 2. * 20. + 14.;
-        let title = vcx.debug_bounds("notice-title").expect("the banner is drawn");
+        let title = vcx
+            .debug_bounds("notice-title")
+            .expect("the banner is drawn");
         assert!(f32::from(title.left()) > lights_end, "{title:?}");
         // Zoomed out, the lights stay their size, and so does their room.
         vcx.update(|_, cx| crate::zoom::set(75, cx));
         f.draw(&mut vcx);
-        let title = vcx.debug_bounds("notice-title").expect("the banner is drawn");
+        let title = vcx
+            .debug_bounds("notice-title")
+            .expect("the banner is drawn");
         assert!(f32::from(title.left()) > lights_end, "{title:?}");
         let banner = vcx.debug_bounds("notice-banner").unwrap();
         assert!(f32::from(banner.size.height) >= 36., "{banner:?}");
@@ -4697,4 +4701,54 @@ fn how_to_fix_marks_a_notice_fixed_and_can_be_closed(cx: &mut TestAppContext) {
     click(&mut vcx, "notice-sheet-done");
     f.draw(&mut vcx);
     assert_eq!(vcx.debug_bounds("notice-steps"), None);
+}
+
+/// The API keys notice shows only for a library whose config recorded a
+/// login, and Dismiss keeps the choice.
+// no-prop-test: drives one window; `prop_the_api_keys_notice_is_for_libraries_that_had_a_login`
+// in kanso-core holds the rule.
+#[gpui_kit::test]
+fn the_api_keys_notice_shows_only_after_a_login_existed(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    f.draw(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    let mut notice = kanso_core::notices::NOTICES
+        .iter()
+        .find(|notice| notice.id == kanso_core::notices::API_KEYS_ID)
+        .unwrap()
+        .clone();
+    // As if the release had been reached.
+    notice.since = semver::Version::new(0, 9, 0);
+    let list: &'static [kanso_core::notices::Notice] = Box::leak(Box::new([notice]));
+    vcx.update(|_, cx| {
+        cx.set_global(crate::notices::NoticeBoard {
+            list,
+            previous: None,
+        });
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    // No login was ever recorded: nothing to say.
+    assert!(vcx.read(crate::notices::banner).is_none());
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+
+    vcx.update(|_, cx| {
+        crate::workspace::AppState::update_config(cx, |config| config.had_login = true);
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    let pick = vcx.read(crate::notices::banner).unwrap();
+    assert_eq!(pick.notice.id, kanso_core::notices::API_KEYS_ID);
+    assert!(vcx.debug_bounds("notice-banner").is_some());
+    assert!(f.saved_config().had_login);
+
+    let bounds = vcx.debug_bounds("notice-dismiss").unwrap();
+    vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+    assert_eq!(
+        f.saved_config().notices.dismissed,
+        [kanso_core::notices::API_KEYS_ID]
+    );
 }
