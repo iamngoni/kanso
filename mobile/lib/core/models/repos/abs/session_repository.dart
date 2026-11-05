@@ -124,6 +124,11 @@ abstract interface class SessionRepository {
   });
 
   /// Whether to say, once, that notes locked before this update seal their
-  /// pictures and files when they are opened.
+  /// pictures and files when they are first edited.
   Future<Either<ApplicationError, bool>> takeSealedFilesNotice();
+
+  /// The files the last Lock Note or Remove Lock copied because another note
+  /// also shows them, once, for the sentence said after it; null when it
+  /// copied none.
+  Future<Either<ApplicationError, LockCopyNotice?>> takeCopyNotice();
 }

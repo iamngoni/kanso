@@ -2817,6 +2817,27 @@ class LocalTime {
           second == other.second;
 }
 
+class LockCopyNotice {
+  final bool removed;
+  final int copied;
+
+  const LockCopyNotice({
+    required this.removed,
+    required this.copied,
+  });
+
+  @override
+  int get hashCode => removed.hashCode ^ copied.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LockCopyNotice &&
+          runtimeType == other.runtimeType &&
+          removed == other.removed &&
+          copied == other.copied;
+}
+
 @freezed
 sealed class LockEvent with _$LockEvent {
   const LockEvent._();

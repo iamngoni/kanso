@@ -13,6 +13,7 @@ import '../../models/data/lock_target.dart';
 import '../../models/data/remove_status.dart';
 import '../../state/lock_remove/lock_remove_bloc.dart';
 import '../../state/lock_status/lock_status_bloc.dart';
+import '../../utils/copy_notice_words.dart';
 import '../../utils/seal_progress_rules.dart';
 import 'lock_form_sheet.dart';
 import 'lock_progress_sheet.dart';
@@ -56,7 +57,20 @@ class RemoveLockSheet extends StatelessWidget {
       listener: (context, state) {
         if (state.status == RemoveStatus.done) {
           context.read<LockStatusBloc>().add(const LockStatusEvent.refreshed());
+          // Files copied because another locked note still shows the sealed
+          // ones, said once.
+          final messenger = ScaffoldMessenger.maybeOf(context);
+          final copied = copyNoticeWords(context.l10n, state.copyNotice);
           Navigator.of(context).pop();
+          if (copied != null) {
+            messenger?.showSnackBar(SnackBar(content: Text(copied)));
+          }
+        } else if (state.status == RemoveStatus.stopped) {
+          // Cancel stopped it before anything changed.
+          final messenger = ScaffoldMessenger.maybeOf(context);
+          final words = context.l10n.lockRemoveStoppedMessage;
+          Navigator.of(context).pop();
+          messenger?.showSnackBar(SnackBar(content: Text(words)));
         }
       },
       builder: (context, state) {
@@ -71,6 +85,10 @@ class RemoveLockSheet extends StatelessWidget {
             bytes: progress.bytesTotal,
             progress: progress,
             unsealing: true,
+            cancelling: state.cancelling,
+            onCancel: () => context.read<LockRemoveBloc>().add(
+              const LockRemoveEvent.cancelled(),
+            ),
           );
         }
         final error = state.error;
@@ -78,7 +96,9 @@ class RemoveLockSheet extends StatelessWidget {
           title: note ? l10n.lockRemoveNoteTitle : l10n.lockRemoveNotebookTitle,
           message: note
               ? l10n.lockRemoveNoteMessage
-              : l10n.lockRemoveNotebookMessage,
+              : l10n.lockRemoveNotebookMessage(
+                  (target as NotebookLockTarget).name,
+                ),
           // The library's own sentence says why, as it is: "The note is in
           // a locked notebook, so it stays locked. Move it out first."
           notice: switch (error) {

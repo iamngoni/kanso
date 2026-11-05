@@ -68,6 +68,10 @@ abstract class KansoLocks implements RustOpaqueInterface {
 
   Future<void> removeNotebookLock({required String bookId});
 
+  /// The files Lock Note or Remove Lock copied because another note also
+  /// shows them, once, for the phone to say so. `None` when none were.
+  Future<LockCopyNotice?> takeCopyNotice();
+
   /// Whether the phone should say, once, that notes locked before this
   /// update sealed their attachments.
   Future<bool> takeSealedFilesNotice();
