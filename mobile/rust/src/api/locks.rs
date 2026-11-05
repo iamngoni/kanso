@@ -2,7 +2,9 @@
 
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
-use kanso_mobile::{KansoError, LockEvent, LockSession, LockStatus, Saved};
+use kanso_mobile::{
+    InterruptedLock, KansoError, LockEvent, LockSession, LockStatus, Saved, SealProgress,
+};
 
 #[frb(opaque)]
 pub struct KansoLocks(LockSession);
@@ -95,6 +97,34 @@ impl KansoLocks {
 
     pub fn turn_off_biometrics(&self) -> Result<(), KansoError> {
         self.0.turn_off_biometrics()
+    }
+
+    /// How far sealing a locking note's pictures and files has come, until
+    /// Dart stops listening.
+    pub fn lock_progress(&self, sink: StreamSink<SealProgress>) {
+        self.0
+            .lock_progress(move |progress| sink.add(progress).is_ok());
+    }
+
+    /// The lock that stopped between note `id`'s files, if any: it waits to
+    /// be finished or undone.
+    pub fn interrupted_lock(&self, id: String) -> Result<Option<InterruptedLock>, KansoError> {
+        self.0.interrupted_lock(&id)
+    }
+
+    /// Finishes the lock that stopped on note `id`; `password` is the lock
+    /// password when the session doesn't hold its key.
+    pub fn finish_locking(
+        &self,
+        id: String,
+        password: Option<String>,
+    ) -> Result<Saved, KansoError> {
+        self.0.finish_locking(&id, password)
+    }
+
+    /// Undoes the lock that stopped on note `id`.
+    pub fn undo_locking(&self, id: String, password: Option<String>) -> Result<(), KansoError> {
+        self.0.undo_locking(&id, password)
     }
 
     /// Each time the notes open or close, until Dart stops listening.

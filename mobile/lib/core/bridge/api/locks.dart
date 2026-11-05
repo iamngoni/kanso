@@ -19,6 +19,14 @@ abstract class KansoLocks implements RustOpaqueInterface {
 
   Future<int> changePassword({required String old, required String new_});
 
+  /// Finishes the lock that stopped on note `id`; `password` is the lock
+  /// password when the session doesn't hold its key.
+  Future<Saved> finishLocking({required String id, String? password});
+
+  /// The lock that stopped between note `id`'s files, if any: it waits to
+  /// be finished or undone.
+  Future<InterruptedLock?> interruptedLock({required String id});
+
   Future<bool> isNoteUnlocked({required String id});
 
   Future<bool> isUnlocked();
@@ -39,6 +47,10 @@ abstract class KansoLocks implements RustOpaqueInterface {
 
   Future<int> lockNotebook({required String bookId, String? password});
 
+  /// How far sealing a locking note's pictures and files has come, until
+  /// Dart stops listening.
+  Stream<SealProgress> lockProgress();
+
   Future<LockStatus> lockStatus();
 
   Future<bool> notebookIsOpen({required String bookId});
@@ -48,6 +60,9 @@ abstract class KansoLocks implements RustOpaqueInterface {
   Future<void> removeNotebookLock({required String bookId});
 
   Future<void> turnOffBiometrics();
+
+  /// Undoes the lock that stopped on note `id`.
+  Future<void> undoLocking({required String id, String? password});
 
   Future<bool> unlock({required String password});
 

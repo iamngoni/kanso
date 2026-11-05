@@ -19,29 +19,30 @@ pub use kanso_mobile::{
     EditorRun, EditorSnapshot, ExportedPage, FoldState, FormatKind, GalleryColors, GalleryItem,
     GalleryKind, GoalSetting, GraphEdgeRow, GraphFilter, GraphLayout, GraphNodeRow, GraphRequest,
     HistoryState, Hit, IconChoice, IconThemeRow, ImageToRead, ImportEvent, ImportFound,
-    ImportPhase, ImportProgress, ImportSource, ImportSummary, InvitationRow, JoinRow, KansoError,
-    LibraryOverview, LinkTarget, LinkedProviderRow, ListPlace, ListQuery, ListShape, LiveBatch,
-    LiveDocBlock, LiveDocBlockKind, LiveDocLink, LiveDocLinkKind, LiveDocMarker, LiveDocMarkerKind,
-    LiveDocStyle, LiveDocStyleKind, LiveDocWidget, LiveDocument, LiveKind, LiveLine, LiveRun,
-    LiveStatus, LocalTime, LockEvent, LockReason, LockState, LockStatus, LockedInfo, LoopAction,
-    LoopProposal, LoopScan, MadeNote, MeaningResult, MemberRow, MentionSpan, MonthGrid, NewNote,
-    NoteChange, NoteList, NoteMeaning, NoteRow, NoteView, NotebookRole, NotebookRow, OnThisDayRow,
-    OpenLoopItem, OpenLoopKind, OpenLoopsBoard, OpenedDocuments, OpenedFile, PaletteDto,
-    PasskeyFailure, PasskeyRequest, PasskeyRequestKind, PasskeyRow, PersonLookup, PersonRow,
-    PlannedNotice, PreviewAlign, PreviewBlock, PreviewCell, PreviewCodeRun, PreviewFigureKind,
-    PreviewInline, PreviewLink, PreviewListItem, PreviewOptions, PreviewQueryRow, PreviewRow,
-    PreviewSourcedBlock, PreviewSvg, PreviewTaskBox, PromptState, Property, PropertyKind,
-    ProviderEvent, ProviderKind, PushEnvironmentKind, PushPlatformKind, QuotaLimit, Range16,
-    RecoveryKeyText, RelatedRow, RelatedState, RelatedStatus, ReminderAnswer, ReminderNote,
-    ReminderPlan, Replacement, ResurfaceResult, ResurfaceRow, ReviewFinished, ReviewSaved,
-    ReviewTheme, ReviewView, ReviewWritten, RunBatch, SaveState, Saved, SearchScope, ServerInfo,
-    ServerMethods, Share, ShareFile, ShareInfo, ShareLinkRow, ShareRole, SharedEvent,
-    ShortcutEntry, ShortcutPlace, ShortcutSection, SignOutReasonKind, SignedUp, SortKey, SpanRow,
-    StatusChoice, StatusCount, StyledRun, SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption,
-    SyncPhase, SyncProblemKind, SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine,
-    SyncTone, SyntaxStyleRow, Table, TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard,
-    TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection, TemplateRow, TextChange,
-    ThemeTokens, ThemedIcon, Ticked, TwinRow, VisibleNotebook,
+    ImportPhase, ImportProgress, ImportSource, ImportSummary, InterruptedLock, InvitationRow,
+    JoinRow, KansoError, LibraryOverview, LinkTarget, LinkedProviderRow, ListPlace, ListQuery,
+    ListShape, LiveBatch, LiveDocBlock, LiveDocBlockKind, LiveDocLink, LiveDocLinkKind,
+    LiveDocMarker, LiveDocMarkerKind, LiveDocStyle, LiveDocStyleKind, LiveDocWidget, LiveDocument,
+    LiveKind, LiveLine, LiveRun, LiveStatus, LocalTime, LockEvent, LockReason, LockState,
+    LockStatus, LockedInfo, LoopAction, LoopProposal, LoopScan, MadeNote, MeaningResult, MemberRow,
+    MentionSpan, MonthGrid, NewNote, NoteChange, NoteList, NoteMeaning, NoteRow, NoteView,
+    NotebookRole, NotebookRow, OnThisDayRow, OpenLoopItem, OpenLoopKind, OpenLoopsBoard,
+    OpenedDocuments, OpenedFile, PaletteDto, PasskeyFailure, PasskeyRequest, PasskeyRequestKind,
+    PasskeyRow, PersonLookup, PersonRow, PlannedNotice, PreviewAlign, PreviewBlock, PreviewCell,
+    PreviewCodeRun, PreviewFigureKind, PreviewInline, PreviewLink, PreviewListItem, PreviewOptions,
+    PreviewQueryRow, PreviewRow, PreviewSourcedBlock, PreviewSvg, PreviewTaskBox, PromptState,
+    Property, PropertyKind, ProviderEvent, ProviderKind, PushEnvironmentKind, PushPlatformKind,
+    QuotaLimit, Range16, RecoveryKeyText, RelatedRow, RelatedState, RelatedStatus, ReminderAnswer,
+    ReminderNote, ReminderPlan, Replacement, ResurfaceResult, ResurfaceRow, ReviewFinished,
+    ReviewSaved, ReviewTheme, ReviewView, ReviewWritten, RunBatch, SaveState, Saved, SealPhase,
+    SealProgress, SearchScope, ServerInfo, ServerMethods, Share, ShareFile, ShareInfo,
+    ShareLinkRow, ShareRole, SharedEvent, ShortcutEntry, ShortcutPlace, ShortcutSection,
+    SignOutReasonKind, SignedUp, SortKey, SpanRow, StatusChoice, StatusCount, StyledRun,
+    SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption, SyncPhase, SyncProblemKind,
+    SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine, SyncTone, SyntaxStyleRow, Table,
+    TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard, TaskGroupKind, TaskItem, TaskListQuery,
+    TaskPlace, TaskSection, TemplateRow, TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow,
+    VisibleNotebook,
 };
 pub use kanso_mobile::{
     IconThemeImport, InstalledIconThemeRow, ThemeImport, ThemeNotice, ThemeOrigin, ThemeRow,
@@ -421,6 +422,28 @@ pub struct _LockStatus {
     pub has_lock_password: bool,
     pub unlocked: bool,
     pub biometrics_on: bool,
+}
+
+#[frb(mirror(SealProgress))]
+pub struct _SealProgress {
+    pub phase: SealPhase,
+    pub done: u32,
+    pub total: u32,
+    pub bytes_done: u64,
+    pub bytes_total: u64,
+}
+
+#[frb(mirror(SealPhase))]
+pub enum _SealPhase {
+    Preparing,
+    Sealing,
+    Locking,
+}
+
+#[frb(mirror(InterruptedLock))]
+pub struct _InterruptedLock {
+    pub files: u32,
+    pub sealed: u32,
 }
 
 #[frb(mirror(LockEvent))]

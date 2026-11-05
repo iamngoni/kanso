@@ -58,6 +58,8 @@ pub(crate) struct Inner {
     /// `keys` mutex.
     pub(crate) lock_gen: AtomicU64,
     pub(crate) lock_events: Listeners<LockEvent>,
+    /// How far sealing a locked note's attachments has come.
+    pub(crate) seal_progress: Listeners<crate::model::SealProgress>,
     /// What the last sync said.
     pub(crate) sync_state: Mutex<SyncState>,
     pub(crate) status_listeners: Listeners<SyncStatus>,
@@ -345,6 +347,7 @@ fn open_inner(
         keys: Mutex::new(keys),
         lock_gen: AtomicU64::new(0),
         lock_events: Listeners::default(),
+        seal_progress: Listeners::default(),
         sync_state: Mutex::new(SyncState::Off),
         status_listeners: Listeners::default(),
         sync_gate: Mutex::new(()),
