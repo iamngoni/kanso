@@ -33,7 +33,7 @@ use serde_json::json;
 use crate::boundary::{guard, held};
 use crate::canvas_model::{
     CanvasArrow, CanvasBudget, CanvasCard, CanvasGroup, CanvasPoint, CanvasRect, CanvasSaved,
-    CanvasStroke, CanvasView, InkStyle, PenSample, SketchInfo, StrokeKey,
+    CanvasStroke, CanvasView, InkStyle, PenSample, SketchInfo, SketchInserted, StrokeKey,
 };
 use crate::errors::KansoError;
 use crate::library::Library;
@@ -94,6 +94,29 @@ struct State {
 pub struct CanvasSession {
     lib: Library,
     state: Arc<Mutex<State>>,
+}
+
+/// `body` with an empty `width` by `height` sketch put in at `at` (UTF-16
+/// units, where the cursor is), on lines of its own, with the new sketch's ID
+/// and the cursor after it. [`KansoError::Invalid`] with the words to show
+/// when the note's sketches are full. Random in the ID.
+pub fn sketch_insert(
+    body: String,
+    at: u32,
+    width: u32,
+    height: u32,
+) -> Result<SketchInserted, KansoError> {
+    guard(|| {
+        let at = kanso_engine::text::utf16_to_byte(&body, at as usize);
+        let (id, next) = sketch::insert(&body, at, width, height)
+            .map_err(|why| KansoError::invalid(why.words()))?;
+        let end = sketch::find_by_id(&next, &id).map_or(next.len(), |(f, _)| f.range.end);
+        Ok(SketchInserted {
+            cursor: kanso_engine::text::byte_to_utf16(&next, end) as u32,
+            body: next,
+            id,
+        })
+    })
 }
 
 /// The outline of a stroke still being drawn, as `x0, y0, x1, y1, ...`: what
