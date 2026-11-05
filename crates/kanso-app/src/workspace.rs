@@ -91,6 +91,7 @@ actions!(
         UndoAgentTask,
         UndoLastChange,
         SummarizeNote,
+        SummarizeRecording,
         TidyVoiceNote,
     ]
 );
@@ -347,6 +348,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Voice Input", Dictate),
             MenuItem::action("Record…", crate::recording::RecordAudio),
             MenuItem::action("Transcribe Recording", crate::transcribe::TranscribeAudio),
+            MenuItem::action("Summarise Recording…", SummarizeRecording),
             MenuItem::action("Publish…", crate::publish::PublishNote),
             MenuItem::action("Publish Notebook…", crate::publish_site::PublishNotebook),
             MenuItem::separator(),
@@ -2974,6 +2976,15 @@ impl Render for Workspace {
                 this.show_inspector(Some(InspectorTab::Ask), cx);
                 this.inspector
                     .update(cx, |inspector, cx| inspector.summarize_note(window, cx));
+            }))
+            .on_action(cx.listener(|this, _: &SummarizeRecording, window, cx| {
+                if !cx.global::<AppState>().config.ai.enabled {
+                    return;
+                }
+                this.close_settings(window, cx);
+                if let Some(id) = this.editor.read(cx).note_id().map(str::to_owned) {
+                    crate::recording_summary::open(id, window, cx);
+                }
             }))
             .on_action(cx.listener(|this, _: &TidyVoiceNote, window, cx| {
                 if !cx.global::<AppState>().config.ai.enabled {
