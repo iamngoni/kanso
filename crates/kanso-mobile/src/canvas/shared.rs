@@ -25,7 +25,7 @@ use std::time::{Duration, Instant};
 
 use kanso_collab::canvas_doc::StrokeHead;
 use kanso_collab::{Engine, Role};
-use kanso_core::canvas::{self, Canvas, Node, Stroke};
+use kanso_core::canvas::{self, Canvas};
 use kanso_core::{Note, now_ms};
 use kanso_engine::theme::CURSOR_COLOURS;
 use std::sync::Arc;
@@ -150,6 +150,13 @@ impl CanvasSession {
             let Some(link) = state.link.as_ref() else {
                 return Ok(CanvasPulse::default());
             };
+            if link.stroke.is_some() {
+                // The pen is down: the news waits for it (see `sync_locked`).
+                return Ok(CanvasPulse {
+                    view: None,
+                    pointers: pointers_of(&state),
+                });
+            }
             let waiting = link.shared.take_waiting(&link.note_id);
             // Sharing ending is found at once, not at the next sync.
             let ended =
@@ -178,6 +185,12 @@ impl CanvasSession {
         if link.engine.share_of(&link.note_id).as_deref() != Some(link.share_id.as_str()) {
             self.unshare(state);
             return Ok(true);
+        }
+        if link.stroke.is_some() {
+            // A pen is down on a stroke the others already see: the room's
+            // canvas has it, half drawn, and taking that in now would leave
+            // the finished stroke beside it. The room waits for the pen.
+            return Ok(false);
         }
         let role = link.engine.role(&link.share_id).unwrap_or(Role::View);
         let merge = link
@@ -237,21 +250,13 @@ impl CanvasSession {
                 return Ok(false);
             }
             let raw: Vec<_> = samples.iter().map(point).collect();
-            let now = now_ms();
-            let had_layer = state
-                .canvas
-                .nodes
-                .iter()
-                .any(|n| n.kind == canvas::INK && !n.deleted);
-            let ink = state.canvas.ink_layer(now);
-            if !had_layer {
+            let target = state.canvas.stream_target(now_ms());
+            if target.layer_made {
                 // An ink layer made just now goes first: the points are
                 // relative to it, and the others hide ink that has none.
                 state.edits += 1;
                 self.sync_locked(&mut state)?;
             }
-            let origin = state.canvas.node(&ink).map_or((0.0, 0.0), |n| (n.x, n.y));
-            let z = top_z(&state.canvas) + 1.0;
             let taken: HashSet<String> = state
                 .canvas
                 .stroke_ids()
@@ -267,14 +272,14 @@ impl CanvasSession {
                 .clone();
             let head = StrokeHead {
                 id,
-                ink,
+                ink: target.ink,
                 owner: link.me.clone(),
                 tool: style.tool,
                 color: style.color,
                 width: style.width,
-                z,
+                z: target.z,
             };
-            let points = canvas::streamed_points(&raw, origin);
+            let points = canvas::streamed_points(&raw, target.origin);
             match link.engine.stream_stroke(&link.share_id, &head, &points) {
                 Ok(Ok(_)) => Ok(false),
                 Ok(Err(_erased)) => {
@@ -398,16 +403,4 @@ fn pointers_of(state: &State) -> Vec<CanvasPointerRow> {
             }
         })
         .collect()
-}
-
-/// The highest stacking order on the canvas.
-fn top_z(canvas: &Canvas) -> f64 {
-    canvas
-        .nodes
-        .iter()
-        .flat_map(|n: &Node| {
-            std::iter::once(n.kanso_z).chain(n.strokes.iter().map(|s: &Stroke| s.kanso_z))
-        })
-        .chain(canvas.edges.iter().map(|e| e.kanso_z))
-        .fold(0.0, f64::max)
 }

@@ -11,8 +11,8 @@ use std::time::{Duration, Instant};
 
 use kanso_collab::memory::MemoryCollab;
 use kanso_mobile::{
-    CanvasPulse, CanvasSession, CanvasView, InkStyle, KansoError, Library, MemorySecrets,
-    PenSample, ShareRole, SharedNotes,
+    CanvasPulse, CanvasRect, CanvasSession, CanvasView, InkStyle, KansoError, Library,
+    MemorySecrets, PenSample, ShareRole, SharedNotes,
 };
 use kanso_sync::{DEFAULT_SERVER, DeviceIdentity, MemoryServer, Password};
 use proptest::prelude::*;
@@ -218,6 +218,13 @@ fn a_viewer_sees_the_canvas_and_cannot_draw_on_it() {
         Err(KansoError::Invalid { .. })
     ));
     assert!(!b.save().unwrap().merged);
+    // The store refuses him as well, not only the canvas session.
+    let rev = bob.library.note(&bobs).unwrap().rev;
+    assert!(
+        bob.library
+            .save(&bobs, &rev, "not a canvas".into())
+            .is_err()
+    );
     // Alice's canvas has only her stroke, whatever Bob tried.
     std::thread::sleep(Duration::from_millis(400));
     a.save().unwrap();
@@ -308,13 +315,23 @@ fn a_stroke_erased_under_the_pen_stops_there() {
     pulse_until(&b, "Bob has the stroke", |v| v.strokes.len() == 1);
     b.erase_at(10.0, 0.0, 30.0, vec![]).unwrap();
     b.save().unwrap();
-    // The erase comes in when the shell asks (after the gesture), and the
-    // stroke is gone from her canvas ...
-    let view = pulse_until(&a, "the erase reaches Alice", |v| v.strokes.is_empty());
-    assert!(view.strokes.is_empty());
-    // ... and the next chunk of the pen's stroke finds it erased and says
-    // so: it stops there.
-    assert!(a.stream_stroke(pen(), line(0.0)).unwrap());
+    std::thread::sleep(Duration::from_millis(300));
+    // While her pen is down the room's news waits, the erase with it ...
+    let held = a.pulse(vec![]).unwrap();
+    assert!(held.view.is_none());
+    // ... so the pen draws on and lifts, and the erase comes in then: the
+    // stroke is gone for both, not brought back by the rest of its points.
+    let streamed = a.stream_stroke(pen(), line(0.0)).unwrap();
+    if !streamed {
+        a.draw(pen(), line(0.0), vec![]).unwrap();
+    }
+    a.save().unwrap();
+    pulse_until(&a, "the erase wins on Alice's side", |v| {
+        v.strokes.is_empty()
+    });
+    std::thread::sleep(Duration::from_millis(300));
+    pulse_until(&b, "and on Bob's", |v| v.strokes.is_empty());
+    pulse_until(&a, "and stays so", |v| v.strokes.is_empty());
 }
 
 // no-prop-test: a long text goes in pieces, one walk.
@@ -405,6 +422,15 @@ fn signed_out_a_shared_canvas_opens_to_look_at() {
         Err(KansoError::Invalid { .. })
     ));
     assert_eq!(view.pulse(vec![]).unwrap(), CanvasPulse::default());
+    // Nor does the store take a plain write meanwhile.
+    let rev = alice.library.note(&id).unwrap().rev;
+    assert!(
+        alice
+            .library
+            .save(&id, &rev, "not a canvas".into())
+            .is_err()
+    );
+    assert_eq!(view.save().unwrap().merged, false);
 }
 
 // no-prop-test: a private canvas has no room, once.
@@ -429,8 +455,250 @@ fn a_private_canvas_has_no_room_and_nothing_to_pulse() {
     session.close().unwrap();
 }
 
+// no-prop-test: the background and back, once.
+#[test]
+fn coming_back_to_the_front_keeps_what_the_others_drew_meanwhile() {
+    let (_world, alice, bob, id, bobs) = shared_canvas(ShareRole::Editor);
+    let a = alice.library.canvas(&id).unwrap();
+    let b = bob.library.canvas(&bobs).unwrap();
+    let first = a.draw(pen(), line(0.0), vec![]).unwrap();
+    a.save().unwrap();
+    pulse_until(&b, "Bob has Alice's first stroke", |v| v.strokes.len() == 1);
+
+    // Bob's phone goes to the background: the library leaves his room.
+    bob.library.sync().set_foreground(false);
+    assert!(!bob.shared().is_live(&bobs));
+    let both = a.draw(pen(), line(40.0), vec![]).unwrap();
+    a.save().unwrap();
+    let all = ids(&both);
+    assert_eq!(all.len(), 2);
+    let second = all
+        .iter()
+        .find(|s| **s != first.strokes[0].id)
+        .unwrap()
+        .clone();
+    // Back in front, the shared notes sync before the page rejoins, so
+    // Alice's second stroke reaches his document while no canvas is in its
+    // room.
+    eventually("Alice's second stroke reaches Bob's library", || {
+        bob.shared().sync_shared().unwrap();
+        bob.library
+            .note(&bobs)
+            .unwrap()
+            .body
+            .is_some_and(|body| body.contains(&second))
+    });
+    // A tick before the page rejoins must not take it back out ...
+    b.pulse(vec![]).unwrap();
+    b.reconnect().unwrap();
+    assert!(bob.shared().is_live(&bobs));
+    let seen = pulse_until(&b, "Bob has both strokes", |v| ids(v) == all);
+    assert_eq!(ids(&seen), all);
+    // ... nor from anyone else.
+    std::thread::sleep(Duration::from_millis(400));
+    pulse_until(&a, "Alice keeps both strokes", |v| ids(v) == all);
+    // Rejoining an open room opens nothing more, and closing leaves it.
+    b.reconnect().unwrap();
+    b.close().unwrap();
+    assert!(!bob.shared().is_live(&bobs));
+}
+
+// no-prop-test: a tick in the middle of a stroke, once.
+#[test]
+fn a_tick_or_a_save_while_the_pen_is_down_leaves_no_ghost() {
+    let (_world, alice, bob, id, bobs) = shared_canvas(ShareRole::Editor);
+    let a = alice.library.canvas(&id).unwrap();
+    let b = bob.library.canvas(&bobs).unwrap();
+    // Bob draws, so the room has news for Alice.
+    let theirs = b.draw(pen(), line(80.0), vec![]).unwrap().strokes[0]
+        .id
+        .clone();
+    b.save().unwrap();
+    // Alice's pen is down and streaming when a tick and a save come.
+    assert!(!a.stream_stroke(pen(), line(0.0)[..8].to_vec()).unwrap());
+    std::thread::sleep(Duration::from_millis(300));
+    a.pulse(vec![]).unwrap();
+    a.save().unwrap();
+    assert!(!a.stream_stroke(pen(), line(0.0)).unwrap());
+    let done = a.draw(pen(), line(0.0), vec![]).unwrap();
+    a.save().unwrap();
+    let mine: Vec<String> = ids(&done).into_iter().filter(|s| *s != theirs).collect();
+    assert_eq!(mine.len(), 1, "one stroke for one pen-down: {mine:?}");
+    let mut want = vec![theirs, mine[0].clone()];
+    want.sort();
+    pulse_until(&a, "Alice has both, once", |v| ids(v) == want);
+    pulse_until(&b, "Bob has both, once", |v| ids(v) == want);
+}
+
+/// What every side must agree on: the strokes, and each card's text and
+/// place.
+type Agreed = (Vec<String>, Vec<(String, String, [i64; 4])>);
+
+fn agreed(view: &CanvasView) -> Agreed {
+    let mut cards: Vec<_> = view
+        .cards
+        .iter()
+        .map(|c| {
+            let r = &c.rect;
+            let at = [r.x, r.y, r.width, r.height].map(|v| (v * 100.0).round() as i64);
+            (c.id.clone(), c.text.clone(), at)
+        })
+        .collect();
+    cards.sort();
+    (ids(view), cards)
+}
+
+/// Alice's canvas shared with Bob and Carol, both editors, open on all
+/// three. Carol stands in for the desktop: it draws through the same engine
+/// calls.
+fn three_on_a_canvas() -> (World, Vec<Phone>, Vec<CanvasSession>) {
+    let world = world();
+    let alice = world.phone("alice");
+    let bob = world.phone("bob");
+    let carol = world.phone("carol");
+    bob.shared().sync_shared().unwrap();
+    carol.shared().sync_shared().unwrap();
+    let id = alice
+        .library
+        .create_canvas(None, None, "Board".into())
+        .unwrap()
+        .id;
+    alice
+        .shared()
+        .share(
+            id.clone(),
+            vec![
+                ("bob".into(), ShareRole::Editor),
+                ("carol".into(), ShareRole::Editor),
+            ],
+        )
+        .unwrap();
+    let mut open = vec![alice.library.canvas(&id).unwrap()];
+    for phone in [&bob, &carol] {
+        let invitation = phone.shared().invitations().unwrap().remove(0);
+        let theirs = phone.shared().accept(invitation.share_id).unwrap();
+        open.push(phone.library.canvas(&theirs).unwrap());
+    }
+    (world, vec![alice, bob, carol], open)
+}
+
+/// One person's edit in a round where everyone edits at once.
+#[derive(Clone, Debug)]
+enum Edit {
+    Stroke(u8),
+    NewCard(u8),
+    /// The n-th card this side sees, if any, gets new text.
+    CardText(u8, u8),
+    /// The n-th card this side sees, if any, moves.
+    CardMove(u8, i8, i8),
+}
+
+fn an_edit() -> impl Strategy<Value = Edit> {
+    prop_oneof![
+        (0u8..40).prop_map(Edit::Stroke),
+        (0u8..40).prop_map(Edit::NewCard),
+        (any::<u8>(), any::<u8>()).prop_map(|(n, t)| Edit::CardText(n, t)),
+        (any::<u8>(), any::<i8>(), any::<i8>()).prop_map(|(n, dx, dy)| Edit::CardMove(n, dx, dy)),
+    ]
+}
+
+/// Makes `edit` on `who` (round `r`). The strokes it drew, and whether it
+/// added a card.
+fn make(who: &CanvasSession, edit: &Edit, r: usize) -> (Vec<String>, bool) {
+    let seen = who.view(vec![]).unwrap();
+    let card = |n: u8| {
+        (!seen.cards.is_empty()).then(|| seen.cards[usize::from(n) % seen.cards.len()].clone())
+    };
+    match edit {
+        Edit::Stroke(row) => {
+            let before = ids(&seen);
+            let y = f64::from(*row) * 20.0 + r as f64;
+            let view = who.draw(pen(), line(y), vec![]).unwrap();
+            let drawn = ids(&view).into_iter().filter(|s| !before.contains(s));
+            (drawn.collect(), false)
+        }
+        Edit::NewCard(at) => {
+            let x = f64::from(*at) * 30.0;
+            who.add_text_card(x, 300.0, format!("card {r} {at}"), vec![])
+                .unwrap();
+            (Vec::new(), true)
+        }
+        Edit::CardText(n, t) => {
+            if let Some(card) = card(*n) {
+                who.set_card_text(card.id, format!("text {t}"), vec![])
+                    .unwrap();
+            }
+            (Vec::new(), false)
+        }
+        Edit::CardMove(n, dx, dy) => {
+            if let Some(card) = card(*n) {
+                let rect = CanvasRect {
+                    x: card.rect.x + f64::from(*dx),
+                    y: card.rect.y + f64::from(*dy),
+                    ..card.rect
+                };
+                who.set_card_rect(card.id, rect, vec![]).unwrap();
+            }
+            (Vec::new(), false)
+        }
+    }
+}
+
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(4))]
+    #![proptest_config(ProptestConfig {
+        rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+        ..ProptestConfig::with_cases(3)
+    })]
+
+    /// Two phones and a third device editing at the same time (strokes, new
+    /// cards, card text and card moves, each made before the others' are in)
+    /// all end up with the same canvas, and nothing anyone added is lost.
+    #[test]
+    fn prop_three_editing_at_once_converge(
+        rounds in proptest::collection::vec(
+            (proptest::collection::vec(an_edit(), 3), 0usize..3),
+            1..5,
+        ),
+    ) {
+        let (_world, _phones, open) = three_on_a_canvas();
+        let mut strokes = std::collections::BTreeSet::new();
+        let mut cards = 0usize;
+        for (r, (edits, start)) in rounds.iter().enumerate() {
+            for (who, edit) in open.iter().zip(edits) {
+                let (drawn, card) = make(who, edit, r);
+                strokes.extend(drawn);
+                cards += usize::from(card);
+            }
+            // Everyone hands the room what they did, in some order.
+            for k in 0..3 {
+                open[(start + k) % 3].save().unwrap();
+            }
+        }
+        let all: Vec<String> = strokes.into_iter().collect();
+        let until = Instant::now() + Duration::from_secs(20);
+        loop {
+            let views: Vec<Agreed> = open
+                .iter()
+                .map(|s| {
+                    s.pulse(vec![]).unwrap();
+                    agreed(&s.view(vec![]).unwrap())
+                })
+                .collect();
+            if views.iter().all(|v| *v == views[0]) && views[0].0 == all {
+                prop_assert_eq!(views[0].1.len(), cards);
+                break;
+            }
+            prop_assert!(Instant::now() < until, "never agreed: {:?}", views);
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+        ..ProptestConfig::with_cases(4)
+    })]
 
     /// Whatever the two phones draw, and in whatever order they save, both
     /// end up with the same strokes, every one of them drawn.
