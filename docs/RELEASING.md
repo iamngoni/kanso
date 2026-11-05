@@ -92,6 +92,7 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org).
 
 | Commit type | Section |
 |---|---|
+| any type marked breaking (`feat!:`, or a `BREAKING CHANGE` footer) | Breaking (first; needs an update notice, below) |
 | `feat` | New |
 | `perf`, `style`, `ui`, `refactor(ui)` | Improved |
 | `fix`, `revert` | Fixed |
@@ -124,6 +125,65 @@ no-reply address; otherwise "by" and their name), so each feature is credited
 to the person who made it. Keep contributors' commits as they wrote them
 (merge, don't squash) for this to work.
 
+## Breaking changes
+
+A change that breaks something people rely on ships an **update notice**:
+a banner and a How to fix sheet in the app, with the steps to fix what
+broke (issue #243). The release tooling refuses a breaking change without
+one.
+
+1. Add the notice to `NOTICES` in `crates/kanso-core/src/notices.rs`: a
+   never-reused `id` (`api-keys-0.10`), the `since` version, a title, what
+   changed, numbered `steps`, and an `applies` check so only people the
+   change affects see it.
+2. Mark the commit breaking (`feat(api)!: …`, or a `BREAKING CHANGE:`
+   footer) and add a footer naming the notice, in the message's last
+   paragraph with any other footers:
+
+   ```text
+   feat(server)!: Drop the local API's username and password
+
+   Notice: api-keys-0.10
+   ```
+
+   The ID is lower-case letters, digits, dots and hyphens; a footer with
+   any other ID isn't printed, so the gate then finds no notice. A
+   contributor's commit needs the same footer, and still ends "by @login".
+3. git-cliff then lists it under **Breaking** and ends the entry with
+   `(notice: api-keys-0.10)`, after the credit. For an entry written by
+   hand, end it with that text yourself. A bullet nested under an entry is
+   detail: the entry's own text is what has to end with the notice.
+
+`kanso-release check-notices --changelog CHANGELOG.md --version <v>` holds
+the release to this. It fails when a Breaking entry doesn't end with
+`(notice: <id>)`, when the ID isn't in `NOTICES`, or when the notice starts
+after this version (a prerelease comes before its release, so
+`0.10.0-beta.1` can't ship a notice whose `since` is `0.10.0`, which the
+beta wouldn't show). It also fails when a notice in the list has a
+malformed or repeated ID, or no title, no explanation or no steps, and when
+`<v>` has no section in the changelog. Without `--changelog` it checks only
+the list. Each problem it prints says how to fix it.
+
+`scripts/release.sh` runs it after writing the changelog section; when it
+fails, the script puts `CHANGELOG.md`, `Cargo.toml` and `Cargo.lock` back
+and stops before committing or tagging. The release workflow runs it again
+in the feed job, before the feed is made or signed, so a tag pushed by hand
+(or a section amended after `release.sh`) can't ship without a notice
+either: the release isn't published.
+
+**A breaking commit already on `master` without its footer** can't get one
+without rewriting published history. Write the release's section ahead
+instead: run `git cliff --unreleased --tag v<version> --strip header`, put
+its output at the top of `CHANGELOG.md` (below the header), end the
+Breaking entry with `(notice: <id>)`, commit that to `master` and push,
+then run `scripts/release.sh <version>` again. It keeps a section written
+ahead and only sets its date.
+
+`scripts/test-cliff-notices.sh` checks all of this against fixture commits
+in a throwaway repository (git-cliff and the gate together), as
+`scripts/test-cliff-credit.sh` does for credit. Run both after changing
+`cliff.toml`.
+
 ## Cutting a release
 
 From a clean `master` that matches `origin/master`:
@@ -143,7 +203,9 @@ git push origin master && git push origin v0.2.0   # or pass --push above
 3. adds the release's section to `CHANGELOG.md` with
    `git cliff --unreleased --tag v<version>` (a section written ahead, as
    0.1.0's was, only gets today's date);
-4. commits `chore(release): v<version>` and tags `v<version>`, then prints
+4. runs `kanso-release check-notices` on that section (above), and puts
+   back what it changed if a breaking change has no notice;
+5. commits `chore(release): v<version>` and tags `v<version>`, then prints
    the push commands. It pushes only with `--push`.
 
 The tag starts `.github/workflows/release.yml`, which builds each platform,

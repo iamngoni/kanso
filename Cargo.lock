@@ -4999,6 +4999,7 @@ dependencies = [
  "ed25519-dalek",
  "flate2",
  "getrandom 0.4.3",
+ "kanso-core",
  "proptest",
  "semver",
  "serde",
