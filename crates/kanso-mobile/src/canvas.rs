@@ -40,6 +40,9 @@ use crate::errors::KansoError;
 use crate::library::Library;
 use crate::model::{NewNote, Saved};
 
+mod shared;
+use shared::{Link, Opening};
+
 /// The most undo steps kept.
 const UNDO_LIMIT: usize = 60;
 /// A new text card's size.
@@ -93,6 +96,13 @@ struct State {
     measured: Cell<Option<(u64, usize)>>,
     /// How many times the document was measured.
     measurements: Cell<u32>,
+    /// The room, when the canvas is shared and this account is in it.
+    link: Option<Link>,
+    /// The note is a shared canvas.
+    shared: bool,
+    /// Drawing is refused: a viewer's canvas, or one shared while nobody is
+    /// signed in.
+    read_only: bool,
 }
 
 /// A canvas open for drawing. Cheap to clone; clones share the session.
@@ -147,7 +157,15 @@ impl Library {
     /// canvas.
     pub fn canvas(&self, id: &str) -> Result<CanvasSession, KansoError> {
         guard(|| {
-            let (note, canvas) = self.read_canvas(id)?;
+            let (note, body) = self.read_canvas(id)?;
+            let (canvas, link, shared, read_only) = match self.open_canvas(&note, body)? {
+                Opening::Private(canvas) => (canvas, None, false, false),
+                Opening::Offline(canvas) => (canvas, None, true, true),
+                Opening::Live(link, canvas) => {
+                    let read_only = !link.may_edit();
+                    (canvas, Some(*link), true, read_only)
+                }
+            };
             Ok(CanvasSession {
                 lib: self.clone(),
                 state: Arc::new(Mutex::new(State {
@@ -162,6 +180,9 @@ impl Library {
                     edits: 0,
                     measured: Cell::new(None),
                     measurements: Cell::new(0),
+                    link,
+                    shared,
+                    read_only,
                 })),
             })
         })
@@ -202,6 +223,11 @@ impl Library {
                     edits: 0,
                     measured: Cell::new(None),
                     measurements: Cell::new(0),
+                    // A sketch is never drawn on live with others: its
+                    // shared note's sketches are read only instead.
+                    link: None,
+                    shared: false,
+                    read_only,
                 })),
             })
         })
@@ -481,7 +507,11 @@ impl CanvasSession {
             state.edits += 1;
             // Ink outside a sketch's box is ignored.
             let inside = state.canvas.kanso_sketch;
+            // A stroke whose points streamed to the others keeps the ID
+            // they were streamed under.
+            let streamed = state.link.as_mut().and_then(|link| link.stroke.take());
             let stroke = Stroke {
+                id: streamed.clone().unwrap_or_default(),
                 tool: style.tool,
                 color: style.color,
                 width: style.width,
@@ -492,24 +522,43 @@ impl CanvasSession {
                     .collect(),
                 ..Stroke::default()
             };
+            // A sketch (never shared live) takes back a stroke that passed
+            // its cap, whole.
             let before = state.sketch.is_some().then(|| state.canvas.clone());
-            match state.canvas.draw(stroke, now_ms()) {
-                Ok(_)
-                    if before
-                        .as_ref()
-                        .is_some_and(|_| !sketch::fits(&state.canvas)) =>
-                {
-                    state.canvas = before.unwrap_or_default();
-                    return Err(KansoError::invalid(sketch::SKETCH_FULL));
+            let drawn = if streamed.is_some() {
+                state.canvas.draw_as(stroke, now_ms())
+            } else {
+                state.canvas.draw(stroke, now_ms())
+            };
+            if drawn.is_ok()
+                && let Some(before) = before
+                && !sketch::fits(&state.canvas)
+            {
+                state.canvas = before;
+                return Err(KansoError::invalid(sketch::SKETCH_FULL));
+            }
+            let refused = match drawn {
+                Ok((_, action)) => {
+                    state.push(Entry::Strokes(action));
+                    None
                 }
-                Ok((_, action)) => state.push(Entry::Strokes(action)),
-                Err(Refused::Empty) => {}
-                Err(Refused::Full) => {
+                Err(refused) => Some(refused),
+            };
+            if refused.is_some() && streamed.is_some() {
+                // The others already have part of it: they don't keep it.
+                if let Some(link) = state.link.as_mut() {
+                    link.stroke = streamed;
+                }
+                self.withdraw(&mut state);
+            }
+            match refused {
+                None | Some(Refused::Empty) => {}
+                Some(Refused::Full) => {
                     return Err(KansoError::invalid(
                         "This canvas is full. Move some ink to a new canvas to keep drawing.",
                     ));
                 }
-                Err(Refused::TooLong) => {
+                Some(Refused::TooLong) => {
                     return Err(KansoError::invalid("That stroke is too long."));
                 }
             }
@@ -782,6 +831,20 @@ impl CanvasSession {
     pub fn save(&self) -> Result<CanvasSaved, KansoError> {
         guard(|| {
             let mut state = self.lock();
+            if state.link.is_some() {
+                // A shared canvas is written by the room: what was drawn
+                // goes to it, and the library's body follows the document.
+                let merged = if state.read_only {
+                    false
+                } else {
+                    self.sync_locked(&mut state)?
+                };
+                return Ok(CanvasSaved {
+                    rev: state.rev.clone(),
+                    bytes: state.size() as u32,
+                    merged,
+                });
+            }
             if !state.dirty {
                 return Ok(CanvasSaved {
                     rev: state.rev.clone(),
@@ -870,6 +933,7 @@ impl CanvasSession {
         guard(|| {
             let (mut fresh, notebook) = {
                 let state = self.lock();
+                state.writable()?;
                 let mut fresh = Canvas::default();
                 let wanted: HashSet<&StrokeKey> = keys.iter().collect();
                 let now = now_ms();
@@ -1054,6 +1118,7 @@ impl CanvasSession {
     fn step(&self, known: Vec<String>, undo: bool) -> Result<CanvasView, KansoError> {
         guard(|| {
             let mut state = self.lock();
+            state.writable()?;
             let entry = if undo {
                 state.undo.pop()
             } else {
@@ -1111,14 +1176,6 @@ pub const SHARED_INSERT_WORDS: &str =
     "Sketches can't be added to a shared note. Add one to a private note, or draw on a canvas.";
 
 impl State {
-    /// Refuses an edit to a sketch that is read only.
-    fn writable(&self) -> Result<(), KansoError> {
-        match &self.sketch {
-            Some(target) if target.read_only => Err(KansoError::invalid(SHARED_WORDS)),
-            _ => Ok(()),
-        }
-    }
-
     fn push(&mut self, entry: Entry) {
         self.undo.push(entry);
         if self.undo.len() > UNDO_LIMIT {
@@ -1272,12 +1329,14 @@ fn view(state: &State, titles: &HashMap<String, String>, known: &HashSet<String>
         bounds: canvas.content_bounds().as_ref().map(rect),
         bytes: bytes as u32,
         // A sketch's cap is its own (256 KB, a warning from 75%), not a
-        // canvas's.
+        // canvas's. A shared canvas past what a note holds takes no more
+        // ink, though its own bytes are measured as the note's.
         budget: match if state.sketch.is_some() {
             sketch::budget(bytes)
         } else {
             canvas::budget(bytes)
         } {
+            _ if state.full() => CanvasBudget::Full,
             Budget::Ok => CanvasBudget::Ok,
             Budget::Warn => CanvasBudget::Warn,
             Budget::Full => CanvasBudget::Full,
@@ -1285,6 +1344,8 @@ fn view(state: &State, titles: &HashMap<String, String>, known: &HashSet<String>
         can_undo: !state.undo.is_empty(),
         can_redo: !state.redo.is_empty(),
         dirty: state.dirty,
+        shared: state.shared,
+        read_only: state.read_only,
     }
 }
 

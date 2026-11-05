@@ -194,6 +194,27 @@ void canvasSuite(OpenLibrary open) {
       expect(view.cards, hasLength(1));
     });
 
+    test('a private canvas has no room: the shared calls do nothing', () async {
+      final (_, _, canvas) = await fresh();
+      final view = await canvas.view(known: const <String>[]);
+      expect(view.shared, isFalse);
+      expect(view.readOnly, isFalse);
+      final pulse = await canvas.pulse(known: const <String>[]);
+      expect(pulse.view, isNull);
+      expect(pulse.pointers, isEmpty);
+      // Nothing streams, nothing is told, and there is nothing to take back.
+      expect(
+        await canvas.streamStroke(style: _pen, samples: _line(0, 0)),
+        isFalse,
+      );
+      await canvas.cancelStroke();
+      await canvas.setPointer(x: 4, y: 5, tool: 'pen');
+      await canvas.clearPointer();
+      expect(await canvas.pointers(), isEmpty);
+      await canvas.reconnect();
+      await canvas.close();
+    });
+
     test('a selection moves to a canvas of its own', () async {
       final (library, id, canvas) = await fresh();
       await canvas.draw(
@@ -222,6 +243,66 @@ void canvasSuite(OpenLibrary open) {
       )).view(known: const <String>[]);
       expect(moved.strokes, hasLength(1));
     });
+
+    test(
+      'a sketch in a note: inserted, drawn, saved and opened as a canvas',
+      () async {
+        final library = await open();
+        final note = await makeNote(library, 'Ideas', 'Hi');
+        expect(library.takesSketches(noteId: note), isTrue);
+        final canvas = await library.createCanvas(title: 'Board');
+        expect(library.takesSketches(noteId: canvas.id), isFalse);
+
+        final inserted = await library.sketchInsert(
+          noteId: note,
+          body: 'Hi',
+          at: 2,
+          width: 320,
+          height: 240,
+        );
+        expect(inserted.body, startsWith('Hi'));
+        expect(inserted.body, contains(inserted.id));
+        expect(inserted.cursor, greaterThan(2));
+
+        // The editor writes the body; the sketch then opens from the note.
+        final withSketch = await makeNote(library, 'Sketched', inserted.body);
+        final sketch = await library.sketch(
+          noteId: withSketch,
+          sketchId: inserted.id,
+        );
+        final info = sketch.sketchInfo();
+        expect(info, isNotNull);
+        expect(info!.id, inserted.id);
+        expect(info.width, 320);
+        expect(info.height, 240);
+        expect(info.readOnly, isFalse);
+
+        await sketch.draw(
+          style: _pen,
+          samples: _line(10, 10),
+          known: const <String>[],
+        );
+        expect((await sketch.save()).bytes, greaterThan(0));
+        final reopened = await library.sketch(
+          noteId: withSketch,
+          sketchId: inserted.id,
+        );
+        expect(
+          (await reopened.view(known: const <String>[])).strokes,
+          hasLength(1),
+        );
+
+        final copy = await reopened.openAsCanvas(title: 'From the sketch');
+        expect(library.isCanvas(id: copy.id), isTrue);
+        final view = await (await library.canvas(
+          id: copy.id,
+        )).view(known: const <String>[]);
+        expect(view.strokes, hasLength(1));
+
+        // A canvas is not a sketch.
+        expect((await library.canvas(id: canvas.id)).sketchInfo(), isNull);
+      },
+    );
 
     test(
       'the exports are an SVG and an Excalidraw scene that imports',

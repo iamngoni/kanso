@@ -5,9 +5,9 @@
 //!
 //! A recording is saved under IDs made from its session, so saving again
 //! after a failure or a crash finds what is already stored and adds
-//! nothing twice. Nothing is written into a locked note or notebook: the
-//! audio blob is not sealed by the lock, so a locked note refuses audio
-//! until that exists (the issue's answer to open question 10).
+//! nothing twice. A locked note takes a recording only sealed, with the
+//! lock key in hand ([`crate::recording_seal`]; the issue's answer to open
+//! question 10): without the key it refuses, and nothing is written into it.
 
 use std::path::Path;
 
@@ -17,10 +17,12 @@ use kanso_core::links::LINK_SCHEME;
 use kanso_core::model::MAX_ATTACHMENT_SIZE;
 use kanso_core::roles::Role;
 use kanso_store::{Origin, Put, Store};
+use kanso_sync::lock::LockKey;
 use serde_json::json;
 
 pub use crate::recording_flow_model::*;
 use crate::recording_note;
+use crate::recording_seal::{Target, open_target};
 
 /// What a system audio track's session ID adds to its recording's.
 pub const SYSTEM_SUFFIX: &str = "-sys";
@@ -146,7 +148,7 @@ pub fn note_id(session_id: &str) -> String {
     format!("note:rec-{session_id}")
 }
 
-fn attach_part(
+pub(crate) fn attach_part(
     store: &Store,
     session_id: &str,
     index: usize,
@@ -180,29 +182,32 @@ fn attach_part(
     Ok(id)
 }
 
-/// The note `note_id`, when a recording can go into it: it is there, and
-/// neither it nor its notebook is locked.
-fn usable_note(store: &Store, note_id: &str) -> Result<kanso_core::model::Note, FlowError> {
-    let note = store.note(note_id)?.ok_or(FlowError::Missing)?;
-    if note.is_locked() || store.locked_books()?.contains(&note.book_id) {
-        return Err(FlowError::Locked);
-    }
-    Ok(note)
+/// Refuses, before anything is recorded, a note the recording couldn't be
+/// saved into: one that is gone, or locked (or in a locked notebook) with no
+/// key to seal the audio under. A new note is checked when it is saved (its
+/// notebook is made then).
+pub fn check_destination(store: &Store, destination: &Destination) -> Result<(), FlowError> {
+    check_destination_with(store, destination, None)
 }
 
-/// Refuses, before anything is recorded, a note the recording couldn't be
-/// saved into: one that is gone, locked, or in a locked notebook. A new
-/// note is checked when it is saved (its notebook is made then).
-pub fn check_destination(store: &Store, destination: &Destination) -> Result<(), FlowError> {
+/// [`check_destination`], with the lock `key` the session holds: a locked
+/// note that `key` opens is allowed, and takes the audio sealed.
+pub fn check_destination_with(
+    store: &Store,
+    destination: &Destination,
+    key: Option<&LockKey>,
+) -> Result<(), FlowError> {
     match destination {
-        Destination::ThisNote { note_id } => usable_note(store, note_id).map(|_| ()),
+        Destination::ThisNote { note_id } => open_target(store, note_id, key).map(|_| ()),
         Destination::NewNote { .. } => Ok(()),
     }
 }
 
-/// [`save_recording`], but a recording whose note was deleted or locked
-/// while it ran (or before a crash was recovered) goes into a new note
-/// instead, so the audio is never kept out of the library for good.
+/// [`save_recording`], but a recording whose note was deleted while it ran
+/// (or before a crash was recovered) goes into a new note instead, so the
+/// audio is never kept out of the library for good. A note that is locked
+/// is not a note that is gone: its audio never lands plain in a new note,
+/// so that is refused and the session waits for the key.
 // no-prop-test: glue over `save_recording`; the example test covers it.
 pub fn save_recording_or_new(
     store: &Store,
@@ -210,12 +215,25 @@ pub fn save_recording_or_new(
     destination: &Destination,
     origin: Origin,
 ) -> Result<SavedRecording, FlowError> {
-    match save_recording(store, recorded, destination, origin) {
-        Err(FlowError::Locked | FlowError::Missing)
-            if matches!(destination, Destination::ThisNote { .. }) =>
-        {
+    save_recording_or_new_with(store, recorded, destination, None, origin)
+}
+
+/// [`save_recording_or_new`], with the lock `key` the session holds, which
+/// lets a locked note take the audio sealed. A note that is locked with no
+/// key (or not sealable yet) is refused, never swapped for a plain new note:
+/// the audio was meant for a lock.
+// no-prop-test: glue over `save_recording_with`; the example test covers it.
+pub fn save_recording_or_new_with(
+    store: &Store,
+    recorded: &Recorded,
+    destination: &Destination,
+    key: Option<&LockKey>,
+    origin: Origin,
+) -> Result<SavedRecording, FlowError> {
+    match save_recording_with(store, recorded, destination, key, origin) {
+        Err(FlowError::Missing) if matches!(destination, Destination::ThisNote { .. }) => {
             let new = Destination::NewNote { book_id: None };
-            save_recording(store, recorded, &new, origin)
+            save_recording_with(store, recorded, &new, None, origin)
         }
         other => other,
     }
@@ -233,11 +251,26 @@ pub fn save_recording(
     destination: &Destination,
     origin: Origin,
 ) -> Result<SavedRecording, FlowError> {
+    save_recording_with(store, recorded, destination, None, origin)
+}
+
+/// [`save_recording`], with the lock `key` the session holds: a locked note
+/// that `key` opens takes the parts sealed under it (never as plain bytes),
+/// and its text is re-sealed with the audio line in it.
+// no-prop-test: see `save_recording`; sealing has its own example and
+// property tests below.
+pub fn save_recording_with(
+    store: &Store,
+    recorded: &Recorded,
+    destination: &Destination,
+    key: Option<&LockKey>,
+    origin: Origin,
+) -> Result<SavedRecording, FlowError> {
     if recorded.parts.is_empty() {
         return Err(FlowError::Empty);
     }
     let (existing, book) = match destination {
-        Destination::ThisNote { note_id } => (Some(usable_note(store, note_id)?), None),
+        Destination::ThisNote { note_id } => (Some(open_target(store, note_id, key)?), None),
         Destination::NewNote { book_id } => {
             let book = match book_id {
                 Some(book) => book.clone(),
@@ -249,34 +282,38 @@ pub fn save_recording(
             (None, Some(book))
         }
     };
+    let mut existing = existing;
     let mut file_ids = Vec::new();
     for (index, path) in recorded.parts.iter().enumerate() {
-        file_ids.push(attach_part(
-            store,
-            &recorded.session_id,
-            index,
-            path,
-            "Recording",
-            origin,
-        )?);
+        let id = match existing.as_mut() {
+            Some(target) => target.attach(
+                store,
+                &recorded.session_id,
+                index,
+                path,
+                "Recording",
+                origin,
+            )?,
+            None => attach_part(
+                store,
+                &recorded.session_id,
+                index,
+                path,
+                "Recording",
+                origin,
+            )?,
+        };
+        file_ids.push(id);
     }
     let line = audio_line(&file_ids, recorded.duration_secs);
     let (note_id, created) = match (existing, book) {
-        (Some(note), _) => {
+        (Some(target), _) => {
+            let id = target.id().to_owned();
             // Saving twice must not link the recording twice.
-            if !note.body.contains(&file_ids[0]) {
-                store.put(
-                    DocType::Note,
-                    json!({
-                        "_id": note.id,
-                        "_rev": note.rev,
-                        "body": append_to_body(&note.body, &line),
-                    }),
-                    Put::Merge,
-                    origin,
-                )?;
+            if !target.body().contains(&file_ids[0]) {
+                target.append(store, &line, origin)?;
             }
-            (note.id, false)
+            (id, false)
         }
         (None, Some(book)) => {
             let id = note_id(&recorded.session_id);
@@ -319,33 +356,41 @@ pub fn save_system_track(
     duration_secs: u64,
     origin: Origin,
 ) -> Result<SavedTrack, FlowError> {
+    save_system_track_with(
+        store,
+        note_id,
+        session_id,
+        parts,
+        duration_secs,
+        None,
+        origin,
+    )
+}
+
+/// [`save_system_track`], with the lock `key` the session holds: a locked
+/// note that `key` opens takes the track sealed.
+// no-prop-test: see `save_system_track`.
+#[allow(clippy::too_many_arguments)]
+pub fn save_system_track_with(
+    store: &Store,
+    note_id: &str,
+    session_id: &str,
+    parts: &[std::path::PathBuf],
+    duration_secs: u64,
+    key: Option<&LockKey>,
+    origin: Origin,
+) -> Result<SavedTrack, FlowError> {
     if parts.is_empty() {
         return Err(FlowError::Empty);
     }
-    let note = usable_note(store, note_id)?;
+    let mut target: Target = open_target(store, note_id, key)?;
     let mut file_ids = Vec::new();
     for (index, path) in parts.iter().enumerate() {
-        file_ids.push(attach_part(
-            store,
-            session_id,
-            index,
-            path,
-            "System audio",
-            origin,
-        )?);
+        file_ids.push(target.attach(store, session_id, index, path, "System audio", origin)?);
     }
-    if !note.body.contains(&file_ids[0]) {
+    if !target.body().contains(&file_ids[0]) {
         let line = system_line(&file_ids, duration_secs);
-        store.put(
-            DocType::Note,
-            json!({
-                "_id": note.id,
-                "_rev": note.rev,
-                "body": append_to_body(&note.body, &line),
-            }),
-            Put::Merge,
-            origin,
-        )?;
+        target.append(store, &line, origin)?;
     }
     Ok(SavedTrack { file_ids })
 }

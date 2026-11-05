@@ -136,6 +136,12 @@ pub struct CanvasView {
     pub can_redo: bool,
     /// Edits not saved yet.
     pub dirty: bool,
+    /// The canvas is shared: the document is the room's, and others draw on
+    /// it with this one.
+    pub shared: bool,
+    /// Nothing can be drawn: a canvas shared to look at, or one shared
+    /// while nobody is signed in.
+    pub read_only: bool,
 }
 
 /// What a save did.

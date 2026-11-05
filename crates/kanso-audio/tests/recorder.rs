@@ -538,3 +538,29 @@ fn a_mixed_recording_a_crash_left_is_recovered_in_stereo() {
         "{left} vs {right}"
     );
 }
+
+/// The 7-day sweep (issue #38, step 11) never deletes audio Recover could
+/// still save, however old the folder: only folders with nothing playable go.
+#[test]
+fn the_sweep_keeps_a_crashed_recording_and_clears_an_empty_one() {
+    use kanso_audio::sweep::{KEEP_MS, sweep_in_progress};
+    let data = tempfile::tempdir().unwrap();
+    let root = in_progress_dir(data.path());
+    let mut o = options();
+    o.id = Some("crashed-old".into());
+    let mut recorder = Recorder::create(&root, o).unwrap();
+    recorder.push(&tone(secs(3), SAMPLE_RATE)).unwrap();
+    let dir = kill(recorder);
+    fs::create_dir_all(root.join("empty-old")).unwrap();
+    fs::write(root.join("empty-old").join(part_file_name(0)), b"Ogg").unwrap();
+    // A year from now, nobody having touched either.
+    let later = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
+        + 365 * 24 * 60 * 60 * 1000;
+    let report = sweep_in_progress(&root, &[], later, KEEP_MS);
+    assert_eq!(report.removed, vec!["empty-old".to_owned()]);
+    assert!(dir.is_dir());
+    assert_eq!(scan(&root, None).len(), 1);
+}

@@ -7,7 +7,8 @@ use flutter_rust_bridge::frb;
 use kanso_mobile::{CanvasSession, KansoError, Saved, ink_preview};
 
 use super::canvas_types::{
-    CanvasPoint, CanvasRect, CanvasSaved, CanvasView, InkStyle, PenSample, SketchInfo, StrokeKey,
+    CanvasPoint, CanvasPointerRow, CanvasPulse, CanvasRect, CanvasSaved, CanvasView, InkStyle,
+    PenSample, SketchInfo, StrokeKey,
 };
 
 /// The outline of a stroke still being drawn, to paint under the pen each
@@ -181,5 +182,52 @@ impl KansoCanvas {
 
     pub fn export_excalidraw(&self) -> Result<String, KansoError> {
         self.0.export_excalidraw()
+    }
+
+    /// A shared canvas's tick: hands the room what was drawn, takes what the
+    /// others drew, and says where their pointers are. Call it when no
+    /// gesture is in hand.
+    pub fn pulse(&self, known: Vec<String>) -> Result<CanvasPulse, KansoError> {
+        self.0.pulse(known)
+    }
+
+    /// Streams the stroke being drawn to the others. `true` when someone
+    /// erased it meanwhile: the pen's stroke stops there.
+    pub fn stream_stroke(
+        &self,
+        style: InkStyle,
+        samples: Vec<PenSample>,
+    ) -> Result<bool, KansoError> {
+        self.0.stream_stroke(style, samples)
+    }
+
+    /// The pen won't finish the stroke it streamed: the others drop it.
+    pub fn cancel_stroke(&self) -> Result<(), KansoError> {
+        self.0.cancel_stroke()
+    }
+
+    /// This pointer's place on the canvas, for the dot others see.
+    pub fn set_pointer(&self, x: f64, y: f64, tool: String) {
+        self.0.set_pointer(x, y, tool);
+    }
+
+    /// The pointer left the canvas.
+    pub fn clear_pointer(&self) {
+        self.0.clear_pointer();
+    }
+
+    /// Other people's pointers on the canvas now.
+    pub fn pointers(&self) -> Vec<CanvasPointerRow> {
+        self.0.pointers()
+    }
+
+    /// The app is back in front: joins the room again.
+    pub fn reconnect(&self) -> Result<(), KansoError> {
+        self.0.reconnect()
+    }
+
+    /// The screen closed: writes what was drawn and leaves the room.
+    pub fn close(&self) -> Result<(), KansoError> {
+        self.0.close()
     }
 }

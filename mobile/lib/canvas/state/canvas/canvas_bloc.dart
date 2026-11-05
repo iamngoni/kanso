@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
@@ -22,11 +23,21 @@ part 'canvas_state.dart';
 /// How long after the last edit that isn't a stroke the canvas is written.
 const Duration canvasIdleSave = Duration(seconds: 2);
 
+/// How often a shared canvas asks its room for news.
+const Duration canvasPulseEvery = Duration(milliseconds: 250);
+
 /// One canvas open for drawing. The document lives in Rust; this holds the
 /// view the screen paints, the tool, and the rule for saving: a stroke is
 /// written when it ends, anything else two seconds after the last edit, and
 /// whatever is left when the screen closes. One transformer carries every
 /// event, so a stroke, an erase and an undo never overlap.
+///
+/// A shared canvas is the room's: every edit goes to it at once and its
+/// tick takes in what the others drew. What others drew never lands under
+/// the person's hands: while a finger, pen or mouse is down (a stroke, a
+/// pan, a tap, a card drag) the bloc holds the room's news back and takes it
+/// in the moment the last one lifts. A stroke is streamed to the others as
+/// it is drawn, and taken back from them if it is not finished.
 @injectable
 class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
   CanvasBloc(this._repository) : super(const CanvasState()) {
@@ -36,12 +47,39 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
   final CanvasRepository _repository;
   CanvasDocument? _document;
   Timer? _idle;
+  Timer? _ticker;
+
+  /// A finger, pen or mouse is down: set the moment the event is added, not
+  /// when it is handled, so a tick already queued still sees it.
+  bool _gesture = false;
+
+  /// The room has news (or an edit waits to go) that a gesture held back.
+  bool _behind = false;
+
+  /// What the room gave while a gesture began holds back a refresh of the
+  /// view from the document.
+  bool _refresh = false;
+  bool _pulseQueued = false;
+
+  /// The app is not in front: no tick runs.
+  bool _background = false;
 
   /// The outlines the screen already holds, by stroke ID.
   final Map<String, CanvasStroke> _held = <String, CanvasStroke>{};
 
   /// The document, for exports. Null until the canvas opened.
   CanvasDocument? get document => _document;
+
+  @override
+  void add(CanvasEvent event) {
+    if (event is CanvasGestureChangedEvent) {
+      _gesture = event.active;
+    }
+    super.add(event);
+  }
+
+  bool get _shared => state.view?.shared ?? false;
+  bool get _readOnly => state.view?.readOnly ?? false;
 
   Future<void> _onEvent(CanvasEvent event, Emitter<CanvasState> emit) async {
     switch (event) {
@@ -143,6 +181,44 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
         await _save(emit);
       case CanvasMessageDismissedEvent():
         emit(state.copyWith(problem: null));
+      case CanvasGestureChangedEvent(:final active):
+        if (!active) {
+          await _catchUp(emit);
+        }
+      case CanvasPulsedEvent():
+        _pulseQueued = false;
+        await _pulseNow(emit);
+      case CanvasStrokeStreamedEvent(:final samples):
+        await _stream(samples, emit);
+      case CanvasStrokeCancelledEvent():
+        final doc = _document;
+        if (doc != null && _shared) {
+          await doc.cancelStroke();
+        }
+      case CanvasPointerMovedEvent(:final x, :final y):
+        final doc = _document;
+        if (doc != null && _shared) {
+          await doc.setPointer(x, y, state.tool.name);
+        }
+      case CanvasPointerLeftEvent():
+        final doc = _document;
+        if (doc != null && _shared) {
+          await doc.clearPointer();
+        }
+      case CanvasResumedEvent():
+        _background = false;
+        final doc = _document;
+        if (doc != null && _shared) {
+          await doc.reconnect();
+          _tick(shared: true);
+          await _pulseNow(emit);
+        }
+      case CanvasPausedEvent():
+        // Behind, the library has left the room: a tick would only spend
+        // the battery.
+        _background = true;
+        _ticker?.cancel();
+        _ticker = null;
     }
   }
 
@@ -179,6 +255,85 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
     );
   }
 
+  /// Asks the room for news, unless a hand is on the surface: then the news
+  /// waits for it to lift. The tick also hands the room what was drawn.
+  Future<void> _pulseNow(Emitter<CanvasState> emit) async {
+    final doc = _document;
+    if (doc == null || !_shared) {
+      return;
+    }
+    if (_gesture) {
+      // Their edits wait; their pointers don't.
+      _behind = true;
+      final held = await doc.pointers();
+      final pointers = held.toOption().toNullable();
+      if (pointers != null && !listEquals(pointers, state.pointers)) {
+        emit(state.copyWith(pointers: pointers));
+      }
+      return;
+    }
+    final result = await doc.pulse(_known());
+    final pulse = result.toOption().toNullable();
+    if (pulse == null) {
+      return;
+    }
+    final fresh = pulse.view;
+    if (fresh != null) {
+      if (_gesture) {
+        // A hand came down while the call was out: show it once it lifts.
+        _behind = true;
+        _refresh = true;
+      } else {
+        _show(emit, fresh);
+      }
+    } else if (state.view?.dirty ?? false) {
+      emit(state.copyWith(view: state.view?.copyWithDirty(dirty: false)));
+    }
+    if (!listEquals(pulse.pointers, state.pointers)) {
+      emit(state.copyWith(pointers: pulse.pointers));
+    }
+  }
+
+  /// Takes in what a gesture held back, once nothing is in hand: whatever
+  /// way the gesture ended (a stroke, a pan, a tap, a card let go).
+  Future<void> _catchUp(Emitter<CanvasState> emit) async {
+    if (_gesture || !_behind) {
+      return;
+    }
+    _behind = false;
+    final refresh = _refresh;
+    _refresh = false;
+    await _pulseNow(emit);
+    final doc = _document;
+    if (refresh && doc != null) {
+      final view = await doc.view(_known());
+      view.fold((_) {}, (view) => _show(emit, view));
+    }
+  }
+
+  Future<void> _stream(
+    List<PenSample> samples,
+    Emitter<CanvasState> emit,
+  ) async {
+    final doc = _document;
+    if (doc == null || !_shared || _readOnly) {
+      return;
+    }
+    final style = InkStyle(
+      tool: state.tool.draws ? state.tool.ink : 'pen',
+      color: state.color,
+      width: state.width,
+    );
+    final result = await doc.streamStroke(style, samples);
+    final erased = result.toOption().toNullable() ?? false;
+    if (erased) {
+      // Someone erased the stroke under the pen: it stops there, and the
+      // erase comes in when the hand lifts.
+      _behind = true;
+      emit(state.copyWith(erasedUnderPen: state.erasedUnderPen + 1));
+    }
+  }
+
   /// Runs `call` on the document and shows what it returns. A stroke is
   /// written at once; anything else waits for the idle timer.
   Future<void> _change(
@@ -190,7 +345,7 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
     bool quietIfUnchanged = false,
   }) async {
     final doc = _document;
-    if (doc == null) {
+    if (doc == null || _readOnly) {
       return;
     }
     final shown = state.view;
@@ -212,6 +367,11 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
     if (failed) {
       return;
     }
+    if (_shared) {
+      // The room has it at once, not two seconds on.
+      await _pulseNow(emit);
+      return;
+    }
     if (saveNow) {
       _idle?.cancel();
       await _save(emit);
@@ -227,6 +387,10 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
 
   Future<void> _save(Emitter<CanvasState> emit) async {
     final doc = _document;
+    if (doc != null && _shared) {
+      await _pulseNow(emit);
+      return;
+    }
     if (doc == null || !(state.view?.dirty ?? false)) {
       return;
     }
@@ -295,10 +459,12 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
       }
     }
     _held.removeWhere((id, _) => !present.contains(id));
+    _tick(shared: view.shared);
     emit(
       state.copyWith(
         status: status ?? state.status,
         view: view.withStrokes(strokes),
+        pointers: view.shared ? state.pointers : const <CanvasPointerRow>[],
         edit: state.edit + 1,
         selection: selectBorn
             ? born
@@ -306,6 +472,22 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
         problem: null,
       ),
     );
+  }
+
+  /// Runs the room's tick for as long as the canvas is shared and the app is
+  /// in front.
+  void _tick({required bool shared}) {
+    if (!shared || _background) {
+      _ticker?.cancel();
+      _ticker = null;
+      return;
+    }
+    _ticker ??= Timer.periodic(canvasPulseEvery, (_) {
+      if (!isClosed && !_pulseQueued) {
+        _pulseQueued = true;
+        add(const CanvasEvent.pulsed());
+      }
+    });
   }
 
   List<StrokeKey> _stillThere(List<StrokeKey> keys, Set<String> present) =>
@@ -327,9 +509,17 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
   @override
   Future<void> close() async {
     _idle?.cancel();
+    _ticker?.cancel();
+    _ticker = null;
     final doc = _document;
-    if (doc != null && (state.view?.dirty ?? false)) {
-      await doc.save();
+    if (doc != null) {
+      if (_shared) {
+        // Takes back a stroke still under the pen, hands the room what was
+        // drawn and leaves it.
+        await doc.close();
+      } else if (state.view?.dirty ?? false) {
+        await doc.save();
+      }
     }
     return super.close();
   }
@@ -351,6 +541,8 @@ extension CanvasViewCopy on CanvasView {
     canUndo: canUndo,
     canRedo: canRedo,
     dirty: dirty,
+    shared: shared,
+    readOnly: readOnly,
   );
 
   CanvasView copyWithDirty({required bool dirty}) => CanvasView(
@@ -367,5 +559,7 @@ extension CanvasViewCopy on CanvasView {
     canUndo: canUndo,
     canRedo: canRedo,
     dirty: dirty,
+    shared: shared,
+    readOnly: readOnly,
   );
 }

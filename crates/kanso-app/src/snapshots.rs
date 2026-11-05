@@ -1048,6 +1048,71 @@ fn publish_site_sheet(
     .unwrap();
 }
 
+/// The notebook's sheet when one of its notes holds a recording: the audio
+/// stays out by default, and with `include` the owner has turned it on.
+fn publish_site_audio_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+    include: bool,
+) {
+    cx.update(|cx| {
+        cx.set_reduce_motion(true);
+        cx.global_mut::<Services>().account = AccountState::SignedIn {
+            username: DEMO_USER.into(),
+        };
+    });
+    let book = cx
+        .update(|cx| workspace.read(cx).notebook_to_publish(cx))
+        .expect("the open note has a notebook");
+    store
+        .put(
+            DocType::File,
+            json!({"_id": "file:rec-demo-1", "name": "Recording part 1.opus", "contentType": "audio/ogg",
+                "_attachments": {"index": {"content_type": "audio/ogg", "data": "T2dnUw=="}}}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": "note:rec-demo", "title": "Standup — 23 Oct", "bookId": book,
+                "body": "[Audio · 12 min](inkdrop://file:rec-demo-1)\n\n<!-- kanso:transcript -->\n[00:00](kanso-audio://file:rec-demo-1?t=0) We shipped the beta.\n<!-- /kanso:transcript -->\n"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    cx.update_window(window, |_, window, cx| {
+        workspace.update(cx, |workspace, cx| {
+            let view = crate::publish_site::open_publish_site(workspace, &book, window, cx);
+            if let (true, Some(view)) = (include, view) {
+                view.update(cx, |view, cx| view.set_include_audio(true, cx));
+            }
+        });
+    })
+    .unwrap();
+}
+
+fn publish_site_audio_off(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    publish_site_audio_sheet(cx, window, workspace, store, false);
+}
+
+fn publish_site_audio_on(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    publish_site_audio_sheet(cx, window, workspace, store, true);
+}
+
 fn publish_site_unpublished(
     cx: &mut HeadlessAppContext,
     window: AnyWindowHandle,
@@ -5492,6 +5557,26 @@ fn snapshots() {
                 publish_site_published,
             )
         },
+        // Recordings in a published notebook: the audio is left out unless
+        // the owner turns it on.
+        Shot {
+            dialog_width: crate::publish_site::SHEET_WIDTH,
+            ..shot(
+                "light-publish-site-audio-off",
+                Light,
+                Edit,
+                publish_site_audio_off,
+            )
+        },
+        Shot {
+            dialog_width: crate::publish_site::SHEET_WIDTH,
+            ..shot(
+                "dark-publish-site-audio-on",
+                Dark,
+                Edit,
+                publish_site_audio_on,
+            )
+        },
         // Focus mode, at rest and with the pointer near the top.
         Shot {
             left: Left::Nothing,
@@ -5912,6 +5997,24 @@ fn snapshots() {
         Shot {
             dialog_width: crate::record_sheet::WIDTH,
             ..shot(
+                "light-record-keep-transcript-only",
+                Light,
+                Edit,
+                record_sheet::keep_transcript_only,
+            )
+        },
+        Shot {
+            dialog_width: crate::record_sheet::WIDTH,
+            ..shot(
+                "dark-record-keep-transcript-only",
+                Dark,
+                Edit,
+                record_sheet::keep_transcript_only,
+            )
+        },
+        Shot {
+            dialog_width: crate::record_sheet::WIDTH,
+            ..shot(
                 "dark-record-no-monitor",
                 Dark,
                 Edit,
@@ -5948,6 +6051,32 @@ fn snapshots() {
         // worker killed under it.
         shot("dark-pdf-reader", Dark, Split, pdf::reader_page_one),
         shot("light-pdf-reader", Light, Split, pdf::reader_page_one),
+        shot(
+            "dark-pdf-smart-invert",
+            Dark,
+            Split,
+            pdf::reader_smart_invert,
+        ),
+        shot(
+            "light-pdf-smart-invert",
+            Light,
+            Split,
+            pdf::reader_smart_invert,
+        ),
+        shot(
+            "dark-pdf-original-page",
+            Dark,
+            Split,
+            pdf::reader_original_page,
+        ),
+        shot("dark-pdf-password", Dark, Split, pdf::reader_password),
+        shot("light-pdf-password", Light, Split, pdf::reader_password),
+        shot(
+            "dark-pdf-password-wrong",
+            Dark,
+            Split,
+            pdf::reader_password_wrong,
+        ),
         shot(
             "dark-pdf-reader-killed",
             Dark,

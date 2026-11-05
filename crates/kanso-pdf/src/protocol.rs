@@ -60,8 +60,15 @@ pub enum Request {
         password: Option<String>,
     },
     /// Draws a page, `width_px` wide (the worker clamps it, see
-    /// [`render_size`]).
-    Render { page: u32, width_px: u32 },
+    /// [`render_size`]). With `smart_invert` the page is drawn for a dark
+    /// reader: text turned light, pictures left as they are (see
+    /// [`crate::invert`]).
+    Render {
+        page: u32,
+        width_px: u32,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        smart_invert: bool,
+    },
     /// A page's characters with their boxes: answered by
     /// [`Response::TextPage`], with the page's [`PageText`] as JSON in the
     /// frame's blob (the JSON header stays small, however long the page).
@@ -399,8 +406,13 @@ mod tests {
     fn arb_request() -> impl Strategy<Value = Request> {
         prop_oneof![
             proptest::option::of(".{0,40}").prop_map(|password| Request::Open { password }),
-            (any::<u32>(), any::<u32>())
-                .prop_map(|(page, width_px)| Request::Render { page, width_px }),
+            (any::<u32>(), any::<u32>(), any::<bool>()).prop_map(
+                |(page, width_px, smart_invert)| Request::Render {
+                    page,
+                    width_px,
+                    smart_invert
+                }
+            ),
             any::<u32>().prop_map(|page| Request::Text { page }),
             (any::<u32>(), any::<u32>())
                 .prop_map(|(from, count)| Request::PlainText { from, count }),
@@ -722,6 +734,7 @@ mod tests {
                     ch: 'a',
                     quad: Quad::new(0.1, 0.1 + i as f64 * 1e-5, 0.2, 0.2),
                     turns: 0,
+                    space_before: false,
                 })
                 .collect(),
         }
@@ -877,7 +890,20 @@ mod tests {
             text.chars.len() as u32,
             &text
         ));
-        let text = page_text(MAX_PAGE_CHARS);
+        let mut text = page_text(MAX_PAGE_CHARS);
+        // The widest a sound character can be on the wire: four bytes of
+        // UTF-8, coordinates of 17 digits, a turn and the space mark.
+        for c in &mut text.chars {
+            c.ch = '\u{1D54F}';
+            c.quad = crate::model::Quad::new(
+                0.123_456_789_012_345_68,
+                0.234_567_890_123_456_78,
+                0.345_678_901_234_567_8,
+                0.456_789_012_345_678_9,
+            );
+            c.turns = 3;
+            c.space_before = true;
+        }
         assert!(text_page_is_sound(
             2,
             [612.0, 792.0],

@@ -65,4 +65,37 @@ sealed class CanvasEvent with _$CanvasEvent {
 
   /// The person read the message about the last failure.
   const factory CanvasEvent.messageDismissed() = CanvasMessageDismissedEvent;
+
+  // ---- a shared canvas ----------------------------------------------------
+
+  /// A finger, pen or mouse went down on the surface ([active]), or the last
+  /// of them lifted. The bloc counts the gestures the moment this is added,
+  /// so what others drew waits for the person's hands to be free.
+  const factory CanvasEvent.gestureChanged({required bool active}) =
+      CanvasGestureChangedEvent;
+
+  /// The room's tick: hand it what was drawn and take what was drawn there.
+  const factory CanvasEvent.pulsed() = CanvasPulsedEvent;
+
+  /// The stroke being drawn, with every sample so far, to stream to the
+  /// others.
+  const factory CanvasEvent.strokeStreamed(List<PenSample> samples) =
+      CanvasStrokeStreamedEvent;
+
+  /// The pen's stroke was dropped (a second finger, the system): the others
+  /// drop what they got of it.
+  const factory CanvasEvent.strokeCancelled() = CanvasStrokeCancelledEvent;
+
+  /// The pointer is at a canvas point.
+  const factory CanvasEvent.pointerMoved(double x, double y) =
+      CanvasPointerMovedEvent;
+
+  /// The pointer left the surface.
+  const factory CanvasEvent.pointerLeft() = CanvasPointerLeftEvent;
+
+  /// The app is back in front.
+  const factory CanvasEvent.resumed() = CanvasResumedEvent;
+
+  /// The app left the front: the room's tick stops until it is back.
+  const factory CanvasEvent.paused() = CanvasPausedEvent;
 }

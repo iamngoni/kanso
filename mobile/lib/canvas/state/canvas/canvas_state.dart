@@ -45,6 +45,13 @@ abstract class CanvasState with _$CanvasState {
     /// that the library has taken it.
     @Default(0) int edit,
     CanvasProblem? problem,
+
+    /// Where the others' pointers are on a shared canvas.
+    @Default(<CanvasPointerRow>[]) List<CanvasPointerRow> pointers,
+
+    /// Counts the strokes someone else erased under the pen: the surface
+    /// drops the stroke it is drawing when this changes.
+    @Default(0) int erasedUnderPen,
   }) = _CanvasState;
 
   const CanvasState._();

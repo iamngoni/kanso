@@ -155,6 +155,74 @@ class CanvasPoint {
           y == other.y;
 }
 
+class CanvasPointerRow {
+  final String accountId;
+  final String name;
+  final double x;
+  final double y;
+  final String tool;
+  final int colour;
+  final String colourLight;
+  final String colourDark;
+
+  const CanvasPointerRow({
+    required this.accountId,
+    required this.name,
+    required this.x,
+    required this.y,
+    required this.tool,
+    required this.colour,
+    required this.colourLight,
+    required this.colourDark,
+  });
+
+  @override
+  int get hashCode =>
+      accountId.hashCode ^
+      name.hashCode ^
+      x.hashCode ^
+      y.hashCode ^
+      tool.hashCode ^
+      colour.hashCode ^
+      colourLight.hashCode ^
+      colourDark.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CanvasPointerRow &&
+          runtimeType == other.runtimeType &&
+          accountId == other.accountId &&
+          name == other.name &&
+          x == other.x &&
+          y == other.y &&
+          tool == other.tool &&
+          colour == other.colour &&
+          colourLight == other.colourLight &&
+          colourDark == other.colourDark;
+}
+
+class CanvasPulse {
+  final CanvasView? view;
+  final List<CanvasPointerRow> pointers;
+
+  const CanvasPulse({
+    this.view,
+    required this.pointers,
+  });
+
+  @override
+  int get hashCode => view.hashCode ^ pointers.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CanvasPulse &&
+          runtimeType == other.runtimeType &&
+          view == other.view &&
+          pointers == other.pointers;
+}
+
 class CanvasRect {
   final double x;
   final double y;
@@ -272,6 +340,8 @@ class CanvasView {
   final bool canUndo;
   final bool canRedo;
   final bool dirty;
+  final bool shared;
+  final bool readOnly;
 
   const CanvasView({
     required this.noteId,
@@ -287,6 +357,8 @@ class CanvasView {
     required this.canUndo,
     required this.canRedo,
     required this.dirty,
+    required this.shared,
+    required this.readOnly,
   });
 
   @override
@@ -303,7 +375,9 @@ class CanvasView {
       budget.hashCode ^
       canUndo.hashCode ^
       canRedo.hashCode ^
-      dirty.hashCode;
+      dirty.hashCode ^
+      shared.hashCode ^
+      readOnly.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -322,7 +396,9 @@ class CanvasView {
           budget == other.budget &&
           canUndo == other.canUndo &&
           canRedo == other.canRedo &&
-          dirty == other.dirty;
+          dirty == other.dirty &&
+          shared == other.shared &&
+          readOnly == other.readOnly;
 }
 
 class InkStyle {

@@ -1,8 +1,9 @@
 //! PDFs for tests, built by hand so no binary fixture lives in the
 //! repository. Behind the `test-support` feature.
 
-/// A PDF of Letter pages, one per content stream, with Helvetica as `/F1` and
-/// Helvetica-Bold as `/F2`.
+/// A PDF of Letter pages, one per content stream, with Helvetica as `/F1`,
+/// Helvetica-Bold as `/F2`, Times-Roman as `/F3` and Courier as `/F4` (the
+/// standard fonts: proportional sans, proportional serif and fixed pitch).
 pub fn pages_pdf(contents: &[String]) -> Vec<u8> {
     pages_pdf_on(contents, "[0 0 612 792]", 0)
 }
@@ -11,25 +12,50 @@ pub fn pages_pdf(contents: &[String]) -> Vec<u8> {
 /// `/Rotate` (degrees clockwise) given, for tests of rotated pages and of
 /// pages whose box does not start at the origin.
 pub fn pages_pdf_on(contents: &[String], media_box: &str, rotate: u16) -> Vec<u8> {
+    build_pdf(contents, media_box, rotate, &[])
+}
+
+/// As [`pages_pdf_on`], with image XObjects: each `(width, height, rgb)` is
+/// `/Im1`, `/Im2`, … on every page.
+fn build_pdf(
+    contents: &[String],
+    media_box: &str,
+    rotate: u16,
+    images: &[(u32, u32, Vec<u8>)],
+) -> Vec<u8> {
     let pages = contents.len();
+    let image_base = 7 + 2 * pages;
+    let xobjects: String = (0..images.len())
+        .map(|i| format!("/Im{} {} 0 R ", i + 1, image_base + i))
+        .collect();
     let mut objects: Vec<String> = Vec::new();
-    // 1 catalog, 2 pages, 3 and 4 fonts, then a page and a content stream each.
+    // 1 catalog, 2 pages, 3 to 6 fonts, then a page and a content stream each.
     objects.push("<< /Type /Catalog /Pages 2 0 R >>".into());
-    let kids: Vec<String> = (0..pages).map(|i| format!("{} 0 R", 5 + 2 * i)).collect();
+    let kids: Vec<String> = (0..pages).map(|i| format!("{} 0 R", 7 + 2 * i)).collect();
     objects.push(format!(
         "<< /Type /Pages /Kids [{}] /Count {pages} >>",
         kids.join(" ")
     ));
     objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".into());
     objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>".into());
+    objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>".into());
+    objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>".into());
     for (i, content) in contents.iter().enumerate() {
         objects.push(format!(
-            "<< /Type /Page /Parent 2 0 R /MediaBox {media_box} /Rotate {rotate} /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents {} 0 R >>",
-            6 + 2 * i
+            "<< /Type /Page /Parent 2 0 R /MediaBox {media_box} /Rotate {rotate} /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R >> /XObject << {xobjects}>> >> /Contents {} 0 R >>",
+            8 + 2 * i
         ));
         objects.push(format!(
             "<< /Length {} >>\nstream\n{content}\nendstream",
             content.len()
+        ));
+    }
+    for (width, height, rgb) in images {
+        let hex: String = rgb.iter().map(|b| format!("{b:02x}")).collect();
+        let data = format!("{hex}>");
+        objects.push(format!(
+            "<< /Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length {} >>\nstream\n{data}\nendstream",
+            data.len()
         ));
     }
     let mut out = b"%PDF-1.4\n".to_vec();
@@ -91,6 +117,32 @@ pub fn report_pdf() -> Vec<u8> {
     .join("\n");
     let rest = |n: usize| format!("BT /F1 24 Tf 72 700 Td (Page {n}) Tj ET");
     pages_pdf(&[first, rest(2), rest(3)])
+}
+
+/// Where the photo of [`photo_pdf`]'s first page is (its centre, in points
+/// from the page's top-left), the colour every pixel of it has as RGB, and
+/// where its red and blue chart bars are with their colours.
+pub const PHOTO_CENTRE: [f32; 2] = [180.0, 214.0];
+pub const PHOTO_RGB: [u8; 3] = [235, 214, 150];
+pub const CHART_BARS: [([f32; 2], [u8; 3]); 2] = [
+    ([360.0, 340.0], [217, 38, 38]),
+    ([420.0, 340.0], [38, 89, 217]),
+];
+
+/// A one-page PDF with black text, a light photo (a 4 x 4 image of one warm,
+/// pale colour, so that inverting it would show) and a red and a blue chart
+/// bar drawn as vector shapes: what smart invert has to tell apart.
+pub fn photo_pdf() -> Vec<u8> {
+    let page = [
+        "BT /F2 30 Tf 0 g 72 720 Td (Field notes) Tj ET",
+        "BT /F1 12 Tf 0 g 72 690 Td (Black text on a white page.) Tj ET",
+        "q 216 0 0 144 72 506 cm /Im1 Do Q",
+        "0.85 0.15 0.15 rg 340 392 40 120 re f",
+        "0.15 0.35 0.85 rg 400 392 40 120 re f",
+    ]
+    .join("\n");
+    let rgb: Vec<u8> = PHOTO_RGB.iter().copied().cycle().take(4 * 4 * 3).collect();
+    build_pdf(&[page], "[0 0 612 792]", 0, &[(4, 4, rgb)])
 }
 
 /// A one-page PDF encrypted with the standard handler (RC4, 40-bit, revision

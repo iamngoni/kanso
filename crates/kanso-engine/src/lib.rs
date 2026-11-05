@@ -117,6 +117,11 @@ pub mod recording_note;
 pub mod recording_note_model;
 pub mod recording_player;
 pub mod recording_player_model;
+pub mod recording_privacy;
+pub mod recording_privacy_model;
+mod recording_seal;
+#[cfg(test)]
+mod recording_seal_tests;
 pub mod replace;
 pub mod saving;
 pub mod shortcuts;

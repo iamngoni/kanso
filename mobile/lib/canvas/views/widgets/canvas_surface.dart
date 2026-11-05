@@ -14,6 +14,7 @@ import '../../utils/canvas_viewport.dart';
 import '../../utils/ink_colors.dart';
 import '../../utils/pointer_role.dart';
 import 'canvas_painter.dart';
+import 'canvas_pointers.dart';
 
 /// Holds where the view is looking and fits it on request; the page's Fit
 /// button and the surface share one.
@@ -55,6 +56,14 @@ class CanvasSurface extends StatefulWidget {
     required this.onCardTapped,
     required this.onPlace,
     required this.onArrow,
+    this.readOnly = false,
+    this.shared = false,
+    this.pointers = const <CanvasPointerRow>[],
+    this.erasedUnderPen = 0,
+    this.onGesture,
+    this.onStream,
+    this.onStrokeCancelled,
+    this.onPointer,
     super.key,
   });
 
@@ -92,6 +101,35 @@ class CanvasSurface extends StatefulWidget {
 
   /// Two cards were tapped in turn with the arrow tool.
   final void Function(String from, String to) onArrow;
+
+  /// Nothing can be drawn: touches only look around (pan and zoom).
+  final bool readOnly;
+
+  /// The canvas is shared: the stroke being drawn streams and the pointer
+  /// is told.
+  final bool shared;
+
+  /// The others' pointers, drawn as a dot and a name.
+  final List<CanvasPointerRow> pointers;
+
+  /// Changes when someone else erased the stroke being drawn: it is dropped.
+  final int erasedUnderPen;
+
+  /// A hand came down on the surface (`active`), or the last one lifted.
+  /// Called after the gesture's own callback ([onStroke], [onCardTapped]...).
+  final void Function({required bool active})? onGesture;
+
+  /// The stroke being drawn, all its samples so far, about every 150 ms.
+  final void Function(List<PenSample> samples)? onStream;
+
+  /// The stroke that was streamed will not be finished.
+  final VoidCallback? onStrokeCancelled;
+
+  /// The pointer is at a canvas point; null when it left the surface.
+  final void Function(Offset? at)? onPointer;
+
+  /// How often the stroke streams and the pointer is told.
+  static const Duration tellEvery = Duration(milliseconds: 150);
 
   /// How far a pointer may move and still be a tap, in screen points.
   static const double tapSlop = 10;
@@ -135,6 +173,13 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
   Offset? _focal;
   double? _spread;
 
+  // A shared canvas: whether a hand is on the surface, whether the stroke
+  // being drawn has gone to the others, and when we last told them.
+  bool _handDown = false;
+  bool _streaming = false;
+  DateTime _toldAt = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _streamedAt = DateTime.fromMillisecondsSinceEpoch(0);
+
   CanvasViewController get _controller => widget.controller;
 
   /// Whether a pen is making a mark now: touches are palms until it lifts.
@@ -168,6 +213,12 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
     }
     if (old.tool != widget.tool) {
       _arrowFrom = null;
+    }
+    if (old.erasedUnderPen != widget.erasedUnderPen) {
+      // Someone erased the stroke under the pen: it stops here, and there
+      // is nothing of it left to take back.
+      _streaming = false;
+      _cancelAction(tell: false);
     }
   }
 
@@ -210,14 +261,18 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
         widget.stylusSeen ||
         e.kind == PointerDeviceKind.stylus ||
         e.kind == PointerDeviceKind.invertedStylus;
-    final role = roleFor(
-      kind: e.kind,
-      tool: widget.tool,
-      stylusSeen: stylusNow,
-      fingerDraws: widget.fingerDraws,
-    );
+    final role = widget.readOnly
+        ? PointerRole.pan
+        : roleFor(
+            kind: e.kind,
+            tool: widget.tool,
+            stylusSeen: stylusNow,
+            fingerDraws: widget.fingerDraws,
+          );
     final touch = _Touch(e.kind, role, e.localPosition);
     _pointers[e.pointer] = touch;
+    _handOn();
+    _tellPointer(e.localPosition, force: true);
     if (_penDrawing && e.kind == PointerDeviceKind.touch) {
       // A palm resting while the pen writes: it neither pans, zooms nor
       // ends the stroke.
@@ -261,6 +316,7 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
     if (touch == null) {
       return;
     }
+    _tellPointer(e.localPosition);
     if (_penDrawing && touch.kind == PointerDeviceKind.touch) {
       return;
     }
@@ -289,6 +345,7 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
       case PointerRole.ink:
         _samples.add(_sample(e));
         _updateLive();
+        _streamNow();
       case PointerRole.erase:
       case PointerRole.partialErase:
         _trail.add(_canvasPoint(e.localPosition));
@@ -303,6 +360,11 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
   }
 
   void _up(PointerUpEvent e) {
+    _upInner(e);
+    _handOff();
+  }
+
+  void _upInner(PointerUpEvent e) {
     final touch = _pointers.remove(e.pointer);
     if (touch == null) {
       return;
@@ -352,6 +414,63 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
       _spread = null;
     }
     setState(() {});
+    _handOff();
+  }
+
+  void _hover(PointerHoverEvent e) =>
+      _tellPointer(e.localPosition, hovering: true);
+
+  // ---- a shared canvas ----------------------------------------------------
+
+  /// A hand is on the surface: what others draw waits for it to lift.
+  void _handOn() {
+    if (!_handDown) {
+      _handDown = true;
+      widget.onGesture?.call(active: true);
+    }
+  }
+
+  /// The last hand lifted (after whatever it did was reported).
+  void _handOff() {
+    if (_handDown && _pointers.isEmpty && !_trackpad) {
+      _handDown = false;
+      widget.onGesture?.call(active: false);
+      widget.onPointer?.call(null);
+    }
+  }
+
+  /// Tells the room where the pointer is, about every 150 ms.
+  void _tellPointer(
+    Offset screen, {
+    bool force = false,
+    bool hovering = false,
+  }) {
+    final tell = widget.onPointer;
+    if (tell == null || !widget.shared) {
+      return;
+    }
+    final now = DateTime.now();
+    if (!force && now.difference(_toldAt) < CanvasSurface.tellEvery) {
+      return;
+    }
+    _toldAt = now;
+    tell(_canvasPoint(screen));
+  }
+
+  /// Streams the stroke being drawn to the others, about every 150 ms.
+  void _streamNow() {
+    final stream = widget.onStream;
+    if (stream == null || !widget.shared || widget.readOnly) {
+      return;
+    }
+    final now = DateTime.now();
+    if (now.difference(_streamedAt) < CanvasSurface.tellEvery ||
+        _samples.length < 2) {
+      return;
+    }
+    _streamedAt = now;
+    _streaming = true;
+    stream(List<PenSample>.of(_samples));
   }
 
   void _signal(PointerSignalEvent e) {
@@ -375,7 +494,18 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
 
   double _trackpadScale = 1;
 
-  void _panZoomStart(PointerPanZoomStartEvent e) => _trackpadScale = 1;
+  bool _trackpad = false;
+
+  void _panZoomStart(PointerPanZoomStartEvent e) {
+    _trackpadScale = 1;
+    _trackpad = true;
+    _handOn();
+  }
+
+  void _panZoomEnd(PointerPanZoomEndEvent e) {
+    _trackpad = false;
+    _handOff();
+  }
 
   void _panZoomUpdate(PointerPanZoomUpdateEvent e) {
     final factor = e.scale / _trackpadScale;
@@ -430,7 +560,13 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
 
   /// Drops the mark being made: a second finger arrived, or the system
   /// took the pointer.
-  void _cancelAction() {
+  void _cancelAction({bool tell = true}) {
+    if (_streaming) {
+      _streaming = false;
+      if (tell) {
+        widget.onStrokeCancelled?.call();
+      }
+    }
     _actor = null;
     _samples = <PenSample>[];
     _live = null;
@@ -464,6 +600,8 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
     final live = _live;
     _samples = <PenSample>[];
     _live = null;
+    // The commit that follows keeps the ID the stroke streamed under.
+    _streaming = false;
     if (samples.isEmpty) {
       return;
     }
@@ -630,24 +768,42 @@ class _CanvasSurfaceState extends State<CanvasSurface> {
           onPointerSignal: _signal,
           onPointerPanZoomStart: _panZoomStart,
           onPointerPanZoomUpdate: _panZoomUpdate,
-          child: ClipRect(
-            child: CustomPaint(
-              size: size,
-              painter: CanvasPainter(
-                view: widget.view,
-                viewport: _viewport,
-                theme: widget.theme,
-                paths: _paths,
-                live: _live,
-                settling: <LiveInk>[for (final s in _settling) s.$1],
-                lasso: _lasso,
-                eraserAt: _eraserAt,
-                eraserRadius: CanvasSurface.eraserScreenRadius,
-                selected: widget.selection,
-                selectionShift: _draggingSelection ? _shift : Offset.zero,
-                selectionBounds: _selectionBounds,
-                cardShift: shiftedCard,
-                pendingArrowFrom: _arrowFrom,
+          onPointerPanZoomEnd: _panZoomEnd,
+          onPointerHover: _hover,
+          child: MouseRegion(
+            onExit: (_) => widget.onPointer?.call(null),
+            child: ClipRect(
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  CustomPaint(
+                    size: size,
+                    painter: CanvasPainter(
+                      view: widget.view,
+                      viewport: _viewport,
+                      theme: widget.theme,
+                      paths: _paths,
+                      live: _live,
+                      settling: <LiveInk>[for (final s in _settling) s.$1],
+                      lasso: _lasso,
+                      eraserAt: _eraserAt,
+                      eraserRadius: CanvasSurface.eraserScreenRadius,
+                      selected: widget.selection,
+                      selectionShift: _draggingSelection ? _shift : Offset.zero,
+                      selectionBounds: _selectionBounds,
+                      cardShift: shiftedCard,
+                      pendingArrowFrom: _arrowFrom,
+                    ),
+                  ),
+                  if (widget.pointers.isNotEmpty)
+                    CanvasPointers(
+                      pointers: widget.pointers,
+                      viewport: _viewport,
+                      size: size,
+                      dark: widget.theme.dark,
+                      ring: widget.theme.surface,
+                    ),
+                ],
               ),
             ),
           ),

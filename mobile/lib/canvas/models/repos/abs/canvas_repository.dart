@@ -155,4 +155,37 @@ abstract class CanvasDocument {
   /// "Open as canvas" (or "Copy as canvas" when read only) on a sketch: a
   /// new canvas note titled [title].
   Future<CanvasResult<Saved>> openAsCanvas(String title);
+
+  // ---- a shared canvas ----------------------------------------------------
+
+  /// A shared canvas's tick: hands the room what was drawn, takes what the
+  /// others drew and says where their pointers are. The view comes back
+  /// only when the canvas changed. Call it when no gesture is in hand.
+  Future<CanvasResult<CanvasPulse>> pulse(List<String> known);
+
+  /// Where the others' pointers are now, without taking in their edits: for
+  /// the moments a gesture holds those back.
+  Future<CanvasResult<List<CanvasPointerRow>>> pointers();
+
+  /// Streams the stroke being drawn to the others. True when someone erased
+  /// it meanwhile: the pen's stroke stops there.
+  Future<CanvasResult<bool>> streamStroke(
+    InkStyle style,
+    List<PenSample> samples,
+  );
+
+  /// The pen won't finish the stroke it streamed: the others drop it.
+  Future<CanvasResult<Unit>> cancelStroke();
+
+  /// This pointer's place on the canvas (canvas points).
+  Future<CanvasResult<Unit>> setPointer(double x, double y, String tool);
+
+  /// The pointer left the canvas.
+  Future<CanvasResult<Unit>> clearPointer();
+
+  /// The app is back in front: joins the room again.
+  Future<CanvasResult<Unit>> reconnect();
+
+  /// The screen closed: writes what was drawn and leaves the room.
+  Future<CanvasResult<Unit>> close();
 }

@@ -42,6 +42,15 @@ abstract class KansoCanvas implements RustOpaqueInterface {
     required List<String> known,
   });
 
+  /// The pen won't finish the stroke it streamed: the others drop it.
+  Future<void> cancelStroke();
+
+  /// The pointer left the canvas.
+  Future<void> clearPointer();
+
+  /// The screen closed: writes what was drawn and leaves the room.
+  Future<void> close();
+
   Future<CanvasView> deleteCard({
     required String id,
     required List<String> known,
@@ -97,6 +106,17 @@ abstract class KansoCanvas implements RustOpaqueInterface {
   /// "Open as canvas" (or "Copy as canvas" when read only) on a sketch.
   Future<Saved> openAsCanvas({required String title});
 
+  /// Other people's pointers on the canvas now.
+  Future<List<CanvasPointerRow>> pointers();
+
+  /// A shared canvas's tick: hands the room what was drawn, takes what the
+  /// others drew, and says where their pointers are. Call it when no
+  /// gesture is in hand.
+  Future<CanvasPulse> pulse({required List<String> known});
+
+  /// The app is back in front: joins the room again.
+  Future<void> reconnect();
+
   Future<CanvasView> redo({required List<String> known});
 
   /// Writes the canvas if it changed. Called when a stroke ends and after
@@ -117,9 +137,23 @@ abstract class KansoCanvas implements RustOpaqueInterface {
     required List<String> known,
   });
 
+  /// This pointer's place on the canvas, for the dot others see.
+  Future<void> setPointer({
+    required double x,
+    required double y,
+    required String tool,
+  });
+
   /// The sketch this is open on, when it is one: its ID, box and whether
   /// it is read only.
   SketchInfo? sketchInfo();
+
+  /// Streams the stroke being drawn to the others. `true` when someone
+  /// erased it meanwhile: the pen's stroke stops there.
+  Future<bool> streamStroke({
+    required InkStyle style,
+    required List<PenSample> samples,
+  });
 
   Future<CanvasView> undo({required List<String> known});
 

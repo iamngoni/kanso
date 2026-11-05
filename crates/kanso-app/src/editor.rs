@@ -2554,9 +2554,8 @@ impl NoteEditor {
             return;
         }
         let (store, name) = (self.store.clone(), meta.name);
-        let scale = window.scale_factor();
         let page = link.page.unwrap_or(1);
-        let reader = cx.new(|cx| crate::pdf::PdfReader::new(store, id, name, page, scale, cx));
+        let reader = cx.new(|cx| crate::pdf::PdfReader::new(store, id, name, page, window, cx));
         self.show_pdf(reader, window, cx);
     }
 
