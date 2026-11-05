@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, LazyLock, Mutex, Weak};
 use std::time::Duration;
 
@@ -58,6 +58,10 @@ pub(crate) struct Inner {
     /// `keys` mutex.
     pub(crate) lock_gen: AtomicU64,
     pub(crate) lock_events: Listeners<LockEvent>,
+    /// How far sealing a locked note's attachments has come.
+    pub(crate) seal_progress: Listeners<crate::model::SealProgress>,
+    /// Cancel was pressed on a lock in progress: it stops between two files.
+    pub(crate) lock_cancelled: AtomicBool,
     /// What the last sync said.
     pub(crate) sync_state: Mutex<SyncState>,
     pub(crate) status_listeners: Listeners<SyncStatus>,
@@ -345,6 +349,8 @@ fn open_inner(
         keys: Mutex::new(keys),
         lock_gen: AtomicU64::new(0),
         lock_events: Listeners::default(),
+        seal_progress: Listeners::default(),
+        lock_cancelled: AtomicBool::new(false),
         sync_state: Mutex::new(SyncState::Off),
         status_listeners: Listeners::default(),
         sync_gate: Mutex::new(()),

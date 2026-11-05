@@ -18,7 +18,7 @@ use kanso_core::model::{LOCK_FIELD, note_files_from_extra};
 use kanso_core::now_ms;
 use kanso_core::outline::{Heading, headings};
 use kanso_core::reminders::task_key;
-use kanso_core::tasks::{linked_file_ids, task_items};
+use kanso_core::tasks::{shown_file_ids, task_items};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Map, Value};
 
@@ -28,7 +28,7 @@ use crate::{Origin, Result, Store, schema};
 /// The `meta` key holding the [`DERIVED_VERSION`] the tables were built with.
 pub const DERIVED_VERSION_KEY: &str = "index.derived_version";
 /// Changes whenever a derived table's source or derivation changes.
-pub const DERIVED_VERSION: &str = "6";
+pub const DERIVED_VERSION: &str = "7";
 
 /// The tables, for emptying them.
 pub(crate) const TABLES: [&str; 10] = [
@@ -233,12 +233,12 @@ fn write_file_ownership(
         listed.map(|items| items.into_iter().map(|item| item.file).collect())
     } else if in_locked_notebook {
         let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
-        Some(linked_file_ids(body))
+        Some(shown_file_ids(body))
     } else if fields.contains_key(LOCK_FIELD) {
         None
     } else {
         let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
-        Some(linked_file_ids(body))
+        Some(shown_file_ids(body))
     };
     if let Some(files) = files {
         let mut stmt = conn.prepare_cached(

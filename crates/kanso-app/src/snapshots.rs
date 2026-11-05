@@ -58,12 +58,14 @@ pub(crate) mod ask;
 mod discovery;
 mod learn_modals;
 mod library_key;
+mod locking;
 mod pdf;
 mod plugins_panel;
 mod plugins_settings;
 mod plugins_sheets;
 mod record_sheet;
 mod recording_sheet;
+mod recording_summary;
 mod voice;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead
@@ -4728,6 +4730,79 @@ fn encrypting_sheet(
     .unwrap();
 }
 
+/// The window for a library that won't open (issue #243, step 10): the
+/// content of the `kanso startup-error` window.
+fn startup_error_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    failure: &crate::startup_error_model::Failure,
+) {
+    use gpui_kit::ParentElement as _;
+    let screen = crate::startup_error_model::describe(
+        failure,
+        Path::new("/Users/me/Library/Application Support/Kanso"),
+    );
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        window.open_alert_dialog(cx, move |alert, _, cx| {
+            let colors = Colors::get(cx);
+            alert
+                .width(px(crate::startup_error::WIDTH))
+                .child(crate::startup_error::body(&screen, colors))
+                .footer(crate::startup_error::buttons(
+                    &screen,
+                    false,
+                    std::rc::Rc::new(|_, _, _| {}),
+                ))
+        });
+    })
+    .unwrap();
+}
+
+fn startup_wrong_key(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use crate::startup_error_model::{Cause, Failure};
+    startup_error_sheet(cx, window, &Failure::Library(Cause::WrongKey));
+}
+
+fn startup_stuck_marker(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use crate::startup_error_model::{Cause, Failure};
+    startup_error_sheet(cx, window, &Failure::Library(Cause::Converting));
+}
+
+fn startup_disk_full(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use crate::startup_error_model::{Cause, Failure};
+    startup_error_sheet(
+        cx,
+        window,
+        &Failure::Library(Cause::DiskFull { needed_mb: 412 }),
+    );
+}
+
+fn startup_lock_held(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use crate::startup_error_model::Failure;
+    startup_error_sheet(cx, window, &Failure::Locked);
+}
+
 /// The API keys notice's banner.
 fn api_keys_banner(
     cx: &mut HeadlessAppContext,
@@ -6181,6 +6256,41 @@ fn snapshots() {
                 learn_modals::cards_editing,
             )
         },
+        // Locking with pictures and files: the dialog's line about them and
+        // the copies it makes, the progress sheet, and the bar a lock that
+        // stopped leaves on the note.
+        Shot {
+            dialog_width: 448.,
+            ..shot("dark-lock-dialog", Dark, Edit, locking::lock_dialog)
+        },
+        Shot {
+            dialog_width: 448.,
+            ..shot("light-lock-dialog", Light, Edit, locking::lock_dialog)
+        },
+        Shot {
+            dialog_width: crate::lock_flow::SHEET_WIDTH,
+            // The sheet sits at the top; sample above its title.
+            dialog_sample_y: Some(28.),
+            ..shot("dark-lock-progress", Dark, Edit, locking::lock_progress)
+        },
+        Shot {
+            dialog_width: crate::lock_flow::SHEET_WIDTH,
+            // The sheet sits at the top; sample above its title.
+            dialog_sample_y: Some(28.),
+            ..shot("light-lock-progress", Light, Edit, locking::lock_progress)
+        },
+        shot(
+            "dark-lock-interrupted",
+            Dark,
+            Edit,
+            locking::lock_interrupted,
+        ),
+        shot(
+            "light-lock-interrupted",
+            Light,
+            Edit,
+            locking::lock_interrupted,
+        ),
         // Voice input: the pill while listening and writing, and Settings'
         // Voice input in each state of the model.
         // The PDF reader (issue #43): page 1 drawn by the worker, and the
@@ -6867,6 +6977,79 @@ fn snapshots() {
                 library_plain_sheet,
             )
         },
+        // The library won't open (issue #243, step 10).
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "dark-startup-error-wrong-key",
+                Dark,
+                Split,
+                startup_wrong_key,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "light-startup-error-wrong-key",
+                Light,
+                Split,
+                startup_wrong_key,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "dark-startup-error-stuck-marker",
+                Dark,
+                Split,
+                startup_stuck_marker,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "light-startup-error-stuck-marker",
+                Light,
+                Split,
+                startup_stuck_marker,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "dark-startup-error-disk-full",
+                Dark,
+                Split,
+                startup_disk_full,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "light-startup-error-disk-full",
+                Light,
+                Split,
+                startup_disk_full,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "dark-startup-error-lock-held",
+                Dark,
+                Split,
+                startup_lock_held,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "light-startup-error-lock-held",
+                Light,
+                Split,
+                startup_lock_held,
+            )
+        },
         Shot {
             dialog_width: crate::encrypt_progress::WIDTH,
             ..shot("dark-encrypting-library", Dark, Split, encrypting_sheet)
@@ -6958,6 +7141,7 @@ fn snapshots() {
         .chain(library_key::SHOTS)
         .chain(plugins_sheets::SHOTS)
         .chain(recording_sheet::SHOTS)
+        .chain(recording_summary::SHOTS)
         .chain(plugins_panel::SHOTS)
     {
         let theme = if name.starts_with("dark-") {
@@ -6974,6 +7158,7 @@ fn snapshots() {
         if name.ends_with("-remove")
             || name.ends_with("-revoke")
             || name.ends_with("-api-key-new")
+            || name.ends_with("-api-key-shown")
             || name.ends_with("-plugin-developer")
         {
             plugin_shot.dialog_sample_y = Some(30.);

@@ -786,6 +786,9 @@ pub struct LockedSettings {
     /// Whether Touch ID (Windows Hello on Windows) unlocks them here: `None`
     /// until Kanso has offered it, so it offers once.
     pub touch_id: Option<bool>,
+    /// Whether Kanso has told that locked notes seal their pictures and
+    /// files too (`Some(true)`), so it says it once.
+    pub files_notice: Option<bool>,
 }
 
 /// The layout [`AppConfig::migrate`] brings older files up to.

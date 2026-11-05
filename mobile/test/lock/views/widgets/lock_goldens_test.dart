@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/layout_class.dart';
 import 'package:kanso/note_list/views/widgets/note_list_view.dart';
 import 'package:kanso/settings/views/widgets/privacy_settings_pane.dart';
@@ -65,6 +66,31 @@ FixtureSessionRepository _open() =>
 /// No lock password yet.
 FixtureSessionRepository _none() =>
     FixtureSessionRepository(hasLockPassword: false);
+
+/// Twelve pictures and files, three of them also shown by other notes.
+const LockSummary _manyFiles = LockSummary(
+  files: 12,
+  bytes: 84000000,
+  shared: 3,
+);
+
+/// The notes are open and locking a note would seal [_manyFiles].
+FixtureSessionRepository _openWithFiles() =>
+    FixtureSessionRepository(unlocked: true)..summary = _manyFiles;
+
+/// The session of the lock that is sealing its files: it waits at the sixth.
+late FixtureSessionRepository _sealing;
+
+FixtureSessionRepository _sealingFiles() {
+  final session = _openWithFiles()..gate = Completer<void>();
+  _sealing = session;
+  return session;
+}
+
+/// A lock that stopped with three of five files sealed, on an open note.
+FixtureSessionRepository _stoppedLock() =>
+    FixtureSessionRepository(unlocked: true)
+      ..stopped = const InterruptedLock(files: 5, sealed: 3);
 
 Future<void> _tapText(WidgetTester tester, String text) async {
   await tester.tap(find.text(text).last);
@@ -187,6 +213,39 @@ final List<_Screen> _screens = <_Screen>[
       await _tapText(tester, 'Lock note…');
     },
   ),
+  _Screen(
+    'lock_note_files',
+    _openWithFiles,
+    at: _plain,
+    interact: (tester, app) async {
+      await _openMore(tester, app);
+      await _tapText(tester, 'Lock note…');
+    },
+  ),
+  _Screen(
+    'lock_progress',
+    _sealingFiles,
+    at: _plain,
+    interact: (tester, app) async {
+      await _openMore(tester, app);
+      await _tapText(tester, 'Lock note…');
+      // The sheet counts files without settling: its bar is moving.
+      await tester.tap(find.text('Lock').last);
+      await tester.pump(const Duration(milliseconds: 50));
+      _sealing.progress.add(
+        const SealProgress(
+          phase: SealPhase.sealing,
+          done: 5,
+          total: 12,
+          bytesDone: 31000000,
+          bytesTotal: 84000000,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+    },
+  ),
+  _Screen('lock_interrupted', _stoppedLock, at: _plain),
   _Screen(
     'set_lock_password',
     _none,

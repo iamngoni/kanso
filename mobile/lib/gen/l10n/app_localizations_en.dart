@@ -2852,7 +2852,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lockNoteConfirmMessage =>
-      'Its text and the pictures and files it links to are sealed, and its earlier versions are deleted. A file another note still shows gets a sealed copy. It stays open until the locked notes lock again.';
+      'Its text is sealed, and its earlier versions are deleted. It stays open until the locked notes lock again.';
 
   @override
   String get lockNotebookAskTitle => 'Lock notebook';
@@ -2862,7 +2862,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lockNotebookConfirmMessage =>
-      'Every note in it, and the pictures and files they link to, are sealed, and new notes added to it are sealed too. A file another note still shows gets a sealed copy.';
+      'Every note in it is sealed, and new notes added to it are sealed too.';
 
   @override
   String get lockNotebookMenu => 'Lock Notebook…';
@@ -5364,6 +5364,97 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get recordingSummaryMenu => 'Summarise recording';
+
+  @override
+  String get recordingSummaryTitle => 'Summarise recording';
+
+  @override
+  String get recordingSummaryClose => 'Close';
+
+  @override
+  String get recordingSummaryUnavailable =>
+      'To summarise a recording, turn on AI in Settings and open a note that holds the transcript of a recording. Locked notes, notes in the trash and notes tagged #ai-exclude are never sent.';
+
+  @override
+  String get recordingSummaryNothingYet =>
+      'Nothing is sent until you choose Send. You will see the summary and the action items before anything is written.';
+
+  @override
+  String get recordingSummaryReplacesNote =>
+      'This note already has a summary. A new one replaces it.';
+
+  @override
+  String get recordingSummaryWorking => 'Summarising the transcript…';
+
+  @override
+  String get recordingSummaryCancelHint =>
+      'Cancel stops the request. The note is not changed.';
+
+  @override
+  String get recordingSummaryUnchanged => 'The note is not changed.';
+
+  @override
+  String get recordingSummarySend => 'Send';
+
+  @override
+  String get recordingSummaryCancel => 'Cancel';
+
+  @override
+  String get recordingSummaryDiscard => 'Discard';
+
+  @override
+  String get recordingSummaryApply => 'Apply';
+
+  @override
+  String get recordingSummaryTryAgain => 'Try again';
+
+  @override
+  String get recordingSummarySectionSummary => 'Summary';
+
+  @override
+  String get recordingSummarySectionDecisions => 'Decisions';
+
+  @override
+  String get recordingSummarySectionActions => 'Action items';
+
+  @override
+  String get recordingSummaryActionsHint =>
+      'Only the ticked ones are written into the note.';
+
+  @override
+  String get recordingSummaryCut =>
+      'The transcript was long, so only its first part was summarised.';
+
+  @override
+  String get recordingSummaryAdded => 'Summary added above the transcript.';
+
+  @override
+  String get recordingSummaryReplaced => 'Summary replaced.';
+
+  @override
+  String recordingSummaryFailed(String reason) {
+    return 'Couldn\'t summarise this recording. $reason';
+  }
+
+  @override
+  String recordingSummaryApplyFailed(String reason) {
+    return 'Nothing was written. $reason';
+  }
+
+  @override
+  String recordingSummaryDropped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count items were left out for want of a quote from the recording.',
+      one: 'One item was left out for want of a quote from the recording.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get voiceTidyTryAgain => 'Try again';
 
   @override
@@ -6986,4 +7077,113 @@ class AppLocalizationsEn extends AppLocalizations {
   String noticeStep(int number, String step) {
     return 'Step $number: $step';
   }
+
+  @override
+  String lockFilesSealed(int count, String size) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pictures and files ($size) are',
+      one: '1 picture or file ($size) is',
+    );
+    return '$_temp0 sealed with it.';
+  }
+
+  @override
+  String lockFilesShared(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count attachments are',
+      one: '1 attachment is',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'them',
+      one: 'it',
+    );
+    return '$_temp0 also used by other notes: locking seals a copy of $_temp1, and the other notes keep theirs.';
+  }
+
+  @override
+  String get lockProgressTitleNote => 'Locking note';
+
+  @override
+  String get lockProgressTitleNotebook => 'Locking notebook';
+
+  @override
+  String get lockProgressTitleRemove => 'Removing the lock';
+
+  @override
+  String lockProgressLine(int count, String size) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Sealing $count attachments, $size',
+      one: 'Sealing 1 attachment, $size',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockProgressUnsealingLine(int count, String size) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Unsealing $count attachments, $size',
+      one: 'Unsealing 1 attachment, $size',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockProgressCount(int done, int total) {
+    return '$done of $total';
+  }
+
+  @override
+  String get lockProgressCancel => 'Cancel';
+
+  @override
+  String get lockProgressStopping => 'Stopping after this file…';
+
+  @override
+  String get lockStoppedMessage =>
+      'Locking stopped. The note isn\'t locked yet: finish locking it or undo it from the bar above the note.';
+
+  @override
+  String get lockStoppedNotebookMessage =>
+      'Locking stopped. The notebook isn\'t locked yet: lock it again to finish.';
+
+  @override
+  String lockInterruptedMessage(int sealed, int files) {
+    return 'Locking this note didn\'t finish: $sealed of its $files pictures and files are sealed, and the note isn\'t locked yet. Finish locking, or undo it to keep everything as it was.';
+  }
+
+  @override
+  String get lockInterruptedFinish => 'Finish locking';
+
+  @override
+  String get lockInterruptedUndo => 'Undo locking';
+
+  @override
+  String get lockInterruptedWorking => 'Working…';
+
+  @override
+  String get lockInterruptedPasswordTitle => 'Enter the lock password';
+
+  @override
+  String get lockInterruptedPasswordMessage =>
+      'The notes are closed. The lock password this note was being locked with finishes or undoes it.';
+
+  @override
+  String get lockInterruptedContinue => 'Continue';
+
+  @override
+  String get lockInterruptedFailed => 'That didn\'t work. Try again.';
+
+  @override
+  String get lockFilesNotice =>
+      'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.';
 }

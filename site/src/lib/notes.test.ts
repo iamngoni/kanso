@@ -68,6 +68,14 @@ describe("dayFrom", () => {
 describe("library", () => {
   const today = new Date(2026, 9, 20);
 
+  it("shows the agents' setup as a key in a config entry, never a login or a command", () => {
+    const agents = library(today).find((n) => n.id === "agents");
+    expect(agents?.body).toContain('"Authorization": "Bearer kcl_…"');
+    expect(agents?.body).not.toContain("Basic");
+    expect(agents?.body).not.toContain("password");
+    expect(agents?.body).not.toContain("mcp add");
+  });
+
   it("fills the tasks note's due dates relative to today", () => {
     const tasks = library(today).find((n) => n.id === "tasks");
     expect(tasks?.body).toContain("Send the draft to Sam @2026-10-19");
