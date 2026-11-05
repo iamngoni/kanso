@@ -9096,5 +9096,58 @@
   "lockFilesNotice": "Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can't re-seal the files, and they would stop opening.",
   "@lockFilesNotice": {
     "description": "The one-time notice about notes locked before attachments were sealed, with what to do on other devices."
+  },
+  "recordingSpeakersMenu": "Rename speakers",
+  "@recordingSpeakersMenu": {
+    "description": "A note's menu row that renames the speakers named in a recording's transcript."
+  },
+  "recordingSpeakersTitle": "Rename speakers",
+  "@recordingSpeakersTitle": {
+    "description": "The title of the sheet that renames the speakers of a recording's transcript."
+  },
+  "recordingSpeakersClose": "Close",
+  "@recordingSpeakersClose": {
+    "description": "The button that closes the Rename speakers sheet."
+  },
+  "recordingSpeakersCancel": "Cancel",
+  "@recordingSpeakersCancel": {
+    "description": "The button that leaves the Rename speakers sheet without changing anything."
+  },
+  "recordingSpeakersRename": "Rename",
+  "@recordingSpeakersRename": {
+    "description": "The button that writes the new speaker names into the note."
+  },
+  "recordingSpeakersHint": "Type a name for each voice. Two voices given the same name become one. The names are text in the note, and Undo brings the old ones back.",
+  "@recordingSpeakersHint": {
+    "description": "Said above the fields of the Rename speakers sheet."
+  },
+  "recordingSpeakersNobody": "This note has no transcript that says who spoke. Transcribe the recording on a computer with Tell speakers apart turned on, or start a paragraph with a name and a colon. Locked notes can't be renamed here.",
+  "@recordingSpeakersNobody": {
+    "description": "Said when the note has no speakers to rename."
+  },
+  "recordingSpeakersRenamed": "Speakers renamed.",
+  "@recordingSpeakersRenamed": {
+    "description": "The Undo notice after the speakers of a transcript were renamed."
+  },
+  "recordingSpeakersField": "{name} · {count, plural, =1{1 paragraph} other{{count} paragraphs}}",
+  "@recordingSpeakersField": {
+    "description": "The label of one speaker's field: the name now in the note and how many paragraphs it begins.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingSpeakersFailed": "Couldn't rename the speakers. {reason}",
+  "@recordingSpeakersFailed": {
+    "description": "Said when renaming the speakers did not work; the reason follows.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
   }
 }

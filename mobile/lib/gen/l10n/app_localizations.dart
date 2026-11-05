@@ -12477,6 +12477,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.'**
   String get lockFilesNotice;
+
+  /// A note's menu row that renames the speakers named in a recording's transcript.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename speakers'**
+  String get recordingSpeakersMenu;
+
+  /// The title of the sheet that renames the speakers of a recording's transcript.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename speakers'**
+  String get recordingSpeakersTitle;
+
+  /// The button that closes the Rename speakers sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get recordingSpeakersClose;
+
+  /// The button that leaves the Rename speakers sheet without changing anything.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get recordingSpeakersCancel;
+
+  /// The button that writes the new speaker names into the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get recordingSpeakersRename;
+
+  /// Said above the fields of the Rename speakers sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a name for each voice. Two voices given the same name become one. The names are text in the note, and Undo brings the old ones back.'**
+  String get recordingSpeakersHint;
+
+  /// Said when the note has no speakers to rename.
+  ///
+  /// In en, this message translates to:
+  /// **'This note has no transcript that says who spoke. Transcribe the recording on a computer with Tell speakers apart turned on, or start a paragraph with a name and a colon. Locked notes can\'t be renamed here.'**
+  String get recordingSpeakersNobody;
+
+  /// The Undo notice after the speakers of a transcript were renamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speakers renamed.'**
+  String get recordingSpeakersRenamed;
+
+  /// The label of one speaker's field: the name now in the note and how many paragraphs it begins.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · {count, plural, =1{1 paragraph} other{{count} paragraphs}}'**
+  String recordingSpeakersField(String name, int count);
+
+  /// Said when renaming the speakers did not work; the reason follows.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t rename the speakers. {reason}'**
+  String recordingSpeakersFailed(String reason);
 }
 
 class _AppLocalizationsDelegate

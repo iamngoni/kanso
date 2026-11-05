@@ -36,6 +36,10 @@ pub struct Model {
     pub files: &'static [ModelFile],
 }
 
+/// Where every model is downloaded from: Hugging Face, over HTTPS, at a
+/// pinned revision of each repository.
+pub const HOST: &str = "https://huggingface.co";
+
 impl Model {
     /// The model's folder in the data folder `data_dir`.
     pub fn dir(&self, data_dir: &Path) -> PathBuf {
@@ -45,7 +49,7 @@ impl Model {
     /// The address of one of its files at the pinned revision.
     pub fn file_url(&self, name: &str) -> String {
         format!(
-            "https://huggingface.co/{}/resolve/{}/{name}",
+            "{HOST}/{}/resolve/{}/{name}",
             self.repository, self.revision
         )
     }

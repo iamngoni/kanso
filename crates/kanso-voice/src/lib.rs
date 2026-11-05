@@ -18,6 +18,7 @@
 pub mod audio;
 pub mod chunk;
 pub mod decode;
+pub mod diarize;
 mod dictation;
 pub mod engine;
 pub mod file;

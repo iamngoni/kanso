@@ -5066,10 +5066,13 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "ort",
  "proptest",
+ "realfft",
  "regex",
  "rtrb",
  "rubato",
+ "sha2 0.11.1",
  "symphonia",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

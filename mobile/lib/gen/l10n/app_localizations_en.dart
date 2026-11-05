@@ -7545,4 +7545,46 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get lockFilesNotice =>
       'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.';
+
+  @override
+  String get recordingSpeakersMenu => 'Rename speakers';
+
+  @override
+  String get recordingSpeakersTitle => 'Rename speakers';
+
+  @override
+  String get recordingSpeakersClose => 'Close';
+
+  @override
+  String get recordingSpeakersCancel => 'Cancel';
+
+  @override
+  String get recordingSpeakersRename => 'Rename';
+
+  @override
+  String get recordingSpeakersHint =>
+      'Type a name for each voice. Two voices given the same name become one. The names are text in the note, and Undo brings the old ones back.';
+
+  @override
+  String get recordingSpeakersNobody =>
+      'This note has no transcript that says who spoke. Transcribe the recording on a computer with Tell speakers apart turned on, or start a paragraph with a name and a colon. Locked notes can\'t be renamed here.';
+
+  @override
+  String get recordingSpeakersRenamed => 'Speakers renamed.';
+
+  @override
+  String recordingSpeakersField(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count paragraphs',
+      one: '1 paragraph',
+    );
+    return '$name · $_temp0';
+  }
+
+  @override
+  String recordingSpeakersFailed(String reason) {
+    return 'Couldn\'t rename the speakers. $reason';
+  }
 }

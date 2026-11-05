@@ -11,6 +11,7 @@ use kanso_voice::permission::{self, Permission};
 use crate::config::{TidyMode, VoiceEngine};
 use crate::settings::{Row, SettingsView, section as settings_section, segmented};
 use crate::settings_discovery::{megabytes, meter, this_device};
+use crate::speakers;
 use crate::theme::Colors;
 use crate::voice::{self, MODEL, ModelState, Voice};
 use crate::workspace::AppState;
@@ -168,7 +169,115 @@ fn capture_rows(cx: &mut Context<SettingsView>, colors: &Colors) -> Vec<Row> {
                     }),
             ),
         );
-    vec![tidy, meetings]
+    let mut rows = vec![tidy, meetings];
+    rows.extend(speaker_rows(cx, config.voice.speakers, colors));
+    rows
+}
+
+/// Telling speakers apart (issue #38, step 13): the switch, and once it is
+/// on, the two small models it needs.
+// no-prop-test: layout and buttons; `speakers::model_words` says what it shows.
+fn speaker_rows(cx: &mut Context<SettingsView>, on: bool, colors: &Colors) -> Vec<Row> {
+    let switch = Row::new(Lucide::Users, "Tell speakers apart")
+        .detail(speakers_detail())
+        .trailing(
+            div().debug_selector(|| "voice-speakers".into()).child(
+                Switch::new("voice-speakers")
+                    .checked(on)
+                    .on_click(|on, _, cx| {
+                        let on = *on;
+                        AppState::update_config(cx, |config| config.voice.speakers = on);
+                        let missing = cx
+                            .try_global::<speakers::Speakers>()
+                            .is_some_and(|s| matches!(s.model, ModelState::Missing));
+                        if on && missing {
+                            speakers::start_download(cx);
+                        }
+                        // Off stops a download on its way; what arrived is
+                        // kept, and Remove deletes it.
+                        if !on {
+                            speakers::cancel_download(cx);
+                        }
+                    }),
+            ),
+        );
+    let mut rows = vec![switch];
+    let state = cx
+        .try_global::<speakers::Speakers>()
+        .map(|s| s.model.clone())
+        .unwrap_or_default();
+    // Off, the models stay on disk until removed, so a downloaded pair
+    // keeps its row (and its Remove button) with the switch off too.
+    if speakers::model_row_shown(on, &state) {
+        rows.push(speaker_model_row(&state, colors));
+    }
+    rows
+}
+
+/// What the Tell speakers apart row says under its title, before it is
+/// turned on: turning it on downloads the speaker models, so it says so,
+/// and how big they are. Pure.
+fn speakers_detail() -> String {
+    format!(
+        "Puts \"Speaker 1\", \"Speaker 2\" before the paragraphs of a recording's transcript, by how each voice sounds. Rename them in the note. Your microphone stays \"You\". Turning it on downloads two speaker models ({}) once. It takes a little longer to transcribe, and it can mix up voices that sound alike.",
+        megabytes(speakers::total_size())
+    )
+}
+
+// no-prop-test: layout; `speakers::model_words` has the tests.
+fn speaker_model_row(state: &ModelState, colors: &Colors) -> Row {
+    let (title, detail) = speakers::model_words(state);
+    let icon = match state {
+        ModelState::Ready => Lucide::Check,
+        ModelState::Failed(_) => Lucide::TriangleAlert,
+        _ => Lucide::Download,
+    };
+    let row = Row::new(icon, title).detail(detail);
+    match state {
+        ModelState::Downloading { done, total } => row.trailing(
+            h_flex()
+                .gap(px(10.))
+                .items_center()
+                .child(meter(*done as f32 / (*total).max(1) as f32, colors))
+                .child(
+                    Button::new("speakers-download-cancel")
+                        .outline()
+                        .small()
+                        .label("Stop")
+                        .on_click(|_, _, cx| speakers::cancel_download(cx)),
+                ),
+        ),
+        ModelState::Ready => row.trailing(
+            Button::new("speakers-remove")
+                .outline()
+                .small()
+                .label("Remove")
+                .on_click(|_, window, cx| {
+                    if let Err(err) = speakers::remove_models(cx) {
+                        window.push_notification(
+                            gpui_kit::component::notification::Notification::error(format!(
+                                "Couldn't remove the speaker models: {err}"
+                            )),
+                            cx,
+                        );
+                    }
+                }),
+        ),
+        ModelState::Failed(_) => row.trailing(
+            Button::new("speakers-retry")
+                .outline()
+                .small()
+                .label("Try Again")
+                .on_click(|_, _, cx| speakers::start_download(cx)),
+        ),
+        ModelState::Unknown | ModelState::Missing => row.trailing(
+            Button::new("speakers-download")
+                .outline()
+                .small()
+                .label("Download")
+                .on_click(|_, _, cx| speakers::start_download(cx)),
+        ),
+    }
 }
 
 // no-prop-test: layout; `model_words` has the tests.
@@ -229,7 +338,7 @@ fn model_row(model: &ModelState, colors: &Colors) -> Row {
 
 #[cfg(test)]
 mod tests {
-    use super::{ModelState, model_words, tidy_detail};
+    use super::{ModelState, model_words, speakers_detail, tidy_detail};
     use proptest::prelude::*;
 
     #[test]
@@ -246,6 +355,16 @@ mod tests {
             "Downloading the voice model… 50%"
         );
         assert!(model_words(&ModelState::Ready).1.contains("NVIDIA"));
+    }
+
+    // no-prop-test: one fixed sentence.
+    #[test]
+    fn the_speakers_switch_says_it_downloads_and_how_much() {
+        let detail = speakers_detail();
+        assert!(
+            detail.contains("downloads two speaker models (28.1\u{a0}MB)"),
+            "{detail}"
+        );
     }
 
     // no-prop-test: two fixed sentences.

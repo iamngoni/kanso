@@ -86,6 +86,7 @@ class NoteMoreSheet extends StatelessWidget {
       // Run above, from [moved] or [extra].
       case NoteMenuAction.openInNewWindow ||
           NoteMenuAction.record ||
+          NoteMenuAction.renameSpeakers ||
           NoteMenuAction.summarizeRecording ||
           NoteMenuAction.info ||
           NoteMenuAction.comments ||
@@ -127,6 +128,7 @@ class NoteMoreSheet extends StatelessWidget {
                   NoteMenuAction.lockNow => KansoIcons.lock,
                   NoteMenuAction.openInNewWindow => KansoIcons.externalLink,
                   NoteMenuAction.record => KansoIcons.mic,
+                  NoteMenuAction.renameSpeakers => KansoIcons.users,
                   NoteMenuAction.summarizeRecording => KansoIcons.sparkles,
                   NoteMenuAction.info => KansoIcons.info,
                   NoteMenuAction.comments => KansoIcons.messageSquare,
@@ -144,6 +146,7 @@ class NoteMoreSheet extends StatelessWidget {
                   NoteMenuAction.lockNow => l10n.lockNowMenu,
                   NoteMenuAction.openInNewWindow => l10n.noteOpenInNewWindow,
                   NoteMenuAction.record => l10n.recordingMenuRecordHere,
+                  NoteMenuAction.renameSpeakers => l10n.recordingSpeakersMenu,
                   NoteMenuAction.summarizeRecording =>
                     l10n.recordingSummaryMenu,
                   NoteMenuAction.info => l10n.noteInfo,
