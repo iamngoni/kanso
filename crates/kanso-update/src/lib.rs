@@ -16,6 +16,7 @@ pub mod feed;
 pub mod fetch;
 pub mod install;
 pub mod notes;
+pub mod notice_gate;
 pub mod platform;
 pub mod policy;
 pub mod stage;

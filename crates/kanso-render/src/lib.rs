@@ -30,7 +30,7 @@ pub mod typography;
 
 use std::sync::Arc;
 
-pub use cache::{cached, forget_plugin_drawings, render_blocking, request};
+pub use cache::{cached, forget_all, forget_plugin_drawings, render_blocking, request};
 pub use mermaid::is_supported as mermaid_is_supported;
 pub use mermaid::{
     Engine as MermaidEngine, engine as mermaid_engine, render_with as render_mermaid_with,
@@ -155,6 +155,8 @@ pub enum Kind {
     Excalidraw,
     /// A fence in a language a plugin draws; see [`Job::plugin`].
     Plugin,
+    /// A `sketch` fence: an inline drawing's JSON.
+    Sketch,
     /// A canvas note's body, shown where a `canvas` fence embeds it; see
     /// [`Job::canvas`] and [`canvas::embed`].
     Canvas,
@@ -249,6 +251,7 @@ pub fn render(job: &Job) -> Outcome {
         Kind::Mermaid => mermaid::render_with(job.mermaid, &job.source, &job.palette),
         Kind::Excalidraw => excalidraw::render(&job.source, &job.palette),
         Kind::Plugin => plugin::render(job),
+        Kind::Sketch => canvas::sketch::render(&job.source, &job.palette),
         Kind::Canvas => canvas::embed::render(job),
     }
 }

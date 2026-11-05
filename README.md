@@ -59,10 +59,15 @@ A local-first Markdown notes app for macOS, with Windows and Linux builds, built
   Each device encrypts notes, titles, IDs and attachments before they leave it, with a key the
   server never sees. Conflicts keep both versions: the losing one stays in the note's history.
 - **A local API for agents.** `http://127.0.0.1:19840` is a REST API over your notes, and `/mcp`
-  on the same port is a native MCP endpoint. Settings › Local API › **Connect an AI agent**
-  copies the setup for Claude Code, Claude Desktop, Codex, Cursor, VS Code, Gemini CLI,
-  Windsurf, Zed or OpenCode. Its REST API is compatible with popular local-server clients, so
-  clients written for that API work too.
+  on the same port is a native MCP endpoint. Every agent, script and app needs its own **API key**,
+  made in Settings › Local API › **API keys**, with the access you choose (read, suggest edits, or
+  read and write) and the notebooks it may see. **New key…** gives the setup for Claude Code,
+  Claude Desktop, Codex, Cursor, VS Code, Gemini CLI, Windsurf, Zed or OpenCode, or for a script.
+  Its REST API is compatible with popular local-server clients. [The local API](#the-local-api)
+  has the details.
+- **An encrypted library.** Your library and its backups are encrypted on this computer, with a key
+  the system keeps. [Encryption on this computer](#encryption-on-this-computer) says what that
+  does and doesn't stop, and how to save the key.
 - **Ask your notes, with a key or an agent.** Off until you turn it on in Settings › AI. Answers cite
   the notes they used, and an inline assistant and note summaries work the same way. They come
   from a provider you have a key for, or from an agent on this computer (Claude Agent, Codex, Gemini
@@ -190,9 +195,10 @@ Full Disk Access once, or give Apple Notes a readable copy instead.
 copies the library found on this computer in, keeping its IDs and revisions; its files are only
 read. The local API listens on port 19840; if another app already uses that port, the plug icon at
 the bottom of the sidebar turns amber, and Kanso keeps trying until it's free or you choose another
-port in Settings › Local API. To keep MCP clients you had set up against that app's local server,
-**Copy local API settings…** on that page takes its port, username and password; macOS asks you to
-allow access to the app's "Safe Storage" Keychain item, where its encrypted settings keep them.
+port in Settings › Local API. To keep clients you had set up against that app's local server,
+**Copy local API settings…** on that page takes its port and address (`--credentials` does the same
+for `kanso import pouchdb`). It takes no username or password: those clients need a Kanso API key,
+made in Settings › Local API › API keys.
 
 **Sync.** Settings › Account › **Create account** picks a username and a password of at least 12
 characters; this device's notes are encrypted and uploaded. Kanso then shows a **recovery key**: save
@@ -249,9 +255,8 @@ notes stay open until they lock again with the others. A locked notebook shows a
 - The notebook's lock syncs inside its own encrypted document, like a note's. A note another device
   puts there without sealing it (one running an older Kanso, say) is kept from search, the local API
   and related notes here, and is sealed the next time you open the notebook.
-- The local API and MCP read every note in a locked notebook with an empty body. They can't write text
-  into one, change or empty a note's text there, move a note's plain text out, lock or unlock the
-  notebook, or delete the notebook or its notes outright.
+- The local API and MCP don't see a locked notebook or the notes in it: to an API key they are "not
+  found", and can't be read, changed, moved or deleted.
 - **Change lock password…** moves locked notebooks to the new password too.
 
 What locking does and doesn't do:
@@ -270,8 +275,8 @@ What locking does and doesn't do:
   they are replaced, after 14 days.
 - The title, notebook, tags, status and dates stay visible, and pictures and files attached to a
   locked note aren't sealed.
-- The local API reads a locked note with an empty body. It can move, retitle or tag the note, but
-  can't change its text, take the lock off, or delete it outright (moving it to the trash still works).
+- The local API doesn't see a locked note at all: to an API key it is "not found", so it can't read,
+  retitle, tag, move or delete it.
 - **Empty Trash** deletes locked notes too. Its question counts them ("Delete 12 notes permanently,
   including 2 locked notes and their sealed attachments"), and a locked note's sealed attachments are
   deleted with it. An attachment a note outside the trash still uses is kept.
@@ -279,6 +284,94 @@ What locking does and doesn't do:
   be published.
 - Every device needs this version of Kanso: an older one shows a locked note as empty, and doesn't
   know a notebook is locked, so a note it makes there stays plain until this version seals it.
+
+### Encryption on this computer
+
+Kanso encrypts your library (`kanso.db`, its write-ahead log and your daily backups) with SQLCipher
+on macOS, Windows and Linux. The key is 256 random bits that the system keeps for you: the Keychain
+on macOS, the Credential Manager on Windows, the Secret Service on Linux (a headless server may use
+`secrets.json`, see [Headless / VPS](#headless--vps)). It is unlocked with your login session, so
+Kanso doesn't ask for a password or Touch ID to open. The phones keep the stock database: each app's
+sandbox, and iOS Data Protection or Android file encryption, already cover their files.
+
+- **New libraries** are encrypted from the start.
+- **A library from before** is encrypted once, at the first launch of a version that can: a window
+  reads "Encrypting your library… 62%" and the library window opens when it is done. Kanso copies
+  the library into an encrypted file, checks every table row by row, and only then swaps it in and
+  overwrites the plain file. Your existing backups are encrypted too. If anything fails the plain
+  library is left as it was, and a crash at any step leaves the library either plain or finished,
+  never half of each.
+- **If Kanso can't encrypt it** (the system keychain refuses the key, or the disk has less free
+  space than the library takes), the library stays a plain file that any program running as you can
+  read, nothing is lost, and Kanso tries again at every launch. An update notice, **Your library
+  isn't encrypted yet**, lists the fixes: unlock the keychain (on Linux, run a Secret Service such as
+  GNOME Keyring or KeePassXC), free some disk space, and restart Kanso. On a server with no keychain,
+  see [Headless / VPS](#headless--vps).
+
+**Save your library key.** A backup opens on another computer only with the library key, shown as
+**24 words**. If the library isn't signed in to sync, Kanso shows **Save your library key** right
+after it encrypts, with the words, **Copy** (the clipboard is cleared after a minute) and **I've
+saved it**. **Later** closes it, and it comes back at each launch until you choose **I've saved
+it**. A library signed in to sync gets no sheet: signing in on a new computer brings the notes back.
+Until you save it, an update notice, **Your library is now encrypted**, says the same, and it goes
+when you do.
+
+In Settings › General › Data › **Backups**:
+
+- **Library key** › **Show key…** confirms it's you (Touch ID on a Mac that has it, Windows Hello on
+  Windows, otherwise a confirmation) and shows the 24 words again. The row says "Library key not
+  saved" until you've chosen I've saved it.
+- **Restore from backup** › **Restore…** takes a backup file. One this computer's key opens, or a
+  plain one, goes straight to the question; a backup made on another computer asks for its 24
+  words first. Kanso stages the backup, re-encrypted with this library's key, and asks you to quit
+  and open it again. At that launch the app swaps the backup in and keeps the library you had as
+  a backup; `kanso capture`, `serve`, `sticky`, `plugin`, `import`, `account` and `kanso-sync`
+  leave a waiting restore alone and say "A restore is waiting; open Kanso to apply it." The API
+  keys stay the library's own (see [The local API](#the-local-api)).
+  A library signed in to sync can't be restored: sign out (Settings › Account) first, then
+  restore. If you sign in again before reopening Kanso, the restore waits until you sign out. The
+  restored library comes back signed out and not linked to any account, so when you sign in
+  again Kanso asks, as it does on any device with notes, whether to add the restored notes to the
+  account (a note deleted from the account since the backup comes back, and a note changed on
+  both sides keeps both versions) or replace them with the account's notes (after saving a
+  backup of them).
+
+Both rows show only for an encrypted library. Without the key (and without sync) a backup can't be
+opened: that is the cost of encryption.
+
+What it does and doesn't do:
+
+- It stops a copy of `kanso.db` or a backup from being read without the key, and a stolen disk. Keep
+  FileVault, BitLocker or LUKS on as well: SSDs can keep old blocks of the plain file.
+- **On macOS** the Keychain item trusts only the app that made it, so another program (the
+  `security` command included) gets a system prompt. **On Windows and Linux**, any program running as
+  you can read the key, so there encryption protects against a stolen disk or copied files, not
+  against software running as you.
+- Plugin settings and plugins' network logs are kept in the library, and `config.json` has no
+  secrets, so no note text sits in the files beside it.
+- It does not hide your notes from the local API: that is what API keys are for.
+
+### The local API
+
+`http://127.0.0.1:19840` is a REST API, and `/mcp` on the same port a native MCP endpoint. **Every
+caller needs its own API key**, even a program that can start Kanso. Make one in Settings › Local API
+› **API keys** › **New key…**: pick what it's for, a name, what it can do (**Read notes**, **Read
+and suggest edits**, or **Read and write**) and which notebooks. Kanso shows the key once, inside the
+setup to paste into the agent, and stores only a hash. **Revoke** stops a key at once; Settings shows
+each key's last use.
+
+Send a key as `Authorization: Bearer kcl_…`, or as the password of HTTP Basic with any username for a
+tool that takes only a login. Locked notes, the trash and `#ai-exclude` notes are never visible to a
+key. A request without a valid key gets `401` and a message that says how to make one; so does
+`kanso mcp` without `KANSO_MCP_TOKEN`. Making a key, what each access level allows, every error and
+its fix, and the network cautions are in [docs/LOCAL-API.md](docs/LOCAL-API.md).
+
+**Upgrading.** The local API's username and password are gone, and agents set up with them stopped
+working at the update. If you had a login, a banner reads **Your AI agents and scripts need new
+keys**: **How to fix** gives the steps (make a key for each agent or script, paste the new setup in
+place of the old Kanso entry, restart the agent; a script sends `Authorization: Bearer <key>`).
+**Dismiss** hides the banner; **Mark as fixed** also drops it from the palette's **Update notices**.
+The notice stays under **Needs your attention** in What's new.
 
 ### Open loops, the morning brief and the weekly review
 
@@ -448,12 +541,13 @@ kanso                       # open the app
 kanso serve                 # only the API (REST and /mcp), no window; syncs when signed in
 kanso account sign-in --username ngoni   # sign a headless library in; then kanso serve syncs it
 kanso account status        # account, this device, last sync (works while serve runs)
-kanso mcp                   # MCP over stdin/stdout, for agents that start a program (Kanso open, or kanso serve)
+kanso mcp                   # MCP over stdin/stdout for agents that start a program; needs KANSO_MCP_TOKEN=<API key>
+kanso api-key create --name "Backup script"   # make an API key with no window (list, revoke); prints only the key
 kanso import obsidian ~/Vault --dry-run   # what an import would bring in
 kanso import notion ~/Downloads/Export.zip  # markdown, obsidian, notion, evernote, …
 kanso import apple-notes                  # the Notes library on this Mac
-kanso import pouchdb        # the PouchDB library on this computer; --credentials copies its API settings
-kanso capture "Call Sam"    # save a note to the Inbox (--book <name> picks the notebook)
+kanso import pouchdb        # the PouchDB library on this computer; --credentials copies its API port and address
+kanso capture "Call Sam"    # save a note to the Inbox (--book <name> picks the notebook); needs no API key
 pbpaste | kanso capture     # with no text, it reads standard input
 ```
 
@@ -464,7 +558,10 @@ Every command takes `--data-dir <dir>`. The default is `$KANSO_DATA_DIR` when se
 ### Headless / VPS
 
 `kanso serve` runs the API and `/mcp` without a window, so an agent on a server (Codex, say) can use
-your notes. Sign the server's library in to your account once, with the service stopped, and
+your notes, with an API key. Keys are stored in the library, which never syncs them. On the server,
+with the service stopped, `kanso api-key create --name <name>` prints a new key and nothing else
+(`list` and `revoke` do the rest); until the library has a key, `kanso serve` and `kanso mcp`
+refuse every request. Sign the server's library in to your account once, with the service stopped, and
 `kanso serve` syncs it while it runs: at start, every `sync.intervalSecs` (5 minutes), and 20
 seconds after any API or MCP write.
 
@@ -487,8 +584,10 @@ says so once and keeps serving the library.
 
 A server has no keyring, so the session goes in `secrets.json` in the data folder (owner-only,
 `0600`; `--secrets file`, the default when no Secret Service answers). **That file holds the key
-that decrypts your notes.** Kanso's sync server still never sees it, but anyone with root on the
-server can read it. To keep it out of backups and snapshots, seal it under a key held elsewhere:
+that decrypts your notes, and the key that decrypts the library itself.** Kanso's sync server still
+never sees it, but anyone with root on the server can read it, and without `KANSO_SECRETS_KEY_FILE`
+the library's encryption stops only a copy of `kanso.db` taken on its own, not anyone who can read the
+data folder. To keep it out of backups and snapshots, seal it under a key held elsewhere:
 point `KANSO_SECRETS_KEY_FILE` at a file of 32 random bytes (for example a systemd credential,
 `LoadCredentialEncrypted=kanso-secrets-key:…` with
 `Environment=KANSO_SECRETS_KEY_FILE=%d/kanso-secrets-key`). A file written before the key was set is
@@ -501,7 +600,7 @@ key in a file only the `kanso` user can read instead. Before you delete the serv
 
 An example unit is in [`assets/linux/kanso.service`](assets/linux/kanso.service). Keep `bindAddress`
 at `127.0.0.1` and reach the API through an SSH tunnel (`ssh -L 19840:127.0.0.1:19840 vps`) or a TLS
-proxy; agents on the server itself use `kanso mcp`. The binary still links the desktop's shared
+proxy; agents on the server itself use `kanso mcp`, with `KANSO_MCP_TOKEN` set to a key. The binary still links the desktop's shared
 libraries, so install them even without a display:
 
 ```bash
@@ -558,7 +657,7 @@ downloads, versioned `<version>-dev.<commit>`, as workflow artifacts without mak
 a release stuck as a draft.
 
 Design notes and decisions are in [docs/PLAN.md](docs/PLAN.md); accounts and encrypted sync in
-[docs/ACCOUNTS.md](docs/ACCOUNTS.md).
+[docs/ACCOUNTS.md](docs/ACCOUNTS.md); the local API in [docs/LOCAL-API.md](docs/LOCAL-API.md).
 
 ## Licence
 

@@ -3824,7 +3824,7 @@
   "@lockNoteConfirmTitle": {
     "description": "The title of the sheet that confirms locking a note."
   },
-  "lockNoteConfirmMessage": "Its text and the pictures and files it links to are sealed, and its earlier versions are deleted. A file another note still shows gets a sealed copy. It stays open until the locked notes lock again.",
+  "lockNoteConfirmMessage": "Its text is sealed, and its earlier versions are deleted. It stays open until the locked notes lock again.",
   "@lockNoteConfirmMessage": {
     "description": "Explains what locking a note does."
   },
@@ -3836,7 +3836,7 @@
   "@lockNotebookConfirmTitle": {
     "description": "The title of the sheet that confirms locking a notebook."
   },
-  "lockNotebookConfirmMessage": "Every note in it, and the pictures and files they link to, are sealed, and new notes added to it are sealed too. A file another note still shows gets a sealed copy.",
+  "lockNotebookConfirmMessage": "Every note in it is sealed, and new notes added to it are sealed too.",
   "@lockNotebookConfirmMessage": {
     "description": "Explains what locking a notebook does."
   },
@@ -6838,6 +6838,117 @@
       }
     }
   },
+  "recordingSummaryMenu": "Summarise recording",
+  "@recordingSummaryMenu": {
+    "description": "The note menu's action that summarises a recording with the person's own AI."
+  },
+  "recordingSummaryTitle": "Summarise recording",
+  "@recordingSummaryTitle": {
+    "description": "Title of the sheet that summarises a recording."
+  },
+  "recordingSummaryClose": "Close",
+  "@recordingSummaryClose": {
+    "description": "Closes the summarise recording sheet."
+  },
+  "recordingSummaryUnavailable": "To summarise a recording, turn on AI in Settings and open a note that holds the transcript of a recording. Locked notes, notes in the trash and notes tagged #ai-exclude are never sent.",
+  "@recordingSummaryUnavailable": {
+    "description": "Said when Summarise recording can't be used on this note."
+  },
+  "recordingSummaryNothingYet": "Nothing is sent until you choose Send. You will see the summary and the action items before anything is written.",
+  "@recordingSummaryNothingYet": {
+    "description": "Under the question that asks where the transcript goes."
+  },
+  "recordingSummaryReplacesNote": "This note already has a summary. A new one replaces it.",
+  "@recordingSummaryReplacesNote": {
+    "description": "Said when the note already holds a summary."
+  },
+  "recordingSummaryWorking": "Summarising the transcript…",
+  "@recordingSummaryWorking": {
+    "description": "Shown while the AI summarises a recording."
+  },
+  "recordingSummaryCancelHint": "Cancel stops the request. The note is not changed.",
+  "@recordingSummaryCancelHint": {
+    "description": "Under the working line."
+  },
+  "recordingSummaryUnchanged": "The note is not changed.",
+  "@recordingSummaryUnchanged": {
+    "description": "Said after a summary failed."
+  },
+  "recordingSummarySend": "Send",
+  "@recordingSummarySend": {
+    "description": "Sends the transcript to the person's AI."
+  },
+  "recordingSummaryCancel": "Cancel",
+  "@recordingSummaryCancel": {
+    "description": "Stops summarising."
+  },
+  "recordingSummaryDiscard": "Discard",
+  "@recordingSummaryDiscard": {
+    "description": "Throws the summary away without writing it."
+  },
+  "recordingSummaryApply": "Apply",
+  "@recordingSummaryApply": {
+    "description": "Writes the summary and the ticked action items into the note."
+  },
+  "recordingSummaryTryAgain": "Try again",
+  "@recordingSummaryTryAgain": {
+    "description": "Asks the AI for the summary again."
+  },
+  "recordingSummarySectionSummary": "Summary",
+  "@recordingSummarySectionSummary": {
+    "description": "Heading of the summary points."
+  },
+  "recordingSummarySectionDecisions": "Decisions",
+  "@recordingSummarySectionDecisions": {
+    "description": "Heading of the decisions."
+  },
+  "recordingSummarySectionActions": "Action items",
+  "@recordingSummarySectionActions": {
+    "description": "Heading of the action items."
+  },
+  "recordingSummaryActionsHint": "Only the ticked ones are written into the note.",
+  "@recordingSummaryActionsHint": {
+    "description": "Under the Action items heading."
+  },
+  "recordingSummaryCut": "The transcript was long, so only its first part was summarised.",
+  "@recordingSummaryCut": {
+    "description": "Said when a very long transcript was cut."
+  },
+  "recordingSummaryAdded": "Summary added above the transcript.",
+  "@recordingSummaryAdded": {
+    "description": "Notice after a summary was written, with Undo."
+  },
+  "recordingSummaryReplaced": "Summary replaced.",
+  "@recordingSummaryReplaced": {
+    "description": "Notice after a summary replaced an earlier one, with Undo."
+  },
+  "recordingSummaryFailed": "Couldn't summarise this recording. {reason}",
+  "@recordingSummaryFailed": {
+    "description": "Said when asking the AI for a summary failed.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingSummaryApplyFailed": "Nothing was written. {reason}",
+  "@recordingSummaryApplyFailed": {
+    "description": "Said under the review when Apply could not write the summary (the note was locked, changed or lost its transcript meanwhile).",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingSummaryDropped":"{count, plural, =1{One item was left out for want of a quote from the recording.} other{{count} items were left out for want of a quote from the recording.}}",
+  "@recordingSummaryDropped": {
+    "description": "Said when the AI gave items the transcript does not back.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "voiceTidyTryAgain": "Try again",
   "@voiceTidyTryAgain": {
     "description": "Button that tries tidying a voice note again."
@@ -8456,6 +8567,87 @@
   "@playerTryAgain": {
     "description": "Opens a recording that failed to play once more."
   },
+  "sketchInsertKey": "Insert sketch",
+  "@sketchInsertKey": {
+    "description": "The label of the editor key that puts a drawing box in the note."
+  },
+  "sketchSizeTitle": "Insert sketch",
+  "@sketchSizeTitle": {
+    "description": "The title of the sheet that asks how big the drawing box is."
+  },
+  "sketchSizeSmall": "Small, 320 by 240",
+  "@sketchSizeSmall": {
+    "description": "A drawing box size."
+  },
+  "sketchSizeMedium": "Medium, 480 by 320",
+  "@sketchSizeMedium": {
+    "description": "A drawing box size."
+  },
+  "sketchSizeLarge": "Large, 640 by 480",
+  "@sketchSizeLarge": {
+    "description": "A drawing box size."
+  },
+  "sketchLabel": "Sketch",
+  "@sketchLabel": {
+    "description": "What a screen reader calls a drawing box in a note."
+  },
+  "sketchOpenAsCanvas": "Open as canvas",
+  "@sketchOpenAsCanvas": {
+    "description": "Turns a sketch in a note into a canvas note."
+  },
+  "sketchCopyAsCanvas": "Copy as canvas",
+  "@sketchCopyAsCanvas": {
+    "description": "Makes a private canvas from a sketch in a shared note."
+  },
+  "sketchShared": "Shared note: copy it to a canvas to draw together.",
+  "@sketchShared": {
+    "description": "Shown under a sketch in a shared note, where it can't be drawn on."
+  },
+  "sketchFull": "This sketch is full. Open it as a canvas to keep drawing.",
+  "@sketchFull": {
+    "description": "Shown when a sketch is at its size limit and refuses new ink."
+  },
+  "sketchFingerDraws": "Draw with a finger",
+  "@sketchFingerDraws": {
+    "description": "Lets a finger draw on a sketch instead of scrolling the note."
+  },
+  "sketchFailed": "This sketch can't be drawn on.",
+  "@sketchFailed": {
+    "description": "Shown when a sketch could not be opened for drawing."
+  },
+  "sketchCanvasMade": "Opened as a canvas",
+  "@sketchCanvasMade": {
+    "description": "Shown after a sketch became a canvas note."
+  },
+  "sketchCanvasCopied": "Copied to a new canvas",
+  "@sketchCanvasCopied": {
+    "description": "Shown after a shared note's sketch was copied to a canvas."
+  },
+  "sketchTitle": "{title} sketch",
+  "@sketchTitle": {
+    "description": "The title of the canvas made from a sketch: the note's title and the word sketch.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "sketchUntitledNote": "Untitled",
+  "@sketchUntitledNote": {
+    "description": "Stands for the title of a note that has none, in the title of a canvas made from its sketch."
+  },
+  "sketchNoteFull": "This note's sketches are full. Open one as a canvas.",
+  "@sketchNoteFull": {
+    "description": "Shown when a note's sketches together are at their limit and no more can be added."
+  },
+  "sketchNearlyFull": "This sketch is nearly full. Open it as a canvas to keep drawing without a limit.",
+  "@sketchNearlyFull": {
+    "description": "Shown under a sketch past three quarters of its size limit."
+  },
+  "sketchSharedInsert": "Sketches can't be added to a shared note. Add one to a private note, or draw on a canvas.",
+  "@sketchSharedInsert": {
+    "description": "Shown when Insert sketch is used in a shared note."
+  },
   "noticeNeedsAttention": "Needs your attention",
   "@noticeNeedsAttention": {
     "description": "The small heading on the card that says an update changed something the person may need to fix."
@@ -8508,5 +8700,134 @@
         "type": "String"
       }
     }
+  },
+  "lockFilesSealed": "{count, plural, =1{1 picture or file ({size}) is} other{{count} pictures and files ({size}) are}} sealed with it.",
+  "@lockFilesSealed": {
+    "description": "The lock dialog's line about the pictures and files that are sealed with a note or notebook.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "lockFilesShared": "{count, plural, =1{1 attachment is} other{{count} attachments are}} also used by other notes: locking seals a copy of {count, plural, =1{it} other{them}}, and the other notes keep theirs.",
+  "@lockFilesShared": {
+    "description": "The lock dialog's line saying that a file shown by a note that stays unlocked is copied.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockProgressTitleNote": "Locking note",
+  "@lockProgressTitleNote": {
+    "description": "The title of the progress sheet while a note locks."
+  },
+  "lockProgressTitleNotebook": "Locking notebook",
+  "@lockProgressTitleNotebook": {
+    "description": "The title of the progress sheet while a notebook locks."
+  },
+  "lockProgressTitleRemove": "Removing the lock",
+  "@lockProgressTitleRemove": {
+    "description": "The title of the progress sheet while a lock is taken off."
+  },
+  "lockProgressLine": "{count, plural, =1{Sealing 1 attachment, {size}} other{Sealing {count} attachments, {size}}}",
+  "@lockProgressLine": {
+    "description": "The progress sheet's line: how many files and how much it seals.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "lockProgressUnsealingLine": "{count, plural, =1{Unsealing 1 attachment, {size}} other{Unsealing {count} attachments, {size}}}",
+  "@lockProgressUnsealingLine": {
+    "description": "The progress sheet's line while a lock is taken off.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "lockProgressCount": "{done} of {total}",
+  "@lockProgressCount": {
+    "description": "How many files are done, of how many.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "lockProgressCancel": "Cancel",
+  "@lockProgressCancel": {
+    "description": "Stops locking between two files."
+  },
+  "lockProgressStopping": "Stopping after this file…",
+  "@lockProgressStopping": {
+    "description": "Said once Cancel was pressed while a lock is sealing a file."
+  },
+  "lockStoppedMessage": "Locking stopped. The note isn't locked yet: finish locking it or undo it from the bar above the note.",
+  "@lockStoppedMessage": {
+    "description": "Said after Cancel stopped a lock."
+  },
+  "lockStoppedNotebookMessage": "Locking stopped. The notebook isn't locked yet: lock it again to finish.",
+  "@lockStoppedNotebookMessage": {
+    "description": "Said after Cancel stopped a notebook lock."
+  },
+  "lockInterruptedMessage": "Locking this note didn't finish: {sealed} of its {files} pictures and files are sealed, and the note isn't locked yet. Finish locking, or undo it to keep everything as it was.",
+  "@lockInterruptedMessage": {
+    "description": "The bar above a note whose lock stopped between its files.",
+    "placeholders": {
+      "sealed": {
+        "type": "int"
+      },
+      "files": {
+        "type": "int"
+      }
+    }
+  },
+  "lockInterruptedFinish": "Finish locking",
+  "@lockInterruptedFinish": {
+    "description": "Finishes a lock that stopped."
+  },
+  "lockInterruptedUndo": "Undo locking",
+  "@lockInterruptedUndo": {
+    "description": "Undoes a lock that stopped."
+  },
+  "lockInterruptedWorking": "Working…",
+  "@lockInterruptedWorking": {
+    "description": "Said while a stopped lock is finished or undone."
+  },
+  "lockInterruptedPasswordTitle": "Enter the lock password",
+  "@lockInterruptedPasswordTitle": {
+    "description": "The title of the sheet that asks for the lock password to finish or undo a stopped lock."
+  },
+  "lockInterruptedPasswordMessage": "The notes are closed. The lock password this note was being locked with finishes or undoes it.",
+  "@lockInterruptedPasswordMessage": {
+    "description": "Explains why the lock password is asked."
+  },
+  "lockInterruptedContinue": "Continue",
+  "@lockInterruptedContinue": {
+    "description": "The button of the sheet that asks for the lock password."
+  },
+  "lockInterruptedFailed": "That didn't work. Try again.",
+  "@lockInterruptedFailed": {
+    "description": "Said when finishing or undoing a stopped lock failed."
+  },
+  "lockFilesNotice": "Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can't re-seal the files, and they would stop opening.",
+  "@lockFilesNotice": {
+    "description": "The one-time notice about notes locked before attachments were sealed, with what to do on other devices."
   }
 }

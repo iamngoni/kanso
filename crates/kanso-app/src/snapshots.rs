@@ -7,6 +7,9 @@
 //!     cargo test -p kanso-app snapshots -- --ignored --nocapture
 //! ```
 //!
+//! The theme thumbnails test (`theme_thumbnails`) also matches that filter;
+//! it skips unless `KANSO_THEME_THUMBS_DIR` is set.
+//!
 //! Without `KANSO_SNAPSHOT_DB` a demo library is used, with the clock fixed
 //! so every run draws the same picture. The database is copied first, so the
 //! original is never written. Each shot also checks that the panes are
@@ -54,12 +57,15 @@ mod api_keys;
 pub(crate) mod ask;
 mod discovery;
 mod learn_modals;
+mod library_key;
+mod locking;
 mod pdf;
 mod plugins_panel;
 mod plugins_settings;
 mod plugins_sheets;
 mod record_sheet;
 mod recording_sheet;
+mod recording_summary;
 mod voice;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead
@@ -1584,6 +1590,90 @@ fn new_drawing(
         crate::image_size::EMPTY_DRAWING
     );
     open_new_note(cx, workspace, store, "Sketch", &body);
+    settle_drawings(cx, window);
+}
+
+/// "Insert sketch": a note with a sketch in it that has been drawn on, and
+/// an empty one under it, the pointer over neither.
+fn sketch_in_note(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    use kanso_core::canvas::{Point, Stroke, sketch};
+    crate::sketch_view::REVEAL_TOOLS.store(false, std::sync::atomic::Ordering::Relaxed);
+    let stroke = |points: Vec<(f64, f64)>, color: &str, tool: &str| Stroke {
+        tool: tool.into(),
+        color: color.into(),
+        width: 3.,
+        points: points
+            .into_iter()
+            .map(|(x, y)| Point {
+                x,
+                y,
+                pressure: 0.6,
+                tilt: None,
+            })
+            .collect(),
+        ..Stroke::default()
+    };
+    let mut drawn = sketch::new_sketch("sk-demo", 480, 320);
+    // A wave, a loop and an arrow-ish tick: enough ink to read the pen.
+    let wave: Vec<(f64, f64)> = (0..60)
+        .map(|i| {
+            (
+                30. + f64::from(i) * 6.5,
+                110. + (f64::from(i) / 4.).sin() * 42.,
+            )
+        })
+        .collect();
+    let ring: Vec<(f64, f64)> = (0..40)
+        .map(|i| {
+            let a = f64::from(i) / 39. * std::f64::consts::TAU;
+            (330. + a.cos() * 60., 200. + a.sin() * 52.)
+        })
+        .collect();
+    let tick = vec![(70., 230.), (95., 262.), (150., 190.)];
+    for (n, st) in [
+        stroke(wave, "#1971c2", "pen"),
+        stroke(ring, "#e03131", "marker"),
+        stroke(tick, "#2f9e44", "pen"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let _ = drawn.draw(st, 1000 + n as i64);
+    }
+    let empty = sketch::new_sketch("sk-blank", 320, 240);
+    let body = format!(
+        "How the signal moves.\n\n{}\nWrite on it with a pen, or the mouse.\n\n{}",
+        sketch::to_fence(&drawn),
+        sketch::to_fence(&empty)
+    );
+    open_new_note(cx, workspace, store, "Signal", &body);
+    settle_drawings(cx, window);
+}
+
+/// A sketch past three quarters of its cap, saying so under the box.
+fn sketch_nearly_full(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    use kanso_core::canvas::sketch;
+    // The toolbar shows, as under the pointer: in a narrow column the tools
+    // give way and "Open as canvas" stays whole.
+    crate::sketch_view::REVEAL_TOOLS.store(true, std::sync::atomic::Ordering::Relaxed);
+    let mut full = sketch::new_sketch("sk-full", 480, 320);
+    // Kept data (JSON allows any field) standing in for 200 KB of ink.
+    full.extra.insert(
+        "kept".into(),
+        "x".repeat(sketch::WARN_SKETCH_BYTES + 1024).into(),
+    );
+    let body = format!("A busy page.\n\n{}", sketch::to_fence(&full));
+    open_new_note(cx, workspace, store, "Busy", &body);
     settle_drawings(cx, window);
 }
 
@@ -4514,6 +4604,55 @@ fn show_api_keys_notice(cx: &mut HeadlessAppContext) {
     });
 }
 
+/// The "Your library is now encrypted" notice, as if the release had been
+/// reached.
+fn library_encrypted_notices() -> &'static [kanso_core::notices::Notice] {
+    let mut notice = kanso_core::notices::NOTICES
+        .iter()
+        .find(|notice| notice.id == kanso_core::notices::LIBRARY_ENCRYPTED_ID)
+        .expect("the encrypted-library notice ships")
+        .clone();
+    notice.since = semver::Version::new(0, 9, 0);
+    Box::leak(Box::new([notice]))
+}
+
+fn show_library_encrypted_notice(cx: &mut HeadlessAppContext) {
+    cx.update(|cx| {
+        // The notice is for a library that isn't signed in to sync.
+        cx.global_mut::<Services>().account = AccountState::SignedOut;
+        cx.set_global(crate::notices::NoticeBoard {
+            list: library_encrypted_notices(),
+            previous: Some(semver::Version::new(0, 9, 3)),
+        });
+        cx.refresh_windows();
+    });
+}
+
+/// The encrypted-library notice's banner.
+fn library_encrypted_banner(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_library_encrypted_notice(cx);
+}
+
+/// The encrypted-library notice's How to fix sheet.
+fn library_encrypted_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_library_encrypted_notice(cx);
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        crate::notice_views::open_how_to_fix(&library_encrypted_notices()[0], window, cx)
+    })
+    .unwrap();
+}
+
 /// The plain-library notice for a library that could not be encrypted.
 fn library_plain_notices() -> &'static [kanso_core::notices::Notice] {
     let mut notice = kanso_core::notices::NOTICES
@@ -4589,6 +4728,79 @@ fn encrypting_sheet(
         });
     })
     .unwrap();
+}
+
+/// The window for a library that won't open (issue #243, step 10): the
+/// content of the `kanso startup-error` window.
+fn startup_error_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    failure: &crate::startup_error_model::Failure,
+) {
+    use gpui_kit::ParentElement as _;
+    let screen = crate::startup_error_model::describe(
+        failure,
+        Path::new("/Users/me/Library/Application Support/Kanso"),
+    );
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        window.open_alert_dialog(cx, move |alert, _, cx| {
+            let colors = Colors::get(cx);
+            alert
+                .width(px(crate::startup_error::WIDTH))
+                .child(crate::startup_error::body(&screen, colors))
+                .footer(crate::startup_error::buttons(
+                    &screen,
+                    false,
+                    std::rc::Rc::new(|_, _, _| {}),
+                ))
+        });
+    })
+    .unwrap();
+}
+
+fn startup_wrong_key(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use crate::startup_error_model::{Cause, Failure};
+    startup_error_sheet(cx, window, &Failure::Library(Cause::WrongKey));
+}
+
+fn startup_stuck_marker(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use crate::startup_error_model::{Cause, Failure};
+    startup_error_sheet(cx, window, &Failure::Library(Cause::Converting));
+}
+
+fn startup_disk_full(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use crate::startup_error_model::{Cause, Failure};
+    startup_error_sheet(
+        cx,
+        window,
+        &Failure::Library(Cause::DiskFull { needed_mb: 412 }),
+    );
+}
+
+fn startup_lock_held(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use crate::startup_error_model::Failure;
+    startup_error_sheet(cx, window, &Failure::Locked);
 }
 
 /// The API keys notice's banner.
@@ -5136,15 +5348,21 @@ const THUMB_GAP: f32 = 12.;
 /// Renders each theme's three cards (UI, syntax, preview) to
 /// `<file stem>.png` in `KANSO_THEME_THUMBS_DIR`: the themes in
 /// `KANSO_THEMES_DIR` when set (a checkout of the themes repository, say),
-/// else the built-in ones. `themes/scripts/check.sh` runs it.
+/// else the built-in ones. `themes/scripts/check.sh` runs it. Without
+/// `KANSO_THEME_THUMBS_DIR` it skips with a note, so the documented snapshot
+/// command (which matches it) passes with only `KANSO_SNAPSHOT_DIR` set.
 #[test]
 #[ignore = "writes PNGs; run on demand with KANSO_THEME_THUMBS_DIR set"]
 fn theme_thumbnails() {
     use crate::settings_themes::{CARD_WIDTH, THUMB_HEIGHT};
     use crate::theme_file::ThemeFile;
     use crate::themes::ThemeEntry;
-    let out =
-        PathBuf::from(std::env::var("KANSO_THEME_THUMBS_DIR").expect("set KANSO_THEME_THUMBS_DIR"));
+    // The snapshot filter (`snapshots -- --ignored`) matches this test too;
+    // without its own directory there is nowhere to write, so it skips.
+    let Some(out) = std::env::var_os("KANSO_THEME_THUMBS_DIR").map(PathBuf::from) else {
+        eprintln!("theme_thumbnails: skipped, KANSO_THEME_THUMBS_DIR is not set");
+        return;
+    };
     std::fs::create_dir_all(&out).unwrap();
     let themes: Vec<(String, Arc<ThemeEntry>)> = match std::env::var_os("KANSO_THEMES_DIR") {
         Some(dir) => {
@@ -5656,6 +5874,9 @@ fn snapshots() {
         ),
         shot("dark-new-drawing", Dark, Preview, new_drawing),
         shot("light-new-drawing", Light, Split, new_drawing),
+        shot("dark-sketch-in-note", Dark, Split, sketch_in_note),
+        shot("light-sketch-in-note", Light, Split, sketch_in_note),
+        shot("light-sketch-nearly-full", Light, Split, sketch_nearly_full),
         shot("dark-table-before", Dark, Edit, table_before),
         shot("dark-table-after", Dark, Edit, table_after),
         shot("dark-table-after-mono", Dark, Edit, table_after_mono),
@@ -6035,6 +6256,41 @@ fn snapshots() {
                 learn_modals::cards_editing,
             )
         },
+        // Locking with pictures and files: the dialog's line about them and
+        // the copies it makes, the progress sheet, and the bar a lock that
+        // stopped leaves on the note.
+        Shot {
+            dialog_width: 448.,
+            ..shot("dark-lock-dialog", Dark, Edit, locking::lock_dialog)
+        },
+        Shot {
+            dialog_width: 448.,
+            ..shot("light-lock-dialog", Light, Edit, locking::lock_dialog)
+        },
+        Shot {
+            dialog_width: crate::lock_flow::SHEET_WIDTH,
+            // The sheet sits at the top; sample above its title.
+            dialog_sample_y: Some(28.),
+            ..shot("dark-lock-progress", Dark, Edit, locking::lock_progress)
+        },
+        Shot {
+            dialog_width: crate::lock_flow::SHEET_WIDTH,
+            // The sheet sits at the top; sample above its title.
+            dialog_sample_y: Some(28.),
+            ..shot("light-lock-progress", Light, Edit, locking::lock_progress)
+        },
+        shot(
+            "dark-lock-interrupted",
+            Dark,
+            Edit,
+            locking::lock_interrupted,
+        ),
+        shot(
+            "light-lock-interrupted",
+            Light,
+            Edit,
+            locking::lock_interrupted,
+        ),
         // Voice input: the pill while listening and writing, and Settings'
         // Voice input in each state of the model.
         // The PDF reader (issue #43): page 1 drawn by the worker, and the
@@ -6692,6 +6948,38 @@ fn snapshots() {
             dialog_width: crate::notice_views::SHEET_WIDTH,
             ..shot("light-api-keys-notice-sheet", Light, Split, api_keys_sheet)
         },
+        // The library is encrypted and its key isn't saved (issue #243,
+        // step 11).
+        shot(
+            "dark-notice-library-encrypted-banner",
+            Dark,
+            Split,
+            library_encrypted_banner,
+        ),
+        shot(
+            "light-notice-library-encrypted-banner",
+            Light,
+            Split,
+            library_encrypted_banner,
+        ),
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot(
+                "dark-notice-library-encrypted-sheet",
+                Dark,
+                Split,
+                library_encrypted_sheet,
+            )
+        },
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot(
+                "light-notice-library-encrypted-sheet",
+                Light,
+                Split,
+                library_encrypted_sheet,
+            )
+        },
         // The library could not be encrypted (issue #243, step 10).
         shot(
             "dark-notice-library-plain-banner",
@@ -6721,6 +7009,79 @@ fn snapshots() {
                 Light,
                 Split,
                 library_plain_sheet,
+            )
+        },
+        // The library won't open (issue #243, step 10).
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "dark-startup-error-wrong-key",
+                Dark,
+                Split,
+                startup_wrong_key,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "light-startup-error-wrong-key",
+                Light,
+                Split,
+                startup_wrong_key,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "dark-startup-error-stuck-marker",
+                Dark,
+                Split,
+                startup_stuck_marker,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "light-startup-error-stuck-marker",
+                Light,
+                Split,
+                startup_stuck_marker,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "dark-startup-error-disk-full",
+                Dark,
+                Split,
+                startup_disk_full,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "light-startup-error-disk-full",
+                Light,
+                Split,
+                startup_disk_full,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "dark-startup-error-lock-held",
+                Dark,
+                Split,
+                startup_lock_held,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "light-startup-error-lock-held",
+                Light,
+                Split,
+                startup_lock_held,
             )
         },
         Shot {
@@ -6811,8 +7172,10 @@ fn snapshots() {
     for (name, prepare, dialog) in plugins_settings::SHOTS
         .iter()
         .chain(api_keys::SHOTS)
+        .chain(library_key::SHOTS)
         .chain(plugins_sheets::SHOTS)
         .chain(recording_sheet::SHOTS)
+        .chain(recording_summary::SHOTS)
         .chain(plugins_panel::SHOTS)
     {
         let theme = if name.starts_with("dark-") {
@@ -6829,6 +7192,7 @@ fn snapshots() {
         if name.ends_with("-remove")
             || name.ends_with("-revoke")
             || name.ends_with("-api-key-new")
+            || name.ends_with("-api-key-shown")
             || name.ends_with("-plugin-developer")
         {
             plugin_shot.dialog_sample_y = Some(30.);

@@ -13,7 +13,9 @@ import '../../models/data/lock_target.dart';
 import '../../models/data/remove_status.dart';
 import '../../state/lock_remove/lock_remove_bloc.dart';
 import '../../state/lock_status/lock_status_bloc.dart';
+import '../../utils/seal_progress_rules.dart';
 import 'lock_form_sheet.dart';
+import 'lock_progress_sheet.dart';
 
 /// Asks whether to take a lock off an open note ("Remove the lock?") or
 /// notebook ("Remove the notebook's lock?"), says what that means, and
@@ -58,6 +60,19 @@ class RemoveLockSheet extends StatelessWidget {
         }
       },
       builder: (context, state) {
+        final progress = state.progress;
+        // Decrypting many or large files counts them on a sheet.
+        if (state.status == RemoveStatus.working &&
+            progress != null &&
+            progressWantsSheet(progress)) {
+          return LockProgressSheet(
+            title: l10n.lockProgressTitleRemove,
+            files: progress.total,
+            bytes: progress.bytesTotal,
+            progress: progress,
+            unsealing: true,
+          );
+        }
         final error = state.error;
         return LockFormSheet(
           title: note ? l10n.lockRemoveNoteTitle : l10n.lockRemoveNotebookTitle,

@@ -210,6 +210,58 @@ void librarySuite(OpenLibrary open) {
     );
 
     test(
+      "a PDF's highlights are listed and changed at the note's revision",
+      () async {
+        final library = await open();
+        const highlight =
+            '{"id":"h1","page":2,"quads":{"2":[[0.1,0.1,0.5,0.2]]},'
+            '"text":"Revenue rose","color":"yellow","createdAt":1}';
+        const json =
+            '{"file":"file:abc123","md5":"m","version":1,'
+            '"highlights":[$highlight],"ink":[]}';
+        const block = '```kanso-pdf\n$json\n```';
+        final saved = await library.create(
+          note: const NewNote(title: 'Report', body: 'Notes\n\n$block\n'),
+        );
+
+        final listed = await library.pdfHighlights(noteId: saved.id);
+        expect(listed, hasLength(1));
+        expect(listed.single.file, 'file:abc123');
+        expect(listed.single.editable, isTrue);
+        final row = listed.single.highlights.single;
+        expect((row.id, row.page, row.text), ('h1', 2, 'Revenue rose'));
+        expect(row.comment, isNull);
+
+        final changed = await library.pdfHighlightChange(
+          noteId: saved.id,
+          baseRev: saved.rev,
+          file: 'file:abc123',
+          id: 'h1',
+          change: const PdfHighlightChange.comment(comment: 'Check it'),
+        );
+        expect(changed.rev, isNot(saved.rev));
+        final after = await library.pdfHighlights(noteId: saved.id);
+        expect(after.single.highlights.single.comment, 'Check it');
+
+        // Drawn at an older revision, nothing is written.
+        await expectLater(
+          library.pdfHighlightChange(
+            noteId: saved.id,
+            baseRev: saved.rev,
+            file: 'file:abc123',
+            id: 'h1',
+            change: const PdfHighlightChange.delete(),
+          ),
+          throwsA(isA<KansoError_Conflict>()),
+        );
+        expect(
+          (await library.pdfHighlights(noteId: saved.id)).single.highlights,
+          hasLength(1),
+        );
+      },
+    );
+
+    test(
       "a new note takes its list's place and the preferred notebook",
       () async {
         final library = await open();

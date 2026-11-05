@@ -9,6 +9,7 @@ import 'account_settings.dart';
 import 'ai.dart';
 import 'approvals.dart';
 import 'canvas.dart';
+import 'canvas_types.dart';
 import 'cards.dart';
 import 'discovery.dart';
 import 'draft.dart';
@@ -26,6 +27,7 @@ import 'people.dart';
 import 'player.dart';
 import 'publish.dart';
 import 'recording.dart';
+import 'recording_summary.dart';
 import 'renderer.dart';
 import 'shared.dart';
 import 'sync.dart';
@@ -364,6 +366,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// Recording a note from the microphone, and what a crash left.
   KansoRecorder recorder();
 
+  /// Summarise Recording: a summary and action items for a recording's
+  /// transcript, written only once the person has looked them over.
+  KansoRecordingSummary recordingSummary();
+
   Future<TaskPlace?> reminderAnswer({
     required String key,
     required ReminderAnswer answer,
@@ -476,6 +482,23 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   KansoShared shared();
 
+  /// Opens sketch `sketch_id` of Markdown note `note_id` for drawing.
+  Future<KansoCanvas> sketch({
+    required String noteId,
+    required String sketchId,
+  });
+
+  /// "Insert sketch" in note `note_id`: the editor's `body` with an empty
+  /// sketch put in at `at` (UTF-16 units), or why not (a shared note, or
+  /// the note's sketches are full).
+  Future<SketchInserted> sketchInsert({
+    required String noteId,
+    required String body,
+    required int at,
+    required int width,
+    required int height,
+  });
+
   /// The statuses a note can have, and what the desktop calls them.
   static List<StatusChoice> statuses() =>
       KansoCore.instance.api.crateApiLibraryKansoLibraryStatuses();
@@ -495,6 +518,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   });
 
   Future<List<TagRow>> tags();
+
+  /// Whether "Insert sketch" may put a sketch in note `note_id`: not a
+  /// shared note, one in the trash or a canvas.
+  bool takesSketches({required String noteId});
 
   /// The Tasks place: open tasks across the notes, in groups; locked
   /// notes are left out.

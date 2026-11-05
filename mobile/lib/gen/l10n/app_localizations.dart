@@ -5113,7 +5113,7 @@ abstract class AppLocalizations {
   /// Explains what locking a note does.
   ///
   /// In en, this message translates to:
-  /// **'Its text and the pictures and files it links to are sealed, and its earlier versions are deleted. A file another note still shows gets a sealed copy. It stays open until the locked notes lock again.'**
+  /// **'Its text is sealed, and its earlier versions are deleted. It stays open until the locked notes lock again.'**
   String get lockNoteConfirmMessage;
 
   /// The title of the sheet that asks for the lock password to lock a notebook.
@@ -5131,7 +5131,7 @@ abstract class AppLocalizations {
   /// Explains what locking a notebook does.
   ///
   /// In en, this message translates to:
-  /// **'Every note in it, and the pictures and files they link to, are sealed, and new notes added to it are sealed too. A file another note still shows gets a sealed copy.'**
+  /// **'Every note in it is sealed, and new notes added to it are sealed too.'**
   String get lockNotebookConfirmMessage;
 
   /// The notebook menu action that locks the notebook.
@@ -9172,6 +9172,150 @@ abstract class AppLocalizations {
   /// **'Couldn\'t tidy this note: {reason}.'**
   String voiceTidyFailed(String reason);
 
+  /// The note menu's action that summarises a recording with the person's own AI.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarise recording'**
+  String get recordingSummaryMenu;
+
+  /// Title of the sheet that summarises a recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarise recording'**
+  String get recordingSummaryTitle;
+
+  /// Closes the summarise recording sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get recordingSummaryClose;
+
+  /// Said when Summarise recording can't be used on this note.
+  ///
+  /// In en, this message translates to:
+  /// **'To summarise a recording, turn on AI in Settings and open a note that holds the transcript of a recording. Locked notes, notes in the trash and notes tagged #ai-exclude are never sent.'**
+  String get recordingSummaryUnavailable;
+
+  /// Under the question that asks where the transcript goes.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is sent until you choose Send. You will see the summary and the action items before anything is written.'**
+  String get recordingSummaryNothingYet;
+
+  /// Said when the note already holds a summary.
+  ///
+  /// In en, this message translates to:
+  /// **'This note already has a summary. A new one replaces it.'**
+  String get recordingSummaryReplacesNote;
+
+  /// Shown while the AI summarises a recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarising the transcript…'**
+  String get recordingSummaryWorking;
+
+  /// Under the working line.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel stops the request. The note is not changed.'**
+  String get recordingSummaryCancelHint;
+
+  /// Said after a summary failed.
+  ///
+  /// In en, this message translates to:
+  /// **'The note is not changed.'**
+  String get recordingSummaryUnchanged;
+
+  /// Sends the transcript to the person's AI.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get recordingSummarySend;
+
+  /// Stops summarising.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get recordingSummaryCancel;
+
+  /// Throws the summary away without writing it.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get recordingSummaryDiscard;
+
+  /// Writes the summary and the ticked action items into the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get recordingSummaryApply;
+
+  /// Asks the AI for the summary again.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get recordingSummaryTryAgain;
+
+  /// Heading of the summary points.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get recordingSummarySectionSummary;
+
+  /// Heading of the decisions.
+  ///
+  /// In en, this message translates to:
+  /// **'Decisions'**
+  String get recordingSummarySectionDecisions;
+
+  /// Heading of the action items.
+  ///
+  /// In en, this message translates to:
+  /// **'Action items'**
+  String get recordingSummarySectionActions;
+
+  /// Under the Action items heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the ticked ones are written into the note.'**
+  String get recordingSummaryActionsHint;
+
+  /// Said when a very long transcript was cut.
+  ///
+  /// In en, this message translates to:
+  /// **'The transcript was long, so only its first part was summarised.'**
+  String get recordingSummaryCut;
+
+  /// Notice after a summary was written, with Undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary added above the transcript.'**
+  String get recordingSummaryAdded;
+
+  /// Notice after a summary replaced an earlier one, with Undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary replaced.'**
+  String get recordingSummaryReplaced;
+
+  /// Said when asking the AI for a summary failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t summarise this recording. {reason}'**
+  String recordingSummaryFailed(String reason);
+
+  /// Said under the review when Apply could not write the summary (the note was locked, changed or lost its transcript meanwhile).
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was written. {reason}'**
+  String recordingSummaryApplyFailed(String reason);
+
+  /// Said when the AI gave items the transcript does not back.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{One item was left out for want of a quote from the recording.} other{{count} items were left out for want of a quote from the recording.}}'**
+  String recordingSummaryDropped(int count);
+
   /// Button that tries tidying a voice note again.
   ///
   /// In en, this message translates to:
@@ -11758,6 +11902,120 @@ abstract class AppLocalizations {
   /// **'Try Again'**
   String get playerTryAgain;
 
+  /// The label of the editor key that puts a drawing box in the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert sketch'**
+  String get sketchInsertKey;
+
+  /// The title of the sheet that asks how big the drawing box is.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert sketch'**
+  String get sketchSizeTitle;
+
+  /// A drawing box size.
+  ///
+  /// In en, this message translates to:
+  /// **'Small, 320 by 240'**
+  String get sketchSizeSmall;
+
+  /// A drawing box size.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium, 480 by 320'**
+  String get sketchSizeMedium;
+
+  /// A drawing box size.
+  ///
+  /// In en, this message translates to:
+  /// **'Large, 640 by 480'**
+  String get sketchSizeLarge;
+
+  /// What a screen reader calls a drawing box in a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Sketch'**
+  String get sketchLabel;
+
+  /// Turns a sketch in a note into a canvas note.
+  ///
+  /// In en, this message translates to:
+  /// **'Open as canvas'**
+  String get sketchOpenAsCanvas;
+
+  /// Makes a private canvas from a sketch in a shared note.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy as canvas'**
+  String get sketchCopyAsCanvas;
+
+  /// Shown under a sketch in a shared note, where it can't be drawn on.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared note: copy it to a canvas to draw together.'**
+  String get sketchShared;
+
+  /// Shown when a sketch is at its size limit and refuses new ink.
+  ///
+  /// In en, this message translates to:
+  /// **'This sketch is full. Open it as a canvas to keep drawing.'**
+  String get sketchFull;
+
+  /// Lets a finger draw on a sketch instead of scrolling the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw with a finger'**
+  String get sketchFingerDraws;
+
+  /// Shown when a sketch could not be opened for drawing.
+  ///
+  /// In en, this message translates to:
+  /// **'This sketch can\'t be drawn on.'**
+  String get sketchFailed;
+
+  /// Shown after a sketch became a canvas note.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened as a canvas'**
+  String get sketchCanvasMade;
+
+  /// Shown after a shared note's sketch was copied to a canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to a new canvas'**
+  String get sketchCanvasCopied;
+
+  /// The title of the canvas made from a sketch: the note's title and the word sketch.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} sketch'**
+  String sketchTitle(String title);
+
+  /// Stands for the title of a note that has none, in the title of a canvas made from its sketch.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled'**
+  String get sketchUntitledNote;
+
+  /// Shown when a note's sketches together are at their limit and no more can be added.
+  ///
+  /// In en, this message translates to:
+  /// **'This note\'s sketches are full. Open one as a canvas.'**
+  String get sketchNoteFull;
+
+  /// Shown under a sketch past three quarters of its size limit.
+  ///
+  /// In en, this message translates to:
+  /// **'This sketch is nearly full. Open it as a canvas to keep drawing without a limit.'**
+  String get sketchNearlyFull;
+
+  /// Shown when Insert sketch is used in a shared note.
+  ///
+  /// In en, this message translates to:
+  /// **'Sketches can\'t be added to a shared note. Add one to a private note, or draw on a canvas.'**
+  String get sketchSharedInsert;
+
   /// The small heading on the card that says an update changed something the person may need to fix.
   ///
   /// In en, this message translates to:
@@ -11817,6 +12075,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Step {number}: {step}'**
   String noticeStep(int number, String step);
+
+  /// The lock dialog's line about the pictures and files that are sealed with a note or notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 picture or file ({size}) is} other{{count} pictures and files ({size}) are}} sealed with it.'**
+  String lockFilesSealed(int count, String size);
+
+  /// The lock dialog's line saying that a file shown by a note that stays unlocked is copied.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 attachment is} other{{count} attachments are}} also used by other notes: locking seals a copy of {count, plural, =1{it} other{them}}, and the other notes keep theirs.'**
+  String lockFilesShared(int count);
+
+  /// The title of the progress sheet while a note locks.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking note'**
+  String get lockProgressTitleNote;
+
+  /// The title of the progress sheet while a notebook locks.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking notebook'**
+  String get lockProgressTitleNotebook;
+
+  /// The title of the progress sheet while a lock is taken off.
+  ///
+  /// In en, this message translates to:
+  /// **'Removing the lock'**
+  String get lockProgressTitleRemove;
+
+  /// The progress sheet's line: how many files and how much it seals.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Sealing 1 attachment, {size}} other{Sealing {count} attachments, {size}}}'**
+  String lockProgressLine(int count, String size);
+
+  /// The progress sheet's line while a lock is taken off.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Unsealing 1 attachment, {size}} other{Unsealing {count} attachments, {size}}}'**
+  String lockProgressUnsealingLine(int count, String size);
+
+  /// How many files are done, of how many.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total}'**
+  String lockProgressCount(int done, int total);
+
+  /// Stops locking between two files.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get lockProgressCancel;
+
+  /// Said once Cancel was pressed while a lock is sealing a file.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping after this file…'**
+  String get lockProgressStopping;
+
+  /// Said after Cancel stopped a lock.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking stopped. The note isn\'t locked yet: finish locking it or undo it from the bar above the note.'**
+  String get lockStoppedMessage;
+
+  /// Said after Cancel stopped a notebook lock.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking stopped. The notebook isn\'t locked yet: lock it again to finish.'**
+  String get lockStoppedNotebookMessage;
+
+  /// The bar above a note whose lock stopped between its files.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking this note didn\'t finish: {sealed} of its {files} pictures and files are sealed, and the note isn\'t locked yet. Finish locking, or undo it to keep everything as it was.'**
+  String lockInterruptedMessage(int sealed, int files);
+
+  /// Finishes a lock that stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish locking'**
+  String get lockInterruptedFinish;
+
+  /// Undoes a lock that stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo locking'**
+  String get lockInterruptedUndo;
+
+  /// Said while a stopped lock is finished or undone.
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get lockInterruptedWorking;
+
+  /// The title of the sheet that asks for the lock password to finish or undo a stopped lock.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the lock password'**
+  String get lockInterruptedPasswordTitle;
+
+  /// Explains why the lock password is asked.
+  ///
+  /// In en, this message translates to:
+  /// **'The notes are closed. The lock password this note was being locked with finishes or undoes it.'**
+  String get lockInterruptedPasswordMessage;
+
+  /// The button of the sheet that asks for the lock password.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get lockInterruptedContinue;
+
+  /// Said when finishing or undoing a stopped lock failed.
+  ///
+  /// In en, this message translates to:
+  /// **'That didn\'t work. Try again.'**
+  String get lockInterruptedFailed;
+
+  /// The one-time notice about notes locked before attachments were sealed, with what to do on other devices.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.'**
+  String get lockFilesNotice;
 }
 
 class _AppLocalizationsDelegate

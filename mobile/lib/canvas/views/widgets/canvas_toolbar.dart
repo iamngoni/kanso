@@ -30,7 +30,8 @@ class CanvasToolbar extends StatelessWidget {
     required this.onWidth,
     required this.onDeleteSelection,
     required this.onClearSelection,
-    required this.onMoveToNew,
+    this.onMoveToNew,
+    this.toolList = tools,
     super.key,
   });
 
@@ -47,7 +48,13 @@ class CanvasToolbar extends StatelessWidget {
   final ValueChanged<double> onWidth;
   final VoidCallback onDeleteSelection;
   final VoidCallback onClearSelection;
-  final VoidCallback onMoveToNew;
+
+  /// Moves a selection to a new canvas; null hides the button (a sketch
+  /// in a note has none).
+  final VoidCallback? onMoveToNew;
+
+  /// The tools offered, in order; a sketch offers only the ink ones.
+  final List<CanvasTool> toolList;
 
   /// The tools in the order they are laid out.
   static const List<CanvasTool> tools = <CanvasTool>[
@@ -103,7 +110,7 @@ class CanvasToolbar extends StatelessWidget {
               ),
               child: Row(
                 children: <Widget>[
-                  for (final t in tools)
+                  for (final t in toolList)
                     _ToolButton(
                       tool: t,
                       selected: t == tool,
@@ -185,16 +192,19 @@ class CanvasToolbar extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          Expanded(
-            child: KansoButton(
-              label: l10n.canvasMoveToNew,
-              icon: KansoIcons.arrowRight,
-              variant: KansoButtonVariant.secondary,
-              compact: true,
-              onPressed: onMoveToNew,
+          if (onMoveToNew != null) ...<Widget>[
+            Expanded(
+              child: KansoButton(
+                label: l10n.canvasMoveToNew,
+                icon: KansoIcons.arrowRight,
+                variant: KansoButtonVariant.secondary,
+                compact: true,
+                onPressed: onMoveToNew,
+              ),
             ),
-          ),
-          const SizedBox(width: KansoSpacing.xs),
+            const SizedBox(width: KansoSpacing.xs),
+          ] else
+            const Spacer(),
           KansoButton(
             label: l10n.canvasSelectionDelete,
             icon: KansoIcons.trash,

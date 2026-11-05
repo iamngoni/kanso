@@ -12,7 +12,11 @@ the copy here through `[patch.crates-io]`:
 ## What changed
 
 Three files differ from the published crate (the full diff is in
-[UPSTREAM.md](UPSTREAM.md), written to be offered upstream):
+[UPSTREAM.md](UPSTREAM.md), written to be offered upstream), and a fourth,
+`src/highlighter/highlighter.rs`, gains `set_injection_parse_timeout`: it
+replaces the 20 ms deadline of an injection parse, so a test comparing this
+highlighter with another's isn't cut short on a loaded machine (unset, the
+deadline is unchanged; not part of the upstream proposal):
 
 - `src/icon.rs` adds `IconResolver`, a global holding a function from an
   icon's asset path to the path to draw instead, `set_icon_resolver` to set

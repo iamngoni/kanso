@@ -306,8 +306,12 @@ impl PdfReader {
         self.state = ReaderState::Loading;
         self.forget_pages();
         self.notes.asked.clear();
-        let (session, events) =
-            Session::start(self.store.clone(), self.file_id.clone(), self.paths.clone());
+        let (session, events) = Session::start(
+            self.store.clone(),
+            crate::attachments::FileKeys::of(cx),
+            self.file_id.clone(),
+            self.paths.clone(),
+        );
         self.session = Some(session);
         self.events = Some(cx.spawn_in(window, async move |this, cx| {
             while let Ok(event) = events.recv().await {

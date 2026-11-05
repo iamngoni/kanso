@@ -648,6 +648,85 @@ mod tests {
         assert!(!all.contains("Private plans"));
     }
 
+    /// An inline sketch is the note's own text, so its page draws it, never
+    /// its JSON. Once opened as a canvas it is an embed and follows the
+    /// canvas rule: a canvas outside the published notebooks stays out.
+    // no-prop-test: the page glue; `kanso_render::canvas::sketch` and the
+    // embed rule have the properties.
+    #[test]
+    fn a_site_draws_a_notes_own_sketch_and_a_promoted_one_by_the_canvas_rule() {
+        use kanso_core::canvas::{Point, Stroke, sketch};
+        let (_dir, store) = store();
+        let mut drawn = sketch::new_sketch("sk-p", 320, 240);
+        let _ = drawn.draw(
+            Stroke {
+                tool: "pen".into(),
+                color: "#1e1e1e".into(),
+                width: 3.0,
+                points: vec![Point::new(10.0, 10.0, 0.5), Point::new(90.0, 60.0, 0.5)],
+                ..Stroke::default()
+            },
+            5,
+        );
+        note(
+            &store,
+            "note:s",
+            "Sketched",
+            &format!("Before\n\n{}\nAfter", sketch::to_fence(&drawn)),
+            "book:work",
+        );
+        let first = plan(&store, "book:work").unwrap();
+        let bundle = build(
+            &first,
+            &attachments(&store),
+            &Palette::LIGHT,
+            &PageStyle::default(),
+        )
+        .unwrap();
+        let page = &bundle.pages["sketched"].html;
+        assert!(page.contains("<svg") && page.contains("After"));
+        assert!(!page.contains("kansoSketch") && !page.contains("\"points\""));
+        // Opened as a canvas that lives in another notebook: left out.
+        store
+            .put(
+                DocType::Note,
+                json!({"_id": "note:sk", "title": "Private ink", "doctype": "canvas",
+                    "bookId": "book:home",
+                    "body": kanso_core::canvas::to_body(&drawn.promoted())}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+        let body = sketch::promote(&store.note("note:s").unwrap().unwrap().body, "sk-p", "sk")
+            .unwrap()
+            .1;
+        store
+            .put(
+                DocType::Note,
+                json!({"_id": "note:s", "body": body}),
+                Put::Merge,
+                Origin::Ui,
+            )
+            .unwrap();
+        let promoted = plan(&store, "book:work").unwrap();
+        assert_eq!(
+            promoted.canvases.get("note:sk"),
+            Some(&EmbedNote::Elsewhere)
+        );
+        let bundle = build(
+            &promoted,
+            &attachments(&store),
+            &Palette::LIGHT,
+            &PageStyle::default(),
+        )
+        .unwrap();
+        assert!(
+            bundle.pages["sketched"]
+                .html
+                .contains("Canvas not published")
+        );
+    }
+
     /// An attachment that isn't an image (from an import) is offered on
     /// the pages that link to it, and is in the site once.
     #[test]

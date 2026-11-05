@@ -1330,6 +1330,14 @@ impl AccountHandle {
             cancel
         };
         let _waiting = ApprovalSlot(self.inner.clone());
+        // The launch check reads the saved locked sign-in and may rewrite it
+        // (opening it with a saved key, or settling its approval); a request
+        // made while it runs can have its saved state read over, which is
+        // "there is no saved approval request" or a request that never shows
+        // as pending. Tasks that take the account slot wait for it; this one
+        // does not take the slot, so it waits here.
+        self.start_restore();
+        self.inner.account.wait_restored();
         let locked = match self.require_locked() {
             Ok(locked) => locked,
             Err(err) => {

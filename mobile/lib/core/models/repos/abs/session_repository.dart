@@ -88,4 +88,42 @@ abstract interface class SessionRepository {
 
   /// Each time the locked notes open or close.
   Stream<LockEvent> lockEvents();
+
+  /// What locking the note [id] would seal: its pictures and files.
+  Future<Either<ApplicationError, LockSummary>> noteLockSummary(String id);
+
+  /// What locking the notebook [bookId] would seal.
+  Future<Either<ApplicationError, LockSummary>> notebookLockSummary(
+    String bookId,
+  );
+
+  /// How far sealing the pictures and files of a note or notebook that is
+  /// locking, or of a lock being taken off, has come.
+  Stream<SealProgress> lockProgress();
+
+  /// Stops the lock in progress between two files. The note stays plain and
+  /// [interruptedLock] then offers to finish or undo it.
+  Future<Either<ApplicationError, Unit>> cancelLock();
+
+  /// The lock that stopped between the note [id]'s files, or null.
+  Future<Either<ApplicationError, InterruptedLock?>> interruptedLock(String id);
+
+  /// Finishes the lock that stopped on the note [id]; [password] is the lock
+  /// password when the session holds no key for it ([LockedError] when it is
+  /// needed and not given).
+  Future<Either<ApplicationError, Saved>> finishLocking(
+    String id, {
+    String? password,
+  });
+
+  /// Undoes the lock that stopped on the note [id], with [password] as for
+  /// [finishLocking].
+  Future<Either<ApplicationError, Unit>> undoLocking(
+    String id, {
+    String? password,
+  });
+
+  /// Whether to say, once, that notes locked before this update seal their
+  /// pictures and files when they are opened.
+  Future<Either<ApplicationError, bool>> takeSealedFilesNotice();
 }

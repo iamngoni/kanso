@@ -16,15 +16,19 @@ import '../../../core/models/data/browse_location.dart';
 import '../../../core/router/kanso_routes.dart';
 import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/state/navigation_history/navigation_history_bloc.dart';
+import '../../../core/state/undo_notice/undo_notice_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
+import '../../../injection.dart';
 import '../../../journal/views/widgets/day_stepper.dart';
 import '../../../journal/views/widgets/journal_opener.dart';
 import '../../../journal/views/widgets/note_journal_actions.dart';
 import '../../../lock/models/data/note_menu_action.dart';
+import '../../../lock/views/widgets/interrupted_lock_host.dart';
 import '../../../lock/views/widgets/privacy_cover_sync.dart';
+import '../../../recording_summary/views/widgets/recording_summary_sheet.dart';
 import '../../../sharing/state/comments/comments_bloc.dart';
 import '../../../sharing/state/shared_note_status/shared_note_status_bloc.dart';
 import '../../../sharing/views/widgets/comments_button.dart';
@@ -229,9 +233,26 @@ class NotePane extends StatelessWidget {
                                       ).toString(),
                                     ),
                                   ),
+                                // Never offered for a locked note, as on the
+                                // desktop: it is kept out of AI.
+                                if (readable && note.lock is LockState_Plain)
+                                  NoteMenuAction.summarizeRecording: () =>
+                                      unawaited(
+                                        showRecordingSummarySheet(
+                                          context,
+                                          noteId: shown.noteId,
+                                          undoNotice: undoNoticeOf(context),
+                                        ),
+                                      ),
                               },
                             ),
                           ],
+                        ),
+                      if (readable && !focusActive)
+                        InterruptedLockHost(
+                          noteId: shown.noteId,
+                          revision: note.rev,
+                          gutter: gutter,
                         ),
                       if (hasStatus && readable && !focusActive)
                         SharedNoteStatusStrip(gutter: gutter),
@@ -313,5 +334,17 @@ T? _maybeReadBloc<T>(BuildContext context) {
     return context.read<T>();
   } on ProviderNotFoundException {
     return null;
+  }
+}
+
+/// The bloc that shows an Undo notice, from the page when it has one and
+/// the app's otherwise (a sheet is above the page's providers).
+UndoNoticeBloc? undoNoticeOf(BuildContext context) {
+  try {
+    return context.read<UndoNoticeBloc>();
+  } on ProviderNotFoundException {
+    return getIt.isRegistered<UndoNoticeBloc>()
+        ? getIt<UndoNoticeBloc>()
+        : null;
   }
 }

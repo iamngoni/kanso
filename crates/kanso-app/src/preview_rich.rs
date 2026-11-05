@@ -8,6 +8,7 @@
 //! drawn shows as its code, with a badge saying why.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
 
@@ -41,6 +42,9 @@ pub(crate) const CANVAS_GROUP_ANCHOR: &str = "group=";
 pub struct Rich {
     pub wake: async_channel::Sender<()>,
     pub store: Arc<Store>,
+    /// The file keys of the notes this session has open, for drawings
+    /// attached to a locked note.
+    pub files: crate::attachments::FileKeys,
     pub edits: ResizeSender,
     /// Where a click on an embedded canvas goes: a note link, as any.
     pub links: crate::preview::LinkSender,
@@ -48,12 +52,25 @@ pub struct Rich {
     pub note: Arc<Mutex<Option<String>>>,
     /// How much larger than the setting text is drawn: 1, except on a slide.
     pub text_scale: Mutex<f32>,
+    /// Whether the sketches in the note can't be drawn on: the note is
+    /// shared, in the trash, or read only for another reason.
+    pub sketch_read_only: AtomicBool,
+    /// Which preview the sketches drawn here belong to
+    /// ([`crate::sketch_view::next_owner`]): two windows on one note each
+    /// keep their own, and one moving to another note never lets go of the
+    /// other's unsaved ink.
+    pub sketch_owner: u64,
 }
 
 impl Rich {
     /// How much larger than the setting text is drawn.
     pub fn text_scale(&self) -> f32 {
         self.text_scale.lock().map_or(1., |scale| *scale)
+    }
+
+    /// Whether the sketches in the note can't be drawn on.
+    pub fn sketch_read_only(&self) -> bool {
+        self.sketch_read_only.load(Ordering::Relaxed)
     }
 
     pub(crate) fn waker(&self) -> impl FnOnce() + Send + 'static {
@@ -157,6 +174,13 @@ pub fn block(node: &markdown_ast::Node, markdown: &str) -> Option<Block> {
         }
         Node::Code(code) if fence_is(&code.lang, "excalidraw") => {
             (Kind::Excalidraw, code.value.clone(), None)
+        }
+        // A Kanso sketch; any other `sketch` block is code.
+        Node::Code(code)
+            if fence_is(&code.lang, "sketch")
+                && kanso_render::canvas::sketch::parse(&code.value).is_some() =>
+        {
+            (Kind::Sketch, code.value.clone(), None)
         }
         // A canvas note's own fence holds JSON and is not an embed.
         Node::Code(code)
@@ -331,8 +355,25 @@ pub(crate) fn drawing(job: &Job, rich: &Rich) -> Option<Arc<Outcome>> {
     if let Some(outcome) = kanso_render::cached(job) {
         return Some(outcome);
     }
+    ask(job, rich)
+}
+
+/// Asks for a drawing that isn't ready: a render worker makes it and wakes
+/// the view.
+#[cfg(not(test))]
+fn ask(job: &Job, rich: &Rich) -> Option<Arc<Outcome>> {
     kanso_render::request(job.clone(), rich.waker());
     None
+}
+
+/// GPUI's test scheduler fails a test on "activity on another thread", and a
+/// render worker waking the waiting view is exactly that, at a moment that
+/// depends on how busy the machine is: a drawing finished before the view
+/// asked was never a problem, one finished after was. Tests draw on the
+/// test's own thread, so the answer is there at once.
+#[cfg(test)]
+fn ask(job: &Job, _rich: &Rich) -> Option<Arc<Outcome>> {
+    Some(kanso_render::render_blocking(job))
 }
 
 /// Decoded images by job: GPUI caches a rasterized image by the image, so
@@ -365,6 +406,18 @@ pub(crate) fn image(job: &Job, svg: &kanso_render::Svg) -> Arc<Image> {
 /// `None` once read if it couldn't be.
 static SCENE_FILES: LazyLock<Mutex<HashMap<String, Option<Arc<str>>>>> =
     LazyLock::new(Default::default);
+/// Forgets the drawings read from attachments and the images made from
+/// drawings: Lock Notes Now calls it, so nothing read from a locked note's
+/// files stays reachable.
+pub fn forget_scenes() {
+    if let Ok(mut scenes) = SCENE_FILES.lock() {
+        scenes.clear();
+    }
+    if let Ok(mut images) = IMAGES.lock() {
+        images.clear();
+    }
+}
+
 static SCENES_READING: LazyLock<Mutex<HashSet<String>>> = LazyLock::new(Default::default);
 
 /// An attached drawing's JSON: `Some(Some)` when read, `Some(None)` when it
@@ -374,15 +427,20 @@ fn scene_file(id: &str, rich: &Rich, cx: &mut App) -> Option<Option<Arc<str>>> {
         return Some(found.clone());
     }
     if SCENES_READING.lock().ok()?.insert(id.to_owned()) {
-        let (store, id, wake) = (rich.store.clone(), id.to_owned(), rich.waker());
+        let (store, files, id, wake) = (
+            rich.store.clone(),
+            rich.files.clone(),
+            id.to_owned(),
+            rich.waker(),
+        );
         cx.background_executor()
             .spawn(async move {
-                let scene = store
-                    .attachment(&id)
-                    .ok()
-                    .flatten()
-                    .and_then(|(_, attachment)| String::from_utf8(attachment.data).ok())
-                    .map(Arc::from);
+                let scene = match crate::attachments::open_with(&store, &id, &files) {
+                    crate::attachments::Opened::Opened(file) => {
+                        String::from_utf8(file.bytes).ok().map(Arc::from)
+                    }
+                    _ => None,
+                };
                 if let Ok(mut files) = SCENE_FILES.lock() {
                     files.insert(id.clone(), scene);
                 }
@@ -408,6 +466,9 @@ fn render_block(
     let at = node.source_range().map_or(0, |r| r.start) as u64;
     if let Some(line) = &block.pdf {
         return pdf_line(line, rich, at, cx);
+    }
+    if block.kind == Kind::Sketch {
+        return crate::sketch_view::element(block, at, rich, window, cx);
     }
     if block.kind == Kind::Canvas {
         return crate::preview_canvas::render(block, rich, at, window, cx);

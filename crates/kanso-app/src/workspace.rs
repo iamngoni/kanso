@@ -91,6 +91,7 @@ actions!(
         UndoAgentTask,
         UndoLastChange,
         SummarizeNote,
+        SummarizeRecording,
         TidyVoiceNote,
     ]
 );
@@ -100,6 +101,14 @@ actions!(kanso, [ToggleFocusMode, ExitFocusMode]);
 
 // An empty Excalidraw drawing at the cursor.
 actions!(kanso, [NewDrawing]);
+
+const SKETCH_SMALL: (u32, u32) = kanso_core::canvas::sketch::SIZES[0];
+const SKETCH_MEDIUM: (u32, u32) = kanso_core::canvas::sketch::SIZES[1];
+const SKETCH_LARGE: (u32, u32) = kanso_core::canvas::sketch::SIZES[2];
+
+// An empty drawing box (an inline sketch) at the cursor: 480 by 320 points,
+// or the small (320 by 240) or large (640 by 480) size.
+actions!(kanso, [InsertSketch, InsertSketchSmall, InsertSketchLarge]);
 
 // Back and forward between the notes a window opened (`nav_history`), and
 // the open note's link to paste elsewhere (`note_link`).
@@ -323,6 +332,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Paste and Match Style", PastePlainText),
             MenuItem::action("Format Table", FormatTable),
             MenuItem::action("New Drawing", NewDrawing),
+            MenuItem::action("Insert Sketch", InsertSketch),
             MenuItem::action("Undo Agent Task", UndoAgentTask),
             MenuItem::separator(),
             MenuItem::os_submenu("Services", SystemMenuType::Services),
@@ -338,6 +348,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Voice Input", Dictate),
             MenuItem::action("Record…", crate::recording::RecordAudio),
             MenuItem::action("Transcribe Recording", crate::transcribe::TranscribeAudio),
+            MenuItem::action("Summarise Recording…", SummarizeRecording),
             MenuItem::action("Publish…", crate::publish::PublishNote),
             MenuItem::action("Publish Notebook…", crate::publish_site::PublishNotebook),
             MenuItem::separator(),
@@ -740,6 +751,12 @@ impl Workspace {
             cx.subscribe_in(&editor, window, |this, _, event, window, cx| match event {
                 EditorEvent::Notice(message) => {
                     window.push_notification(Notification::error(message.clone()), cx);
+                }
+                EditorEvent::Told { message, stays } => {
+                    window.push_notification(
+                        Notification::info(message.clone()).autohide(!*stays),
+                        cx,
+                    );
                 }
                 EditorEvent::ShowHistory => this.show_history(window, cx),
                 EditorEvent::Command(command) => {
@@ -2966,6 +2983,15 @@ impl Render for Workspace {
                 this.inspector
                     .update(cx, |inspector, cx| inspector.summarize_note(window, cx));
             }))
+            .on_action(cx.listener(|this, _: &SummarizeRecording, window, cx| {
+                if !cx.global::<AppState>().config.ai.enabled {
+                    return;
+                }
+                this.close_settings(window, cx);
+                if let Some(id) = this.editor.read(cx).note_id().map(str::to_owned) {
+                    crate::recording_summary::open(id, window, cx);
+                }
+            }))
             .on_action(cx.listener(|this, _: &TidyVoiceNote, window, cx| {
                 if !cx.global::<AppState>().config.ai.enabled {
                     return;
@@ -3034,6 +3060,21 @@ impl Render for Workspace {
                 this.close_settings(window, cx);
                 this.editor
                     .update(cx, |editor, cx| editor.insert_drawing(window, cx));
+            }))
+            .on_action(cx.listener(|this, _: &InsertSketch, window, cx| {
+                this.close_settings(window, cx);
+                this.editor
+                    .update(cx, |editor, cx| editor.insert_sketch(SKETCH_MEDIUM, window, cx));
+            }))
+            .on_action(cx.listener(|this, _: &InsertSketchSmall, window, cx| {
+                this.close_settings(window, cx);
+                this.editor
+                    .update(cx, |editor, cx| editor.insert_sketch(SKETCH_SMALL, window, cx));
+            }))
+            .on_action(cx.listener(|this, _: &InsertSketchLarge, window, cx| {
+                this.close_settings(window, cx);
+                this.editor
+                    .update(cx, |editor, cx| editor.insert_sketch(SKETCH_LARGE, window, cx));
             }))
             .on_action(cx.listener(|this, _: &TrashNote, window, cx| {
                 this.close_settings(window, cx);
