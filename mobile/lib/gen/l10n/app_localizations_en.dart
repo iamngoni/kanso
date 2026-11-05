@@ -1506,6 +1506,23 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get pdfNotesInkTitle => 'Pencil marks';
+
+  @override
+  String pdfNotesInkStrokes(int strokes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      strokes,
+      locale: localeName,
+      other: '$strokes strokes',
+      one: '1 stroke',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get pdfNotesInkClear => 'Clear page';
+
+  @override
   String get previewEmptyDrawing => 'An empty drawing';
 
   @override

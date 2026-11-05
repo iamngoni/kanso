@@ -2704,6 +2704,24 @@ abstract class AppLocalizations {
   /// **'{summary}. Show the highlights.'**
   String pdfNotesOpen(String summary);
 
+  /// Heading, in the sheet that lists a note's PDF highlights, over the pages that have pencil marks drawn on them.
+  ///
+  /// In en, this message translates to:
+  /// **'Pencil marks'**
+  String get pdfNotesInkTitle;
+
+  /// How many pencil strokes are drawn on one page of a PDF.
+  ///
+  /// In en, this message translates to:
+  /// **'{strokes, plural, =1{1 stroke} other{{strokes} strokes}}'**
+  String pdfNotesInkStrokes(int strokes);
+
+  /// Button that rubs out all the pencil marks on one page of a PDF.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear page'**
+  String get pdfNotesInkClear;
+
   /// Shown in a note's preview for a drawing with nothing in it yet.
   ///
   /// In en, this message translates to:

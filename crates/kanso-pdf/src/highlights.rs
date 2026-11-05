@@ -16,6 +16,7 @@ use std::collections::BTreeSet;
 
 use crate::PdfError;
 use crate::annotation::new_highlight_id;
+use crate::ink::{self, InkFile, PageInk};
 use crate::link::PdfLink;
 use crate::model::{Color, Highlight, MAX_COMMENT_CHARS, PdfBlock};
 use crate::quote::{Edit, append_quote, render_quote};
@@ -62,7 +63,24 @@ pub enum Status {
 pub struct Annotations {
     pub block: PdfBlock,
     pub status: Status,
+    /// The `inkFile` whose strokes were read into `block.ink`.
+    pub ink_loaded: Option<String>,
+    /// The block names an ink attachment whose strokes are not read yet:
+    /// ink is not changed meanwhile, so nothing is written over it.
+    pub ink_pending: bool,
 }
+
+/// One row of the ink list: a page with pencil marks on it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InkRow {
+    pub page: u32,
+    /// Strokes drawn on the page.
+    pub strokes: usize,
+}
+
+/// What is said while a PDF's pencil marks have not all arrived.
+pub const INK_ARRIVING: &str =
+    "The pencil marks on this PDF are still arriving. Try again in a moment.";
 
 /// One row of the highlights list.
 #[derive(Clone, Debug, PartialEq)]
@@ -82,6 +100,8 @@ impl Annotations {
         Annotations {
             block: PdfBlock::new(file, md5),
             status: Status::Editable,
+            ink_loaded: None,
+            ink_pending: false,
         }
     }
 
@@ -102,12 +122,20 @@ impl Annotations {
     pub fn sync(&mut self, body: &str) -> bool {
         let before = self.clone();
         match locate(body, &self.block.file) {
-            Located::Found(block) => {
+            Located::Found(mut block) => {
+                // Ink that lives in its attachment is not in the body: what
+                // was read from it stays until the attachment is read again.
+                if block.ink_file.is_some() {
+                    block.ink = ink::merge_pages(&self.block.ink, &block.ink);
+                    self.ink_pending = self.ink_loaded != block.ink_file;
+                } else {
+                    self.ink_pending = false;
+                }
                 self.block = block;
                 self.status = Status::Editable;
             }
             Located::Missing => {
-                if !self.block.highlights.is_empty() {
+                if !self.block.highlights.is_empty() || !self.block.ink.is_empty() {
                     self.status = Status::Restorable;
                 } else {
                     self.status = Status::Editable;
@@ -171,6 +199,124 @@ impl Annotations {
             h.color = color;
             h.rev = h.rev.saturating_add(1);
         }
+        Ok(())
+    }
+
+    // ---- pencil ink (step 10) ----------------------------------------------------
+
+    /// The ink on every page, in page order.
+    pub fn ink(&self) -> &[PageInk] {
+        &self.block.ink
+    }
+
+    /// The ink on one page (1-based); an empty page when there is none.
+    pub fn page_ink(&self, page: u32) -> PageInk {
+        self.block
+            .ink
+            .iter()
+            .find(|p| p.page == page)
+            .cloned()
+            .unwrap_or_else(|| PageInk::new(page))
+    }
+
+    /// Replaces a page's ink with `page_ink` (the canvas's edits of it). A
+    /// change that would leave the PDF with more ink than it can hold, or
+    /// that finds the ink not yet read, is refused and changes nothing.
+    pub fn set_page_ink(&mut self, page_ink: PageInk) -> Result<(), PdfError> {
+        self.check()?;
+        if self.ink_pending {
+            return Err(PdfError::Invalid(INK_ARRIVING.into()));
+        }
+        page_ink.validate()?;
+        let before = self.block.ink.clone();
+        self.block.ink.retain(|p| p.page != page_ink.page);
+        if !page_ink.strokes.is_empty() {
+            self.block.ink.push(page_ink);
+            self.block.ink.sort_by_key(|p| p.page);
+        }
+        let now = ink::written_len(&self.block.ink);
+        if now > ink::written_len(&before) && now > ink::MAX_INK_BYTES {
+            self.block.ink = before;
+            return Err(PdfError::Invalid(ink::FULL.into()));
+        }
+        Ok(())
+    }
+
+    /// Rubs out everything drawn on a page (its strokes become tombstones, so
+    /// a device that still has them cannot bring them back). Whether
+    /// anything was drawn there.
+    pub fn clear_page_ink(&mut self, page: u32, now_ms: i64) -> Result<bool, PdfError> {
+        let current = self.page_ink(page);
+        if current.is_blank() {
+            return Ok(false);
+        }
+        self.set_page_ink(ink::cleared(&current, now_ms))?;
+        Ok(true)
+    }
+
+    /// The pages with pencil marks, and how many strokes each has.
+    pub fn ink_rows(&self) -> Vec<InkRow> {
+        self.block
+            .ink
+            .iter()
+            .filter(|p| !p.is_blank())
+            .map(|p| InkRow {
+                page: p.page,
+                strokes: p.live_count(),
+            })
+            .collect()
+    }
+
+    /// Whether the ink must be written to its attachment: it is already
+    /// there, or it has grown past what the block holds.
+    pub fn needs_companion(&self) -> bool {
+        self.block.ink_file.is_some() || ink::written_len(&self.block.ink) > ink::INLINE_INK_BYTES
+    }
+
+    /// All of the PDF's ink as the attachment holds it, when it lives there.
+    pub fn companion(&self) -> Option<InkFile> {
+        self.needs_companion()
+            .then(|| InkFile::new(&self.block.file, self.block.ink.clone()))
+    }
+
+    /// The attachment (`file:<id>`) the ink lives in, if any.
+    pub fn ink_file_id(&self) -> Option<String> {
+        self.block.ink_file.as_deref().and_then(ink::file_id)
+    }
+
+    /// Takes the ink attachment the body's block already names, when this
+    /// one names none: another save (or device) moved the ink there first,
+    /// and a second attachment must not be made beside it.
+    pub fn adopt_ink_file(&mut self, body: &str) {
+        if self.block.ink_file.is_some() {
+            return;
+        }
+        if let Located::Found(found) = locate(body, &self.block.file)
+            && found.ink_file.is_some()
+        {
+            self.block.ink_file = found.ink_file;
+            self.ink_pending = true;
+        }
+    }
+
+    /// Names the attachment the ink is written to; the block then keeps no
+    /// strokes of its own.
+    pub fn set_ink_file(&mut self, id: &str) {
+        let link = ink::file_link(id);
+        self.ink_loaded = Some(link.clone());
+        self.block.ink_file = Some(link);
+        self.ink_pending = false;
+    }
+
+    /// Takes in the strokes the attachment holds, uniting them with those
+    /// already here. An attachment of another PDF is refused.
+    pub fn absorb_ink(&mut self, file: &InkFile) -> Result<(), PdfError> {
+        if file.file != self.block.file {
+            return Err(PdfError::Invalid("That ink belongs to another PDF.".into()));
+        }
+        self.block.ink = ink::merge_pages(&self.block.ink, &file.pages);
+        self.ink_loaded = self.block.ink_file.clone();
+        self.ink_pending = false;
         Ok(())
     }
 

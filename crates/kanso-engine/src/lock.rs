@@ -26,9 +26,11 @@ use kanso_sync::lock::{Envelope, FileKey, LOCK_KDF, LockError, LockKey, LockPass
 use kanso_sync::{KdfParams, Machine};
 
 pub mod files;
+pub mod ink;
 mod notebook;
 
 pub use files::KeyBook;
+pub use ink::SealedInk;
 pub use notebook::{
     book_subtree, notebook_summary, seal_notebook, seal_notebook_with, take_lock_off,
 };

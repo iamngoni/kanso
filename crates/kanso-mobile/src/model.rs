@@ -2645,6 +2645,18 @@ pub struct PdfNotes {
     pub why: Option<String>,
     /// By page, then in the order they were made.
     pub highlights: Vec<PdfHighlightRow>,
+    /// The pages with pencil marks (step 10), in page order.
+    pub ink: Vec<PdfInkRow>,
+}
+
+/// One page's pencil marks in a list. The phone cannot draw on a page, so it
+/// names them and can clear a page's.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PdfInkRow {
+    /// The page, 1-based.
+    pub page: u32,
+    /// Strokes drawn on it.
+    pub strokes: u32,
 }
 
 /// One highlight in a list.

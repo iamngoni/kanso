@@ -758,6 +758,98 @@ void librarySuite(OpenLibrary open) {
       );
     });
 
+    test(
+      "lists a PDF's highlights and pencil marks and changes them",
+      () async {
+        final library = await open();
+        Map<String, Object> pen(String id, double to) => <String, Object>{
+          'id': id,
+          'tool': 'pen',
+          'color': '#1e1e1e',
+          'width': 4.0,
+          'points': <List<double>>[
+            <double>[10, 20, 0.5],
+            <double>[to, 40, 0.5],
+          ],
+        };
+        final body = jsonEncode(<String, Object>{
+          'file': 'file:abc123',
+          'md5': 'm',
+          'version': 1,
+          'highlights': <Map<String, Object>>[
+            <String, Object>{
+              'id': 'h1',
+              'page': 2,
+              'quads': <String, Object>{
+                '2': <List<double>>[
+                  <double>[0.1, 0.1, 0.5, 0.2],
+                ],
+              },
+              'text': 'Revenue rose',
+              'color': 'yellow',
+              'createdAt': 1,
+            },
+          ],
+          'ink': <Map<String, Object>>[
+            <String, Object>{
+              'page': 2,
+              'strokes': <Object>[pen('s1', 30)],
+            },
+            <String, Object>{
+              'page': 5,
+              'strokes': <Object>[pen('s2', 60)],
+            },
+          ],
+        });
+        final block = '```kanso-pdf\n$body\n```';
+        final id = await makeNote(library, 'Read', block);
+
+        var notes = await library.pdfHighlights(noteId: id);
+        expect(notes, hasLength(1));
+        expect(notes.single.highlights.single.id, 'h1');
+        expect(
+          notes.single.ink.map((row) => (row.page, row.strokes)),
+          <(int, int)>[(2, 1), (5, 1)],
+        );
+
+        var rev = (await library.note(id: id)).rev;
+        final commented = await library.pdfHighlightChange(
+          noteId: id,
+          baseRev: rev,
+          file: 'file:abc123',
+          id: 'h1',
+          change: const PdfHighlightChange.comment(comment: 'Check this'),
+        );
+        // The pencil marks come through a highlight's change untouched.
+        notes = await library.pdfHighlights(noteId: id);
+        expect(notes.single.highlights.single.comment, 'Check this');
+        expect(notes.single.ink, hasLength(2));
+
+        final cleared = await library.pdfInkClear(
+          noteId: id,
+          baseRev: commented.rev,
+          file: 'file:abc123',
+          page: 2,
+        );
+        notes = await library.pdfHighlights(noteId: id);
+        expect(notes.single.ink.map((row) => row.page), <int>[5]);
+        expect(notes.single.highlights, hasLength(1));
+
+        // A change on an old revision writes nothing.
+        rev = commented.rev;
+        await expectLater(
+          library.pdfInkClear(
+            noteId: id,
+            baseRev: rev,
+            file: 'file:abc123',
+            page: 5,
+          ),
+          throwsA(isA<KansoError_Conflict>()),
+        );
+        expect(cleared.rev, isNot(rev));
+      },
+    );
+
     test("opens today's note once, from the phone's date", () async {
       final library = await open();
       const morning = LocalTime(
