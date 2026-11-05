@@ -430,7 +430,7 @@ fn signed_out_a_shared_canvas_opens_to_look_at() {
             .save(&id, &rev, "not a canvas".into())
             .is_err()
     );
-    assert_eq!(view.save().unwrap().merged, false);
+    assert!(!view.save().unwrap().merged);
 }
 
 // no-prop-test: a private canvas has no room, once.
