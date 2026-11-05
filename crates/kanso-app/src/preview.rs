@@ -71,8 +71,14 @@ pub enum PreviewEdit {
     /// A task box ticked or cleared.
     Task(TaskTick),
     /// A sketch drawn on: the fence with this ID in the note becomes this
-    /// JSON, if it fits the caps.
-    Sketch { id: String, json: String },
+    /// JSON, if it fits the caps. `base` is the fence it was drawn from: one
+    /// the note changed since (another device, the handwriting reader) is
+    /// merged with it, not written over.
+    Sketch {
+        id: String,
+        json: String,
+        base: String,
+    },
     /// "Open as canvas" (or "Copy as canvas" in a shared note) on the sketch
     /// with this ID.
     SketchToCanvas { id: String },
@@ -165,9 +171,11 @@ impl Preview {
             wake,
             store: store.clone(),
             edits: resizes.clone(),
+            links: links.clone(),
             note: note.clone(),
             text_scale: Mutex::new(1.),
             sketch_read_only: AtomicBool::new(false),
+            sketch_owner: crate::sketch_view::next_owner(),
         });
         let edits = resizes.clone();
         let extensions = quote_extensions(
@@ -235,7 +243,7 @@ impl Preview {
         if changed.unwrap_or(false) {
             // Another note's sketches are let go (their ink was handed to the
             // editor before it left).
-            crate::sketch_view::keep_only(changed_id.as_deref(), cx);
+            crate::sketch_view::keep_only(self.rich.sketch_owner, changed_id.as_deref(), cx);
             if let Ok(mut images) = self.images.lock() {
                 images.clear();
             }
@@ -269,6 +277,14 @@ impl Preview {
         // player reads `opened_files` too.
         if locked_away {
             self.player.update(cx, |player, cx| player.unload(cx));
+        }
+    }
+
+    /// Note or notebook `id` changed: a canvas this preview embeds may have
+    /// been locked, trashed or redrawn, so it is read again and drawn anew.
+    pub fn canvas_changed(&mut self, id: &str, cx: &mut Context<Self>) {
+        if crate::preview_canvas::forget(id, &self.shown) {
+            self.drawings_ready(cx);
         }
     }
 
@@ -454,6 +470,12 @@ impl Preview {
             self.readable = readable;
             cx.notify();
         }
+    }
+
+    /// Which preview this is, to the sketches drawn in it
+    /// ([`crate::sketch_view`]).
+    pub fn sketch_owner(&self) -> u64 {
+        self.rich.sketch_owner
     }
 
     /// Whether the sketches in the note are read only (it is shared or in the
@@ -750,8 +772,8 @@ const PICTURE: &str = "kanso-picture";
 const FRONT_MATTER: &str = "kanso-front-matter";
 /// Changes when [`quote_extensions`] parses differently, so a text view
 /// re-parses its note. 3: math, diagrams and drawings. 4: due-date chips.
-/// 5: query views. 6: front matter hidden.
-const QUOTE_PARSER_REVISION: u64 = 6;
+/// 5: query views. 6: front matter hidden. 7: embedded canvases.
+const QUOTE_PARSER_REVISION: u64 = 7;
 
 /// Front matter, drawn as nothing: the Properties section shows it.
 fn front_matter_node(node: &markdown_ast::Node) -> Option<MarkdownNode> {

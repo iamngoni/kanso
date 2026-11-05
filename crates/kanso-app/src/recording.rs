@@ -46,18 +46,18 @@ const PENDING_FILE: &str = "pending-transcript.json";
 
 pub use kanso_engine::recording_flow::RecordPlan;
 
-/// The recording in progress: the microphone, another app's audio (its own
-/// track, in a session folder of its own), or both.
+/// The recording in progress: the microphone (which carries system audio on
+/// its right channel when both are recorded) or system audio alone.
 struct Active {
-    /// The microphone; `None` for system audio alone.
+    /// The microphone, or the microphone and system audio together as one
+    /// stereo recording; `None` for system audio alone.
     mic: Option<Capture>,
-    /// Another app's audio, when it is being recorded.
+    /// System audio recorded alone.
     system: Option<Capture>,
-    /// The session ID. The system track's is [`system_session_id`] of it
-    /// when the microphone is recorded too, and this itself when not.
+    /// The session ID.
     id: String,
     plan: RecordPlan,
-    /// The first capture's status, with the louder of the two levels.
+    /// The recording's status; its level is the louder channel's.
     status: CaptureStatus,
     started_ms: u64,
     beats: u64,
@@ -237,22 +237,27 @@ pub fn start(plan: RecordPlan, cx: &mut App) {
         );
         return;
     }
+    let mut plan = plan;
+    // Beside macOS, which records one app, system audio is the sound
+    // output (the default, or the one the sheet picked).
+    if !cfg!(target_os = "macos") && plan.what.uses_system() && plan.system.is_none() {
+        plan.system = Some(SystemSource::Everything);
+    }
     if let Some(problem) = plan.problem() {
         notify(Notification::info(problem), cx);
         return;
     }
-    let mut plan = plan;
     if plan.what.uses_system() {
-        if !cfg!(target_os = "macos") {
-            notify(
-                Notification::info(
-                    "Recording other apps' audio isn't available on this system yet.",
-                ),
-                cx,
-            );
-            return;
-        }
-        if kanso_audio::screen_access() != ScreenAccess::Allowed {
+        if let Some(why) = system_unavailable() {
+            notify(Notification::error(why), cx);
+            if !plan.what.uses_microphone() {
+                return;
+            }
+            // The microphone records anyway.
+            plan.what = WhatToRecord::Microphone;
+            plan.system = None;
+        } else if cfg!(target_os = "macos") && kanso_audio::screen_access() != ScreenAccess::Allowed
+        {
             notify(
                 Notification::error(error_words(&AudioError::ScreenRecordingDenied)),
                 cx,
@@ -298,11 +303,26 @@ pub fn start(plan: RecordPlan, cx: &mut App) {
     }
 }
 
-/// What the system capture listens to for `source`.
-fn target_of(source: &SystemSource) -> SystemAudioTarget {
-    match source {
-        SystemSource::App { bundle_id, .. } => SystemAudioTarget::App(bundle_id.clone()),
-        SystemSource::Everything => SystemAudioTarget::Default,
+/// What the system capture listens to for `source`: the app on a Mac, else
+/// the output `output` the sheet picked (the default when none).
+fn target_of(source: &SystemSource, output: Option<&str>) -> SystemAudioTarget {
+    match (source, output) {
+        (SystemSource::App { bundle_id, .. }, _) => SystemAudioTarget::App(bundle_id.clone()),
+        (SystemSource::Everything, Some(id)) => SystemAudioTarget::Device(id.to_owned()),
+        (SystemSource::Everything, None) => SystemAudioTarget::Default,
+    }
+}
+
+/// Why this computer can't record system audio now, in the person's words;
+/// `None` where it can. A Mac's answer is its Screen Recording permission,
+/// which `start` checks on its own.
+fn system_unavailable() -> Option<String> {
+    if cfg!(target_os = "macos") {
+        return None;
+    }
+    match kanso_audio::platform_backend() {
+        Some(backend) => backend.availability().reason(),
+        None => Some(kanso_audio::Unavailable::Unsupported.message()),
     }
 }
 
@@ -321,49 +341,63 @@ fn begin(plan: RecordPlan, cx: &mut App) {
     let root = in_progress_dir(&cx.global::<AppState>().data_dir);
     let id = session::new_id();
     let note_id = plan.destination.note_id().map(str::to_owned);
-    let mic = if plan.what.uses_microphone() {
+    let target = plan
+        .system
+        .as_ref()
+        .map(|source| target_of(source, plan.system_output.as_deref()));
+    let mut mic = None;
+    let mut system = None;
+    // The microphone and system audio together are one stereo recording,
+    // you on the left and the meeting on the right.
+    if plan.what == WhatToRecord::MicrophoneAndSystem
+        && let Some(target) = target.clone()
+    {
+        let mut options = RecorderOptions::new(
+            Channels::Stereo,
+            vec![RecordSource::Microphone, RecordSource::SystemAudio],
+        );
+        options.id = Some(id.clone());
+        options.note_id = note_id.clone();
+        match Capture::start_both(&root, options, target) {
+            Ok(capture) => mic = Some(capture),
+            Err(err @ (AudioError::MicrophoneDenied | AudioError::NoMicrophone)) => {
+                notify(Notification::error(error_words(&err)), cx);
+                return;
+            }
+            Err(err) => {
+                // The microphone records on, on its own.
+                notify(Notification::error(error_words(&err)), cx);
+                plan.what = WhatToRecord::Microphone;
+                plan.system = None;
+            }
+        }
+    }
+    if mic.is_none() && plan.what.uses_microphone() {
         let mut options = RecorderOptions::new(Channels::Mono, vec![RecordSource::Microphone]);
         options.id = Some(id.clone());
         options.note_id = note_id.clone();
         match Capture::start(&root, options) {
-            Ok(capture) => Some(capture),
+            Ok(capture) => mic = Some(capture),
             Err(err) => {
                 notify(Notification::error(error_words(&err)), cx);
                 return;
             }
         }
-    } else {
-        None
-    };
-    let system = match (plan.what.uses_system(), plan.system.as_ref()) {
-        (true, Some(source)) => {
-            // Beside the microphone the track has a session of its own; alone
-            // it is the recording.
-            let session = if mic.is_some() {
-                system_session_id(&id)
-            } else {
-                id.clone()
-            };
-            let mut options = RecorderOptions::new(Channels::Mono, vec![RecordSource::SystemAudio]);
-            options.id = Some(session);
-            options.note_id = note_id;
-            match Capture::start_system(&root, options, target_of(source)) {
-                Ok(capture) => Some(capture),
-                Err(err) if mic.is_some() => {
-                    // The microphone records on.
-                    notify(Notification::error(error_words(&err)), cx);
-                    plan.what = WhatToRecord::Microphone;
-                    plan.system = None;
-                    None
-                }
-                Err(err) => {
-                    notify(Notification::error(error_words(&err)), cx);
-                    return;
-                }
+    }
+    if plan.what == WhatToRecord::SystemOnly
+        && let Some(target) = target
+    {
+        let mut options = RecorderOptions::new(Channels::Mono, vec![RecordSource::SystemAudio]);
+        options.id = Some(id.clone());
+        options.note_id = note_id;
+        match Capture::start_system(&root, options, target) {
+            Ok(capture) => system = Some(capture),
+            Err(err) => {
+                notify(Notification::error(error_words(&err)), cx);
+                return;
             }
         }
-        _ => None,
-    };
+    }
     let Some(status) = mic
         .as_ref()
         .or(system.as_ref())
@@ -401,23 +435,24 @@ fn tick(cx: &mut App) -> bool {
     let Some(active) = cx.default_global::<Recording>().active.as_mut() else {
         return true;
     };
-    // The first capture sets the clock and ends the recording; the other
-    // only adds to the level.
-    let (first, other) = match (&active.mic, &active.system) {
-        (Some(mic), system) => (mic.status(), system.as_ref().map(Capture::status)),
-        (None, Some(system)) => (system.status(), None),
-        (None, None) => return true,
+    // One capture is the recording: the microphone (with system audio on
+    // its right channel, when both are recorded), or system audio alone.
+    let Some(status) = active
+        .mic
+        .as_ref()
+        .or(active.system.as_ref())
+        .map(Capture::status)
+    else {
+        return true;
     };
-    let mut status = first;
     let mut lost = None;
-    if let Some(other) = other {
-        status.rms = status.rms.max(other.rms);
-        if let Some(reason) = other.ended
-            && !active.system_lost
-        {
-            active.system_lost = true;
-            lost = Some(reason);
-        }
+    // With both sources in one capture, the system side can stop while the
+    // microphone goes on.
+    if let Some(why) = status.system_failure.clone()
+        && !active.system_lost
+    {
+        active.system_lost = true;
+        lost = Some(StopReason::Device(why));
     }
     active.beats += 1;
     let warn_now = status.warned && !active.warned;
@@ -555,9 +590,10 @@ pub(crate) struct Done {
 }
 
 impl Done {
-    /// The files to transcribe. Beside a microphone the meeting's audio is
-    /// the system track; mixing the two onto one timeline, with You and
-    /// Meeting labels, is a later step.
+    /// The files to transcribe: the recording, whose two channels give the
+    /// You and Meeting labels. Only a system track a crash left beside a
+    /// microphone recording of its own (made before the two were mixed)
+    /// is transcribed instead of it.
     fn transcribe_ids(&self) -> Vec<String> {
         if self.system_file_ids.is_empty() {
             self.saved.file_ids.clone()
@@ -1062,7 +1098,7 @@ pub(crate) fn recover_with(
     };
     let what = if system_only {
         WhatToRecord::SystemOnly
-    } else if companion.is_some() {
+    } else if companion.is_some() || session.sources.contains(&RecordSource::SystemAudio) {
         WhatToRecord::MicrophoneAndSystem
     } else {
         WhatToRecord::Microphone

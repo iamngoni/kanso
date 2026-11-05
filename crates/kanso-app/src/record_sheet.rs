@@ -257,6 +257,26 @@ impl RecordSheet {
     }
 }
 
+/// The reminder under a choice that records system audio: whose sound is
+/// recorded (the app on a Mac, else what the computer plays), with the
+/// microphone named only when it records too. Pure.
+fn consent_words(what: WhatToRecord, app_mode: bool, system: Option<&SystemSource>) -> String {
+    let mine = match (what.uses_microphone(), app_mode) {
+        (false, _) => "",
+        (true, true) => "this Mac's microphone and ",
+        (true, false) => "the microphone and ",
+    };
+    let whose = match (system, app_mode) {
+        (_, false) => "what the computer plays".to_owned(),
+        (Some(SystemSource::App { name, .. }), true) => format!("{name}'s audio"),
+        (Some(SystemSource::Everything), true) => "everything this Mac plays".to_owned(),
+        (None, true) => "the app's audio".to_owned(),
+    };
+    format!(
+        "Kanso records {mine}{whose}. Make sure everyone in the meeting knows. Recording rules differ by place."
+    )
+}
+
 /// One option of a row: selected, or disabled with a reason.
 fn option(
     id: impl Into<ElementId>,
@@ -423,24 +443,9 @@ impl Render for RecordSheet {
         let this_note = open_note.clone();
         let what = self.plan.what;
         let system_off: Option<SharedString> = self.system_disabled().map(Into::into);
-        let consent = what.uses_system().then(|| {
-            let whose = match (&self.plan.system, self.app_mode) {
-                (_, false) => "what the computer plays".to_owned(),
-                (Some(SystemSource::App { name, .. }), true) => format!("{name}'s audio"),
-                (Some(SystemSource::Everything), true) => "everything this Mac plays".to_owned(),
-                (None, true) => "the app's audio".to_owned(),
-            };
-            let mine = if !self.app_mode {
-                "the microphone and "
-            } else if what.uses_microphone() {
-                "this Mac's microphone and "
-            } else {
-                ""
-            };
-            format!(
-                "Kanso records {mine}{whose}. Make sure everyone in the meeting knows. Recording rules differ by place."
-            )
-        });
+        let consent = what
+            .uses_system()
+            .then(|| consent_words(what, self.app_mode, self.plan.system.as_ref()));
         let problem = self.plan.problem();
         v_flex()
             .w_full()
@@ -673,11 +678,13 @@ pub fn open_with(
 mod tests {
     // Not `super::*`: it brings `gpui_kit::*`'s `test`, which `#[test]`
     // inside `gpui_kit::test` would then expand into forever.
-    use super::{Fixed, Machine, RecordSheet};
+    use super::{Fixed, Machine, RecordSheet, consent_words};
     use gpui_kit::{AppContext as _, TestAppContext};
     use kanso_audio::ScreenAccess;
     use kanso_audio::system_audio::{Availability, SystemAudioDevice};
     use kanso_engine::recording_flow::{SystemSource, WhatToRecord};
+    use proptest::prelude::*;
+    use proptest::test_runner::{FileFailurePersistence, RngSeed};
 
     fn device_machine(what: WhatToRecord) -> Fixed {
         Fixed {
@@ -740,5 +747,42 @@ mod tests {
             )
         });
         cx.read(|cx| assert!(sheet.read(cx).plan().problem().is_some()));
+    }
+
+    fn what() -> impl Strategy<Value = WhatToRecord> {
+        prop_oneof![
+            Just(WhatToRecord::Microphone),
+            Just(WhatToRecord::MicrophoneAndSystem),
+            Just(WhatToRecord::SystemOnly),
+        ]
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 64,
+            rng_seed: RngSeed::Fixed(0x006b_616e_736f),
+            failure_persistence: Some(Box::new(FileFailurePersistence::Off)),
+            ..ProptestConfig::default()
+        })]
+
+        /// The reminder names the microphone exactly when it records (System
+        /// Audio alone never claims it), and names an app only on a Mac.
+        #[test]
+        fn prop_consent_names_what_is_recorded(
+            what in what(),
+            app_mode in any::<bool>(),
+            app in proptest::option::of("[A-Z][a-z]{2,8}"),
+        ) {
+            let source = app.clone().map(|name| SystemSource::App {
+                bundle_id: format!("com.{name}"),
+                name,
+            });
+            let words = consent_words(what, app_mode, source.as_ref());
+            prop_assert_eq!(words.contains("microphone"), what.uses_microphone());
+            prop_assert_eq!(words.contains("what the computer plays"), !app_mode);
+            if let Some(name) = &app {
+                prop_assert_eq!(words.contains(&format!("{name}'s audio")), app_mode);
+            }
+        }
     }
 }

@@ -1459,6 +1459,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previewEmptyDrawing => 'An empty drawing';
 
   @override
+  String get previewCanvasLocked => 'Locked canvas';
+
+  @override
+  String get previewCanvasMissing => 'Canvas not found';
+
+  @override
+  String get previewCanvasNotCanvas => 'This note isn\'t a canvas';
+
+  @override
+  String get previewCanvasInvalid => 'Couldn\'t draw this canvas';
+
+  @override
+  String get previewCanvasWholeCanvas =>
+      'This embeds the whole canvas. Name a group to embed less.';
+
+  @override
+  String get previewCanvasGroupMissing =>
+      'That group is gone, so this shows the whole canvas.';
+
+  @override
+  String get previewCanvasOpen => 'Open canvas';
+
+  @override
   String get previewQueryEmpty => 'No notes match.';
 
   @override
@@ -6892,6 +6915,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get sketchNoteFull =>
       'This note\'s sketches are full. Open one as a canvas.';
+
+  @override
+  String get sketchNearlyFull =>
+      'This sketch is nearly full. Open it as a canvas to keep drawing without a limit.';
+
+  @override
+  String get sketchSharedInsert =>
+      'Sketches can\'t be added to a shared note. Add one to a private note, or draw on a canvas.';
 
   @override
   String get noticeNeedsAttention => 'Needs your attention';

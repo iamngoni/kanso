@@ -457,7 +457,14 @@ pub fn page_without_queries(
             .flatten()
             .map(|(content_type, attachment)| (content_type, attachment.data))
     };
-    kanso_render::html::page_with(title, body, palette, &attachments, &style.options())
+    // A canvas a fence names is drawn into the page; a locked one is a
+    // placeholder, found without reading it.
+    let notes = |id: &str| crate::canvas_embed::embed_note(store, id);
+    let options = kanso_render::html::PageOptions {
+        notes: Some(&notes),
+        ..style.options()
+    };
+    kanso_render::html::page_with(title, body, palette, &attachments, &options)
 }
 
 /// `body` with each query fence drawn as the table it makes.

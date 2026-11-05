@@ -45,6 +45,11 @@ pub const SAVE_AFTER: Duration = Duration::from_secs(2);
 /// How long a write the editor hasn't echoed back is still believed.
 const ECHO_WITHIN: Duration = Duration::from_secs(3);
 
+/// Shows every sketch's toolbar, as a hover would, for the snapshots.
+#[cfg(test)]
+pub(crate) static REVEAL_TOOLS: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 /// What a read-only sketch says.
 pub const SHARED_WORDS: &str = "Shared note: copy it to a canvas to draw together.";
 
@@ -61,13 +66,16 @@ pub enum Sync {
 
 /// What to do when the preview hands a view the fence now in the note. The
 /// view's own unsaved or just-sent ink is never replaced by the older text
-/// that was in the note meanwhile. Pure.
+/// that was in the note meanwhile; a fence that already holds everything
+/// sent (the editor merged it with another writer's) is taken at once.
+/// `covers` says whether `incoming` holds all of what was sent. Pure.
 pub fn reconcile(
     held: &str,
     incoming: &str,
     drawing: bool,
     unsaved: bool,
     sent: Option<(&str, Duration)>,
+    covers: bool,
 ) -> Sync {
     if held == incoming || drawing || unsaved {
         return Sync::Keep;
@@ -75,45 +83,137 @@ pub fn reconcile(
     match sent {
         // The editor hasn't taken the write yet (or refused it): the text
         // is older than the view, for a moment.
-        Some((json, since)) if json != incoming && since < ECHO_WITHIN => Sync::Keep,
+        Some((json, since)) if json != incoming && !covers && since < ECHO_WITHIN => Sync::Keep,
         _ => Sync::Adopt,
     }
 }
 
-/// The views, by the note they are in and their ID.
+/// Whether the fence `incoming` holds everything in `sent`: merging the two
+/// changes nothing. Pure.
+fn holds(incoming: &str, sent: &str) -> bool {
+    let (Ok(incoming), Ok(sent)) = (
+        serde_json::from_str::<Canvas>(incoming),
+        serde_json::from_str::<Canvas>(sent),
+    ) else {
+        return false;
+    };
+    kanso_core::canvas::merge(&sent, &incoming) == incoming
+}
+
+/// Where a view lives: the preview that draws it (its
+/// [`Rich::sketch_owner`]), the note it is in and its ID.
+type Key = (u64, Option<String>, String);
+
+/// The views, by where they live.
 #[derive(Default)]
-struct Registry(HashMap<(Option<String>, String), Entity<SketchView>>);
+struct Registry(HashMap<Key, Entity<SketchView>>);
 
 impl Global for Registry {}
 
-/// A sketch's ink that has not reached the note: its ID and JSON.
+/// A name for a new preview's sketches, never given twice.
+pub fn next_owner() -> u64 {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
+/// A sketch's ink that has not reached the note: its ID, its JSON, and the
+/// JSON of the fence it was drawn from.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Unsaved {
     pub id: String,
     pub json: String,
+    pub base: String,
 }
 
-/// Takes the ink of `note`'s sketches that has not been written yet, as if it
-/// had been sent: the editor applies it before it leaves the note.
-pub fn take_unsaved(note: Option<&str>, cx: &mut App) -> Vec<Unsaved> {
-    let views: Vec<Entity<SketchView>> = cx
-        .default_global::<Registry>()
+fn views(cx: &mut App, keep: impl Fn(&Key) -> bool) -> Vec<Entity<SketchView>> {
+    cx.default_global::<Registry>()
         .0
         .iter()
-        .filter(|((n, _), _)| n.as_deref() == note)
+        .filter(|(key, _)| keep(key))
         .map(|(_, view)| view.clone())
-        .collect();
-    views
+        .collect()
+}
+
+/// Takes the ink of `note`'s sketches in preview `owner` that has not been
+/// written yet, a stroke still being drawn included, as if it had been sent:
+/// the editor writes it before it leaves the note, closes or quits.
+pub fn take_unsaved(owner: u64, note: Option<&str>, cx: &mut App) -> Vec<Unsaved> {
+    views(cx, |(o, n, _)| *o == owner && n.as_deref() == note)
         .into_iter()
         .filter_map(|view| view.update(cx, |view, cx| view.take_unsaved(cx)))
         .collect()
 }
 
-/// Forgets the views of notes other than `note`.
-pub fn keep_only(note: Option<&str>, cx: &mut App) {
+/// Forgets preview `owner`'s views of notes other than `note`.
+pub fn keep_only(owner: u64, note: Option<&str>, cx: &mut App) {
     cx.default_global::<Registry>()
         .0
-        .retain(|(n, _), _| n.as_deref() == note);
+        .retain(|key, _| kept(key, owner, note));
+}
+
+/// Whether the view at `key` stays when preview `owner` moves to `note`:
+/// another preview's always do (a second window on another note keeps its
+/// unsaved ink), and this one's only on that note. Pure.
+fn kept((o, n, _): &Key, owner: u64, note: Option<&str>) -> bool {
+    *o != owner || n.as_deref() == note
+}
+
+/// Forgets every view of preview `owner`: its note was locked, so neither
+/// its ink nor its undo steps stay in memory in the clear.
+pub fn forget(owner: u64, cx: &mut App) {
+    cx.default_global::<Registry>()
+        .0
+        .retain(|(o, _, _), _| *o != owner);
+}
+
+/// Draws a short line at height `y` in sketch `id` of `note` in preview
+/// `owner`, as a mouse would, and ends it: its write is then waiting two
+/// seconds. Whether the sketch was there to draw in.
+#[cfg(test)]
+pub fn draw_for_test(owner: u64, note: &str, id: &str, y: f64, cx: &mut TestAppContext) -> bool {
+    cx.update(|cx| {
+        let key = (owner, Some(note.to_owned()), id.to_owned());
+        let Some(view) = cx.default_global::<Registry>().0.get(&key).cloned() else {
+            return false;
+        };
+        view.update(cx, |view, cx| {
+            let now = SketchView::now(cx);
+            view.gesture = Some(Source::Mouse);
+            let _ = view.state.begin(PenSample::mouse(10., y), 1., now);
+            let _ = view.state.extend(PenSample::mouse(60., y + 4.), 1., now);
+            let _ = view.state.extend(PenSample::mouse(120., y + 8.), 1., now);
+            // Ended by the hand-over, not here: a stroke still being drawn
+            // when the window closes is kept too.
+        });
+        true
+    })
+}
+
+/// [`take_unsaved`], for a test.
+#[cfg(test)]
+pub fn take_unsaved_for_test(owner: u64, note: &str, cx: &mut TestAppContext) -> Vec<Unsaved> {
+    cx.update(|cx| take_unsaved(owner, Some(note), cx))
+}
+
+/// Whether a sketch in note `id` has ink the note doesn't hold yet, in any
+/// window: being drawn, waiting for its write, or written a moment ago and
+/// not yet in the note. The handwriting reader leaves such a note alone.
+pub fn busy(id: &str, cx: &App) -> bool {
+    cx.try_global::<Registry>().is_some_and(|registry| {
+        registry
+            .0
+            .iter()
+            .filter(|((_, n, _), _)| n.as_deref() == Some(id))
+            .any(|(_, view)| {
+                let view = view.read(cx);
+                view.gesture.is_some()
+                    || view.unsaved
+                    || view
+                        .sent
+                        .as_ref()
+                        .is_some_and(|(_, at)| at.elapsed() < ECHO_WITHIN)
+            })
+    })
 }
 
 /// The element for `block`, a sketch, in the preview of `rich`'s note.
@@ -134,7 +234,7 @@ pub fn element(
     let note = rich.note.lock().ok().and_then(|note| note.clone());
     let read_only = rich.sketch_read_only();
     let scale = rich.text_scale();
-    let key = (note, id.clone());
+    let key = (rich.sketch_owner, note, id.clone());
     let existing = cx.default_global::<Registry>().0.get(&key).cloned();
     let view = match existing {
         Some(view) => view,
@@ -159,6 +259,11 @@ pub struct SketchView {
     /// The JSON the view shows, as the note holds it or as the view last
     /// wrote it.
     json: String,
+    /// The fence the view's ink is drawn on top of: what the note held when
+    /// the view last took it in, or what the view last sent. Sent with each
+    /// write, so the editor merges rather than writes over a fence that
+    /// changed meanwhile.
+    base: String,
     /// The ink not yet sent to the editor.
     unsaved: bool,
     /// What was sent and when, until the note shows it.
@@ -185,9 +290,12 @@ impl SketchView {
         edits: ResizeSender,
         cx: &mut Context<Self>,
     ) -> Self {
+        let nearly_full = sketch::budget(json.len()) != kanso_core::canvas::Budget::Ok;
         SketchView {
+            notice: nearly_full.then(|| sketch::SKETCH_NEARLY_FULL.into()),
             id,
             state: CanvasState::for_sketch(canvas),
+            base: json.clone(),
             json,
             unsaved: false,
             sent: None,
@@ -199,7 +307,6 @@ impl SketchView {
             hover: None,
             over: false,
             bounds: Rc::new(Cell::new(Bounds::default())),
-            notice: None,
             focus: cx.focus_handle(),
         }
     }
@@ -219,6 +326,10 @@ impl SketchView {
             self.scale = scale;
             changed = true;
         }
+        let covers = self
+            .sent
+            .as_ref()
+            .is_some_and(|(sent, _)| sent != json && holds(json, sent));
         let decision = reconcile(
             &self.json,
             json,
@@ -227,6 +338,7 @@ impl SketchView {
             self.sent
                 .as_ref()
                 .map(|(json, at)| (json.as_str(), at.elapsed())),
+            covers,
         );
         // The note shows what was sent: it has been taken.
         if self.sent.as_ref().is_some_and(|(sent, _)| sent == json) {
@@ -243,7 +355,9 @@ impl SketchView {
             self.state.color = color;
             self.state.width = width;
             self.json = json.to_owned();
+            self.base = json.to_owned();
             self.sent = None;
+            self.warn_when_nearly_full(json.len());
             changed = true;
         }
         if changed {
@@ -251,24 +365,36 @@ impl SketchView {
         }
     }
 
-    /// Hands over the ink not yet sent, for the editor to write before it
-    /// leaves the note.
-    fn take_unsaved(&mut self, cx: &mut Context<Self>) -> Option<Unsaved> {
-        if !self.unsaved {
-            return None;
-        }
-        self.state.cancel();
-        self.gesture = None;
+    /// The ink not sent yet, marked as sent: the JSON to write, and the fence
+    /// it was drawn on.
+    fn take(&mut self) -> Unsaved {
         self.unsaved = false;
         self.save = None;
         let json = sketch::to_json(&self.state.canvas);
+        let base = std::mem::replace(&mut self.base, json.clone());
         self.json = json.clone();
         self.sent = Some((json.clone(), Instant::now()));
-        cx.notify();
-        Some(Unsaved {
+        self.warn_when_nearly_full(json.len());
+        Unsaved {
             id: self.id.clone(),
             json,
-        })
+            base,
+        }
+    }
+
+    /// Hands over the ink not yet sent, for the editor to write before it
+    /// leaves the note, closes or quits. A stroke still being drawn is ended
+    /// and kept, not dropped.
+    fn take_unsaved(&mut self, cx: &mut Context<Self>) -> Option<Unsaved> {
+        if self.gesture.is_some() {
+            self.finish(cx);
+        }
+        if !self.unsaved {
+            return None;
+        }
+        let unsaved = self.take();
+        cx.notify();
+        Some(unsaved)
     }
 
     /// Sends the sketch to the editor now.
@@ -277,17 +403,22 @@ impl SketchView {
         if !self.unsaved || self.gesture.is_some() {
             return;
         }
-        self.unsaved = false;
-        let json = sketch::to_json(&self.state.canvas);
-        self.json = json.clone();
-        self.sent = Some((json.clone(), Instant::now()));
+        let Unsaved { id, json, base } = self.take();
         self.edits
-            .try_send(PreviewEdit::Sketch {
-                id: self.id.clone(),
-                json,
-            })
+            .try_send(PreviewEdit::Sketch { id, json, base })
             .ok();
         cx.notify();
+    }
+
+    /// Says when the sketch passes 75% of its cap, as a canvas does.
+    fn warn_when_nearly_full(&mut self, bytes: usize) {
+        let nearly = sketch::budget(bytes) != kanso_core::canvas::Budget::Ok;
+        let warning: SharedString = sketch::SKETCH_NEARLY_FULL.into();
+        if nearly && self.notice.is_none() {
+            self.notice = Some(warning);
+        } else if !nearly && self.notice.as_ref() == Some(&warning) {
+            self.notice = None;
+        }
     }
 
     /// A stroke (or an erase) ended: write once, [`SAVE_AFTER`] from now,
@@ -423,7 +554,11 @@ impl SketchView {
 
     fn report(&mut self, outcome: Outcome, ended: bool, cx: &mut Context<Self>) {
         match outcome {
-            Outcome::Changed if ended => self.schedule(cx),
+            Outcome::Changed if ended => {
+                self.schedule(cx);
+                let bytes = sketch::to_json(&self.state.canvas).len();
+                self.warn_when_nearly_full(bytes);
+            }
             Outcome::Changed => self.unsaved = true,
             Outcome::Nothing => {}
             Outcome::Refused(why) => {
@@ -512,8 +647,12 @@ impl SketchView {
                 }))
         };
         let divider = || div().w(px(1.)).h(px(16.)).mx(px(4.)).bg(colors.divider);
-        h_flex()
-            .h(px(TOOLBAR_HEIGHT))
+        // In a narrow preview the tools give way (the colours last in the
+        // row first) and "Open as canvas" always shows whole.
+        let tools = h_flex()
+            .flex_1()
+            .min_w_0()
+            .overflow_hidden()
             .items_center()
             .gap(px(2.))
             .when(!self.read_only, |el| {
@@ -551,8 +690,6 @@ impl SketchView {
                     ))
                     .child(tool_button(Tool::Lasso, "sketch-lasso", Lucide::Focus, cx))
                     .child(divider())
-                    .children(COLORS.iter().map(|&c| swatch(c, cx).into_any_element()))
-                    .child(divider())
                     .child(
                         icon_button("sketch-undo", Lucide::Undo2, "Undo")
                             .disabled(!self.state.can_undo())
@@ -563,10 +700,18 @@ impl SketchView {
                             .disabled(!self.state.can_redo())
                             .on_click(cx.listener(|this, _, _, cx| this.redo(cx))),
                     )
-            })
-            .child(div().flex_1())
+                    .child(divider())
+                    .children(COLORS.iter().map(|&c| swatch(c, cx).into_any_element()))
+            });
+        h_flex()
+            .h(px(TOOLBAR_HEIGHT))
+            .w_full()
+            .items_center()
+            .gap(px(2.))
+            .child(tools)
             .child(
                 Button::new("sketch-canvas")
+                    .flex_none()
                     .ghost()
                     .small()
                     .icon(Lucide::PenTool)
@@ -646,7 +791,13 @@ impl Render for SketchView {
         }
         let lasso = self.state.lasso.clone();
         let editable = !self.read_only;
-        let show_bar = self.over || self.gesture.is_some() || self.notice.is_some();
+        // A refusal shows the tools with it; the nearly-full warning alone
+        // waits for the pointer, as the toolbar does.
+        let warning_only = self.notice.as_deref() == Some(sketch::SKETCH_NEARLY_FULL);
+        let show_bar =
+            self.over || self.gesture.is_some() || (self.notice.is_some() && !warning_only);
+        #[cfg(test)]
+        let show_bar = show_bar || REVEAL_TOOLS.load(std::sync::atomic::Ordering::Relaxed);
         let box_el = canvas(
             move |bounds, _, _| bounds_cell.set(bounds),
             move |bounds, _, window, _cx| {
@@ -788,9 +939,9 @@ mod tests {
 
     use proptest::prelude::*;
 
-    use super::{ECHO_WITHIN, Sync, reconcile};
+    use super::{ECHO_WITHIN, Sync, holds, kept, reconcile};
 
-    type Case = (String, String, bool, bool, Option<(String, Duration)>);
+    type Case = (String, String, bool, bool, Option<(String, Duration)>, bool);
 
     fn arb_case() -> impl Strategy<Value = Case> {
         (
@@ -801,23 +952,35 @@ mod tests {
             prop::option::of(
                 ("[ab]{0,3}", 0u64..6000).prop_map(|(j, ms)| (j, Duration::from_millis(ms))),
             ),
+            any::<bool>(),
         )
     }
 
-    fn check((held, incoming, drawing, unsaved, sent): Case) -> Result<(), TestCaseError> {
+    fn check((held, incoming, drawing, unsaved, sent, covers): Case) -> Result<(), TestCaseError> {
         let sent_ref = sent.as_ref().map(|(j, d)| (j.as_str(), *d));
-        let decision = reconcile(&held, &incoming, drawing, unsaved, sent_ref);
+        let decision = reconcile(&held, &incoming, drawing, unsaved, sent_ref, covers);
         let echo_pending = sent
             .as_ref()
-            .is_some_and(|(json, since)| *json != incoming && *since < ECHO_WITHIN);
+            .is_some_and(|(json, since)| *json != incoming && !covers && *since < ECHO_WITHIN);
         let keeps = held == incoming || drawing || unsaved || echo_pending;
         prop_assert_eq!(decision, if keeps { Sync::Keep } else { Sync::Adopt });
         // The same text is never adopted again.
         prop_assert_eq!(
-            reconcile(&incoming, &incoming, drawing, unsaved, sent_ref),
+            reconcile(&incoming, &incoming, drawing, unsaved, sent_ref, covers),
             Sync::Keep
         );
         Ok(())
+    }
+
+    fn stroke(y: f64) -> kanso_core::canvas::Stroke {
+        use kanso_core::canvas::{Point, Stroke};
+        Stroke {
+            tool: "pen".into(),
+            color: "#1e1e1e".into(),
+            width: 3.,
+            points: vec![Point::new(4., y, 0.5), Point::new(60., y + 5., 0.5)],
+            ..Stroke::default()
+        }
     }
 
     proptest! {
@@ -827,6 +990,44 @@ mod tests {
         #[test]
         fn prop_own_ink_is_never_replaced_by_older_text(case in arb_case()) {
             check(case)?;
+        }
+
+        /// A preview moving to another note lets go only of its own views of
+        /// other notes; another window's views, on any note, all stay.
+        #[test]
+        fn prop_a_preview_lets_go_only_of_its_own_views(
+            owner in 1u64..4,
+            other in 1u64..4,
+            note in prop::option::of("[ab]"),
+            theirs in prop::option::of("[ab]"),
+        ) {
+            let key = (other, theirs.clone(), "sk".to_owned());
+            let stays = kept(&key, owner, note.as_deref());
+            prop_assert_eq!(stays, other != owner || theirs == note);
+            prop_assert!(kept(&key, other.wrapping_add(10), note.as_deref()));
+        }
+
+        /// A fence holds what was sent exactly when it is the sent sketch
+        /// merged with another writer's: the editor's merge is taken at once,
+        /// and the older fence it replaced never is.
+        #[test]
+        fn prop_a_merge_holds_what_was_sent(mine in 1usize..4, theirs in 0usize..4) {
+            use kanso_core::canvas::{merge, sketch};
+            let base = sketch::new_sketch("sk-h", 320, 240);
+            let mut sent = base.clone();
+            for i in 0..mine {
+                let _ = sent.draw(stroke(10. * i as f64), 10 + i as i64);
+            }
+            let mut other = base.clone();
+            for i in 0..theirs {
+                let _ = other.draw(stroke(150. + 10. * i as f64), 20 + i as i64);
+            }
+            let merged = merge(&sent, &other);
+            let json = |c| sketch::to_json(c);
+            prop_assert!(holds(&json(&merged), &json(&sent)));
+            prop_assert!(holds(&json(&sent), &json(&sent)));
+            prop_assert!(!holds(&json(&base), &json(&sent)));
+            prop_assert_eq!(holds(&json(&other), &json(&sent)), false);
         }
     }
 }

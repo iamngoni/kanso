@@ -37,13 +37,18 @@ class RustCanvasRepository implements CanvasRepository {
   );
 
   @override
+  bool takesSketches(String noteId) => _library.takesSketches(noteId: noteId);
+
+  @override
   Future<CanvasResult<SketchInserted>> insertSketch({
+    required String noteId,
     required String body,
     required int at,
     required int width,
     required int height,
   }) => attempt(
-    () => bridge.canvasSketchInsert(
+    () => _library.sketchInsert(
+      noteId: noteId,
       body: body,
       at: at,
       width: width,

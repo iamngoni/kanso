@@ -24,8 +24,9 @@ pub struct TextChar {
     pub quad: Quad,
     /// The direction the text runs in on the unrotated page, in clockwise
     /// quarter turns: 0 left to right, 1 top to bottom, 2 right to left,
-    /// 3 bottom to top. From PDFium's character angle `a` (degrees,
-    /// counter-clockwise) this is `(-a / 90).rem_euclid(4)`.
+    /// 3 bottom to top. From PDFium's character angle `a` (degrees, which
+    /// PDFium measures clockwise: 90 is top to bottom) this is
+    /// `(a / 90).rem_euclid(4)`.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub turns: u8,
 }

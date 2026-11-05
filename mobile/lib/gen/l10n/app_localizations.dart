@@ -2644,6 +2644,48 @@ abstract class AppLocalizations {
   /// **'An empty drawing'**
   String get previewEmptyDrawing;
 
+  /// Shown in a note's preview where it embeds a canvas that is locked. Nothing of the canvas is drawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked canvas'**
+  String get previewCanvasLocked;
+
+  /// Shown in a note's preview where it embeds a canvas that no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'Canvas not found'**
+  String get previewCanvasMissing;
+
+  /// Shown in a note's preview where an embedded canvas names a note that is not a canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'This note isn\'t a canvas'**
+  String get previewCanvasNotCanvas;
+
+  /// Shown in a note's preview where an embedded canvas can't be drawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t draw this canvas'**
+  String get previewCanvasInvalid;
+
+  /// A quiet banner under an embedded canvas that is very large because the embed names no group.
+  ///
+  /// In en, this message translates to:
+  /// **'This embeds the whole canvas. Name a group to embed less.'**
+  String get previewCanvasWholeCanvas;
+
+  /// A quiet note under an embedded canvas whose named group no longer exists.
+  ///
+  /// In en, this message translates to:
+  /// **'That group is gone, so this shows the whole canvas.'**
+  String get previewCanvasGroupMissing;
+
+  /// Screen-reader label of an embedded canvas in a note's preview; tapping it opens the canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Open canvas'**
+  String get previewCanvasOpen;
+
   /// Shown under a query view's headings in a note's preview when no note matches it.
   ///
   /// In en, this message translates to:
@@ -11697,6 +11739,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This note\'s sketches are full. Open one as a canvas.'**
   String get sketchNoteFull;
+
+  /// Shown under a sketch past three quarters of its size limit.
+  ///
+  /// In en, this message translates to:
+  /// **'This sketch is nearly full. Open it as a canvas to keep drawing without a limit.'**
+  String get sketchNearlyFull;
+
+  /// Shown when Insert sketch is used in a shared note.
+  ///
+  /// In en, this message translates to:
+  /// **'Sketches can\'t be added to a shared note. Add one to a private note, or draw on a canvas.'**
+  String get sketchSharedInsert;
 
   /// The small heading on the card that says an update changed something the person may need to fix.
   ///

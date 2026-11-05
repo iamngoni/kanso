@@ -234,6 +234,15 @@ impl Library {
         })
     }
 
+    /// Whether "Insert sketch" may put a sketch in note `id`: a Markdown
+    /// note that isn't shared or in the trash. The shell asks before it
+    /// offers the sizes; [`Library::sketch_insert`] refuses the same notes.
+    pub fn takes_sketches(&self, id: &str) -> bool {
+        self.stored(id).is_ok_and(|note| {
+            note.doctype != "canvas" && !note.is_trashed() && !note.extra.contains_key(SHARE_FIELD)
+        })
+    }
+
     /// Whether note `id` is a canvas. Reads nothing of a locked one.
     pub fn is_canvas(&self, id: &str) -> bool {
         self.stored(id).is_ok_and(|note| note.doctype == "canvas")

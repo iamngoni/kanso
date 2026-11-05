@@ -44,8 +44,18 @@ class SketchEditorExtras implements EditorExtras {
   @override
   void release(EditorTextTarget target) {}
 
-  /// Asks for a size, then puts the sketch in at the caret.
+  /// Asks for a size, then puts the sketch in at the caret. A shared note
+  /// refuses before any size is asked for (two people replacing one
+  /// sketch's text would break it); the library refuses it too.
   Future<void> insert(BuildContext context, EditorTextTarget target) async {
+    if (!repository.takesSketches(target.noteId)) {
+      KansoFeedback.show(
+        context,
+        context.l10n.sketchSharedInsert,
+        tone: KansoFeedbackTone.error,
+      );
+      return;
+    }
     final size = await SketchSizeSheet.show(context);
     if (size == null || !target.active || !context.mounted) {
       return;
@@ -55,6 +65,7 @@ class SketchEditorExtras implements EditorExtras {
         ? value.selection.end.clamp(0, value.text.length)
         : value.text.length;
     final made = await repository.insertSketch(
+      noteId: target.noteId,
       body: value.text,
       at: at,
       width: size.$1,
@@ -67,7 +78,9 @@ class SketchEditorExtras implements EditorExtras {
     made.fold(
       (_) => KansoFeedback.show(
         context,
-        l10n.sketchNoteFull,
+        repository.takesSketches(target.noteId)
+            ? l10n.sketchNoteFull
+            : l10n.sketchSharedInsert,
         tone: KansoFeedbackTone.error,
       ),
       (done) {

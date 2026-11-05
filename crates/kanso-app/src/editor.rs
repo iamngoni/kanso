@@ -86,6 +86,8 @@ pub(crate) mod format_keys;
 #[cfg(test)]
 #[path = "editor_format_tests.rs"]
 mod format_tests;
+#[path = "editor_ink.rs"]
+pub(crate) mod ink_glue;
 #[path = "ai_inline.rs"]
 pub(crate) mod inline_glue;
 #[cfg(test)]
@@ -305,6 +307,9 @@ pub struct NoteEditor {
     /// Lines (first, last, 0-based) of note `.0` to mark for a few seconds
     /// once it opens: where a receipt in an Ask answer points.
     pending_highlight: Option<(String, u32, u32)>,
+    /// A group (`.1`) of canvas note `.0` to show filling the view once it
+    /// opens: where an embed's "Open at this group" points.
+    pending_canvas_group: Option<(String, String)>,
     /// The timer that lets go of a marked range.
     highlight_task: Option<Task<()>>,
     /// A byte offset of note `.0`'s text to put the caret at once it
@@ -484,8 +489,8 @@ impl NoteEditor {
                             replacement,
                         } => this.replace_block(&source, replacement, window, cx),
                         PreviewEdit::Task(tick) => this.tick_task(&tick, window, cx),
-                        PreviewEdit::Sketch { id, json } => {
-                            this.replace_sketch(&id, &json, window, cx)
+                        PreviewEdit::Sketch { id, json, base } => {
+                            this.replace_sketch(&id, &json, &base, window, cx)
                         }
                         PreviewEdit::SketchToCanvas { id } => {
                             this.sketch_to_canvas(&id, window, cx)
@@ -643,6 +648,9 @@ impl NoteEditor {
             // Quitting from the Dock, at logout or from the menu.
             cx.on_app_quit(|this, cx| {
                 this.flush(cx);
+                // Ink drawn in a sketch in the last two seconds, or still
+                // being drawn, is written too.
+                this.save_sketch_ink(cx);
                 async {}
             }),
             // With no note open, the pane follows the list: an empty
@@ -687,6 +695,7 @@ impl NoteEditor {
             wiki_task: None,
             pending_reveal: None,
             pending_highlight: None,
+            pending_canvas_group: None,
             highlight_task: None,
             pending_caret: None,
             pending_place: None,
@@ -1161,12 +1170,7 @@ impl NoteEditor {
         if writes_held(cx) && self.has_unsaved_edits(cx) {
             return;
         }
-        // Ink drawn in the last two seconds goes into the note it was drawn in.
-        let leaving = self.note_id().map(str::to_owned);
-        for unsaved in crate::sketch_view::take_unsaved(leaving.as_deref(), cx) {
-            self.replace_sketch(&unsaved.id, &unsaved.json, window, cx);
-        }
-        self.flush(cx);
+        self.flush_with_sketches(window, cx);
         self.left_place = self.place(cx);
         let note = match id.map(|id| self.store.note(id)) {
             Some(Ok(note)) => note,
@@ -1205,6 +1209,12 @@ impl NoteEditor {
         if self.lock != LockView::Plain {
             self.pdf = None;
         }
+        // A note locked now keeps no sketch ink, nor its undo steps, in
+        // memory in the clear.
+        if self.lock.is_closed() {
+            let owner = self.preview.read(cx).sketch_owner();
+            crate::sketch_view::forget(owner, cx);
+        }
         // A suggestion belongs to the note it was asked for, in the clear.
         if self.lock != LockView::Plain
             || self.inline.as_ref().is_some_and(|suggestion| {
@@ -1233,6 +1243,10 @@ impl NoteEditor {
             let (id, canvas_body) = (n.id.clone(), n.body.clone());
             self.canvas
                 .update(cx, |view, cx| view.open(&id, &canvas_body, read_only, cx));
+            if let Some((_, group)) = self.pending_canvas_group.take_if(|(note, _)| *note == id) {
+                self.canvas
+                    .update(cx, |view, cx| view.focus_group(&group, cx));
+            }
         } else {
             self.canvas.update(cx, |view, cx| view.clear(cx));
         }
@@ -1697,6 +1711,17 @@ impl NoteEditor {
         }));
     }
 
+    /// Shows group `group` of canvas note `id` filling the view: now when
+    /// that canvas is open, else once it opens.
+    pub fn focus_canvas_group(&mut self, id: String, group: String, cx: &mut Context<Self>) {
+        if self.note_id() == Some(id.as_str()) && self.canvas_body.is_some() {
+            self.canvas
+                .update(cx, |view, cx| view.focus_group(&group, cx));
+        } else {
+            self.pending_canvas_group = Some((id, group));
+        }
+    }
+
     /// Shows lines `first` to `last` of note `id` marked, once it opens.
     pub fn highlight_after_open(&mut self, id: String, first: u32, last: u32) {
         self.pending_reveal = Some((id.clone(), first));
@@ -2120,6 +2145,11 @@ impl NoteEditor {
                         cx.notify();
                         return true;
                     }
+                    // Only a background read's handwriting words came in.
+                    if !retried && self.save_over_ink_text(&base, &latest, &mut note, cx) {
+                        retried = true;
+                        continue;
+                    }
                     if !retried
                         && (same_content(&base, &latest)
                             || peers::text_caught_up(&base, &latest, &note))
@@ -2148,6 +2178,9 @@ impl NoteEditor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // A canvas this note embeds may have changed, or been locked.
+        self.preview
+            .update(cx, |preview, cx| preview.canvas_changed(&change.id, cx));
         let Some(note) = &self.note else {
             return;
         };
@@ -2175,6 +2208,10 @@ impl NoteEditor {
             }
             // Another editor of the note saved what this one shows.
             if self.adopt_if_same_text(&latest, cx) {
+                return;
+            }
+            // A background read kept the handwriting's words, nothing else.
+            if self.adopt_ink_text(&latest, cx) {
                 return;
             }
             Incoming::Changed(Box::new(latest))
@@ -3422,34 +3459,69 @@ impl NoteEditor {
     }
 
     /// A sketch drawn on in the preview: the fence with this ID takes this
-    /// JSON, as one undo step. The sketch's and the note's caps are checked
+    /// JSON, as one undo step. `base` is the fence it was drawn on: a fence
+    /// the note changed since (a sync, the handwriting reader) is merged with
+    /// it, not written over. The sketch's and the note's caps are checked
     /// first, and a note that no longer has the sketch is left alone.
-    // no-prop-test: glue; `sketch::replace_checked` has the properties.
+    // no-prop-test: glue; `sketch::replace_merged` has the properties.
     pub(crate) fn replace_sketch(
         &mut self,
         id: &str,
         json: &str,
+        base: &str,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if self.note.is_none() || self.sketches_read_only() {
             return;
         }
-        let Some(sketch) = serde_json::from_str::<kanso_core::canvas::Canvas>(json)
-            .ok()
-            .filter(|c| c.validate_sketch().is_ok())
-        else {
-            return;
-        };
         let text = self.body.read(cx).value();
-        match kanso_core::canvas::sketch::replace_checked(&text, id, &sketch) {
-            Ok(next) => {
+        match sketch_written(&text, id, json, base) {
+            Some(Ok(next)) => {
                 self.smart_edit(window, cx, |_, text, selection| {
                     body_edit(text, &next, selection)
                 });
             }
-            Err(why) => cx.emit(EditorEvent::Notice(why.words().to_owned())),
+            Some(Err(why)) => cx.emit(EditorEvent::Notice(why.words().to_owned())),
+            None => {}
         }
+    }
+
+    /// Writes what the open note's sketches hold and the note doesn't yet
+    /// (ink from the last two seconds, a stroke still being drawn) into its
+    /// text, then saves: before the editor leaves the note or its window
+    /// closes.
+    pub fn flush_with_sketches(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let owner = self.preview.read(cx).sketch_owner();
+        let note = self.note_id().map(str::to_owned);
+        for unsaved in crate::sketch_view::take_unsaved(owner, note.as_deref(), cx) {
+            self.replace_sketch(&unsaved.id, &unsaved.json, &unsaved.base, window, cx);
+        }
+        self.flush(cx);
+    }
+
+    /// [`Self::flush_with_sketches`] when there is no window to edit the
+    /// text in (quitting): the sketches' ink is written to the note in the
+    /// library directly, after the text was saved.
+    // no-prop-test: glue; `sketch::replace_merged` has the properties and
+    // `sketch_ink_is_saved_on_quit_and_close` goes through it.
+    pub(crate) fn save_sketch_ink(&mut self, cx: &mut Context<Self>) {
+        if self.note.is_none() || self.sketches_read_only() || writes_held(cx) {
+            return;
+        }
+        let owner = self.preview.read(cx).sketch_owner();
+        let note = self.note_id().map(str::to_owned);
+        let unsaved = crate::sketch_view::take_unsaved(owner, note.as_deref(), cx);
+        if unsaved.is_empty() {
+            return;
+        }
+        let mut body = self.body.read(cx).value().to_string();
+        for u in &unsaved {
+            if let Some(Ok(next)) = sketch_written(&body, &u.id, &u.json, &u.base) {
+                body = next;
+            }
+        }
+        self.write(move |note, _| note.body = body, Origin::Ui, cx);
     }
 
     /// "Open as canvas" on sketch `id`: a new canvas note in the same
@@ -5063,6 +5135,25 @@ struct LiveVoice {
     start: usize,
     /// The composing ended (a key, a click) before the transcript came.
     lost: bool,
+}
+
+/// `text` with sketch `id` written as `json`, drawn on the fence `base` (a
+/// fence changed since is merged with it), or why not; `None` for JSON that
+/// isn't a sketch. Pure.
+fn sketch_written(
+    text: &str,
+    id: &str,
+    json: &str,
+    base: &str,
+) -> Option<Result<String, kanso_core::canvas::sketch::Refusal>> {
+    let read = |json: &str| {
+        serde_json::from_str::<kanso_core::canvas::Canvas>(json)
+            .ok()
+            .filter(|c| c.validate_sketch().is_ok())
+    };
+    let sketch = read(json)?;
+    let base = read(base).unwrap_or_else(|| sketch.clone());
+    Some(kanso_core::canvas::sketch::replace_merged(text, id, &sketch, &base).map(|(next, _)| next))
 }
 
 /// The one edit that turns `text` into `body`, keeping the caret where it
@@ -7605,8 +7696,9 @@ mod writing_tests {
             10,
         );
         let json = sketch::to_json(&drawn);
+        let base = sketch::to_json(&b);
         open.with(cx, |editor, window, cx| {
-            editor.replace_sketch("sk-b", &json, window, cx)
+            editor.replace_sketch("sk-b", &json, &base, window, cx)
         });
         let text = open.text(cx).0;
         assert_eq!(sketch::find_by_id(&text, "sk-b").unwrap().1, drawn);
@@ -7614,7 +7706,7 @@ mod writing_tests {
         // An ID the note doesn't have changes nothing.
         let before = open.text(cx).0;
         open.with(cx, |editor, window, cx| {
-            editor.replace_sketch("sk-gone", &json, window, cx)
+            editor.replace_sketch("sk-gone", &json, &base, window, cx)
         });
         assert_eq!(open.text(cx).0, before);
         // A sketch over its cap is refused before the write.
@@ -7623,9 +7715,125 @@ mod writing_tests {
             .insert("pad".into(), "x".repeat(sketch::MAX_SKETCH_BYTES).into());
         let big = sketch::to_json(&full);
         open.with(cx, |editor, window, cx| {
-            editor.replace_sketch("sk-b", &big, window, cx)
+            editor.replace_sketch("sk-b", &big, &json, window, cx)
         });
         assert_eq!(open.text(cx).0, before);
+        // Drawn on an older fence than the note now holds (a sync brought
+        // another stroke): both strokes are kept.
+        let mut mine = drawn.clone();
+        let _ = mine.draw(
+            Stroke {
+                tool: "pen".into(),
+                color: "#1e1e1e".into(),
+                width: 3.,
+                points: vec![point(100., 100.), point(150., 120.)],
+                ..Stroke::default()
+            },
+            20,
+        );
+        let mut theirs = drawn.clone();
+        let _ = theirs.draw(
+            Stroke {
+                tool: "pen".into(),
+                color: "#e03131".into(),
+                width: 3.,
+                points: vec![point(10., 200.), point(90., 210.)],
+                ..Stroke::default()
+            },
+            21,
+        );
+        let synced = sketch::replace(&before, "sk-b", &theirs).unwrap();
+        open.with(cx, |editor, window, cx| {
+            editor
+                .body
+                .update(cx, |body, cx| body.set_value(synced, window, cx))
+        });
+        let mine_json = sketch::to_json(&mine);
+        open.with(cx, |editor, window, cx| {
+            editor.replace_sketch("sk-b", &mine_json, &json, window, cx)
+        });
+        let merged = sketch::find_by_id(&open.text(cx).0, "sk-b").unwrap().1;
+        assert_eq!(merged.live_strokes().count(), 3);
+    }
+
+    /// Ink in a sketch that hasn't reached the note (the two seconds after a
+    /// stroke, or a stroke still being drawn) is written when the window
+    /// closes and when Kanso quits.
+    // no-prop-test: glue over `take_unsaved` and `sketch::replace_merged`.
+    #[gpui_kit::test]
+    fn sketch_ink_is_saved_on_quit_and_close(cx: &mut TestAppContext) {
+        use crate::config::ViewMode;
+        use kanso_core::canvas::sketch;
+        let s = sketch::new_sketch("sk-q", 320, 240);
+        let open = Open::new(cx, &format!("Top\n\n{}\nEnd", sketch::to_fence(&s)));
+        open.with(cx, |editor, _, cx| {
+            editor.set_view_mode(ViewMode::Split, cx)
+        });
+        cx.run_until_parked();
+        let owner = open.with(cx, |editor, _, cx| editor.preview.read(cx).sketch_owner());
+        let id = open.id.clone();
+        let stored = |open: &Open| {
+            let body = open.store.note(&open.id).unwrap().unwrap().body;
+            sketch::find_by_id(&body, "sk-q")
+                .unwrap()
+                .1
+                .live_strokes()
+                .count()
+        };
+        // A stroke, then closing at once: the close handler writes it.
+        assert!(crate::sketch_view::draw_for_test(
+            owner, &id, "sk-q", 40., cx
+        ));
+        assert!(cx.read(|cx| crate::sketch_view::busy(&id, cx)));
+        open.with(cx, |editor, window, cx| {
+            editor.flush_with_sketches(window, cx)
+        });
+        assert_eq!(stored(&open), 1);
+        // Another, then quitting: the quit hook writes it without a window.
+        assert!(crate::sketch_view::draw_for_test(
+            owner, &id, "sk-q", 80., cx
+        ));
+        open.with(cx, |editor, _, cx| {
+            editor.flush(cx);
+            editor.save_sketch_ink(cx);
+        });
+        assert_eq!(stored(&open), 2);
+        // Nothing is left to write.
+        assert!(crate::sketch_view::take_unsaved_for_test(owner, &id, cx).is_empty());
+    }
+
+    /// A note that locks while its sketch holds unsaved ink keeps none of
+    /// it, nor its undo steps, in memory in the clear.
+    // no-prop-test: glue over `sketch_view::forget`.
+    #[gpui_kit::test]
+    fn a_note_locked_now_lets_go_of_its_sketches(cx: &mut TestAppContext) {
+        use crate::config::ViewMode;
+        use kanso_core::canvas::sketch;
+        let s = sketch::new_sketch("sk-l", 320, 240);
+        let open = Open::new(cx, &sketch::to_fence(&s));
+        open.with(cx, |editor, _, cx| {
+            editor.set_view_mode(ViewMode::Split, cx)
+        });
+        cx.run_until_parked();
+        let owner = open.with(cx, |editor, _, cx| editor.preview.read(cx).sketch_owner());
+        let id = open.id.clone();
+        assert!(crate::sketch_view::draw_for_test(
+            owner, &id, "sk-l", 40., cx
+        ));
+        let mut locked = open.store.note(&id).unwrap().unwrap();
+        locked.body = String::new();
+        locked.extra.insert(
+            kanso_core::model::LOCK_FIELD.into(),
+            serde_json::json!({"v": 1, "salt": "x", "nonce": "x", "box": "x"}),
+        );
+        open.with(cx, |editor, window, cx| {
+            editor.show(Some(locked), true, window, cx);
+            assert!(editor.lock.is_closed());
+        });
+        assert!(!cx.read(|cx| crate::sketch_view::busy(&id, cx)));
+        assert!(!crate::sketch_view::draw_for_test(
+            owner, &id, "sk-l", 80., cx
+        ));
     }
 
     /// "Open as canvas" makes a canvas note holding every stroke and leaves a

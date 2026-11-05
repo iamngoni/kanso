@@ -29,9 +29,15 @@ abstract class CanvasRepository {
     String sketchId,
   );
 
-  /// [body] with an empty [width] by [height] sketch put in at [at] (UTF-16
-  /// units), or why not.
+  /// Whether note [noteId] may take a new sketch: not a shared note (its
+  /// text is merged character by character), one in the trash or a canvas.
+  bool takesSketches(String noteId);
+
+  /// [body], the text of note [noteId], with an empty [width] by [height]
+  /// sketch put in at [at] (UTF-16 units), or why not (the note's sketches
+  /// are full, or it is shared).
   Future<CanvasResult<SketchInserted>> insertSketch({
+    required String noteId,
     required String body,
     required int at,
     required int width,

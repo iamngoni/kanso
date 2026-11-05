@@ -17,6 +17,19 @@ pub const TOOLS: &[&str] = &["pen", "pencil", "marker", "highlighter"];
 /// The node type Kanso adds to JSON Canvas.
 pub const INK: &str = "ink";
 
+/// A `canvas` fence in an ordinary note: it names a canvas note instead of
+/// holding one, and shows it (or one group of it) in place. Written and read
+/// by [`super::embed`].
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub struct Embed {
+    /// The canvas note's ID, `note:…`.
+    pub note: String,
+    /// A `group` node of that canvas to show instead of all its content.
+    pub group: Option<String>,
+    /// The width to show it at, in points.
+    pub width: Option<u32>,
+}
+
 /// A JSON Canvas 1.0 document with Kanso's ink extension.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

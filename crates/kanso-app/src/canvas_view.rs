@@ -140,6 +140,9 @@ pub struct CanvasView {
     bounds: Rc<Cell<Bounds<Pixels>>>,
     /// Fit the view at the next paint.
     fit: Rc<Cell<bool>>,
+    /// Show this group at the next paint instead of everything (an
+    /// embed's "Open at this group"); the whole content when it is gone.
+    focus_group: Option<String>,
     /// The card a double click edits is the one pressed.
     pressed_card: Option<String>,
     /// The pointer over the surface, in view points: where a drop lands.
@@ -177,6 +180,7 @@ impl CanvasView {
             hover: None,
             bounds: Rc::new(Cell::new(Bounds::default())),
             fit: Rc::new(Cell::new(true)),
+            focus_group: None,
             pressed_card: None,
             pointer: [0., 0.],
             budget: Budget::Ok,
@@ -225,6 +229,28 @@ impl CanvasView {
             }
         }
         cx.notify();
+    }
+
+    /// Shows group `id` filling the view, at the next paint.
+    pub fn focus_group(&mut self, id: &str, cx: &mut Context<Self>) {
+        self.focus_group = Some(id.to_owned());
+        self.fit.set(true);
+        cx.notify();
+    }
+
+    /// Takes in the handwriting words a background read kept for this
+    /// canvas (`ink_ocr.rs`), in place: the drawing, its undo steps and a
+    /// stroke in progress stay as they are, where `open` would start over.
+    pub fn take_ink_text(&mut self, words: Vec<kanso_core::canvas::InkOcr>) {
+        if let Some(state) = &mut self.state {
+            state.canvas.kanso_ink_ocr = words;
+        }
+    }
+
+    /// Whether a gesture is under way or a drag's change isn't saved yet:
+    /// the note is being edited right now.
+    pub fn is_drawing(&self) -> bool {
+        self.gesture.is_some() || self.grab.is_some() || self.unsaved
     }
 
     /// Shows nothing: no canvas note is open.
@@ -1353,8 +1379,12 @@ impl Render for CanvasView {
         };
         if self.fit.get() && self.bounds.get().size.width > px(1.) {
             self.fit.set(false);
+            let group = self.focus_group.take();
             if let Some(state) = &mut self.state {
-                state.fit(size);
+                let shown = group.as_deref().is_some_and(|g| state.fit_group(g, size));
+                if !shown {
+                    state.fit(size);
+                }
             }
         }
         let view = self

@@ -1098,7 +1098,9 @@ fn a_shared_note_takes_no_new_sketch_from_any_writer() {
     let fresh = sketch::to_fence(&sketch::new_sketch("sk-new", 480, 320));
     // The editor (and through it an API write the library took first)
     // hands over a text with a new sketch: the shared text stays as it was.
-    let note = a.store.note(&a.store.shared_note(&share).unwrap().unwrap().note_id);
+    let note = a
+        .store
+        .note(&a.store.shared_note(&share).unwrap().unwrap().note_id);
     let note = note.unwrap().unwrap();
     let added = format!("{}\n{fresh}", note.body);
     let merge = a.engine.sync_editor(&share, &note.title, &added).unwrap();

@@ -25,6 +25,27 @@ const _svg = PreviewSvg(
   height: 240,
 );
 
+/// The core's picture of the same two waves: what a shared note's sketch,
+/// which can't be drawn on, shows.
+PreviewSvg _drawnSvg() {
+  String wave(double y, String color) {
+    final points = <String>[
+      for (var i = 0; i <= 24; i++)
+        '${20 + i * 11.0},${y + math.sin(i / 3) * 22}',
+    ].join(' ');
+    return '<polyline points="$points" fill="none" stroke="$color" '
+        'stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+
+  return PreviewSvg(
+    markup:
+        '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240">'
+        '${wave(80, '#1e1e1e')}${wave(160, '#e03131')}</svg>',
+    width: 320,
+    height: 240,
+  );
+}
+
 CanvasStroke _wave(String id, double y, String color) {
   const steps = 24;
   final top = <double>[];
@@ -78,16 +99,16 @@ void main() {
       });
       await expectGoldenOnBothPlatforms(
         tester,
-        const Scaffold(
+        Scaffold(
           body: SafeArea(
             child: Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: SketchBlock(
                 noteId: 'note-1',
                 id: 'sk-1',
                 width: 320,
                 height: 240,
-                svg: _svg,
+                svg: readOnly ? _drawnSvg() : _svg,
               ),
             ),
           ),

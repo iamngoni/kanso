@@ -245,7 +245,9 @@ fn a_shared_note_takes_no_new_sketch() {
         }
         other => panic!("expected the shared refusal, got {other:?}"),
     }
+    assert!(!phone.library.takes_sketches(&id));
     let private = note(&phone.library, "Mine", "Hi");
+    assert!(phone.library.takes_sketches(&private));
     let done = phone
         .library
         .sketch_insert(&private, "Hi".into(), 2, 320, 240)

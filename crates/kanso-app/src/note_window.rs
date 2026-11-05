@@ -335,9 +335,11 @@ fn after_open(handle: AnyWindowHandle, view: Entity<NoteWindow>, cx: &mut App) {
             view.update(cx, |view, cx| view.remember_frame(window, cx));
             let view = view.clone();
             // Closed by the user: saved, and not opened again.
-            window.on_window_should_close(cx, move |_, cx| {
+            window.on_window_should_close(cx, move |window, cx| {
                 view.update(cx, |view, cx| {
-                    view.editor.update(cx, |editor, cx| editor.flush(cx));
+                    // A sketch's ink from the last two seconds included.
+                    view.editor
+                        .update(cx, |editor, cx| editor.flush_with_sketches(window, cx));
                     view.put_away(false, cx);
                 });
                 true

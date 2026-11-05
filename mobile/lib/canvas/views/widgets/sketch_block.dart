@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../core/bridge/api/canvas_types.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
@@ -190,7 +191,12 @@ class _SketchBlockState extends State<SketchBlock> {
         : switch (state.problem) {
             CanvasProblem.full => l10n.sketchFull,
             CanvasProblem.failed || CanvasProblem.notSaved => l10n.sketchFailed,
-            null => null,
+            // Past 75% of its cap a sketch says so, as a canvas does.
+            null => switch (view?.budget) {
+              CanvasBudget.full => l10n.sketchFull,
+              CanvasBudget.warn => l10n.sketchNearlyFull,
+              _ => null,
+            },
           };
     return Semantics(
       label: l10n.sketchLabel,

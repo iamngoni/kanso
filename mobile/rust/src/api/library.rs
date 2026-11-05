@@ -536,6 +536,13 @@ impl KansoLibrary {
         self.0.sketch_insert(&note_id, body, at, width, height)
     }
 
+    /// Whether "Insert sketch" may put a sketch in note `note_id`: not a
+    /// shared note, one in the trash or a canvas.
+    #[frb(sync)]
+    pub fn takes_sketches(&self, note_id: String) -> bool {
+        self.0.takes_sketches(&note_id)
+    }
+
     /// Whether note `id` is a canvas: the note route opens the canvas view
     /// for it.
     #[frb(sync)]

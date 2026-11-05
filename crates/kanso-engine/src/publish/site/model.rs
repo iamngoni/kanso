@@ -42,6 +42,10 @@ pub struct SitePlan {
     /// The titles of the locked notes left out.
     pub locked: Vec<String>,
     pub files: Vec<PlannedFile>,
+    /// The canvases the published notes embed, by note ID, as they were
+    /// read when planned (a locked one is [`EmbedNote::Locked`], with no
+    /// body). A canvas that isn't there is not in the map.
+    pub canvases: std::collections::HashMap<String, kanso_render::canvas::embed::EmbedNote>,
     /// The notebook's link, when it is published.
     pub publish: Option<KansoPublish>,
 }

@@ -1076,6 +1076,18 @@ impl Workspace {
             return;
         }
         crate::metrics::record(cx, crate::metrics::Feature::WikilinkFollowed);
+        // `note:<id>#group=<g>` opens a canvas with that group filling the view.
+        if let Some((id, anchor)) = link.split_once('#')
+            && let Some(group) = anchor.strip_prefix(crate::preview_rich::CANVAS_GROUP_ANCHOR)
+        {
+            let (id, group) = (id.to_owned(), group.to_owned());
+            self.editor.update(cx, |editor, cx| {
+                editor.focus_canvas_group(id.clone(), group, cx)
+            });
+            self.library
+                .update(cx, |library, cx| library.select(Some(id), cx));
+            return;
+        }
         // `note:<id>#L12-14` opens the note with those lines marked.
         if let Some((id, anchor)) = link.split_once('#')
             && let Some((first, last)) = kanso_core::links::line_anchor(&format!("#{anchor}"))

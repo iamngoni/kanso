@@ -23,6 +23,7 @@ mod agent_task_panel;
 mod agent_task_tests;
 mod ai_agent;
 mod ai_feature;
+mod api_keys_model;
 
 #[cfg(test)]
 mod ask_agent_tests;
@@ -88,6 +89,7 @@ mod icon_theme_file;
 mod icon_theme_import;
 mod icon_themes;
 mod image_size;
+mod ink_ocr;
 mod inspector;
 mod journal;
 mod keys;
@@ -152,6 +154,7 @@ mod plugins_model;
 mod pouch_import;
 mod presentation;
 mod preview;
+mod preview_canvas;
 mod preview_chunks;
 mod preview_rich;
 mod preview_tasks;
@@ -181,6 +184,7 @@ mod serve_cli;
 mod services;
 mod settings;
 mod settings_ai;
+mod settings_api_keys;
 mod settings_briefs;
 mod settings_capture;
 mod settings_discovery;
@@ -700,10 +704,12 @@ fn run_app(
         );
         reminders::init(store.clone(), open_main_window, cx);
         briefs::init(store, open_main_window, cx);
-        // Discovery, in the background: related notes and text in images.
+        // Discovery, in the background: related notes, text in images and in PDFs.
         related::init(cx);
         voice::init(cx);
         ocr::init(cx);
+        pdf::index::init(cx);
+        ink_ocr::init(cx);
         open_main_window(cx);
         note_window::restore(cx);
         open_documents::serve(opened, open_main_window, cx);
@@ -764,8 +770,9 @@ fn open_main_window(cx: &mut App) {
                 .update(cx, |_, window, cx| {
                     let editor = view.read(cx).editor.clone();
                     view.update(cx, |workspace, cx| workspace.launch_to_overview(window, cx));
-                    window.on_window_should_close(cx, move |_, cx| {
-                        editor.update(cx, |editor, cx| editor.flush(cx));
+                    window.on_window_should_close(cx, move |window, cx| {
+                        // A sketch's ink from the last two seconds included.
+                        editor.update(cx, |editor, cx| editor.flush_with_sketches(window, cx));
                         true
                     });
                     offer_first_import(window, cx);

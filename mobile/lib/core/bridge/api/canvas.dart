@@ -20,20 +20,6 @@ Float64List canvasInkPreview({
   samples: samples,
 );
 
-/// A note's text with an empty sketch put in at `at` (UTF-16 units), or why
-/// not (the note's sketches are full).
-Future<SketchInserted> canvasSketchInsert({
-  required String body,
-  required int at,
-  required int width,
-  required int height,
-}) => KansoCore.instance.api.crateApiCanvasCanvasSketchInsert(
-  body: body,
-  at: at,
-  width: width,
-  height: height,
-);
-
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoCanvas>>
 abstract class KansoCanvas implements RustOpaqueInterface {
   Future<CanvasView> addArrow({

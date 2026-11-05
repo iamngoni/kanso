@@ -10,6 +10,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 kanso-pdf = { path = ".." }
+serde_json = "1"
 
 # Not part of the repository's workspace: it builds with nightly and
 # sanitizers (`cargo fuzz`), and has its own lockfile.

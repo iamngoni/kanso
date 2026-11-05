@@ -1898,6 +1898,34 @@
   "@previewEmptyDrawing": {
     "description": "Shown in a note's preview for a drawing with nothing in it yet."
   },
+  "previewCanvasLocked": "Locked canvas",
+  "@previewCanvasLocked": {
+    "description": "Shown in a note's preview where it embeds a canvas that is locked. Nothing of the canvas is drawn."
+  },
+  "previewCanvasMissing": "Canvas not found",
+  "@previewCanvasMissing": {
+    "description": "Shown in a note's preview where it embeds a canvas that no longer exists."
+  },
+  "previewCanvasNotCanvas": "This note isn't a canvas",
+  "@previewCanvasNotCanvas": {
+    "description": "Shown in a note's preview where an embedded canvas names a note that is not a canvas."
+  },
+  "previewCanvasInvalid": "Couldn't draw this canvas",
+  "@previewCanvasInvalid": {
+    "description": "Shown in a note's preview where an embedded canvas can't be drawn."
+  },
+  "previewCanvasWholeCanvas": "This embeds the whole canvas. Name a group to embed less.",
+  "@previewCanvasWholeCanvas": {
+    "description": "A quiet banner under an embedded canvas that is very large because the embed names no group."
+  },
+  "previewCanvasGroupMissing": "That group is gone, so this shows the whole canvas.",
+  "@previewCanvasGroupMissing": {
+    "description": "A quiet note under an embedded canvas whose named group no longer exists."
+  },
+  "previewCanvasOpen": "Open canvas",
+  "@previewCanvasOpen": {
+    "description": "Screen-reader label of an embedded canvas in a note's preview; tapping it opens the canvas."
+  },
   "previewQueryEmpty": "No notes match.",
   "@previewQueryEmpty": {
     "description": "Shown under a query view's headings in a note's preview when no note matches it."
@@ -8396,6 +8424,14 @@
   "sketchNoteFull": "This note's sketches are full. Open one as a canvas.",
   "@sketchNoteFull": {
     "description": "Shown when a note's sketches together are at their limit and no more can be added."
+  },
+  "sketchNearlyFull": "This sketch is nearly full. Open it as a canvas to keep drawing without a limit.",
+  "@sketchNearlyFull": {
+    "description": "Shown under a sketch past three quarters of its size limit."
+  },
+  "sketchSharedInsert": "Sketches can't be added to a shared note. Add one to a private note, or draw on a canvas.",
+  "@sketchSharedInsert": {
+    "description": "Shown when Insert sketch is used in a shared note."
   },
   "noticeNeedsAttention": "Needs your attention",
   "@noticeNeedsAttention": {

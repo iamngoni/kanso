@@ -305,6 +305,36 @@ class FakeCanvasRepository implements CanvasRepository {
     for (final s in samples) ...<double>[s.x, s.y],
   ];
 
+  /// The notes that are shared, which take no new sketch.
+  final Set<String> sharedNotes = <String>{};
+
+  /// The notes "Insert sketch" was asked for, in order.
+  final List<String> inserts = <String>[];
+
+  @override
+  bool takesSketches(String noteId) => !sharedNotes.contains(noteId);
+
+  @override
+  Future<CanvasResult<SketchInserted>> insertSketch({
+    required String noteId,
+    required String body,
+    required int at,
+    required int width,
+    required int height,
+  }) async {
+    inserts.add(noteId);
+    if (sharedNotes.contains(noteId)) {
+      return const Left<ApplicationError, SketchInserted>(
+        ApplicationError.invalid(message: 'shared'),
+      );
+    }
+    final fence = '\n```sketch\n{"w":$width,"h":$height}\n```\n';
+    final next = body.replaceRange(at, at, fence);
+    return Right<ApplicationError, SketchInserted>(
+      SketchInserted(body: next, id: 'sk-new', cursor: at + fence.length),
+    );
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('${invocation.memberName} is not faked');

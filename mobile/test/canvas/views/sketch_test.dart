@@ -135,6 +135,23 @@ void main() {
     );
   });
 
+  testWidgets('a sketch past three quarters of its cap says so', (
+    tester,
+  ) async {
+    final document = _document()..budget = CanvasBudget.warn;
+    await _register(document);
+    await tester.pumpWidget(_block());
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'This sketch is nearly full. Open it as a canvas to keep drawing '
+        'without a limit.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(SketchSurface), findsOneWidget);
+  });
+
   testWidgets('a shared note draws as a picture and copies as a canvas', (
     tester,
   ) async {
