@@ -16,8 +16,11 @@ enum AiTrouble {
   noAgent('no_agent'),
   agentNotInstalled('agent_not_installed'),
   agentNeedsNode('agent_needs_node'),
+  agentNeedsSignIn('agent_needs_sign_in'),
   noTools('no_tools'),
+  billing('billing'),
   busy('busy'),
+  wrongAddress('wrong_address'),
   slow('slow'),
   modelNotFound('model_not_found'),
   serverDown('server_down'),
@@ -127,6 +130,12 @@ AiTrouble classifyAiTrouble(String raw) {
   if (has(<String>["set the agent's command", 'no agent'])) {
     return AiTrouble.noAgent;
   }
+  if (has(<String>[
+    'needs you to sign in',
+    'needs you to log in',
+  ])) {
+    return AiTrouble.agentNeedsSignIn;
+  }
   if (has(<String>["can't use tools"])) {
     return AiTrouble.noTools;
   }
@@ -169,21 +178,42 @@ AiTrouble classifyAiTrouble(String raw) {
       ])) {
     return AiTrouble.keyRejected;
   }
+  if (has(<String>[
+    'insufficient_quota',
+    'credit balance',
+    'quota exhausted',
+    'quota has been exceeded',
+    'quota exceeded',
+    'current quota',
+    'out of credits',
+    'billing limit',
+    'resource_exhausted',
+  ])) {
+    return AiTrouble.billing;
+  }
   if (code(<String>['429']) ||
-      has(<String>['rate limit', 'quota', 'too many requests'])) {
+      has(<String>['rate limit', 'too many requests'])) {
     return AiTrouble.busy;
   }
   if (has(<String>['timed out', 'timeout', "didn't answer in time"])) {
     return AiTrouble.slow;
   }
-  if (code(<String>['404']) ||
-      has(<String>[
-        'not found',
+  if (has(<String>[
         'no such model',
         'unknown model',
         'model_not_found',
-      ])) {
+        'not_found_error',
+        'model not found',
+        'model is not found',
+        'model was not found',
+      ]) ||
+      (has(<String>['models/']) && has(<String>['not found']))) {
     return AiTrouble.modelNotFound;
+  }
+  if (code(<String>['404'])) {
+    // Provider model errors are recognized above. Other 404s usually mean a
+    // custom or local address points at the wrong route.
+    return AiTrouble.wrongAddress;
   }
   if (List<int>.generate(
         100,
@@ -238,10 +268,16 @@ String aiTroubleWords(AiTrouble trouble, AppLocalizations l10n) {
       return l10n.aiTroubleAgentNotInstalled;
     case AiTrouble.agentNeedsNode:
       return l10n.aiTroubleAgentNeedsNode;
+    case AiTrouble.agentNeedsSignIn:
+      return l10n.aiTroubleAgentSignIn;
     case AiTrouble.noTools:
       return l10n.aiTroubleNoTools;
+    case AiTrouble.billing:
+      return l10n.aiTroubleBilling;
     case AiTrouble.busy:
       return l10n.aiTroubleBusy;
+    case AiTrouble.wrongAddress:
+      return l10n.aiTroubleWrongAddress;
     case AiTrouble.slow:
       return l10n.aiTroubleSlow;
     case AiTrouble.modelNotFound:

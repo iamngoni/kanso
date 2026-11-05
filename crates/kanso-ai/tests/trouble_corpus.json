@@ -32,5 +32,15 @@
   {"raw": "The model's server answered 403: You don't have access to the model with the specified model ID.", "kind": "model_not_found"},
   {"raw": "The model reported an error: ollama transport error: error sending request for url (http://localhost:11434/v1/chat/completions)", "kind": "unreachable_ollama"},
   {"raw": "The model reported an error: ollama transport error: error sending request for url (http://192.168.1.5:1234/v1/chat/completions)", "kind": "unreachable_lm_studio"},
-  {"raw": "Can't reach the model's server: Ollama refused the connection", "kind": "unreachable_ollama"}
+  {"raw": "Can't reach the model's server: Ollama refused the connection", "kind": "unreachable_ollama"},
+  {"raw": "The model's server answered 429: {\"error\":{\"code\":\"insufficient_quota\",\"message\":\"You exceeded your current quota\"}}", "kind": "billing"},
+  {"raw": "The model's server answered 429: {\"error\":{\"message\":\"Your credit balance is too low\"}}", "kind": "billing"},
+  {"raw": "The model's server answered 429: {\"error\":{\"status\":\"RESOURCE_EXHAUSTED\",\"message\":\"Quota exhausted\"}}", "kind": "billing"},
+  {"raw": "The model's server answered 429: rate limit exceeded", "kind": "busy"},
+  {"raw": "The model's server answered 404: <!DOCTYPE html><html><body>Not Found</body></html>", "kind": "wrong_address"},
+  {"raw": "The model's server answered 404: Cannot POST /v1/chat/completions", "kind": "wrong_address"},
+  {"raw": "The model's server answered 404: Not Found", "kind": "wrong_address"},
+  {"raw": "The model's server answered 404: {\"error\":{\"code\":\"model_not_found\",\"message\":\"No such model\"}}", "kind": "model_not_found"},
+  {"raw": "The model's server answered 404: {\"type\":\"error\",\"error\":{\"type\":\"not_found_error\",\"message\":\"model is unavailable\"}}", "kind": "model_not_found"},
+  {"raw": "The agent needs you to sign in before it can continue.", "kind": "agent_needs_sign_in"}
 ]

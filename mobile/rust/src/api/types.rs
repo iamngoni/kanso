@@ -29,21 +29,22 @@ pub use kanso_mobile::{
     NoteList, NoteMeaning, NoteRow, NoteView, NotebookRole, NotebookRow, OnThisDayRow,
     OpenLoopItem, OpenLoopKind, OpenLoopsBoard, OpenedDocuments, OpenedFile, PaletteDto,
     PasskeyFailure, PasskeyRequest, PasskeyRequestKind, PasskeyRow, PdfHighlightChange,
-    PdfHighlightRow, PdfNotes, PersonLookup, PersonRow, PlannedNotice, PreviewAlign, PreviewBlock,
-    PreviewCanvasNotice, PreviewCanvasShown, PreviewCell, PreviewCodeRun, PreviewFigureKind,
-    PreviewInline, PreviewLink, PreviewListItem, PreviewOptions, PreviewQueryRow, PreviewRow,
-    PreviewSourcedBlock, PreviewSvg, PreviewTaskBox, PromptState, Property, PropertyKind,
-    ProviderEvent, ProviderKind, PushEnvironmentKind, PushPlatformKind, QuotaLimit, Range16,
-    RecoveryKeyText, RelatedRow, RelatedState, RelatedStatus, ReminderAnswer, ReminderNote,
-    ReminderPlan, Replacement, ResurfaceResult, ResurfaceRow, ReviewFinished, ReviewSaved,
-    ReviewTheme, ReviewView, ReviewWritten, RunBatch, SaveState, Saved, SealPhase, SealProgress,
-    SearchScope, ServerInfo, ServerMethods, Share, ShareFile, ShareInfo, ShareLinkRow, ShareRole,
-    SharedEvent, ShortcutEntry, ShortcutPlace, ShortcutSection, SignOutReasonKind, SignedUp,
-    SortKey, SpanRow, StatusChoice, StatusCount, StyledRun, SuggestedTag, SvgRow, SyncAccount,
-    SyncIntervalOption, SyncPhase, SyncProblemKind, SyncReportRow, SyncSettingsRow, SyncStatus,
-    SyncStatusLine, SyncTone, SyntaxStyleRow, Table, TableRow, TagPlaces, TagRow, TagTreeRow,
-    TaskBoard, TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection, TemplateRow,
-    TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow, VisibleNotebook,
+    PdfHighlightRow, PdfInkRow, PdfNotes, PersonLookup, PersonRow, PlannedNotice, PreviewAlign,
+    PreviewBlock, PreviewCanvasNotice, PreviewCanvasShown, PreviewCell, PreviewCodeRun,
+    PreviewFigureKind, PreviewInline, PreviewLink, PreviewListItem, PreviewOptions,
+    PreviewQueryRow, PreviewRow, PreviewSourcedBlock, PreviewSvg, PreviewTaskBox, PromptState,
+    Property, PropertyKind, ProviderEvent, ProviderKind, PushEnvironmentKind, PushPlatformKind,
+    QuotaLimit, Range16, RecoveryKeyText, RelatedRow, RelatedState, RelatedStatus, ReminderAnswer,
+    ReminderNote, ReminderPlan, Replacement, ResurfaceResult, ResurfaceRow, ReviewFinished,
+    ReviewSaved, ReviewTheme, ReviewView, ReviewWritten, RunBatch, SaveState, Saved, SealPhase,
+    SealProgress, SearchScope, ServerInfo, ServerMethods, Share, ShareFile, ShareInfo,
+    ShareLinkRow, ShareRole, SharedEvent, ShortcutEntry, ShortcutPlace, ShortcutSection,
+    SignOutReasonKind, SignedUp, SortKey, SpanRow, StatusChoice, StatusCount, StyledRun,
+    SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption, SyncPhase, SyncProblemKind,
+    SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine, SyncTone, SyntaxStyleRow, Table,
+    TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard, TaskGroupKind, TaskItem, TaskListQuery,
+    TaskPlace, TaskSection, TemplateRow, TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow,
+    VisibleNotebook,
 };
 pub use kanso_mobile::{
     IconThemeImport, InstalledIconThemeRow, ThemeImport, ThemeNotice, ThemeOrigin, ThemeRow,
@@ -292,6 +293,13 @@ pub struct _PdfNotes {
     pub why: Option<String>,
     pub highlights: Vec<PdfHighlightRow>,
     pub scanned_pages: u32,
+    pub ink: Vec<PdfInkRow>,
+}
+
+#[frb(mirror(PdfInkRow))]
+pub struct _PdfInkRow {
+    pub page: u32,
+    pub strokes: u32,
 }
 
 #[frb(mirror(PdfHighlightRow))]

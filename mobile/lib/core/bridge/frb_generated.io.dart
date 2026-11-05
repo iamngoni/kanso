@@ -1897,6 +1897,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PdfHighlightRow> dco_decode_list_pdf_highlight_row(dynamic raw);
 
   @protected
+  List<PdfInkRow> dco_decode_list_pdf_ink_row(dynamic raw);
+
+  @protected
   List<PdfNotes> dco_decode_list_pdf_notes(dynamic raw);
 
   @protected
@@ -2553,6 +2556,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PdfHighlightRow dco_decode_pdf_highlight_row(dynamic raw);
+
+  @protected
+  PdfInkRow dco_decode_pdf_ink_row(dynamic raw);
 
   @protected
   PdfNotes dco_decode_pdf_notes(dynamic raw);
@@ -4969,6 +4975,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<PdfInkRow> sse_decode_list_pdf_ink_row(SseDeserializer deserializer);
+
+  @protected
   List<PdfNotes> sse_decode_list_pdf_notes(SseDeserializer deserializer);
 
   @protected
@@ -5771,6 +5780,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PdfHighlightRow sse_decode_pdf_highlight_row(SseDeserializer deserializer);
+
+  @protected
+  PdfInkRow sse_decode_pdf_ink_row(SseDeserializer deserializer);
 
   @protected
   PdfNotes sse_decode_pdf_notes(SseDeserializer deserializer);
@@ -8744,6 +8756,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_pdf_ink_row(
+    List<PdfInkRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_pdf_notes(List<PdfNotes> self, SseSerializer serializer);
 
   @protected
@@ -9792,6 +9810,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
     PdfHighlightRow self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_pdf_ink_row(PdfInkRow self, SseSerializer serializer);
 
   @protected
   void sse_encode_pdf_notes(PdfNotes self, SseSerializer serializer);

@@ -436,9 +436,14 @@ pub const SUPPORTED_AUDIO_TYPES: [&str; 7] = [
     "audio/ogg",
 ];
 
+/// The type of the companion attachment that holds a PDF's pencil ink once
+/// it outgrows the note (the app writes it; nothing else attaches it).
+pub const INK_DOCUMENT_TYPE: &str = "application/vnd.kanso.ink+json";
+
 /// Document types the app attaches, so a PDF shared from another app can
-/// sit in a note. The local API's MCP tools keep to images.
-pub const SUPPORTED_DOCUMENT_TYPES: [&str; 1] = ["application/pdf"];
+/// sit in a note, and the pencil ink that goes with one. The local API's MCP
+/// tools keep to images.
+pub const SUPPORTED_DOCUMENT_TYPES: [&str; 2] = ["application/pdf", INK_DOCUMENT_TYPE];
 
 /// Largest attachment the API accepts, in bytes.
 pub const MAX_ATTACHMENT_SIZE: usize = 10 * 1024 * 1024;

@@ -2649,6 +2649,18 @@ pub struct PdfNotes {
     /// computer (issue #43, step 8): they are searchable here, and the
     /// highlights on them are made of them. 0 when none were read.
     pub scanned_pages: u32,
+    /// The pages with pencil marks (step 10), in page order.
+    pub ink: Vec<PdfInkRow>,
+}
+
+/// One page's pencil marks in a list. The phone cannot draw on a page, so it
+/// names them and can clear a page's.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PdfInkRow {
+    /// The page, 1-based.
+    pub page: u32,
+    /// Strokes drawn on it.
+    pub strokes: u32,
 }
 
 /// One highlight in a list.

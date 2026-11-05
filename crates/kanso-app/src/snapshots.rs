@@ -6437,6 +6437,14 @@ fn snapshots() {
         },
         Shot {
             size: size(px(1900.), px(900.)),
+            ..shot("dark-pdf-ink", Dark, Split, pdf::reader_ink)
+        },
+        Shot {
+            size: size(px(1900.), px(900.)),
+            ..shot("light-pdf-ink", Light, Split, pdf::reader_ink)
+        },
+        Shot {
+            size: size(px(1900.), px(900.)),
             ..shot(
                 "dark-pdf-highlights-restore",
                 Dark,

@@ -47,6 +47,10 @@ const PdfNotes _report = PdfNotes(
       inNote: true,
     ),
   ],
+  ink: <PdfInkRow>[
+    PdfInkRow(page: 4, strokes: 12),
+    PdfInkRow(page: 7, strokes: 1),
+  ],
 );
 
 /// The report scanned: twelve of its pages were read on a computer.
@@ -65,6 +69,7 @@ const PdfNotes _scanned = PdfNotes(
       inNote: true,
     ),
   ],
+  ink: <PdfInkRow>[],
 );
 
 FixtureLibraryRepository _library(List<PdfNotes> notes) {
@@ -180,6 +185,7 @@ void main() {
             inNote: true,
           ),
         ],
+        ink: <PdfInkRow>[],
       ),
     ]);
     await pumpKanso(tester, _sheet(library));
@@ -284,6 +290,7 @@ void main() {
             inNote: true,
           ),
         ],
+        ink: <PdfInkRow>[PdfInkRow(page: 4, strokes: 3)],
       ),
     ]);
     await pumpKanso(tester, _sheet(library));
@@ -295,6 +302,75 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('pdf-row-h7k2m9ab')));
     await tester.pumpAndSettle();
     expect(find.text('Delete highlight'), findsNothing);
+  });
+
+  testWidgets('pencil pages are listed and one can be cleared', (tester) async {
+    tester.view.physicalSize = const Size(800, 3000);
+    addTearDown(tester.view.reset);
+    final library = _library(<PdfNotes>[_report]);
+    await pumpKanso(tester, _sheet(library));
+    await tester.pumpAndSettle();
+    expect(find.text('Pencil marks'), findsOneWidget);
+    expect(find.text('Page 4 · 12 strokes'), findsOneWidget);
+    expect(find.text('Page 7 · 1 stroke'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('pdf-ink-clear-file:abc123-7')),
+    );
+    await tester.pumpAndSettle();
+    expect(library.pdfInkCleared.map((c) => (c.$3, c.$4)).toList(), <
+      (
+        String,
+        int,
+      )
+    >[
+      ('file:abc123', 7),
+    ]);
+    expect(library.pdfInkCleared.single.$2, isNotEmpty);
+  });
+
+  testWidgets('pencil marks that cannot be edited have no clear button', (
+    tester,
+  ) async {
+    final library = _library(<PdfNotes>[
+      const PdfNotes(
+        file: 'file:abc123',
+        name: 'Quarterly report.pdf',
+        url: 'inkdrop://file:abc123',
+        editable: false,
+        scannedPages: 0,
+        why: 'broken',
+        highlights: <PdfHighlightRow>[],
+        ink: <PdfInkRow>[PdfInkRow(page: 2, strokes: 5)],
+      ),
+    ]);
+    await pumpKanso(tester, _sheet(library));
+    await tester.pumpAndSettle();
+    expect(find.text('Page 2 · 5 strokes'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('pdf-ink-clear-file:abc123-2')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('a note with only pencil marks does not say it is empty', (
+    tester,
+  ) async {
+    final library = _library(<PdfNotes>[
+      const PdfNotes(
+        file: 'file:abc123',
+        name: 'Quarterly report.pdf',
+        url: 'inkdrop://file:abc123',
+        editable: true,
+        scannedPages: 0,
+        highlights: <PdfHighlightRow>[],
+        ink: <PdfInkRow>[PdfInkRow(page: 1, strokes: 2)],
+      ),
+    ]);
+    await pumpKanso(tester, _sheet(library));
+    await tester.pumpAndSettle();
+    expect(find.text('This note has no highlights.'), findsNothing);
+    expect(find.text('Page 1 · 2 strokes'), findsOneWidget);
   });
 
   testWidgets('a note with no highlights says so', (tester) async {

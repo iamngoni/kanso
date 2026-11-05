@@ -25,9 +25,11 @@
 mod annotate;
 mod budget;
 pub mod index;
+pub(crate) mod ink_file;
 mod layout;
 mod model;
 pub mod ocr;
+mod pencil;
 mod prefetch;
 mod session;
 mod texture;
@@ -101,6 +103,9 @@ struct View {
 /// The reader for one PDF attachment.
 pub struct PdfReader {
     store: Arc<Store>,
+    /// The session's file keys, shared with the lock session and emptied
+    /// when the notes are locked again.
+    file_keys: crate::attachments::FileKeys,
     /// The attachment's document id (`file:…`).
     file_id: String,
     name: String,
@@ -144,6 +149,10 @@ pub struct PdfReader {
 
     /// The highlights and the selection (`annotate.rs`).
     notes: annotate::Notes,
+    /// The pencil and the pages being drawn on (`pencil.rs`).
+    pencil: pencil::Pencil,
+    /// The revision of the ink attachment last read (`ink_file.rs`).
+    ink_rev: Option<String>,
     save_task: Option<Task<()>>,
     flash_task: Option<Task<()>>,
     comment: Entity<InputState>,
@@ -231,6 +240,7 @@ impl PdfReader {
             .is_some_and(|value| value == "1");
         let mut reader = PdfReader {
             store,
+            file_keys: crate::attachments::FileKeys::of(cx),
             file_id,
             name,
             state: ReaderState::Loading,
@@ -259,6 +269,8 @@ impl PdfReader {
             original,
             rail_open: true,
             notes: annotate::Notes::default(),
+            pencil: pencil::Pencil::default(),
+            ink_rev: None,
             save_task: None,
             flash_task: None,
             comment,
@@ -301,7 +313,7 @@ impl PdfReader {
         self.notes.asked.clear();
         let (session, events) = Session::start(
             self.store.clone(),
-            crate::attachments::FileKeys::of(cx),
+            self.file_keys.clone(),
             self.file_id.clone(),
             self.paths.clone(),
         );
@@ -866,6 +878,12 @@ impl PdfReader {
                     })),
                 )
                 .child(
+                    self.button("pdf-pencil", Lucide::Pencil, "Pencil", self.pencil.on)
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.toggle_pencil(window, cx)),
+                        ),
+                )
+                .child(
                     self.button("pdf-rail", Lucide::PanelLeft, "Thumbnails", self.rail_open)
                         .on_click(cx.listener(|this, _, window, cx| this.toggle_rail(window, cx))),
                 )
@@ -1094,6 +1112,7 @@ impl PdfReader {
             let [w, h] = self.layout.size(page);
             let image = self.pages.get(page).map(|tex| tex.image.clone());
             let marks = self.page_marks(page, w, h, colors);
+            let ink = self.ink_layer(page, w, colors);
             column = column.child(
                 div()
                     .absolute()
@@ -1120,6 +1139,7 @@ impl PdfReader {
                         )
                     })
                     .children(marks)
+                    .children(ink)
                     // The edge is drawn over the page, not around it: a
                     // border on the page itself would move the picture
                     // inside it by a pixel and shrink it by two, while the
@@ -1154,18 +1174,17 @@ impl PdfReader {
                     .overflow_scroll()
                     .track_scroll(&self.scroll)
                     .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
-                    .cursor_text()
+                    .when(!self.pencil.on, |el| el.cursor_text())
+                    .when(self.pencil.on, |el| el.cursor_crosshair())
                     .on_mouse_down(
                         MouseButton::Left,
                         cx.listener(|this, event: &MouseDownEvent, window, cx| {
                             this.mouse_down(event, window, cx)
                         }),
                     )
-                    .on_mouse_move(
-                        cx.listener(|this, event: &MouseMoveEvent, _, cx| {
-                            this.mouse_move(event, cx)
-                        }),
-                    )
+                    .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, window, cx| {
+                        this.mouse_move(event, window, cx)
+                    }))
                     .on_mouse_up(
                         MouseButton::Left,
                         cx.listener(|this, _: &MouseUpEvent, window, cx| this.mouse_up(window, cx)),
@@ -1353,6 +1372,10 @@ impl Render for PdfReader {
             .size_full()
             .bg(colors.editor)
             .child(self.header(colors, cx))
+            .when(
+                self.pencil.on && matches!(self.state, ReaderState::Showing { .. }),
+                |col| col.child(self.pencil_bar(colors, cx)),
+            )
             .child(body)
     }
 }
@@ -1377,7 +1400,16 @@ impl PdfReader {
             self.select_all(cx);
             return true;
         }
+        if showing && self.pencil.on && command && keys.key == "z" {
+            let done = if keys.modifiers.shift {
+                self.ink_redo(window, cx)
+            } else {
+                self.ink_undo(window, cx)
+            };
+            return done;
+        }
         match keys.key.as_str() {
+            "escape" if self.pencil.on && !self.pencil.drawing() => self.toggle_pencil(window, cx),
             "escape" if self.notes.editing.is_some() => self.cancel_comment(window, cx),
             "escape" if self.has_transient() => self.clear_selection(cx),
             "escape" => self.close(cx),
