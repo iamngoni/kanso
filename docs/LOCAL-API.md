@@ -81,39 +81,61 @@ notebooks writes only into them, and no key renames or deletes `#ai-exclude`.
 
 ## Canvases
 
-A canvas is a note of type `canvas`. The general note routes and tools treat it as one,
-with these differences, and four tools and routes are only for canvases.
+A canvas is a note of type `canvas`. The general note routes and tools treat it as a note,
+with the differences below. Four tools and routes are only for canvases.
 
 - **Lists and searches** (`GET /notes`, `search-notes`, `list-notes`) show a short Markdown
-  summary of the canvas (its text cards, card titles, links and recognised handwriting, up
-  to about 4,000 characters) in place of its JSON, and a `size` in bytes. `GET /notes?doctype=canvas`
-  lists canvases only.
+  summary of the canvas in place of its JSON: its text cards, card titles, links and
+  recognised handwriting, up to about 4,000 characters. They also show `size`, the body's
+  length in bytes. `GET /notes?doctype=canvas` lists only canvases, and `?doctype=markdown`
+  only Markdown notes.
 - **`GET /note:<id>`** and `read-note` return the stored note, whose `body` is the `canvas`
-  fence, and add `canvasJson`: the fence's inner JSON. `canvasJson` is read-only; a client that
-  reads a note and writes it back whole does not store it.
-- **Writes** are validated as canvases: a body that is not one canvas, or one over the 1 MB
-  budget, is refused. A shared canvas's body can't be written at all; use `edit-canvas`.
-- **Locked canvases** are not found: not listed, not read, not edited.
+  fence, and add `canvasJson`, the JSON inside the fence. `canvasJson` is read-only: a client
+  that reads a note and writes it back whole doesn't store it.
+- **Writes** are validated as canvases. A body that isn't one canvas, or is over the 1 MB
+  budget, is refused. A shared canvas's body can't be written at all: use `kanso-edit-canvas`.
+- **Locked canvases**, and canvases in a locked notebook, in the trash, tagged
+  `#ai-exclude` or outside the key's notebooks, are not found. They aren't listed, read or
+  edited, and they add nothing to a list or a search.
 
-| MCP tool | REST | What it does |
-|---|---|---|
-| `list-canvases` | `GET /notes?doctype=canvas` | Canvases only, with title, notebook, tags, size and summary; the same `bookId`, `tagIds`, `keyword`, `sort`, `limit` as `list-notes` |
-| `read-canvas` | `GET /note:<id>/canvas[?group=<id>]` | The canvas as JSON (live items only, each with its `kansoVersion`) and the note's `_rev`; with a group, only what lies inside that group |
-| `edit-canvas` | `PATCH /note:<id>/canvas` | A batch of operations, applied all or none. Answers the new `rev` and the IDs it created |
-| `create-canvas` | `POST /notes` with `doctype: "canvas"` | A new canvas, empty or from a canvas document |
+| MCP tool | REST | Access | What it does |
+|---|---|---|---|
+| `kanso-list-canvases` | `GET /notes?doctype=canvas` | every key | Canvases only, each with its title, notebook, tags, size and summary. Takes the same `bookId`, `tagIds`, `keyword`, `sort`, `descending` and `limit` as `list-notes` |
+| `kanso-read-canvas` | `GET /note:<id>/canvas[?group=<id>]` | every key | The canvas as JSON (live items only, each with its `kansoVersion`) and the note's `_rev`. With a group, only what lies inside that group's rectangle |
+| `kanso-edit-canvas` | `PATCH /note:<id>/canvas` | Read and write | A batch of operations, applied all or none. Answers the new `rev` and the IDs the batch created |
+| `kanso-create-canvas` | `POST /notes` with `doctype: "canvas"` and the fence as `body` | Read and write | A new canvas, empty or from a canvas document (`canvas`) |
 
-`edit-canvas` takes `{"ifRev": "…", "ops": [ … ]}`. The operations are `addNode`, `updateNode`,
-`moveNode`, `resizeNode`, `removeNode`, `addEdge`, `updateEdge`, `removeEdge`, `addStrokes`,
-`removeStrokes`, `moveStrokes`, `setGroup`, `renameGroup` and `rename`. Stroke points are
-`[x, y, pressure]`, relative to their ink layer. An operation on an existing item may carry
-`ifVersion` (its `kansoVersion` from `read-canvas`), and the batch may carry `ifRev`. If either is
-out of date the batch is refused with `409` and the versions now, so a caller never overwrites
-drawing it has not seen. Each change is stamped as an edit in the app is, and a batch is one
-revision in the note's history, from the API, so one undo in Kanso reverts it.
+A Read or Suggest key can list and read canvases but not change them: a suggestion can't
+edit a canvas. A key limited to some notebooks must pass `bookId` to `kanso-create-canvas`.
 
-A **shared** canvas is changed through Kanso's live room, as one change the people on it see
-arrive, so Kanso must be signed in. Pictures (`file:` cards) can't be added to a shared canvas
-yet.
+`kanso-edit-canvas` takes `{"ifRev": "…", "ops": [ … ]}`. The operations are `addNode`,
+`updateNode`, `moveNode`, `resizeNode`, `removeNode`, `addEdge`, `updateEdge`, `removeEdge`,
+`addStrokes`, `removeStrokes`, `moveStrokes`, `setGroup`, `renameGroup` and `rename`. Stroke
+points are `[x, y, pressure]`, relative to their ink layer, and Kanso gives new strokes their
+IDs. Each change is stamped as an edit in the app is.
+
+- **Versions.** An operation on an existing item may carry `ifVersion`, its `kansoVersion`
+  from `kanso-read-canvas`. The batch may carry `ifRev`, the note's `_rev`. If either is out of
+  date, the batch is refused with `409` and the current `rev` and `versions`, so a caller never
+  overwrites drawing it hasn't seen.
+- **Refusals.** A refused batch changes nothing. An item that isn't there is `404`. Anything
+  else the canvas can't hold is `400`, with the reason.
+- **Limits.** A batch holds at most 500 operations and 4 MB of JSON. It adds at most 10,000
+  strokes and 200,000 points, with at most 20,000 points in a stroke. A text card's text is at
+  most 100,000 characters; a title, label or URL at most 4 KB. Coordinates and sizes are real
+  numbers up to 10,000,000. New IDs are 1 to 64 letters, digits, dashes or underscores. The
+  canvas after the batch must fit its 1 MB budget.
+- **Cards.** A `file` card points at a note the key can see (`note:…`), or at a picture that
+  is already on this canvas (`file:…`) and that the key can read, never one from another
+  note or one sealed with a locked note. `kanso-create-canvas` refuses `file:` cards, since a
+  new canvas has no pictures of its own.
+- On a private canvas, a batch is one revision in the note's history, from the API.
+
+A **shared** canvas is changed through Kanso's live room, so the Kanso app must be running and
+signed in. `kanso serve` refuses edits to shared canvases. A batch reaches the people on the
+canvas as one change, its new title included. A batch too big to send as one change (about
+240 KB of changes) is refused: split it into smaller batches. A member who may only view the
+canvas can't change it. Pictures (`file:` cards) can't be added to a shared canvas yet.
 
 ## Connecting a caller
 
