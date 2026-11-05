@@ -78,8 +78,11 @@ fn context(cx: &App) -> NoticeContext {
     )
 }
 
-fn had_login(config: &AppConfig) -> bool {
-    !config.server.username.is_empty() && !config.server.password.is_empty()
+/// Whether this library had the old local-API login. The login fields are
+/// gone from `ServerSettings` (#243 step 4); step 8 records the fact during
+/// the config migration and reads it here. Until then no notice keys on it.
+fn had_login(_config: &AppConfig) -> bool {
+    false
 }
 
 fn list(cx: &App) -> &'static [Notice] {
