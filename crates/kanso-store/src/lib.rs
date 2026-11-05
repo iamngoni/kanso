@@ -120,8 +120,8 @@ pub use replace::{
     NoteMatches, PREVIEW_MATCHES_PER_NOTE, Planned, ReplaceReport, Skipped, UndoReport,
 };
 pub use restore::{
-    apply_staged_restore, cancel_staged_restore, check_backup, restore_staged, stage_restore,
-    staged_restore_path,
+    DEVICE_IDENTITY_KEYS, apply_staged_restore, cancel_staged_restore, check_backup,
+    restore_staged, stage_restore, staged_restore_path,
 };
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
