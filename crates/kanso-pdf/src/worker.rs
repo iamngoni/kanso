@@ -12,10 +12,11 @@ use std::process::ExitCode;
 
 use pdfium_render::prelude::*;
 
+use crate::client::refusal_words;
 use crate::contain::{self, Allow, ContainError, MEMORY_BUDGET};
 use crate::protocol::{
     BYTES_PER_PIXEL, ErrorKind, FrameError, MAX_BLOB_BYTES, MAX_PAGES, Request, Response,
-    page_is_sound, read_frame, render_size, write_frame,
+    check_document, page_is_sound, read_frame, render_size, write_frame,
 };
 
 /// Exit code for a worker that could not be contained or could not start.
@@ -220,11 +221,12 @@ fn has_inherited_fds() -> bool {
     false
 }
 
-fn failure(kind: ErrorKind, message: impl Into<String>) -> (Response, Vec<u8>) {
+/// A failed request; the words are the app's own for the kind.
+fn failure(kind: ErrorKind) -> (Response, Vec<u8>) {
     (
         Response::Error {
             kind,
-            message: message.into(),
+            message: refusal_words(kind).to_owned(),
         },
         Vec::new(),
     )
@@ -239,7 +241,7 @@ fn serve(pdfium: &Pdfium, input: &mut impl Read, output: &mut impl Write) -> Exi
             // The app let go.
             Ok(None) => return ExitCode::SUCCESS,
             Err(FrameError::Malformed | FrameError::TooLarge) => {
-                let (response, blob) = failure(ErrorKind::Protocol, "unreadable request");
+                let (response, blob) = failure(ErrorKind::Protocol);
                 write_frame(output, &response, &blob).ok();
                 return ExitCode::from(2);
             }
@@ -248,7 +250,7 @@ fn serve(pdfium: &Pdfium, input: &mut impl Read, output: &mut impl Write) -> Exi
         let (response, blob, done) = match request {
             Request::Open { password } => {
                 let (response, blob) = if document.is_some() {
-                    failure(ErrorKind::Protocol, "a document is already open")
+                    failure(ErrorKind::Protocol)
                 } else {
                     match open(pdfium, blob, password.as_deref()) {
                         Ok((opened, doc)) => {
@@ -263,7 +265,7 @@ fn serve(pdfium: &Pdfium, input: &mut impl Read, output: &mut impl Write) -> Exi
             Request::Render { page, width_px } => {
                 let (response, blob) = match &document {
                     Some(doc) => render(doc, page, width_px),
-                    None => failure(ErrorKind::Protocol, "no document is open"),
+                    None => failure(ErrorKind::Protocol),
                 };
                 (response, blob, false)
             }
@@ -293,27 +295,29 @@ fn open<'a>(
         .map_err(|e| match e {
             PdfiumError::PdfiumLibraryInternalError(PdfiumInternalError::PasswordError) => {
                 if password.is_some() {
-                    failure(ErrorKind::WrongPassword, "That password isn't right.")
+                    failure(ErrorKind::WrongPassword)
                 } else {
-                    failure(ErrorKind::PasswordRequired, "This PDF needs a password.")
+                    failure(ErrorKind::PasswordRequired)
                 }
             }
-            _ => failure(ErrorKind::Unreadable, "This PDF couldn't be opened."),
+            _ => failure(ErrorKind::Unreadable),
         })?;
     let pages = u32::try_from(doc.pages().len()).unwrap_or(u32::MAX);
+    // The count is checked before any per-page work: a page tree that
+    // claims millions of pages is refused without being walked.
     if pages > MAX_PAGES {
-        return Err(failure(
-            ErrorKind::TooManyPages,
-            format!("This PDF has more than {MAX_PAGES} pages."),
-        ));
+        return Err(failure(ErrorKind::TooManyPages));
     }
-    let sizes = doc
+    let sizes: Vec<[f32; 2]> = doc
         .pages()
         .page_sizes()
-        .map_err(|_| failure(ErrorKind::Unreadable, "This PDF couldn't be opened."))?
+        .map_err(|_| failure(ErrorKind::Unreadable))?
         .iter()
         .map(|rect| [rect.width().value, rect.height().value])
         .collect();
+    // Every page's declared size is the PDF's claim: an absurd one refuses
+    // the document, so no layout is ever sized by it.
+    check_document(pages, &sizes).map_err(failure)?;
     // Only -1 is "no security handler"; a newer revision than the wrapper
     // knows (AES-256's 5 and 6) is encrypted too.
     let encrypted = !matches!(
@@ -330,36 +334,56 @@ fn open<'a>(
     ))
 }
 
+/// How a page is drawn: every flag that matters set on purpose, none left to
+/// the wrapper's defaults (which draw form widgets and annotations, and
+/// swap the bitmap to RGBA).
+///
+/// - No form data and no annotations: nothing a PDF's fields or annotation
+///   appearances hold is drawn (issue #43, "Security and privacy"). The
+///   reader draws its own highlights over the texture.
+/// - No platform text: PDFium draws every glyph itself instead of handing
+///   them to the system's font code.
+/// - The image cache is limited, so a page of large images stays within the
+///   worker's memory budget.
+/// - BGRA, as PDFium writes it: GPUI's textures are BGRA.
+/// - A white page, cleared before drawing, whatever the PDF's own backdrop.
+fn render_config(width: u32, height: u32) -> PdfRenderConfig {
+    PdfRenderConfig::new()
+        .set_target_size(width as i32, height as i32)
+        .set_format(PdfBitmapFormat::BGRA)
+        .set_reverse_byte_order(false)
+        .clear_before_rendering(true)
+        .set_clear_color(PdfColor::WHITE)
+        .render_form_data(false)
+        .render_annotations(false)
+        .disable_native_text_rendering(true)
+        .limit_render_image_cache_size(true)
+        .use_lcd_text_rendering(false)
+        .use_grayscale_rendering(false)
+        .use_print_quality(false)
+        .force_half_tone(false)
+        .render_fills_as_strokes(false)
+}
+
 fn render(doc: &PdfDocument<'_>, index: u32, width_px: u32) -> (Response, Vec<u8>) {
     let Ok(page_index) = PdfPageIndex::try_from(index) else {
-        return failure(ErrorKind::NoSuchPage, "There is no such page.");
+        return failure(ErrorKind::NoSuchPage);
     };
     let Ok(page) = doc.pages().get(page_index) else {
-        return failure(ErrorKind::NoSuchPage, "There is no such page.");
+        return failure(ErrorKind::NoSuchPage);
     };
     let Some((width, height)) = render_size(page.width().value, page.height().value, width_px)
     else {
-        return failure(ErrorKind::Unreadable, "This page has no size.");
+        return failure(ErrorKind::Unreadable);
     };
-    // Forms and annotations are never drawn: nothing a PDF's fields hold
-    // runs or shows (issue #43, "Security and privacy").
-    let config = PdfRenderConfig::new()
-        .set_target_size(width as i32, height as i32)
-        .set_format(PdfBitmapFormat::BGRA)
-        // The wrapper swaps to RGBA by default; GPUI's textures are BGRA, so
-        // the bytes stay as PDFium wrote them.
-        .set_reverse_byte_order(false)
-        .render_form_data(false)
-        .render_annotations(false)
-        .use_lcd_text_rendering(false);
-    let Ok(bitmap) = page.render_with_config(&config) else {
-        return failure(ErrorKind::Internal, "This page couldn't be drawn.");
+    let Ok(bitmap) = page.render_with_config(&render_config(width, height)) else {
+        return failure(ErrorKind::Internal);
     };
     let (w, h) = (bitmap.width() as u32, bitmap.height() as u32);
     let bytes = bitmap.as_raw_bytes();
     if !page_is_sound(w, h, bytes.len()) || bytes.len() != w as usize * h as usize * BYTES_PER_PIXEL
     {
-        return failure(ErrorKind::Internal, "This page couldn't be drawn.");
+        return failure(ErrorKind::Internal);
     }
     (
         Response::Page {
@@ -374,6 +398,42 @@ fn render(doc: &PdfDocument<'_>, index: u32, width_px: u32) -> (Response, Vec<u8
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fixtures::annotated_pdf;
+
+    fn coloured_pixels(bgra: &[u8]) -> usize {
+        bgra.as_chunks::<4>()
+            .0
+            .iter()
+            .filter(|p| p[0].abs_diff(p[2]) > 60 || p[1].abs_diff(p[2]) > 60)
+            .count()
+    }
+
+    /// The render flags are what keeps annotations and form fields off the
+    /// page: the same document, drawn in this process with the worker's
+    /// flags and then with those two turned on, shows the difference.
+    /// (The worker as a process is tested in `tests/hostile.rs`.)
+    #[test]
+    fn the_render_flags_are_what_keep_annotations_and_fields_off_the_page() {
+        let library =
+            crate::client::dev_library().expect("PDFium is missing: run scripts/fetch-pdfium.sh");
+        let pdfium = Pdfium::new(Pdfium::bind_to_library(library).expect("PDFium loads"));
+        let doc = pdfium
+            .load_pdf_from_byte_vec(annotated_pdf(), None)
+            .expect("the fixture opens");
+        let page = doc.pages().get(0).unwrap();
+        let draw = |config: PdfRenderConfig| {
+            let bitmap = page.render_with_config(&config).unwrap();
+            coloured_pixels(&bitmap.as_raw_bytes())
+        };
+        assert_eq!(draw(render_config(612, 792)), 0);
+        let with_extras = render_config(612, 792)
+            .render_annotations(true)
+            .render_form_data(true);
+        assert!(
+            draw(with_extras) > 1000,
+            "the fixture draws nothing with the flags on, so the test proves nothing"
+        );
+    }
 
     #[test]
     fn options_are_parsed_and_unknown_ones_refused() {

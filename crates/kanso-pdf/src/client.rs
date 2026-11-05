@@ -15,8 +15,8 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::protocol::{
-    BYTES_PER_PIXEL, ErrorKind, FrameError, MAX_PAGE_BYTES, MAX_PAGES, Request, Response,
-    page_is_sound, read_frame, write_frame,
+    BYTES_PER_PIXEL, ErrorKind, FrameError, MAX_BLOB_BYTES, MAX_PAGE_BYTES, Request, Response,
+    check_document, page_is_sound, read_frame, write_frame,
 };
 
 #[cfg(windows)]
@@ -25,17 +25,44 @@ mod launch_windows;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::protocol::{MAX_PAGE_POINTS, check_page_size};
     use proptest::prelude::*;
 
     proptest! {
         /// A size a hostile worker could send that is not a page is refused.
         #[test]
         fn only_a_real_page_size_is_sound(w in any::<f32>(), h in any::<f32>()) {
-            let sound = size_is_sound([w, h]);
+            let sound = check_page_size(w, h).is_ok();
             prop_assert_eq!(
                 sound,
-                w.is_finite() && h.is_finite() && w > 0.0 && h > 0.0 && w <= 75_000.0 && h <= 75_000.0
+                w.is_finite()
+                    && h.is_finite()
+                    && w > 0.0
+                    && h > 0.0
+                    && w <= MAX_PAGE_POINTS
+                    && h <= MAX_PAGE_POINTS
             );
+        }
+    }
+
+    proptest! {
+        /// The reader's words come from the kind alone, and are plain: not
+        /// empty, one short line, no path.
+        #[test]
+        fn every_refusal_has_plain_words(kind in prop_oneof![
+            Just(ErrorKind::Unreadable),
+            Just(ErrorKind::PasswordRequired),
+            Just(ErrorKind::WrongPassword),
+            Just(ErrorKind::TooManyPages),
+            Just(ErrorKind::PageTooLarge),
+            Just(ErrorKind::FileTooLarge),
+            Just(ErrorKind::NoSuchPage),
+            Just(ErrorKind::Protocol),
+            Just(ErrorKind::Internal),
+        ]) {
+            let words = refusal_words(kind);
+            prop_assert!(!words.is_empty() && words.len() < 80);
+            prop_assert!(!words.contains('\n') && !words.contains('/'));
         }
     }
 
@@ -102,7 +129,8 @@ pub enum WorkerError {
     /// The worker stopped by itself, or was killed.
     #[error("The PDF reader stopped unexpectedly.")]
     Crashed,
-    /// The worker answered, but said no.
+    /// The worker answered, but said no. The words are the app's own for the
+    /// kind, never the worker's.
     #[error("{message}")]
     Refused { kind: ErrorKind, message: String },
     /// The worker's answer was not what was asked for.
@@ -176,7 +204,7 @@ pub fn locate() -> Option<WorkerPaths> {
 
 /// `vendor/pdfium/<platform>/…` from `scripts/fetch-pdfium.sh`, for builds
 /// that run from the source tree.
-fn dev_library() -> Option<PathBuf> {
+pub(crate) fn dev_library() -> Option<PathBuf> {
     let platform = match (std::env::consts::OS, std::env::consts::ARCH) {
         ("macos", "aarch64") => "mac-arm64",
         ("macos", _) => "mac-x64",
@@ -297,19 +325,26 @@ impl Worker {
         if self.opened {
             return Err(WorkerError::BadReply);
         }
+        // Over the limit the worker would hang up on the frame; say why here.
+        if bytes.len() > MAX_BLOB_BYTES {
+            let kind = ErrorKind::FileTooLarge;
+            return Err(self.end(WorkerError::Refused {
+                kind,
+                message: refusal_words(kind).to_owned(),
+            }));
+        }
         let request = Request::Open {
             password: password.map(str::to_owned),
         };
         let (response, _) = self.call(&request, bytes, self.deadlines.open)?;
         match response {
+            // The worker has checked this; a worker that sends a document it
+            // should have refused is not trusted with the rest.
             Response::Opened {
                 pages,
                 sizes,
                 encrypted,
-            } if pages <= MAX_PAGES
-                && sizes.len() == pages as usize
-                && sizes.iter().all(|size| size_is_sound(*size)) =>
-            {
+            } if check_document(pages, &sizes).is_ok() => {
                 self.opened = true;
                 Ok(Opened {
                     pages,
@@ -535,19 +570,13 @@ pub fn refusal_words(kind: ErrorKind) -> &'static str {
         ErrorKind::PasswordRequired => "This PDF needs a password.",
         ErrorKind::WrongPassword => "That password isn't right.",
         ErrorKind::TooManyPages => "This PDF has more than 2,000 pages.",
+        ErrorKind::PageTooLarge => "This PDF has a page too large to show.",
+        ErrorKind::FileTooLarge => "This PDF is larger than Kanso can show.",
         ErrorKind::NoSuchPage => "There is no such page.",
         ErrorKind::Unreadable | ErrorKind::Protocol | ErrorKind::Internal => {
             "This PDF couldn't be opened."
         }
     }
-}
-
-/// A page size in points the reader can lay out: finite, positive, and no
-/// larger than PDF's 200-inch limit scaled by the largest user unit PDFium
-/// honours (75,000 is generous for both).
-fn size_is_sound([width, height]: [f32; 2]) -> bool {
-    let ok = |side: f32| side.is_finite() && side > 0.0 && side <= 75_000.0;
-    ok(width) && ok(height)
 }
 
 /// Bytes a page of this many pixels takes; the app's texture budget.

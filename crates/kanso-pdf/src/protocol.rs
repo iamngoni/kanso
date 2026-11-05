@@ -16,6 +16,12 @@ use serde::{Deserialize, Serialize};
 
 /// Pages a document may have; a longer one is refused.
 pub const MAX_PAGES: u32 = 2_000;
+/// The longest side a page may declare, in points: PDF's 200-inch limit
+/// (14,400) scaled by the largest user unit PDFium honours, with room to
+/// spare. A document with a bigger page is refused rather than laid out: a
+/// declared size is the PDF's own claim, and the reader would size its
+/// scroll column by it.
+pub const MAX_PAGE_POINTS: f32 = 75_000.0;
 /// The longest side of a rendered page, in pixels.
 pub const MAX_LONG_EDGE_PX: u32 = 4_096;
 /// The most pixel bytes one rendered page may carry (64 MB of BGRA).
@@ -77,6 +83,10 @@ pub enum ErrorKind {
     WrongPassword,
     /// More than [`MAX_PAGES`] pages.
     TooManyPages,
+    /// A page declares a size beyond [`MAX_PAGE_POINTS`].
+    PageTooLarge,
+    /// The file is longer than the size limit.
+    FileTooLarge,
     /// No such page.
     NoSuchPage,
     /// A request out of order or malformed.
@@ -137,12 +147,48 @@ pub fn read_frame<M: for<'de> Deserialize<'de>>(
     if json_len > MAX_JSON_BYTES || blob_len > max_blob {
         return Err(FrameError::TooLarge);
     }
-    let mut json = vec![0u8; json_len];
-    input.read_exact(&mut json)?;
+    let json = read_exactly(input, json_len)?;
     let message = serde_json::from_slice(&json).map_err(|_| FrameError::Malformed)?;
-    let mut blob = vec![0u8; blob_len];
-    input.read_exact(&mut blob)?;
+    let blob = read_exactly(input, blob_len)?;
     Ok(Some((message, blob)))
+}
+
+/// Reads exactly `len` bytes, growing the buffer as they arrive. A length
+/// field is a claim: a peer that says 50 MB and sends five bytes costs the
+/// reader five bytes, not 50 MB.
+fn read_exactly(input: &mut impl Read, len: usize) -> Result<Vec<u8>, FrameError> {
+    const FIRST_CHUNK: usize = 64 * 1024;
+    let mut buf = Vec::with_capacity(len.min(FIRST_CHUNK));
+    let read = input.take(len as u64).read_to_end(&mut buf)?;
+    if read != len {
+        return Err(FrameError::Io(io::ErrorKind::UnexpectedEof.into()));
+    }
+    Ok(buf)
+}
+
+/// Whether a page may declare this size: both sides finite, above zero and
+/// within [`MAX_PAGE_POINTS`]. `Err` says how it fails.
+pub fn check_page_size(width_pt: f32, height_pt: f32) -> Result<(), ErrorKind> {
+    if !(width_pt.is_finite() && height_pt.is_finite()) || width_pt <= 0.0 || height_pt <= 0.0 {
+        return Err(ErrorKind::Unreadable);
+    }
+    if width_pt > MAX_PAGE_POINTS || height_pt > MAX_PAGE_POINTS {
+        return Err(ErrorKind::PageTooLarge);
+    }
+    Ok(())
+}
+
+/// Whether a document may be shown: no more than [`MAX_PAGES`] pages, one
+/// size per page, and every size within [`check_page_size`]. The worker
+/// checks it before it answers and the app checks it again on the answer.
+pub fn check_document(pages: u32, sizes: &[[f32; 2]]) -> Result<(), ErrorKind> {
+    if pages > MAX_PAGES {
+        return Err(ErrorKind::TooManyPages);
+    }
+    if sizes.len() != pages as usize {
+        return Err(ErrorKind::Protocol);
+    }
+    sizes.iter().try_for_each(|[w, h]| check_page_size(*w, *h))
 }
 
 /// The pixel size to draw a page at: `width_px` wide, the page's shape, then
@@ -211,6 +257,8 @@ mod tests {
             Just(ErrorKind::PasswordRequired),
             Just(ErrorKind::WrongPassword),
             Just(ErrorKind::TooManyPages),
+            Just(ErrorKind::PageTooLarge),
+            Just(ErrorKind::FileTooLarge),
             Just(ErrorKind::NoSuchPage),
             Just(ErrorKind::Protocol),
             Just(ErrorKind::Internal),
@@ -361,6 +409,91 @@ mod tests {
             let (rw, rh) = render_size(600.0, 800.0, width_px).unwrap();
             prop_assert_eq!(rw, width_px);
             prop_assert!(rh <= (f64::from(width_px) * 800.0 / 600.0).ceil() as u32);
+        }
+
+        /// A page that may be declared may be drawn: whatever the size
+        /// check lets through, `render_size` gives a sound bitmap for.
+        #[test]
+        fn a_page_that_passes_the_size_check_can_be_drawn(
+            w in 0.0001f32..20_000.0,
+            h in 0.0001f32..20_000.0,
+            width_px in any::<u32>(),
+        ) {
+            match check_page_size(w, h) {
+                Ok(()) => {
+                    prop_assert!(w <= MAX_PAGE_POINTS && h <= MAX_PAGE_POINTS);
+                    let (rw, rh) = render_size(w, h, width_px).unwrap();
+                    prop_assert!(page_is_sound(rw, rh, rw as usize * rh as usize * BYTES_PER_PIXEL));
+                }
+                Err(kind) => {
+                    prop_assert_eq!(kind, ErrorKind::PageTooLarge);
+                    prop_assert!(w > MAX_PAGE_POINTS || h > MAX_PAGE_POINTS);
+                }
+            }
+        }
+
+        /// A size that is not a number, or not above zero, is never a page.
+        #[test]
+        fn a_page_without_a_usable_size_is_unreadable(
+            good in 1.0f32..1000.0,
+            bad in prop_oneof![
+                Just(f32::NAN), Just(f32::INFINITY), Just(f32::NEG_INFINITY),
+                Just(0.0f32), Just(-0.0f32), -1.0e9f32..0.0,
+            ],
+        ) {
+            prop_assert_eq!(check_page_size(bad, good), Err(ErrorKind::Unreadable));
+            prop_assert_eq!(check_page_size(good, bad), Err(ErrorKind::Unreadable));
+        }
+
+        /// A document is shown only with its page count within the cap and
+        /// one usable size for each page; any one bad page refuses it.
+        #[test]
+        fn a_document_is_checked_page_by_page(
+            sizes in proptest::collection::vec([1.0f32..2000.0, 1.0f32..2000.0], 0..40),
+            bad_at in any::<prop::sample::Index>(),
+            bad in prop_oneof![Just(f32::NAN), Just(0.0f32), Just(1.0e9f32)],
+        ) {
+            let pages = sizes.len() as u32;
+            prop_assert_eq!(check_document(pages, &sizes), Ok(()));
+            // A count that disagrees with the sizes is a protocol failure.
+            prop_assert_eq!(check_document(pages + 1, &sizes), Err(ErrorKind::Protocol));
+            if !sizes.is_empty() {
+                let mut spoiled = sizes.clone();
+                spoiled[bad_at.index(sizes.len())][0] = bad;
+                prop_assert!(check_document(pages, &spoiled).is_err());
+            }
+        }
+
+        /// Past the page cap a document is refused whatever its sizes.
+        #[test]
+        fn too_many_pages_are_refused_before_their_sizes_are_looked_at(
+            pages in (MAX_PAGES + 1)..u32::MAX,
+        ) {
+            prop_assert_eq!(check_document(pages, &[]), Err(ErrorKind::TooManyPages));
+        }
+
+        /// Exactly the cap is allowed.
+        #[test]
+        fn the_page_cap_itself_is_allowed(w in 1.0f32..2000.0, h in 1.0f32..2000.0) {
+            let sizes = vec![[w, h]; MAX_PAGES as usize];
+            prop_assert_eq!(check_document(MAX_PAGES, &sizes), Ok(()));
+        }
+
+        /// A frame that claims a long blob and ends early is an error after
+        /// reading what was there, not an allocation of what was claimed.
+        #[test]
+        fn a_short_blob_is_an_error_not_an_allocation(
+            sent in 0usize..200,
+            claimed in 1_000_000usize..MAX_BLOB_BYTES,
+        ) {
+            let json = br#"{"type":"close"}"#;
+            let mut wire = Vec::new();
+            wire.extend_from_slice(&(json.len() as u32).to_le_bytes());
+            wire.extend_from_slice(&(claimed as u32).to_le_bytes());
+            wire.extend_from_slice(json);
+            wire.extend(std::iter::repeat_n(9u8, sent));
+            let result = read_frame::<Request>(&mut wire.as_slice(), MAX_BLOB_BYTES);
+            prop_assert!(matches!(result, Err(FrameError::Io(_))));
         }
 
         #[test]
