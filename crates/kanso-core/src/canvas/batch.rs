@@ -1010,12 +1010,16 @@ fn card_target(target: &str, ctx: &Context) -> Result<String, Refusal> {
 }
 
 /// The start of a span of `len` that keeps it inside `lo..lo + room`, as near
-/// to `at` as it can; a span wider than the room starts at `lo`.
+/// to `at` as it can; a span wider than the room starts at `lo`. The last
+/// start, `lo + room - len`, can round below `lo` for a span a hair
+/// narrower than the room, and `f64::clamp` panics when its bounds cross,
+/// so that span starts at `lo` too.
 fn clamp_into(at: f64, len: f64, lo: f64, room: f64) -> f64 {
-    if len >= room {
+    let last = lo + room - len;
+    if len >= room || last < lo {
         lo
     } else {
-        at.clamp(lo, lo + room - len)
+        at.clamp(lo, last)
     }
 }
 

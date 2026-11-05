@@ -357,6 +357,24 @@ fn groups_take_cards_in_and_out() {
     );
 }
 
+/// A card a hair narrower than a tiny group far from the origin: the
+/// group's right edge less the card's width rounds below the group's left
+/// edge. Putting the card in must not panic (`f64::clamp` does when its
+/// bounds cross), on a private canvas or under a shared one's room lock.
+#[test]
+fn a_card_into_a_group_narrower_than_rounding_does_not_panic() {
+    let room = 2f64.powi(-30);
+    let lo = 2f64.powi(23);
+    let ops = json!([
+        { "op": "addNode", "id": "tiny", "type": "group", "x": lo, "y": 0.0, "width": room, "height": 1.0 },
+        { "op": "addNode", "id": "card", "type": "text", "x": 0.0, "y": 0.0, "width": 0.9 * room, "height": 1.0, "text": "q" },
+        { "op": "setGroup", "nodes": ["card"], "group": "tiny" },
+    ]);
+    if let Ok((next, _)) = run(&seed(), ops) {
+        assert_eq!(next.node("card").unwrap().x, lo);
+    }
+}
+
 #[test]
 fn a_group_view_has_only_what_is_inside() {
     let view = seed().group_view("g1").unwrap();
