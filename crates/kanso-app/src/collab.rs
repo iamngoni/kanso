@@ -33,6 +33,10 @@ pub fn engine(cx: &mut App) -> Option<Arc<Engine>> {
     let session = cx.try_global::<Services>().and_then(Services::session);
     let api = cx.try_global::<Services>().and_then(|s| s.collab.clone());
     let store = cx.try_global::<AppState>().map(|s| s.store.clone());
+    // The local API changes shared canvases through this engine.
+    let host = cx
+        .try_global::<Services>()
+        .map(|s| s.shared_canvases.clone());
     let collab = cx.default_global::<Collab>();
     #[cfg(test)]
     if collab.pinned {
@@ -45,9 +49,12 @@ pub fn engine(cx: &mut App) -> Option<Arc<Engine>> {
                 .as_ref()
                 .is_some_and(|s| Arc::ptr_eq(s, &session));
             if !same {
-                let engine = Engine::new(store, api, Account::of(&session));
+                let engine = Arc::new(Engine::new(store, api, Account::of(&session)));
+                if let Some(host) = &host {
+                    host.set(Some(engine.clone()));
+                }
                 *collab = Collab {
-                    engine: Some(Arc::new(engine)),
+                    engine: Some(engine),
                     session: Some(session),
                     ..Collab::default()
                 };
@@ -57,6 +64,9 @@ pub fn engine(cx: &mut App) -> Option<Arc<Engine>> {
         _ => {
             if collab.engine.is_some() {
                 *collab = Collab::default();
+            }
+            if let Some(host) = &host {
+                host.set(None);
             }
             None
         }
@@ -85,6 +95,9 @@ pub fn signed_out(cx: &mut App) {
     #[cfg(test)]
     if cx.try_global::<Collab>().is_some_and(|c| c.pinned) {
         return;
+    }
+    if let Some(services) = cx.try_global::<Services>() {
+        services.shared_canvases.set(None);
     }
     if cx.try_global::<Collab>().is_some() {
         cx.set_global(Collab::default());

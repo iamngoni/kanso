@@ -273,8 +273,20 @@ What locking does and doesn't do:
 - Locking deletes the note's earlier versions, its embedding and the search index's words, and SQLite
   overwrites the space they took. Daily backups made before you locked it still hold the text until
   they are replaced, after 14 days.
-- The title, notebook, tags, status and dates stay visible, and pictures and files attached to a
-  locked note aren't sealed.
+- The pictures and files attached to a locked note are sealed with it, each under a key of its own
+  that only the note's lock opens, and so are their names and types. A picture or file another note
+  also shows is copied: the locked note gets its own sealed copy and the other note keeps the
+  original. The title, notebook, tags, status and dates stay visible.
+- **Notes locked before this version** still have plain attachments until the password opens them,
+  and nothing can seal them without it. The first time you start Kanso after updating it asks ("Seal
+  now" or "Later"), types your lock password once, and seals the attachments of every locked note and
+  locked notebook in one pass, with a progress sheet. After "Later" a quiet reminder stays until it is
+  done, and **Seal Attachments of Locked Notes…** (Note menu, palette; Settings, Locked notes on a
+  phone) does it at any time. Opening such a note with its password also seals its attachments
+  before it shows, and Kanso says so; a file that can't be sealed stays plain and the note still
+  opens. A note you never open with its password is left as it is, and its attachments stay plain;
+  one that uses another lock password waits for that password. If the pass stops (a crash, Cancel),
+  nothing is lost: it finishes the next time you run it, or can be undone.
 - The local API doesn't see a locked note at all: to an API key it is "not found", so it can't read,
   retitle, tag, move or delete it.
 - **Empty Trash** deletes locked notes too. Its question counts them ("Delete 12 notes permanently,
@@ -324,9 +336,17 @@ In Settings › General › Data › **Backups**:
 - **Restore from backup** › **Restore…** takes a backup file. One this computer's key opens, or a
   plain one, goes straight to the question; a backup made on another computer asks for its 24
   words first. Kanso stages the backup, re-encrypted with this library's key, and asks you to quit
-  and open it again. At that launch it swaps the backup in and keeps the library you had as a
-  backup. A restore also brings back the API keys the backup held (see [The local
-  API](#the-local-api)).
+  and open it again. At that launch the app swaps the backup in and keeps the library you had as
+  a backup; `kanso capture`, `serve`, `sticky`, `plugin`, `import`, `account` and `kanso-sync`
+  leave a waiting restore alone and say "A restore is waiting; open Kanso to apply it." The API
+  keys stay the library's own (see [The local API](#the-local-api)).
+  A library signed in to sync can't be restored: sign out (Settings › Account) first, then
+  restore. If you sign in again before reopening Kanso, the restore waits until you sign out. The
+  restored library comes back signed out and not linked to any account, so when you sign in
+  again Kanso asks, as it does on any device with notes, whether to add the restored notes to the
+  account (a note deleted from the account since the backup comes back, and a note changed on
+  both sides keeps both versions) or replace them with the account's notes (after saving a
+  backup of them).
 
 Both rows show only for an encrypted library. Without the key (and without sync) a backup can't be
 opened: that is the cost of encryption.
@@ -534,6 +554,7 @@ kanso serve                 # only the API (REST and /mcp), no window; syncs whe
 kanso account sign-in --username ngoni   # sign a headless library in; then kanso serve syncs it
 kanso account status        # account, this device, last sync (works while serve runs)
 kanso mcp                   # MCP over stdin/stdout for agents that start a program; needs KANSO_MCP_TOKEN=<API key>
+kanso api-key create --name "Backup script"   # make an API key with no window (list, revoke); prints only the key
 kanso import obsidian ~/Vault --dry-run   # what an import would bring in
 kanso import notion ~/Downloads/Export.zip  # markdown, obsidian, notion, evernote, …
 kanso import apple-notes                  # the Notes library on this Mac
@@ -549,9 +570,10 @@ Every command takes `--data-dir <dir>`. The default is `$KANSO_DATA_DIR` when se
 ### Headless / VPS
 
 `kanso serve` runs the API and `/mcp` without a window, so an agent on a server (Codex, say) can use
-your notes, with an API key. Keys are made in the app's Settings and stored in the library, which
-never syncs them, and no `kanso` command makes one yet: until the server's library has a key,
-`kanso serve` and `kanso mcp` refuse every request. Sign the server's library in to your account once, with the service stopped, and
+your notes, with an API key. Keys are stored in the library, which never syncs them. On the server,
+with the service stopped, `kanso api-key create --name <name>` prints a new key and nothing else
+(`list` and `revoke` do the rest); until the library has a key, `kanso serve` and `kanso mcp`
+refuse every request. Sign the server's library in to your account once, with the service stopped, and
 `kanso serve` syncs it while it runs: at start, every `sync.intervalSecs` (5 minutes), and 20
 seconds after any API or MCP write.
 

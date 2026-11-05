@@ -20,7 +20,7 @@ void main() {
     const raw = 'ollama transport error: failed to call chat completions';
     final shown = FlashcardsText.failure(raw, l10n);
     expect(shown, isNot(contains('transport')));
-    expect(shown, l10n.aiTroubleReachLocal('Ollama'));
+    expect(shown, l10n.aiTroubleReachLocalModel);
     expect(
       FlashcardsText.failure('HTTP 401 unauthorized', l10n),
       l10n.aiTroubleKey,

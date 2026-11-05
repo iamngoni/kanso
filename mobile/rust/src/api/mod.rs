@@ -46,6 +46,8 @@ pub mod player;
 pub mod player_types;
 pub mod publish;
 pub mod recording;
+pub mod recording_summary;
+pub mod recording_summary_types;
 pub mod recording_types;
 pub mod reminders;
 pub mod renderer;

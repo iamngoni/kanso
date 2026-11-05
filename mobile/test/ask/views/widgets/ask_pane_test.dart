@@ -167,7 +167,8 @@ void main() {
       expect(find.text('Couldn’t answer'), findsOneWidget);
       expect(
         find.text(
-          'Your model turned the key down. Check the API key in AI settings.',
+          'Your model turned the key down. The API key was refused. '
+          'Check it in Settings › AI, then try again.',
         ),
         findsOneWidget,
       );

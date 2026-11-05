@@ -32,14 +32,12 @@ turned back into it. If you lose a key, revoke it and make another.
 A key looks like `kcl_` followed by 43 characters (47 in all). The prefix tells it
 apart from the short-lived tokens Kanso gives its own agents, and makes a leaked key
 easy to search for. Keys live in your library, never sync, and work on this computer
-only. A backup holds the keys as they were when it was made, so restoring one brings
-those keys back, including any you revoked since. Check Settings › API keys after a
-restore.
+only. Restoring a backup never brings back the keys it held: the library keeps the keys
+it has now, so a key you revoked stays revoked and one made after the backup keeps
+working.
 
-Terminal commands for Claude Code, Gemini CLI and Codex start with a space, so a
-shell set to skip such lines (fish, or bash and zsh with `ignorespace`) keeps the
-key out of its history. The key is in the command's arguments, because those
-agents' tools take it no other way.
+No setup is a terminal command: a key in a command's arguments would be in the process
+list and the shell's history. Every agent's setup is an entry for its config file.
 
 ### The list
 
@@ -79,27 +77,94 @@ Notebooks and tags show a count of the notes that key can see, not the library's
 Publish, share and lock fields are left out of every document. A key limited to some
 notebooks writes only into them, and no key renames or deletes `#ai-exclude`.
 
+## Canvases
+
+A canvas is a note of type `canvas`. The general note routes and tools treat it as a note,
+with the differences below. Four tools and routes are only for canvases.
+
+- **Lists and searches** (`GET /notes`, `search-notes`, `list-notes`) show a short Markdown
+  summary of the canvas in place of its JSON: its text cards, card titles, links and
+  recognised handwriting, up to about 4,000 characters. They also show `size`, the body's
+  length in bytes. `GET /notes?doctype=canvas` lists only canvases, and `?doctype=markdown`
+  only Markdown notes.
+- **`GET /note:<id>`** and `read-note` return the stored note, whose `body` is the `canvas`
+  fence, and add `canvasJson`, the JSON inside the fence. `canvasJson` is read-only: a client
+  that reads a note and writes it back whole doesn't store it.
+- **Writes** are validated as canvases. A body that isn't one canvas, or is over the 1 MB
+  budget, is refused. A shared canvas's body can't be written at all: use `kanso-edit-canvas`.
+- **Locked canvases**, and canvases in a locked notebook, in the trash, tagged
+  `#ai-exclude` or outside the key's notebooks, are not found. They aren't listed, read or
+  edited, and they add nothing to a list or a search.
+
+| MCP tool | REST | Access | What it does |
+|---|---|---|---|
+| `kanso-list-canvases` | `GET /notes?doctype=canvas` | every key | Canvases only, each with its title, notebook, tags, size and summary. Takes the same `bookId`, `tagIds`, `keyword`, `sort`, `descending` and `limit` as `list-notes` |
+| `kanso-read-canvas` | `GET /note:<id>/canvas[?group=<id>]` | every key | The canvas as JSON (live items only, each with its `kansoVersion`) and the note's `_rev`. With a group, only what lies inside that group's rectangle |
+| `kanso-edit-canvas` | `PATCH /note:<id>/canvas` | Read and write | A batch of operations, applied all or none. Answers the new `rev` and the IDs the batch created |
+| `kanso-create-canvas` | `POST /notes` with `doctype: "canvas"` and the fence as `body` | Read and write | A new canvas, empty or from a canvas document (`canvas`) |
+
+A Read or Suggest key can list and read canvases but not change them: a suggestion can't
+edit a canvas. A key limited to some notebooks must pass `bookId` to `kanso-create-canvas`.
+
+`kanso-edit-canvas` takes `{"ifRev": "…", "ops": [ … ]}`. The operations are `addNode`,
+`updateNode`, `moveNode`, `resizeNode`, `removeNode`, `addEdge`, `updateEdge`, `removeEdge`,
+`addStrokes`, `removeStrokes`, `moveStrokes`, `setGroup`, `renameGroup` and `rename`. Stroke
+points are `[x, y, pressure]`, relative to their ink layer, and Kanso gives new strokes their
+IDs. Each change is stamped as an edit in the app is.
+
+- **Versions.** An operation on an existing item may carry `ifVersion`, its `kansoVersion`
+  from `kanso-read-canvas`. The batch may carry `ifRev`, the note's `_rev`. If either is out of
+  date, the batch is refused with `409` and the current `rev` and `versions`, so a caller never
+  overwrites drawing it hasn't seen.
+- **Refusals.** A refused batch changes nothing. An item that isn't there is `404`. Anything
+  else the canvas can't hold is `400`, with the reason.
+- **Limits.** A batch holds at most 500 operations and 4 MB of JSON. It adds at most 10,000
+  strokes and 200,000 points, with at most 20,000 points in a stroke. A text card's text is at
+  most 100,000 characters; a title, label or URL at most 4 KB. Coordinates and sizes are real
+  numbers up to 10,000,000. New IDs are 1 to 64 letters, digits, dashes or underscores. The
+  canvas after the batch must fit its 1 MB budget.
+- **Cards.** A `file` card points at a note the key can see (`note:…`), or at a picture that
+  is already on this canvas (`file:…`) and that the key can read, never one from another
+  note or one sealed with a locked note. `kanso-create-canvas` refuses `file:` cards, since a
+  new canvas has no pictures of its own.
+- On a private canvas, a batch is one revision in the note's history, from the API.
+
+A **shared** canvas is changed through Kanso's live room, so the Kanso app must be running and
+signed in. `kanso serve` refuses edits to shared canvases. A batch reaches the people on the
+canvas as one change, its new title included. A batch too big to send as one change (about
+240 KB of changes) is refused: split it into smaller batches. A member who may only view the
+canvas can't change it. Pictures (`file:` cards) can't be added to a shared canvas yet.
+
 ## Connecting a caller
 
 ### An MCP client
 
-Paste the setup Kanso gives you. It has one of these shapes:
-
-```sh
-# Claude Code (Gemini CLI is the same idea)
-claude mcp add --transport http --scope user kanso http://127.0.0.1:19840/mcp --header "Authorization: Bearer kcl_…"
-
-# Codex: starts `kanso mcp`, with the key in its environment
-codex mcp add kanso --env KANSO_MCP_TOKEN=kcl_… -- "/Applications/Kanso.app/Contents/MacOS/kanso" mcp
-```
+Paste the setup Kanso gives you into the agent's config file. It has one of these shapes:
 
 ```json
+// Claude Code, in ~/.claude.json (quit Claude Code first; it rewrites that file)
+{ "mcpServers": { "kanso": { "type": "http", "url": "http://127.0.0.1:19840/mcp", "headers": { "Authorization": "Bearer kcl_…" } } } }
+
+// Gemini CLI, in ~/.gemini/settings.json
+{ "mcpServers": { "kanso": { "httpUrl": "http://127.0.0.1:19840/mcp", "headers": { "Authorization": "Bearer kcl_…" } } } }
+
+// Claude Desktop: starts `kanso mcp`, with the key in its environment
 { "mcpServers": { "kanso": { "command": "/Applications/Kanso.app/Contents/MacOS/kanso", "args": ["mcp"], "env": { "KANSO_MCP_TOKEN": "kcl_…" } } } }
 ```
 
+```toml
+# Codex, in ~/.codex/config.toml: starts `kanso mcp`, with the key in its environment
+[mcp_servers.kanso]
+command = "/Applications/Kanso.app/Contents/MacOS/kanso"
+args = ["mcp"]
+
+[mcp_servers.kanso.env]
+KANSO_MCP_TOKEN = "kcl_…"
+```
+
 Cursor, VS Code, Windsurf, Zed and OpenCode get an entry in their config file with the
-URL and an `Authorization: Bearer …` header; Claude Desktop starts `kanso mcp`. Kanso
-tells you which file to edit. Restart the agent after you paste.
+URL and an `Authorization: Bearer …` header. Kanso tells you which file to edit, and
+never edits it for you. Restart the agent after you paste.
 
 `kanso mcp` is a relay: it sends each message to the running app's `/mcp` with the
 key from `KANSO_MCP_TOKEN` (the key is read from the environment, never from
@@ -213,6 +278,22 @@ How a release is held to this is in [RELEASING.md](RELEASING.md#breaking-changes
 
 `kanso serve` runs the API without a window and takes keys like the app does. Keys are
 stored in the library and never sync, so a server's keys must live in the server's own
-library. There is no `kanso` command to make a key yet: keys are made in the app's
-Settings. Until a library has one, `kanso serve` and `kanso mcp` refuse every
-request. See [the README](../README.md#headless--vps) for running a server.
+library. Until a library has one, `kanso serve` and `kanso mcp` refuse every
+request, and `kanso serve` says so when it starts.
+
+```sh
+kanso api-key create --name "Backup script" [--access read|suggest|write] [--scope <notebook>]…
+kanso api-key list
+kanso api-key revoke <key id or name>
+```
+
+`create` prints the key, and only the key, on standard output, so
+`KEY=$(kanso api-key create --name N)` holds exactly the key; it is shown this once.
+`--access` is `read` by default, and each `--scope` (a notebook's name or id) limits the
+key to that notebook. `list` shows the working keys, never a key or its hash. `revoke`
+takes an id or a name, and asks for the id when names are shared.
+
+These commands need the data folder to themselves, so they refuse while Kanso or
+`kanso serve` runs with it: a running server keeps its keys in memory and wouldn't see a
+change. To revoke a leaked key on a server, stop `kanso serve`, revoke, and start it
+again. See [the README](../README.md#headless--vps) for running a server.

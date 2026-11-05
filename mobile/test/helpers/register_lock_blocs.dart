@@ -9,6 +9,8 @@ import 'package:kanso/injection.dart';
 import 'package:kanso/lock/models/repos/abs/device_lock_repository.dart';
 import 'package:kanso/lock/state/biometrics/biometrics_bloc.dart';
 import 'package:kanso/lock/state/change_password/change_password_bloc.dart';
+import 'package:kanso/lock/state/files_migration/files_migration_bloc.dart';
+import 'package:kanso/lock/state/interrupted_lock/interrupted_lock_bloc.dart';
 import 'package:kanso/lock/state/lock_remove/lock_remove_bloc.dart';
 import 'package:kanso/lock/state/lock_setup/lock_setup_bloc.dart';
 import 'package:kanso/lock/state/unlock/unlock_bloc.dart';
@@ -39,6 +41,8 @@ void registerLockBlocs(
   _register<UnlockBloc>(() => UnlockBloc(session, device, saved));
   _register<LockSetupBloc>(() => LockSetupBloc(session));
   _register<LockRemoveBloc>(() => LockRemoveBloc(session));
+  _register<InterruptedLockBloc>(() => InterruptedLockBloc(session));
+  _register<FilesMigrationBloc>(() => FilesMigrationBloc(session));
   _register<ChangePasswordBloc>(() => ChangePasswordBloc(session));
   _register<BiometricsBloc>(() => BiometricsBloc(session, device));
 }

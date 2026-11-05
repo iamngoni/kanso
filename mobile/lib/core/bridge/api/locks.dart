@@ -17,7 +17,22 @@ abstract class KansoLocks implements RustOpaqueInterface {
 
   Future<bool> biometricsOn();
 
+  /// Stops the lock in progress between two files.
+  Future<void> cancelLock();
+
   Future<int> changePassword({required String old, required String new_});
+
+  /// The notes locked before attachments were sealed, and what sealing
+  /// theirs would do.
+  Future<FilesMigration> filesMigration();
+
+  /// Finishes the lock that stopped on note `id`; `password` is the lock
+  /// password when the session doesn't hold its key.
+  Future<Saved> finishLocking({required String id, String? password});
+
+  /// The lock that stopped between note `id`'s files, if any: it waits to
+  /// be finished or undone.
+  Future<InterruptedLock?> interruptedLock({required String id});
 
   Future<bool> isNoteUnlocked({required String id});
 
@@ -39,15 +54,42 @@ abstract class KansoLocks implements RustOpaqueInterface {
 
   Future<int> lockNotebook({required String bookId, String? password});
 
+  /// How far sealing a locking note's pictures and files has come, until
+  /// Dart stops listening.
+  Stream<SealProgress> lockProgress();
+
   Future<LockStatus> lockStatus();
 
+  /// What locking note `id` would seal.
+  Future<LockSummary> noteLockSummary({required String id});
+
   Future<bool> notebookIsOpen({required String bookId});
+
+  /// What locking notebook `book_id` would seal.
+  Future<LockSummary> notebookLockSummary({required String bookId});
+
+  /// "Later" at the first-launch prompt.
+  Future<void> postponeFilesMigration();
 
   Future<Saved> removeNoteLock({required String id});
 
   Future<void> removeNotebookLock({required String bookId});
 
+  /// Seals the attachments of every locked note the held keys, or
+  /// `password`, open. Progress comes on `lock_progress`.
+  Future<MigrationOutcome> sealLockedAttachments({String? password});
+
+  /// Whether the phone should say, once, that notes locked before this
+  /// update sealed their attachments.
+  Future<bool> takeSealedFilesNotice();
+
   Future<void> turnOffBiometrics();
+
+  /// Undoes a stopped sealing pass.
+  Future<int> undoFilesMigration({String? password});
+
+  /// Undoes the lock that stopped on note `id`.
+  Future<void> undoLocking({required String id, String? password});
 
   Future<bool> unlock({required String password});
 

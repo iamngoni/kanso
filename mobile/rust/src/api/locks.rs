@@ -2,7 +2,10 @@
 
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
-use kanso_mobile::{KansoError, LockEvent, LockSession, LockStatus, Saved};
+use kanso_mobile::{
+    FilesMigration, InterruptedLock, KansoError, LockEvent, LockSession, LockStatus, LockSummary,
+    MigrationOutcome, Saved, SealProgress,
+};
 
 #[frb(opaque)]
 pub struct KansoLocks(LockSession);
@@ -95,6 +98,80 @@ impl KansoLocks {
 
     pub fn turn_off_biometrics(&self) -> Result<(), KansoError> {
         self.0.turn_off_biometrics()
+    }
+
+    /// What locking note `id` would seal.
+    pub fn note_lock_summary(&self, id: String) -> Result<LockSummary, KansoError> {
+        self.0.note_lock_summary(&id)
+    }
+
+    /// What locking notebook `book_id` would seal.
+    pub fn notebook_lock_summary(&self, book_id: String) -> Result<LockSummary, KansoError> {
+        self.0.notebook_lock_summary(&book_id)
+    }
+
+    /// Stops the lock in progress between two files.
+    pub fn cancel_lock(&self) {
+        self.0.cancel_lock();
+    }
+
+    /// Whether the phone should say, once, that notes locked before this
+    /// update sealed their attachments.
+    pub fn take_sealed_files_notice(&self) -> Result<bool, KansoError> {
+        self.0.take_sealed_files_notice()
+    }
+
+    /// How far sealing a locking note's pictures and files has come, until
+    /// Dart stops listening.
+    pub fn lock_progress(&self, sink: StreamSink<SealProgress>) {
+        self.0
+            .lock_progress(move |progress| sink.add(progress).is_ok());
+    }
+
+    /// The lock that stopped between note `id`'s files, if any: it waits to
+    /// be finished or undone.
+    pub fn interrupted_lock(&self, id: String) -> Result<Option<InterruptedLock>, KansoError> {
+        self.0.interrupted_lock(&id)
+    }
+
+    /// Finishes the lock that stopped on note `id`; `password` is the lock
+    /// password when the session doesn't hold its key.
+    pub fn finish_locking(
+        &self,
+        id: String,
+        password: Option<String>,
+    ) -> Result<Saved, KansoError> {
+        self.0.finish_locking(&id, password)
+    }
+
+    /// Undoes the lock that stopped on note `id`.
+    pub fn undo_locking(&self, id: String, password: Option<String>) -> Result<(), KansoError> {
+        self.0.undo_locking(&id, password)
+    }
+
+    /// The notes locked before attachments were sealed, and what sealing
+    /// theirs would do.
+    pub fn files_migration(&self) -> Result<FilesMigration, KansoError> {
+        self.0.files_migration()
+    }
+
+    /// "Later" at the first-launch prompt.
+    pub fn postpone_files_migration(&self) -> Result<(), KansoError> {
+        self.0.postpone_files_migration()
+    }
+
+    /// Seals the attachments of every locked note the held keys, or
+    /// `password`, open. Progress comes on `lock_progress`.
+    pub fn seal_locked_attachments(
+        &self,
+        password: Option<String>,
+    ) -> Result<MigrationOutcome, KansoError> {
+        self.0.seal_locked_attachments(password)
+    }
+
+    /// Undoes a stopped sealing pass.
+    pub fn undo_files_migration(&self, password: Option<String>) -> Result<u32, KansoError> {
+        self.0.undo_files_migration(password)
     }
 
     /// Each time the notes open or close, until Dart stops listening.

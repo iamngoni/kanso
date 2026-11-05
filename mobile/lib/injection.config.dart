@@ -190,6 +190,8 @@ import 'lock/models/repos/abs/device_lock_repository.dart' as _i279;
 import 'lock/models/repos/impl/plugin_device_lock_repository.dart' as _i64;
 import 'lock/state/biometrics/biometrics_bloc.dart' as _i477;
 import 'lock/state/change_password/change_password_bloc.dart' as _i39;
+import 'lock/state/files_migration/files_migration_bloc.dart' as _i115;
+import 'lock/state/interrupted_lock/interrupted_lock_bloc.dart' as _i582;
 import 'lock/state/lock_remove/lock_remove_bloc.dart' as _i215;
 import 'lock/state/lock_setup/lock_setup_bloc.dart' as _i249;
 import 'lock/state/lock_status/lock_status_bloc.dart' as _i57;
@@ -234,6 +236,10 @@ import 'recording/models/repos/impl/rust_recording_repository.dart' as _i804;
 import 'recording/services/recording_audio_session.dart' as _i133;
 import 'recording/state/player/player_bloc.dart' as _i186;
 import 'recording/state/recording/recording_bloc.dart' as _i181;
+import 'recording_summary/models/repos/abs/recording_summary_repository.dart'
+    as _i34;
+import 'recording_summary/models/repos/impl/rust_recording_summary_repository.dart'
+    as _i821;
 import 'reminders/state/reminders_settings/reminders_settings_bloc.dart'
     as _i420;
 import 'reminders/utils/reminders_coordinator.dart' as _i303;
@@ -647,6 +653,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i35.KansoAi>(),
       ),
     );
+    gh.lazySingleton<_i34.RecordingSummaryRepository>(
+      () => _i821.RustRecordingSummaryRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.factory<_i553.BoardBloc>(
       () => _i553.BoardBloc(
         gh<_i235.BoardRepository>(),
@@ -929,6 +938,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i39.ChangePasswordBloc>(
       () => _i39.ChangePasswordBloc(gh<_i333.SessionRepository>()),
+    );
+    gh.factory<_i115.FilesMigrationBloc>(
+      () => _i115.FilesMigrationBloc(gh<_i333.SessionRepository>()),
+    );
+    gh.factory<_i582.InterruptedLockBloc>(
+      () => _i582.InterruptedLockBloc(gh<_i333.SessionRepository>()),
     );
     gh.factory<_i215.LockRemoveBloc>(
       () => _i215.LockRemoveBloc(gh<_i333.SessionRepository>()),

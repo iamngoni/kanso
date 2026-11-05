@@ -91,6 +91,7 @@ actions!(
         UndoAgentTask,
         UndoLastChange,
         SummarizeNote,
+        SummarizeRecording,
         TidyVoiceNote,
     ]
 );
@@ -347,6 +348,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Voice Input", Dictate),
             MenuItem::action("Record…", crate::recording::RecordAudio),
             MenuItem::action("Transcribe Recording", crate::transcribe::TranscribeAudio),
+            MenuItem::action("Summarise Recording…", SummarizeRecording),
             MenuItem::action("Publish…", crate::publish::PublishNote),
             MenuItem::action("Publish Notebook…", crate::publish_site::PublishNotebook),
             MenuItem::separator(),
@@ -354,6 +356,10 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Remove Lock…", crate::locked::RemoveLock),
             MenuItem::action("Lock Notes Now", crate::locked::LockNotesNow),
             MenuItem::action("Change Lock Password…", crate::locked::ChangeLockPassword),
+            MenuItem::action(
+                "Seal Attachments of Locked Notes…",
+                crate::seal_migration::SealLockedAttachments,
+            ),
             MenuItem::action(
                 concat!("Unlock with ", crate::touch_id::unlock_name!()),
                 crate::locked::TurnOnTouchId,
@@ -750,6 +756,12 @@ impl Workspace {
                 EditorEvent::Notice(message) => {
                     window.push_notification(Notification::error(message.clone()), cx);
                 }
+                EditorEvent::Told { message, stays } => {
+                    window.push_notification(
+                        Notification::info(message.clone()).autohide(!*stays),
+                        cx,
+                    );
+                }
                 EditorEvent::ShowHistory => this.show_history(window, cx),
                 EditorEvent::Command(command) => {
                     let id = this.editor.read(cx).note_id().map(str::to_owned);
@@ -863,6 +875,12 @@ impl Workspace {
             restore_note.or_else(|| last_note.filter(|id| store.note(id).ok().flatten().is_some()));
         if let Some(id) = opening {
             library.update(cx, |library, cx| library.select_quietly(Some(id), cx));
+        }
+        // Notes locked before attachments were sealed: asks once, at launch.
+        if !cfg!(test) {
+            cx.defer_in(window, |_: &mut Workspace, window, cx| {
+                crate::seal_migration::offer_at_launch(window, cx);
+            });
         }
         // Focus mode kept from last time: once the note is open, the
         // keyboard goes into its text, as turning focus mode on does.
@@ -2975,6 +2993,15 @@ impl Render for Workspace {
                 this.inspector
                     .update(cx, |inspector, cx| inspector.summarize_note(window, cx));
             }))
+            .on_action(cx.listener(|this, _: &SummarizeRecording, window, cx| {
+                if !cx.global::<AppState>().config.ai.enabled {
+                    return;
+                }
+                this.close_settings(window, cx);
+                if let Some(id) = this.editor.read(cx).note_id().map(str::to_owned) {
+                    crate::recording_summary::open(id, window, cx);
+                }
+            }))
             .on_action(cx.listener(|this, _: &TidyVoiceNote, window, cx| {
                 if !cx.global::<AppState>().config.ai.enabled {
                     return;
@@ -3233,6 +3260,11 @@ impl Render for Workspace {
             .on_action(
                 cx.listener(|this, _: &crate::locked::ChangeLockPassword, window, cx| {
                     crate::locked::change_password(this.editor.clone(), window, cx);
+                }),
+            )
+            .on_action(
+                cx.listener(|_, _: &crate::seal_migration::SealLockedAttachments, window, cx| {
+                    crate::seal_migration::open(window, cx);
                 }),
             )
             .on_action(

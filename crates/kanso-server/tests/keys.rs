@@ -257,6 +257,16 @@ fn write_requests(seeded: &Seeded, id: &str, body: &Value) -> Vec<(Method, Strin
             format!("/{}", seeded.note),
             Some(body.clone()),
         ),
+        (
+            Method::PATCH,
+            format!("/{}/canvas", seeded.note),
+            Some(json!({ "ops": [{ "op": "rename", "title": "x" }] })),
+        ),
+        (
+            Method::PATCH,
+            format!("/note/{bare}/canvas"),
+            Some(json!({ "ops": [] })),
+        ),
     ]
 }
 

@@ -122,4 +122,68 @@ class RustSessionRepository implements SessionRepository {
 
   @override
   Stream<LockEvent> lockEvents() => cancelableStream(_locks.lockEvents());
+
+  @override
+  Future<Either<ApplicationError, LockSummary>> noteLockSummary(String id) =>
+      attempt(() => _locks.noteLockSummary(id: id));
+
+  @override
+  Future<Either<ApplicationError, LockSummary>> notebookLockSummary(
+    String bookId,
+  ) => attempt(() => _locks.notebookLockSummary(bookId: bookId));
+
+  @override
+  Stream<SealProgress> lockProgress() =>
+      cancelableStream(_locks.lockProgress());
+
+  @override
+  Future<Either<ApplicationError, Unit>> cancelLock() => attempt(() async {
+    await _locks.cancelLock();
+    return unit;
+  });
+
+  @override
+  Future<Either<ApplicationError, InterruptedLock?>> interruptedLock(
+    String id,
+  ) => attempt(() => _locks.interruptedLock(id: id));
+
+  @override
+  Future<Either<ApplicationError, Saved>> finishLocking(
+    String id, {
+    String? password,
+  }) => attempt(() => _locks.finishLocking(id: id, password: password));
+
+  @override
+  Future<Either<ApplicationError, Unit>> undoLocking(
+    String id, {
+    String? password,
+  }) => attempt(() async {
+    await _locks.undoLocking(id: id, password: password);
+    return unit;
+  });
+
+  @override
+  Future<Either<ApplicationError, bool>> takeSealedFilesNotice() =>
+      attempt(_locks.takeSealedFilesNotice);
+
+  @override
+  Future<Either<ApplicationError, FilesMigration>> filesMigration() =>
+      attempt(_locks.filesMigration);
+
+  @override
+  Future<Either<ApplicationError, Unit>> postponeFilesMigration() =>
+      attempt(() async {
+        await _locks.postponeFilesMigration();
+        return unit;
+      });
+
+  @override
+  Future<Either<ApplicationError, MigrationOutcome>> sealLockedAttachments({
+    String? password,
+  }) => attempt(() => _locks.sealLockedAttachments(password: password));
+
+  @override
+  Future<Either<ApplicationError, int>> undoFilesMigration({
+    String? password,
+  }) => attempt(() => _locks.undoFilesMigration(password: password));
 }

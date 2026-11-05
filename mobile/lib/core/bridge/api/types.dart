@@ -1418,6 +1418,49 @@ class ExportedPage {
           fileName == other.fileName;
 }
 
+class FilesMigration {
+  final int notes;
+  final int stopped;
+  final bool postponed;
+  final bool counted;
+  final int files;
+  final int bytes;
+  final int shared;
+
+  const FilesMigration({
+    required this.notes,
+    required this.stopped,
+    required this.postponed,
+    required this.counted,
+    required this.files,
+    required this.bytes,
+    required this.shared,
+  });
+
+  @override
+  int get hashCode =>
+      notes.hashCode ^
+      stopped.hashCode ^
+      postponed.hashCode ^
+      counted.hashCode ^
+      files.hashCode ^
+      bytes.hashCode ^
+      shared.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FilesMigration &&
+          runtimeType == other.runtimeType &&
+          notes == other.notes &&
+          stopped == other.stopped &&
+          postponed == other.postponed &&
+          counted == other.counted &&
+          files == other.files &&
+          bytes == other.bytes &&
+          shared == other.shared;
+}
+
 class FoldState {
   final List<String> open;
   final String? foldedAt;
@@ -2104,6 +2147,27 @@ class InstalledIconThemeRow {
           license == other.license &&
           origin == other.origin &&
           iconCount == other.iconCount;
+}
+
+class InterruptedLock {
+  final int files;
+  final int sealed;
+
+  const InterruptedLock({
+    required this.files,
+    required this.sealed,
+  });
+
+  @override
+  int get hashCode => files.hashCode ^ sealed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InterruptedLock &&
+          runtimeType == other.runtimeType &&
+          files == other.files &&
+          sealed == other.sealed;
 }
 
 class InvitationRow {
@@ -2848,6 +2912,30 @@ class LockStatus {
           biometricsOn == other.biometricsOn;
 }
 
+class LockSummary {
+  final int files;
+  final int bytes;
+  final int shared;
+
+  const LockSummary({
+    required this.files,
+    required this.bytes,
+    required this.shared,
+  });
+
+  @override
+  int get hashCode => files.hashCode ^ bytes.hashCode ^ shared.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LockSummary &&
+          runtimeType == other.runtimeType &&
+          files == other.files &&
+          bytes == other.bytes &&
+          shared == other.shared;
+}
+
 class LockedInfo {
   final String username;
   final String server;
@@ -3050,6 +3138,45 @@ class MentionSpan {
           runtimeType == other.runtimeType &&
           start == other.start &&
           end == other.end;
+}
+
+class MigrationOutcome {
+  final int notes;
+  final int sealed;
+  final int copied;
+  final int unopened;
+  final int failed;
+  final bool stopped;
+
+  const MigrationOutcome({
+    required this.notes,
+    required this.sealed,
+    required this.copied,
+    required this.unopened,
+    required this.failed,
+    required this.stopped,
+  });
+
+  @override
+  int get hashCode =>
+      notes.hashCode ^
+      sealed.hashCode ^
+      copied.hashCode ^
+      unopened.hashCode ^
+      failed.hashCode ^
+      stopped.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MigrationOutcome &&
+          runtimeType == other.runtimeType &&
+          notes == other.notes &&
+          sealed == other.sealed &&
+          copied == other.copied &&
+          unopened == other.unopened &&
+          failed == other.failed &&
+          stopped == other.stopped;
 }
 
 class MonthGrid {
@@ -5142,6 +5269,47 @@ class Saved {
           runtimeType == other.runtimeType &&
           id == other.id &&
           rev == other.rev;
+}
+
+enum SealPhase {
+  preparing,
+  sealing,
+  locking,
+}
+
+class SealProgress {
+  final SealPhase phase;
+  final int done;
+  final int total;
+  final int bytesDone;
+  final int bytesTotal;
+
+  const SealProgress({
+    required this.phase,
+    required this.done,
+    required this.total,
+    required this.bytesDone,
+    required this.bytesTotal,
+  });
+
+  @override
+  int get hashCode =>
+      phase.hashCode ^
+      done.hashCode ^
+      total.hashCode ^
+      bytesDone.hashCode ^
+      bytesTotal.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SealProgress &&
+          runtimeType == other.runtimeType &&
+          phase == other.phase &&
+          done == other.done &&
+          total == other.total &&
+          bytesDone == other.bytesDone &&
+          bytesTotal == other.bytesTotal;
 }
 
 @freezed

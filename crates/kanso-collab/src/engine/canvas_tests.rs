@@ -883,3 +883,292 @@ proptest! {
         prop_assert_eq!(held_a, guard.doc.canvas().unwrap().to_canvas());
     }
 }
+
+// ---------------------------------------------------- the local API's edits
+
+#[test]
+fn an_api_edit_reaches_the_library_and_the_other_device_without_a_view() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let mut canvas = Canvas::default();
+    canvas.put_card(card("c1", "hello"), 1);
+    let share = shared_canvas(&a, &[(&b, Role::Edit)], &canvas);
+    let made = a
+        .engine
+        .edit_canvas(&share, |live| {
+            let mut next = live.clone();
+            next.move_node("c1", 77.0, 88.0, 20);
+            next.put_card(card("api1", "from the API"), 21);
+            Ok((next, None, 2))
+        })
+        .unwrap();
+    assert_eq!(made, 2);
+    // The library holds it at once: the edit settles the projection.
+    let held = library(&a, &share);
+    assert_eq!(held.node("c1").unwrap().x, 77.0);
+    assert!(held.node("api1").is_some());
+    // The other device gets it as it gets a collaborator's.
+    a.engine.sync_note(&share).unwrap();
+    b.engine.sync_note(&share).unwrap();
+    let view = open(&b, &share);
+    assert_eq!(view.node("c1").unwrap().x, 77.0);
+    assert_eq!(
+        view.node("api1").unwrap().text.as_deref(),
+        Some("from the API")
+    );
+}
+
+#[test]
+fn an_api_edit_leaves_an_open_views_own_drawing_alone() {
+    let server = MemoryCollab::new();
+    let a = device(&server, 1, 1);
+    let share = shared_canvas(&a, &[], &Canvas::default());
+    let mut view = open(&a, &share);
+    // The person draws, and has not synced yet.
+    view.put_card(card("mine", "typed"), 5);
+    a.engine
+        .edit_canvas(&share, |live| {
+            let mut next = live.clone();
+            next.put_card(card("api1", "agent"), 6);
+            Ok((next, None, ()))
+        })
+        .unwrap();
+    // The view's next sync keeps both.
+    let merged = pass(&a, &share, &view);
+    assert!(merged.node("mine").is_some() && merged.node("api1").is_some());
+}
+
+#[test]
+fn an_api_edit_is_refused_for_a_viewer_a_full_canvas_and_a_refusing_change() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared_canvas(&a, &[(&b, Role::View)], &Canvas::default());
+    let err = b
+        .engine
+        .edit_canvas(&share, |live| Ok((live.clone(), None, ())))
+        .unwrap_err();
+    assert!(matches!(err, CollabError::Refused(_)), "{err:?}");
+    let err = a
+        .engine
+        .edit_canvas::<()>(&share, |_| Err("not today".into()))
+        .unwrap_err();
+    assert!(err.to_string().contains("not today"), "{err}");
+    let err = a
+        .engine
+        .edit_canvas(&share, |live| {
+            let mut next = live.clone();
+            next.put_card(card("huge", &"x".repeat(canvas::MAX_BYTES + 10)), 3);
+            Ok((next, None, ()))
+        })
+        .unwrap_err();
+    assert!(err.to_string().contains("full"), "{err}");
+    assert!(library(&a, &share).node("huge").is_none());
+    // A note that is not shared is not a room at all.
+    assert!(
+        a.engine
+            .edit_canvas("share-none", |l| Ok((l.clone(), None, ())))
+            .is_err()
+    );
+}
+
+#[test]
+fn an_api_edit_sees_what_arrived_while_a_view_is_open() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let mut canvas = Canvas::default();
+    canvas.put_card(card("c1", "hello"), 1);
+    let share = shared_canvas(&a, &[(&b, Role::Edit)], &canvas);
+    // A has the canvas open, so what arrives waits for its view or the API.
+    let _a_view = open(&a, &share);
+    let mut b_view = open(&b, &share);
+    b_view.move_node("c1", 300.0, 300.0, 10);
+    let _ = pass(&b, &share, &b_view);
+    sync(&[&b], &share);
+    a.engine.sync_note(&share).unwrap();
+    let seen = a
+        .engine
+        .edit_canvas(&share, |live| {
+            let node = live.node("c1").unwrap();
+            Ok((live.clone(), None, (node.x, node.kanso_version)))
+        })
+        .unwrap();
+    // The batch is checked against B's move, so a stale `ifVersion` is caught.
+    assert_eq!(seen.0, 300.0);
+    assert!(seen.1 > 1, "{seen:?}");
+}
+
+/// What `device` has waiting to send for `share`.
+fn outbox(device: &Device, share: &str) -> Vec<Vec<u8>> {
+    device
+        .store
+        .outbox(share)
+        .unwrap()
+        .into_iter()
+        .map(|o| o.payload)
+        .collect()
+}
+
+#[test]
+fn an_api_edit_goes_to_the_room_as_one_update_title_and_all() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared_canvas(&a, &[(&b, Role::Edit)], &Canvas::default());
+    sync(&[&a, &b], &share);
+    let before = outbox(&a, &share).len();
+    // Well over one part's worth: the view's path would cut it in pieces.
+    a.engine
+        .edit_canvas(&share, |live| {
+            let mut next = live.clone();
+            for i in 0..120 {
+                next.put_card(card(&format!("api{i}"), &"words ".repeat(170)), 20);
+            }
+            Ok((next, Some("Renamed by the API".into()), ()))
+        })
+        .unwrap();
+    let sent = outbox(&a, &share);
+    assert_eq!(sent.len(), before + 1, "one batch is one update");
+    assert!(sent.last().unwrap().len() > super::UPDATE_PART);
+    assert!(sent.last().unwrap().len() <= crate::envelope::MAX_UPDATE);
+    // The other device gets all of it, title included.
+    sync(&[&a, &b], &share);
+    let view = open(&b, &share);
+    assert_eq!(view.nodes.iter().filter(|n| !n.deleted).count(), 120);
+    let b_id = b.store.shared_note(&share).unwrap().unwrap().note_id;
+    assert_eq!(
+        b.store.note(&b_id).unwrap().unwrap().title,
+        "Renamed by the API"
+    );
+}
+
+#[test]
+fn an_api_edit_too_big_for_one_update_is_refused_and_nothing_is_sent() {
+    let server = MemoryCollab::new();
+    let a = device(&server, 1, 1);
+    let share = shared_canvas(&a, &[], &Canvas::default());
+    sync(&[&a], &share);
+    let before = outbox(&a, &share).len();
+    let held = library(&a, &share);
+    let err = a
+        .engine
+        .edit_canvas(&share, |live| {
+            let mut next = live.clone();
+            for i in 0..400 {
+                next.put_card(card(&format!("api{i}"), &"words ".repeat(170)), 20);
+            }
+            Ok((next, None, ()))
+        })
+        .unwrap_err();
+    assert!(err.to_string().contains("too big"), "{err}");
+    assert_eq!(outbox(&a, &share).len(), before);
+    assert_eq!(library(&a, &share), held);
+    assert!(a.engine.canvas(&share).unwrap().nodes.is_empty());
+}
+
+/// An operation a hostile key might send: mostly ones that hold, with odd
+/// IDs, huge or tiny numbers, long fields and long strokes among them.
+fn hostile_op() -> impl Strategy<Value = serde_json::Value> {
+    let id = prop_oneof![
+        6 => Just("c1"),
+        1 => prop::sample::select(vec!["ink", "ghost", "", "../x", "é"]),
+    ];
+    let num = prop_oneof![
+        8 => -500.0f64..500.0,
+        1 => Just(1e7),
+        1 => Just(1e300),
+        1 => Just(f64::MIN_POSITIVE),
+    ];
+    let long = prop_oneof![
+        6 => Just(1usize),
+        1 => prop::sample::select(vec![4_000usize, 5_000, 60_000, 300_000]),
+    ];
+    // Characters four bytes long, in a field the room gets whole.
+    let wide = prop_oneof![3 => Just(1usize), 1 => Just(1_100usize), 1 => Just(90_000usize)];
+    prop_oneof![
+        (any::<u32>(), num.clone(), num.clone(), long.clone()).prop_map(|(n, x, y, len)| {
+            json!({ "op": "addNode", "id": format!("n{n}"), "type": "text", "x": x, "y": y, "text": "t".repeat(len) })
+        }),
+        (num.clone(), long.clone()).prop_map(|(x, n)| {
+            json!({ "op": "addNode", "type": "group", "x": x, "y": 0, "label": "l".repeat(n) })
+        }),
+        (num.clone(), wide).prop_map(|(x, n)| {
+            json!({ "op": "addNode", "type": "link", "x": x, "y": 0, "url": format!("https://x/{}", "\u{1D11E}".repeat(n)) })
+        }),
+        (id.clone(), long.clone()).prop_map(|(id, n)| {
+            json!({ "op": "updateNode", "id": id, "text": "u".repeat(n) })
+        }),
+        (id.clone(), num.clone(), num.clone())
+            .prop_map(|(id, x, y)| json!({ "op": "moveNode", "id": id, "x": x, "y": y })),
+        (id.clone(), long.clone()).prop_map(|(a, n)| {
+            json!({ "op": "addEdge", "fromNode": a, "toNode": "c1", "label": "e".repeat(n.min(5_000)) })
+        }),
+        (num.clone(), 1usize..3_000).prop_map(|(x, n)| {
+            let points: Vec<serde_json::Value> =
+                (0..n).map(|i| json!([x + i as f64, i as f64, 0.5])).collect();
+            json!({ "op": "addStrokes", "node": "ink", "strokes": [{ "points": points }] })
+        }),
+        (0u64..4).prop_map(|v| json!({ "op": "moveNode", "id": "c1", "x": 1, "y": 1, "ifVersion": v })),
+        long.prop_map(|n| json!({ "op": "rename", "title": "r".repeat(n.min(600)) })),
+        Just(json!({ "op": "removeNode", "id": "c1" })),
+    ]
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        cases: 24,
+        rng_seed: proptest::test_runner::RngSeed::Fixed(20_261_017),
+        failure_persistence: None,
+        ..ProptestConfig::default()
+    })]
+
+    /// Hostile batches from the local API on a shared canvas, while someone
+    /// draws on it: nothing panics, every update fits the room, a refused
+    /// batch sends nothing, and both devices end with the same valid canvas.
+    #[test]
+    fn hostile_api_batches_never_break_the_room(
+        batches in prop::collection::vec(prop::collection::vec(hostile_op(), 1..4), 1..5),
+    ) {
+        let server = MemoryCollab::new();
+        let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+        let mut start = Canvas::default();
+        start.put_card(card("c1", "hello"), 1);
+        start.put_node(Node { id: "ink".into(), kind: INK.into(), width: 1.0, height: 1.0, ..Node::default() }, 1);
+        let share = shared_canvas(&a, &[(&b, Role::Edit)], &start);
+        let nothing = |_: &str| false;
+        let mut b_view = open(&b, &share);
+        for (round, ops) in batches.iter().enumerate() {
+            b_view.put_card(card(&format!("b{round}"), "drawn"), 50 + round as i64);
+            b_view = pass(&b, &share, &b_view);
+            let before = outbox(&a, &share).len();
+            let applied = canvas::Batch::from_json(&json!({ "ops": ops })).ok().map(|batch| {
+                a.engine.edit_canvas(&share, |live| {
+                    let ctx = canvas::BatchContext {
+                        now: 100 + round as i64,
+                        shared: true,
+                        note_exists: &nothing,
+                        attachment_ok: &nothing,
+                    };
+                    canvas::apply_batch(live, &batch, &ctx)
+                        .map(|(next, made)| (next, made.title.clone(), ()))
+                        .map_err(|why| why.message())
+                })
+            });
+            let sent = outbox(&a, &share);
+            match applied {
+                Some(Ok(())) => prop_assert!(sent.len() <= before + 1),
+                _ => prop_assert_eq!(sent.len(), before, "a refused batch sent something"),
+            }
+            for update in &sent {
+                prop_assert!(update.len() <= crate::envelope::MAX_UPDATE, "{} bytes", update.len());
+            }
+            sync(&[&a, &b], &share);
+            b_view = pass(&b, &share, &b_view);
+        }
+        sync(&[&a, &b], &share);
+        prop_assert!(a.engine.problems().is_empty(), "{:?}", a.engine.problems());
+        let held_a = a.engine.canvas(&share).unwrap();
+        let held_b = b.engine.canvas(&share).unwrap();
+        prop_assert_eq!(&held_a, &held_b);
+        prop_assert_eq!(library(&a, &share).validate(), Ok(()));
+        prop_assert_eq!(library(&b, &share).validate(), Ok(()));
+    }
+}

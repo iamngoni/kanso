@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc ef732b7466ae5f3860e410f03b3b41809301a21e95f0d7cd7f2dba70c8db0000 # shrinks to ops = [Object {"op": String("addNode"), "type": String("text"), "width": Number(357.9180974251009), "x": Number(0.0), "y": Number(1803.2833634194599)}]

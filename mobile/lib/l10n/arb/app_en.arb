@@ -3807,7 +3807,7 @@
   "@lockNoteConfirmTitle": {
     "description": "The title of the sheet that confirms locking a note."
   },
-  "lockNoteConfirmMessage": "Its text and the pictures and files it links to are sealed, and its earlier versions are deleted. A file another note still shows gets a sealed copy. It stays open until the locked notes lock again.",
+  "lockNoteConfirmMessage": "Its text is sealed, and its earlier versions are deleted. It stays open until the locked notes lock again.",
   "@lockNoteConfirmMessage": {
     "description": "Explains what locking a note does."
   },
@@ -3819,7 +3819,7 @@
   "@lockNotebookConfirmTitle": {
     "description": "The title of the sheet that confirms locking a notebook."
   },
-  "lockNotebookConfirmMessage": "Every note in it, and the pictures and files they link to, are sealed, and new notes added to it are sealed too. A file another note still shows gets a sealed copy.",
+  "lockNotebookConfirmMessage": "Every note in it is sealed, and new notes added to it are sealed too.",
   "@lockNotebookConfirmMessage": {
     "description": "Explains what locking a notebook does."
   },
@@ -6473,19 +6473,19 @@
   "@digestReviewEmptyMessage": {
     "description": "Under the title when the weekly review has nothing to show."
   },
-  "aiTroubleKey": "Your model turned the key down. Check the API key in AI settings.",
+  "aiTroubleKey": "Your model turned the key down. The API key was refused. Check it in Settings › AI, then try again.",
   "@aiTroubleKey": {
     "description": "An AI request was refused for its key."
   },
-  "aiTroubleBusy": "Your model is busy right now. Wait a moment, then try again.",
+  "aiTroubleBusy": "Your model is busy. It's limiting requests right now. Wait a moment, then try again.",
   "@aiTroubleBusy": {
     "description": "An AI request was rate limited."
   },
-  "aiTroubleSlow": "Your model took too long to answer. Try again, or pick a smaller model.",
+  "aiTroubleSlow": "Your model took too long. It didn't answer in time. Try again, or pick a smaller model in Settings › AI.",
   "@aiTroubleSlow": {
     "description": "An AI request timed out."
   },
-  "aiTroubleMissing": "The model in AI settings isn't available. Choose another, then try again.",
+  "aiTroubleMissing": "Your model wasn't found. The model named in Settings › AI isn't available. Choose another, then try again.",
   "@aiTroubleMissing": {
     "description": "The configured model was not found."
   },
@@ -6498,17 +6498,57 @@
       }
     }
   },
-  "aiTroubleReach": "Couldn't reach your model. Check your connection and the address in AI settings.",
+  "aiTroubleReach": "Couldn't reach your model. Check your connection and the address in Settings › AI, then try again.",
   "@aiTroubleReach": {
     "description": "A model could not be reached."
   },
-  "aiTroubleSetup": "AI isn't set up yet. Choose a model in AI settings to use this.",
+  "aiTroubleSetup": "AI isn't set up yet. Choose a model in Settings › AI to use this.",
   "@aiTroubleSetup": {
     "description": "AI is not configured."
   },
-  "aiTroubleOther": "Your model ran into a problem. Try again, or check AI settings.",
+  "aiTroubleOther": "Your model ran into a problem. Try again. If it keeps happening, check Settings › AI.",
   "@aiTroubleOther": {
     "description": "Any other AI failure."
+  },
+  "aiTroubleMissingKey": "No API key is saved. Add one in Settings › AI: choose your provider, then paste the key into API key.",
+  "@aiTroubleMissingKey": {
+    "description": "An AI request needs an API key and none is saved."
+  },
+  "aiTroubleMissingModel": "No model is chosen. Pick a model in Settings › AI, then try again.",
+  "@aiTroubleMissingModel": {
+    "description": "No model name is set."
+  },
+  "aiTroubleMissingUrl": "No server address is set. Enter the server's address in Settings › AI, then try again.",
+  "@aiTroubleMissingUrl": {
+    "description": "The model server's address is empty."
+  },
+  "aiTroubleNoAgent": "No agent is set up. Choose an agent in Settings › AI, or type the command of your own. Then try again.",
+  "@aiTroubleNoAgent": {
+    "description": "No agent is chosen."
+  },
+  "aiTroubleAgentNotInstalled": "Your agent isn't installed. Install it, or choose another agent in Settings › AI and use Find to check again.",
+  "@aiTroubleAgentNotInstalled": {
+    "description": "The chosen agent is not on the computer."
+  },
+  "aiTroubleAgentNeedsNode": "Your agent needs a newer Node. Install the Node version it asks for, then use Find again in Settings › AI.",
+  "@aiTroubleAgentNeedsNode": {
+    "description": "The chosen agent needs a newer Node."
+  },
+  "aiTroubleNoTools": "This model can't use tools. Pick a model that supports tools in Settings › AI.",
+  "@aiTroubleNoTools": {
+    "description": "A task needs a model that can use tools."
+  },
+  "aiTroubleServerDown": "Your model's server had a problem. That's on its side. Wait a moment, then try again.",
+  "@aiTroubleServerDown": {
+    "description": "The model's server answered with a 5xx error."
+  },
+  "aiTroubleBlocked": "Something blocked the request. A proxy, firewall or region limit turned it away before it reached your model, so it isn't your API key. Check your network and the address in Settings › AI, then try again.",
+  "@aiTroubleBlocked": {
+    "description": "A proxy, gateway, firewall or region limit refused an AI request before it reached the provider."
+  },
+  "aiTroubleReachLocalModel": "Couldn't reach your model. Is Ollama or LM Studio running? Start it, then try again.",
+  "@aiTroubleReachLocalModel": {
+    "description": "A local model server could not be reached, and the error doesn't say which app serves it."
   },
   "aiTroubleRetry": "Try again",
   "@aiTroubleRetry": {
@@ -6818,6 +6858,117 @@
     "placeholders": {
       "reason": {
         "type": "String"
+      }
+    }
+  },
+  "recordingSummaryMenu": "Summarise recording",
+  "@recordingSummaryMenu": {
+    "description": "The note menu's action that summarises a recording with the person's own AI."
+  },
+  "recordingSummaryTitle": "Summarise recording",
+  "@recordingSummaryTitle": {
+    "description": "Title of the sheet that summarises a recording."
+  },
+  "recordingSummaryClose": "Close",
+  "@recordingSummaryClose": {
+    "description": "Closes the summarise recording sheet."
+  },
+  "recordingSummaryUnavailable": "To summarise a recording, turn on AI in Settings and open a note that holds the transcript of a recording. Locked notes, notes in the trash and notes tagged #ai-exclude are never sent.",
+  "@recordingSummaryUnavailable": {
+    "description": "Said when Summarise recording can't be used on this note."
+  },
+  "recordingSummaryNothingYet": "Nothing is sent until you choose Send. You will see the summary and the action items before anything is written.",
+  "@recordingSummaryNothingYet": {
+    "description": "Under the question that asks where the transcript goes."
+  },
+  "recordingSummaryReplacesNote": "This note already has a summary. A new one replaces it.",
+  "@recordingSummaryReplacesNote": {
+    "description": "Said when the note already holds a summary."
+  },
+  "recordingSummaryWorking": "Summarising the transcript…",
+  "@recordingSummaryWorking": {
+    "description": "Shown while the AI summarises a recording."
+  },
+  "recordingSummaryCancelHint": "Cancel stops the request. The note is not changed.",
+  "@recordingSummaryCancelHint": {
+    "description": "Under the working line."
+  },
+  "recordingSummaryUnchanged": "The note is not changed.",
+  "@recordingSummaryUnchanged": {
+    "description": "Said after a summary failed."
+  },
+  "recordingSummarySend": "Send",
+  "@recordingSummarySend": {
+    "description": "Sends the transcript to the person's AI."
+  },
+  "recordingSummaryCancel": "Cancel",
+  "@recordingSummaryCancel": {
+    "description": "Stops summarising."
+  },
+  "recordingSummaryDiscard": "Discard",
+  "@recordingSummaryDiscard": {
+    "description": "Throws the summary away without writing it."
+  },
+  "recordingSummaryApply": "Apply",
+  "@recordingSummaryApply": {
+    "description": "Writes the summary and the ticked action items into the note."
+  },
+  "recordingSummaryTryAgain": "Try again",
+  "@recordingSummaryTryAgain": {
+    "description": "Asks the AI for the summary again."
+  },
+  "recordingSummarySectionSummary": "Summary",
+  "@recordingSummarySectionSummary": {
+    "description": "Heading of the summary points."
+  },
+  "recordingSummarySectionDecisions": "Decisions",
+  "@recordingSummarySectionDecisions": {
+    "description": "Heading of the decisions."
+  },
+  "recordingSummarySectionActions": "Action items",
+  "@recordingSummarySectionActions": {
+    "description": "Heading of the action items."
+  },
+  "recordingSummaryActionsHint": "Only the ticked ones are written into the note.",
+  "@recordingSummaryActionsHint": {
+    "description": "Under the Action items heading."
+  },
+  "recordingSummaryCut": "The transcript was long, so only its first part was summarised.",
+  "@recordingSummaryCut": {
+    "description": "Said when a very long transcript was cut."
+  },
+  "recordingSummaryAdded": "Summary added above the transcript.",
+  "@recordingSummaryAdded": {
+    "description": "Notice after a summary was written, with Undo."
+  },
+  "recordingSummaryReplaced": "Summary replaced.",
+  "@recordingSummaryReplaced": {
+    "description": "Notice after a summary replaced an earlier one, with Undo."
+  },
+  "recordingSummaryFailed": "Couldn't summarise this recording. {reason}",
+  "@recordingSummaryFailed": {
+    "description": "Said when asking the AI for a summary failed.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingSummaryApplyFailed": "Nothing was written. {reason}",
+  "@recordingSummaryApplyFailed": {
+    "description": "Said under the review when Apply could not write the summary (the note was locked, changed or lost its transcript meanwhile).",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingSummaryDropped":"{count, plural, =1{One item was left out for want of a quote from the recording.} other{{count} items were left out for want of a quote from the recording.}}",
+  "@recordingSummaryDropped": {
+    "description": "Said when the AI gave items the transcript does not back.",
+    "placeholders": {
+      "count": {
+        "type": "int"
       }
     }
   },
@@ -8572,5 +8723,304 @@
         "type": "String"
       }
     }
+  },
+  "lockFilesSealed": "{count, plural, =1{1 picture or file ({size}) is} other{{count} pictures and files ({size}) are}} sealed with it.",
+  "@lockFilesSealed": {
+    "description": "The lock dialog's line about the pictures and files that are sealed with a note or notebook.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "lockFilesShared": "{count, plural, =1{1 attachment is} other{{count} attachments are}} also used by other notes: locking seals a copy of {count, plural, =1{it} other{them}}, and the other notes keep theirs.",
+  "@lockFilesShared": {
+    "description": "The lock dialog's line saying that a file shown by a note that stays unlocked is copied.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockProgressTitleNote": "Locking note",
+  "@lockProgressTitleNote": {
+    "description": "The title of the progress sheet while a note locks."
+  },
+  "lockProgressTitleNotebook": "Locking notebook",
+  "@lockProgressTitleNotebook": {
+    "description": "The title of the progress sheet while a notebook locks."
+  },
+  "lockProgressTitleRemove": "Removing the lock",
+  "@lockProgressTitleRemove": {
+    "description": "The title of the progress sheet while a lock is taken off."
+  },
+  "lockProgressLine": "{count, plural, =1{Sealing 1 attachment, {size}} other{Sealing {count} attachments, {size}}}",
+  "@lockProgressLine": {
+    "description": "The progress sheet's line: how many files and how much it seals.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "lockProgressUnsealingLine": "{count, plural, =1{Unsealing 1 attachment, {size}} other{Unsealing {count} attachments, {size}}}",
+  "@lockProgressUnsealingLine": {
+    "description": "The progress sheet's line while a lock is taken off.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "lockProgressCount": "{done} of {total}",
+  "@lockProgressCount": {
+    "description": "How many files are done, of how many.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "lockProgressCancel": "Cancel",
+  "@lockProgressCancel": {
+    "description": "Stops locking between two files."
+  },
+  "lockProgressStopping": "Stopping after this file…",
+  "@lockProgressStopping": {
+    "description": "Said once Cancel was pressed while a lock is sealing a file."
+  },
+  "lockStoppedMessage": "Locking stopped. The note isn't locked yet: finish locking it or undo it from the bar above the note.",
+  "@lockStoppedMessage": {
+    "description": "Said after Cancel stopped a lock."
+  },
+  "lockStoppedNotebookMessage": "Locking stopped. The notebook isn't locked yet: lock it again to finish.",
+  "@lockStoppedNotebookMessage": {
+    "description": "Said after Cancel stopped a notebook lock."
+  },
+  "lockInterruptedMessage": "Locking this note didn't finish: {sealed} of its {files} pictures and files are sealed, and the note isn't locked yet. Finish locking, or undo it to keep everything as it was.",
+  "@lockInterruptedMessage": {
+    "description": "The bar above a note whose lock stopped between its files.",
+    "placeholders": {
+      "sealed": {
+        "type": "int"
+      },
+      "files": {
+        "type": "int"
+      }
+    }
+  },
+  "lockInterruptedFinish": "Finish locking",
+  "@lockInterruptedFinish": {
+    "description": "Finishes a lock that stopped."
+  },
+  "lockInterruptedUndo": "Undo locking",
+  "@lockInterruptedUndo": {
+    "description": "Undoes a lock that stopped."
+  },
+  "lockInterruptedWorking": "Working…",
+  "@lockInterruptedWorking": {
+    "description": "Said while a stopped lock is finished or undone."
+  },
+  "lockInterruptedPasswordTitle": "Enter the lock password",
+  "@lockInterruptedPasswordTitle": {
+    "description": "The title of the sheet that asks for the lock password to finish or undo a stopped lock."
+  },
+  "lockInterruptedPasswordMessage": "The notes are closed. The lock password this note was being locked with finishes or undoes it.",
+  "@lockInterruptedPasswordMessage": {
+    "description": "Explains why the lock password is asked."
+  },
+  "lockInterruptedContinue": "Continue",
+  "@lockInterruptedContinue": {
+    "description": "The button of the sheet that asks for the lock password."
+  },
+  "lockInterruptedFailed": "That didn't work. Try again.",
+  "@lockInterruptedFailed": {
+    "description": "Said when finishing or undoing a stopped lock failed."
+  },
+  "lockFilesNoticeDismiss": "Dismiss",
+  "@lockFilesNoticeDismiss": {
+    "description": "Closes the notice about the attachments of locked notes."
+  },
+  "lockMigrationTitle": "Seal attachments of locked notes",
+  "@lockMigrationTitle": {
+    "description": "The title of the sheet that seals the attachments of notes locked before attachments were sealed."
+  },
+  "lockMigrationPrompt": "Attachments of your locked notes aren't sealed yet. Enter your lock password to seal them now.",
+  "@lockMigrationPrompt": {
+    "description": "What the first-launch prompt says."
+  },
+  "lockMigrationNotes": "{count, plural, =1{1 locked note still has pictures and files stored in plain form.} other{{count} locked notes still have pictures and files stored in plain form.}}",
+  "@lockMigrationNotes": {
+    "description": "How many locked notes still have attachments that are not sealed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationCounted": "{count, plural, =1{1 attachment ({size}) will be sealed.} other{{count} attachments ({size}) will be sealed.}}",
+  "@lockMigrationCounted": {
+    "description": "How many attachments, and how much, sealing will do, when the notes are open.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "lockMigrationShared": "{count, plural, =1{1 attachment is also used by another note: the locked note gets its own sealed copy, and the other note keeps the original.} other{{count} attachments are also used by other notes: each locked note gets its own sealed copy, and the other notes keep theirs.}}",
+  "@lockMigrationShared": {
+    "description": "Says that attachments an unlocked note also shows are copied.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationUncounted": "Kanso counts them, and their size, once the password opens the notes.",
+  "@lockMigrationUncounted": {
+    "description": "Said when the notes are closed and the attachments cannot be counted yet."
+  },
+  "lockMigrationSealNow": "Seal now",
+  "@lockMigrationSealNow": {
+    "description": "The button that starts sealing."
+  },
+  "lockMigrationLater": "Later",
+  "@lockMigrationLater": {
+    "description": "Leaves sealing for later; a quiet reminder stays."
+  },
+  "lockMigrationPasswordMessage": "Type your lock password. Kanso seals the attachments of every locked note it opens.",
+  "@lockMigrationPasswordMessage": {
+    "description": "Explains why the lock password is asked before sealing."
+  },
+  "lockMigrationSealing": "Sealing attachments",
+  "@lockMigrationSealing": {
+    "description": "The title of the progress sheet while the attachments of locked notes are sealed."
+  },
+  "lockMigrationStoppedTitle": "Sealing didn't finish",
+  "@lockMigrationStoppedTitle": {
+    "description": "The title when an earlier sealing pass stopped part way."
+  },
+  "lockMigrationStoppedMessage": "{count, plural, =1{1 locked note was left half done.} other{{count} locked notes were left half done.}} Some attachments are sealed, and none is lost. Finish sealing, or undo it to keep everything as it was.",
+  "@lockMigrationStoppedMessage": {
+    "description": "Explains a sealing pass that stopped part way.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationFinish": "Finish sealing",
+  "@lockMigrationFinish": {
+    "description": "Finishes a sealing pass that stopped."
+  },
+  "lockMigrationUndo": "Undo",
+  "@lockMigrationUndo": {
+    "description": "Undoes a sealing pass that stopped."
+  },
+  "lockMigrationDone": "{files, plural, =1{Sealed 1 attachment} other{Sealed {files} attachments}} in {notes, plural, =1{1 locked note} other{{notes} locked notes}}.",
+  "@lockMigrationDone": {
+    "description": "Said when sealing is done.",
+    "placeholders": {
+      "files": {
+        "type": "int"
+      },
+      "notes": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationNothing": "{notes, plural, =1{Checked 1 locked note: no attachments needed sealing.} other{Checked {notes} locked notes: no attachments needed sealing.}}",
+  "@lockMigrationNothing": {
+    "description": "Said when sealing found nothing to seal.",
+    "placeholders": {
+      "notes": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationCopies": "{count, plural, =1{1 attachment also used by another note has its own sealed copy.} other{{count} attachments also used by other notes have their own sealed copies.}}",
+  "@lockMigrationCopies": {
+    "description": "Said after sealing made copies of shared attachments.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationUnopened": "{count, plural, =1{1 locked note uses another lock password and was left as it is.} other{{count} locked notes use another lock password and were left as they are.}}",
+  "@lockMigrationUnopened": {
+    "description": "Said when some notes were not opened by the password.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationFailedNotes": "{count, plural, =1{1 locked note couldn't be sealed and stays as it was.} other{{count} locked notes couldn't be sealed and stay as they were.}}",
+  "@lockMigrationFailedNotes": {
+    "description": "Said when some notes could not be sealed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationStopped": "Sealing stopped. Open Settings, then Locked notes, to finish it.",
+  "@lockMigrationStopped": {
+    "description": "Said when Cancel stopped the sealing."
+  },
+  "lockMigrationUndone": "{count, plural, =1{Undone. 1 attachment is readable again, as before.} other{Undone. {count} attachments are readable again, as before.}}",
+  "@lockMigrationUndone": {
+    "description": "Said after a stopped sealing pass was undone.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationReminder": "{count, plural, =1{Attachments of 1 locked note aren't sealed yet.} other{Attachments of {count} locked notes aren't sealed yet.}}",
+  "@lockMigrationReminder": {
+    "description": "The quiet reminder shown until the attachments are sealed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSealAttachments": "Seal attachments of locked notes…",
+  "@settingsSealAttachments": {
+    "description": "Opens the sheet that seals the attachments of notes locked before attachments were sealed."
+  },
+  "settingsSealAttachmentsValue": "{count, plural, =1{1 note} other{{count} notes}}",
+  "@settingsSealAttachmentsValue": {
+    "description": "How many locked notes wait to have their attachments sealed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockMigrationClose": "Done",
+  "@lockMigrationClose": {
+    "description": "Closes the sheet that says how sealing the attachments of locked notes went."
+  },
+  "lockFilesNotice": "Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can't re-seal the files, and they would stop opening.",
+  "@lockFilesNotice": {
+    "description": "The one-time notice about notes locked before attachments were sealed, with what to do on other devices."
   }
 }

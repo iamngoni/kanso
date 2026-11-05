@@ -34,7 +34,10 @@ class FixtureSessionRepository implements SessionRepository {
   final StreamController<LockEvent> events =
       StreamController<LockEvent>.broadcast();
 
-  Future<void> close() => events.close();
+  Future<void> close() async {
+    await events.close();
+    await progress.close();
+  }
 
   Either<ApplicationError, T> _answer<T>(String call, T value) {
     calls.add(call);
@@ -121,8 +124,13 @@ class FixtureSessionRepository implements SessionRepository {
     return _answer('lockNote:$id', Saved(id: id, rev: 'r2'));
   }
 
+  /// When set, locking a note with the session waits for it: a lock that is
+  /// still sealing its files.
+  Completer<void>? gate;
+
   @override
   Future<Either<ApplicationError, Saved>> lockNoteWithSession(String id) async {
+    await gate?.future;
     if (!unlocked) {
       return const Left<ApplicationError, Saved>(
         ApplicationError.locked(message: 'The note is locked.'),
@@ -209,4 +217,182 @@ class FixtureSessionRepository implements SessionRepository {
 
   @override
   Stream<LockEvent> lockEvents() => events.stream;
+
+  /// What locking any note or notebook would seal.
+  LockSummary summary = const LockSummary(files: 0, bytes: 0, shared: 0);
+
+  /// The lock that stopped on a note, by default none.
+  InterruptedLock? stopped;
+
+  /// What [takeSealedFilesNotice] answers, once.
+  bool filesNotice = false;
+
+  final StreamController<SealProgress> progress =
+      StreamController<SealProgress>.broadcast();
+
+  @override
+  Future<Either<ApplicationError, LockSummary>> noteLockSummary(
+    String id,
+  ) async => Right<ApplicationError, LockSummary>(summary);
+
+  @override
+  Future<Either<ApplicationError, LockSummary>> notebookLockSummary(
+    String bookId,
+  ) async => Right<ApplicationError, LockSummary>(summary);
+
+  @override
+  Stream<SealProgress> lockProgress() => progress.stream;
+
+  @override
+  Future<Either<ApplicationError, Unit>> cancelLock() async {
+    gate?.complete();
+    return _answer('cancelLock', unit);
+  }
+
+  @override
+  Future<Either<ApplicationError, InterruptedLock?>> interruptedLock(
+    String id,
+  ) async => Right<ApplicationError, InterruptedLock?>(stopped);
+
+  @override
+  Future<Either<ApplicationError, Saved>> finishLocking(
+    String id, {
+    String? password,
+  }) async {
+    await gate?.future;
+    if (!unlocked && password == null) {
+      return const Left<ApplicationError, Saved>(
+        ApplicationError.locked(message: 'The note is locked.'),
+      );
+    }
+    if (password != null && password != this.password) {
+      return const Left<ApplicationError, Saved>(
+        ApplicationError.auth(message: "That isn't the lock password."),
+      );
+    }
+    stopped = null;
+    return _answer('finishLocking:$id', Saved(id: id, rev: 'r2'));
+  }
+
+  @override
+  Future<Either<ApplicationError, Unit>> undoLocking(
+    String id, {
+    String? password,
+  }) async {
+    if (!unlocked && password == null) {
+      return const Left<ApplicationError, Unit>(
+        ApplicationError.locked(message: 'The note is locked.'),
+      );
+    }
+    if (password != null && password != this.password) {
+      return const Left<ApplicationError, Unit>(
+        ApplicationError.auth(message: "That isn't the lock password."),
+      );
+    }
+    stopped = null;
+    return _answer('undoLocking:$id', unit);
+  }
+
+  @override
+  Future<Either<ApplicationError, bool>> takeSealedFilesNotice() async {
+    final answer = filesNotice;
+    filesNotice = false;
+    return Right<ApplicationError, bool>(answer);
+  }
+
+  /// The locked notes waiting to have their attachments sealed, by default
+  /// none.
+  FilesMigration migration = const FilesMigration(
+    notes: 0,
+    stopped: 0,
+    postponed: false,
+    counted: false,
+    files: 0,
+    bytes: 0,
+    shared: 0,
+  );
+
+  /// What a pass seals when it is run.
+  MigrationOutcome migrated = const MigrationOutcome(
+    notes: 0,
+    sealed: 0,
+    copied: 0,
+    unopened: 0,
+    failed: 0,
+    stopped: false,
+  );
+
+  /// When set, a pass waits for it before it finishes.
+  Completer<void>? migrationGate;
+
+  @override
+  Future<Either<ApplicationError, FilesMigration>> filesMigration() async =>
+      Right<ApplicationError, FilesMigration>(migration);
+
+  @override
+  Future<Either<ApplicationError, Unit>> postponeFilesMigration() async {
+    migration = FilesMigration(
+      notes: migration.notes,
+      stopped: migration.stopped,
+      postponed: true,
+      counted: migration.counted,
+      files: migration.files,
+      bytes: migration.bytes,
+      shared: migration.shared,
+    );
+    return _answer('postponeFilesMigration', unit);
+  }
+
+  ApplicationError? _migrationDenied(String? password) {
+    if (!unlocked && password == null) {
+      return const ApplicationError.locked(message: 'The notes are closed.');
+    }
+    if (password != null && password != this.password) {
+      return const ApplicationError.auth(
+        message: "That isn't the lock password.",
+      );
+    }
+    return null;
+  }
+
+  @override
+  Future<Either<ApplicationError, MigrationOutcome>> sealLockedAttachments({
+    String? password,
+  }) async {
+    final denied = _migrationDenied(password);
+    if (denied != null) {
+      return Left<ApplicationError, MigrationOutcome>(denied);
+    }
+    await migrationGate?.future;
+    migration = const FilesMigration(
+      notes: 0,
+      stopped: 0,
+      postponed: false,
+      counted: false,
+      files: 0,
+      bytes: 0,
+      shared: 0,
+    );
+    return _answer('sealLockedAttachments', migrated);
+  }
+
+  @override
+  Future<Either<ApplicationError, int>> undoFilesMigration({
+    String? password,
+  }) async {
+    final denied = _migrationDenied(password);
+    if (denied != null) {
+      return Left<ApplicationError, int>(denied);
+    }
+    migration = FilesMigration(
+      notes: migration.notes,
+      stopped: 0,
+      postponed: migration.postponed,
+      counted: migration.counted,
+      files: migration.files,
+      bytes: migration.bytes,
+      shared: migration.shared,
+    );
+    return _answer('undoFilesMigration', 2);
+  }
 }

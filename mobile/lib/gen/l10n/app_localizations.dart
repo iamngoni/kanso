@@ -5095,7 +5095,7 @@ abstract class AppLocalizations {
   /// Explains what locking a note does.
   ///
   /// In en, this message translates to:
-  /// **'Its text and the pictures and files it links to are sealed, and its earlier versions are deleted. A file another note still shows gets a sealed copy. It stays open until the locked notes lock again.'**
+  /// **'Its text is sealed, and its earlier versions are deleted. It stays open until the locked notes lock again.'**
   String get lockNoteConfirmMessage;
 
   /// The title of the sheet that asks for the lock password to lock a notebook.
@@ -5113,7 +5113,7 @@ abstract class AppLocalizations {
   /// Explains what locking a notebook does.
   ///
   /// In en, this message translates to:
-  /// **'Every note in it, and the pictures and files they link to, are sealed, and new notes added to it are sealed too. A file another note still shows gets a sealed copy.'**
+  /// **'Every note in it is sealed, and new notes added to it are sealed too.'**
   String get lockNotebookConfirmMessage;
 
   /// The notebook menu action that locks the notebook.
@@ -8707,25 +8707,25 @@ abstract class AppLocalizations {
   /// An AI request was refused for its key.
   ///
   /// In en, this message translates to:
-  /// **'Your model turned the key down. Check the API key in AI settings.'**
+  /// **'Your model turned the key down. The API key was refused. Check it in Settings › AI, then try again.'**
   String get aiTroubleKey;
 
   /// An AI request was rate limited.
   ///
   /// In en, this message translates to:
-  /// **'Your model is busy right now. Wait a moment, then try again.'**
+  /// **'Your model is busy. It\'s limiting requests right now. Wait a moment, then try again.'**
   String get aiTroubleBusy;
 
   /// An AI request timed out.
   ///
   /// In en, this message translates to:
-  /// **'Your model took too long to answer. Try again, or pick a smaller model.'**
+  /// **'Your model took too long. It didn\'t answer in time. Try again, or pick a smaller model in Settings › AI.'**
   String get aiTroubleSlow;
 
   /// The configured model was not found.
   ///
   /// In en, this message translates to:
-  /// **'The model in AI settings isn\'t available. Choose another, then try again.'**
+  /// **'Your model wasn\'t found. The model named in Settings › AI isn\'t available. Choose another, then try again.'**
   String get aiTroubleMissing;
 
   /// A local model server could not be reached.
@@ -8737,20 +8737,80 @@ abstract class AppLocalizations {
   /// A model could not be reached.
   ///
   /// In en, this message translates to:
-  /// **'Couldn\'t reach your model. Check your connection and the address in AI settings.'**
+  /// **'Couldn\'t reach your model. Check your connection and the address in Settings › AI, then try again.'**
   String get aiTroubleReach;
 
   /// AI is not configured.
   ///
   /// In en, this message translates to:
-  /// **'AI isn\'t set up yet. Choose a model in AI settings to use this.'**
+  /// **'AI isn\'t set up yet. Choose a model in Settings › AI to use this.'**
   String get aiTroubleSetup;
 
   /// Any other AI failure.
   ///
   /// In en, this message translates to:
-  /// **'Your model ran into a problem. Try again, or check AI settings.'**
+  /// **'Your model ran into a problem. Try again. If it keeps happening, check Settings › AI.'**
   String get aiTroubleOther;
+
+  /// An AI request needs an API key and none is saved.
+  ///
+  /// In en, this message translates to:
+  /// **'No API key is saved. Add one in Settings › AI: choose your provider, then paste the key into API key.'**
+  String get aiTroubleMissingKey;
+
+  /// No model name is set.
+  ///
+  /// In en, this message translates to:
+  /// **'No model is chosen. Pick a model in Settings › AI, then try again.'**
+  String get aiTroubleMissingModel;
+
+  /// The model server's address is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No server address is set. Enter the server\'s address in Settings › AI, then try again.'**
+  String get aiTroubleMissingUrl;
+
+  /// No agent is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'No agent is set up. Choose an agent in Settings › AI, or type the command of your own. Then try again.'**
+  String get aiTroubleNoAgent;
+
+  /// The chosen agent is not on the computer.
+  ///
+  /// In en, this message translates to:
+  /// **'Your agent isn\'t installed. Install it, or choose another agent in Settings › AI and use Find to check again.'**
+  String get aiTroubleAgentNotInstalled;
+
+  /// The chosen agent needs a newer Node.
+  ///
+  /// In en, this message translates to:
+  /// **'Your agent needs a newer Node. Install the Node version it asks for, then use Find again in Settings › AI.'**
+  String get aiTroubleAgentNeedsNode;
+
+  /// A task needs a model that can use tools.
+  ///
+  /// In en, this message translates to:
+  /// **'This model can\'t use tools. Pick a model that supports tools in Settings › AI.'**
+  String get aiTroubleNoTools;
+
+  /// The model's server answered with a 5xx error.
+  ///
+  /// In en, this message translates to:
+  /// **'Your model\'s server had a problem. That\'s on its side. Wait a moment, then try again.'**
+  String get aiTroubleServerDown;
+
+  /// A proxy, gateway, firewall or region limit refused an AI request before it reached the provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Something blocked the request. A proxy, firewall or region limit turned it away before it reached your model, so it isn\'t your API key. Check your network and the address in Settings › AI, then try again.'**
+  String get aiTroubleBlocked;
+
+  /// A local model server could not be reached, and the error doesn't say which app serves it.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach your model. Is Ollama or LM Studio running? Start it, then try again.'**
+  String get aiTroubleReachLocalModel;
 
   /// Retries the AI action that failed.
   ///
@@ -9153,6 +9213,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t tidy this note: {reason}.'**
   String voiceTidyFailed(String reason);
+
+  /// The note menu's action that summarises a recording with the person's own AI.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarise recording'**
+  String get recordingSummaryMenu;
+
+  /// Title of the sheet that summarises a recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarise recording'**
+  String get recordingSummaryTitle;
+
+  /// Closes the summarise recording sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get recordingSummaryClose;
+
+  /// Said when Summarise recording can't be used on this note.
+  ///
+  /// In en, this message translates to:
+  /// **'To summarise a recording, turn on AI in Settings and open a note that holds the transcript of a recording. Locked notes, notes in the trash and notes tagged #ai-exclude are never sent.'**
+  String get recordingSummaryUnavailable;
+
+  /// Under the question that asks where the transcript goes.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is sent until you choose Send. You will see the summary and the action items before anything is written.'**
+  String get recordingSummaryNothingYet;
+
+  /// Said when the note already holds a summary.
+  ///
+  /// In en, this message translates to:
+  /// **'This note already has a summary. A new one replaces it.'**
+  String get recordingSummaryReplacesNote;
+
+  /// Shown while the AI summarises a recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarising the transcript…'**
+  String get recordingSummaryWorking;
+
+  /// Under the working line.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel stops the request. The note is not changed.'**
+  String get recordingSummaryCancelHint;
+
+  /// Said after a summary failed.
+  ///
+  /// In en, this message translates to:
+  /// **'The note is not changed.'**
+  String get recordingSummaryUnchanged;
+
+  /// Sends the transcript to the person's AI.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get recordingSummarySend;
+
+  /// Stops summarising.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get recordingSummaryCancel;
+
+  /// Throws the summary away without writing it.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get recordingSummaryDiscard;
+
+  /// Writes the summary and the ticked action items into the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get recordingSummaryApply;
+
+  /// Asks the AI for the summary again.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get recordingSummaryTryAgain;
+
+  /// Heading of the summary points.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get recordingSummarySectionSummary;
+
+  /// Heading of the decisions.
+  ///
+  /// In en, this message translates to:
+  /// **'Decisions'**
+  String get recordingSummarySectionDecisions;
+
+  /// Heading of the action items.
+  ///
+  /// In en, this message translates to:
+  /// **'Action items'**
+  String get recordingSummarySectionActions;
+
+  /// Under the Action items heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the ticked ones are written into the note.'**
+  String get recordingSummaryActionsHint;
+
+  /// Said when a very long transcript was cut.
+  ///
+  /// In en, this message translates to:
+  /// **'The transcript was long, so only its first part was summarised.'**
+  String get recordingSummaryCut;
+
+  /// Notice after a summary was written, with Undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary added above the transcript.'**
+  String get recordingSummaryAdded;
+
+  /// Notice after a summary replaced an earlier one, with Undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary replaced.'**
+  String get recordingSummaryReplaced;
+
+  /// Said when asking the AI for a summary failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t summarise this recording. {reason}'**
+  String recordingSummaryFailed(String reason);
+
+  /// Said under the review when Apply could not write the summary (the note was locked, changed or lost its transcript meanwhile).
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was written. {reason}'**
+  String recordingSummaryApplyFailed(String reason);
+
+  /// Said when the AI gave items the transcript does not back.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{One item was left out for want of a quote from the recording.} other{{count} items were left out for want of a quote from the recording.}}'**
+  String recordingSummaryDropped(int count);
 
   /// Button that tries tidying a voice note again.
   ///
@@ -11913,6 +12117,288 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Step {number}: {step}'**
   String noticeStep(int number, String step);
+
+  /// The lock dialog's line about the pictures and files that are sealed with a note or notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 picture or file ({size}) is} other{{count} pictures and files ({size}) are}} sealed with it.'**
+  String lockFilesSealed(int count, String size);
+
+  /// The lock dialog's line saying that a file shown by a note that stays unlocked is copied.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 attachment is} other{{count} attachments are}} also used by other notes: locking seals a copy of {count, plural, =1{it} other{them}}, and the other notes keep theirs.'**
+  String lockFilesShared(int count);
+
+  /// The title of the progress sheet while a note locks.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking note'**
+  String get lockProgressTitleNote;
+
+  /// The title of the progress sheet while a notebook locks.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking notebook'**
+  String get lockProgressTitleNotebook;
+
+  /// The title of the progress sheet while a lock is taken off.
+  ///
+  /// In en, this message translates to:
+  /// **'Removing the lock'**
+  String get lockProgressTitleRemove;
+
+  /// The progress sheet's line: how many files and how much it seals.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Sealing 1 attachment, {size}} other{Sealing {count} attachments, {size}}}'**
+  String lockProgressLine(int count, String size);
+
+  /// The progress sheet's line while a lock is taken off.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Unsealing 1 attachment, {size}} other{Unsealing {count} attachments, {size}}}'**
+  String lockProgressUnsealingLine(int count, String size);
+
+  /// How many files are done, of how many.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total}'**
+  String lockProgressCount(int done, int total);
+
+  /// Stops locking between two files.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get lockProgressCancel;
+
+  /// Said once Cancel was pressed while a lock is sealing a file.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping after this file…'**
+  String get lockProgressStopping;
+
+  /// Said after Cancel stopped a lock.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking stopped. The note isn\'t locked yet: finish locking it or undo it from the bar above the note.'**
+  String get lockStoppedMessage;
+
+  /// Said after Cancel stopped a notebook lock.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking stopped. The notebook isn\'t locked yet: lock it again to finish.'**
+  String get lockStoppedNotebookMessage;
+
+  /// The bar above a note whose lock stopped between its files.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking this note didn\'t finish: {sealed} of its {files} pictures and files are sealed, and the note isn\'t locked yet. Finish locking, or undo it to keep everything as it was.'**
+  String lockInterruptedMessage(int sealed, int files);
+
+  /// Finishes a lock that stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish locking'**
+  String get lockInterruptedFinish;
+
+  /// Undoes a lock that stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo locking'**
+  String get lockInterruptedUndo;
+
+  /// Said while a stopped lock is finished or undone.
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get lockInterruptedWorking;
+
+  /// The title of the sheet that asks for the lock password to finish or undo a stopped lock.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the lock password'**
+  String get lockInterruptedPasswordTitle;
+
+  /// Explains why the lock password is asked.
+  ///
+  /// In en, this message translates to:
+  /// **'The notes are closed. The lock password this note was being locked with finishes or undoes it.'**
+  String get lockInterruptedPasswordMessage;
+
+  /// The button of the sheet that asks for the lock password.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get lockInterruptedContinue;
+
+  /// Said when finishing or undoing a stopped lock failed.
+  ///
+  /// In en, this message translates to:
+  /// **'That didn\'t work. Try again.'**
+  String get lockInterruptedFailed;
+
+  /// Closes the notice about the attachments of locked notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get lockFilesNoticeDismiss;
+
+  /// The title of the sheet that seals the attachments of notes locked before attachments were sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'Seal attachments of locked notes'**
+  String get lockMigrationTitle;
+
+  /// What the first-launch prompt says.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachments of your locked notes aren\'t sealed yet. Enter your lock password to seal them now.'**
+  String get lockMigrationPrompt;
+
+  /// How many locked notes still have attachments that are not sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 locked note still has pictures and files stored in plain form.} other{{count} locked notes still have pictures and files stored in plain form.}}'**
+  String lockMigrationNotes(int count);
+
+  /// How many attachments, and how much, sealing will do, when the notes are open.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 attachment ({size}) will be sealed.} other{{count} attachments ({size}) will be sealed.}}'**
+  String lockMigrationCounted(int count, String size);
+
+  /// Says that attachments an unlocked note also shows are copied.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 attachment is also used by another note: the locked note gets its own sealed copy, and the other note keeps the original.} other{{count} attachments are also used by other notes: each locked note gets its own sealed copy, and the other notes keep theirs.}}'**
+  String lockMigrationShared(int count);
+
+  /// Said when the notes are closed and the attachments cannot be counted yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso counts them, and their size, once the password opens the notes.'**
+  String get lockMigrationUncounted;
+
+  /// The button that starts sealing.
+  ///
+  /// In en, this message translates to:
+  /// **'Seal now'**
+  String get lockMigrationSealNow;
+
+  /// Leaves sealing for later; a quiet reminder stays.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get lockMigrationLater;
+
+  /// Explains why the lock password is asked before sealing.
+  ///
+  /// In en, this message translates to:
+  /// **'Type your lock password. Kanso seals the attachments of every locked note it opens.'**
+  String get lockMigrationPasswordMessage;
+
+  /// The title of the progress sheet while the attachments of locked notes are sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sealing attachments'**
+  String get lockMigrationSealing;
+
+  /// The title when an earlier sealing pass stopped part way.
+  ///
+  /// In en, this message translates to:
+  /// **'Sealing didn\'t finish'**
+  String get lockMigrationStoppedTitle;
+
+  /// Explains a sealing pass that stopped part way.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 locked note was left half done.} other{{count} locked notes were left half done.}} Some attachments are sealed, and none is lost. Finish sealing, or undo it to keep everything as it was.'**
+  String lockMigrationStoppedMessage(int count);
+
+  /// Finishes a sealing pass that stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish sealing'**
+  String get lockMigrationFinish;
+
+  /// Undoes a sealing pass that stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get lockMigrationUndo;
+
+  /// Said when sealing is done.
+  ///
+  /// In en, this message translates to:
+  /// **'{files, plural, =1{Sealed 1 attachment} other{Sealed {files} attachments}} in {notes, plural, =1{1 locked note} other{{notes} locked notes}}.'**
+  String lockMigrationDone(int files, int notes);
+
+  /// Said when sealing found nothing to seal.
+  ///
+  /// In en, this message translates to:
+  /// **'{notes, plural, =1{Checked 1 locked note: no attachments needed sealing.} other{Checked {notes} locked notes: no attachments needed sealing.}}'**
+  String lockMigrationNothing(int notes);
+
+  /// Said after sealing made copies of shared attachments.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 attachment also used by another note has its own sealed copy.} other{{count} attachments also used by other notes have their own sealed copies.}}'**
+  String lockMigrationCopies(int count);
+
+  /// Said when some notes were not opened by the password.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 locked note uses another lock password and was left as it is.} other{{count} locked notes use another lock password and were left as they are.}}'**
+  String lockMigrationUnopened(int count);
+
+  /// Said when some notes could not be sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 locked note couldn\'t be sealed and stays as it was.} other{{count} locked notes couldn\'t be sealed and stay as they were.}}'**
+  String lockMigrationFailedNotes(int count);
+
+  /// Said when Cancel stopped the sealing.
+  ///
+  /// In en, this message translates to:
+  /// **'Sealing stopped. Open Settings, then Locked notes, to finish it.'**
+  String get lockMigrationStopped;
+
+  /// Said after a stopped sealing pass was undone.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Undone. 1 attachment is readable again, as before.} other{Undone. {count} attachments are readable again, as before.}}'**
+  String lockMigrationUndone(int count);
+
+  /// The quiet reminder shown until the attachments are sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Attachments of 1 locked note aren\'t sealed yet.} other{Attachments of {count} locked notes aren\'t sealed yet.}}'**
+  String lockMigrationReminder(int count);
+
+  /// Opens the sheet that seals the attachments of notes locked before attachments were sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'Seal attachments of locked notes…'**
+  String get settingsSealAttachments;
+
+  /// How many locked notes wait to have their attachments sealed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 note} other{{count} notes}}'**
+  String settingsSealAttachmentsValue(int count);
+
+  /// Closes the sheet that says how sealing the attachments of locked notes went.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get lockMigrationClose;
+
+  /// The one-time notice about notes locked before attachments were sealed, with what to do on other devices.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.'**
+  String get lockFilesNotice;
 }
 
 class _AppLocalizationsDelegate

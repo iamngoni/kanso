@@ -1047,3 +1047,476 @@ proptest! {
         prop_assert!(store.note(&id).unwrap().unwrap().is_locked());
     }
 }
+
+/// A plain file linked from a note, for the tests of sealing attachments.
+fn plain_file(store: &Store, name: &str, bytes: &[u8]) -> String {
+    store
+        .put(
+            DocType::File,
+            json!({"name": name, "contentType": "audio/wav", "publicIn": ["web"],
+                "_attachments": {"index": {"content_type": "audio/wav",
+                "data": base64::engine::general_purpose::STANDARD.encode(bytes)}}}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id
+}
+
+fn note_with(phone: &Phone, files: &[String]) -> String {
+    let body: String = files
+        .iter()
+        .map(|file| format!("[memo](inkdrop://{file})\n"))
+        .collect();
+    phone
+        .library
+        .create(NewNote {
+            body,
+            ..Default::default()
+        })
+        .unwrap()
+        .id
+}
+
+#[test]
+fn the_lock_dialog_can_count_what_it_seals_and_progress_is_reported() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let files: Vec<String> = (0..3)
+        .map(|i| plain_file(store, &format!("m{i}.wav"), &[i as u8; 400]))
+        .collect();
+    let note = note_with(&phone, &files);
+    let summary = phone.library.locks().note_lock_summary(&note).unwrap();
+    assert_eq!((summary.files, summary.bytes, summary.shared), (3, 1200, 0));
+
+    let (tx, rx) = mpsc::channel();
+    phone
+        .library
+        .locks()
+        .lock_progress(move |progress| tx.send(progress).is_ok());
+    phone
+        .library
+        .locks()
+        .lock_note(&note, LOCK_PASSWORD.into())
+        .unwrap();
+    let seen: Vec<_> = rx.try_iter().collect();
+    let last = seen.last().expect("progress was reported");
+    assert_eq!((last.done, last.total), (3, 3));
+    // Once sealed, nothing is left to count.
+    assert_eq!(
+        phone
+            .library
+            .locks()
+            .note_lock_summary(&note)
+            .unwrap()
+            .files,
+        0
+    );
+}
+
+#[test]
+fn a_cancelled_lock_stops_between_files_and_can_be_finished_or_undone() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let files: Vec<String> = (0..3)
+        .map(|i| plain_file(store, &format!("m{i}.wav"), &[i as u8; 400]))
+        .collect();
+    let note = note_with(&phone, &files);
+
+    // Cancel is pressed once the first file is sealed.
+    let locks = phone.library.locks();
+    let stopper = phone.library.locks();
+    let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    locks.lock_progress(move |progress| {
+        if progress.done == 1 && armed.swap(false, std::sync::atomic::Ordering::SeqCst) {
+            stopper.cancel_lock();
+        }
+        true
+    });
+    locks
+        .lock_note(&note, LOCK_PASSWORD.into())
+        .expect_err("the lock stopped");
+    let stopped = locks
+        .interrupted_lock(&note)
+        .unwrap()
+        .expect("a stopped lock");
+    assert_eq!((stopped.files, stopped.sealed), (3, 1));
+
+    // Finishing needs only the lock password, and does not start over.
+    locks
+        .finish_locking(&note, Some(LOCK_PASSWORD.into()))
+        .unwrap();
+    assert_eq!(locks.interrupted_lock(&note).unwrap(), None);
+    assert!(store.note_is_locked(&note).unwrap());
+
+    // Another note is stopped and undone: its files are plain again.
+    let other_files: Vec<String> = (3..5)
+        .map(|i| plain_file(store, &format!("m{i}.wav"), &[i as u8; 400]))
+        .collect();
+    let other = note_with(&phone, &other_files);
+    assert!(locks.interrupted_lock(&other).unwrap().is_none());
+    let stopper = phone.library.locks();
+    let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    locks.lock_progress(move |progress| {
+        if progress.done == 1 && armed.swap(false, std::sync::atomic::Ordering::SeqCst) {
+            stopper.cancel_lock();
+        }
+        true
+    });
+    locks
+        .lock_note(&other, LOCK_PASSWORD.into())
+        .expect_err("the lock stopped");
+    assert!(locks.interrupted_lock(&other).unwrap().is_some());
+    locks.undo_locking(&other, None).unwrap();
+    assert_eq!(locks.interrupted_lock(&other).unwrap(), None);
+    for file in &other_files {
+        assert_eq!(
+            store.attachment_state(file).unwrap(),
+            kanso_store::AttachmentState::Plain
+        );
+    }
+}
+
+// MARK: Sealing the attachments of notes locked before (#44, step 7)
+
+/// A note locked as an older Kanso did: its text sealed, its files plain and
+/// no list. Returns its ID and its files'.
+/// The lock key an older Kanso's notes share: one password, one salt.
+fn legacy_key() -> LockKey {
+    static SECRET: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        LockKey::create(&LockPassword::new(LOCK_PASSWORD).unwrap(), KdfParams::TEST)
+            .unwrap()
+            .to_secret()
+            .to_string()
+    });
+    LockKey::from_secret(&SECRET).unwrap()
+}
+
+fn legacy_locked(phone: &Phone, title: &str, contents: &[&[u8]]) -> (String, Vec<String>) {
+    let store = phone.library.store();
+    let files: Vec<String> = contents
+        .iter()
+        .enumerate()
+        .map(|(i, bytes)| {
+            store
+                .put(
+                    DocType::File,
+                    json!({"name": format!("f{i}.png"), "contentType": "image/png",
+                        "_attachments": {"index": {"content_type": "image/png",
+                        "data": base64::engine::general_purpose::STANDARD.encode(bytes)}}}),
+                    Put::Upsert,
+                    Origin::Api,
+                )
+                .unwrap()
+                .id
+        })
+        .collect();
+    let body: String = files
+        .iter()
+        .map(|id| format!("![](inkdrop://{id})\n"))
+        .collect();
+    let id = note(&phone.library, title, &body);
+    let mut stored = store.note(&id).unwrap().unwrap();
+    let key = legacy_key();
+    Envelope::store(Some(&key.seal(&id, &stored.body)), &mut stored.extra);
+    stored.body.clear();
+    store
+        .lock_note(serde_json::to_value(stored).unwrap())
+        .unwrap();
+    (id, files)
+}
+
+#[test]
+fn the_prompt_counts_the_waiting_notes_and_later_is_remembered() {
+    let phone = lone_phone();
+    let locks = phone.library.locks();
+    assert_eq!(locks.files_migration().unwrap().notes, 0);
+    let (_, files) = legacy_locked(&phone, "A", &[b"one", b"two"]);
+    legacy_locked(&phone, "B", &[b"three"]);
+
+    // Closed: the notes are counted, the files and size wait for the key.
+    let closed = locks.files_migration().unwrap();
+    assert_eq!(
+        (closed.notes, closed.counted, closed.postponed),
+        (2, false, false)
+    );
+    assert_eq!(files.len(), 2);
+
+    locks.postpone_files_migration().unwrap();
+    assert!(locks.files_migration().unwrap().postponed);
+
+    // Open: exact.
+    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(true));
+    let open = locks.files_migration().unwrap();
+    assert!(open.counted);
+    assert_eq!((open.files, open.bytes, open.shared), (3, 3 + 3 + 5, 0));
+}
+
+#[test]
+fn sealing_all_with_the_password_seals_every_note_and_reports_progress() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let (one, one_files) = legacy_locked(&phone, "A", &[b"first", b"second"]);
+    let (two, two_files) = legacy_locked(&phone, "B", &[b"third"]);
+    let locks = phone.library.locks();
+    let (tx, rx) = mpsc::channel();
+    locks.lock_progress(move |progress| tx.send(progress).is_ok());
+
+    assert_eq!(locks.seal_locked_attachments(None), Err(KansoError::Locked));
+    assert!(matches!(
+        locks.seal_locked_attachments(Some("not the password".into())),
+        Err(KansoError::Auth { .. })
+    ));
+    let outcome = locks
+        .seal_locked_attachments(Some(LOCK_PASSWORD.into()))
+        .unwrap();
+    assert_eq!((outcome.notes, outcome.sealed, outcome.copied), (2, 3, 0));
+    assert!(!outcome.stopped);
+    let last = rx.try_iter().last().expect("progress was reported");
+    assert_eq!((last.done, last.total), (3, 3));
+    assert_eq!(locks.files_migration().unwrap().notes, 0);
+
+    for file in one_files.iter().chain(&two_files) {
+        assert_eq!(
+            store.attachment_state(file).unwrap(),
+            kanso_store::AttachmentState::Sealed
+        );
+    }
+    for (id, files) in [(&one, &one_files), (&two, &two_files)] {
+        let stored = store.note(id).unwrap().unwrap();
+        assert_eq!(
+            note_files_from_extra(&stored.extra).unwrap().len(),
+            files.len()
+        );
+    }
+    assert_eq!(
+        phone.library.attachment(&one_files[0]).unwrap().bytes,
+        b"first"
+    );
+    // Locked again, nothing opens; a second pass has nothing to do.
+    locks.lock().unwrap();
+    assert_eq!(
+        phone.library.attachment(&two_files[0]),
+        Err(KansoError::Locked)
+    );
+    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(true));
+    let again = locks.seal_locked_attachments(None).unwrap();
+    assert_eq!((again.notes, again.sealed), (0, 0));
+}
+
+#[test]
+fn a_file_an_unlocked_note_shows_gets_a_sealed_copy_and_the_original_stays() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let (id, files) = legacy_locked(&phone, "Locked", &[b"shared bytes"]);
+    let unlocked = note(
+        &phone.library,
+        "Open",
+        &format!("![](inkdrop://{})", files[0]),
+    );
+    let locks = phone.library.locks();
+    let outcome = locks
+        .seal_locked_attachments(Some(LOCK_PASSWORD.into()))
+        .unwrap();
+    assert_eq!((outcome.sealed, outcome.copied), (0, 1));
+    assert_eq!(
+        store.attachment_state(&files[0]).unwrap(),
+        kanso_store::AttachmentState::Plain
+    );
+    assert!(
+        store
+            .note(&unlocked)
+            .unwrap()
+            .unwrap()
+            .body
+            .contains(&files[0])
+    );
+    let listed = note_files_from_extra(&store.note(&id).unwrap().unwrap().extra).unwrap();
+    assert_ne!(listed[0].file, files[0]);
+    assert_eq!(
+        phone.library.attachment(&listed[0].file).unwrap().bytes,
+        b"shared bytes"
+    );
+}
+
+#[test]
+fn a_pass_that_stops_finishes_or_undoes_with_the_password() {
+    for undo in [false, true] {
+        let phone = lone_phone();
+        let store = phone.library.store();
+        let (_, files) = legacy_locked(&phone, "A", &[b"one", b"two", b"three"]);
+        let locks = phone.library.locks();
+        let stopper = phone.library.locks();
+        let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+        locks.lock_progress(move |progress| {
+            if progress.done == 1 && armed.swap(false, std::sync::atomic::Ordering::SeqCst) {
+                stopper.cancel_lock();
+            }
+            true
+        });
+        let stopped = locks
+            .seal_locked_attachments(Some(LOCK_PASSWORD.into()))
+            .unwrap();
+        assert!(stopped.stopped);
+        // The note keeps waiting, half done, and no file is lost.
+        let state = locks.files_migration().unwrap();
+        assert_eq!((state.notes, state.stopped), (1, 1));
+
+        // The app restarts: no keys.
+        locks.lock().unwrap();
+        if undo {
+            assert_eq!(locks.undo_files_migration(None), Err(KansoError::Locked));
+            assert_eq!(
+                locks.undo_files_migration(Some(LOCK_PASSWORD.into())),
+                Ok(1)
+            );
+            assert_eq!(locks.files_migration().unwrap().stopped, 0);
+            for file in &files {
+                assert_eq!(
+                    store.attachment_state(file).unwrap(),
+                    kanso_store::AttachmentState::Plain
+                );
+            }
+        } else {
+            let done = locks
+                .seal_locked_attachments(Some(LOCK_PASSWORD.into()))
+                .unwrap();
+            assert!(!done.stopped);
+            assert_eq!(locks.files_migration().unwrap().notes, 0);
+            for (file, bytes) in files.iter().zip([&b"one"[..], b"two", b"three"]) {
+                assert_eq!(phone.library.attachment(file).unwrap().bytes, bytes);
+            }
+        }
+    }
+}
+
+/// A Cancel stops the lock it was meant for and nothing after it: a note
+/// saved into a locked notebook later is still sealed with its file. Before,
+/// the flag stayed set and every later seal failed ("Locking was
+/// cancelled.").
+#[test]
+fn a_cancel_does_not_stop_a_later_save_into_a_locked_notebook() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let locks = phone.library.locks();
+    let book = phone
+        .library
+        .create_notebook("Vault".into(), None)
+        .unwrap()
+        .id;
+    locks
+        .lock_notebook(&book, Some(LOCK_PASSWORD.into()))
+        .unwrap();
+    // A lock elsewhere is cancelled.
+    let files: Vec<String> = (0..2)
+        .map(|i| plain_file(store, &format!("c{i}.wav"), &[i as u8; 300]))
+        .collect();
+    let note = note_with(&phone, &files);
+    let stopper = phone.library.locks();
+    let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    locks.lock_progress(move |progress| {
+        if progress.done == 1 && armed.swap(false, std::sync::atomic::Ordering::SeqCst) {
+            stopper.cancel_lock();
+        }
+        true
+    });
+    locks
+        .lock_note(&note, LOCK_PASSWORD.into())
+        .expect_err("the lock stopped");
+
+    let file = plain_file(store, "later.wav", &[9; 300]);
+    let created = phone
+        .library
+        .create(NewNote {
+            notebook_id: Some(book),
+            body: format!("[memo](inkdrop://{file})\n"),
+            ..Default::default()
+        })
+        .unwrap()
+        .id;
+    assert!(store.note(&created).unwrap().unwrap().is_locked());
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Sealed
+    );
+}
+
+/// A notebook's lock counts toward the whole notebook, as the desktop's
+/// does: its progress never starts over at the next note.
+#[test]
+fn a_notebooks_lock_reports_progress_for_the_whole_notebook() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let book = phone
+        .library
+        .create_notebook("Vault".into(), None)
+        .unwrap()
+        .id;
+    for i in 0..3u8 {
+        let file = plain_file(store, &format!("n{i}.wav"), &[i; 300]);
+        phone
+            .library
+            .create(NewNote {
+                notebook_id: Some(book.clone()),
+                body: format!("[memo](inkdrop://{file})\n"),
+                ..Default::default()
+            })
+            .unwrap();
+    }
+    let (tx, rx) = mpsc::channel();
+    let locks = phone.library.locks();
+    locks.lock_progress(move |progress| tx.send(progress).is_ok());
+    locks
+        .lock_notebook(&book, Some(LOCK_PASSWORD.into()))
+        .unwrap();
+    let seen: Vec<_> = rx.try_iter().collect();
+    assert!(!seen.is_empty());
+    assert!(seen.iter().all(|progress| progress.total == 3), "{seen:?}");
+    assert!(
+        seen.windows(2).all(|pair| pair[1].done >= pair[0].done),
+        "{seen:?}"
+    );
+    let last = seen.last().unwrap();
+    assert_eq!((last.done, last.total), (3, 3));
+}
+
+/// A link to a plain file pasted into an open locked note is sealed by its
+/// save and listed on the note, as the desktop's save does: before, the
+/// phone wrote the locked note beside a plain file.
+#[test]
+fn a_file_linked_in_an_open_locked_note_is_sealed_by_the_save() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let note = note_with(&phone, &[]);
+    let locks = phone.library.locks();
+    locks.lock_note(&note, LOCK_PASSWORD.into()).unwrap();
+    let file = plain_file(store, "pasted.wav", &[7; 300]);
+
+    let session = phone.library.edit(&note).unwrap();
+    let snapshot = session.snapshot().unwrap();
+    let end = snapshot.text.encode_utf16().count() as u32;
+    let link = format!("[memo](inkdrop://{file})\n");
+    session
+        .apply(kanso_mobile::TextChange {
+            base_version: snapshot.version,
+            start: end,
+            end,
+            text: link.clone(),
+            selection: kanso_mobile::Range16 {
+                start: end + link.encode_utf16().count() as u32,
+                end: end + link.encode_utf16().count() as u32,
+            },
+            composing: None,
+        })
+        .unwrap();
+    session.flush().unwrap();
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Sealed
+    );
+    let stored = store.note(&note).unwrap().unwrap();
+    assert!(stored.is_locked());
+    let listed = note_files_from_extra(&stored.extra).unwrap();
+    assert!(listed.iter().any(|entry| entry.file == file));
+    assert_eq!(phone.library.attachment(&file).unwrap().bytes, vec![7; 300]);
+}
