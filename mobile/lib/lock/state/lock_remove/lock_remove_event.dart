@@ -10,6 +10,9 @@ sealed class LockRemoveEvent with _$LockRemoveEvent {
   const factory LockRemoveEvent.confirmed(LockTarget target) =
       LockRemoveConfirmedEvent;
 
+  /// The person pressed Cancel while the files are being opened.
+  const factory LockRemoveEvent.cancelled() = LockRemoveCancelledEvent;
+
   /// Unsealing the files got as far as [progress].
   const factory LockRemoveEvent.progressed(SealProgress progress) =
       LockRemoveProgressedEvent;

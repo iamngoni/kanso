@@ -640,13 +640,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i609.LayoutClassNotifier>(),
       ),
     );
-    gh.factory<_i618.NoteBloc>(
-      () => _i618.NoteBloc(
-        gh<_i38.LibraryRepository>(),
-        gh<_i732.RendererRepository>(),
-        gh<_i930.NotePlaceRepository>(),
-      ),
-    );
     gh.lazySingleton<_i622.DigestRepository>(
       () => _i472.RustDigestRepository(
         gh<_i455.KansoLibrary>(),
@@ -878,6 +871,14 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i550.GalleryRepository>(
       () => _i692.RustGalleryRepository(gh<_i783.KansoGallery>()),
+    );
+    gh.factory<_i618.NoteBloc>(
+      () => _i618.NoteBloc(
+        gh<_i38.LibraryRepository>(),
+        gh<_i732.RendererRepository>(),
+        gh<_i930.NotePlaceRepository>(),
+        gh<_i333.SessionRepository>(),
+      ),
     );
     gh.factory<_i204.PaletteBloc>(
       () => _i204.PaletteBloc(gh<_i704.PaletteRepository>()),

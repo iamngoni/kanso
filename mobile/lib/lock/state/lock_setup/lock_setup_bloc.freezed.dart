@@ -470,7 +470,9 @@ mixin _$LockSetupState {
  ApplicationError? get error;/// The pictures and files locking would seal, once known.
  LockSummary? get summary;/// How far sealing them has come, while locking.
  SealProgress? get progress;/// Whether Cancel was pressed: it stops after the file being sealed.
- bool get cancelling;
+ bool get cancelling;/// The files sealed as copies because notes that stay unlocked also show
+/// them, once [status] is done.
+ LockCopyNotice? get copyNotice;
 /// Create a copy of LockSetupState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -481,16 +483,16 @@ $LockSetupStateCopyWith<LockSetupState> get copyWith => _$LockSetupStateCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LockSetupState&&(identical(other.target, target) || other.target == target)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.status, status) || other.status == status)&&(identical(other.count, count) || other.count == count)&&(identical(other.error, error) || other.error == error)&&(identical(other.summary, summary) || other.summary == summary)&&(identical(other.progress, progress) || other.progress == progress)&&(identical(other.cancelling, cancelling) || other.cancelling == cancelling));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LockSetupState&&(identical(other.target, target) || other.target == target)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.status, status) || other.status == status)&&(identical(other.count, count) || other.count == count)&&(identical(other.error, error) || other.error == error)&&(identical(other.summary, summary) || other.summary == summary)&&(identical(other.progress, progress) || other.progress == progress)&&(identical(other.cancelling, cancelling) || other.cancelling == cancelling)&&(identical(other.copyNotice, copyNotice) || other.copyNotice == copyNotice));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,target,mode,status,count,error,summary,progress,cancelling);
+int get hashCode => Object.hash(runtimeType,target,mode,status,count,error,summary,progress,cancelling,copyNotice);
 
 @override
 String toString() {
-  return 'LockSetupState(target: $target, mode: $mode, status: $status, count: $count, error: $error, summary: $summary, progress: $progress, cancelling: $cancelling)';
+  return 'LockSetupState(target: $target, mode: $mode, status: $status, count: $count, error: $error, summary: $summary, progress: $progress, cancelling: $cancelling, copyNotice: $copyNotice)';
 }
 
 
@@ -501,7 +503,7 @@ abstract mixin class $LockSetupStateCopyWith<$Res>  {
   factory $LockSetupStateCopyWith(LockSetupState value, $Res Function(LockSetupState) _then) = _$LockSetupStateCopyWithImpl;
 @useResult
 $Res call({
- LockTarget? target, LockMode mode, LockFormStatus status, int count, ApplicationError? error, LockSummary? summary, SealProgress? progress, bool cancelling
+ LockTarget? target, LockMode mode, LockFormStatus status, int count, ApplicationError? error, LockSummary? summary, SealProgress? progress, bool cancelling, LockCopyNotice? copyNotice
 });
 
 
@@ -518,7 +520,7 @@ class _$LockSetupStateCopyWithImpl<$Res>
 
 /// Create a copy of LockSetupState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? target = freezed,Object? mode = null,Object? status = null,Object? count = null,Object? error = freezed,Object? summary = freezed,Object? progress = freezed,Object? cancelling = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? target = freezed,Object? mode = null,Object? status = null,Object? count = null,Object? error = freezed,Object? summary = freezed,Object? progress = freezed,Object? cancelling = null,Object? copyNotice = freezed,}) {
   return _then(_self.copyWith(
 target: freezed == target ? _self.target : target // ignore: cast_nullable_to_non_nullable
 as LockTarget?,mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
@@ -528,7 +530,8 @@ as int,error: freezed == error ? _self.error : error // ignore: cast_nullable_to
 as ApplicationError?,summary: freezed == summary ? _self.summary : summary // ignore: cast_nullable_to_non_nullable
 as LockSummary?,progress: freezed == progress ? _self.progress : progress // ignore: cast_nullable_to_non_nullable
 as SealProgress?,cancelling: null == cancelling ? _self.cancelling : cancelling // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,copyNotice: freezed == copyNotice ? _self.copyNotice : copyNotice // ignore: cast_nullable_to_non_nullable
+as LockCopyNotice?,
   ));
 }
 /// Create a copy of LockSetupState
@@ -637,10 +640,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LockTarget? target,  LockMode mode,  LockFormStatus status,  int count,  ApplicationError? error,  LockSummary? summary,  SealProgress? progress,  bool cancelling)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LockTarget? target,  LockMode mode,  LockFormStatus status,  int count,  ApplicationError? error,  LockSummary? summary,  SealProgress? progress,  bool cancelling,  LockCopyNotice? copyNotice)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LockSetupState() when $default != null:
-return $default(_that.target,_that.mode,_that.status,_that.count,_that.error,_that.summary,_that.progress,_that.cancelling);case _:
+return $default(_that.target,_that.mode,_that.status,_that.count,_that.error,_that.summary,_that.progress,_that.cancelling,_that.copyNotice);case _:
   return orElse();
 
 }
@@ -658,10 +661,10 @@ return $default(_that.target,_that.mode,_that.status,_that.count,_that.error,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LockTarget? target,  LockMode mode,  LockFormStatus status,  int count,  ApplicationError? error,  LockSummary? summary,  SealProgress? progress,  bool cancelling)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LockTarget? target,  LockMode mode,  LockFormStatus status,  int count,  ApplicationError? error,  LockSummary? summary,  SealProgress? progress,  bool cancelling,  LockCopyNotice? copyNotice)  $default,) {final _that = this;
 switch (_that) {
 case _LockSetupState():
-return $default(_that.target,_that.mode,_that.status,_that.count,_that.error,_that.summary,_that.progress,_that.cancelling);case _:
+return $default(_that.target,_that.mode,_that.status,_that.count,_that.error,_that.summary,_that.progress,_that.cancelling,_that.copyNotice);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -678,10 +681,10 @@ return $default(_that.target,_that.mode,_that.status,_that.count,_that.error,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LockTarget? target,  LockMode mode,  LockFormStatus status,  int count,  ApplicationError? error,  LockSummary? summary,  SealProgress? progress,  bool cancelling)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LockTarget? target,  LockMode mode,  LockFormStatus status,  int count,  ApplicationError? error,  LockSummary? summary,  SealProgress? progress,  bool cancelling,  LockCopyNotice? copyNotice)?  $default,) {final _that = this;
 switch (_that) {
 case _LockSetupState() when $default != null:
-return $default(_that.target,_that.mode,_that.status,_that.count,_that.error,_that.summary,_that.progress,_that.cancelling);case _:
+return $default(_that.target,_that.mode,_that.status,_that.count,_that.error,_that.summary,_that.progress,_that.cancelling,_that.copyNotice);case _:
   return null;
 
 }
@@ -693,7 +696,7 @@ return $default(_that.target,_that.mode,_that.status,_that.count,_that.error,_th
 
 
 class _LockSetupState implements LockSetupState {
-  const _LockSetupState({this.target, this.mode = LockMode.setPassword, this.status = LockFormStatus.loading, this.count = 0, this.error, this.summary, this.progress, this.cancelling = false});
+  const _LockSetupState({this.target, this.mode = LockMode.setPassword, this.status = LockFormStatus.loading, this.count = 0, this.error, this.summary, this.progress, this.cancelling = false, this.copyNotice});
   
 
 @override final  LockTarget? target;
@@ -709,6 +712,9 @@ class _LockSetupState implements LockSetupState {
 @override final  SealProgress? progress;
 /// Whether Cancel was pressed: it stops after the file being sealed.
 @override@JsonKey() final  bool cancelling;
+/// The files sealed as copies because notes that stay unlocked also show
+/// them, once [status] is done.
+@override final  LockCopyNotice? copyNotice;
 
 /// Create a copy of LockSetupState
 /// with the given fields replaced by the non-null parameter values.
@@ -720,16 +726,16 @@ _$LockSetupStateCopyWith<_LockSetupState> get copyWith => __$LockSetupStateCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LockSetupState&&(identical(other.target, target) || other.target == target)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.status, status) || other.status == status)&&(identical(other.count, count) || other.count == count)&&(identical(other.error, error) || other.error == error)&&(identical(other.summary, summary) || other.summary == summary)&&(identical(other.progress, progress) || other.progress == progress)&&(identical(other.cancelling, cancelling) || other.cancelling == cancelling));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LockSetupState&&(identical(other.target, target) || other.target == target)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.status, status) || other.status == status)&&(identical(other.count, count) || other.count == count)&&(identical(other.error, error) || other.error == error)&&(identical(other.summary, summary) || other.summary == summary)&&(identical(other.progress, progress) || other.progress == progress)&&(identical(other.cancelling, cancelling) || other.cancelling == cancelling)&&(identical(other.copyNotice, copyNotice) || other.copyNotice == copyNotice));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,target,mode,status,count,error,summary,progress,cancelling);
+int get hashCode => Object.hash(runtimeType,target,mode,status,count,error,summary,progress,cancelling,copyNotice);
 
 @override
 String toString() {
-  return 'LockSetupState(target: $target, mode: $mode, status: $status, count: $count, error: $error, summary: $summary, progress: $progress, cancelling: $cancelling)';
+  return 'LockSetupState(target: $target, mode: $mode, status: $status, count: $count, error: $error, summary: $summary, progress: $progress, cancelling: $cancelling, copyNotice: $copyNotice)';
 }
 
 
@@ -740,7 +746,7 @@ abstract mixin class _$LockSetupStateCopyWith<$Res> implements $LockSetupStateCo
   factory _$LockSetupStateCopyWith(_LockSetupState value, $Res Function(_LockSetupState) _then) = __$LockSetupStateCopyWithImpl;
 @override @useResult
 $Res call({
- LockTarget? target, LockMode mode, LockFormStatus status, int count, ApplicationError? error, LockSummary? summary, SealProgress? progress, bool cancelling
+ LockTarget? target, LockMode mode, LockFormStatus status, int count, ApplicationError? error, LockSummary? summary, SealProgress? progress, bool cancelling, LockCopyNotice? copyNotice
 });
 
 
@@ -757,7 +763,7 @@ class __$LockSetupStateCopyWithImpl<$Res>
 
 /// Create a copy of LockSetupState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? target = freezed,Object? mode = null,Object? status = null,Object? count = null,Object? error = freezed,Object? summary = freezed,Object? progress = freezed,Object? cancelling = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? target = freezed,Object? mode = null,Object? status = null,Object? count = null,Object? error = freezed,Object? summary = freezed,Object? progress = freezed,Object? cancelling = null,Object? copyNotice = freezed,}) {
   return _then(_LockSetupState(
 target: freezed == target ? _self.target : target // ignore: cast_nullable_to_non_nullable
 as LockTarget?,mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
@@ -767,7 +773,8 @@ as int,error: freezed == error ? _self.error : error // ignore: cast_nullable_to
 as ApplicationError?,summary: freezed == summary ? _self.summary : summary // ignore: cast_nullable_to_non_nullable
 as LockSummary?,progress: freezed == progress ? _self.progress : progress // ignore: cast_nullable_to_non_nullable
 as SealProgress?,cancelling: null == cancelling ? _self.cancelling : cancelling // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,copyNotice: freezed == copyNotice ? _self.copyNotice : copyNotice // ignore: cast_nullable_to_non_nullable
+as LockCopyNotice?,
   ));
 }
 

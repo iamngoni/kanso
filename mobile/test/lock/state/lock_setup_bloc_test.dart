@@ -68,6 +68,9 @@ void main() {
     when(() => session.cancelLock()).thenAnswer(
       (_) async => const Right<ApplicationError, Unit>(unit),
     );
+    when(() => session.takeCopyNotice()).thenAnswer(
+      (_) async => const Right<ApplicationError, LockCopyNotice?>(null),
+    );
   });
 
   LockSetupBloc build() => LockSetupBloc(session);
@@ -206,6 +209,70 @@ void main() {
         _state(_book, LockMode.setPassword, LockFormStatus.working),
         _state(_book, LockMode.setPassword, LockFormStatus.done, count: 4),
       ],
+    );
+  });
+
+  group('LockSetupBloc says what it copied', () {
+    setUp(() {
+      status = const LockStatus(
+        hasLockPassword: true,
+        unlocked: true,
+        biometricsOn: false,
+      );
+    });
+
+    blocTest<LockSetupBloc, LockSetupState>(
+      'a lock that sealed copies carries the notice to the sheet',
+      setUp: () {
+        when(() => session.lockNoteWithSession('note:1')).thenAnswer(
+          (_) async => const Right<ApplicationError, Saved>(_saved),
+        );
+        when(() => session.takeCopyNotice()).thenAnswer(
+          (_) async => const Right<ApplicationError, LockCopyNotice?>(
+            LockCopyNotice(removed: false, copied: 3),
+          ),
+        );
+      },
+      build: build,
+      act: (bloc) async {
+        bloc.add(const LockSetupEvent.started(_note));
+        await bloc.stream.firstWhere((s) => s.status == LockFormStatus.ready);
+        bloc.add(const LockSetupEvent.confirmed());
+      },
+      skip: 2,
+      expect: () => <LockSetupState>[
+        _state(_note, LockMode.confirm, LockFormStatus.working),
+        _state(_note, LockMode.confirm, LockFormStatus.done, count: 1).copyWith(
+          copyNotice: const LockCopyNotice(removed: false, copied: 3),
+        ),
+      ],
+      verify: (_) => verify(() => session.takeCopyNotice()).called(1),
+    );
+
+    blocTest<LockSetupBloc, LockSetupState>(
+      'a lock that failed asks for no notice',
+      setUp: () {
+        when(() => session.lockNoteWithSession('note:1')).thenAnswer(
+          (_) async => const Left<ApplicationError, Saved>(_failure),
+        );
+      },
+      build: build,
+      act: (bloc) async {
+        bloc.add(const LockSetupEvent.started(_note));
+        await bloc.stream.firstWhere((s) => s.status == LockFormStatus.ready);
+        bloc.add(const LockSetupEvent.confirmed());
+      },
+      skip: 2,
+      expect: () => <LockSetupState>[
+        _state(_note, LockMode.confirm, LockFormStatus.working),
+        _state(
+          _note,
+          LockMode.confirm,
+          LockFormStatus.failed,
+          error: _failure,
+        ),
+      ],
+      verify: (_) => verifyNever(() => session.takeCopyNotice()),
     );
   });
 

@@ -139,9 +139,21 @@ class FixtureSessionRepository implements SessionRepository {
     return _answer('lockNoteWithSession:$id', Saved(id: id, rev: 'r2'));
   }
 
+  /// Whether Cancel was pressed ([cancelLock]): a Remove Lock that waited
+  /// at the [gate] is then stopped, leaving the note locked.
+  bool cancelled = false;
+
   @override
-  Future<Either<ApplicationError, Saved>> removeNoteLock(String id) async =>
-      _answer('removeNoteLock:$id', Saved(id: id, rev: 'r3'));
+  Future<Either<ApplicationError, Saved>> removeNoteLock(String id) async {
+    cancelled = false;
+    await gate?.future;
+    if (cancelled) {
+      return const Left<ApplicationError, Saved>(
+        ApplicationError.invalid(message: 'Locking was cancelled.'),
+      );
+    }
+    return _answer('removeNoteLock:$id', Saved(id: id, rev: 'r3'));
+  }
 
   @override
   Future<Either<ApplicationError, int>> lockNotebook(
@@ -227,6 +239,12 @@ class FixtureSessionRepository implements SessionRepository {
   /// What [takeSealedFilesNotice] answers, once.
   bool filesNotice = false;
 
+  /// What [takeCopyNotice] answers, once.
+  LockCopyNotice? copyNotice;
+
+  /// What [takeSealFailureNotice] answers, once.
+  String? sealFailureNotice;
+
   final StreamController<SealProgress> progress =
       StreamController<SealProgress>.broadcast();
 
@@ -245,6 +263,7 @@ class FixtureSessionRepository implements SessionRepository {
 
   @override
   Future<Either<ApplicationError, Unit>> cancelLock() async {
+    cancelled = true;
     gate?.complete();
     return _answer('cancelLock', unit);
   }
@@ -300,6 +319,13 @@ class FixtureSessionRepository implements SessionRepository {
     return Right<ApplicationError, bool>(answer);
   }
 
+  @override
+  Future<Either<ApplicationError, LockCopyNotice?>> takeCopyNotice() async {
+    final answer = copyNotice;
+    copyNotice = null;
+    return Right<ApplicationError, LockCopyNotice?>(answer);
+  }
+
   /// The locked notes waiting to have their attachments sealed, by default
   /// none.
   FilesMigration migration = const FilesMigration(
@@ -341,6 +367,13 @@ class FixtureSessionRepository implements SessionRepository {
       shared: migration.shared,
     );
     return _answer('postponeFilesMigration', unit);
+  }
+
+  @override
+  Future<Either<ApplicationError, String?>> takeSealFailureNotice() async {
+    final answer = sealFailureNotice;
+    sealFailureNotice = null;
+    return Right<ApplicationError, String?>(answer);
   }
 
   ApplicationError? _migrationDenied(String? password) {

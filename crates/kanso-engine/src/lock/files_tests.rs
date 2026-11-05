@@ -170,14 +170,14 @@ proptest! {
             prop_assert_eq!(bytes_of(read_file(&world.store, id, &keys)), Some(bytes.clone()));
         }
         // Remove Lock.
-        let (body, done) = unseal_or_copy(&world.store, &mut revealed, &key, &mut |_| Ok(())).unwrap();
+        let (body, done, unsealing) = unseal_or_copy(&world.store, &mut revealed, &key, &mut |_| Ok(())).unwrap();
         prop_assert_eq!(done.decrypted, ids.len());
         prop_assert_eq!(done.copied, 0);
         revealed.body = body;
         Envelope::store(None, &mut revealed.extra);
         world
             .store
-            .unlock_note(serde_json::to_value(&revealed).unwrap())
+            .unlock_note_unsealing(serde_json::to_value(&revealed).unwrap(), unsealing)
             .unwrap();
         for (id, bytes) in ids.iter().zip(&files) {
             prop_assert_eq!(world.store.attachment_state(id).unwrap(), AttachmentState::Plain);
@@ -461,8 +461,10 @@ fn the_second_note_with_a_different_password_is_refused_or_copies() {
     let first_stored = world.store.note(&first.id).unwrap().unwrap();
     let mut open = first_stored.clone();
     open.body = first.body.clone();
-    let (body, done) = unseal_or_copy(&world.store, &mut open, &key(), &mut |_| Ok(())).unwrap();
+    let (body, done, unsealing) =
+        unseal_or_copy(&world.store, &mut open, &key(), &mut |_| Ok(())).unwrap();
     assert_eq!((done.copied, done.decrypted), (1, 0));
+    assert_eq!(unsealing.copies.len(), 1);
     assert!(!body.contains(&file));
     assert_eq!(
         world.store.attachment_state(&file).unwrap(),
@@ -1022,4 +1024,265 @@ fn a_locked_notes_files_leave_no_plaintext_in_the_library() {
         !scan(&world),
         "a plain copy of a locked note's file is left"
     );
+}
+
+// MARK: Remove Lock is all or nothing
+
+const REMOVE_CANARY: &str = "zqxcanary-removelock-77d2-lantern";
+
+impl World {
+    /// A locked, open note with `count` pictures that each hold the canary,
+    /// and (when `shared`) its first picture also listed by a second locked
+    /// note, so Remove Lock has a copy to make. Returns the note as the
+    /// editor holds it, the ids, and the keys.
+    fn locked_with_canaries(&self, count: usize, shared: bool) -> (Note, Vec<String>, KeyBook) {
+        let ids: Vec<String> = (0..count)
+            .map(|i| {
+                self.file(
+                    &format!("p{i}.png"),
+                    format!("PNG {REMOVE_CANARY} {i}").as_bytes(),
+                )
+            })
+            .collect();
+        let keys = KeyBook::default();
+        let mut note = self.note(&ids);
+        self.lock(&mut note, &key(), &keys);
+        if shared && let Some(first) = ids.first() {
+            let mut second = self.note(&[]);
+            let envelope = other().seal(&second.id, "");
+            Envelope::store(Some(&envelope), &mut second.extra);
+            second.body.clear();
+            self.store
+                .lock_note(serde_json::to_value(&second).unwrap())
+                .unwrap();
+            let mut second = self.store.note(&second.id).unwrap().unwrap();
+            let text = format!("![](inkdrop://{first})");
+            let locking = HashSet::from([second.id.clone()]);
+            let mut copies = HashMap::new();
+            let mut watch = |_: &Progress| Ok(());
+            let mut job = Job::new(&self.store, &keys, &locking, &mut copies, &mut watch);
+            seal_note_files(&mut job, &mut second, &text, &other()).unwrap();
+            second.body.clear();
+            self.store
+                .lock_note(serde_json::to_value(&second).unwrap())
+                .unwrap();
+        }
+        let stored = self.store.note(&note.id).unwrap().unwrap();
+        let mut open = stored.clone();
+        let envelope = Envelope::from_extra(&stored.extra).unwrap().unwrap();
+        open.body = key().open(&stored.id, &envelope).unwrap().to_string();
+        (open, ids, keys)
+    }
+
+    fn file_documents(&self) -> usize {
+        self.store
+            .counts()
+            .unwrap()
+            .get(&DocType::File)
+            .copied()
+            .unwrap_or_default()
+    }
+
+    /// The canary check: while the note is locked, nothing the library's API
+    /// gives out holds a listed file's plain bytes, and no file but the ones
+    /// there were is left.
+    fn assert_still_sealed(&self, note: &Note, ids: &[String], documents: usize) {
+        let stored = self.store.note(&note.id).unwrap().unwrap();
+        assert!(stored.is_locked(), "the note is still locked");
+        assert_eq!(stored.body, "", "no text beside the lock");
+        for id in ids {
+            assert_eq!(
+                self.store.attachment_state(id).unwrap(),
+                AttachmentState::Sealed,
+                "{id} is still sealed"
+            );
+            assert!(
+                self.store.attachment(id).unwrap().is_none(),
+                "the lock-blind API reads nothing of {id}"
+            );
+            let raw = self.stored(id);
+            assert!(
+                !raw.windows(REMOVE_CANARY.len())
+                    .any(|window| window == REMOVE_CANARY.as_bytes()),
+                "{id} holds no plain bytes"
+            );
+        }
+        assert_eq!(self.file_documents(), documents, "no stray copy is left");
+    }
+
+    /// Remove Lock for `open`: prepared, then written in one transaction.
+    fn remove_lock(&self, open: &mut Note, stop_at: Option<usize>) -> Result<(), String> {
+        let mut seen = 0;
+        let mut watch = |_: &Progress| {
+            seen += 1;
+            if Some(seen - 1) == stop_at {
+                Err("stopped".to_owned())
+            } else {
+                Ok(())
+            }
+        };
+        let (body, _, unsealing) =
+            unseal_or_copy(&self.store, open, &key(), &mut watch).map_err(|err| err.to_string())?;
+        open.body = body;
+        Envelope::store(None, &mut open.extra);
+        self.store
+            .unlock_note_unsealing(serde_json::to_value(&*open).unwrap(), unsealing)
+            .map(|_| ())
+            .map_err(|err| err.to_string())
+    }
+}
+
+/// A Remove Lock stopped before it writes (Cancel, or the app dying while it
+/// opens the files) changes nothing at any file: the note is locked and every
+/// file sealed, with no plain byte readable.
+#[test]
+fn a_remove_lock_stopped_at_any_file_changes_nothing() {
+    for shared in [false, true] {
+        for stop_at in 0..4 {
+            let world = world();
+            let (mut open, ids, _keys) = world.locked_with_canaries(4, shared);
+            let documents = world.file_documents();
+            let err = world.remove_lock(&mut open, Some(stop_at)).unwrap_err();
+            assert!(err.contains("stopped"), "{err}");
+            world.assert_still_sealed(&open, &ids, documents);
+        }
+    }
+}
+
+/// The write itself failing partway (a file turned stale after the first was
+/// ready, as a sync or a crash would leave it) rolls everything back: files
+/// before the bad one are sealed again, and the copies are gone.
+#[test]
+fn a_remove_lock_failing_inside_its_transaction_rolls_every_file_back() {
+    for shared in [false, true] {
+        for bad in 0..4 {
+            let world = world();
+            let (mut open, ids, _keys) = world.locked_with_canaries(4, shared);
+            let documents = world.file_documents();
+            let mut watch = |_: &Progress| Ok(());
+            let (body, _, mut unsealing) =
+                unseal_or_copy(&world.store, &mut open, &key(), &mut watch).unwrap();
+            assert_eq!(unsealing.copies.len() + unsealing.files.len(), 4);
+            if bad < unsealing.files.len() {
+                // This file moved on since it was read.
+                unsealing.files[bad].0.rev = Some("9-stale".to_owned());
+            } else {
+                // No file to spoil: the note moved on instead.
+                open.rev = Some("9-stale".to_owned());
+            }
+            open.body = body;
+            Envelope::store(None, &mut open.extra);
+            let err = world
+                .store
+                .unlock_note_unsealing(serde_json::to_value(&open).unwrap(), unsealing)
+                .unwrap_err();
+            assert!(matches!(err, kanso_store::StoreError::Conflict), "{err:?}");
+            world.assert_still_sealed(&open, &ids, documents);
+        }
+    }
+}
+
+/// The finished Remove Lock: every file plain, the note plain, and a shared
+/// file's sealed original still there for the other locked note.
+#[test]
+fn a_remove_lock_that_finishes_leaves_plain_files_and_keeps_a_shared_original() {
+    let world = world();
+    let (mut open, ids, _keys) = world.locked_with_canaries(3, true);
+    let documents = world.file_documents();
+    world.remove_lock(&mut open, None).unwrap();
+    let stored = world.store.note(&open.id).unwrap().unwrap();
+    assert!(!stored.is_locked());
+    assert!(!stored.body.contains(&ids[0]), "its link moved to a copy");
+    assert_eq!(world.file_documents(), documents + 1, "one copy");
+    assert_eq!(
+        world.store.attachment_state(&ids[0]).unwrap(),
+        AttachmentState::Sealed,
+        "the other locked note keeps its sealed original"
+    );
+    for id in &ids[1..] {
+        assert_eq!(
+            world.store.attachment_state(id).unwrap(),
+            AttachmentState::Plain
+        );
+        assert!(world.store.attachment(id).unwrap().is_some());
+    }
+}
+
+proptest! {
+    /// However many files a note holds and wherever Remove Lock stops, the
+    /// outcome is all or nothing: finished, or locked with every file sealed.
+    #[test]
+    fn prop_remove_lock_is_all_or_nothing(
+        count in 1usize..6,
+        shared in any::<bool>(),
+        stop in proptest::option::of(0usize..8),
+    ) {
+        let world = world();
+        let (mut open, ids, _keys) = world.locked_with_canaries(count, shared);
+        let documents = world.file_documents();
+        match world.remove_lock(&mut open, stop) {
+            Err(_) => world.assert_still_sealed(&open, &ids, documents),
+            Ok(()) => {
+                let stored = world.store.note(&open.id).unwrap().unwrap();
+                prop_assert!(!stored.is_locked());
+                let sealed = ids
+                    .iter()
+                    .filter(|id| world.store.attachment_state(id).unwrap() == AttachmentState::Sealed)
+                    .count();
+                prop_assert_eq!(sealed, usize::from(shared));
+            }
+        }
+    }
+}
+
+/// A PDF over the 10 MB image limit (the PDF limit is 50 MB) seals with its
+/// note and comes back byte for byte when the lock is removed: the lock
+/// itself has no 10 MB limit of its own.
+// no-prop-test: one large file; the size is the input and a property run
+// would repeat 12 MB seals for nothing.
+#[test]
+fn a_pdf_over_ten_megabytes_seals_and_comes_back_when_the_lock_is_removed() {
+    let world = world();
+    let mut pdf = b"%PDF-1.7\n".to_vec();
+    pdf.resize(
+        kanso_core::model::MAX_ATTACHMENT_SIZE + 2 * 1024 * 1024,
+        b'p',
+    );
+    let id = world
+        .store
+        .put(
+            DocType::File,
+            json!({
+                "name": "contract.pdf",
+                "contentType": "application/pdf",
+                "_attachments": {"index": {
+                    "content_type": "application/pdf",
+                    "data": STANDARD.encode(&pdf),
+                }},
+            }),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let keys = KeyBook::default();
+    let mut note = world.note(std::slice::from_ref(&id));
+    world.lock(&mut note, &key(), &keys);
+    assert_eq!(
+        world.store.attachment_state(&id).unwrap(),
+        AttachmentState::Sealed
+    );
+    assert!(world.store.attachment(&id).unwrap().is_none());
+
+    let stored = world.store.note(&note.id).unwrap().unwrap();
+    let mut open = stored.clone();
+    let envelope = Envelope::from_extra(&stored.extra).unwrap().unwrap();
+    open.body = key().open(&stored.id, &envelope).unwrap().to_string();
+    world.remove_lock(&mut open, None).unwrap();
+    assert_eq!(
+        world.store.attachment_state(&id).unwrap(),
+        AttachmentState::Plain
+    );
+    let (_, back) = world.store.attachment(&id).unwrap().unwrap();
+    assert_eq!(back.data, pdf);
 }

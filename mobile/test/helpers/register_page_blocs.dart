@@ -66,6 +66,7 @@ import 'fixture_parity_repositories.dart';
 import 'fixture_push_repository.dart';
 import 'fixture_reminders_repository.dart';
 import 'fixture_renderer_repository.dart';
+import 'fixture_session_repository.dart';
 import 'fixture_shared_notes_repository.dart';
 import 'fixture_system_share_repository.dart';
 import 'fixture_themes_repository.dart';
@@ -141,6 +142,8 @@ void _registerPageBlocs({
   final noteHistory = history ?? FixtureHistoryRepository();
   final noteReplace = replace ?? FixtureReplaceRepository();
   final libraryBackups = backups ?? FixtureBackupsRepository();
+  final session = FixtureSessionRepository();
+  addTearDown(session.close);
   final haptics = RecordingHaptics();
   final undoNotice = undo ?? UndoNoticeBloc(library, haptics);
   if (undo == null) {
@@ -171,6 +174,7 @@ void _registerPageBlocs({
       library,
       renderer ?? FixtureRendererRepository(),
       MemoryNotePlaceRepository(),
+      session,
     ),
   );
   if (getIt.isRegistered<CanvasRepository>()) {

@@ -15,5 +15,12 @@ abstract class LockRemoveState with _$LockRemoveState {
 
     /// How far unsealing the files has come, while removing.
     SealProgress? progress,
+
+    /// Whether Cancel was pressed: it stops after the file being opened.
+    @Default(false) bool cancelling,
+
+    /// The files copied for the note because another locked note still shows
+    /// the sealed ones, once [status] is done.
+    LockCopyNotice? copyNotice,
   }) = _LockRemoveState;
 }

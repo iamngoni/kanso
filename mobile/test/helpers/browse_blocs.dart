@@ -306,7 +306,7 @@ class BrowseBlocs {
     String themeId = 'kanso-light',
     bool read = true,
   }) async {
-    final bloc = NoteBloc(library, renderer, places);
+    final bloc = NoteBloc(library, renderer, places, session);
     closeBlocLater(bloc);
     if (read) {
       bloc.add(NoteEvent.started(id, themeId));

@@ -30,11 +30,16 @@ void main() {
   late MockRendererRepository renderer;
   late StreamController<List<String>> changes;
   late MemoryNotePlaceRepository places;
+  late MockSessionRepository session;
   var note = mockOpenNote;
 
   setUp(() {
     note = mockOpenNote;
     places = MemoryNotePlaceRepository();
+    session = MockSessionRepository();
+    when(() => session.takeSealFailureNotice()).thenAnswer(
+      (_) async => const Right<ApplicationError, String?>(null),
+    );
     changes = StreamController<List<String>>.broadcast();
     addTearDown(changes.close);
     library = MockLibraryRepository();
@@ -57,7 +62,7 @@ void main() {
     );
   });
 
-  NoteBloc build() => NoteBloc(library, renderer, places);
+  NoteBloc build() => NoteBloc(library, renderer, places, session);
 
   void expectNoHighlighting() {
     verifyNever(
@@ -71,6 +76,20 @@ void main() {
   }
 
   group('NoteBloc', () {
+    test('says which file could not be sealed on open', () async {
+      when(() => session.takeSealFailureNotice()).thenAnswer(
+        (_) async => const Right<ApplicationError, String?>(
+          '“scan.pdf”: The attachment could not be sealed safely.',
+        ),
+      );
+      final bloc = build()..add(const NoteEvent.started('note:1', 'nord'));
+      addTearDown(bloc.close);
+      final shown = await bloc.stream.firstWhere(
+        (state) => state.status == NoteScreenStatus.ready,
+      );
+      expect(shown.openNotice, contains('scan.pdf'));
+    });
+
     test('starts loading, with nothing', () {
       final state = build().state;
       expect(state.status, NoteScreenStatus.loading);

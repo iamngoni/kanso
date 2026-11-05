@@ -90,9 +90,8 @@ use crate::sharing::SharedNotes;
 use crate::sharing_model::CursorMark;
 use crate::stream::Listeners;
 
-/// Why a locked note takes no attachment.
-const LOCKED_ATTACHMENT: &str =
-    "Files can't be attached to a locked note yet: they would be stored unsealed.";
+/// Why a note that is still locked takes no attachment.
+const LOCKED_ATTACHMENT: &str = "Unlock the note to attach a file to it.";
 
 /// How long the titles for completion are kept before they are read again
 /// (the desktop's `WIKI_REFRESH_DELAY`).
@@ -122,10 +121,35 @@ pub(crate) struct Editors {
     /// can tell a save by a peer (another window's editor of the same note,
     /// whose text it already has) from one made elsewhere.
     written: Mutex<VecDeque<String>>,
+    /// How many locks the person started are running. While one is, the
+    /// sessions hold their saves, as the desktop's editor does
+    /// (`lock_busy`): a save landing between two steps of the lock would
+    /// write over the note it is sealing.
+    locks_running: Mutex<usize>,
+    /// Tells a save waiting for the running locks that they finished.
+    locks_done: Condvar,
+}
+
+/// Holds every session's saves until dropped ([`Editors::hold_saves`]).
+pub(crate) struct SaveHold<'a>(&'a Editors);
+
+impl Drop for SaveHold<'_> {
+    fn drop(&mut self) {
+        {
+            let mut running = held(&self.0.locks_running);
+            *running = running.saturating_sub(1);
+        }
+        self.0.locks_done.notify_all();
+        // What typing waited meanwhile is saved now.
+        self.0.wake();
+    }
 }
 
 /// How many written revisions are remembered.
 const WRITTEN_KEPT: usize = 32;
+
+/// How soon an autosave held back by a running lock looks again.
+const LOCK_HELD_RETRY: Duration = Duration::from_millis(250);
 
 /// What wakes the autosave thread: a count that goes up with every change
 /// to when something is due.
@@ -145,6 +169,33 @@ impl Editors {
             started: Mutex::new(false),
             manual,
             written: Mutex::new(VecDeque::new()),
+            locks_running: Mutex::new(0),
+            locks_done: Condvar::new(),
+        }
+    }
+
+    /// Holds the sessions' saves while a lock the person started runs: typing
+    /// stays pending (nothing is lost) and is written once the returned
+    /// guard is dropped.
+    pub(crate) fn hold_saves(&self) -> SaveHold<'_> {
+        *held(&self.locks_running) += 1;
+        SaveHold(self)
+    }
+
+    /// Whether a lock is running and the saves are held.
+    pub(crate) fn saves_held(&self) -> bool {
+        *held(&self.locks_running) > 0
+    }
+
+    /// Waits until no lock is running: a save asked for by name (leaving the
+    /// note) goes after it, not into the middle of it.
+    fn wait_for_saves(&self) {
+        let mut running = held(&self.locks_running);
+        while *running > 0 {
+            running = self
+                .locks_done
+                .wait(running)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
         }
     }
 
@@ -606,16 +657,18 @@ impl EditorSession {
 
     /// Stores `file`, an image or a PDF, as an attachment and puts it in the
     /// text over the selection as a paragraph of its own, as the desktop
-    /// does with a pasted or dropped file: one undo step. Refused for a
-    /// locked note, whose attachments would be stored unsealed (#44), and,
-    /// in a sentence for the person, for a file that is neither.
+    /// does with a pasted or dropped file: one undo step. An open locked
+    /// note takes it too, and its save seals it with the note, as the
+    /// desktop's does (`LockSession::seal_open_files`); one still closed
+    /// refuses, and so, in a sentence for the person, does a file that is
+    /// neither an image nor a PDF.
     pub fn attach(&self, file: ShareFile) -> Result<EditOutcome, KansoError> {
         guard(|| {
             let plain = |st: &State| {
-                if st.lock == LockView::Plain {
-                    Ok(())
-                } else {
+                if st.lock.is_closed() {
                     Err(KansoError::invalid(LOCKED_ATTACHMENT))
+                } else {
+                    Ok(())
                 }
             };
             self.shared.run(|st, _| plain(st))?;
@@ -1719,6 +1772,11 @@ impl Shared {
     /// Saves the typing that is due at `now`, or merges what waits in the
     /// note's live room. Says when the next save is due.
     fn autosave_step(&self, now: Instant) -> Option<Instant> {
+        // A lock the person started is running: typing waits unsaved, and
+        // the step comes again soon.
+        if self.inner.editors.saves_held() {
+            return Some(now + LOCK_HELD_RETRY);
+        }
         let sharing = self.sharing();
         let merging = sharing.merges(&self.id);
         let waiting = merging && sharing.edits_waiting(&self.id);
@@ -2100,6 +2158,7 @@ impl Shared {
 
     /// Saves any pending edits now, taking the gate.
     fn flush_now(&self, events: &mut Vec<EditorEvent>) {
+        self.inner.editors.wait_for_saves();
         let _gate = held(&self.gate);
         self.flush_gated(events);
     }
