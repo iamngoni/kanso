@@ -1,6 +1,6 @@
 /**
  * Help, in plain words: getting started, sync and adding a device, locked
- * notes, sharing, importing (Apple Notes too), crash reports, deleting an account and where to
+ * notes, the library key, API keys for agents, sharing, importing (Apple Notes too), crash reports, deleting an account and where to
  * ask. It summarises README.md, docs/ACCOUNTS.md and docs/CRASH-REPORTS.md
  * and must change when they do. The mobile apps' Settings › About opens it.
  */
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/help")({
   head: () => ({
     meta: [
       { title: "Help — Kanso" },
-      { name: "description", content: "Getting started with Kanso, syncing and adding a device, locked notes, sharing, importing, crash reports and support." },
+      { name: "description", content: "Getting started with Kanso, syncing and adding a device, locked notes, your library key, API keys for agents, sharing, importing, crash reports and support." },
     ],
     links: [{ rel: "canonical", href: "https://kansoapp.app/help" }],
   }),
@@ -94,6 +94,50 @@ export const TOPICS: readonly Topic[] = [
         <p>
           <strong>Kanso can't recover a forgotten lock password</strong>, and the notes locked with it can't be read without it.
           Titles, notebooks, tags and dates of locked notes stay visible, and pictures and files attached to them aren't sealed.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "library-key",
+    title: "Your library key",
+    body: (
+      <>
+        <p>
+          On a computer, Kanso encrypts your library and its backups on the disk, with a key your system keeps for you. You don't
+          type a password to open Kanso. A backup opens on another computer only with the <strong>library key</strong>, which
+          Kanso shows as 24 words.
+        </p>
+        <p>
+          If you don't sync, Kanso asks you to save the key right after it encrypts your library, and asks again at each launch
+          until you choose <strong>I've saved it</strong>. Write the words down and keep them away from the computer. To see them
+          again, open Settings › General › Data › Backups and choose <strong>Show key…</strong>. To open a backup from another
+          computer, choose <strong>Restore…</strong> there and type its 24 words. Signed in to sync, you don't need them: signing in
+          on a new computer brings your notes back.
+        </p>
+        <p>
+          If Kanso can't encrypt your library, it tells you why and how to fix it, and tries again each time it opens. Nothing is
+          lost.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "api-keys",
+    title: "Connecting an agent or a script",
+    body: (
+      <>
+        <p>
+          Every AI agent, script or app that reaches Kanso's local API needs its own key. Open Settings › Local API › API keys and
+          choose <strong>New key…</strong>. Pick what it's for, what it may do (read, suggest edits, or read and write) and which
+          notebooks it sees. Kanso shows the key once, inside the setup to paste into the agent. <strong>Revoke</strong> stops a key
+          at once. Locked notes are never shown to a key.
+        </p>
+        <p>
+          The local API's old username and password are gone. If you had set them up, a banner explains it and{" "}
+          <strong>How to fix</strong> lists the steps: make a key for each agent or script, paste the new setup in place of the old
+          one, and restart the agent. A script sends <code>Authorization: Bearer</code> and the key. The details are in{" "}
+          <a href={`${REPOSITORY_URL}/blob/master/docs/LOCAL-API.md`} className="ink-link">the local API guide</a>.
         </p>
       </>
     ),
