@@ -13,6 +13,8 @@ md-5.workspace = true
 markdown.workspace = true
 # Find and replace across notes (`replace.rs`). The app already builds it.
 regex.workspace = true
+# Update notices name the first version that shows them (`notices.rs`).
+semver.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

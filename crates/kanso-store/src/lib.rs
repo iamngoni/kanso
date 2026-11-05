@@ -58,9 +58,9 @@ pub use cards_model::{
     CardCounts, CardScope, CardSettings, CardStats, DueCard, HardCard, NoteCard,
 };
 pub use collab::model::{
-    CommentRecord, Contact, Outgoing, SealedKey, SharedNote, SharedStatus, StoredNotice,
+    CommentRecord, Contact, Outgoing, SealedKey, SharedKind, SharedNote, SharedStatus, StoredNotice,
 };
-pub use collab::{LOCKED_SHARED, SharedText};
+pub use collab::{LOCKED_SHARED, SharedCanvas, SharedText};
 pub use derived::{Backlink, DERIVED_VERSION, DERIVED_VERSION_KEY, HeadingHit};
 pub use doc::{Attachment, Doc};
 pub use embed::{

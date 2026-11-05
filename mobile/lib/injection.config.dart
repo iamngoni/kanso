@@ -75,6 +75,7 @@ import 'core/models/repos/abs/haptics_repository.dart' as _i1056;
 import 'core/models/repos/abs/journal_repository.dart' as _i169;
 import 'core/models/repos/abs/library_repository.dart' as _i38;
 import 'core/models/repos/abs/licences_repository.dart' as _i951;
+import 'core/models/repos/abs/notices_repository.dart' as _i691;
 import 'core/models/repos/abs/patch_repository.dart' as _i909;
 import 'core/models/repos/abs/preferences_repository.dart' as _i384;
 import 'core/models/repos/abs/reminder_notifier.dart' as _i874;
@@ -114,6 +115,7 @@ import 'core/models/repos/impl/rust_digest_repository.dart' as _i472;
 import 'core/models/repos/impl/rust_gallery_repository.dart' as _i692;
 import 'core/models/repos/impl/rust_journal_repository.dart' as _i212;
 import 'core/models/repos/impl/rust_library_repository.dart' as _i152;
+import 'core/models/repos/impl/rust_notices_repository.dart' as _i136;
 import 'core/models/repos/impl/rust_reminders_repository.dart' as _i429;
 import 'core/models/repos/impl/rust_renderer_repository.dart' as _i820;
 import 'core/models/repos/impl/rust_session_repository.dart' as _i899;
@@ -211,6 +213,7 @@ import 'notebook_home/models/repos/abs/notebook_home_repository.dart' as _i257;
 import 'notebook_home/models/repos/impl/rust_notebook_home_repository.dart'
     as _i826;
 import 'notebook_home/state/notebook_home/notebook_home_bloc.dart' as _i343;
+import 'notices/state/notices_cubit.dart' as _i919;
 import 'palette/models/repos/abs/palette_repository.dart' as _i704;
 import 'palette/models/repos/impl/rust_palette_repository.dart' as _i97;
 import 'palette/state/palette/palette_bloc.dart' as _i204;
@@ -560,6 +563,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i591.KansoSync>(),
       ),
     );
+    gh.lazySingleton<_i691.NoticesRepository>(
+      () => _i136.RustNoticesRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.factory<_i636.IconThemesBloc>(
       () => _i636.IconThemesBloc(gh<_i732.RendererRepository>()),
     );
@@ -790,6 +796,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i186.PlayerBloc>(
       () => _i186.PlayerBloc(gh<_i217.PlayerRepository>()),
+    );
+    gh.factory<_i919.NoticesCubit>(
+      () => _i919.NoticesCubit(gh<_i691.NoticesRepository>()),
     );
     gh.factory<_i470.TasksBloc>(
       () => _i470.TasksBloc(

@@ -17,6 +17,7 @@
 //! the CRDT's after every merge. While a shared note is open, the editor's
 //! text reaches the library through [`Engine::sync_editor`] only.
 
+pub mod canvas;
 pub mod live;
 mod log;
 mod people;
@@ -25,8 +26,9 @@ mod sharing;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use kanso_core::canvas::Canvas;
 use kanso_core::now_ms;
-use kanso_store::{SharedNote, SharedStatus, SharedText, Store, StoreError};
+use kanso_store::{SharedKind, SharedNote, SharedStatus, SharedText, Store, StoreError};
 use serde_json::{Value, json};
 
 use crate::api::{Caller, CollabApi, CollabError, Result};
@@ -38,9 +40,10 @@ use crate::identity::Identity;
 use crate::keys::{NoteKey, vault_open};
 use crate::members;
 use crate::model::{
-    Anchor, CURSOR_COLOURS, CommentEvent, CommentOp, CommentView, EditorMerge, Header, Invitation,
-    Kind, Member, MemberList, PresenceMessage, RemoteCursor, Role, ShareView,
+    Anchor, CURSOR_COLOURS, CanvasPointer, CommentEvent, CommentOp, CommentView, EditorMerge,
+    Header, Invitation, Kind, Member, MemberList, PresenceMessage, RemoteCursor, Role, ShareView,
 };
+use crate::shared_doc::SharedDoc;
 
 pub use live::LiveHandle;
 
@@ -76,7 +79,7 @@ impl Account {
 /// delivered that isn't merged yet.
 pub(crate) struct Loaded {
     pub(crate) note: SharedNote,
-    pub(crate) doc: CollabDoc,
+    pub(crate) doc: SharedDoc,
     pub(crate) keys: BTreeMap<u32, NoteKey>,
     pub(crate) lists: BTreeMap<u32, MemberList>,
     /// The list of `note.epoch`.
@@ -108,6 +111,17 @@ pub(crate) struct Loaded {
     /// The note is starting again from the log: the library isn't written
     /// until the log has merged.
     pub(crate) reloading: bool,
+    /// A canvas: the canvas the open view last got from the engine, which
+    /// its next edit is measured from.
+    pub(crate) canvas_base: Option<Canvas>,
+    /// A canvas: the CRDT changed since the library's body was written.
+    pub(crate) canvas_dirty: bool,
+    /// A canvas: when (ms) the library's body was last written.
+    pub(crate) canvas_written_at: i64,
+    /// A canvas: the projection is past what a note can hold.
+    pub(crate) canvas_full: bool,
+    /// A canvas: this device's pointer, to send as presence.
+    pub(crate) pointer: Option<CanvasPointer>,
 }
 
 impl Loaded {
@@ -121,8 +135,16 @@ impl Loaded {
         self.lists.get(&epoch).and_then(|list| list.member(account))
     }
 
+    /// The text document of a text note.
+    pub(crate) fn text_doc(&self) -> &CollabDoc {
+        self.doc.text().expect("a text note")
+    }
+
     fn text(&self) -> (String, String) {
-        (self.doc.text(Field::Title), self.doc.text(Field::Body))
+        match self.doc.text() {
+            Some(doc) => (doc.text(Field::Title), doc.text(Field::Body)),
+            None => (self.doc.title(), String::new()),
+        }
     }
 }
 
@@ -262,16 +284,20 @@ impl Engine {
         let current = members::open(&note.list, &note.list_sig, share_id, &owner_key, 0)?;
         lists.insert(current.epoch, current.clone());
         let doc = if note.state.is_empty() {
-            CollabDoc::new()
+            SharedDoc::new(note.kind)
         } else {
-            CollabDoc::load(&note.state).map_err(|e| CollabError::Crypto(e.to_string()))?
+            SharedDoc::load(note.kind, &note.state)
+                .map_err(|e| CollabError::Crypto(e.to_string()))?
         };
         // A note new to this device takes its text from the log: what the
         // library has (a blank from private sync, a private copy) isn't an
         // edit to it.
         let base = match self.store.note(&note.note_id)? {
             Some(local) if note.state.is_empty() => (local.title, local.body),
-            _ => (doc.text(Field::Title), doc.text(Field::Body)),
+            _ => (
+                doc.title(),
+                doc.text().map(|d| d.text(Field::Body)).unwrap_or_default(),
+            ),
         };
         let loaded = Arc::new(Mutex::new(Loaded {
             note,
@@ -291,6 +317,11 @@ impl Engine {
             pending_mentions: Vec::new(),
             ended: false,
             reloading: false,
+            canvas_base: None,
+            canvas_dirty: false,
+            canvas_written_at: 0,
+            canvas_full: false,
+            pointer: None,
         }));
         Ok(lock(&self.notes)
             .entry(share_id.to_owned())
@@ -348,6 +379,16 @@ impl Engine {
         if loaded.ended || loaded.reloading {
             return Ok(());
         }
+        if loaded.doc.canvas().is_some() {
+            // An open canvas writes the library at its own pace.
+            if !authors.is_empty() {
+                self.store
+                    .add_shared_authors(&loaded.note.note_id, authors)?;
+                loaded.canvas_dirty = true;
+            }
+            let force = !loaded.attached;
+            return self.settle_canvas(loaded, force);
+        }
         let note_id = loaded.note.note_id.clone();
         if self.store.note_is_locked(&note_id)? || self.store.note_in_locked_book(&note_id)? {
             self.add_problem(&loaded.note.share_id, kanso_store::LOCKED_SHARED);
@@ -370,8 +411,8 @@ impl Engine {
             let (title, body) = clamp_text(title, body);
             if (title.len(), body.len())
                 != (
-                    loaded.doc.text(Field::Title).len(),
-                    loaded.doc.text(Field::Body).len(),
+                    loaded.text_doc().text(Field::Title).len(),
+                    loaded.text_doc().text(Field::Body).len(),
                 )
             {
                 self.add_problem(
@@ -438,7 +479,7 @@ impl Engine {
         base: &(String, String),
         local: &(String, String),
     ) -> Result<bool> {
-        if local == base || !loaded.role().may_edit() {
+        if local == base || !loaded.role().may_edit() || loaded.doc.text().is_none() {
             return Ok(false);
         }
         // A note's whole state must fit one snapshot: an edit that would
@@ -460,7 +501,10 @@ impl Engine {
         let body = rebase(&base.1, &local.1, &body_now);
         let mut changed = false;
         for (field, text) in [(Field::Title, &title), (Field::Body, &body)] {
-            for update in loaded.doc.set_text_in_parts(field, text, UPDATE_PART) {
+            for update in loaded
+                .text_doc()
+                .set_text_in_parts(field, text, UPDATE_PART)
+            {
                 self.store
                     .push_outbox(&loaded.note.share_id, "u", &update)?;
                 changed = true;
@@ -563,7 +607,13 @@ impl Engine {
             let mut loaded = lock(&loaded);
             loaded.attached = false;
             loaded.caret = None;
+            loaded.pointer = None;
             loaded.editor_base = None;
+            loaded.canvas_base = None;
+            if loaded.doc.canvas().is_some() {
+                // The library gets what the canvas became while it was open.
+                let _ = self.settle_canvas(&mut loaded, true);
+            }
         }
     }
 
@@ -574,6 +624,11 @@ impl Engine {
     pub fn sync_editor(&self, share_id: &str, title: &str, body: &str) -> Result<EditorMerge> {
         let loaded = self.loaded(share_id)?;
         let mut loaded = lock(&loaded);
+        if loaded.doc.text().is_none() {
+            return Err(CollabError::Refused(
+                "The note is a canvas: it is merged by drawing, not as text.".into(),
+            ));
+        }
         if loaded.ended || loaded.reloading {
             // Nothing to merge into yet: the editor keeps what it has.
             return Ok(EditorMerge {
@@ -633,12 +688,15 @@ impl Engine {
         loaded
             .cursors
             .retain(|_, (_, at)| now - *at < CURSOR_TTL_MS);
+        let Some(doc) = loaded.doc.text() else {
+            return Vec::new();
+        };
         let mut out: Vec<RemoteCursor> = loaded
             .cursors
             .iter()
             .filter_map(|((account, device), (presence, at))| {
-                let anchor = loaded.doc.resolve(&presence.cursor)?;
-                let head = loaded.doc.resolve(&presence.head)?;
+                let anchor = doc.resolve(&presence.cursor)?;
+                let head = doc.resolve(&presence.head)?;
                 Some(RemoteCursor {
                     account: account.clone(),
                     device: device.clone(),
@@ -661,6 +719,9 @@ impl Engine {
     pub fn comments(&self, share_id: &str) -> Result<Vec<CommentView>> {
         let loaded = self.loaded(share_id)?;
         let loaded = lock(&loaded);
+        let Some(doc) = loaded.doc.text() else {
+            return Ok(Vec::new());
+        };
         let me = self.account.caller.account_id.clone();
         let mut events: Vec<Logged> = self
             .store
@@ -699,7 +760,7 @@ impl Engine {
         let mut out: Vec<CommentView> = comments::fold(&events)
             .into_values()
             .map(|comment| CommentView {
-                placement: comments::place(&loaded.doc, &comment),
+                placement: comments::place(doc, &comment),
                 pending: pending.contains(&comment.seq),
                 mine: comment.author == me,
                 comment,
@@ -746,6 +807,11 @@ impl Engine {
         let (anchor, mentions) = {
             let loaded = self.loaded(share_id)?;
             let loaded = lock(&loaded);
+            let Some(doc) = loaded.doc.text() else {
+                return Err(CollabError::Refused(
+                    "Comments aren't on canvases yet.".into(),
+                ));
+            };
             let names: Vec<(String, String)> = loaded
                 .current
                 .members
@@ -753,7 +819,7 @@ impl Engine {
                 .map(|m| (m.account.clone(), m.username.clone()))
                 .collect();
             (
-                comments::anchor(&loaded.doc, range),
+                comments::anchor(doc, range),
                 comments::mentions(body, &names, &self.account.caller.account_id),
             )
         };
@@ -817,7 +883,12 @@ impl Engine {
     pub fn anchor(&self, share_id: &str, range: std::ops::Range<usize>) -> Result<Anchor> {
         let loaded = self.loaded(share_id)?;
         let loaded = lock(&loaded);
-        Ok(comments::anchor(&loaded.doc, range))
+        match loaded.doc.text() {
+            Some(doc) => Ok(comments::anchor(doc, range)),
+            None => Err(CollabError::Refused(
+                "Comments aren't on canvases yet.".into(),
+            )),
+        }
     }
 
     /// The shared note a library note is, if it is one this device has
@@ -829,6 +900,11 @@ impl Engine {
             .flatten()
             .filter(|n| n.status == SharedStatus::Active)
             .map(|n| n.share_id)
+    }
+
+    /// Whether the shared note is text or a canvas.
+    pub fn kind(&self, share_id: &str) -> Option<SharedKind> {
+        self.loaded(share_id).ok().map(|l| lock(&l).doc.kind())
     }
 
     /// The note's role for this account.
@@ -885,5 +961,7 @@ pub fn rebase(base: &str, local: &str, current: &str) -> String {
     out
 }
 
+#[cfg(test)]
+mod canvas_tests;
 #[cfg(test)]
 mod tests;
