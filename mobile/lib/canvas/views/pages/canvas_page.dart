@@ -72,8 +72,10 @@ class _CanvasScreenState extends State<_CanvasScreen> {
   void initState() {
     super.initState();
     // The library leaves a shared canvas's room when the app goes to the
-    // background; coming back to the front joins it again.
+    // background, and the room's tick stops; coming back to the front joins
+    // it again and starts the tick.
     _lifecycle = AppLifecycleListener(
+      onPause: () => context.read<CanvasBloc>().add(const CanvasEvent.paused()),
       onResume: () =>
           context.read<CanvasBloc>().add(const CanvasEvent.resumed()),
     );

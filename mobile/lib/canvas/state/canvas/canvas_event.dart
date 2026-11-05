@@ -91,4 +91,7 @@ sealed class CanvasEvent with _$CanvasEvent {
 
   /// The app is back in front.
   const factory CanvasEvent.resumed() = CanvasResumedEvent;
+
+  /// The app left the front: the room's tick stops until it is back.
+  const factory CanvasEvent.paused() = CanvasPausedEvent;
 }

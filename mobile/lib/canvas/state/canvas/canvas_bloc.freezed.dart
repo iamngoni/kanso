@@ -55,7 +55,7 @@ extension CanvasEventPatterns on CanvasEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CanvasStartedEvent value)?  started,TResult Function( CanvasStylusSeenEvent value)?  stylusSeen,TResult Function( CanvasToolChangedEvent value)?  toolChanged,TResult Function( CanvasColorChangedEvent value)?  colorChanged,TResult Function( CanvasWidthChangedEvent value)?  widthChanged,TResult Function( CanvasFingerDrawsChangedEvent value)?  fingerDrawsChanged,TResult Function( CanvasStrokeCommittedEvent value)?  strokeCommitted,TResult Function( CanvasErasedEvent value)?  erased,TResult Function( CanvasLassoClosedEvent value)?  lassoClosed,TResult Function( CanvasSelectionClearedEvent value)?  selectionCleared,TResult Function( CanvasSelectionDeletedEvent value)?  selectionDeleted,TResult Function( CanvasSelectionMovedEvent value)?  selectionMoved,TResult Function( CanvasSelectionMovedToNewCanvasEvent value)?  selectionMovedToNewCanvas,TResult Function( CanvasTextCardAddedEvent value)?  textCardAdded,TResult Function( CanvasNoteCardAddedEvent value)?  noteCardAdded,TResult Function( CanvasCardTextChangedEvent value)?  cardTextChanged,TResult Function( CanvasCardMovedEvent value)?  cardMoved,TResult Function( CanvasCardDeletedEvent value)?  cardDeleted,TResult Function( CanvasArrowAddedEvent value)?  arrowAdded,TResult Function( CanvasUndoneEvent value)?  undone,TResult Function( CanvasRedoneEvent value)?  redone,TResult Function( CanvasSaveRequestedEvent value)?  saveRequested,TResult Function( CanvasMessageDismissedEvent value)?  messageDismissed,TResult Function( CanvasGestureChangedEvent value)?  gestureChanged,TResult Function( CanvasPulsedEvent value)?  pulsed,TResult Function( CanvasStrokeStreamedEvent value)?  strokeStreamed,TResult Function( CanvasStrokeCancelledEvent value)?  strokeCancelled,TResult Function( CanvasPointerMovedEvent value)?  pointerMoved,TResult Function( CanvasPointerLeftEvent value)?  pointerLeft,TResult Function( CanvasResumedEvent value)?  resumed,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CanvasStartedEvent value)?  started,TResult Function( CanvasStylusSeenEvent value)?  stylusSeen,TResult Function( CanvasToolChangedEvent value)?  toolChanged,TResult Function( CanvasColorChangedEvent value)?  colorChanged,TResult Function( CanvasWidthChangedEvent value)?  widthChanged,TResult Function( CanvasFingerDrawsChangedEvent value)?  fingerDrawsChanged,TResult Function( CanvasStrokeCommittedEvent value)?  strokeCommitted,TResult Function( CanvasErasedEvent value)?  erased,TResult Function( CanvasLassoClosedEvent value)?  lassoClosed,TResult Function( CanvasSelectionClearedEvent value)?  selectionCleared,TResult Function( CanvasSelectionDeletedEvent value)?  selectionDeleted,TResult Function( CanvasSelectionMovedEvent value)?  selectionMoved,TResult Function( CanvasSelectionMovedToNewCanvasEvent value)?  selectionMovedToNewCanvas,TResult Function( CanvasTextCardAddedEvent value)?  textCardAdded,TResult Function( CanvasNoteCardAddedEvent value)?  noteCardAdded,TResult Function( CanvasCardTextChangedEvent value)?  cardTextChanged,TResult Function( CanvasCardMovedEvent value)?  cardMoved,TResult Function( CanvasCardDeletedEvent value)?  cardDeleted,TResult Function( CanvasArrowAddedEvent value)?  arrowAdded,TResult Function( CanvasUndoneEvent value)?  undone,TResult Function( CanvasRedoneEvent value)?  redone,TResult Function( CanvasSaveRequestedEvent value)?  saveRequested,TResult Function( CanvasMessageDismissedEvent value)?  messageDismissed,TResult Function( CanvasGestureChangedEvent value)?  gestureChanged,TResult Function( CanvasPulsedEvent value)?  pulsed,TResult Function( CanvasStrokeStreamedEvent value)?  strokeStreamed,TResult Function( CanvasStrokeCancelledEvent value)?  strokeCancelled,TResult Function( CanvasPointerMovedEvent value)?  pointerMoved,TResult Function( CanvasPointerLeftEvent value)?  pointerLeft,TResult Function( CanvasResumedEvent value)?  resumed,TResult Function( CanvasPausedEvent value)?  paused,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case CanvasStartedEvent() when started != null:
@@ -88,7 +88,8 @@ return strokeStreamed(_that);case CanvasStrokeCancelledEvent() when strokeCancel
 return strokeCancelled(_that);case CanvasPointerMovedEvent() when pointerMoved != null:
 return pointerMoved(_that);case CanvasPointerLeftEvent() when pointerLeft != null:
 return pointerLeft(_that);case CanvasResumedEvent() when resumed != null:
-return resumed(_that);case _:
+return resumed(_that);case CanvasPausedEvent() when paused != null:
+return paused(_that);case _:
   return orElse();
 
 }
@@ -106,7 +107,7 @@ return resumed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CanvasStartedEvent value)  started,required TResult Function( CanvasStylusSeenEvent value)  stylusSeen,required TResult Function( CanvasToolChangedEvent value)  toolChanged,required TResult Function( CanvasColorChangedEvent value)  colorChanged,required TResult Function( CanvasWidthChangedEvent value)  widthChanged,required TResult Function( CanvasFingerDrawsChangedEvent value)  fingerDrawsChanged,required TResult Function( CanvasStrokeCommittedEvent value)  strokeCommitted,required TResult Function( CanvasErasedEvent value)  erased,required TResult Function( CanvasLassoClosedEvent value)  lassoClosed,required TResult Function( CanvasSelectionClearedEvent value)  selectionCleared,required TResult Function( CanvasSelectionDeletedEvent value)  selectionDeleted,required TResult Function( CanvasSelectionMovedEvent value)  selectionMoved,required TResult Function( CanvasSelectionMovedToNewCanvasEvent value)  selectionMovedToNewCanvas,required TResult Function( CanvasTextCardAddedEvent value)  textCardAdded,required TResult Function( CanvasNoteCardAddedEvent value)  noteCardAdded,required TResult Function( CanvasCardTextChangedEvent value)  cardTextChanged,required TResult Function( CanvasCardMovedEvent value)  cardMoved,required TResult Function( CanvasCardDeletedEvent value)  cardDeleted,required TResult Function( CanvasArrowAddedEvent value)  arrowAdded,required TResult Function( CanvasUndoneEvent value)  undone,required TResult Function( CanvasRedoneEvent value)  redone,required TResult Function( CanvasSaveRequestedEvent value)  saveRequested,required TResult Function( CanvasMessageDismissedEvent value)  messageDismissed,required TResult Function( CanvasGestureChangedEvent value)  gestureChanged,required TResult Function( CanvasPulsedEvent value)  pulsed,required TResult Function( CanvasStrokeStreamedEvent value)  strokeStreamed,required TResult Function( CanvasStrokeCancelledEvent value)  strokeCancelled,required TResult Function( CanvasPointerMovedEvent value)  pointerMoved,required TResult Function( CanvasPointerLeftEvent value)  pointerLeft,required TResult Function( CanvasResumedEvent value)  resumed,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CanvasStartedEvent value)  started,required TResult Function( CanvasStylusSeenEvent value)  stylusSeen,required TResult Function( CanvasToolChangedEvent value)  toolChanged,required TResult Function( CanvasColorChangedEvent value)  colorChanged,required TResult Function( CanvasWidthChangedEvent value)  widthChanged,required TResult Function( CanvasFingerDrawsChangedEvent value)  fingerDrawsChanged,required TResult Function( CanvasStrokeCommittedEvent value)  strokeCommitted,required TResult Function( CanvasErasedEvent value)  erased,required TResult Function( CanvasLassoClosedEvent value)  lassoClosed,required TResult Function( CanvasSelectionClearedEvent value)  selectionCleared,required TResult Function( CanvasSelectionDeletedEvent value)  selectionDeleted,required TResult Function( CanvasSelectionMovedEvent value)  selectionMoved,required TResult Function( CanvasSelectionMovedToNewCanvasEvent value)  selectionMovedToNewCanvas,required TResult Function( CanvasTextCardAddedEvent value)  textCardAdded,required TResult Function( CanvasNoteCardAddedEvent value)  noteCardAdded,required TResult Function( CanvasCardTextChangedEvent value)  cardTextChanged,required TResult Function( CanvasCardMovedEvent value)  cardMoved,required TResult Function( CanvasCardDeletedEvent value)  cardDeleted,required TResult Function( CanvasArrowAddedEvent value)  arrowAdded,required TResult Function( CanvasUndoneEvent value)  undone,required TResult Function( CanvasRedoneEvent value)  redone,required TResult Function( CanvasSaveRequestedEvent value)  saveRequested,required TResult Function( CanvasMessageDismissedEvent value)  messageDismissed,required TResult Function( CanvasGestureChangedEvent value)  gestureChanged,required TResult Function( CanvasPulsedEvent value)  pulsed,required TResult Function( CanvasStrokeStreamedEvent value)  strokeStreamed,required TResult Function( CanvasStrokeCancelledEvent value)  strokeCancelled,required TResult Function( CanvasPointerMovedEvent value)  pointerMoved,required TResult Function( CanvasPointerLeftEvent value)  pointerLeft,required TResult Function( CanvasResumedEvent value)  resumed,required TResult Function( CanvasPausedEvent value)  paused,}){
 final _that = this;
 switch (_that) {
 case CanvasStartedEvent():
@@ -139,7 +140,8 @@ return strokeStreamed(_that);case CanvasStrokeCancelledEvent():
 return strokeCancelled(_that);case CanvasPointerMovedEvent():
 return pointerMoved(_that);case CanvasPointerLeftEvent():
 return pointerLeft(_that);case CanvasResumedEvent():
-return resumed(_that);}
+return resumed(_that);case CanvasPausedEvent():
+return paused(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -153,7 +155,7 @@ return resumed(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CanvasStartedEvent value)?  started,TResult? Function( CanvasStylusSeenEvent value)?  stylusSeen,TResult? Function( CanvasToolChangedEvent value)?  toolChanged,TResult? Function( CanvasColorChangedEvent value)?  colorChanged,TResult? Function( CanvasWidthChangedEvent value)?  widthChanged,TResult? Function( CanvasFingerDrawsChangedEvent value)?  fingerDrawsChanged,TResult? Function( CanvasStrokeCommittedEvent value)?  strokeCommitted,TResult? Function( CanvasErasedEvent value)?  erased,TResult? Function( CanvasLassoClosedEvent value)?  lassoClosed,TResult? Function( CanvasSelectionClearedEvent value)?  selectionCleared,TResult? Function( CanvasSelectionDeletedEvent value)?  selectionDeleted,TResult? Function( CanvasSelectionMovedEvent value)?  selectionMoved,TResult? Function( CanvasSelectionMovedToNewCanvasEvent value)?  selectionMovedToNewCanvas,TResult? Function( CanvasTextCardAddedEvent value)?  textCardAdded,TResult? Function( CanvasNoteCardAddedEvent value)?  noteCardAdded,TResult? Function( CanvasCardTextChangedEvent value)?  cardTextChanged,TResult? Function( CanvasCardMovedEvent value)?  cardMoved,TResult? Function( CanvasCardDeletedEvent value)?  cardDeleted,TResult? Function( CanvasArrowAddedEvent value)?  arrowAdded,TResult? Function( CanvasUndoneEvent value)?  undone,TResult? Function( CanvasRedoneEvent value)?  redone,TResult? Function( CanvasSaveRequestedEvent value)?  saveRequested,TResult? Function( CanvasMessageDismissedEvent value)?  messageDismissed,TResult? Function( CanvasGestureChangedEvent value)?  gestureChanged,TResult? Function( CanvasPulsedEvent value)?  pulsed,TResult? Function( CanvasStrokeStreamedEvent value)?  strokeStreamed,TResult? Function( CanvasStrokeCancelledEvent value)?  strokeCancelled,TResult? Function( CanvasPointerMovedEvent value)?  pointerMoved,TResult? Function( CanvasPointerLeftEvent value)?  pointerLeft,TResult? Function( CanvasResumedEvent value)?  resumed,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CanvasStartedEvent value)?  started,TResult? Function( CanvasStylusSeenEvent value)?  stylusSeen,TResult? Function( CanvasToolChangedEvent value)?  toolChanged,TResult? Function( CanvasColorChangedEvent value)?  colorChanged,TResult? Function( CanvasWidthChangedEvent value)?  widthChanged,TResult? Function( CanvasFingerDrawsChangedEvent value)?  fingerDrawsChanged,TResult? Function( CanvasStrokeCommittedEvent value)?  strokeCommitted,TResult? Function( CanvasErasedEvent value)?  erased,TResult? Function( CanvasLassoClosedEvent value)?  lassoClosed,TResult? Function( CanvasSelectionClearedEvent value)?  selectionCleared,TResult? Function( CanvasSelectionDeletedEvent value)?  selectionDeleted,TResult? Function( CanvasSelectionMovedEvent value)?  selectionMoved,TResult? Function( CanvasSelectionMovedToNewCanvasEvent value)?  selectionMovedToNewCanvas,TResult? Function( CanvasTextCardAddedEvent value)?  textCardAdded,TResult? Function( CanvasNoteCardAddedEvent value)?  noteCardAdded,TResult? Function( CanvasCardTextChangedEvent value)?  cardTextChanged,TResult? Function( CanvasCardMovedEvent value)?  cardMoved,TResult? Function( CanvasCardDeletedEvent value)?  cardDeleted,TResult? Function( CanvasArrowAddedEvent value)?  arrowAdded,TResult? Function( CanvasUndoneEvent value)?  undone,TResult? Function( CanvasRedoneEvent value)?  redone,TResult? Function( CanvasSaveRequestedEvent value)?  saveRequested,TResult? Function( CanvasMessageDismissedEvent value)?  messageDismissed,TResult? Function( CanvasGestureChangedEvent value)?  gestureChanged,TResult? Function( CanvasPulsedEvent value)?  pulsed,TResult? Function( CanvasStrokeStreamedEvent value)?  strokeStreamed,TResult? Function( CanvasStrokeCancelledEvent value)?  strokeCancelled,TResult? Function( CanvasPointerMovedEvent value)?  pointerMoved,TResult? Function( CanvasPointerLeftEvent value)?  pointerLeft,TResult? Function( CanvasResumedEvent value)?  resumed,TResult? Function( CanvasPausedEvent value)?  paused,}){
 final _that = this;
 switch (_that) {
 case CanvasStartedEvent() when started != null:
@@ -186,7 +188,8 @@ return strokeStreamed(_that);case CanvasStrokeCancelledEvent() when strokeCancel
 return strokeCancelled(_that);case CanvasPointerMovedEvent() when pointerMoved != null:
 return pointerMoved(_that);case CanvasPointerLeftEvent() when pointerLeft != null:
 return pointerLeft(_that);case CanvasResumedEvent() when resumed != null:
-return resumed(_that);case _:
+return resumed(_that);case CanvasPausedEvent() when paused != null:
+return paused(_that);case _:
   return null;
 
 }
@@ -203,7 +206,7 @@ return resumed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String noteId)?  started,TResult Function()?  stylusSeen,TResult Function( CanvasTool tool)?  toolChanged,TResult Function( String color)?  colorChanged,TResult Function( double width)?  widthChanged,TResult Function( bool on)?  fingerDrawsChanged,TResult Function( List<PenSample> samples)?  strokeCommitted,TResult Function( List<CanvasPoint> path,  double radius,  bool partial)?  erased,TResult Function( List<CanvasPoint> polygon)?  lassoClosed,TResult Function()?  selectionCleared,TResult Function()?  selectionDeleted,TResult Function( double dx,  double dy)?  selectionMoved,TResult Function( String title)?  selectionMovedToNewCanvas,TResult Function( double x,  double y,  String text)?  textCardAdded,TResult Function( String noteId,  double x,  double y)?  noteCardAdded,TResult Function( String id,  String text)?  cardTextChanged,TResult Function( String id,  CanvasRect rect)?  cardMoved,TResult Function( String id)?  cardDeleted,TResult Function( String from,  String to)?  arrowAdded,TResult Function()?  undone,TResult Function()?  redone,TResult Function()?  saveRequested,TResult Function()?  messageDismissed,TResult Function( bool active)?  gestureChanged,TResult Function()?  pulsed,TResult Function( List<PenSample> samples)?  strokeStreamed,TResult Function()?  strokeCancelled,TResult Function( double x,  double y)?  pointerMoved,TResult Function()?  pointerLeft,TResult Function()?  resumed,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String noteId)?  started,TResult Function()?  stylusSeen,TResult Function( CanvasTool tool)?  toolChanged,TResult Function( String color)?  colorChanged,TResult Function( double width)?  widthChanged,TResult Function( bool on)?  fingerDrawsChanged,TResult Function( List<PenSample> samples)?  strokeCommitted,TResult Function( List<CanvasPoint> path,  double radius,  bool partial)?  erased,TResult Function( List<CanvasPoint> polygon)?  lassoClosed,TResult Function()?  selectionCleared,TResult Function()?  selectionDeleted,TResult Function( double dx,  double dy)?  selectionMoved,TResult Function( String title)?  selectionMovedToNewCanvas,TResult Function( double x,  double y,  String text)?  textCardAdded,TResult Function( String noteId,  double x,  double y)?  noteCardAdded,TResult Function( String id,  String text)?  cardTextChanged,TResult Function( String id,  CanvasRect rect)?  cardMoved,TResult Function( String id)?  cardDeleted,TResult Function( String from,  String to)?  arrowAdded,TResult Function()?  undone,TResult Function()?  redone,TResult Function()?  saveRequested,TResult Function()?  messageDismissed,TResult Function( bool active)?  gestureChanged,TResult Function()?  pulsed,TResult Function( List<PenSample> samples)?  strokeStreamed,TResult Function()?  strokeCancelled,TResult Function( double x,  double y)?  pointerMoved,TResult Function()?  pointerLeft,TResult Function()?  resumed,TResult Function()?  paused,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case CanvasStartedEvent() when started != null:
 return started(_that.noteId);case CanvasStylusSeenEvent() when stylusSeen != null:
@@ -235,7 +238,8 @@ return strokeStreamed(_that.samples);case CanvasStrokeCancelledEvent() when stro
 return strokeCancelled();case CanvasPointerMovedEvent() when pointerMoved != null:
 return pointerMoved(_that.x,_that.y);case CanvasPointerLeftEvent() when pointerLeft != null:
 return pointerLeft();case CanvasResumedEvent() when resumed != null:
-return resumed();case _:
+return resumed();case CanvasPausedEvent() when paused != null:
+return paused();case _:
   return orElse();
 
 }
@@ -253,7 +257,7 @@ return resumed();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String noteId)  started,required TResult Function()  stylusSeen,required TResult Function( CanvasTool tool)  toolChanged,required TResult Function( String color)  colorChanged,required TResult Function( double width)  widthChanged,required TResult Function( bool on)  fingerDrawsChanged,required TResult Function( List<PenSample> samples)  strokeCommitted,required TResult Function( List<CanvasPoint> path,  double radius,  bool partial)  erased,required TResult Function( List<CanvasPoint> polygon)  lassoClosed,required TResult Function()  selectionCleared,required TResult Function()  selectionDeleted,required TResult Function( double dx,  double dy)  selectionMoved,required TResult Function( String title)  selectionMovedToNewCanvas,required TResult Function( double x,  double y,  String text)  textCardAdded,required TResult Function( String noteId,  double x,  double y)  noteCardAdded,required TResult Function( String id,  String text)  cardTextChanged,required TResult Function( String id,  CanvasRect rect)  cardMoved,required TResult Function( String id)  cardDeleted,required TResult Function( String from,  String to)  arrowAdded,required TResult Function()  undone,required TResult Function()  redone,required TResult Function()  saveRequested,required TResult Function()  messageDismissed,required TResult Function( bool active)  gestureChanged,required TResult Function()  pulsed,required TResult Function( List<PenSample> samples)  strokeStreamed,required TResult Function()  strokeCancelled,required TResult Function( double x,  double y)  pointerMoved,required TResult Function()  pointerLeft,required TResult Function()  resumed,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String noteId)  started,required TResult Function()  stylusSeen,required TResult Function( CanvasTool tool)  toolChanged,required TResult Function( String color)  colorChanged,required TResult Function( double width)  widthChanged,required TResult Function( bool on)  fingerDrawsChanged,required TResult Function( List<PenSample> samples)  strokeCommitted,required TResult Function( List<CanvasPoint> path,  double radius,  bool partial)  erased,required TResult Function( List<CanvasPoint> polygon)  lassoClosed,required TResult Function()  selectionCleared,required TResult Function()  selectionDeleted,required TResult Function( double dx,  double dy)  selectionMoved,required TResult Function( String title)  selectionMovedToNewCanvas,required TResult Function( double x,  double y,  String text)  textCardAdded,required TResult Function( String noteId,  double x,  double y)  noteCardAdded,required TResult Function( String id,  String text)  cardTextChanged,required TResult Function( String id,  CanvasRect rect)  cardMoved,required TResult Function( String id)  cardDeleted,required TResult Function( String from,  String to)  arrowAdded,required TResult Function()  undone,required TResult Function()  redone,required TResult Function()  saveRequested,required TResult Function()  messageDismissed,required TResult Function( bool active)  gestureChanged,required TResult Function()  pulsed,required TResult Function( List<PenSample> samples)  strokeStreamed,required TResult Function()  strokeCancelled,required TResult Function( double x,  double y)  pointerMoved,required TResult Function()  pointerLeft,required TResult Function()  resumed,required TResult Function()  paused,}) {final _that = this;
 switch (_that) {
 case CanvasStartedEvent():
 return started(_that.noteId);case CanvasStylusSeenEvent():
@@ -285,7 +289,8 @@ return strokeStreamed(_that.samples);case CanvasStrokeCancelledEvent():
 return strokeCancelled();case CanvasPointerMovedEvent():
 return pointerMoved(_that.x,_that.y);case CanvasPointerLeftEvent():
 return pointerLeft();case CanvasResumedEvent():
-return resumed();}
+return resumed();case CanvasPausedEvent():
+return paused();}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -299,7 +304,7 @@ return resumed();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String noteId)?  started,TResult? Function()?  stylusSeen,TResult? Function( CanvasTool tool)?  toolChanged,TResult? Function( String color)?  colorChanged,TResult? Function( double width)?  widthChanged,TResult? Function( bool on)?  fingerDrawsChanged,TResult? Function( List<PenSample> samples)?  strokeCommitted,TResult? Function( List<CanvasPoint> path,  double radius,  bool partial)?  erased,TResult? Function( List<CanvasPoint> polygon)?  lassoClosed,TResult? Function()?  selectionCleared,TResult? Function()?  selectionDeleted,TResult? Function( double dx,  double dy)?  selectionMoved,TResult? Function( String title)?  selectionMovedToNewCanvas,TResult? Function( double x,  double y,  String text)?  textCardAdded,TResult? Function( String noteId,  double x,  double y)?  noteCardAdded,TResult? Function( String id,  String text)?  cardTextChanged,TResult? Function( String id,  CanvasRect rect)?  cardMoved,TResult? Function( String id)?  cardDeleted,TResult? Function( String from,  String to)?  arrowAdded,TResult? Function()?  undone,TResult? Function()?  redone,TResult? Function()?  saveRequested,TResult? Function()?  messageDismissed,TResult? Function( bool active)?  gestureChanged,TResult? Function()?  pulsed,TResult? Function( List<PenSample> samples)?  strokeStreamed,TResult? Function()?  strokeCancelled,TResult? Function( double x,  double y)?  pointerMoved,TResult? Function()?  pointerLeft,TResult? Function()?  resumed,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String noteId)?  started,TResult? Function()?  stylusSeen,TResult? Function( CanvasTool tool)?  toolChanged,TResult? Function( String color)?  colorChanged,TResult? Function( double width)?  widthChanged,TResult? Function( bool on)?  fingerDrawsChanged,TResult? Function( List<PenSample> samples)?  strokeCommitted,TResult? Function( List<CanvasPoint> path,  double radius,  bool partial)?  erased,TResult? Function( List<CanvasPoint> polygon)?  lassoClosed,TResult? Function()?  selectionCleared,TResult? Function()?  selectionDeleted,TResult? Function( double dx,  double dy)?  selectionMoved,TResult? Function( String title)?  selectionMovedToNewCanvas,TResult? Function( double x,  double y,  String text)?  textCardAdded,TResult? Function( String noteId,  double x,  double y)?  noteCardAdded,TResult? Function( String id,  String text)?  cardTextChanged,TResult? Function( String id,  CanvasRect rect)?  cardMoved,TResult? Function( String id)?  cardDeleted,TResult? Function( String from,  String to)?  arrowAdded,TResult? Function()?  undone,TResult? Function()?  redone,TResult? Function()?  saveRequested,TResult? Function()?  messageDismissed,TResult? Function( bool active)?  gestureChanged,TResult? Function()?  pulsed,TResult? Function( List<PenSample> samples)?  strokeStreamed,TResult? Function()?  strokeCancelled,TResult? Function( double x,  double y)?  pointerMoved,TResult? Function()?  pointerLeft,TResult? Function()?  resumed,TResult? Function()?  paused,}) {final _that = this;
 switch (_that) {
 case CanvasStartedEvent() when started != null:
 return started(_that.noteId);case CanvasStylusSeenEvent() when stylusSeen != null:
@@ -331,7 +336,8 @@ return strokeStreamed(_that.samples);case CanvasStrokeCancelledEvent() when stro
 return strokeCancelled();case CanvasPointerMovedEvent() when pointerMoved != null:
 return pointerMoved(_that.x,_that.y);case CanvasPointerLeftEvent() when pointerLeft != null:
 return pointerLeft();case CanvasResumedEvent() when resumed != null:
-return resumed();case _:
+return resumed();case CanvasPausedEvent() when paused != null:
+return paused();case _:
   return null;
 
 }
@@ -1983,6 +1989,38 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'CanvasEvent.resumed()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class CanvasPausedEvent implements CanvasEvent {
+  const CanvasPausedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CanvasPausedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'CanvasEvent.paused()';
 }
 
 

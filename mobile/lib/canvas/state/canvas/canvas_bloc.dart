@@ -61,6 +61,9 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
   bool _refresh = false;
   bool _pulseQueued = false;
 
+  /// The app is not in front: no tick runs.
+  bool _background = false;
+
   /// The outlines the screen already holds, by stroke ID.
   final Map<String, CanvasStroke> _held = <String, CanvasStroke>{};
 
@@ -198,10 +201,19 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
           await doc.clearPointer();
         }
       case CanvasResumedEvent():
+        _background = false;
         final doc = _document;
         if (doc != null && _shared) {
           await doc.reconnect();
+          _tick(shared: true);
+          await _pulseNow(emit);
         }
+      case CanvasPausedEvent():
+        // Behind, the library has left the room: a tick would only spend
+        // the battery.
+        _background = true;
+        _ticker?.cancel();
+        _ticker = null;
     }
   }
 
@@ -447,9 +459,10 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
     );
   }
 
-  /// Runs the room's tick for as long as the canvas is shared.
+  /// Runs the room's tick for as long as the canvas is shared and the app is
+  /// in front.
   void _tick({required bool shared}) {
-    if (!shared) {
+    if (!shared || _background) {
       _ticker?.cancel();
       _ticker = null;
       return;

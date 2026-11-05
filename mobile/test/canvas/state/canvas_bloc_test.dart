@@ -448,6 +448,19 @@ void main() {
       await asked(() => document.reconnected == 1);
     });
 
+    test('behind, the tick stops; back in front, it starts again', () async {
+      await openShared();
+      await asked(() => document.pulses > 0);
+      bloc.add(const CanvasEvent.paused());
+      await _settle();
+      final paused = document.pulses;
+      await Future<void>.delayed(canvasPulseEvery * 4);
+      expect(document.pulses, paused, reason: 'no tick in the background');
+      bloc.add(const CanvasEvent.resumed());
+      await asked(() => document.reconnected == 1);
+      await asked(() => document.pulses > paused + 1);
+    });
+
     test('closing takes back, writes and leaves in one call', () async {
       await openShared();
       bloc.add(const CanvasEvent.textCardAdded(0, 0, 'Hello'));
