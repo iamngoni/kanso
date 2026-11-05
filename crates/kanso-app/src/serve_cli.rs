@@ -4,7 +4,6 @@
 //! display is touched, the session can live in `secrets.json`
 //! (`kanso account sign-in --secrets file`), and SIGTERM stops it cleanly.
 
-use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -70,6 +69,9 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
         })?;
     let say: Say = Arc::new(|line| eprintln!("{line}"));
     let keys = kanso_server::KeyStore::open(store.clone())?;
+    if let Some(notice) = no_keys_notice(&keys.list()?) {
+        eprintln!("{notice}");
+    }
     let handle = kanso_server::spawn(store.clone(), server, keys);
     match handle.bind_result() {
         Ok(addr) => eprintln!("Kanso API on http://{addr} (MCP at /mcp). Ctrl-C stops it."),
@@ -120,14 +122,19 @@ const BACKUP_CHECK: Duration = Duration::from_secs(60 * 60);
 
 /// The warning for an API other computers can reach, or `None` on
 /// loopback. Pure.
+/// The same test as Settings' warning: anything but a loopback address,
+/// including one that doesn't parse, warns.
 pub fn exposed_warning(bind_address: &str) -> Option<&'static str> {
-    let loopback = bind_address
-        .trim()
-        .parse::<IpAddr>()
-        .is_ok_and(|ip| ip.is_loopback())
-        || bind_address.trim().eq_ignore_ascii_case("localhost");
-    (!loopback).then_some(
-        "kanso serve: the API is reachable from other computers over plain HTTP; put TLS in front or use an SSH tunnel.",
+    crate::api_keys_model::is_lan_address(bind_address).then_some(
+        "kanso serve: binding to a LAN address sends keys unencrypted, so anyone on the network can read them. Set server.bind_address in config.json to 127.0.0.1 to keep the API on this computer, or put TLS in front or use an SSH tunnel.",
+    )
+}
+
+/// What `serve` says at start-up when no key in `rows` works, so every
+/// request would be refused. Pure.
+pub fn no_keys_notice(rows: &[kanso_store::ApiKeyRow]) -> Option<&'static str> {
+    rows.iter().all(|row| row.revoked_at.is_some()).then_some(
+        "kanso serve: this library has no API keys, so every request is refused. Stop `kanso serve` and run `kanso api-key create --name <name>` to make one.",
     )
 }
 
