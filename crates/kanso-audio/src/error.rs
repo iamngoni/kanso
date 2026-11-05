@@ -25,6 +25,8 @@ pub enum AudioError {
     Device(String),
     #[error("system audio isn't available: {0}")]
     SystemAudio(String),
+    #[error("Kanso isn't allowed to record other apps' audio")]
+    ScreenRecordingDenied,
     #[error("the recording's notes file is unreadable: {0}")]
     Session(String),
 }

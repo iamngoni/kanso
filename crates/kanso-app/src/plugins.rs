@@ -1658,7 +1658,7 @@ pub fn run_cli(data_dir: &Path, rest: &[String]) -> anyhow::Result<()> {
         Some("list") => {
             let _lock = kanso_store::lock_data_dir(data_dir)?
                 .ok_or_else(|| anyhow::anyhow!("Kanso is open; see Settings › Plugins"))?;
-            let store = Store::open(crate::paths::db_path(data_dir))?;
+            let store = crate::library_open::open_store(data_dir)?;
             for plugin in State::load(&store).plugins {
                 println!(
                     "{}  {}  {}{}",
