@@ -1057,6 +1057,7 @@ mod tests {
                 any::<bool>(),
                 any::<bool>(),
                 any::<bool>(),
+                any::<bool>(),
                 1u8..=2,
                 any::<bool>(),
                 any::<bool>(),
