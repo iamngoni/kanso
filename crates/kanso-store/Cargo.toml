@@ -18,6 +18,7 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
+unicode-normalization.workspace = true
 zeroize.workspace = true
 
 # The SQLite behind `rusqlite`, by platform (issue #243). The desktop builds
