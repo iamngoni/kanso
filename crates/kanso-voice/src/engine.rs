@@ -37,7 +37,7 @@ pub fn intra_threads(cores: usize) -> usize {
 }
 
 // no-prop-test: ONNX Runtime setup; the model test runs it.
-fn open(path: &Path) -> Result<Session, VoiceError> {
+pub(crate) fn open(path: &Path) -> Result<Session, VoiceError> {
     let fail = |e: String| VoiceError::Model(format!("{}: {e}", path.display()));
     let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
     Session::builder(environment()?)

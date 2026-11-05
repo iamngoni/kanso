@@ -35,6 +35,8 @@ import 'api/player.dart';
 import 'api/player_types.dart';
 import 'api/publish.dart';
 import 'api/recording.dart';
+import 'api/recording_speakers.dart';
+import 'api/recording_speakers_types.dart';
 import 'api/recording_types.dart';
 import 'api/renderer.dart';
 import 'api/shared.dart';
@@ -161,6 +163,10 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoRecordingPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoRecordingSpeakersPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakersPtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoRendererPtr => wire
@@ -336,6 +342,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoRecording
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    dynamic raw,
+  );
+
+  @protected
+  KansoRecordingSpeakers
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
     dynamic raw,
   );
 
@@ -522,6 +534,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoRecording
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    dynamic raw,
+  );
+
+  @protected
+  KansoRecordingSpeakers
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
     dynamic raw,
   );
 
@@ -714,6 +732,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoRecording
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    dynamic raw,
+  );
+
+  @protected
+  KansoRecordingSpeakers
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
     dynamic raw,
   );
 
@@ -1981,6 +2005,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<SpanRow> dco_decode_list_span_row(dynamic raw);
 
   @protected
+  List<SpeakerChange> dco_decode_list_speaker_change(dynamic raw);
+
+  @protected
+  List<SpeakerNameView> dco_decode_list_speaker_name_view(dynamic raw);
+
+  @protected
   List<StatusChoice> dco_decode_list_status_choice(dynamic raw);
 
   @protected
@@ -2781,6 +2811,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   SpanRow dco_decode_span_row(dynamic raw);
 
   @protected
+  SpeakerChange dco_decode_speaker_change(dynamic raw);
+
+  @protected
+  SpeakerNameView dco_decode_speaker_name_view(dynamic raw);
+
+  @protected
+  SpeakersRenamed dco_decode_speakers_renamed(dynamic raw);
+
+  @protected
   StatusChoice dco_decode_status_choice(dynamic raw);
 
   @protected
@@ -3129,6 +3168,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoRecordingSpeakers
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoRenderer
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRenderer(
     SseDeserializer deserializer,
@@ -3311,6 +3356,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoRecording
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoRecordingSpeakers
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
     SseDeserializer deserializer,
   );
 
@@ -3503,6 +3554,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoRecording
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoRecordingSpeakers
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
     SseDeserializer deserializer,
   );
 
@@ -4994,6 +5051,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<SpanRow> sse_decode_list_span_row(SseDeserializer deserializer);
 
   @protected
+  List<SpeakerChange> sse_decode_list_speaker_change(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<SpeakerNameView> sse_decode_list_speaker_name_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<StatusChoice> sse_decode_list_status_choice(
     SseDeserializer deserializer,
   );
@@ -5910,6 +5977,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   SpanRow sse_decode_span_row(SseDeserializer deserializer);
 
   @protected
+  SpeakerChange sse_decode_speaker_change(SseDeserializer deserializer);
+
+  @protected
+  SpeakerNameView sse_decode_speaker_name_view(SseDeserializer deserializer);
+
+  @protected
+  SpeakersRenamed sse_decode_speakers_renamed(SseDeserializer deserializer);
+
+  @protected
   StatusChoice sse_decode_status_choice(SseDeserializer deserializer);
 
   @protected
@@ -6293,6 +6369,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
+    KansoRecordingSpeakers self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRenderer(
     KansoRenderer self,
     SseSerializer serializer,
@@ -6505,6 +6588,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
     KansoRecording self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
+    KansoRecordingSpeakers self,
     SseSerializer serializer,
   );
 
@@ -6728,6 +6818,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
     KansoRecording self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
+    KansoRecordingSpeakers self,
     SseSerializer serializer,
   );
 
@@ -8706,6 +8803,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_list_span_row(List<SpanRow> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_speaker_change(
+    List<SpeakerChange> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_speaker_name_view(
+    List<SpeakerNameView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_status_choice(
     List<StatusChoice> self,
     SseSerializer serializer,
@@ -9864,6 +9973,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_span_row(SpanRow self, SseSerializer serializer);
 
   @protected
+  void sse_encode_speaker_change(SpeakerChange self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_speaker_name_view(
+    SpeakerNameView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_speakers_renamed(
+    SpeakersRenamed self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_status_choice(StatusChoice self, SseSerializer serializer);
 
   @protected
@@ -10948,6 +11072,40 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakersPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakersPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakersPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakers =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSpeakersPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

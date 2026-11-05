@@ -60,6 +60,7 @@ mod plugins_settings;
 mod plugins_sheets;
 mod record_sheet;
 mod recording_sheet;
+mod rename_speakers;
 mod voice;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead
@@ -6142,6 +6143,54 @@ fn snapshots() {
             Edit,
             voice::settings_voice_failed,
         ),
+        shot(
+            "light-settings-speakers-missing",
+            Light,
+            Edit,
+            voice::settings_speakers_missing,
+        ),
+        shot(
+            "dark-settings-speakers-missing",
+            Dark,
+            Edit,
+            voice::settings_speakers_missing,
+        ),
+        shot(
+            "light-settings-speakers-downloading",
+            Light,
+            Edit,
+            voice::settings_speakers_downloading,
+        ),
+        shot(
+            "dark-settings-speakers-downloading",
+            Dark,
+            Edit,
+            voice::settings_speakers_downloading,
+        ),
+        shot(
+            "light-settings-speakers-ready",
+            Light,
+            Edit,
+            voice::settings_speakers_ready,
+        ),
+        shot(
+            "dark-settings-speakers-ready",
+            Dark,
+            Edit,
+            voice::settings_speakers_ready,
+        ),
+        shot(
+            "dark-editor-telling-speakers",
+            Dark,
+            Edit,
+            rename_speakers::editor_telling,
+        ),
+        shot(
+            "light-editor-telling-speakers",
+            Light,
+            Edit,
+            rename_speakers::editor_telling,
+        ),
         shot("light-ask-receipts", Light, Edit, ask::answer_with_receipts),
         shot("dark-ask-receipts", Dark, Edit, ask::answer_with_receipts),
         shot("light-ask-never-wrote", Light, Edit, ask::never_wrote),
@@ -6779,6 +6828,7 @@ fn snapshots() {
         .chain(api_keys::SHOTS)
         .chain(plugins_sheets::SHOTS)
         .chain(recording_sheet::SHOTS)
+        .chain(rename_speakers::SHOTS)
         .chain(plugins_panel::SHOTS)
     {
         let theme = if name.starts_with("dark-") {

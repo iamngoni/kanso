@@ -122,6 +122,8 @@ pub mod recording_privacy_model;
 mod recording_seal;
 #[cfg(test)]
 mod recording_seal_tests;
+pub mod recording_speakers;
+pub mod recording_speakers_model;
 pub mod replace;
 pub mod saving;
 pub mod shortcuts;

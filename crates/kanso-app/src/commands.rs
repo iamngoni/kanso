@@ -25,10 +25,11 @@ use crate::workspace::{
     AskYourNotes, ChangePassword, CopyKansoLink, CopyNoteLink, Dictate, ExportHtml, ExportLibrary,
     ExportNote, ExportPdf, FocusNoteList, FocusSearch, FormatTable, GoBack, GoForward,
     GoNotebookHome, ImportLibrary, NewAgentTask, NewCanvas, NewNote, NewNotebook, NewRecoveryKey,
-    NextNote, OpenFile, OpenNotePicker, OpenSettings, PreviousNote, Quit, SaveNote, SearchAllNotes,
-    ShowBacklinks, ShowCreateAccount, ShowEditor, ShowHistory, ShowLive, ShowOutline, ShowPreview,
-    ShowSignIn, ShowSplit, SignOut, SummarizeNote, SyncNow, TidyVoiceNote, ToggleFocusMode,
-    ToggleInspector, TogglePinned, ToggleSidebar, TrashNote, UndoLastChange,
+    NextNote, OpenFile, OpenNotePicker, OpenSettings, PreviousNote, Quit, RenameSpeakers, SaveNote,
+    SearchAllNotes, ShowBacklinks, ShowCreateAccount, ShowEditor, ShowHistory, ShowLive,
+    ShowOutline, ShowPreview, ShowSignIn, ShowSplit, SignOut, SummarizeNote, SyncNow,
+    TidyVoiceNote, ToggleFocusMode, ToggleInspector, TogglePinned, ToggleSidebar, TrashNote,
+    UndoLastChange,
 };
 
 /// The palette's sections, in the order they appear with nothing typed.
@@ -425,6 +426,26 @@ static COMMANDS: &[Command] = &[
         group: Group::Note,
         run: action!(crate::transcribe::TranscribeAudio),
         needs: Needs::AudioLine,
+    },
+    Command {
+        id: "rename-speakers",
+        label: "Rename speakers…",
+        label_when_pinned: None,
+        description: "Changes the names before the paragraphs of a recording's transcript, such as Speaker 1 or You. Two names made the same merge those voices. Undo brings the old names back.",
+        icon: IconName::Users,
+        keywords: &[
+            "speaker",
+            "speakers",
+            "who",
+            "name",
+            "meeting",
+            "recording",
+            "transcript",
+            "diarization",
+        ],
+        group: Group::Note,
+        run: action!(RenameSpeakers),
+        needs: Needs::LiveNote,
     },
     Command {
         id: "word-goal",

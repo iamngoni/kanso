@@ -36,6 +36,7 @@ use super::people::KansoPeople;
 use super::player::KansoPlayers;
 use super::publish::KansoPublisher;
 use super::recording::KansoRecorder;
+use super::recording_speakers::KansoRecordingSpeakers;
 use super::renderer::KansoRenderer;
 use super::shared::KansoShared;
 use super::sync::KansoSync;
@@ -509,6 +510,13 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn voice_capture(&self) -> KansoVoiceCapture {
         KansoVoiceCapture::new(self.0.clone())
+    }
+
+    /// Rename Speakers: the names before the paragraphs of a recording's
+    /// transcript, listed and changed.
+    #[frb(sync)]
+    pub fn recording_speakers(&self) -> KansoRecordingSpeakers {
+        KansoRecordingSpeakers::new(self.0.clone())
     }
 
     /// Opens canvas note `id` for drawing.

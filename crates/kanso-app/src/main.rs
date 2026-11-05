@@ -173,6 +173,7 @@ mod recording_model;
 mod recording_tests;
 mod related;
 mod reminders;
+mod rename_speakers;
 mod replace;
 mod resurface;
 mod review_queue;
@@ -206,6 +207,7 @@ mod sidebar;
 mod smart_paste;
 #[cfg(test)]
 mod snapshots;
+mod speakers;
 mod spellcheck;
 // Tests check with a word list instead.
 mod card_marks;
@@ -730,6 +732,7 @@ fn run_app(
         // Discovery, in the background: related notes, text in images and in PDFs.
         related::init(cx);
         voice::init(cx);
+        speakers::init(cx);
         ocr::init(cx);
         pdf::index::init(cx);
         ink_ocr::init(cx);

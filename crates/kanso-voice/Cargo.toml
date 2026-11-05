@@ -17,6 +17,8 @@ kanso-audio.workspace = true
 # runs; telemetry is off. On macOS the archive also carries Core ML, and on
 # Windows DirectML, whose system libraries it links.
 ort = { version = "=2.0.0-rc.15", default-features = false, features = ["std", "download-binaries", "tls-rustls", "api-24"] }
+# The speaker embedding's filterbank features.
+realfft = "3.5"
 # Spaces before punctuation come out of the transcript as onnx-asr does it.
 regex.workspace = true
 # The microphone callback hands samples over without locking or allocating.

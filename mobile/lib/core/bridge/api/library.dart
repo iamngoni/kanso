@@ -26,6 +26,7 @@ import 'people.dart';
 import 'player.dart';
 import 'publish.dart';
 import 'recording.dart';
+import 'recording_speakers.dart';
 import 'renderer.dart';
 import 'shared.dart';
 import 'sync.dart';
@@ -341,6 +342,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   /// Recording a note from the microphone, and what a crash left.
   KansoRecorder recorder();
+
+  /// Rename Speakers: the names before the paragraphs of a recording's
+  /// transcript, listed and changed.
+  KansoRecordingSpeakers recordingSpeakers();
 
   Future<TaskPlace?> reminderAnswer({
     required String key,

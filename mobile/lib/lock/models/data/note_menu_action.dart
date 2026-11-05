@@ -23,6 +23,10 @@ enum NoteMenuAction {
   /// Opens the Record screen with this note as where the recording goes.
   record,
 
+  /// Renames the speakers named before the paragraphs of the note's
+  /// recording transcript.
+  renameSpeakers,
+
   /// What the note's bar would offer, had it room for it: in the menu when
   /// the bar gave way (see `KansoTopBar.hiddenOf`).
   info,

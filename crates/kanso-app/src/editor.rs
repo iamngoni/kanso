@@ -4485,6 +4485,14 @@ impl NoteEditor {
         let shown = crate::transcribe::shown_for(self.note_id()?, cx)?;
         let colors = Colors::get(cx);
         let words = match (shown.waiting, shown.share) {
+            _ if shown.telling => match shown.share {
+                Some(share) => format!(
+                    "Telling the speakers apart in “{}”… {}%",
+                    shown.name,
+                    (share * 100.).floor() as u32
+                ),
+                None => format!("Telling the speakers apart in “{}”…", shown.name),
+            },
             (true, _) => format!(
                 "“{}” is transcribed once the speech model has downloaded",
                 shown.name

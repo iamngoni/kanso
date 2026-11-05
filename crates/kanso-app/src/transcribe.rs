@@ -215,6 +215,8 @@ struct Job {
     window: AnyWindowHandle,
     /// Waiting for the voice model to download.
     waiting: bool,
+    /// Past the words, telling the voices apart (issue #38, step 13).
+    telling: Arc<AtomicBool>,
     _task: Option<Task<()>>,
 }
 
@@ -234,6 +236,8 @@ pub struct Shown {
     pub share: Option<f32>,
     /// Waiting for the model to download.
     pub waiting: bool,
+    /// The words are done; now working out who said them.
+    pub telling: bool,
 }
 
 /// What the editor showing `note_id` says about a transcription into it.
@@ -243,6 +247,7 @@ pub fn shown_for(note_id: &str, cx: &App) -> Option<Shown> {
         name: job.source.name().to_owned(),
         share: job.progress.lock().unwrap().share(),
         waiting: job.waiting,
+        telling: job.telling.load(Ordering::Relaxed),
     })
 }
 
@@ -276,9 +281,25 @@ pub fn show_for_snapshot(
         editor: editor.downgrade(),
         window,
         waiting: false,
+        telling: Arc::default(),
         _task: None,
     };
     cx.default_global::<Transcription>().job = Some(job);
+}
+
+/// [`show_for_snapshot`] past the words: working out who said them.
+#[cfg(test)]
+pub fn show_telling_for_snapshot(
+    editor: &Entity<NoteEditor>,
+    window: AnyWindowHandle,
+    name: &str,
+    share: f32,
+    cx: &mut App,
+) {
+    show_for_snapshot(editor, window, name, share, cx);
+    if let Some(job) = cx.default_global::<Transcription>().job.as_ref() {
+        job.telling.store(true, Ordering::Relaxed);
+    }
 }
 
 /// Stops the transcription; nothing goes into the note.
@@ -342,6 +363,7 @@ pub fn start_for(
         editor: editor.downgrade(),
         window: window.window_handle(),
         waiting: false,
+        telling: Arc::default(),
         _task: None,
     };
     let model = cx
@@ -449,13 +471,15 @@ fn run(mut job: Job, cx: &mut App) {
         }
         _ => None,
     };
+    let speaker_dirs = crate::speakers::ready(cx);
+    let telling = job.telling.clone();
     let (done_tx, done_rx) = async_channel::bounded(1);
     let spawned = std::thread::Builder::new()
         .name("kanso-transcribe".into())
         .spawn(move || {
             let result = match &source {
-                Source::Recording { file_ids, duration } => read_parts(&store, file_ids, sealed)
-                    .and_then(|parts| {
+                Source::Recording { file_ids, duration } => {
+                    read_parts(&store, file_ids, sealed.clone()).and_then(|parts| {
                         file::transcribe_parts(
                             parts,
                             Some(*duration),
@@ -463,14 +487,45 @@ fn run(mut job: Job, cx: &mut App) {
                             &cancel,
                             &mut |at| *progress.lock().unwrap() = at,
                         )
-                    }),
+                    })
+                }
                 _ => read_source(&store, &source).and_then(|(media, ext)| {
                     file::transcribe_timed(media, ext.as_deref(), &model_dir, &cancel, &mut |at| {
                         *progress.lock().unwrap() = at;
                     })
                 }),
             };
-            let _ = done_tx.try_send(result);
+            // The words are in; now who said them. Not being able to tell
+            // is no reason to lose the transcript.
+            let outcome = result.and_then(|pieces| {
+                let Some((segmentation, embedding)) = speaker_dirs else {
+                    return Ok((pieces, Ok(None)));
+                };
+                telling.store(true, Ordering::Relaxed);
+                *progress.lock().unwrap() = Progress::default();
+                let parts = match &source {
+                    Source::Recording { file_ids, .. } => read_parts(&store, file_ids, sealed),
+                    _ => read_source(&store, &source).map(|one| vec![one]),
+                };
+                let spoken = parts.and_then(|parts| {
+                    file::diarize_parts(
+                        parts,
+                        match &source {
+                            Source::Recording { duration, .. } => Some(*duration),
+                            _ => None,
+                        },
+                        &segmentation,
+                        &embedding,
+                        &cancel,
+                        &mut |at| *progress.lock().unwrap() = at,
+                    )
+                });
+                match spoken {
+                    Err(VoiceError::Cancelled) => Err(VoiceError::Cancelled),
+                    other => Ok((pieces, other.map(Some))),
+                }
+            });
+            let _ = done_tx.try_send(outcome);
         });
     if let Err(err) = spawned {
         notify(
@@ -502,8 +557,26 @@ fn run(mut job: Job, cx: &mut App) {
                 .filter(|_| matches!(job.source, Source::Recording { .. }));
             forget_if_recording(&job, cx);
             match result {
-                Ok(pieces) => {
-                    insert(&job, &transcript_text(job.source.file_id(), &pieces), cx);
+                Ok((pieces, spoken)) => {
+                    let spoken = match spoken {
+                        Ok(spoken) => spoken,
+                        Err(why) => {
+                            notify(
+                                &job,
+                                Notification::info(format!(
+                                    "The transcript is in, but Kanso couldn't tell the speakers apart: {}",
+                                    voice::error_words(&why).unwrap_or_else(|| why.to_string())
+                                )),
+                                cx,
+                            );
+                            None
+                        }
+                    };
+                    insert(
+                        &job,
+                        &transcript_text(job.source.file_id(), &pieces, spoken.as_ref()),
+                        cx,
+                    );
                     if let Some(pending) = pending {
                         // "Keep transcript only": save what the editor holds,
                         // then delete the audio once the stored note has it.
@@ -528,14 +601,33 @@ fn run(mut job: Job, cx: &mut App) {
 
 /// What goes in the note for `pieces`: the timestamped, marked transcript
 /// when the recording is attached (so each paragraph can seek it), else
-/// plain words. Pure.
-pub fn transcript_text(file_id: Option<&str>, pieces: &[file::Timed]) -> String {
+/// plain words. `spoken` is who spoke when, if it was worked out: it names
+/// the voices ("Speaker 1"), on top of "You" and "Meeting" from the two
+/// tracks. Pure.
+pub fn transcript_text(
+    file_id: Option<&str>,
+    pieces: &[file::Timed],
+    spoken: Option<&kanso_voice::diarize::Diarization>,
+) -> String {
+    let labels: Vec<Option<String>> = match spoken {
+        Some(spoken) => {
+            let starts: Vec<Duration> = pieces.iter().map(|p| p.start).collect();
+            let channels: Vec<Option<kanso_audio::Speaker>> =
+                pieces.iter().map(|p| p.speaker).collect();
+            kanso_voice::diarize::names(&starts, spoken, &channels)
+        }
+        None => pieces
+            .iter()
+            .map(|p| p.speaker.map(|s| s.label().to_owned()))
+            .collect(),
+    };
     let segments: Vec<Segment> = pieces
         .iter()
-        .map(|p| Segment {
+        .zip(labels)
+        .map(|(p, speaker)| Segment {
             start_secs: p.start.as_secs() as u32,
             text: p.text.clone(),
-            speaker: p.speaker.map(kanso_audio::Speaker::label),
+            speaker,
         })
         .collect();
     match file_id.and_then(|id| recording_note::render_transcript(id, &segments)) {
@@ -893,10 +985,49 @@ mod tests {
                 said(20, "Hi, all.", Some(Speaker::Meeting)),
                 said(41, "Quiet.", None),
             ],
+            None,
         );
         assert!(text.contains("[00:00](kanso-audio://file:m1?t=0) You: Morning."));
         assert!(text.contains("[00:20](kanso-audio://file:m1?t=20) Meeting: Hi, all."));
         assert!(text.contains("[00:41](kanso-audio://file:m1?t=41) Quiet."));
+    }
+
+    #[test]
+    fn a_meeting_with_two_voices_names_them_and_keeps_you() {
+        use super::{file::Timed, transcript_text};
+        use kanso_audio::Speaker;
+        use kanso_voice::diarize::{Diarization, Turn};
+        use std::time::Duration;
+        let said = |secs, speaker| Timed {
+            start: Duration::from_secs(secs),
+            text: "Words.".into(),
+            speaker,
+        };
+        let turn = |start, end, speaker| Turn {
+            start,
+            end,
+            speaker,
+        };
+        let spoken = Diarization {
+            turns: vec![turn(20., 40., 5), turn(40., 60., 2)],
+            seconds: 60.,
+        };
+        let text = transcript_text(
+            Some("file:m1"),
+            &[
+                said(0, Some(Speaker::You)),
+                said(20, Some(Speaker::Meeting)),
+                said(40, Some(Speaker::Meeting)),
+            ],
+            Some(&spoken),
+        );
+        assert!(text.contains("?t=0) You: Words."), "{text}");
+        assert!(text.contains("?t=20) Speaker 1: Words."), "{text}");
+        assert!(text.contains("?t=40) Speaker 2: Words."), "{text}");
+        // And the note can rename them afterwards.
+        let renamed =
+            kanso_engine::recording_speakers::rename(&text, "file:m1", "Speaker 2", "Priya");
+        assert!(renamed.unwrap().contains("?t=40) Priya: Words."));
     }
 
     #[test]
@@ -908,10 +1039,14 @@ mod tests {
             text: text.into(),
             speaker: None,
         };
-        let first = transcript_text(Some("file:m1"), &[piece(0, "One."), piece(20, "Two.")]);
+        let first = transcript_text(
+            Some("file:m1"),
+            &[piece(0, "One."), piece(20, "Two.")],
+            None,
+        );
         assert!(first.contains("[00:20](kanso-audio://file:m1?t=20) Two."));
         let text = format!("[a](inkdrop://file:m1)\n\nMine\n\n{first}\n\nTail");
-        let second = transcript_text(Some("file:m1"), &[piece(0, "New.")]);
+        let second = transcript_text(Some("file:m1"), &[piece(0, "New.")], None);
         let edit = transcript_edit(&text, Some("file:m1"), &second, 0..0).unwrap();
         assert_eq!(
             apply(&text, &edit),
@@ -919,7 +1054,7 @@ mod tests {
         );
         // Without a recording linked there are no timestamps.
         assert_eq!(
-            transcript_text(None, &[piece(0, "A."), piece(9, "B.")]),
+            transcript_text(None, &[piece(0, "A."), piece(9, "B.")], None),
             "A. B."
         );
         // Without markers in the note, a marked one goes under the link.

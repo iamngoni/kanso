@@ -657,6 +657,9 @@ pub struct VoiceSettings {
     pub meetings: bool,
     /// Keep the recording's audio with the note.
     pub keep_audio: bool,
+    /// Tell the voices in a recording apart: "Speaker 1", "Speaker 2"
+    /// before their paragraphs (issue #38, step 13). Needs two small models.
+    pub speakers: bool,
 }
 
 impl Default for VoiceSettings {
@@ -667,6 +670,7 @@ impl Default for VoiceSettings {
             tidy: TidyMode::default(),
             meetings: true,
             keep_audio: false,
+            speakers: false,
         }
     }
 }

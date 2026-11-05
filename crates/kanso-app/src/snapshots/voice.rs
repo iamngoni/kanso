@@ -9,6 +9,7 @@ use kanso_store::Store;
 
 use crate::config::VoiceEngine;
 use crate::settings::SettingsPage;
+use crate::speakers::Speakers;
 use crate::voice::{ModelState, Voice};
 use crate::voice_state::Phase;
 use crate::workspace::{AppState, Workspace};
@@ -202,4 +203,54 @@ pub(super) fn recording_recover(
             cx,
         );
     });
+}
+
+/// Settings › Editor › Voice input with Tell speakers apart on and its two
+/// models in `model`.
+fn settings_speakers(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    model: ModelState,
+) {
+    cx.update(|cx| {
+        cx.global_mut::<AppState>().config.voice.speakers = true;
+        cx.set_global(Speakers::for_snapshot(model));
+    });
+    settings_voice(cx, window, workspace, ModelState::Ready);
+}
+
+pub(super) fn settings_speakers_missing(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    _: &Store,
+) {
+    settings_speakers(cx, window, workspace, ModelState::Missing);
+}
+
+pub(super) fn settings_speakers_downloading(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    _: &Store,
+) {
+    settings_speakers(
+        cx,
+        window,
+        workspace,
+        ModelState::Downloading {
+            done: 11_200_000,
+            total: 28_071_056,
+        },
+    );
+}
+
+pub(super) fn settings_speakers_ready(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    _: &Store,
+) {
+    settings_speakers(cx, window, workspace, ModelState::Ready);
 }

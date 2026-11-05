@@ -91,6 +91,7 @@ actions!(
         UndoAgentTask,
         UndoLastChange,
         SummarizeNote,
+        RenameSpeakers,
         TidyVoiceNote,
     ]
 );
@@ -338,6 +339,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Voice Input", Dictate),
             MenuItem::action("Record…", crate::recording::RecordAudio),
             MenuItem::action("Transcribe Recording", crate::transcribe::TranscribeAudio),
+            MenuItem::action("Rename Speakers…", RenameSpeakers),
             MenuItem::action("Publish…", crate::publish::PublishNote),
             MenuItem::action("Publish Notebook…", crate::publish_site::PublishNotebook),
             MenuItem::separator(),
@@ -3071,6 +3073,10 @@ impl Render for Workspace {
                     }
                 }),
             )
+            .on_action(cx.listener(|this, _: &RenameSpeakers, window, cx| {
+                this.close_settings(window, cx);
+                crate::rename_speakers::open(this.editor.clone(), window, cx);
+            }))
             .on_action(cx.listener(|this, _: &Dictate, window, cx| {
                 this.close_settings(window, cx);
                 crate::voice::press(this.editor.clone(), window, cx);
