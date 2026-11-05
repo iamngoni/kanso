@@ -4515,6 +4515,83 @@ fn show_api_keys_notice(cx: &mut HeadlessAppContext) {
     });
 }
 
+/// The plain-library notice for a library that could not be encrypted.
+fn library_plain_notices() -> &'static [kanso_core::notices::Notice] {
+    let mut notice = kanso_core::notices::NOTICES
+        .iter()
+        .find(|notice| notice.id == kanso_core::notices::LIBRARY_PLAIN_ID)
+        .expect("the plain-library notice ships")
+        .clone();
+    notice.since = semver::Version::new(0, 9, 0);
+    Box::leak(Box::new([notice]))
+}
+
+fn show_library_plain_notice(cx: &mut HeadlessAppContext) {
+    cx.update(|cx| {
+        cx.set_global(crate::notices::PlainLibrary(
+            "There isn't enough free space to encrypt your library. Kanso needs about 412 MB free on the disk that holds it. Free some space and open Kanso again. Your notes are untouched."
+                .into(),
+        ));
+        cx.set_global(crate::notices::NoticeBoard {
+            list: library_plain_notices(),
+            previous: Some(semver::Version::new(0, 9, 3)),
+        });
+        cx.refresh_windows();
+    });
+}
+
+/// The plain-library notice's banner.
+fn library_plain_banner(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_library_plain_notice(cx);
+}
+
+/// The plain-library notice's How to fix sheet, with what Kanso found.
+fn library_plain_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_library_plain_notice(cx);
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        crate::notice_views::open_how_to_fix(&library_plain_notices()[0], window, cx)
+    })
+    .unwrap();
+}
+
+/// "Encrypting your library… 62%", the content of the window that shows
+/// while an existing library is encrypted.
+fn encrypting_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use gpui_kit::ParentElement as _;
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        window.open_alert_dialog(cx, |alert, _, cx| {
+            let colors = Colors::get(cx);
+            alert
+                .width(px(crate::encrypt_progress::WIDTH))
+                .child(crate::encrypt_progress::body(
+                    kanso_store::EncryptStage::Copying,
+                    62,
+                    colors,
+                ))
+                // The real window has no button.
+                .footer(gpui_kit::div())
+        });
+    })
+    .unwrap();
+}
+
 /// The API keys notice's banner.
 fn api_keys_banner(
     cx: &mut HeadlessAppContext,
@@ -6581,6 +6658,45 @@ fn snapshots() {
         Shot {
             dialog_width: crate::notice_views::SHEET_WIDTH,
             ..shot("light-api-keys-notice-sheet", Light, Split, api_keys_sheet)
+        },
+        // The library could not be encrypted (issue #243, step 10).
+        shot(
+            "dark-notice-library-plain-banner",
+            Dark,
+            Split,
+            library_plain_banner,
+        ),
+        shot(
+            "light-notice-library-plain-banner",
+            Light,
+            Split,
+            library_plain_banner,
+        ),
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot(
+                "dark-notice-library-plain-sheet",
+                Dark,
+                Split,
+                library_plain_sheet,
+            )
+        },
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot(
+                "light-notice-library-plain-sheet",
+                Light,
+                Split,
+                library_plain_sheet,
+            )
+        },
+        Shot {
+            dialog_width: crate::encrypt_progress::WIDTH,
+            ..shot("dark-encrypting-library", Dark, Split, encrypting_sheet)
+        },
+        Shot {
+            dialog_width: crate::encrypt_progress::WIDTH,
+            ..shot("light-encrypting-library", Light, Split, encrypting_sheet)
         },
         Shot {
             dialog_width: crate::updates::SHEET_WIDTH,

@@ -548,6 +548,13 @@ pub fn connect(path: &Path, key: Option<&LibraryKey>) -> Result<Connection> {
     // Deleted rows are overwritten, not just unlinked: a note's text gone
     // when it is locked (or deleted) doesn't stay in free pages.
     conn.pragma_update(None, "secure_delete", "ON")?;
+    register_functions(&conn)?;
+    Ok(conn)
+}
+
+/// The SQL functions the schema's indexes and queries call. A connection
+/// that copies a library (encryption, issue #243) needs them too.
+pub(crate) fn register_functions(conn: &Connection) -> Result<()> {
     conn.create_scalar_function(
         "kanso_contains",
         2,
@@ -603,7 +610,7 @@ pub fn connect(path: &Path, key: Option<&LibraryKey>) -> Result<Connection> {
             Ok(kanso_core::links::normalize_title(&title))
         },
     )?;
-    Ok(conn)
+    Ok(())
 }
 
 pub fn migrate(conn: &Connection) -> Result<()> {

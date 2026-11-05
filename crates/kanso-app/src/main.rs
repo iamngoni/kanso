@@ -66,6 +66,7 @@ mod due;
 mod editor;
 mod editor_footer;
 mod empty_state;
+mod encrypt_progress;
 mod export_html;
 mod export_style;
 mod feedback_app;
@@ -443,6 +444,8 @@ fn main() -> Result<()> {
             Ok(())
         }
         Some("serve") => serve_cli::run_cli(args.data_dir, &args.rest),
+        // The window an encryption of the library shows; started by the app.
+        Some("encrypt-progress") => encrypt_progress::run_child(),
         Some("account") => account_cli::run_cli(&args.data_dir, &args.rest),
         Some("import") => library_import::run_cli(&args.data_dir, &args.rest),
         Some("theme") => theme_import::run_cli(&args.data_dir, &args.rest),
@@ -533,6 +536,22 @@ fn load_config(data_dir: &std::path::Path) -> Result<AppConfig> {
     AppConfig::load_migrated(&path).with_context(|| format!("reading {}", path.display()))
 }
 
+/// Opens the library. A plain one is encrypted first, behind a small window
+/// that says how far it is; the library window opens when that is done.
+fn open_library_showing_progress(
+    data_dir: &std::path::Path,
+) -> Result<(kanso_store::Store, Option<String>)> {
+    let reporter = if library_open::will_encrypt(data_dir) {
+        encrypt_progress::Reporter::window()
+    } else {
+        encrypt_progress::Reporter::stderr()
+    };
+    let (store, plain_because) =
+        library_open::open_store_progress(data_dir, &|progress| reporter.report(progress))?;
+    drop(reporter);
+    Ok((store, plain_because))
+}
+
 /// How long a Kanso opened by an update waits for the one that installed
 /// it to let go of the data folder.
 const AFTER_UPDATE_WAIT: std::time::Duration = std::time::Duration::from_secs(20);
@@ -558,7 +577,8 @@ fn run_app(
         );
     };
     let config = load_config(&data_dir)?;
-    let store = Arc::new(library_open::open_store(&data_dir)?);
+    let (store, plain_because) = open_library_showing_progress(&data_dir)?;
+    let store = Arc::new(store);
     // Files to open: from the command line now, from the system's open
     // events (Finder) and from a second `kanso file.md` later. They wait
     // here until the main window exists.
@@ -629,6 +649,10 @@ fn run_app(
     });
     app.run(move |cx| {
         gpui_kit::init(cx);
+        // A library that could not be encrypted says so in a notice.
+        if let Some(why) = plain_because {
+            cx.set_global(notices::PlainLibrary(why));
+        }
         cx.set_global(AppState {
             store,
             data_dir,
