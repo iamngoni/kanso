@@ -323,3 +323,260 @@ fn only_a_page_carries_bytes() {
         "a refusal with bytes",
     );
 }
+
+// Text replies are held to the request like pages are (issue #43, steps 5
+// and 7): the page asked for, the size the open reported, the count the
+// header gave, the caps, and plain content.
+
+use kanso_pdf::model::Quad;
+use kanso_pdf::protocol::MAX_PAGE_CHARS;
+use kanso_pdf::text::{PageText, TextChar};
+
+fn letter_text(page: u32, chars: &str) -> PageText {
+    PageText {
+        page,
+        width: 612.0,
+        height: 792.0,
+        rotation: 0,
+        chars: chars
+            .chars()
+            .enumerate()
+            .map(|(i, ch)| TextChar {
+                ch,
+                quad: Quad::new(0.1 + i as f64 * 0.01, 0.1, 0.11 + i as f64 * 0.01, 0.12),
+                turns: 0,
+            })
+            .collect(),
+    }
+}
+
+/// Opens a one-page document, then asks for its text and gets `reply`.
+fn ask_text(reply: Vec<u8>) -> Result<PageText, WorkerError> {
+    let dir = tempfile::tempdir().unwrap();
+    let mut wire = frame(&opened(1, vec![[612.0, 792.0]]), &[]);
+    wire.extend(reply);
+    let mut worker = start(dir.path(), &wire);
+    worker.open(&sample_pdf(1), None).unwrap();
+    let result = worker.text(0);
+    if result.is_err() {
+        assert!(worker.failure().is_some(), "the worker was kept");
+    }
+    result
+}
+
+fn text_frame(page: u32, chars: u32, blob: &[u8]) -> Vec<u8> {
+    frame(
+        &Response::TextPage {
+            page,
+            chars,
+            truncated: false,
+        },
+        blob,
+    )
+}
+
+#[test]
+fn a_text_page_that_is_what_was_asked_for_is_believed() {
+    let text = letter_text(1, "Hello");
+    let json = serde_json::to_vec(&text).unwrap();
+    assert_eq!(ask_text(text_frame(0, 5, &json)).unwrap(), text);
+}
+
+#[test]
+fn a_text_page_that_is_not_what_was_asked_for_is_refused() {
+    let good = letter_text(1, "Hello");
+    let json = |text: &PageText| serde_json::to_vec(text).unwrap();
+    // The wrong page in the header, or in the text.
+    let mut spoiled = vec![("another page answered", text_frame(2, 5, &json(&good)))];
+    spoiled.push((
+        "the text of another page",
+        text_frame(0, 5, &json(&letter_text(4, "Hello"))),
+    ));
+    // The count in the header is not the count sent.
+    spoiled.push(("a count that lies", text_frame(0, 4, &json(&good))));
+    spoiled.push((
+        "a count past the cap",
+        text_frame(0, u32::MAX, &json(&good)),
+    ));
+    // A page of another size than the one opened.
+    let mut wide = good.clone();
+    wide.width = 5000.0;
+    spoiled.push(("another size", text_frame(0, 5, &json(&wide))));
+    let mut turned = good.clone();
+    turned.rotation = 45;
+    spoiled.push((
+        "a rotation that isn't one",
+        text_frame(0, 5, &json(&turned)),
+    ));
+    // Boxes off the page, backwards, or characters that aren't text.
+    let mut off = good.clone();
+    off.chars[0].quad = Quad([0.5, 0.5, 0.1, 0.1]);
+    spoiled.push(("a box that is backwards", text_frame(0, 5, &json(&off))));
+    let mut control = good.clone();
+    control.chars[0].ch = '\u{1b}';
+    spoiled.push(("a control character", text_frame(0, 5, &json(&control))));
+    let mut spun = good.clone();
+    spun.chars[0].turns = 9;
+    spoiled.push(("a direction that isn't one", text_frame(0, 5, &json(&spun))));
+    // Not a page's text at all.
+    spoiled.push(("not JSON", text_frame(0, 5, b"hello")));
+    spoiled.push(("nothing", text_frame(0, 5, b"")));
+    // Another kind of answer to the request.
+    spoiled.push((
+        "a page of pixels",
+        frame(
+            &Response::Page {
+                page: 0,
+                width: 1,
+                height: 1,
+            },
+            &[0u8; 4],
+        ),
+    ));
+    spoiled.push(("closed", frame(&Response::Closed, &[])));
+    spoiled.push(("text with no blob but a count", text_frame(0, 5, &[])));
+    // Text sent to a close, or an open answer with a text blob.
+    for (name, reply) in spoiled {
+        assert_eq!(
+            ask_text(reply).unwrap_err(),
+            WorkerError::BadReply,
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn a_page_of_text_past_the_cap_is_refused() {
+    let big = letter_text(1, &"a".repeat(MAX_PAGE_CHARS + 1));
+    let json = serde_json::to_vec(&big).unwrap();
+    let error = ask_text(text_frame(0, big.chars.len() as u32, &json)).unwrap_err();
+    assert_eq!(error, WorkerError::BadReply);
+}
+
+/// Opens a document of `pages` pages and asks for the plain text of pages
+/// `from` and on (`count`), getting `reply`.
+fn ask_plain(
+    pages: u32,
+    (from, count): (u32, u32),
+    reply: Vec<u8>,
+) -> Result<Vec<String>, WorkerError> {
+    let dir = tempfile::tempdir().unwrap();
+    let mut wire = frame(&opened(pages, vec![[612.0, 792.0]; pages as usize]), &[]);
+    wire.extend(reply);
+    let mut worker = start(dir.path(), &wire);
+    worker.open(&sample_pdf(1), None).unwrap();
+    let result = worker.plain_text(from, count);
+    // A refusal leaves the worker up; anything else it said ends it.
+    if result == Err(WorkerError::BadReply) {
+        assert!(worker.failure().is_some(), "the worker was kept");
+    }
+    result
+}
+
+fn plain_frame(from: u32, lens: &[u32], blob: &[u8]) -> Vec<u8> {
+    frame(
+        &Response::PlainText {
+            from,
+            lens: lens.to_vec(),
+            truncated: false,
+        },
+        blob,
+    )
+}
+
+#[test]
+fn plain_text_that_is_what_was_asked_for_is_believed() {
+    assert_eq!(
+        ask_plain(3, (1, 5), plain_frame(1, &[3, 0], b"one")).unwrap(),
+        ["one", ""]
+    );
+    assert_eq!(
+        ask_plain(3, (0, 1), plain_frame(0, &[6], "héllo".as_bytes())).unwrap(),
+        ["héllo"]
+    );
+}
+
+#[test]
+fn plain_text_that_is_not_what_was_asked_for_is_refused() {
+    let big = "a".repeat(MAX_PAGE_CHARS + 1);
+    type Case = (&'static str, u32, (u32, u32), Vec<u8>);
+    let cases: Vec<Case> = vec![
+        ("another start", 3, (1, 2), plain_frame(0, &[1, 1], b"ab")),
+        (
+            "too many pages",
+            3,
+            (0, 2),
+            plain_frame(0, &[1, 1, 1], b"abc"),
+        ),
+        ("too few pages", 3, (0, 3), plain_frame(0, &[1, 1], b"ab")),
+        (
+            "lengths past the bytes",
+            3,
+            (0, 2),
+            plain_frame(0, &[1, 9], b"ab"),
+        ),
+        (
+            "bytes past the lengths",
+            3,
+            (0, 2),
+            plain_frame(0, &[1, 1], b"abc"),
+        ),
+        (
+            "overflowing lengths",
+            3,
+            (0, 2),
+            plain_frame(0, &[u32::MAX, u32::MAX], b""),
+        ),
+        ("not UTF-8", 3, (0, 1), plain_frame(0, &[2], &[0xff, 0xfe])),
+        (
+            "a control character",
+            3,
+            (0, 1),
+            plain_frame(0, &[3], b"a\x07b"),
+        ),
+        ("a NUL", 3, (0, 1), plain_frame(0, &[3], b"a\0b")),
+        (
+            "a page past the cap",
+            3,
+            (0, 1),
+            plain_frame(0, &[big.len() as u32], big.as_bytes()),
+        ),
+        (
+            "the pixels of a page",
+            3,
+            (0, 1),
+            frame(
+                &Response::Page {
+                    page: 0,
+                    width: 1,
+                    height: 1,
+                },
+                &[0; 4],
+            ),
+        ),
+        ("a page's text", 3, (0, 1), text_frame(0, 0, b"{}")),
+    ];
+    for (name, pages, ask, reply) in cases {
+        assert_eq!(
+            ask_plain(pages, ask, reply).unwrap_err(),
+            WorkerError::BadReply,
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn a_window_past_the_end_is_not_even_asked() {
+    // No reply is ever read: the client knows the document has 3 pages.
+    let error = ask_plain(3, (3, 1), Vec::new()).unwrap_err();
+    assert!(
+        matches!(
+            error,
+            WorkerError::Refused {
+                kind: ErrorKind::NoSuchPage,
+                ..
+            }
+        ),
+        "{error:?}"
+    );
+}

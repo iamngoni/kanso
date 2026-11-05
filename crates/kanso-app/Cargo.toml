@@ -102,7 +102,8 @@ kanso-store.workspace = true
 # Lock sessions, account flows and sync scheduling, without a window (issue #48).
 # `discovery`: the graph, the related-notes model and its download, which the
 # phones share (Model2Vec static embeddings, computed on this device, MIT).
-kanso-engine = { workspace = true, features = ["discovery", "agent-task"] }
+# `pdf-worker`: the text in PDFs, read by the PDF worker's client (no PDFium here).
+kanso-engine = { workspace = true, features = ["discovery", "agent-task", "pdf-worker"] }
 # The types `[[` autocomplete answers the text editor in. Pinned to the
 # version gpui-base uses.
 lsp-types = "=0.97.0"

@@ -1390,7 +1390,9 @@ fn http_status(url: &str, key: Option<&str>) -> u16 {
 /// working.
 // no-prop-test: drives one window and a live server through clicks.
 #[gpui_kit::test]
-fn a_key_made_in_settings_opens_the_server_and_revoking_it_closes_it_even_after_a_replace(cx: &mut TestAppContext) {
+fn a_key_made_in_settings_opens_the_server_and_revoking_it_closes_it_even_after_a_replace(
+    cx: &mut TestAppContext,
+) {
     let f = setup(cx);
     cx.update(|cx| {
         AppState::update_config(cx, |config| {

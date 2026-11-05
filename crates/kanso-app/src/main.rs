@@ -703,10 +703,11 @@ fn run_app(
         );
         reminders::init(store.clone(), open_main_window, cx);
         briefs::init(store, open_main_window, cx);
-        // Discovery, in the background: related notes and text in images.
+        // Discovery, in the background: related notes, text in images and in PDFs.
         related::init(cx);
         voice::init(cx);
         ocr::init(cx);
+        pdf::index::init(cx);
         ink_ocr::init(cx);
         open_main_window(cx);
         note_window::restore(cx);

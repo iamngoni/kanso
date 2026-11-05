@@ -10,9 +10,11 @@
 #![no_main]
 
 use kanso_pdf::protocol::{
-    BYTES_PER_PIXEL, MAX_BLOB_BYTES, MAX_LONG_EDGE_PX, MAX_PAGE_BYTES, Request, Response,
-    check_document, check_page_size, page_is_sound, read_frame, render_size, write_frame,
+    BYTES_PER_PIXEL, MAX_BLOB_BYTES, MAX_LONG_EDGE_PX, MAX_PAGE_BYTES, MAX_PAGE_CHARS, Request,
+    Response, check_document, check_page_size, is_tidy, page_is_sound, plain_text_pages,
+    read_frame, render_size, text_page_is_sound, text_window, write_frame,
 };
+use kanso_pdf::text::PageText;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -56,6 +58,29 @@ fuzz_target!(|data: &[u8]| {
                         width as usize * height as usize * BYTES_PER_PIXEL
                     );
                     assert!(blob.len() <= MAX_PAGE_BYTES);
+                }
+            }
+            Response::TextPage { page, chars, .. } => {
+                // A page's text is believed only if it is the page's, as
+                // long as the header says and within the cap.
+                if let Ok(text) = serde_json::from_slice::<PageText>(&blob) {
+                    if text_page_is_sound(page, [612.0, 792.0], chars, &text) {
+                        assert!(text.chars.len() <= MAX_PAGE_CHARS);
+                        assert_eq!(text.chars.len(), chars as usize);
+                        assert!(text.chars.iter().all(|c| c.quad.is_valid() && c.turns < 4));
+                    }
+                }
+            }
+            Response::PlainText { from, lens, .. } => {
+                // Plain text is believed only as the window asked for, in
+                // pieces that add up to the bytes and are tidy.
+                for ask in [(from, 1), (from, u32::MAX), (0, lens.len() as u32)] {
+                    if let Some(pages) = plain_text_pages(from.saturating_add(70), ask, from, &lens, &blob) {
+                        let window = text_window(from.saturating_add(70), ask.0, ask.1).unwrap();
+                        assert_eq!(pages.len(), window.len());
+                        assert_eq!(pages.iter().map(String::len).sum::<usize>(), blob.len());
+                        assert!(pages.iter().all(|p| is_tidy(p)));
+                    }
                 }
             }
             Response::Closed | Response::Error { .. } => {}
