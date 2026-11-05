@@ -327,6 +327,7 @@ fn run(
 /// The text layer of a page PDFium found no characters on, from the words
 /// read from its picture (step 8), on the page's own size. `None` when
 /// the page was not read.
+#[cfg(test)]
 pub(super) fn scanned_text(
     store: &Store,
     file_id: &str,

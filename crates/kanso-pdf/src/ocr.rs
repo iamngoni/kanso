@@ -119,7 +119,7 @@ impl Serialize for OcrWord {
         let [x0, y0, x1, y1] = self.quad.0.map(ten_thousandths);
         // A sliver of a box is still one unit wide, so it reads back.
         let (w, h) = ((x1 - x0).max(1), (y1 - y0).max(1));
-        if self.turns % 4 == 0 {
+        if self.turns.is_multiple_of(4) {
             (&self.text, x0, y0, w, h).serialize(s)
         } else {
             (&self.text, x0, y0, w, h, self.turns % 4).serialize(s)
