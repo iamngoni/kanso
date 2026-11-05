@@ -14,10 +14,12 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
+use crate::PdfBlock;
 use crate::protocol::{
-    BYTES_PER_PIXEL, ErrorKind, FrameError, MAX_BLOB_BYTES, MAX_DOC_TEXT_BYTES, MAX_PAGE_BYTES,
-    MAX_TEXT_WINDOW, Request, Response, check_document, page_is_sound, plain_text_pages,
-    read_frame, render_size, text_page_is_sound, text_window, write_frame,
+    BYTES_PER_PIXEL, ErrorKind, FrameError, MAX_BLOB_BYTES, MAX_DOC_TEXT_BYTES,
+    MAX_EXPORT_ANNOTATION_BYTES, MAX_PAGE_BYTES, MAX_TEXT_WINDOW, Request, Response,
+    check_document, page_is_sound, plain_text_pages, read_frame, render_size, text_page_is_sound,
+    text_window, write_frame,
 };
 use crate::text::PageText;
 
@@ -461,6 +463,24 @@ impl Worker {
         }
     }
 
+    /// Writes the note's highlights, comments and ink into an exported copy.
+    /// The worker receives the original bytes held by its open document and
+    /// returns a new byte vector; it never writes to a path.
+    pub fn export(&mut self, annotations: PdfBlock) -> Result<Vec<u8>, WorkerError> {
+        let annotations = serde_json::to_vec(&annotations).map_err(|_| self.misbehaved())?;
+        if annotations.len() > MAX_EXPORT_ANNOTATION_BYTES {
+            return Err(self.misbehaved());
+        }
+        let (response, bytes) =
+            self.call(&Request::Export, &annotations, self.deadlines.request)?;
+        match response {
+            Response::Exported if bytes.starts_with(b"%PDF-") && bytes.len() <= MAX_BLOB_BYTES => {
+                Ok(bytes)
+            }
+            _ => Err(self.misbehaved()),
+        }
+    }
+
     /// Whether a page that came back is no bigger than the one asked for:
     /// the size [`render_size`] gives for the page's declared size and the
     /// requested width. Within the global caps alone, a worker that has been
@@ -628,6 +648,7 @@ impl Worker {
                         Response::Page { .. }
                             | Response::TextPage { .. }
                             | Response::PlainText { .. }
+                            | Response::Exported
                     ) =>
             {
                 Err(self.misbehaved())

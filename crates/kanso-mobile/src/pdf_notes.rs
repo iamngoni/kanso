@@ -21,6 +21,12 @@ use kanso_core::Note;
 use kanso_engine::lock::SealedInk;
 use kanso_sync::lock::Envelope;
 
+/// Phone PDF export stays off until its isolated renderer boundary is chosen
+/// and reviewed (PR #310). The shell intentionally has no export UI yet.
+pub const PDF_EXPORT_ENABLED: bool = false;
+const PDF_EXPORT_DISABLED: &str =
+    "PDF export on phones is disabled until an isolated renderer is approved.";
+
 fn color_name(color: Color) -> &'static str {
     match color {
         Color::Yellow => "yellow",
@@ -171,6 +177,18 @@ pub(crate) fn clear_ink_in(
 }
 
 impl Library {
+    /// Whether PDF export can be offered on this phone build. This is a
+    /// feature-flagged bridge hook only; no in-process PDFium call exists.
+    pub fn pdf_export_enabled(&self) -> bool {
+        PDF_EXPORT_ENABLED
+    }
+
+    /// Reserved bridge hook for the eventual isolated phone renderer. It
+    /// fails closed while the phone feature flag remains off.
+    pub fn pdf_export_copy(&self, _note_id: &str, _file: &str) -> Result<Vec<u8>, KansoError> {
+        guard(|| Err(KansoError::invalid(PDF_EXPORT_DISABLED)))
+    }
+
     /// The highlights each PDF has in note `note_id`, for the list the
     /// preview's "4 highlights" line opens. [`KansoError::Locked`] while the
     /// note is locked and closed.
