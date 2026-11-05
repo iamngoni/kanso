@@ -218,10 +218,12 @@ fn signed_in_now(
 /// restore is left for the app.
 pub fn open_store(data_dir: &Path) -> Result<Store> {
     let reporter = crate::encrypt_progress::Reporter::stderr();
-    Ok(open_with_config_secrets(data_dir, open_store_reporting, &|progress| {
-        reporter.report(progress)
-    })?
-    .0)
+    Ok(
+        open_with_config_secrets(data_dir, open_store_reporting, &|progress| {
+            reporter.report(progress)
+        })?
+        .0,
+    )
 }
 
 /// [`open_store_applying_restore`] with the secret store the config names,

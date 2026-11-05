@@ -27,9 +27,9 @@ fn staged_library(dir: &Path) -> String {
         library_open::open_store_reporting(dir, library_open::test_secrets(), &|_| {}).unwrap();
     let library_id = format!(
         "l_{:032x}",
-        dir.to_string_lossy()
-            .bytes()
-            .fold(0u128, |acc, byte| acc.wrapping_mul(31).wrapping_add(u128::from(byte)))
+        dir.to_string_lossy().bytes().fold(0u128, |acc, byte| acc
+            .wrapping_mul(31)
+            .wrapping_add(u128::from(byte)))
     );
     store
         .set_meta(kanso_sync::meta_keys::LIBRARY_ID, &library_id)
@@ -123,7 +123,9 @@ fn the_waiting_line_says_to_open_kanso() {
 /// The app's own open still applies it, and says so for its toast.
 #[test]
 fn the_app_still_applies_it() {
-    let _turn = APP_OPENS.lock().unwrap_or_else(|poison| poison.into_inner());
+    let _turn = APP_OPENS
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let dir = tempfile::tempdir().unwrap();
     staged_library(dir.path());
     let (store, _) = library_open::open_store_progress(dir.path(), &|_| {}).unwrap();
@@ -141,7 +143,9 @@ fn the_app_still_applies_it() {
 /// waiting on its key, says why, and applies it once signed out.
 #[test]
 fn the_app_waits_while_the_library_is_signed_in() {
-    let _turn = APP_OPENS.lock().unwrap_or_else(|poison| poison.into_inner());
+    let _turn = APP_OPENS
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     for item in [
         kanso_sync::keychain::account_item,
         kanso_sync::keychain::pending_item,

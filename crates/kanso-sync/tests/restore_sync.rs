@@ -118,7 +118,13 @@ fn restored_after_changes_elsewhere() -> (MemoryServer, Library, Library, Sessio
     {
         let store = mac1.open();
         book(&store, "book:b1", "Inbox");
-        note(&store, "note:gone", "book:b1", "deleted later on Mac 2", 100);
+        note(
+            &store,
+            "note:gone",
+            "book:b1",
+            "deleted later on Mac 2",
+            100,
+        );
         note(&store, "note:edited", "book:b1", "before", 100);
         note(&store, "note:kept", "book:b1", "untouched", 100);
     }
@@ -173,26 +179,33 @@ fn adding_a_restored_library_loses_nothing_on_the_account() {
     let (server, mac1, mac2, two) = restored_after_changes_elsewhere();
     let before = live_on_server(&server, &two);
     let one = sign_in(&server, "ngoni", 1);
-    assert!(matches!(
-        sign_in_plan(&mac1.open(), &one),
-        Plan::Ask { .. }
-    ));
+    assert!(matches!(sign_in_plan(&mac1.open(), &one), Plan::Ask { .. }));
     kanso_sync::bind(&mac1.open(), &one, Choice::Add, &mac1.backups(), 9_500).unwrap();
     mac1.sync(&server, &one);
     mac2.sync(&server, &two);
 
     let after = live_on_server(&server, &two);
     for (id, body) in &before {
-        assert_eq!(after.get(id), Some(body), "{id} kept on the server as it was");
+        assert_eq!(
+            after.get(id),
+            Some(body),
+            "{id} kept on the server as it was"
+        );
     }
-    assert_eq!(after.get("note:gone").map(String::as_str), Some("deleted later on Mac 2"));
+    assert_eq!(
+        after.get("note:gone").map(String::as_str),
+        Some("deleted later on Mac 2")
+    );
     assert_eq!(live(&mac2.open()), after, "Mac 2 holds the account's notes");
     assert_eq!(live(&mac1.open()), after, "Mac 1 holds the account's notes");
     // The restored version of the edited note isn't lost either: it is in
     // the note's history on Mac 1.
     let store = mac1.open();
     let history = store.revisions("note:edited").unwrap();
-    assert!(!history.is_empty(), "the restored version is kept as history");
+    assert!(
+        !history.is_empty(),
+        "the restored version is kept as history"
+    );
 }
 
 /// Replace them: the account's notes, as they are, after a backup of the
@@ -262,9 +275,17 @@ fn a_backup_from_another_account_is_asked_about_and_loses_nothing() {
 
     let ngoni_after = live_on_server(&server, &one);
     for (id, body) in &ngoni_before {
-        assert_eq!(ngoni_after.get(id), Some(body), "{id} kept in ngoni's account");
+        assert_eq!(
+            ngoni_after.get(id),
+            Some(body),
+            "{id} kept in ngoni's account"
+        );
     }
     assert!(ngoni_after.contains_key("note:alex"), "added, as asked");
-    assert_eq!(server_docs(&server, &alex), alex_before, "alex's account untouched");
+    assert_eq!(
+        server_docs(&server, &alex),
+        alex_before,
+        "alex's account untouched"
+    );
     assert_eq!(live(&mac1.open()), ngoni_after);
 }
