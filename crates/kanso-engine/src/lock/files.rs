@@ -28,8 +28,8 @@ use kanso_core::model::{
     FileLock, KANSO_FILES_FIELD, NoteFile, note_files_from_extra, store_note_files,
 };
 use kanso_core::tasks::shown_file_ids;
-use kanso_core::{DocType, Note};
-use kanso_store::{Attachment, AttachmentState, Origin, Put, Store, StoreError};
+use kanso_core::{DocType, Note, new_id};
+use kanso_store::{Attachment, AttachmentState, Origin, Put, Store, StoreError, Unsealing};
 use kanso_sync::lock::{
     Envelope, FileKey, LockKey, SEGMENT_CONTENT, SEGMENT_METADATA, SealId, SealedFileMetadata,
     SealedSegment, open_container, seal_container, unwrap_file_key, wrap_file_key,
@@ -1154,21 +1154,25 @@ pub struct Unsealed {
 }
 
 /// Prepares the files of open locked `note` for its lock coming off: each
-/// is decrypted back to a plain file, unless another locked note also shows
-/// it, when this note gets a plain copy and the sealed one stays. Returns the
-/// text with its links moved to any copies. `key` is the note's lock key.
-/// The caller then writes the plain note with `Store::unlock_note`.
+/// is opened, and either decrypted back to a plain file, or, when another
+/// locked note also shows it, copied for this note while the sealed one
+/// stays. Nothing is written: the returned [`Unsealing`] holds the plain
+/// bytes, and the caller writes it with the plain note in one transaction
+/// (`Store::unlock_note_unsealing`), so a crash or a stop at any point
+/// leaves the note locked and every file sealed. Also returns the text with
+/// its links moved to any copies. `key` is the note's lock key.
 pub fn unseal_or_copy(
     store: &Store,
     note: &mut Note,
     key: &LockKey,
     watch: &mut dyn FnMut(&Progress) -> Result<(), String>,
-) -> Result<(String, Unsealed), FilesError> {
+) -> Result<(String, Unsealed, Unsealing), FilesError> {
     let Some(Ok(envelope)) = Envelope::from_extra(&note.extra) else {
-        return Ok((note.body.clone(), Unsealed::default()));
+        return Ok((note.body.clone(), Unsealed::default(), Unsealing::default()));
     };
     let mut body = note.body.clone();
     let mut done = Unsealed::default();
+    let mut unsealing = Unsealing::default();
     let entries = if note.extra.contains_key(KANSO_FILES_FIELD) {
         note_files_from_extra(&note.extra)
             .ok_or_else(|| failed("The note's attachment list is damaged."))?
@@ -1193,24 +1197,34 @@ pub fn unseal_or_copy(
             .file_owners(&entry.file)?
             .iter()
             .any(|owner| owner != &note.id);
+        let opened = open_sealed(store, &entry.file, &seal, &file_key)?;
         if shared {
-            let opened = open_sealed(store, &entry.file, &seal, &file_key)?;
-            let copy = put_plain(
-                store,
-                &opened.name,
-                &opened.content_type,
-                &opened.public_in,
-                &opened.bytes,
-            )?;
+            let copy = new_id(DocType::File);
+            unsealing.copies.push(json!({
+                "_id": copy,
+                "name": opened.name,
+                "contentType": opened.content_type,
+                "publicIn": opened.public_in,
+                "_attachments": {"index": {
+                    "content_type": opened.content_type,
+                    "data": STANDARD.encode(&opened.bytes),
+                }},
+            }));
             body = replace_link(&body, &entry.file, &copy);
             done.copied += 1;
         } else {
-            unseal_in_place(store, &entry.file, &seal, &file_key)?;
+            let mut meta = store
+                .file_meta(&entry.file)?
+                .ok_or_else(|| failed("The attachment is gone."))?;
+            meta.name = opened.name;
+            meta.content_type = opened.content_type;
+            meta.public_in = opened.public_in;
+            unsealing.files.push((meta, Attachment::new(opened.bytes)));
             done.decrypted += 1;
         }
     }
     store_note_files(None, &mut note.extra);
-    Ok((body, done))
+    Ok((body, done, unsealing))
 }
 
 struct Sealed {

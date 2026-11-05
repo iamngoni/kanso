@@ -155,7 +155,7 @@ pub fn remove_lock(
     now: i64,
     watch: &mut dyn FnMut(&Progress) -> Result<(), String>,
 ) -> Result<(Note, files::Unsealed), String> {
-    let (body, done) =
+    let (body, done, unsealing) =
         files::unseal_or_copy(store, &mut note, key, watch).map_err(|err| err.to_string())?;
     note.body = body;
     kanso_sync::lock::Envelope::store(None, &mut note.extra);
@@ -164,12 +164,16 @@ pub fn remove_lock(
         kanso_engine::links::tags::apply_inline_tags(store, &mut note, None);
     }
     let value = serde_json::to_value(&note).map_err(|err| err.to_string())?;
-    let written = store.unlock_note(value).map_err(|err| match err {
-        kanso_store::StoreError::Conflict => {
-            "The note changed elsewhere meanwhile. Try again.".to_owned()
-        }
-        other => other.to_string(),
-    })?;
+    // The files and the note are written together: a crash at any point
+    // leaves the note locked, with every file sealed.
+    let written = store
+        .unlock_note_unsealing(value, unsealing)
+        .map_err(|err| match err {
+            kanso_store::StoreError::Conflict => {
+                "The note changed elsewhere meanwhile. Try again.".to_owned()
+            }
+            other => other.to_string(),
+        })?;
     note.rev = Some(written.rev);
     Ok((note, done))
 }
@@ -196,7 +200,7 @@ pub fn unseal_or_copy(
     store: &Store,
     note: &mut Note,
     key: &LockKey,
-) -> Result<(String, files::Unsealed), FilesError> {
+) -> Result<(String, files::Unsealed, kanso_store::Unsealing), FilesError> {
     files::unseal_or_copy(store, note, key, &mut |_| Ok(()))
 }
 
@@ -282,5 +286,70 @@ mod tests {
         assert_eq!(open_with(&store, &id, &keys), Opened::Locked);
         // Nothing left to seal.
         assert!(!needs_sealing(&store, &note));
+    }
+
+    /// Remove Lock stopped (Cancel) after its first file leaves the note
+    /// locked and no file readable; run to the end, it leaves plain files.
+    // no-prop-test: app glue over the engine's all-or-nothing property test
+    // (`prop_remove_lock_is_all_or_nothing`).
+    #[test]
+    fn remove_lock_stopped_midway_leaves_the_note_locked_and_every_file_sealed() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path().join("k.db")).unwrap();
+        let book = store
+            .put(DocType::Book, json!({"name": "B"}), Put::Upsert, Origin::Ui)
+            .unwrap()
+            .id;
+        let ids = [
+            file(&store, b"one"),
+            file(&store, b"two"),
+            file(&store, b"three"),
+        ];
+        let body: String = ids
+            .iter()
+            .map(|id| format!("![](inkdrop://{id})\n"))
+            .collect();
+        let note_id = store
+            .put(
+                DocType::Note,
+                json!({"bookId": book, "title": "T", "body": body}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        let key =
+            LockKey::create(&LockPassword::new("a password").unwrap(), KdfParams::TEST).unwrap();
+        let keys = FileKeys::default();
+        let note = store.note(&note_id).unwrap().unwrap();
+        let summary = files::summarize(&store, std::slice::from_ref(&note));
+        let (locked, _) = lock_note(&store, &keys, &key, note, summary, &mut |_| Ok(())).unwrap();
+        let stored = store.note(&note_id).unwrap().unwrap();
+        assert!(stored.is_locked());
+
+        let mut open = stored.clone();
+        open.body = locked.body.clone();
+        let mut calls = 0;
+        let mut stop_on_second = |_: &Progress| {
+            calls += 1;
+            if calls == 2 {
+                Err("stopped".to_owned())
+            } else {
+                Ok(())
+            }
+        };
+        let stopped = remove_lock(&store, &key, open.clone(), false, 1, &mut stop_on_second);
+        assert!(stopped.is_err());
+        assert!(store.note(&note_id).unwrap().unwrap().is_locked());
+        for id in &ids {
+            assert_eq!(store.attachment_state(id).unwrap(), AttachmentState::Sealed);
+            assert!(store.attachment(id).unwrap().is_none());
+        }
+
+        remove_lock(&store, &key, open, false, 2, &mut |_| Ok(())).unwrap();
+        assert!(!store.note(&note_id).unwrap().unwrap().is_locked());
+        for id in &ids {
+            assert_eq!(store.attachment_state(id).unwrap(), AttachmentState::Plain);
+        }
     }
 }
