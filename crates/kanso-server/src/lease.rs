@@ -84,6 +84,15 @@ impl KeyGate {
 pub(crate) struct Lease(Arc<KeyGate>);
 
 impl Lease {
+    /// Claims a store call before the gate closes, or refuses it after.
+    ///
+    /// The state lock makes this the ordering point with `close`: once
+    /// `close` wins, no newly claimed store call can begin. A call that wins
+    /// first is counted by this lease and must drain before revoke succeeds.
+    pub(crate) fn begin_store_call(&self) -> bool {
+        !self.0.is_closed()
+    }
+
     /// Whether the key was revoked, or left the library, since sign-in.
     pub(crate) fn is_revoked(&self) -> bool {
         self.0.is_closed()
@@ -127,7 +136,10 @@ tokio::task_local! {
 /// Runs `work` for the request on a blocking thread, refusing to begin it if
 /// the key was revoked in the meantime. `None` means refused.
 pub(crate) fn guarded<T>(lease: Option<Lease>, work: impl FnOnce() -> T) -> Option<T> {
-    if lease.as_ref().is_some_and(Lease::is_revoked) {
+    if lease
+        .as_ref()
+        .is_some_and(|lease| !lease.begin_store_call())
+    {
         return None;
     }
     let out = work();

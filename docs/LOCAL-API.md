@@ -293,22 +293,25 @@ kanso api-key revoke <key id or name>
 key to that notebook. `list` shows the working keys, never a key or its hash. `revoke`
 takes an id or a name, and asks for the id when names are shared.
 
-These commands work while Kanso or `kanso serve` runs, and a revoke takes effect at
-once: the running program refuses the key from that moment, and a request the key
-had already started is cut short, so none finishes after `revoke` returns.
-Nothing stops. `create` and `list` work the same way, and a key made this way works
-on the next request.
+These commands work while Kanso or `kanso serve` runs. A revoke refuses new requests
+immediately and cuts short the requests already waiting. It waits for store calls
+already under way for up to 10 seconds; if one does not finish, the command reports
+an error and keeps the key blocked. A successful revoke returns only after those
+calls finish, so no request for that key completes after `revoke` returns. Nothing
+stops. `create` and `list` work the same way, and a key made this way works on the
+next request.
 
 How: the data folder's lock also guards encryption and migrations, so a second
 program never writes the library while another holds it. The command is instead
-sent to the running program, which does it itself. It goes over a Unix socket,
-`control.sock` in the data folder, with mode 0600 (`srw-------`), and the running
-program also checks that the other end runs as the same user. It is not on the
-API's port: no API key, however trusted, can reach it, so a key cannot revoke other
-keys. Anyone who can already run programs as you can revoke your keys, as they
-could read the library itself.
+sent to the running program, which does it itself. On Unix it goes over a
+socket, `control.sock` in the data folder, with mode 0600 (`srw-------`). Both ends check
+that the peer runs as the same user. On Windows the channel is a named pipe with
+a DACL for the current user's SID, and each end checks the connected process's
+token SID. Neither channel is on the API's port: no API key, however trusted, can
+reach it, so a key cannot revoke other keys. Anyone who can already run programs
+as you can revoke your keys, as they could read the library itself.
 
 If a command says Kanso is running but can't take it from here, that Kanso is an
-older version, or this system has no control socket (Windows). Update and restart
-it, or stop `kanso serve` (quit the app), run the command, and start it
-again. See [the README](../README.md#headless--vps) for running a server.
+older version or its control channel could not start securely. Update and restart
+it, or stop `kanso serve` (quit the app), run the command, and start it again.
+See [the README](../README.md#headless--vps) for running a server.

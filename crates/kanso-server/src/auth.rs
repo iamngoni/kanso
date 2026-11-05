@@ -120,7 +120,7 @@ pub(crate) async fn require_auth(
                     if watch.is_revoked() {
                         revoked_response(&gate)
                     } else {
-                        response
+                        carry_lease_until_body_ends(response, watch)
                     }
                 }
                 () = watch.revoked() => revoked_response(&gate),
@@ -133,6 +133,33 @@ pub(crate) async fn require_auth(
             ApiError::unauthorized().into_response()
         }
     }
+}
+
+/// Keeps an in-flight key lease while a response body is consumed. In
+/// particular, a server-sent stream cannot outlive a successful revoke. If
+/// the gate closes while the transport awaits its next frame, the body ends
+/// without exposing another frame and the lease is released immediately.
+fn carry_lease_until_body_ends(response: Response, lease: crate::lease::Lease) -> Response {
+    use axum::body::HttpBody as _;
+    use http_body_util::BodyExt as _;
+
+    let (parts, body) = response.into_parts();
+    if body.is_end_stream() {
+        drop(lease);
+        return Response::from_parts(parts, body);
+    }
+    let stream = futures_util::stream::unfold((body, lease), |(mut body, lease)| async move {
+        if lease.is_revoked() {
+            return None;
+        }
+        let frame = tokio::select! {
+            frame = body.frame() => frame,
+            () = lease.revoked() => return None,
+        };
+        frame.map(|frame| (frame, (body, lease)))
+    });
+    let body = axum::body::Body::new(http_body_util::StreamBody::new(stream));
+    Response::from_parts(parts, body)
 }
 
 /// The answer to a request whose key was revoked while it ran.
@@ -149,6 +176,7 @@ mod tests {
     use crate::key_model::{KeyId, NewKey};
     use kanso_store::{KeyAccess, Store};
     use proptest::prelude::*;
+    use proptest::test_runner::RngSeed;
 
     fn fixture() -> (tempfile::TempDir, KeyStore, TokenStore) {
         let dir = tempfile::tempdir().unwrap();
@@ -200,7 +228,11 @@ mod tests {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(128))]
+        #![proptest_config(ProptestConfig {
+            cases: 128,
+            rng_seed: RngSeed::Fixed(0x0061_7574_686b),
+            ..ProptestConfig::default()
+        })]
 
         /// Whatever the header says, a caller is a key only when it carries
         /// a key that was minted and not revoked.
@@ -224,10 +256,11 @@ mod tests {
     mod in_flight {
         use super::*;
         use crate::AppState;
-        use axum::body::Body;
+        use axum::body::{Body, Bytes};
         use axum::extract::State;
         use axum::http::{Request, StatusCode};
         use axum::routing::get;
+        use http_body_util::BodyExt as _;
         use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
         use std::time::Duration;
@@ -304,6 +337,18 @@ mod tests {
                 .unwrap();
         }
 
+        async fn revoke_with_timeout(
+            keys: &KeyStore,
+            id: &str,
+            timeout: Duration,
+        ) -> Result<bool, String> {
+            let (keys, id) = (keys.clone(), KeyId(id.to_owned()));
+            tokio::task::spawn_blocking(move || keys.revoke_with_timeout(&id, timeout))
+                .await
+                .unwrap()
+                .map_err(|error| error.to_string())
+        }
+
         #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
         async fn a_store_call_under_way_ends_before_the_revoke_returns() {
             let rig = rig(300, 0);
@@ -351,6 +396,81 @@ mod tests {
                 get_slow(&rig, &key).await.unwrap(),
                 StatusCode::UNAUTHORIZED
             );
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn a_revoke_timeout_is_an_error_while_a_started_write_is_still_running() {
+            let rig = rig(250, 0);
+            let key = mint(&rig.keys);
+            let id = rig.keys.list().unwrap()[0].id.clone();
+            let request = get_slow(&rig, &key);
+            while rig.begun.load(Ordering::SeqCst) == 0 {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+
+            let result = revoke_with_timeout(&rig.keys, &id, Duration::from_millis(20)).await;
+            let error = result.expect_err("a timed-out drain must not report revoke success");
+            assert!(error.contains("revoke did not complete"));
+            assert_eq!(rig.finished.load(Ordering::SeqCst), 0);
+            assert!(rig.keys.verify(&key).is_none());
+            assert_eq!(request.await.unwrap(), StatusCode::UNAUTHORIZED);
+
+            tokio::time::timeout(Duration::from_secs(1), async {
+                while rig.finished.load(Ordering::SeqCst) == 0 {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            })
+            .await
+            .expect("the already-started store call eventually finishes");
+            assert_eq!(rig.finished.load(Ordering::SeqCst), 1);
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn a_stream_holds_its_lease_and_stops_emitting_when_revoked() {
+            let (_dir, keys, tokens) = fixture();
+            let key = mint(&keys);
+            let id = keys.list().unwrap()[0].id.clone();
+            let gate = Gate {
+                keys: Some(keys.clone()),
+                tokens,
+            };
+            let app = axum::Router::new()
+                .route(
+                    "/stream",
+                    get(|| async {
+                        let stream = futures_util::stream::unfold(0usize, |index| async move {
+                            tokio::time::sleep(Duration::from_millis(80)).await;
+                            Some((
+                                Ok::<Bytes, std::io::Error>(Bytes::from_static(b"secret frame")),
+                                index + 1,
+                            ))
+                        });
+                        Body::from_stream(stream)
+                    }),
+                )
+                .layer(axum::middleware::from_fn_with_state(gate, require_auth));
+            let request = Request::builder()
+                .uri("/stream")
+                .header("authorization", format!("Bearer {key}"))
+                .body(Body::empty())
+                .unwrap();
+            let response = app.oneshot(request).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            let mut body = response.into_body();
+            let first = tokio::time::timeout(Duration::from_secs(1), body.frame())
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap();
+            assert_eq!(first.data_ref().unwrap().as_ref(), b"secret frame");
+
+            // Keep polling the stream while revoke closes the gate. The
+            // pending frame is cancelled, releasing the lease the revoke
+            // waits for, and no later frame is yielded.
+            let reading = tokio::spawn(async move { body.frame().await });
+            tokio::time::sleep(Duration::from_millis(10)).await;
+            revoke(&keys, &id).await;
+            assert!(reading.await.unwrap().is_none());
         }
     }
 

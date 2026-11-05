@@ -11,6 +11,7 @@ use std::path::Path;
 use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
+use kanso_store::lock_data_dir;
 use serde_json::Value;
 
 const INITIALIZE: &str = r#"{"jsonrpc":"2.0","id":7,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}"#;
@@ -44,6 +45,30 @@ fn kanso(data: &Path, args: &[&str]) -> Output {
 
 fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
+}
+
+/// API keys are returned once to the caller; libraries, config and local
+/// sidecars retain only the token hash.
+fn assert_key_not_on_disk(data: &Path, key: &str) {
+    let mut pending = vec![data.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let entry = entry.unwrap();
+            let kind = entry.file_type().unwrap();
+            if kind.is_dir() {
+                pending.push(entry.path());
+            } else if kind.is_file() {
+                let bytes = std::fs::read(entry.path()).unwrap();
+                assert!(
+                    !bytes
+                        .windows(key.len())
+                        .any(|window| window == key.as_bytes()),
+                    "the API key was written to {}",
+                    entry.path().display()
+                );
+            }
+        }
+    }
 }
 
 fn serve(data: &Path, port: u16) -> Child {
@@ -134,6 +159,7 @@ fn a_key_made_on_the_command_line_works_until_it_is_revoked() {
     assert_eq!(key.len(), 47, "{stdout:?}");
     assert!(key.starts_with("kcl_"));
     assert!(!text(&made.stderr).contains(&key));
+    assert_key_not_on_disk(data, &key);
 
     let listed = kanso(data, &["list"]);
     let line = text(&listed.stdout);
@@ -154,6 +180,7 @@ fn a_key_made_on_the_command_line_works_until_it_is_revoked() {
     // folder: they are done by the server itself, over a socket only this
     // user can open, and nothing stops.
     let other = make_key(data, "Other script");
+    assert_key_not_on_disk(data, &other);
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
@@ -213,7 +240,10 @@ fn a_key_made_on_the_command_line_works_until_it_is_revoked() {
 fn make_key(data: &Path, name: &str) -> String {
     let made = kanso(data, &["create", "--name", name]);
     assert!(made.status.success(), "{}", text(&made.stderr));
-    text(&made.stdout).trim_end().to_owned()
+    let key = text(&made.stdout).trim_end().to_owned();
+    assert!(!text(&made.stderr).contains(&key));
+    assert_key_not_on_disk(data, &key);
+    key
 }
 
 fn server_alive(child: &Child) -> bool {
@@ -235,4 +265,22 @@ fn a_bad_command_says_how_to_fix_it() {
     assert!(!scope.status.success());
     assert!(text(&scope.stderr).contains("Nowhere"));
     assert_eq!(text(&scope.stdout), "");
+}
+
+#[test]
+fn a_locked_folder_without_a_control_server_is_never_written_behind_its_owner() {
+    let (dir, _) = data_folder();
+    let data = dir.path();
+    let lock = lock_data_dir(data).unwrap().unwrap();
+
+    let made = kanso(data, &["create", "--name", "Must not exist"]);
+    assert!(!made.status.success());
+    assert!(text(&made.stderr).contains("a second process must not write"));
+    assert_eq!(text(&made.stdout), "");
+
+    drop(lock);
+    let listed = kanso(data, &["list"]);
+    assert!(listed.status.success(), "{}", text(&listed.stderr));
+    assert_eq!(text(&listed.stdout), "");
+    assert!(text(&listed.stderr).contains("No API keys"));
 }

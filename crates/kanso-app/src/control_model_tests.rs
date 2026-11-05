@@ -59,3 +59,19 @@ fn help_needs_no_process_and_a_bad_access_is_refused() {
             .contains("read, suggest or write")
     );
 }
+
+// no-prop-test: fixed protocol shape and redaction boundary.
+#[test]
+fn replies_reject_extra_fields_and_never_debug_log_a_created_key() {
+    let token = "kcl_0123456789012345678901234567890123456789012";
+    let reply = Reply::Done {
+        out: token.to_owned(),
+        err: String::new(),
+    };
+    let wire = serde_json::to_string(&reply).unwrap();
+    assert!(wire.contains("\"status\":\"done\""));
+    assert!(!format!("{reply:?}").contains(token));
+
+    let malformed = format!(r#"{{"status":"done","out":"{token}","err":"","extra":true}}"#);
+    assert!(serde_json::from_str::<Reply>(&malformed).is_err());
+}

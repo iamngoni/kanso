@@ -15,6 +15,7 @@ use std::collections::HashSet;
 use std::fmt;
 use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::time::{Duration, Instant};
 
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -298,12 +299,23 @@ impl KeyStore {
         Some((caller, lease))
     }
 
-    /// Revokes key `id`. No request is accepted on it from now on, a request
-    /// it already signed in is cut short, and this returns only once none of
-    /// them is still working in the library (at most [`DRAIN`] if the
-    /// library is stuck), so nothing the key started finishes after it.
-    /// Nothing brings the key back. `false` when there is no such live key.
+    /// Revokes key `id`. No new request is accepted, and requests it already
+    /// signed in are cut short. Success means every store call they began has
+    /// finished; if the bounded drain expires, this returns an error instead
+    /// of claiming that in-flight work completed. Nothing brings the key
+    /// back. `false` when there is no such live key.
     pub fn revoke(&self, id: &KeyId) -> kanso_store::Result<bool> {
+        self.revoke_with_timeout(id, DRAIN)
+    }
+
+    /// Revokes and drains with a caller-supplied bound. Production uses
+    /// [`DRAIN`]; the shorter test bound exercises a stuck store call without
+    /// making the test wait ten seconds.
+    pub(crate) fn revoke_with_timeout(
+        &self,
+        id: &KeyId,
+        timeout: Duration,
+    ) -> kanso_store::Result<bool> {
         let mut live = self.write();
         // Out of the cache first: if the table write fails, the key is
         // still refused here, and `reload` finds it live again only if the
@@ -320,10 +332,18 @@ impl KeyStore {
         let revoked = self.store.api_key_revoke(id.as_str(), (self.clock)());
         drop(live);
         self.changes.fetch_add(1, Ordering::Relaxed);
-        for gate in &gates {
-            gate.drain(DRAIN);
+        let deadline = Instant::now() + timeout;
+        let drained = gates
+            .iter()
+            .all(|gate| gate.drain(deadline.saturating_duration_since(Instant::now())));
+        let revoked = revoked?;
+        if !drained {
+            return Err(kanso_store::StoreError::Invalid(format!(
+                "an existing request did not finish within {} ms; the key is blocked, but revoke did not complete",
+                timeout.as_millis()
+            )));
         }
-        revoked
+        Ok(revoked)
     }
 
     /// Notes that a request was just refused for want of a valid key. Only
@@ -365,6 +385,7 @@ pub fn key_from_header(header: &[u8]) -> Option<String> {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+    use proptest::test_runner::RngSeed;
     use std::sync::Mutex;
 
     fn basic_header(username: &str, password: &str) -> String {
@@ -574,7 +595,11 @@ mod tests {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(64))]
+        #![proptest_config(ProptestConfig {
+            cases: 64,
+            rng_seed: RngSeed::Fixed(0x006b_6579_7666),
+            ..ProptestConfig::default()
+        })]
 
         /// No key a caller makes up verifies, whether or not it has the
         /// shape of one, however many real keys are live.

@@ -11,7 +11,7 @@
 //! With nothing running it takes the data-folder lock, as `kanso serve` and
 //! the app do, and works on the library itself. With Kanso or `kanso serve`
 //! running, the lock is theirs (it also guards encryption and migrations),
-//! so the command goes to that process over its control socket
+//! so the command goes to that process over its local control channel
 //! (`control.rs`) and is done there, with the keys it serves from: a revoke
 //! takes effect at once, requests the key already started included, and
 //! nothing stops.
@@ -294,7 +294,8 @@ pub fn execute(
             writeln!(out, "{}", minted.key)?;
             writeln!(
                 err,
-                "Made the key “{name}” ({}). It is above, and only above: Kanso keeps just a hash, so it can't be shown again. Put it in the program's KANSO_MCP_TOKEN, or send it as “Authorization: Bearer <key>”.",
+                "Made the key “{}” ({}). It is above, and only above: Kanso keeps just a hash, so it can't be shown again. Put it in the program's KANSO_MCP_TOKEN, or send it as “Authorization: Bearer <key>”.",
+                plain(&name),
                 minted.id.as_str()
             )?;
         }
@@ -345,9 +346,9 @@ pub fn execute(
     Ok(())
 }
 
-/// What a data folder in use, with no control socket to reach it by, is
-/// told: an older Kanso, or Windows.
-const IN_USE: &str = "Kanso, or `kanso serve`, is running with this data folder, but it can't take API key commands from here (it is an older version, or this system has no control socket), and a second process must not write the library behind its back. Update it and restart it, or quit Kanso (stop `kanso serve`), then run this again. With the app open, Settings › Local API › API keys does the same.";
+/// What a data folder in use, with no compatible control channel to reach it
+/// by, is told: an older Kanso, or a channel that could not start securely.
+const IN_USE: &str = "Kanso, or `kanso serve`, is running with this data folder, but it can't take API key commands from here (it is an older version, or its local control channel could not start securely), and a second process must not write the library behind its back. Update it and restart it, or quit Kanso (stop `kanso serve`), then run this again. With the app open, Settings › Local API › API keys does the same.";
 
 /// `kanso api-key …`.
 pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {

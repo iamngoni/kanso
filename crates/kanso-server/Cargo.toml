@@ -18,6 +18,7 @@ chrono.workspace = true
 getrandom.workspace = true
 # Caps the body of every route but an attachment upload's (`body_limit`).
 http-body-util = "0.1"
+futures-util = "0.3"
 kanso-core.workspace = true
 kanso-render.workspace = true
 kanso-store.workspace = true

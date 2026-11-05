@@ -252,7 +252,7 @@ pub struct Services {
     /// server and Settings must share this one instance: a revoke from
     /// Settings then stops the server's next request (see [`key_store`]).
     keys: Option<(Arc<kanso_store::Store>, KeyStore)>,
-    /// The socket `kanso api-key` uses to make and revoke keys while this
+    /// The control channel `kanso api-key` uses to make and revoke keys while this
     /// Kanso runs (see `control.rs`), and the keys it works on.
     control: Option<crate::control::ControlServer>,
     control_target: crate::control::ControlTarget,
@@ -472,7 +472,7 @@ pub fn key_store(cx: &mut App) -> Result<KeyStore, String> {
     Ok(keys)
 }
 
-/// Opens the control socket, so `kanso api-key` can make and revoke keys
+/// Opens the local control channel, so `kanso api-key` can make and revoke keys
 /// while this Kanso runs. Says why not on standard error and goes on.
 pub fn start_control(cx: &mut App) {
     if key_store(cx).is_err() {

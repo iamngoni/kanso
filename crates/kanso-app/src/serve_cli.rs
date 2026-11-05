@@ -72,7 +72,7 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
     if let Some(notice) = no_keys_notice(&keys.list()?) {
         eprintln!("{notice}");
     }
-    // `kanso api-key` reaches this server over a socket in the data folder,
+    // `kanso api-key` reaches this server over the local control channel,
     // so keys can be made and revoked while it runs.
     let control = match crate::control::ControlServer::start(
         &data_dir,

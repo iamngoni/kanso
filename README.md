@@ -572,11 +572,14 @@ Every command takes `--data-dir <dir>`. The default is `$KANSO_DATA_DIR` when se
 `kanso serve` runs the API and `/mcp` without a window, so an agent on a server (Codex, say) can use
 your notes, with an API key. Keys are stored in the library, which never syncs them. On the server,
 `kanso api-key create --name <name>` prints a new key and nothing else (`list` and `revoke` do the
-rest). They work while `kanso serve` or the app runs, so a leaked key is revoked in under a second
-with nothing stopped, and a request it already started does not finish. The command goes to the
-running program over `control.sock` in the data folder (mode 0600, same user only; not on the API
-port, so no API key can reach it). On Windows, or with an older Kanso running, stop it first. Until
-the library has a key, `kanso serve` and `kanso mcp` refuse every request. Sign the server's library
+rest). They work while `kanso serve` or the app runs, so a leaked key is refused immediately.
+A successful revoke waits for store calls already under way, for up to 10 seconds; if one does not
+finish, the command reports an error and keeps the key blocked. Nothing stops, and no request for a
+successfully revoked key finishes after the command returns. The command goes to the
+running program over an owner-only local control channel: a mode-0600 `control.sock` on Unix, or a
+named pipe restricted to the current user's SID on Windows. Both ends verify the peer identity;
+the channel is not on the API port, so no API key can reach it. With an older Kanso running, stop
+it first. Until the library has a key, `kanso serve` and `kanso mcp` refuse every request. Sign the server's library
 in to your account once, with the service stopped, and `kanso serve` syncs it while it runs: at
 start, every `sync.intervalSecs` (5 minutes), and 20 seconds after any API or MCP write.
 

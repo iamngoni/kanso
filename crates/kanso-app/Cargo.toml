@@ -221,6 +221,12 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_Console",
     # Reading the clipboard's CF_HTML for pasting formatted text.
     "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
     "Win32_System_DataExchange",
     "Win32_System_Memory",
     # Open at login: the Run key under HKEY_CURRENT_USER.
