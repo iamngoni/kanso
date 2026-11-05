@@ -599,15 +599,32 @@ fn run(
 /// Adds the silence a source owes the wall clock to `chunk` (at the
 /// source's `rate`), given the `written` samples at 48 kHz so far.
 fn pad_to_clock(filler: &GapFiller, chunk: &mut Vec<f32>, rate: u32, written: u64) {
+    let owed = owed_silence(filler, chunk.len(), rate, written);
+    chunk.resize(chunk.len() + owed, 0.0);
+}
+
+/// The silence, in samples at the source's `rate`, that a source owes the
+/// wall clock when `chunk_len` new samples arrive after `written` samples at
+/// 48 kHz. Pure.
+fn owed_silence(filler: &GapFiller, chunk_len: usize, rate: u32, written: u64) -> usize {
     // Everything is counted at 48 kHz; the chunk is at the device's rate
     // (48 kHz too, unless the system says otherwise).
     let rate = u64::from(rate);
-    let coming = chunk.len() as u64 * u64::from(SAMPLE_RATE) / rate;
+    let coming = chunk_len as u64 * u64::from(SAMPLE_RATE) / rate;
     let owed = filler.owed(written + coming) as u64;
-    chunk.resize(
-        chunk.len() + (owed * rate / u64::from(SAMPLE_RATE)) as usize,
-        0.0,
-    );
+    (owed * rate / u64::from(SAMPLE_RATE)) as usize
+}
+
+/// Puts the silence the meeting owes the clock *before* the sound that just
+/// arrived: the gap happened before it. On the first poll this is the time
+/// the system audio took to start while the microphone was already
+/// recording, so the two start together instead of the microphone running
+/// ahead and being cut back a frame a second.
+fn lead_with_silence(filler: &GapFiller, chunk: &mut Vec<f32>, rate: u32, written: u64) {
+    let owed = owed_silence(filler, chunk.len(), rate, written);
+    if owed > 0 {
+        chunk.splice(0..0, std::iter::repeat_n(0.0, owed));
+    }
 }
 
 /// The recorder thread of a recording with both sources: the microphone
@@ -625,6 +642,8 @@ fn run_both(
     let failure: Failure = Arc::new(Mutex::new(None));
     let started = (|| {
         let mic = Feed::Mic(mic::open(failure.clone())?, failure.clone());
+        // The microphone records from here; the clock starts with it.
+        let opened = Instant::now();
         let backend = platform_backend().ok_or_else(|| {
             AudioError::SystemAudio("this system can't record other sound yet".into())
         })?;
@@ -632,9 +651,9 @@ fn run_both(
         let recorder = Recorder::create(root, options)?;
         let dir = recorder.dir().to_path_buf();
         let pipeline = MixPipeline::new(recorder, mic.rate(), system.rate())?;
-        Ok::<_, AudioError>((mic, system, pipeline, dir))
+        Ok::<_, AudioError>((mic, system, pipeline, dir, opened))
     })();
-    let (mut mic, system, mut pipeline, dir) = match started {
+    let (mut mic, system, mut pipeline, dir, opened) = match started {
         Ok(started) => started,
         Err(e) => {
             let _ = ready.send(Err(start_error(&e)));
@@ -650,7 +669,9 @@ fn run_both(
     let mut meeting: Vec<f32> = Vec::new();
     let mut watch = MicWatch::default();
     let mut filler = GapFiller::new();
-    let mut last_tick = Instant::now();
+    // The first poll counts from when the microphone opened, so the time the
+    // system audio took to start is owed to the meeting as silence.
+    let mut last_tick = opened;
     loop {
         thread::sleep(POLL);
         let now = Instant::now();
@@ -685,7 +706,7 @@ fn run_both(
         // clock, silent when it has nothing (or has failed).
         filler.advance(dt, was_paused);
         if !was_paused {
-            pad_to_clock(&filler, &mut meeting, system_rate, pipeline.given_meeting());
+            lead_with_silence(&filler, &mut meeting, system_rate, pipeline.given_meeting());
         }
         pipeline.feed_you(&heard);
         pipeline.feed_meeting(&meeting);
@@ -791,6 +812,49 @@ mod tests {
                 }
                 prop_assert_eq!(watch.tick(dt, delivered, paused), quiet >= SILENT_DEVICE);
             }
+        }
+
+        /// System audio that takes `startup` to begin while the microphone
+        /// already records is placed where it happened: its first sound lands
+        /// within the clock's tolerance of `startup` into the recording, and
+        /// the two sources then agree, so nothing of yours is cut back.
+        #[test]
+        fn prop_a_slow_start_is_owed_to_the_meeting_as_silence(
+            startup_ms in 0u64..3_000,
+            seconds in 2u64..6,
+        ) {
+            use crate::mix::Mixer;
+            let tick = Duration::from_millis(20);
+            let per_tick = 960usize;
+            let startup = Duration::from_millis(startup_ms);
+            let mut filler = GapFiller::new();
+            let mut mixer = Mixer::new();
+            let mut out = Vec::new();
+            let mut given_meeting = 0u64;
+            // The first poll: the microphone's backlog since it opened, and
+            // the meeting's first 20 ms.
+            let first = startup + tick;
+            let mut you = vec![0.0f32; (first.as_secs_f64() * 48_000.0).round() as usize];
+            let mut meeting = vec![0.5f32; per_tick];
+            for n in 0..=seconds * 50 {
+                let dt = if n == 0 { first } else { tick };
+                if n > 0 {
+                    you = vec![0.0; per_tick];
+                    meeting = vec![0.5; per_tick];
+                }
+                filler.advance(dt, false);
+                lead_with_silence(&filler, &mut meeting, 48_000, given_meeting);
+                given_meeting += meeting.len() as u64;
+                mixer.push_you(&you);
+                mixer.push_meeting(&meeting);
+                mixer.drain(&mut out);
+            }
+            let tolerance = crate::system_apps::GAP_TOLERANCE.as_millis() as usize * 48;
+            prop_assert_eq!(mixer.corrections(), 0);
+            prop_assert!(mixer.skew().unsigned_abs() as usize <= tolerance);
+            let heard = out.iter().skip(1).step_by(2).position(|&s| s != 0.0).unwrap();
+            let want = (startup.as_secs_f64() * 48_000.0) as usize;
+            prop_assert!(heard.abs_diff(want) <= tolerance, "heard at {heard}, want {want}");
         }
     }
 }

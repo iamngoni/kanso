@@ -489,3 +489,52 @@ fn the_stereo_pipeline_wants_a_stereo_recorder() {
     let recorder = Recorder::create(&root, options()).unwrap();
     assert!(kanso_audio::MixPipeline::new(recorder, 48_000, 48_000).is_err());
 }
+
+/// A recording with both sources that a crash cut off is found and
+/// finished as what it was: two channels, both sources, you still on the
+/// left and the meeting on the right.
+#[test]
+fn a_mixed_recording_a_crash_left_is_recovered_in_stereo() {
+    use kanso_audio::MixPipeline;
+    let data = tempfile::tempdir().unwrap();
+    let root = in_progress_dir(data.path());
+    let mut o = RecorderOptions::new(
+        Channels::Stereo,
+        vec![RecordSource::Microphone, RecordSource::SystemAudio],
+    );
+    o.id = Some("crashed-call".into());
+    let recorder = Recorder::create(&root, o).unwrap();
+    let mut pipeline = MixPipeline::new(recorder, 48_000, 48_000).unwrap();
+    // The meeting is loud this time; you are quiet.
+    let you = pure_tone(secs(6), 48_000, 300.0, 0.03);
+    let meeting = pure_tone(secs(6), 48_000, 500.0, 0.6);
+    for (a, b) in you.chunks(960).zip(meeting.chunks(960)) {
+        pipeline.feed_you(a);
+        pipeline.feed_meeting(b);
+        pipeline.flush().unwrap();
+    }
+    // The app dies: nothing is finished or closed.
+    std::mem::forget(pipeline);
+    let found = scan(&root, None);
+    assert_eq!(found.len(), 1);
+    let finished = recover(&found[0]).unwrap();
+    assert_eq!(finished.session.channels, 2);
+    assert_eq!(
+        finished.session.sources,
+        vec![RecordSource::Microphone, RecordSource::SystemAudio]
+    );
+    assert!(finished.session.samples >= secs(5) as u64);
+    let mut reader = OpusReader::open(fs::File::open(&finished.parts[0].0).unwrap()).unwrap();
+    assert_eq!(reader.info().channels, Channels::Stereo);
+    let pcm = reader.read_to_end().unwrap();
+    let (mut left, mut right) = (0.0f64, 0.0f64);
+    for &[l, r] in pcm.as_chunks::<2>().0 {
+        left += f64::from(l).powi(2);
+        right += f64::from(r).powi(2);
+    }
+    assert_eq!(
+        kanso_audio::speaker_of(left, right),
+        Some(kanso_audio::Speaker::Meeting),
+        "{left} vs {right}"
+    );
+}

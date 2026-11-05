@@ -126,6 +126,7 @@ impl RecordSheet {
         };
         sheet.plan.what = what;
         sheet.plan.system = system;
+        sheet.keep_device_source();
         sheet.plan.transcribe = TranscribeWhen::AfterStopping;
         if live && app_mode {
             sheet._recheck = Some(cx.spawn(async move |this, cx| {
@@ -182,7 +183,8 @@ impl RecordSheet {
     /// alone never does.
     fn choose_what(&mut self, what: WhatToRecord, cx: &mut Context<Self>) {
         self.plan.what = what;
-        if what.uses_system() {
+        self.keep_device_source();
+        if what.uses_system() && self.app_mode {
             if self.live {
                 self.machine.apps = kanso_audio::running_apps();
                 self.machine.access = kanso_audio::screen_access();
@@ -243,10 +245,38 @@ impl RecordSheet {
         }
     }
 
+    /// Where the computer's sound is a device there is no app to pick: the
+    /// source is everything the chosen output plays, so the plan is never
+    /// held back by "Choose which app to record." Pure.
+    fn keep_device_source(&mut self) {
+        if !self.app_mode && self.plan.what.uses_system() && self.plan.system.is_none() {
+            self.plan.system = Some(SystemSource::Everything);
+        }
+    }
+
     fn choose_app(&mut self, source: SystemSource, cx: &mut Context<Self>) {
         self.plan.system = Some(source);
         cx.notify();
     }
+}
+
+/// The reminder under a choice that records system audio: whose sound is
+/// recorded (the app on a Mac, else this computer's), with the microphone
+/// named only when it records too. Pure.
+fn consent_words(what: WhatToRecord, app_mode: bool, system: Option<&SystemSource>) -> String {
+    let mine = match (what.uses_microphone(), app_mode) {
+        (false, _) => "",
+        (true, true) => "this Mac's microphone and ",
+        (true, false) => "the microphone and ",
+    };
+    let whose = match system {
+        Some(source) if app_mode => format!("{}'s", source.label()),
+        None if app_mode => "the app's".to_owned(),
+        _ => "this computer's".to_owned(),
+    };
+    format!(
+        "Kanso records {mine}{whose} audio. Make sure everyone in the meeting knows. Recording rules differ by place."
+    )
 }
 
 /// One option of a row: selected, or disabled with a reason.
@@ -415,23 +445,9 @@ impl Render for RecordSheet {
         let this_note = open_note.clone();
         let what = self.plan.what;
         let system_off: Option<SharedString> = self.system_disabled().map(Into::into);
-        let consent = what.uses_system().then(|| {
-            let whose = self
-                .plan
-                .system
-                .as_ref()
-                .map_or_else(|| "the app's".to_owned(), |s| format!("{}'s", s.label()));
-            let mine = if !self.app_mode {
-                "the microphone and "
-            } else if what.uses_microphone() {
-                "this Mac's microphone and "
-            } else {
-                ""
-            };
-            format!(
-                "Kanso records {mine}{whose} audio. Make sure everyone in the meeting knows. Recording rules differ by place."
-            )
-        });
+        let consent = what
+            .uses_system()
+            .then(|| consent_words(what, self.app_mode, self.plan.system.as_ref()));
         let problem = self.plan.problem();
         v_flex()
             .w_full()
@@ -658,4 +674,113 @@ pub fn open_with(
                     ),
             )
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        Availability, Fixed, Machine, RecordSheet, ScreenAccess, SystemAudioDevice,
+        SystemAudioTarget, SystemSource, WhatToRecord, consent_words,
+    };
+    use gpui_kit::{AppContext as _, Entity, TestAppContext};
+    use proptest::prelude::*;
+    use proptest::test_runner::{FileFailurePersistence, RngSeed};
+
+    fn output(id: &str, is_default: bool) -> SystemAudioDevice {
+        SystemAudioDevice {
+            id: id.into(),
+            name: id.into(),
+            is_default,
+        }
+    }
+
+    /// A sheet on a computer whose sound is a device (Windows, Linux), or a
+    /// Mac's with no app running.
+    fn sheet(cx: &mut TestAppContext, mac: bool, what: WhatToRecord) -> Entity<RecordSheet> {
+        let fixed = Fixed {
+            machine: mac.then(|| Machine {
+                apps: Vec::new(),
+                access: ScreenAccess::Allowed,
+                asked: false,
+            }),
+            what,
+            system: None,
+            backend: Some((
+                Availability::Available,
+                vec![output("speakers", true), output("headset", false)],
+            )),
+        };
+        cx.new(|cx| RecordSheet::new(None, Some(fixed), cx))
+    }
+
+    #[gpui_kit::test]
+    fn a_device_sheet_starts_without_an_app_to_pick(cx: &mut TestAppContext) {
+        // Opened on Microphone + System Audio: nothing holds Start back.
+        let opened = sheet(cx, false, WhatToRecord::MicrophoneAndSystem);
+        cx.read(|cx| {
+            let plan = opened.read(cx).plan();
+            assert_eq!(plan.problem(), None);
+            assert_eq!(plan.system, Some(SystemSource::Everything));
+        });
+        // Switched to it from the microphone, with an output picked.
+        let switched = sheet(cx, false, WhatToRecord::Microphone);
+        switched.update(cx, |sheet, cx| {
+            sheet.choose_what(WhatToRecord::SystemOnly, cx);
+            sheet.choose_output(SystemAudioTarget::Device("headset".into()), cx);
+        });
+        cx.read(|cx| {
+            let plan = switched.read(cx).plan();
+            assert_eq!(plan.problem(), None);
+            assert_eq!(plan.system, Some(SystemSource::Everything));
+            assert_eq!(plan.system_output.as_deref(), Some("headset"));
+        });
+    }
+
+    #[gpui_kit::test]
+    fn a_mac_sheet_still_asks_for_an_app(cx: &mut TestAppContext) {
+        let mac = sheet(cx, true, WhatToRecord::MicrophoneAndSystem);
+        cx.read(|cx| {
+            let plan = mac.read(cx).plan();
+            assert_eq!(plan.system, None);
+            assert!(plan.problem().is_some());
+        });
+    }
+
+    fn what() -> impl Strategy<Value = WhatToRecord> {
+        prop_oneof![
+            Just(WhatToRecord::Microphone),
+            Just(WhatToRecord::MicrophoneAndSystem),
+            Just(WhatToRecord::SystemOnly),
+        ]
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 64,
+            rng_seed: RngSeed::Fixed(0x006b_616e_736f),
+            failure_persistence: Some(Box::new(FileFailurePersistence::Off)),
+            ..ProptestConfig::default()
+        })]
+
+        /// The reminder names the microphone exactly when it records, names
+        /// the app only on a Mac, and never calls this computer an app.
+        #[test]
+        fn prop_consent_names_what_is_recorded(
+            what in what(),
+            app_mode in any::<bool>(),
+            app in proptest::option::of("[A-Z][a-z]{2,8}"),
+        ) {
+            let source = app.clone().map(|name| SystemSource::App {
+                bundle_id: format!("com.{name}"),
+                name,
+            });
+            let words = consent_words(what, app_mode, source.as_ref());
+            prop_assert_eq!(words.contains("microphone"), what.uses_microphone());
+            prop_assert_eq!(words.contains("this computer's"), !app_mode);
+            if let (true, Some(name)) = (app_mode, &app) {
+                prop_assert!(words.contains(&format!("{name}'s audio")), "{}", words);
+            }
+            prop_assert!(!words.contains("All system audio"), "{}", words);
+        }
+    }
 }
