@@ -15,7 +15,7 @@
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -25,9 +25,13 @@ use kanso_store::Store;
 use kanso_sync::lock::{Envelope, FileKey, LOCK_KDF, LockError, LockKey, LockPassword, SealId};
 use kanso_sync::{KdfParams, Machine};
 
+pub mod files;
 mod notebook;
 
-pub use notebook::{book_subtree, seal_notebook, take_lock_off};
+pub use files::KeyBook;
+pub use notebook::{
+    book_subtree, notebook_summary, seal_notebook, seal_notebook_with, take_lock_off,
+};
 
 /// How long the notes stay unlocked after the lock password (or Touch ID)
 /// opened them, or a locked note was last saved.
@@ -44,7 +48,9 @@ pub struct Session {
     /// Argon2 parameters for new keys; tests use cheap ones.
     params: Option<KdfParams>,
     /// File keys held only for the current lock generation, keyed by seal ID.
-    file_keys: HashMap<[u8; 16], FileKey>,
+    /// Readers on other threads hold a handle ([`Session::file_keys`]) that
+    /// forgets with it.
+    file_keys: KeyBook,
 }
 
 impl Session {
@@ -92,12 +98,31 @@ impl Session {
 
     /// Remembers a decrypted file key for one seal generation.
     pub fn remember_file_key(&mut self, seal: &SealId, key: FileKey) {
-        self.file_keys.insert(*seal.as_bytes(), key);
+        self.file_keys.insert(seal, key);
     }
 
-    /// Returns a cached key for this seal generation.
-    pub fn file_key(&self, seal: &SealId) -> Option<&FileKey> {
-        self.file_keys.get(seal.as_bytes())
+    /// A copy of the cached key for this seal generation.
+    pub fn file_key(&self, seal: &SealId) -> Option<FileKey> {
+        self.file_keys.get(seal)
+    }
+
+    /// The file keys this session holds, as a handle other threads read:
+    /// forgetting them here forgets them there.
+    pub fn file_keys(&self) -> KeyBook {
+        self.file_keys.clone()
+    }
+
+    /// Opens the file keys of every locked note a key this session holds
+    /// opens (a note's text, so its keys, stays closed otherwise).
+    pub fn remember_files(&self, store: &Store) {
+        for note in store.locked_notes().unwrap_or_default() {
+            let Some(Ok(envelope)) = Envelope::from_extra(&note.extra) else {
+                continue;
+            };
+            if let Some(key) = self.fitting(&envelope) {
+                self.file_keys.remember_note(&note, &key);
+            }
+        }
     }
 
     /// Forgets every decrypted file key held by this session.
@@ -227,8 +252,18 @@ impl Session {
         let key = self
             .sealing_key(target.as_ref())
             .ok_or_else(|| "Unlock the notebook first: its notes are locked.".to_owned())?;
-        let envelope = key.seal(&note.id, &note.body);
-        Envelope::store(Some(&envelope), &mut note.extra);
+        // Its pictures and files are sealed with it; a file another note
+        // shows is copied, so the text the editor keeps moves to the copy.
+        let locking = HashSet::from([note.id.clone()]);
+        let mut copies = HashMap::new();
+        let mut watch = |_: &files::Progress| Ok(());
+        let mut job = files::Job::new(store, &self.file_keys, &locking, &mut copies, &mut watch);
+        // A save: a file still downloading waits for the next one.
+        job.leave_waiting = true;
+        let text = note.body.clone();
+        let (body, _) =
+            files::seal_note_files(&mut job, note, &text, &key).map_err(|err| err.to_string())?;
+        note.body = body;
         let mut stored = note.clone();
         stored.body.clear();
         Ok(stored)
@@ -499,6 +534,41 @@ pub fn rekey(
         // A note changed meanwhile keeps its old seal; it opens with the old
         // password until changed again.
         if store.lock_note(value).is_err() {
+            skipped += 1;
+        }
+    }
+    // A lock that stopped between a note's files left its keys wrapped
+    // under the old password beside the plain note. They move too, so
+    // Finish locking and Undo locking take the new password: with the old
+    // one forgotten, files sealed under it would never open again. One the
+    // old password doesn't open stays as it is.
+    let journal_envelope = key.seal("kanso-journal", "");
+    for note in store
+        .plain_notes_with_files()
+        .map_err(|err| err.to_string())?
+    {
+        let Some(header) = files::interrupted_header(&note) else {
+            continue;
+        };
+        if !old_keys.iter().any(|old_key| old_key.fits(&header)) {
+            // The first lock ever made can stop with no locked note beside
+            // it: its own header gives the key.
+            match LockKey::for_envelope(old, &header) {
+                Ok(old_key) => old_keys.push(old_key),
+                Err(_) => {
+                    skipped += 1;
+                    continue;
+                }
+            }
+        }
+        let moved = old_keys
+            .iter()
+            .find_map(|old_key| files::rewrap_journal(&note, old_key, &key, &journal_envelope));
+        let Some(moved) = moved else {
+            skipped += 1;
+            continue;
+        };
+        if store.set_note_files(&note.id, &moved).is_err() {
             skipped += 1;
         }
     }

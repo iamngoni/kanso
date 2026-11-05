@@ -11,6 +11,7 @@ use kanso_mobile::{
     Property, Saved, SearchScope, Share, StatusChoice, Table, TagPlaces, TagRow, TaskBoard,
     TaskListQuery, Ticked, VisibleNotebook,
 };
+use kanso_mobile::{PdfHighlightChange, PdfNotes};
 // A note's history, Replace in all notes and the backups.
 use kanso_mobile::{
     BackupFile, DiffHunk, NoteHistory, PlannedNote, ReplaceOptions, ReplaceOutcome, ReplacePreview,
@@ -38,6 +39,7 @@ use super::player::KansoPlayers;
 use super::publish::KansoPublisher;
 use super::recording::KansoRecorder;
 use super::recording_speakers::KansoRecordingSpeakers;
+use super::recording_summary::KansoRecordingSummary;
 use super::renderer::KansoRenderer;
 use super::shared::KansoShared;
 use super::sync::KansoSync;
@@ -197,6 +199,25 @@ impl KansoLibrary {
         base_rev: String,
     ) -> Result<Ticked, KansoError> {
         self.0.toggle_task_at(&note_id, index, &base_rev)
+    }
+
+    /// The highlights each PDF has in a note: what the preview's "4
+    /// highlights" line opens.
+    pub fn pdf_highlights(&self, note_id: String) -> Result<Vec<PdfNotes>, KansoError> {
+        self.0.pdf_highlights(&note_id)
+    }
+
+    /// Changes one highlight of a PDF in a note drawn at `base_rev`.
+    pub fn pdf_highlight_change(
+        &self,
+        note_id: String,
+        base_rev: String,
+        file: String,
+        id: String,
+        change: PdfHighlightChange,
+    ) -> Result<Saved, KansoError> {
+        self.0
+            .pdf_highlight_change(&note_id, &base_rev, &file, &id, change)
     }
 
     pub fn create_linked_note(
@@ -518,6 +539,13 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn recording_speakers(&self) -> KansoRecordingSpeakers {
         KansoRecordingSpeakers::new(self.0.clone())
+    }
+
+    /// Summarise Recording: a summary and action items for a recording's
+    /// transcript, written only once the person has looked them over.
+    #[frb(sync)]
+    pub fn recording_summary(&self) -> KansoRecordingSummary {
+        KansoRecordingSummary::new(self.0.clone())
     }
 
     /// Opens canvas note `id` for drawing.

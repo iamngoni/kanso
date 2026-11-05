@@ -531,6 +531,11 @@ fn collect(
                 app::failed_html(failure, code.lang.as_deref(), &code.value, copy_index(node))
             },
         ),
+        // A PDF's highlights live in a block for the reader; the page shows a
+        // quiet line, never the JSON.
+        Node::Code(code) if fence_is(&code.lang, crate::pdf_notes::FENCE) => {
+            Some(Piece::Bare(crate::pdf_notes::html(&code.value, in_app)))
+        }
         Node::Code(code)
             if in_app && fence_is(&code.lang, "excalidraw") && app::is_empty_scene(&code.value) =>
         {
@@ -1004,6 +1009,8 @@ figure svg{{max-width:100%;height:auto}}
 .kanso-canvas-placeholder{{display:flex;align-items:center;justify-content:center;gap:.5em;max-width:380px;height:96px;border:1px dashed {border};border-radius:8px;background:{surface};font-size:.8667em;color:{muted}}}
 .kanso-canvas-placeholder svg{{width:1.1em;height:1.1em}}
 .kanso-missing{{color:{muted};font-style:italic}}
+.kanso-pdf-notes{{color:{muted};font-size:.9em;margin:.4em 0}}
+.kanso-pdf-notes a{{color:inherit;text-decoration:none;border-bottom:1px dotted {muted}}}
 .kanso-wikilink{{border-bottom:1px dotted {muted}}}
 a.kanso-wikilink{{border-bottom:0}}
 .kanso-site-nav{{margin:0 0 1.2rem;font-size:.9rem}}

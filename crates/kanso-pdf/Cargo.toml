@@ -68,5 +68,7 @@ kanso-pdf = { path = ".", features = ["test-support"] }
 # this is a dev-dependency cycle, which Cargo allows.
 kanso-engine = { workspace = true, features = ["pdf-worker"] }
 kanso-store.workspace = true
+# The quote tests read what they write with the parser the preview uses.
+markdown.workspace = true
 proptest.workspace = true
 tempfile.workspace = true

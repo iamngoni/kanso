@@ -156,6 +156,9 @@ const WIKI_REFRESH_DELAY: Duration = Duration::from_millis(400);
 pub enum EditorEvent {
     /// Something worth telling the user, such as a failed save.
     Notice(String),
+    /// Something worth telling the user that isn't a failure. With `stays`
+    /// it waits until dismissed.
+    Told { message: String, stays: bool },
     /// The history button: the workspace opens the note's history.
     ShowHistory,
     /// A choice from the note's "More" menu.
@@ -254,6 +257,13 @@ pub struct NoteEditor {
     note: Option<Note>,
     /// Whether the open note is locked, and if so whether it is open.
     lock: LockView,
+    /// A lock that stopped between the note's files: the note is plain, some
+    /// of its pictures and files are sealed, and the bar offers to finish or
+    /// undo it.
+    interrupted: Option<kanso_engine::lock::files::Interrupted>,
+    /// A lock or Remove Lock is sealing or unsealing files off the main
+    /// thread: saves wait for it.
+    lock_busy: bool,
     /// The next write keeps the note's edit time (publishing isn't editing).
     keep_edit_time: bool,
     title: Entity<InputState>,
@@ -594,6 +604,12 @@ impl NoteEditor {
                     }
                     this.text_version += 1;
                     this.source_lines = None;
+                    // The reader follows the note's text: its highlights are
+                    // in a block there.
+                    if let Some((reader, _)) = &this.pdf {
+                        let text = this.body.read(cx).value().to_string();
+                        reader.update(cx, |reader, cx| reader.note_changed(text, cx));
+                    }
                     // Text from another editor of the note is saved there.
                     if !this.peer_change(cx) {
                         this.schedule_autosave(cx);
@@ -666,6 +682,8 @@ impl NoteEditor {
             library,
             note: None,
             lock: LockView::Plain,
+            interrupted: None,
+            lock_busy: false,
             keep_edit_time: false,
             title,
             body,
@@ -1170,6 +1188,8 @@ impl NoteEditor {
         if writes_held(cx) && self.has_unsaved_edits(cx) {
             return;
         }
+        // Highlights made a moment ago belong to the note being left.
+        self.write_pending_pdf(window, cx);
         self.flush_with_sketches(window, cx);
         self.left_place = self.place(cx);
         let note = match id.map(|id| self.store.note(id)) {
@@ -1204,6 +1224,10 @@ impl NoteEditor {
         self.lock = note
             .as_mut()
             .map_or(LockView::Plain, |note| crate::locked::reveal(note, cx));
+        self.interrupted = note
+            .as_ref()
+            .filter(|_| self.lock == LockView::Plain)
+            .and_then(|note| kanso_engine::lock::files::interrupted(&self.store, note));
         // Nor does it stay open on a note that is locked now (its notebook
         // was locked, or the keys went): the pixels would be in the clear.
         if self.lock != LockView::Plain {
@@ -1385,54 +1409,241 @@ impl NoteEditor {
         self.lock.clone()
     }
 
-    /// Locks the open note with `key`: saves it sealed and forgets its
-    /// earlier versions. It stays open.
-    pub fn lock_with(&mut self, key: &kanso_sync::lock::LockKey, cx: &mut Context<Self>) {
-        self.flush(cx);
+    /// Locks the open note with `key`: its text and its pictures and files
+    /// are sealed, and its earlier versions forgotten. It stays open. A note
+    /// with many or large attachments shows a progress sheet.
+    pub fn lock_with(
+        &mut self,
+        key: &Arc<kanso_sync::lock::LockKey>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        // A note whose lock stopped links files that are sealed now: it can't
+        // be saved as it is, and its text is in the store already.
+        if self.interrupted.is_none() {
+            // Highlights made a moment ago go into the text that is sealed,
+            // not after it (the reader closes with the lock).
+            self.write_pending_pdf(window, cx);
+            self.flush(cx);
+        }
         if self.incoming.is_some() {
             self.notice("Choose which version to keep before locking the note.", cx);
             return;
         }
-        let Some(mut note) = self.note.clone() else {
+        let Some(note) = self.note.clone() else {
             return;
         };
-        if note.is_locked() {
+        if note.is_locked() || self.lock_busy {
             return;
         }
-        let body = std::mem::take(&mut note.body);
-        kanso_sync::lock::Envelope::store(Some(&key.seal(&note.id, &body)), &mut note.extra);
-        let result = serde_json::to_value(&note)
-            .map_err(StoreError::from)
-            .and_then(|value| self.store.lock_note(value));
+        let (store, files, key) = (
+            self.store.clone(),
+            crate::attachments::FileKeys::of(cx),
+            key.clone(),
+        );
+        let summary = kanso_engine::lock::files::summarize(&store, std::slice::from_ref(&note));
+        self.lock_busy = true;
+        // Its highlights are in the text being sealed: the reader goes now,
+        // so none is made while the lock runs and then lost.
+        self.pdf = None;
+        let editor = cx.entity().downgrade();
+        crate::lock_flow::run(
+            "Locking note",
+            crate::lock_flow::sheet_line(&summary),
+            summary,
+            window,
+            cx,
+            move |watch| crate::attachments::lock_note(&store, &files, &key, note, summary, watch),
+            move |result, window, cx| {
+                editor
+                    .update(cx, |this, cx| this.locked_with(result, window, cx))
+                    .ok();
+            },
+        );
+    }
+
+    /// A lock finished or failed.
+    fn locked_with(
+        &mut self,
+        result: Result<(Note, kanso_engine::lock::files::Counts), String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.lock_busy = false;
         match result {
-            Ok(result) => {
-                note.rev = Some(result.rev);
-                note.body = body;
+            Ok((note, counts)) => {
+                if self.note.as_ref().is_none_or(|open| open.id != note.id) {
+                    return;
+                }
                 self.note = Some(note);
                 self.lock = LockView::Open;
+                self.interrupted = None;
                 self.inline = None;
                 // A locked note's PDF doesn't open (issue #43, step 12), so
                 // one already open closes with the lock.
                 self.pdf = None;
                 crate::metrics::record(cx, crate::metrics::Feature::Lock);
+                if counts.copied > 0 {
+                    cx.emit(EditorEvent::Told {
+                        message: crate::lock_flow::copied_words(counts.copied),
+                        stays: false,
+                    });
+                }
                 cx.notify();
             }
-            Err(err) => self.notice(format!("Couldn't lock the note: {err}"), cx),
+            Err(words) => {
+                self.notice(format!("Couldn't lock the note: {words}"), cx);
+                // A lock that stopped leaves the note plain: show it as the
+                // store has it, with the bar that finishes or undoes it.
+                if let Some(id) = self.note.as_ref().map(|open| open.id.clone())
+                    && let Ok(note) = self.store.note(&id)
+                {
+                    self.show(note, true, window, cx);
+                }
+            }
         }
     }
 
-    /// Takes the open note's lock off: its text is saved as plain text.
-    pub fn remove_lock(&mut self, cx: &mut Context<Self>) {
-        if self.lock != LockView::Open {
+    /// Takes the open note's lock off: its text is saved as plain text, and
+    /// its pictures and files are decrypted (or copied, when another locked
+    /// note still shows them).
+    pub fn remove_lock(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.lock != LockView::Open || self.lock_busy {
             return;
         }
-        if self.write(
-            |note, _| kanso_sync::lock::Envelope::store(None, &mut note.extra),
-            Origin::Ui,
+        self.flush(cx);
+        let Some(note) = self.note.clone() else {
+            return;
+        };
+        let Some(key) = crate::locked::LockKeys::sealing_key(&note, cx) else {
+            self.notice("The notes were locked again. Unlock the note first.", cx);
+            return;
+        };
+        let store = self.store.clone();
+        let listed = kanso_core::model::note_files_from_extra(&note.extra).map_or(0, |l| l.len());
+        let summary = kanso_engine::lock::files::Summary {
+            files: listed,
+            ..Default::default()
+        };
+        let (inline_tags, now) = (self.settings.inline_tags, Clock::now_ms(cx));
+        self.lock_busy = true;
+        let editor = cx.entity().downgrade();
+        crate::lock_flow::run(
+            "Removing lock",
+            crate::lock_flow::unsealing_line(listed),
+            summary,
+            window,
             cx,
-        ) {
-            self.lock = LockView::Plain;
-            cx.notify();
+            move |watch| {
+                crate::attachments::remove_lock(&store, &key, note, inline_tags, now, watch)
+            },
+            move |result, window, cx| {
+                editor
+                    .update(cx, |this, cx| this.unlocked_with(result, window, cx))
+                    .ok();
+            },
+        );
+    }
+
+    /// Remove Lock finished or failed.
+    fn unlocked_with(
+        &mut self,
+        result: Result<(Note, kanso_engine::lock::files::Unsealed), String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.lock_busy = false;
+        match result {
+            Ok((note, done)) => {
+                if self.note.as_ref().is_none_or(|open| open.id != note.id) {
+                    return;
+                }
+                // The text can have moved to copies: show the note again.
+                self.show(Some(note), true, window, cx);
+                if done.copied > 0 {
+                    cx.emit(EditorEvent::Told {
+                        message: crate::lock_flow::unsealed_words(done.copied),
+                        stays: false,
+                    });
+                }
+            }
+            Err(words) => self.notice(format!("Couldn't remove the lock: {words}"), cx),
+        }
+    }
+
+    /// Finishes a lock that stopped, with the key the session holds for it;
+    /// asks for the lock password when it holds none.
+    pub fn finish_locking(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        match self.interrupted_key(cx) {
+            Some(key) => {
+                self.lock_with(&key, window, cx);
+            }
+            None => {
+                let Some(note) = self.current_note(cx) else {
+                    return;
+                };
+                crate::locked::ask_interrupted(
+                    cx.entity(),
+                    note,
+                    crate::locked::Resume::Finish,
+                    window,
+                    cx,
+                );
+            }
+        }
+    }
+
+    /// Undoes a lock that stopped: its sealed files are decrypted again and
+    /// the note stays as it was.
+    pub fn undo_locking(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        match self.interrupted_key(cx) {
+            Some(key) => {
+                self.undo_with(&key, window, cx);
+            }
+            None => {
+                let Some(note) = self.current_note(cx) else {
+                    return;
+                };
+                crate::locked::ask_interrupted(
+                    cx.entity(),
+                    note,
+                    crate::locked::Resume::Undo,
+                    window,
+                    cx,
+                );
+            }
+        }
+    }
+
+    /// The key the session holds for the lock that stopped.
+    fn interrupted_key(&self, cx: &App) -> Option<Arc<kanso_sync::lock::LockKey>> {
+        let header = kanso_engine::lock::files::interrupted_header(self.note.as_ref()?)?;
+        crate::locked::LockKeys::fitting(cx, &header)
+    }
+
+    /// [`NoteEditor::undo_locking`], with the key.
+    pub fn undo_with(
+        &mut self,
+        key: &kanso_sync::lock::LockKey,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(note) = self.note.clone() else {
+            return;
+        };
+        match kanso_engine::lock::files::undo_locking(&self.store, &note, key) {
+            Ok(_) => {
+                if let Ok(note) = self.store.note(&note.id) {
+                    self.show(note, true, window, cx);
+                }
+                cx.emit(EditorEvent::Told {
+                    message:
+                        "Locking was undone. The note and its pictures and files are as they were."
+                            .into(),
+                    stays: false,
+                });
+            }
+            Err(err) => self.notice(format!("Couldn't undo the lock: {err}"), cx),
         }
     }
 
@@ -2012,6 +2223,22 @@ impl NoteEditor {
         }
     }
 
+    /// Tells, once, that locked notes seal their pictures and files too, and
+    /// what that asks of other devices.
+    fn said_files_sealed(&self, cx: &mut Context<Self>) {
+        let said = cx
+            .try_global::<AppState>()
+            .is_some_and(|state| state.config.locked.files_notice == Some(true));
+        if said {
+            return;
+        }
+        AppState::update_config(cx, |config| config.locked.files_notice = Some(true));
+        cx.emit(EditorEvent::Told {
+            message: crate::lock_flow::FILES_NOTICE.into(),
+            stays: true,
+        });
+    }
+
     /// Saves what waited while writes were held. When the Replace took the
     /// note away, its edits are not written into the new library: the
     /// editor asks about them as it does for a note deleted elsewhere,
@@ -2059,7 +2286,7 @@ impl NoteEditor {
         origin: Origin,
         cx: &mut Context<Self>,
     ) -> bool {
-        if writes_held(cx) {
+        if writes_held(cx) || self.lock_busy {
             return false;
         }
         let mut note = base.clone();
@@ -2089,6 +2316,33 @@ impl NoteEditor {
             sealed_now = true;
         }
         let open = self.lock == LockView::Open || sealed_now;
+        // The pictures and files an open locked note links are sealed with
+        // the save, so no save writes a plain file for a locked note. The
+        // sealed text links any copy made; the editor keeps its own.
+        let mut sealed_text: Option<String> = None;
+        if open
+            && !sealed_now
+            && note.is_locked()
+            && let Some(key) = crate::locked::LockKeys::sealing_key(&note, cx)
+        {
+            let had_list = note
+                .extra
+                .contains_key(kanso_core::model::KANSO_FILES_FIELD);
+            let files = crate::attachments::FileKeys::of(cx);
+            match crate::attachments::seal(&self.store, &mut note, &key, &files) {
+                Ok(Some(sealed)) => {
+                    sealed_text = Some(sealed.body);
+                    if !had_list && sealed.counts.sealed + sealed.counts.copied > 0 {
+                        self.said_files_sealed(cx);
+                    }
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    cx.emit(EditorEvent::Notice(format!("Couldn't save: {err}")));
+                    return false;
+                }
+            }
+        }
         // A sync can move the revision between reading and writing without
         // changing the note: then the write goes on top of the new revision.
         let mut retried = false;
@@ -2096,6 +2350,9 @@ impl NoteEditor {
             // A locked note goes to the store sealed; the editor keeps its
             // text. One that isn't open can't take any.
             let mut stored = note.clone();
+            if let Some(text) = &sealed_text {
+                stored.body = text.clone();
+            }
             if stored.is_locked() {
                 let sealed = if open {
                     crate::locked::seal(&mut stored, cx)
@@ -2556,14 +2813,27 @@ impl NoteEditor {
         let (store, name) = (self.store.clone(), meta.name);
         let page = link.page.unwrap_or(1);
         let reader = cx.new(|cx| crate::pdf::PdfReader::new(store, id, name, page, window, cx));
-        self.show_pdf(reader, window, cx);
+        self.show_pdf_at(reader, link.highlight, window, cx);
     }
 
     /// Puts `reader` in the preview's place: Edit and Live give way to Split,
     /// as for the recording player.
+    #[cfg(test)]
     pub(crate) fn show_pdf(
         &mut self,
         reader: Entity<crate::pdf::PdfReader>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.show_pdf_at(reader, None, window, cx);
+    }
+
+    /// As [`NoteEditor::show_pdf`], showing the highlight `reveal` names
+    /// (a quote's link carries its id) once the pages are up.
+    pub(crate) fn show_pdf_at(
+        &mut self,
+        reader: Entity<crate::pdf::PdfReader>,
+        reveal: Option<String>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -2572,8 +2842,11 @@ impl NoteEditor {
             window,
             |this, _, event: &crate::pdf::PdfEvent, window, cx| match event {
                 crate::pdf::PdfEvent::Close => this.close_pdf(window, cx),
+                crate::pdf::PdfEvent::Write(write) => this.apply_pdf_write(write, window, cx),
             },
         );
+        let body = self.body.read(cx).value().to_string();
+        reader.update(cx, |reader, cx| reader.set_note(body, reveal, cx));
         let focus = reader.read(cx).focus_handle().clone();
         window.focus(&focus, cx);
         self.pdf = Some((reader, subscription));
@@ -2581,6 +2854,82 @@ impl NoteEditor {
             self.set_view_mode(ViewMode::Split, cx);
         }
         cx.notify();
+    }
+
+    /// Writes into the note what the reader asked: its highlights' block, or
+    /// a quote. It is an edit of the text like typing, so it is one undo
+    /// step, reaches a shared note's other editors, and is saved with the
+    /// note.
+    // no-prop-test: glue over `Annotations::{save_edit, quote_edit, restore_edit}`,
+    // which have the properties; the editor tests drive it.
+    pub(crate) fn apply_pdf_write(
+        &mut self,
+        write: &crate::pdf::Write,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        use crate::pdf::Write;
+        if self.note.is_none()
+            || self.body_read_only
+            || self.lock != LockView::Plain
+            || self.lock_busy
+            || self.interrupted.is_some()
+        {
+            cx.emit(EditorEvent::Notice(PDF_NOTE_READ_ONLY.to_owned()));
+            return;
+        }
+        let body = self.body.read(cx).value().to_string();
+        let edit = match write {
+            Write::Save(annotations) => annotations.save_edit(&body),
+            Write::Quote {
+                annotations,
+                id,
+                name,
+            } => Ok(annotations.quote_edit(&body, id, name)),
+            Write::Restore(annotations) => annotations.restore_edit(&body),
+        };
+        match edit {
+            Ok(Some(edit)) => self.apply_body_edit(&edit, window, cx),
+            Ok(None) => {}
+            Err(error) => cx.emit(EditorEvent::Notice(error.to_string())),
+        }
+    }
+
+    /// One undoable replacement in the body that leaves the person's own
+    /// selection where it was in the text.
+    fn apply_body_edit(
+        &mut self,
+        edit: &kanso_pdf::Edit,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let shift = |at: usize| {
+            if at >= edit.range.end {
+                at - edit.range.len() + edit.insert.len()
+            } else if at > edit.range.start {
+                edit.range.start + edit.insert.len()
+            } else {
+                at
+            }
+        };
+        self.body.update(cx, |state, cx| {
+            let selected = state.selected_range();
+            state.set_selected_range(edit.range.clone(), cx);
+            state.replace(edit.insert.clone(), window, cx);
+            state.set_selected_range(shift(selected.start)..shift(selected.end), cx);
+        });
+    }
+
+    /// Highlights the reader has not handed over yet, written now: the
+    /// reader is about to go with its note.
+    fn write_pending_pdf(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some((reader, _)) = &self.pdf else {
+            return;
+        };
+        let pending = reader.update(cx, |reader, _| reader.take_pending());
+        if let Some(write) = pending {
+            self.apply_pdf_write(&write, window, cx);
+        }
     }
 
     /// Back to the note: the reader goes, and the text has the cursor again.
@@ -3264,6 +3613,11 @@ impl NoteEditor {
                     };
                     Some(smart_paste::block_insert(text, range, &block))
                 });
+                // A locked note seals what it links at once, not when the
+                // autosave comes: the file is plain only for that moment.
+                if this.lock == LockView::Open {
+                    this.flush(cx);
+                }
             })
             .ok();
         })
@@ -4450,11 +4804,12 @@ impl NoteEditor {
     }
 
     /// A quiet strip above the text with a message and its choices.
-    fn banner(&self, tint: Hsla, message: &'static str, cx: &mut Context<Self>) -> Div {
+    fn banner(&self, tint: Hsla, message: impl Into<SharedString>, cx: &mut Context<Self>) -> Div {
         let colors = Colors::get(cx);
         h_flex()
             .flex_none()
             .gap_2()
+            .items_center()
             .mx(px(TEXT_INSET - 12.))
             .my_1()
             .px(px(12.))
@@ -4463,7 +4818,49 @@ impl NoteEditor {
             .bg(tint)
             .text_size(px(13.))
             .text_color(colors.text)
-            .child(div().flex_1().child(message))
+            .child(div().flex_1().min_w_0().child(message.into()))
+    }
+
+    /// The preview this editor draws, for tests of what it keeps.
+    #[cfg(test)]
+    pub fn preview_for_test(&self) -> Entity<Preview> {
+        self.preview.clone()
+    }
+
+    /// Shows the bar of a lock that stopped, as a snapshot does.
+    #[cfg(test)]
+    pub fn show_interrupted_for_test(
+        &mut self,
+        interrupted: kanso_engine::lock::files::Interrupted,
+        cx: &mut Context<Self>,
+    ) {
+        self.interrupted = Some(interrupted);
+        cx.notify();
+    }
+
+    /// The bar a lock that stopped between the note's files shows.
+    fn render_interrupted_banner(
+        &self,
+        interrupted: &kanso_engine::lock::files::Interrupted,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let tint = Hsla::from(Colors::get(cx).warning).opacity(0.16);
+        let words = crate::lock_flow::interrupted_words(interrupted.files, interrupted.sealed);
+        self.banner(tint, words, cx)
+            .debug_selector(|| "interrupted-lock".into())
+            .child(
+                Button::new("finish-locking")
+                    .small()
+                    .primary()
+                    .label("Finish locking")
+                    .on_click(cx.listener(|this, _, window, cx| this.finish_locking(window, cx))),
+            )
+            .child(
+                Button::new("undo-locking")
+                    .small()
+                    .label("Undo locking")
+                    .on_click(cx.listener(|this, _, window, cx| this.undo_locking(window, cx))),
+            )
     }
 
     fn render_incoming_banner(&self, deleted: bool, cx: &mut Context<Self>) -> impl IntoElement {
@@ -4956,20 +5353,34 @@ fn is_pdf_path(path: &std::path::Path) -> bool {
         .is_some_and(|e| e.eq_ignore_ascii_case("pdf"))
 }
 
-/// What a PDF attached to a locked note gets instead: the attachments of a
-/// locked note are not sealed yet, and a contract or a medical record is
-/// exactly what people lock, so it is refused rather than allowed with a
-/// warning.
-const PDF_IN_LOCKED_NOTE: &str = "PDFs can't be attached to a locked note yet, because attachments aren't sealed with the lock. Attach it to a note that isn't locked.";
+/// What a PDF too large to seal gets in a locked note: a sealed attachment
+/// holds at most as many bytes as any other (`MAX_ATTACHMENT_SIZE`), and a
+/// contract or a medical record is exactly what people lock, so a larger one
+/// is refused rather than left unsealed.
+const PDF_TOO_LARGE_TO_LOCK: &str = "A PDF larger than 10 MB can't be attached to a locked note, because it can't be sealed with the lock. Attach it to a note that isn't locked.";
 
-/// What opening a PDF in a locked note says, for the same reason.
+/// What a highlight made while the note can't be edited says.
+const PDF_NOTE_READ_ONLY: &str =
+    "This note can't be edited right now, so the highlight wasn't saved to it.";
+
+/// What opening a PDF in a locked note says: the PDF viewer does not read
+/// sealed files yet.
 const PDF_IN_LOCKED_NOTE_OPEN: &str = "PDFs in locked notes can't be opened yet, because attachments aren't sealed with the lock. Unlock the note's notebook, or move the PDF to a note that isn't locked.";
 
-/// [`attach`] for a note that is `locked` or not: a PDF is refused for a
-/// locked one.
+/// [`attach`] for a note that is `locked` or not: a PDF too large to seal is
+/// refused for a locked one. Whatever is attached to a locked note is
+/// sealed with its next save (`attachments::seal`).
 fn attach_to(store: &Store, locked: bool, image: Pasted) -> Result<String, String> {
     match image {
-        Pasted::File(path) if locked && is_pdf_path(&path) => Err(PDF_IN_LOCKED_NOTE.to_owned()),
+        Pasted::File(path)
+            if locked
+                && is_pdf_path(&path)
+                && std::fs::metadata(&path).is_ok_and(|meta| {
+                    meta.len() > kanso_core::model::MAX_ATTACHMENT_SIZE as u64
+                }) =>
+        {
+            Err(PDF_TOO_LARGE_TO_LOCK.to_owned())
+        }
         image => attach(store, image),
     }
 }
@@ -5616,6 +6027,9 @@ impl Render for NoteEditor {
             .when_some(self.incoming.as_ref(), |el, incoming| {
                 let deleted = matches!(incoming, Incoming::Deleted);
                 el.child(self.render_incoming_banner(deleted, cx))
+            })
+            .when_some(self.interrupted.as_ref(), |el, interrupted| {
+                el.child(self.render_interrupted_banner(interrupted, cx))
             })
             .when(!trashed && self.incoming.is_none(), |el| {
                 el.children(self.render_twin_banner(cx))
@@ -6885,7 +7299,7 @@ mod tests {
 /// The writing aids through the real text editor: keys, paste and undo.
 #[cfg(test)]
 mod writing_tests {
-    use super::{NoteEditor, PDF_IN_LOCKED_NOTE, Pasted, TEST_HTML, attach_to};
+    use super::{NoteEditor, PDF_TOO_LARGE_TO_LOCK, Pasted, TEST_HTML, attach_to};
     use crate::config::{Appearance, EditorSettings};
     use crate::library::Library;
     use crate::preview::ImageResize;
@@ -7131,8 +7545,14 @@ mod writing_tests {
         let text = open.text(cx).0;
         let (_, tail) = text.rsplit_once("\n\n![](inkdrop://").expect(&text);
         let id = tail.strip_suffix(')').unwrap();
-        let (content_type, blob) = open.store.attachment(id).unwrap().unwrap();
-        assert_eq!((content_type.as_str(), blob.data), ("image/png", png));
+        let crate::attachments::Opened::Opened(file) = crate::attachments::open_with(
+            &open.store,
+            id,
+            &crate::attachments::FileKeys::default(),
+        ) else {
+            panic!("the image opens");
+        };
+        assert_eq!((file.content_type.as_str(), file.bytes), ("image/png", png));
     }
 
     /// A PDF dropped, pasted or picked becomes a `file:` attachment and a
@@ -7141,7 +7561,7 @@ mod writing_tests {
     // no-prop-test: file glue over `kanso_engine::attach::attach_pdf`,
     // which has the tests with a store.
     #[test]
-    fn a_pdf_becomes_an_attachment_unless_the_note_is_locked() {
+    fn a_pdf_becomes_an_attachment_unless_it_is_too_large_to_seal_in_a_locked_note() {
         let tmp = tempfile::tempdir().unwrap();
         let store = Store::open(tmp.path().join("k.db")).unwrap();
         let dir = tmp.path().to_path_buf();
@@ -7152,12 +7572,22 @@ mod writing_tests {
             .strip_prefix("[quarterly report.pdf](inkdrop://")
             .and_then(|rest| rest.strip_suffix(')'))
             .expect(&link);
-        let (content_type, blob) = store.attachment(id).unwrap().unwrap();
-        assert_eq!(content_type, "application/pdf");
-        assert_eq!(blob.data, b"%PDF-1.7\n%fake body");
+        let crate::attachments::Opened::Opened(file) =
+            crate::attachments::open_with(&store, id, &crate::attachments::FileKeys::default())
+        else {
+            panic!("the PDF opens");
+        };
+        assert_eq!(file.content_type, "application/pdf");
+        assert_eq!(file.bytes, b"%PDF-1.7\n%fake body");
 
-        let refused = attach_to(&store, true, Pasted::File(pdf)).unwrap_err();
-        assert_eq!(refused, PDF_IN_LOCKED_NOTE);
+        // A small one can be sealed, so a locked note takes it.
+        assert!(attach_to(&store, true, Pasted::File(pdf)).is_ok());
+        let huge = dir.join("huge.pdf");
+        let mut big = b"%PDF-1.7\n".to_vec();
+        big.resize(kanso_core::model::MAX_ATTACHMENT_SIZE + 1, b'x');
+        std::fs::write(&huge, big).unwrap();
+        let refused = attach_to(&store, true, Pasted::File(huge)).unwrap_err();
+        assert_eq!(refused, PDF_TOO_LARGE_TO_LOCK);
 
         let fake = dir.join("fake.pdf");
         std::fs::write(&fake, b"hello").unwrap();
@@ -7327,6 +7757,163 @@ mod writing_tests {
         assert!(vcx.debug_bounds("pdf-reader").is_none());
     }
 
+    /// What the reader asks of the note reaches its text as ordinary edits:
+    /// each quote at once (one undo step each), a burst of highlights as one
+    /// write of the block after a pause, the caret where it was. A quote is
+    /// written once; the block is read back by the reader.
+    // no-prop-test: drives one window; `Annotations` has the properties.
+    #[gpui_kit::test]
+    fn highlights_reach_the_note_as_edits_of_its_text(cx: &mut TestAppContext) {
+        use kanso_pdf::model::{Color, Quad};
+        let open = Open::new(cx, "My notes\n");
+        let pdf =
+            kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
+                .unwrap();
+        let url = format!("inkdrop://{pdf}#page=1");
+        open.with(cx, move |editor, window, cx| {
+            editor.open_file_link(&url, window, cx)
+        });
+        let reader = open.with(cx, |editor, _, _| editor.pdf.as_ref().unwrap().0.clone());
+        let page = {
+            let chars = "Revenue"
+                .chars()
+                .enumerate()
+                .map(|(i, ch)| kanso_pdf::TextChar {
+                    ch,
+                    quad: Quad::new(0.1 + i as f64 * 0.02, 0.1, 0.12 + i as f64 * 0.02, 0.125),
+                    turns: 0,
+                    space_before: false,
+                });
+            kanso_pdf::PageText {
+                page: 1,
+                width: 612.,
+                height: 792.,
+                rotation: 0,
+                chars: chars.collect(),
+            }
+        };
+        open.select(cx, 0..2);
+        let versions = open.with(cx, |editor, _, _| editor.text_version);
+        let window = open.window;
+        let r = reader.clone();
+        cx.update_window(window, move |_, window, cx| {
+            r.update(cx, |reader, cx| {
+                reader.test_open(vec![[612., 792.]], window, cx);
+                reader.test_text(page, cx);
+                for color in [Color::Yellow, Color::Green, Color::Blue] {
+                    reader.test_highlight_all(color, window, cx);
+                }
+            })
+        })
+        .unwrap();
+        cx.run_until_parked();
+
+        // Three quotes went in at once, each its own edit; the block waits.
+        let (text, caret) = open.text(cx);
+        assert!(text.starts_with("My notes\n"), "{text}");
+        assert_eq!(text.matches("> Revenue").count(), 3, "{text}");
+        assert!(
+            text.contains("## Highlights\n\n### Report.pdf\n\n> Revenue"),
+            "{text}"
+        );
+        assert!(
+            !text.contains("```kanso-pdf"),
+            "the block went in early: {text}"
+        );
+        assert_eq!(caret, 0..2, "the person's selection moved");
+        let after_quotes = open.with(cx, |editor, _, _| editor.text_version);
+        assert_eq!(after_quotes - versions, 3, "one edit per quote");
+
+        // After the pause the block is written: one edit for the burst.
+        cx.executor()
+            .advance_clock(crate::pdf::SAVE_DELAY + std::time::Duration::from_millis(1));
+        cx.run_until_parked();
+        let (text, caret) = open.text(cx);
+        assert_eq!(text.matches("```kanso-pdf").count(), 1, "{text}");
+        assert_eq!(caret, 0..2);
+        let saved = open.with(cx, |editor, _, _| editor.text_version);
+        assert_eq!(saved - after_quotes, 1, "a burst is one write of the block");
+
+        // The reader read its own block back; the quotes are all "in note".
+        let file = pdf.to_string();
+        let annots = kanso_pdf::Annotations::from_body(&text, &file, "");
+        assert_eq!(annots.block.highlights.len(), 3);
+        assert_eq!(
+            kanso_pdf::highlights::quote_ids(&text, &file).len(),
+            3,
+            "every highlight's quote is in the note"
+        );
+        let held = cx.read(|cx| reader.read(cx).test_notes().block.highlights.len());
+        assert_eq!(held, 3);
+
+        // One undo takes the block back out, the next takes a quote.
+        open.with(cx, |editor, window, cx| editor.focus_body(window, cx));
+        open.keys(cx, "cmd-z");
+        let (undone, _) = open.text(cx);
+        assert!(!undone.contains("```kanso-pdf"), "{undone}");
+        assert_eq!(undone.matches("> Revenue").count(), 3);
+        open.keys(cx, "cmd-z");
+        let (undone, _) = open.text(cx);
+        assert_eq!(undone.matches("> Revenue").count(), 2, "{undone}");
+    }
+
+    /// Highlights the reader had not handed over when the person went to
+    /// another note are written into the note they belong to.
+    // no-prop-test: drives one window; `Annotations` has the properties.
+    #[gpui_kit::test]
+    fn highlights_made_a_moment_ago_are_written_before_the_note_changes(cx: &mut TestAppContext) {
+        use kanso_pdf::model::{Color, Quad};
+        let open = Open::new(cx, "Notes\n");
+        let other = open
+            .store
+            .put(
+                DocType::Note,
+                json!({"title": "other", "body": "x", "bookId": open.store.books().unwrap()[0].id}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        let pdf =
+            kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
+                .unwrap();
+        let url = format!("inkdrop://{pdf}");
+        open.with(cx, move |editor, window, cx| {
+            editor.open_file_link(&url, window, cx)
+        });
+        let reader = open.with(cx, |editor, _, _| editor.pdf.as_ref().unwrap().0.clone());
+        let page = kanso_pdf::PageText {
+            page: 1,
+            width: 612.,
+            height: 792.,
+            rotation: 0,
+            chars: vec![kanso_pdf::TextChar {
+                ch: 'A',
+                quad: Quad::new(0.1, 0.1, 0.12, 0.125),
+                turns: 0,
+                space_before: false,
+            }],
+        };
+        cx.update_window(open.window, move |_, window, cx| {
+            reader.update(cx, |reader, cx| {
+                reader.test_open(vec![[612., 792.]], window, cx);
+                reader.test_text(page, cx);
+                reader.test_highlight_all(Color::Pink, window, cx);
+            })
+        })
+        .unwrap();
+        // Within the pause: leave.
+        open.with(cx, move |editor, window, cx| {
+            editor.open(Some(&other), window, cx)
+        });
+        assert!(open.with(cx, |editor, _, _| editor.pdf.is_none()));
+        let saved = open.store.note(&open.id).unwrap().unwrap().body;
+        assert!(
+            saved.contains("```kanso-pdf"),
+            "the highlight was lost: {saved}"
+        );
+    }
+
     /// A locked note refuses to open its PDF in the reader, in words, and
     /// the reader closes when the note changes.
     // no-prop-test: drives one window.
@@ -7360,6 +7947,7 @@ mod writing_tests {
             })
             .detach();
         });
+        let url_after = url.clone();
         open.with(cx, move |editor, window, cx| {
             let key = kanso_sync::lock::LockKey::create(
                 &kanso_sync::lock::LockPassword::new("long enough").unwrap(),
@@ -7369,16 +7957,253 @@ mod writing_tests {
             // Open on the plain note, then lock it: the reader goes too.
             editor.open_file_link(&url, window, cx);
             assert!(editor.pdf.is_some());
-            editor.lock_with(&key, cx);
+            editor.lock_with(&std::sync::Arc::new(key), window, cx);
+        });
+        // The lock finishes on the next turn of the window.
+        cx.run_until_parked();
+        open.with(cx, move |editor, window, cx| {
             assert!(
                 editor.pdf.is_none(),
                 "the reader stayed open on a locked note"
             );
-            editor.open_file_link(&url, window, cx);
+            editor.open_file_link(&url_after, window, cx);
             assert!(editor.pdf.is_none(), "a locked note's PDF opened");
         });
         cx.run_until_parked();
         assert_eq!(*notices.borrow(), [super::PDF_IN_LOCKED_NOTE_OPEN]);
+    }
+
+    /// Highlights and a comment made a moment before the note is locked are
+    /// sealed with its text: the stored note holds none of them in the
+    /// clear, and the open note has them.
+    // no-prop-test: drives one window.
+    #[gpui_kit::test]
+    fn highlights_made_just_before_a_lock_are_sealed_with_the_note(cx: &mut TestAppContext) {
+        use kanso_pdf::model::{Color, Quad};
+        let open = Open::new(cx, "Notes\n");
+        let pdf =
+            kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
+                .unwrap();
+        let url = format!("inkdrop://{pdf}");
+        open.with(cx, move |editor, window, cx| {
+            editor.open_file_link(&url, window, cx)
+        });
+        let reader = open.with(cx, |editor, _, _| editor.pdf.as_ref().unwrap().0.clone());
+        let page = kanso_pdf::PageText {
+            page: 1,
+            width: 612.,
+            height: 792.,
+            rotation: 0,
+            chars: "Zebra"
+                .chars()
+                .enumerate()
+                .map(|(i, ch)| kanso_pdf::TextChar {
+                    ch,
+                    quad: Quad::new(0.1 + i as f64 * 0.02, 0.1, 0.12 + i as f64 * 0.02, 0.125),
+                    turns: 0,
+                    space_before: false,
+                })
+                .collect(),
+        };
+        cx.update_window(open.window, move |_, window, cx| {
+            reader.update(cx, |reader, cx| {
+                reader.test_open(vec![[612., 792.]], window, cx);
+                reader.test_text(page, cx);
+                let id = reader.test_highlight_all(Color::Pink, window, cx).unwrap();
+                reader.test_comment(&id, "Quokka secret", window, cx);
+            })
+        })
+        .unwrap();
+        cx.run_until_parked();
+        // Within the pause: lock.
+        open.with(cx, |editor, window, cx| {
+            let key = kanso_sync::lock::LockKey::create(
+                &kanso_sync::lock::LockPassword::new("long enough").unwrap(),
+                kanso_sync::KdfParams::TEST,
+            )
+            .unwrap();
+            editor.lock_with(&std::sync::Arc::new(key), window, cx);
+            assert!(editor.pdf.is_none(), "the reader stayed open while locking");
+        });
+        // The lock finishes on the next turn of the window.
+        cx.run_until_parked();
+        open.with(cx, |editor, _, _| {
+            assert_eq!(editor.lock, super::LockView::Open, "not locked");
+            let shown = &editor.note.as_ref().unwrap().body;
+            assert!(shown.contains("```kanso-pdf"), "lost: {shown}");
+            assert!(shown.contains("Quokka secret"), "lost: {shown}");
+        });
+        let raw = open.store.get(&open.id).unwrap().unwrap();
+        let stored = serde_json::to_string(&raw.fields).unwrap();
+        assert!(
+            raw.fields.contains_key(kanso_core::model::LOCK_FIELD),
+            "not locked"
+        );
+        let history = serde_json::to_string(
+            &open
+                .store
+                .revisions(&open.id)
+                .unwrap()
+                .into_iter()
+                .map(|r| r.fields)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        for clear in ["Quokka", "Zebra", "kanso-pdf"] {
+            assert!(!stored.contains(clear), "{clear} is stored in the clear");
+            assert!(
+                !history.contains(clear),
+                "{clear} is in the history in the clear"
+            );
+        }
+    }
+
+    /// A PDF in a locked note: the lock is removed, the PDF highlighted and
+    /// commented, and the note locked again. The highlights are sealed with
+    /// the text, the PDF is sealed again, and the file keys still open it.
+    // no-prop-test: drives one window through two locks and a removal.
+    #[gpui_kit::test]
+    fn a_relocked_pdfs_highlights_stay_sealed_and_its_file_still_opens(cx: &mut TestAppContext) {
+        use kanso_pdf::model::{Color, Quad};
+        use kanso_store::AttachmentState;
+        const BYTES: &[u8] = b"%PDF-1.7\n%Zebra body";
+        let open = Open::new(cx, "Notes\n");
+        let pdf = kanso_engine::attach::attach_pdf(&open.store, BYTES, "Report.pdf", None).unwrap();
+        let url = format!("inkdrop://{pdf}");
+        let link = format!("Notes\n\n[Report.pdf]({url})\n");
+        open.with(cx, move |editor, window, cx| {
+            editor.edit_for_test(&link, window, cx)
+        });
+        let key = cx.update(|cx| {
+            let key = kanso_sync::lock::LockKey::create(
+                &kanso_sync::lock::LockPassword::new("long enough").unwrap(),
+                kanso_sync::KdfParams::TEST,
+            )
+            .unwrap();
+            crate::locked::LockKeys::add(key, cx);
+            crate::locked::LockKeys::current(cx).unwrap()
+        });
+
+        // A locked note, its PDF sealed with it.
+        let first = key.clone();
+        open.with(cx, move |editor, window, cx| {
+            editor.lock_with(&first, window, cx)
+        });
+        cx.run_until_parked();
+        assert!(open.with(cx, |editor, _, _| editor.lock == super::LockView::Open));
+        assert_eq!(
+            open.store.attachment_state(&pdf).unwrap(),
+            AttachmentState::Sealed
+        );
+
+        // Unlocked: the lock comes off, and the PDF is plain again.
+        open.with(cx, |editor, window, cx| editor.remove_lock(window, cx));
+        cx.run_until_parked();
+        assert!(open.with(cx, |editor, _, _| editor.lock == super::LockView::Plain));
+        assert_eq!(
+            open.store.attachment_state(&pdf).unwrap(),
+            AttachmentState::Plain
+        );
+
+        // Highlighted and commented in the reader.
+        let shown = url.clone();
+        open.with(cx, move |editor, window, cx| {
+            editor.open_file_link(&shown, window, cx)
+        });
+        let reader = open.with(cx, |editor, _, _| editor.pdf.as_ref().unwrap().0.clone());
+        let page = kanso_pdf::PageText {
+            page: 1,
+            width: 612.,
+            height: 792.,
+            rotation: 0,
+            chars: "Zebra"
+                .chars()
+                .enumerate()
+                .map(|(i, ch)| kanso_pdf::TextChar {
+                    ch,
+                    quad: Quad::new(0.1 + i as f64 * 0.02, 0.1, 0.12 + i as f64 * 0.02, 0.125),
+                    turns: 0,
+                    space_before: false,
+                })
+                .collect(),
+        };
+        cx.update_window(open.window, move |_, window, cx| {
+            reader.update(cx, |reader, cx| {
+                reader.test_open(vec![[612., 792.]], window, cx);
+                reader.test_text(page, cx);
+                let id = reader.test_highlight_all(Color::Pink, window, cx).unwrap();
+                reader.test_comment(&id, "Quokka secret", window, cx);
+            })
+        })
+        .unwrap();
+        cx.run_until_parked();
+
+        // Locked again.
+        open.with(cx, move |editor, window, cx| {
+            editor.lock_with(&key, window, cx)
+        });
+        cx.run_until_parked();
+        open.with(cx, |editor, _, _| {
+            assert_eq!(editor.lock, super::LockView::Open, "not locked again");
+            let shown = &editor.note.as_ref().unwrap().body;
+            assert!(shown.contains("```kanso-pdf"), "lost: {shown}");
+            assert!(shown.contains("Quokka secret"), "lost: {shown}");
+        });
+
+        // The highlights are sealed: neither the stored note nor any of its
+        // versions hold them in the clear.
+        let raw = open.store.get(&open.id).unwrap().unwrap();
+        assert!(
+            raw.fields.contains_key(kanso_core::model::LOCK_FIELD),
+            "not locked"
+        );
+        let stored = serde_json::to_string(&raw.fields).unwrap();
+        let history = serde_json::to_string(
+            &open
+                .store
+                .revisions(&open.id)
+                .unwrap()
+                .into_iter()
+                .map(|r| r.fields)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        for clear in ["Quokka", "Zebra", "kanso-pdf"] {
+            assert!(!stored.contains(clear), "{clear} is stored in the clear");
+            assert!(
+                !history.contains(clear),
+                "{clear} is in the history in the clear"
+            );
+        }
+
+        // The PDF is sealed again, and opens with the file keys alone.
+        assert_eq!(
+            open.store.attachment_state(&pdf).unwrap(),
+            AttachmentState::Sealed
+        );
+        let sealed = open.store.stored_attachment(&pdf).unwrap().unwrap().data;
+        assert!(
+            !sealed.windows(5).any(|w| w == b"Zebra"),
+            "the PDF is stored in the clear"
+        );
+        // The store's reader the API serves from refuses it.
+        assert_eq!(open.store.attachment(&pdf).unwrap(), None);
+        assert_eq!(
+            crate::attachments::open_with(
+                &open.store,
+                &pdf,
+                &crate::attachments::FileKeys::default()
+            ),
+            crate::attachments::Opened::Locked
+        );
+        let keys = cx.update(crate::attachments::FileKeys::of);
+        let crate::attachments::Opened::Opened(file) =
+            crate::attachments::open_with(&open.store, &pdf, &keys)
+        else {
+            panic!("the sealed PDF doesn't open with the file keys");
+        };
+        assert_eq!(file.content_type, "application/pdf");
+        assert_eq!(file.bytes, BYTES);
     }
 
     /// A note for ticking tasks in the preview. The task list counts the

@@ -32,14 +32,12 @@ turned back into it. If you lose a key, revoke it and make another.
 A key looks like `kcl_` followed by 43 characters (47 in all). The prefix tells it
 apart from the short-lived tokens Kanso gives its own agents, and makes a leaked key
 easy to search for. Keys live in your library, never sync, and work on this computer
-only. A backup holds the keys as they were when it was made, so restoring one brings
-those keys back, including any you revoked since. Check Settings › API keys after a
-restore.
+only. Restoring a backup never brings back the keys it held: the library keeps the keys
+it has now, so a key you revoked stays revoked and one made after the backup keeps
+working.
 
-Terminal commands for Claude Code, Gemini CLI and Codex start with a space, so a
-shell set to skip such lines (fish, or bash and zsh with `ignorespace`) keeps the
-key out of its history. The key is in the command's arguments, because those
-agents' tools take it no other way.
+No setup is a terminal command: a key in a command's arguments would be in the process
+list and the shell's history. Every agent's setup is an entry for its config file.
 
 ### The list
 
@@ -83,23 +81,32 @@ notebooks writes only into them, and no key renames or deletes `#ai-exclude`.
 
 ### An MCP client
 
-Paste the setup Kanso gives you. It has one of these shapes:
-
-```sh
-# Claude Code (Gemini CLI is the same idea)
-claude mcp add --transport http --scope user kanso http://127.0.0.1:19840/mcp --header "Authorization: Bearer kcl_…"
-
-# Codex: starts `kanso mcp`, with the key in its environment
-codex mcp add kanso --env KANSO_MCP_TOKEN=kcl_… -- "/Applications/Kanso.app/Contents/MacOS/kanso" mcp
-```
+Paste the setup Kanso gives you into the agent's config file. It has one of these shapes:
 
 ```json
+// Claude Code, in ~/.claude.json (quit Claude Code first; it rewrites that file)
+{ "mcpServers": { "kanso": { "type": "http", "url": "http://127.0.0.1:19840/mcp", "headers": { "Authorization": "Bearer kcl_…" } } } }
+
+// Gemini CLI, in ~/.gemini/settings.json
+{ "mcpServers": { "kanso": { "httpUrl": "http://127.0.0.1:19840/mcp", "headers": { "Authorization": "Bearer kcl_…" } } } }
+
+// Claude Desktop: starts `kanso mcp`, with the key in its environment
 { "mcpServers": { "kanso": { "command": "/Applications/Kanso.app/Contents/MacOS/kanso", "args": ["mcp"], "env": { "KANSO_MCP_TOKEN": "kcl_…" } } } }
 ```
 
+```toml
+# Codex, in ~/.codex/config.toml: starts `kanso mcp`, with the key in its environment
+[mcp_servers.kanso]
+command = "/Applications/Kanso.app/Contents/MacOS/kanso"
+args = ["mcp"]
+
+[mcp_servers.kanso.env]
+KANSO_MCP_TOKEN = "kcl_…"
+```
+
 Cursor, VS Code, Windsurf, Zed and OpenCode get an entry in their config file with the
-URL and an `Authorization: Bearer …` header; Claude Desktop starts `kanso mcp`. Kanso
-tells you which file to edit. Restart the agent after you paste.
+URL and an `Authorization: Bearer …` header. Kanso tells you which file to edit, and
+never edits it for you. Restart the agent after you paste.
 
 `kanso mcp` is a relay: it sends each message to the running app's `/mcp` with the
 key from `KANSO_MCP_TOKEN` (the key is read from the environment, never from
@@ -213,6 +220,22 @@ How a release is held to this is in [RELEASING.md](RELEASING.md#breaking-changes
 
 `kanso serve` runs the API without a window and takes keys like the app does. Keys are
 stored in the library and never sync, so a server's keys must live in the server's own
-library. There is no `kanso` command to make a key yet: keys are made in the app's
-Settings. Until a library has one, `kanso serve` and `kanso mcp` refuse every
-request. See [the README](../README.md#headless--vps) for running a server.
+library. Until a library has one, `kanso serve` and `kanso mcp` refuse every
+request, and `kanso serve` says so when it starts.
+
+```sh
+kanso api-key create --name "Backup script" [--access read|suggest|write] [--scope <notebook>]…
+kanso api-key list
+kanso api-key revoke <key id or name>
+```
+
+`create` prints the key, and only the key, on standard output, so
+`KEY=$(kanso api-key create --name N)` holds exactly the key; it is shown this once.
+`--access` is `read` by default, and each `--scope` (a notebook's name or id) limits the
+key to that notebook. `list` shows the working keys, never a key or its hash. `revoke`
+takes an id or a name, and asks for the id when names are shared.
+
+These commands need the data folder to themselves, so they refuse while Kanso or
+`kanso serve` runs with it: a running server keeps its keys in memory and wouldn't see a
+change. To revoke a leaked key on a server, stop `kanso serve`, revoke, and start it
+again. See [the README](../README.md#headless--vps) for running a server.

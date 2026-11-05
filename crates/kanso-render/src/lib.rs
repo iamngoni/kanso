@@ -20,6 +20,7 @@ mod js;
 pub mod markdown_safe;
 mod math;
 mod mermaid;
+pub mod pdf_notes;
 mod pele;
 pub mod plugin;
 pub mod raster;
@@ -29,7 +30,7 @@ pub mod typography;
 
 use std::sync::Arc;
 
-pub use cache::{cached, forget_plugin_drawings, render_blocking, request};
+pub use cache::{cached, forget_all, forget_plugin_drawings, render_blocking, request};
 pub use mermaid::is_supported as mermaid_is_supported;
 pub use mermaid::{
     Engine as MermaidEngine, engine as mermaid_engine, render_with as render_mermaid_with,

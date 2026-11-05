@@ -92,6 +92,7 @@ actions!(
         UndoLastChange,
         SummarizeNote,
         RenameSpeakers,
+        SummarizeRecording,
         TidyVoiceNote,
     ]
 );
@@ -349,6 +350,7 @@ pub fn set_menus(cx: &mut App) {
             MenuItem::action("Record…", crate::recording::RecordAudio),
             MenuItem::action("Transcribe Recording", crate::transcribe::TranscribeAudio),
             MenuItem::action("Rename Speakers…", RenameSpeakers),
+            MenuItem::action("Summarise Recording…", SummarizeRecording),
             MenuItem::action("Publish…", crate::publish::PublishNote),
             MenuItem::action("Publish Notebook…", crate::publish_site::PublishNotebook),
             MenuItem::separator(),
@@ -751,6 +753,12 @@ impl Workspace {
             cx.subscribe_in(&editor, window, |this, _, event, window, cx| match event {
                 EditorEvent::Notice(message) => {
                     window.push_notification(Notification::error(message.clone()), cx);
+                }
+                EditorEvent::Told { message, stays } => {
+                    window.push_notification(
+                        Notification::info(message.clone()).autohide(!*stays),
+                        cx,
+                    );
                 }
                 EditorEvent::ShowHistory => this.show_history(window, cx),
                 EditorEvent::Command(command) => {
@@ -2976,6 +2984,15 @@ impl Render for Workspace {
                 this.show_inspector(Some(InspectorTab::Ask), cx);
                 this.inspector
                     .update(cx, |inspector, cx| inspector.summarize_note(window, cx));
+            }))
+            .on_action(cx.listener(|this, _: &SummarizeRecording, window, cx| {
+                if !cx.global::<AppState>().config.ai.enabled {
+                    return;
+                }
+                this.close_settings(window, cx);
+                if let Some(id) = this.editor.read(cx).note_id().map(str::to_owned) {
+                    crate::recording_summary::open(id, window, cx);
+                }
             }))
             .on_action(cx.listener(|this, _: &TidyVoiceNote, window, cx| {
                 if !cx.global::<AppState>().config.ai.enabled {

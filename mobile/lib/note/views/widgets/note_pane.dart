@@ -26,8 +26,10 @@ import '../../../journal/views/widgets/day_stepper.dart';
 import '../../../journal/views/widgets/journal_opener.dart';
 import '../../../journal/views/widgets/note_journal_actions.dart';
 import '../../../lock/models/data/note_menu_action.dart';
+import '../../../lock/views/widgets/interrupted_lock_host.dart';
 import '../../../lock/views/widgets/privacy_cover_sync.dart';
 import '../../../recording_speakers/views/widgets/rename_speakers_sheet.dart';
+import '../../../recording_summary/views/widgets/recording_summary_sheet.dart';
 import '../../../sharing/state/comments/comments_bloc.dart';
 import '../../../sharing/state/shared_note_status/shared_note_status_bloc.dart';
 import '../../../sharing/views/widgets/comments_button.dart';
@@ -241,9 +243,26 @@ class NotePane extends StatelessWidget {
                                           undoNotice: undoNoticeOf(context),
                                         ),
                                       ),
+                                // Never offered for a locked note, as on the
+                                // desktop: it is kept out of AI.
+                                if (readable && note.lock is LockState_Plain)
+                                  NoteMenuAction.summarizeRecording: () =>
+                                      unawaited(
+                                        showRecordingSummarySheet(
+                                          context,
+                                          noteId: shown.noteId,
+                                          undoNotice: undoNoticeOf(context),
+                                        ),
+                                      ),
                               },
                             ),
                           ],
+                        ),
+                      if (readable && !focusActive)
+                        InterruptedLockHost(
+                          noteId: shown.noteId,
+                          revision: note.rev,
+                          gutter: gutter,
                         ),
                       if (hasStatus && readable && !focusActive)
                         SharedNoteStatusStrip(gutter: gutter),

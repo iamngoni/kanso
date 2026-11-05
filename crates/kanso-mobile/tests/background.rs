@@ -10,6 +10,30 @@ use common::*;
 use kanso_mobile::background::{BackgroundOutcome, run};
 use kanso_sync::MemoryServer;
 
+/// A budget no test run comes near. A budget here is a cancel flag, not
+/// something the test measures: a run that finishes drops its deadline
+/// at once, so a long one costs nothing, while a short one (5 or 30 s)
+/// fires on a machine so loaded that debug-build key derivation and the
+/// sync's round trips take that long, and turns "pulled" into "out of
+/// time". Running out of time is tested with a zero budget, which needs
+/// no clock.
+const PLENTY: Duration = Duration::from_secs(600);
+
+/// Waits until nothing holds the library at `path` open. A run's own threads
+/// (the sync, and the change stream) let go of it a moment after the run
+/// answers, and a run that finds it still open reuses it, with the secrets it
+/// was opened with, instead of opening it with the ones it was handed: the
+/// refusing store was then never asked, and a loaded machine made that the
+/// usual outcome. Waits for the fact, not for a time; the limit only ends a
+/// hang.
+fn wait_closed(path: &std::path::Path) {
+    let end = std::time::Instant::now() + Duration::from_secs(120);
+    while kanso_mobile::Library::existing(path).is_some() {
+        assert!(std::time::Instant::now() < end, "the library did not close");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
 fn backend(server: &Arc<MemoryServer>) -> Arc<dyn kanso_sync::Backend> {
     server.clone()
 }
@@ -25,7 +49,7 @@ fn a_background_sync_signed_out_pulling_out_of_time_and_without_secrets() {
     let path = empty.path();
     let secrets = empty.secrets.clone();
     drop(empty.library);
-    let outcome = run(&path, Duration::from_secs(5), backend(&server), secrets);
+    let outcome = run(&path, PLENTY, backend(&server), secrets);
     assert_eq!(outcome, BackgroundOutcome::NotSignedIn);
     assert_eq!(outcome.code(), -1);
 
@@ -41,21 +65,11 @@ fn a_background_sync_signed_out_pulling_out_of_time_and_without_secrets() {
     // The app is not running: its library is closed. (The folder stays.)
     let keep = reader.dir;
     drop(reader.library);
-    let outcome = run(
-        &path,
-        Duration::from_secs(30),
-        backend(&server),
-        secrets.clone(),
-    );
+    let outcome = run(&path, PLENTY, backend(&server), secrets.clone());
     assert_eq!(outcome, BackgroundOutcome::Done { changed: true });
     assert_eq!(outcome.code(), 1);
     // Nothing new the second time.
-    let outcome = run(
-        &path,
-        Duration::from_secs(30),
-        backend(&server),
-        secrets.clone(),
-    );
+    let outcome = run(&path, PLENTY, backend(&server), secrets.clone());
     assert_eq!(outcome.code(), 0);
 
     // No time at all.
@@ -66,7 +80,8 @@ fn a_background_sync_signed_out_pulling_out_of_time_and_without_secrets() {
     // The secret store refuses.
     let refusing = Arc::new(kanso_sync::MemorySecrets::new());
     refusing.fail_reads(true);
-    let outcome = run(&path, Duration::from_secs(5), backend(&server), refusing);
+    wait_closed(&path);
+    let outcome = run(&path, PLENTY, backend(&server), refusing);
     // The library is not open, so it is opened with these secrets.
     assert_eq!(outcome.code(), -2);
 
@@ -87,7 +102,7 @@ fn a_background_sync_reuses_the_library_the_app_has_open() {
     // The background run, from another thread of the same process, pushes the
     // app's note through the app's own library.
     let (path, secrets, other) = (phone.path(), phone.secrets.clone(), backend(&server));
-    let outcome = std::thread::spawn(move || run(&path, Duration::from_secs(30), other, secrets))
+    let outcome = std::thread::spawn(move || run(&path, PLENTY, other, secrets))
         .join()
         .unwrap();
     assert_eq!(outcome, BackgroundOutcome::Done { changed: true });
@@ -137,12 +152,7 @@ fn a_background_sync_with_sync_automatically_off_pulls_nothing() {
     drop(reader.library);
 
     // Nothing to do, and nothing pulled.
-    let outcome = run(
-        &path,
-        Duration::from_secs(30),
-        backend(&server),
-        secrets.clone(),
-    );
+    let outcome = run(&path, PLENTY, backend(&server), secrets.clone());
     assert_eq!(outcome, BackgroundOutcome::Done { changed: false });
     let library =
         kanso_mobile::Library::open_for_test(&path, secrets.clone(), backend(&server)).unwrap();
@@ -152,7 +162,7 @@ fn a_background_sync_with_sync_automatically_off_pulls_nothing() {
     let on = library.sync().settings().unwrap();
     library.sync().set_settings(true, on.interval_secs).unwrap();
     drop(library);
-    let outcome = run(&path, Duration::from_secs(30), backend(&server), secrets);
+    let outcome = run(&path, PLENTY, backend(&server), secrets);
     assert_eq!(outcome, BackgroundOutcome::Done { changed: true });
     drop(keep);
 }

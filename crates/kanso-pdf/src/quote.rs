@@ -30,9 +30,11 @@ impl Edit {
 /// ```
 ///
 /// The words are the PDF's, so they are written as text: Markdown and HTML in
-/// them (`[x](https://…)`, `<img src=…>`, a leading `#`) is escaped and reads
-/// as the characters it is, never as a link, an image the preview would
-/// fetch, or a heading.
+/// them (`[x](https://…)`, `<img src=…>`, a leading `#` or `-`, `$x$` math,
+/// a bare `https://…` or `a@b.c` that would become a link) is escaped and
+/// reads as the characters it is, never as a link, an image the preview
+/// would fetch, a list, a heading or code. The words are one line, so no
+/// fence can open in them.
 pub fn render_quote(text: &str, link: &PdfLink) -> String {
     let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
     let page = link.page.unwrap_or(1);
@@ -43,19 +45,68 @@ pub fn render_quote(text: &str, link: &PdfLink) -> String {
     )
 }
 
-/// `text` with every character that could start Markdown or HTML escaped.
+/// `text` (one line) with every character that could start Markdown or
+/// HTML escaped: the inline markers anywhere, the block markers at its
+/// start, and what would make a bare address a link.
 pub fn escape_markdown(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    for c in text.chars() {
-        if matches!(
-            c,
-            '\\' | '`' | '*' | '_' | '[' | ']' | '<' | '>' | '#' | '!' | '|' | '~' | '&'
-        ) {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len() + 8);
+    for (i, &c) in chars.iter().enumerate() {
+        let next = |k: usize| chars.get(i + k).copied();
+        // A list item, a rule or a setext line at the start: `- `, `+ `,
+        // `1. `, `2) `, `===`.
+        let numbered = (1..=9).contains(&i)
+            && chars[..i].iter().all(char::is_ascii_digit)
+            && matches!(c, '.' | ')')
+            && next(1).is_none_or(|n| n == ' ');
+        let leading = i == 0 && matches!(c, '-' | '+' | '=');
+        // `https://…` and `www.…` become links in GFM, `a@b.c` a mail link.
+        let scheme = c == ':' && next(1) == Some('/') && next(2) == Some('/');
+        let www = c == '.'
+            && i >= 3
+            && chars[i - 3..i].iter().all(|w| w.eq_ignore_ascii_case(&'w'))
+            && (i == 3 || !chars[i - 4].is_alphanumeric());
+        if leading
+            || numbered
+            || scheme
+            || www
+            || matches!(
+                c,
+                '\\' | '`'
+                    | '*'
+                    | '_'
+                    | '['
+                    | ']'
+                    | '<'
+                    | '>'
+                    | '#'
+                    | '!'
+                    | '|'
+                    | '~'
+                    | '&'
+                    | '$'
+                    | '@'
+            )
+        {
             out.push('\\');
         }
         out.push(c);
     }
     out
+}
+
+/// A heading's text without its optional closing `#`s, which only close it
+/// after a space (`# C\#` keeps its escaped `#`).
+fn heading_text(rest: &str) -> &str {
+    let t = rest.trim();
+    let open = t.trim_end_matches('#');
+    if open.is_empty() {
+        return "";
+    }
+    if open.len() < t.len() && open.ends_with([' ', '\t']) {
+        return open.trim_end();
+    }
+    t
 }
 
 #[derive(Clone, Copy)]
@@ -87,7 +138,7 @@ fn headings(body: &str) -> Vec<(Heading, String)> {
                 } else if indent <= 3 {
                     let level = t.chars().take_while(|x| *x == '#').count();
                     if (1..=6).contains(&level) && t[level..].starts_with([' ', '\t']) {
-                        let title = t[level..].trim().trim_end_matches('#').trim().to_string();
+                        let title = heading_text(&t[level..]).to_string();
                         out.push((
                             Heading {
                                 start: pos,
@@ -118,7 +169,9 @@ fn section_end(body: &str, hs: &[(Heading, String)], i: usize) -> usize {
 /// creating either heading that is missing at the end of the note. Pure: it
 /// returns the edit and touches nothing.
 pub fn append_quote(body: &str, pdf_name: &str, quote: &str) -> Edit {
-    let name = pdf_name.split_whitespace().collect::<Vec<_>>().join(" ");
+    // The name is the attachment's, as text: `<img …>` or `[x](…)` in it is
+    // not markup in the heading.
+    let name = escape_markdown(&pdf_name.split_whitespace().collect::<Vec<_>>().join(" "));
     let hs = headings(body);
     let top = hs
         .iter()
@@ -184,7 +237,7 @@ mod tests {
         let first = q.lines().next().unwrap();
         assert_eq!(
             first,
-            r"> \# Hi \[x\](https://e.test) \<img src=https://e.test/b\> \*a\*"
+            r"> \# Hi \[x\](https\://e.test) \<img src=https\://e.test/b\> \*a\*"
         );
     }
 
@@ -259,6 +312,93 @@ mod tests {
             prop_assert!(out.starts_with(&body[..e.range.start]));
             prop_assert!(out.ends_with(&body[e.range.end..]));
             prop_assert_eq!(out.len(), body.len() + e.insert.len());
+        }
+
+        /// Whatever the PDF's words are, the preview's parser (GFM with
+        /// math, as Kanso reads notes) reads the quote's first line as
+        /// exactly those words in plain text: no link, emphasis, code, math,
+        /// HTML, list or heading, and the second as the page link alone.
+        #[test]
+        fn the_words_read_back_as_plain_text(
+            text in prop_oneof![
+                "[a-zA-Z0-9 .:/@#*_`~<>!()|&$=+^%{}\\[\\]\\\\-]{0,80}",
+                "(1[.)] |- |\\+ |# |> |www\\.|https?://|a@b\\.c |```|~~~|\\$\\$|<!--|\\[\\[|\\|)[a-z .]{0,20}",
+                "\\PC{0,120}",
+            ],
+        ) {
+            use markdown::mdast::Node;
+            let q = render_quote(&text, &link());
+            let mut options = markdown::ParseOptions::gfm();
+            options.constructs.math_text = true;
+            options.constructs.math_flow = true;
+            let tree = markdown::to_mdast(&q, &options).unwrap();
+            let Node::Root(root) = tree else { unreachable!() };
+            prop_assert_eq!(root.children.len(), 1, "{:?}", q);
+            let Node::Blockquote(quote) = &root.children[0] else {
+                return Err(TestCaseError::fail(format!("not a quote: {q:?}")));
+            };
+            let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
+            let paragraphs: Vec<&Vec<Node>> = quote
+                .children
+                .iter()
+                .map(|n| match n {
+                    Node::Paragraph(p) => Ok(&p.children),
+                    other => Err(format!("{other:?} in {q:?}")),
+                })
+                .collect::<Result<_, _>>()
+                .map_err(TestCaseError::fail)?;
+            let (first, last) = if words.is_empty() {
+                prop_assert_eq!(paragraphs.len(), 1, "{:?}", q);
+                (None, paragraphs[0])
+            } else {
+                prop_assert_eq!(paragraphs.len(), 2, "{:?}", q);
+                (Some(paragraphs[0]), paragraphs[1])
+            };
+            if let Some(first) = first {
+                let mut read = String::new();
+                for n in first {
+                    match n {
+                        Node::Text(t) => read.push_str(&t.value),
+                        other => {
+                            return Err(TestCaseError::fail(format!("{other:?} in {q:?}")));
+                        }
+                    }
+                }
+                prop_assert_eq!(read, words);
+            }
+            let links: Vec<&str> = last
+                .iter()
+                .filter_map(|n| match n {
+                    Node::Link(l) => Some(l.url.as_str()),
+                    _ => None,
+                })
+                .collect();
+            prop_assert_eq!(links, vec!["inkdrop://file:abc123#page=4&h=h7k2m9"]);
+        }
+
+        /// A PDF's name is text in its heading, and a second quote finds the
+        /// same subsection.
+        #[test]
+        fn the_pdf_name_is_text_and_its_section_is_found_again(
+            name in "[a-zA-Z0-9 .#*_`<>!\\[\\]()&$-]{1,30}",
+        ) {
+            let one = append_quote("", &name, "> one").apply("");
+            let two = append_quote(&one, &name, "> two").apply(&one);
+            prop_assert_eq!(two.matches("### ").count(), 1, "{}", two);
+            let mut options = markdown::ParseOptions::gfm();
+            options.constructs.math_text = true;
+            let tree = markdown::to_mdast(&two, &options).unwrap();
+            let markdown::mdast::Node::Root(root) = tree else { unreachable!() };
+            let heading = root.children.iter().find_map(|n| match n {
+                markdown::mdast::Node::Heading(h) if h.depth == 3 => Some(h),
+                _ => None,
+            });
+            let heading = heading.expect("the subsection heading");
+            let all_text = heading
+                .children
+                .iter()
+                .all(|n| matches!(n, markdown::mdast::Node::Text(_)));
+            prop_assert!(all_text, "{:?}", heading.children);
         }
 
         #[test]

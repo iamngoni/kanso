@@ -124,6 +124,8 @@ mod recording_seal;
 mod recording_seal_tests;
 pub mod recording_speakers;
 pub mod recording_speakers_model;
+pub mod recording_summary;
+pub mod recording_summary_model;
 pub mod replace;
 pub mod saving;
 pub mod shortcuts;

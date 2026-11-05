@@ -2,11 +2,15 @@
 // Created 2026-10-27.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
+import 'package:dartz/dartz.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../core/bridge/api/types.dart';
 import '../../../core/models/data/application_error.dart';
 import '../../../core/models/repos/abs/session_repository.dart';
 import '../../models/data/lock_target.dart';
@@ -21,6 +25,11 @@ part 'lock_remove_state.dart';
 class LockRemoveBloc extends Bloc<LockRemoveEvent, LockRemoveState> {
   LockRemoveBloc(this._session) : super(const LockRemoveState()) {
     on<LockRemoveConfirmedEvent>(_onConfirmed, transformer: droppable());
+    on<LockRemoveProgressedEvent>(
+      (event, emit) => emit(
+        state.copyWith(progress: event.progress),
+      ),
+    );
   }
 
   final SessionRepository _session;
@@ -31,14 +40,25 @@ class LockRemoveBloc extends Bloc<LockRemoveEvent, LockRemoveState> {
   ) async {
     emit(const LockRemoveState(status: RemoveStatus.working));
     final target = event.target;
-    final result = switch (target) {
-      NoteLockTarget(:final id) => (await _session.removeNoteLock(
-        id,
-      )).map((_) => null),
-      NotebookLockTarget(:final id) => (await _session.removeNotebookLock(
-        id,
-      )).map((_) => null),
-    };
+    // Taking a note's lock off decrypts its files one by one.
+    final listening = _session.lockProgress().listen((progress) {
+      if (!isClosed) {
+        add(LockRemoveEvent.progressed(progress));
+      }
+    });
+    final Either<ApplicationError, Object?> result;
+    try {
+      result = switch (target) {
+        NoteLockTarget(:final id) => (await _session.removeNoteLock(
+          id,
+        )).map((_) => null),
+        NotebookLockTarget(:final id) => (await _session.removeNotebookLock(
+          id,
+        )).map((_) => null),
+      };
+    } finally {
+      unawaited(listening.cancel());
+    }
     emit(
       result.fold(
         (ApplicationError error) =>

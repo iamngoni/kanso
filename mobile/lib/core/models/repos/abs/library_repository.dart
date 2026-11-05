@@ -121,6 +121,21 @@ abstract interface class LibraryRepository {
     required String baseRev,
   });
 
+  /// The highlights each PDF has in the note [noteId] (the list its
+  /// preview's "4 highlights" line opens).
+  Future<Either<ApplicationError, List<PdfNotes>>> pdfHighlights(String noteId);
+
+  /// Changes one highlight of the PDF [file] in the note [noteId], as it was
+  /// read at [baseRev], in one write. A [ConflictError] when the note has
+  /// changed since.
+  Future<Either<ApplicationError, Saved>> pdfHighlightChange({
+    required String noteId,
+    required String baseRev,
+    required String file,
+    required String id,
+    required PdfHighlightChange change,
+  });
+
   /// The note a wiki-link in the note [fromNote] to the title [title] asks
   /// for: made beside [fromNote], or the one with that title if there is one
   /// by now.

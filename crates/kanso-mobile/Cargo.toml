@@ -33,6 +33,8 @@ kanso-metrics.workspace = true
 # updater's fetch (every redirect hop is held to the gallery's address rules).
 kanso-gallery.workspace = true
 kanso-render.workspace = true
+# A PDF's highlights in a note: the block's rules, shared with the desktop reader.
+kanso-pdf.workspace = true
 kanso-store.workspace = true
 kanso-server.workspace = true
 # Without the desktop Keychain: secrets go through `Secrets`, and the phones'

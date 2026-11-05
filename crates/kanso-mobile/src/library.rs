@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, LazyLock, Mutex, Weak};
 use std::time::Duration;
 
@@ -58,6 +58,10 @@ pub(crate) struct Inner {
     /// `keys` mutex.
     pub(crate) lock_gen: AtomicU64,
     pub(crate) lock_events: Listeners<LockEvent>,
+    /// How far sealing a locked note's attachments has come.
+    pub(crate) seal_progress: Listeners<crate::model::SealProgress>,
+    /// Cancel was pressed on a lock in progress: it stops between two files.
+    pub(crate) lock_cancelled: AtomicBool,
     /// What the last sync said.
     pub(crate) sync_state: Mutex<SyncState>,
     pub(crate) status_listeners: Listeners<SyncStatus>,
@@ -345,6 +349,8 @@ fn open_inner(
         keys: Mutex::new(keys),
         lock_gen: AtomicU64::new(0),
         lock_events: Listeners::default(),
+        seal_progress: Listeners::default(),
+        lock_cancelled: AtomicBool::new(false),
         sync_state: Mutex::new(SyncState::Off),
         status_listeners: Listeners::default(),
         sync_gate: Mutex::new(()),
@@ -398,6 +404,7 @@ fn spawn_auto_lock(library: Weak<Inner>) {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+    use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
 
@@ -437,18 +444,34 @@ mod tests {
     // change batching is the store's.
     #[test]
     fn the_change_stream_reports_writes_until_its_sink_is_done() {
-        use std::sync::atomic::AtomicBool;
-
+        // How long a batch may take to arrive. Only a failure waits it out
+        // (each wait ends when the batch comes), so it is long: a write and
+        // a thread's wake-up take seconds on a machine running the whole
+        // workspace's tests at once, and 5 s was not enough there.
+        const HEARD: Duration = Duration::from_secs(120);
         let dir = tempfile::tempdir().unwrap();
         let library = open(dir.path());
         let (tx, rx) = std::sync::mpsc::channel();
         let calls = Arc::new(AtomicUsize::new(0));
-        let done = Arc::new(AtomicBool::new(false));
-        let (counted, finished) = (calls.clone(), done.clone());
+        // The sink is done once it has heard of the last note. A write can
+        // reach it as several batches, so a flag the test sets "between"
+        // writes can fall between two batches of the first one and end the
+        // sink before the second is written (a slow machine makes that the
+        // usual order). Instead the test holds `last` while it writes the
+        // last note and names it, and the sink reads `last` for every batch:
+        // a batch of the last note can only be decided on after the name is
+        // there.
+        let last: Arc<Mutex<Option<String>>> = Arc::default();
+        let (counted, named) = (calls.clone(), last.clone());
         library.changes(move |ids| {
             counted.fetch_add(1, Ordering::SeqCst);
+            let ends = named
+                .lock()
+                .unwrap()
+                .as_ref()
+                .is_some_and(|id| ids.contains(id));
             tx.send(ids).unwrap();
-            !finished.load(Ordering::SeqCst)
+            !ends
         });
         let note = |title: &str| {
             library
@@ -462,14 +485,16 @@ mod tests {
         let first = note("First");
         let mut seen = Vec::new();
         while !seen.contains(&first) {
-            seen.extend(rx.recv_timeout(Duration::from_secs(5)).unwrap());
+            seen.extend(rx.recv_timeout(HEARD).unwrap());
         }
-        // The sink is told this is the last it will hear: it returns false
-        // after the next batch.
-        done.store(true, Ordering::SeqCst);
-        let second = note("Second");
+        let second = {
+            let mut slot = last.lock().unwrap();
+            let id = note("Second");
+            *slot = Some(id.clone());
+            id
+        };
         while !seen.contains(&second) {
-            seen.extend(rx.recv_timeout(Duration::from_secs(5)).unwrap());
+            seen.extend(rx.recv_timeout(HEARD).unwrap());
         }
         let heard = calls.load(Ordering::SeqCst);
         note("Third");
