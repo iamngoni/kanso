@@ -58,6 +58,8 @@ mod collab_tests;
 mod collab_text;
 mod commands;
 mod config;
+mod control;
+mod control_model;
 mod device_approval;
 mod dialogs;
 mod dictation;
@@ -708,6 +710,7 @@ fn run_app(
         settings::register_app_actions(cx, open_main_window);
         updates::register_app_actions(cx);
         services::apply_server_settings(cx);
+        services::start_control(cx);
         crate::settings_gallery::init(cx);
         crate::settings_gallery::set_log_dir(&cx.global::<AppState>().data_dir);
         crate::settings_gallery::schedule(cx);

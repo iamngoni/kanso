@@ -37,6 +37,9 @@ use crate::workspace::AppState;
 use crate::zoom::px;
 use crate::{dialogs, services};
 
+/// How often an open page looks for keys changed from the command line.
+const WATCH_EVERY: std::time::Duration = std::time::Duration::from_secs(1);
+
 /// The width of the New key sheet.
 pub const SHEET_WIDTH: f32 = 560.;
 
@@ -51,6 +54,11 @@ pub struct ApiKeysPage {
     book_names: HashMap<String, String>,
     /// Why the keys can't be listed or changed.
     error: Option<String>,
+    /// How many changes the keys had when the rows were read: a key made
+    /// or revoked from `kanso api-key` while this shows moves the count.
+    seen: u64,
+    /// Watches for such changes while the page lives.
+    watch: Option<Task<()>>,
     /// The key the sheet last made, so a test can use it as an agent would.
     #[cfg(test)]
     pub(crate) minted_for_test: Option<String>,
@@ -67,6 +75,8 @@ impl ApiKeysPage {
             rows: Vec::new(),
             book_names: HashMap::new(),
             error: None,
+            seen: 0,
+            watch: None,
             #[cfg(test)]
             minted_for_test: None,
             #[cfg(test)]
@@ -77,6 +87,23 @@ impl ApiKeysPage {
     /// Brings the page up to date each time it shows.
     pub fn shown(&mut self, cx: &mut Context<Self>) {
         self.refresh(cx);
+        if self.watch.is_none() && cfg!(not(test)) {
+            self.watch = Some(cx.spawn(async move |this, cx| {
+                loop {
+                    cx.background_executor().timer(WATCH_EVERY).await;
+                    if this.update(cx, |page, cx| page.catch_up(cx)).is_err() {
+                        break;
+                    }
+                }
+            }));
+        }
+    }
+
+    /// Reads the keys again when something else changed them.
+    fn catch_up(&mut self, cx: &mut Context<Self>) {
+        if self.keys.as_ref().is_some_and(|keys| keys.changes() != self.seen) {
+            self.refresh(cx);
+        }
     }
 
     /// Reads the live keys and the notebook names again.
@@ -97,6 +124,7 @@ impl ApiKeysPage {
                     }
                     Err(err) => self.error = Some(format!("Couldn't list the API keys: {err}")),
                 }
+                self.seen = keys.changes();
                 self.keys = Some(keys);
             }
             Err(reason) => self.error = Some(reason),

@@ -4535,6 +4535,7 @@ dependencies = [
  "kanso-update",
  "kanso-voice",
  "kanso-webauthn",
+ "libc",
  "lsp-types",
  "markdown",
  "objc2 0.6.5",

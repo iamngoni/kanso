@@ -72,6 +72,20 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
     if let Some(notice) = no_keys_notice(&keys.list()?) {
         eprintln!("{notice}");
     }
+    // `kanso api-key` reaches this server over a socket in the data folder,
+    // so keys can be made and revoked while it runs.
+    let control = match crate::control::ControlServer::start(
+        &data_dir,
+        crate::control::ControlTarget::new(store.clone(), keys.clone()),
+    ) {
+        Ok(control) => Some(control),
+        Err(err) => {
+            eprintln!(
+                "kanso serve: `kanso api-key` can't reach this server while it runs ({err}). To change keys, stop `kanso serve` first."
+            );
+            None
+        }
+    };
     let handle = kanso_server::spawn(store.clone(), server, keys);
     match handle.bind_result() {
         Ok(addr) => eprintln!("Kanso API on http://{addr} (MCP at /mcp). Ctrl-C stops it."),
@@ -112,6 +126,7 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
     if let Err(err) = handle.stop() {
         eprintln!("kanso serve: stopping the API: {err}");
     }
+    drop(control);
     drop(lock);
     say("kanso serve: stopped.".to_owned());
     Ok(())
@@ -134,7 +149,7 @@ pub fn exposed_warning(bind_address: &str) -> Option<&'static str> {
 /// request would be refused. Pure.
 pub fn no_keys_notice(rows: &[kanso_store::ApiKeyRow]) -> Option<&'static str> {
     rows.iter().all(|row| row.revoked_at.is_some()).then_some(
-        "kanso serve: this library has no API keys, so every request is refused. Stop `kanso serve` and run `kanso api-key create --name <name>` to make one.",
+        "kanso serve: this library has no API keys, so every request is refused. Run `kanso api-key create --name <name>` to make one; it works while this server runs.",
     )
 }
 

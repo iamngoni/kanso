@@ -1,7 +1,9 @@
 //! `kanso api-key create | list | revoke` against the real binary
 //! (issue #243): a key made with no window works over REST and `/mcp` on
 //! `kanso serve`, and is refused once it is revoked. The key is on standard
-//! output alone, and the commands refuse while the data folder is in use.
+//! output alone, and the commands work while `kanso serve` runs: a key made
+//! then works at once, and a key revoked then is refused at once while another
+//! keeps working and the server never stops.
 
 use std::io::{Read as _, Write as _};
 use std::net::TcpStream;
@@ -137,30 +139,76 @@ fn a_key_made_on_the_command_line_works_until_it_is_revoked() {
     let answer = mcp_answer(data, port, &key);
     assert_eq!(answer["result"]["serverInfo"]["name"], "Kanso");
 
-    // While the server holds the folder, a key can't be changed behind its
-    // back; the refusal says what to do.
-    let refused = kanso(data, &["revoke", "Backup script"]);
-    assert!(!refused.status.success());
-    let words = text(&refused.stderr);
-    assert!(
-        words.contains("Quit it") && words.contains("Settings"),
-        "{words}"
-    );
-    assert_eq!(rest_status(port, Some(&key)), 200);
-    stop(server);
+    // `list`, `create` and `revoke` go on working while the server holds the
+    // folder: they are done by the server itself, over a socket only this
+    // user can open, and nothing stops.
+    let other = make_key(data, "Other script");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let mode = std::fs::metadata(data.join("control.sock"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o077, 0, "the control socket is private: {mode:o}");
+    }
+    let live = make_key(data, "Made while serving");
+    assert_eq!(rest_status(port, Some(&live)), 200);
+    assert!(text(&kanso(data, &["list"]).stdout).contains("Made while serving"));
 
-    // Revoked, it is refused over both.
+    let started = Instant::now();
     let revoked = kanso(data, &["revoke", "Backup script"]);
     assert!(revoked.status.success(), "{}", text(&revoked.stderr));
     assert_eq!(text(&revoked.stdout), "");
-    let server = serve(data, port);
+    // Refused the moment the command has returned, within a second of
+    // asking, and over MCP as well.
     assert_eq!(rest_status(port, Some(&key)), 401);
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "{:?}",
+        started.elapsed()
+    );
     let answer = mcp_answer(data, port, &key);
     assert_eq!(answer["error"]["code"], -32001);
+    // The others keep working, and the server never restarted.
+    assert_eq!(rest_status(port, Some(&other)), 200);
+    assert_eq!(rest_status(port, Some(&live)), 200);
+    assert_eq!(
+        mcp_answer(data, port, &other)["result"]["serverInfo"]["name"],
+        "Kanso"
+    );
+    assert!(server_alive(&server));
+
+    // Revoking it again, or a stranger, says what to do; neither prints a key.
+    let again = kanso(data, &["revoke", "Backup script"]);
+    assert!(!again.status.success());
+    assert!(text(&again.stderr).contains("kanso api-key list"));
+    assert!(!text(&again.stderr).contains(&key));
     stop(server);
 
-    // And it is gone from the list.
-    assert_eq!(text(&kanso(data, &["list"]).stdout), "");
+    // Gone from the list, and still refused after a restart.
+    assert!(!text(&kanso(data, &["list"]).stdout).contains("Backup script"));
+    let server = serve(data, port);
+    assert_eq!(rest_status(port, Some(&key)), 401);
+    assert_eq!(rest_status(port, Some(&other)), 200);
+    stop(server);
+    // With nothing running the commands work on the library themselves.
+    assert!(!data.join("control.sock").exists());
+}
+
+/// A key made with nothing running.
+fn make_key(data: &Path, name: &str) -> String {
+    let made = kanso(data, &["create", "--name", name]);
+    assert!(made.status.success(), "{}", text(&made.stderr));
+    text(&made.stdout).trim_end().to_owned()
+}
+
+fn server_alive(child: &Child) -> bool {
+    // `kill(pid, 0)` without a signal crate: the process is ours.
+    Command::new("kill")
+        .args(["-0", &child.id().to_string()])
+        .status()
+        .is_ok_and(|status| status.success())
 }
 
 #[test]
