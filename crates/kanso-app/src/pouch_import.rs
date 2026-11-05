@@ -1,6 +1,6 @@
 //! Moving over from a PouchDB notes library found on this computer:
-//! importing its notes, and taking its local API port and credentials so
-//! existing MCP clients keep working unchanged.
+//! importing its notes, and taking its local API port so existing clients
+//! find Kanso where they looked. Clients need a Kanso API key of their own.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -9,7 +9,6 @@ use anyhow::{Context as _, bail};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{ActiveTheme as _, WindowExt as _, v_flex};
 use gpui_kit::*;
-use kanso_import::safe_storage::{SAFE_STORAGE_SERVICE, keychain_secret};
 use kanso_import::{ImportReport, Phase, Progress, find_pouch_db, read_local_server_config};
 use kanso_store::Store;
 
@@ -17,34 +16,23 @@ use crate::config::ServerSettings;
 use crate::paths;
 use crate::workspace::AppState;
 
-/// What [`copy_server_settings`] took from the library's settings.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Copied {
-    /// Port, address and credentials.
-    Everything,
-    /// Port and address; there were no credentials to copy.
-    PortOnly,
-}
-
 /// Copies the library's local server port and address into `settings`. On
-/// error `settings` is unchanged.
+/// error `settings` is unchanged. Nothing else is taken: Kanso's API signs
+/// in with API keys, so the other app's username and password are neither
+/// read nor needed.
 pub fn copy_server_settings(
     library_dir: &Path,
     settings: &mut ServerSettings,
-    secret: impl FnOnce() -> anyhow::Result<String>,
-) -> anyhow::Result<Copied> {
+) -> anyhow::Result<()> {
     let Some(server) = read_local_server_config(library_dir)? else {
         bail!(
             "there are no local server settings in {}",
             library_dir.display()
         );
     };
-    // The other app's username and password are not taken: Kanso's API
-    // signs in with API keys, not a login.
-    let _ = secret;
     settings.port = server.port;
     settings.bind_address = server.bind_address.clone();
-    Ok(Copied::PortOnly)
+    Ok(())
 }
 
 /// The PouchDB library's data folder and database, when there is one to
@@ -226,8 +214,8 @@ pub fn start_import(window: &mut Window, cx: &mut App) {
     });
 }
 
-/// Takes the library's API port and credentials, after the user agrees to the
-/// Keychain prompt. `on_done` runs after the settings are saved.
+/// Takes the library's API port and address. `on_done` runs after the
+/// settings are saved.
 pub fn start_copy_credentials(
     window: &mut Window,
     cx: &mut App,
@@ -237,26 +225,19 @@ pub fn start_copy_credentials(
         return;
     };
     let mut server = cx.global::<AppState>().config.server.clone();
-    // Reading the Keychain waits for the user to answer macOS's prompt.
     let copy = cx.background_spawn(async move {
-        copy_server_settings(&library_dir, &mut server, || {
-            keychain_secret(SAFE_STORAGE_SERVICE)
-        })
-        .map(|copied| (copied, server))
+        copy_server_settings(&library_dir, &mut server).map(|()| server)
     });
     window
         .spawn(cx, async move |cx| {
             let result = copy.await;
             cx.update(|window, cx| match result {
-                Ok((copied, server)) => {
+                Ok(server) => {
                     AppState::update_config(cx, |config| config.server = server);
-                    let message = match copied {
-                        Copied::Everything => {
-                            "Kanso now uses the copied API port, username and password."
-                        }
-                        Copied::PortOnly => "Kanso now uses the copied API port.",
-                    };
-                    window.push_notification(Notification::success(message), cx);
+                    window.push_notification(
+                        Notification::success("Kanso now uses the copied API port."),
+                        cx,
+                    );
                     on_done(window, cx);
                 }
                 Err(err) => {
@@ -307,20 +288,9 @@ pub fn run_cli(data_dir: &Path, args: &[String]) -> anyhow::Result<()> {
     if credentials {
         let config_path = paths::config_path(data_dir);
         let mut config = crate::config::AppConfig::load(&config_path)?;
-        let copied = copy_server_settings(&library_dir, &mut config.server, || {
-            eprintln!("macOS will ask to allow access to “{SAFE_STORAGE_SERVICE}”.");
-            keychain_secret(SAFE_STORAGE_SERVICE)
-        })?;
+        copy_server_settings(&library_dir, &mut config.server)?;
         config.save(&config_path)?;
-        println!(
-            "Copied the library's API {} (port {}).",
-            if copied == Copied::Everything {
-                "port and credentials"
-            } else {
-                "port"
-            },
-            config.server.port
-        );
+        println!("Copied the library's API port ({}).", config.server.port);
     }
     if !report.is_clean() {
         bail!("the import reported problems; see above");
@@ -330,7 +300,7 @@ pub fn run_cli(data_dir: &Path, args: &[String]) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Copied, copy_server_settings};
+    use super::copy_server_settings;
     use crate::config::ServerSettings;
     use base64::Engine as _;
     use proptest::prelude::*;
@@ -364,9 +334,7 @@ mod tests {
             };
             let dir = library_dir(auth, port);
             let mut settings = ServerSettings::default();
-            let copied = copy_server_settings(dir.path(), &mut settings, || panic!("no keychain needed"))
-                .unwrap();
-            prop_assert_eq!(copied, Copied::PortOnly);
+            copy_server_settings(dir.path(), &mut settings).unwrap();
             prop_assert_eq!(settings.port, port);
         }
     }

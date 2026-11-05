@@ -1364,3 +1364,91 @@ fn the_diagram_renderer_is_chosen_and_saved(cx: &mut TestAppContext) {
     assert_eq!(chosen(cx), DiagramRenderer::Pele);
     assert_eq!(next_job(), MermaidEngine::Pele);
 }
+
+/// The status code of `GET url` with `key` as a bearer key, if any.
+fn http_status(url: &str, key: Option<&str>) -> u16 {
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .http_status_as_error(false)
+        .build()
+        .into();
+    let mut request = agent.get(url);
+    if let Some(key) = key {
+        request = request.header("Authorization", format!("Bearer {key}"));
+    }
+    request
+        .call()
+        .expect("the local API answers")
+        .status()
+        .as_u16()
+}
+
+/// Settings › Local API › API keys, end to end against the running server:
+/// a request without a key is refused and noted, New key… makes a key the
+/// server accepts, Revoke asks first and then stops the server's very next
+/// request. The page and the server must share one `KeyStore`: each has its
+/// own cache of live keys, and a second instance would leave the revoked key
+/// working.
+// no-prop-test: drives one window and a live server through clicks.
+#[gpui_kit::test]
+fn a_key_made_in_settings_opens_the_server_and_revoking_it_closes_it(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    cx.update(|cx| {
+        AppState::update_config(cx, |config| {
+            config.server.enabled = true;
+            config.server.bind_address = "127.0.0.1".into();
+            config.server.port = 0;
+        });
+        crate::services::apply_server_settings(cx);
+    });
+    let addr = cx
+        .read(crate::services::server_addr)
+        .expect("the local API is listening");
+    let url = format!("http://{addr}/notes");
+    let page = cx.read(|cx| f.workspace.read(cx).settings.read(cx).api_keys.clone());
+
+    // Settings › Local API lists no keys, and the server refuses a caller
+    // without one and notes it for the page.
+    cx.update_window(f.window, |_, window, cx| {
+        f.workspace.update(cx, |workspace, cx| {
+            workspace.open_settings(Some(SettingsPage::LocalApi), window, cx)
+        })
+    })
+    .unwrap();
+    f.draw(cx);
+    assert_eq!(f.page(cx), SettingsPage::LocalApi);
+    assert!(cx.read(|cx| page.read(cx).rows().is_empty()));
+    assert_eq!(http_status(&url, None), 401);
+    let keys = cx.update(|cx| crate::services::key_store(cx).unwrap());
+    assert!(keys.last_refused().is_some(), "the refusal is noted");
+
+    // New key… then Create key: the server takes the key.
+    f.click(cx, "new-key");
+    f.click(cx, "key-create");
+    let key = cx
+        .read(|cx| page.read(cx).minted_for_test.clone())
+        .expect("a key was made");
+    assert!(key.starts_with("kcl_"), "{key}");
+    assert_eq!(http_status(&url, Some(&key)), 200);
+    f.click(cx, "copy-key-setup");
+    f.click(cx, "key-done");
+    let rows = cx.read(|cx| page.read(cx).rows().to_vec());
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].name, "Codex on this Mac");
+    assert_eq!(rows[0].access, kanso_server::KeyAccess::Read);
+
+    // Revoke asks first; nothing is revoked until it is answered.
+    f.click(cx, "revoke-key-0");
+    use gpui_kit::component::WindowExt as _;
+    let asking = f
+        .window
+        .update(cx, |_, window, cx| window.has_active_dialog(cx))
+        .unwrap();
+    assert!(asking, "Revoke asks for confirmation");
+    assert_eq!(http_status(&url, Some(&key)), 200);
+    f.keys(cx, "enter");
+
+    // The running server refuses the key on its very next request.
+    assert_eq!(http_status(&url, Some(&key)), 401);
+    assert!(cx.read(|cx| page.read(cx).rows().is_empty()));
+    cx.update(crate::services::stop_server);
+}
