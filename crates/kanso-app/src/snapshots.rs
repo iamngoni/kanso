@@ -5862,6 +5862,32 @@ fn snapshots() {
         shot("dark-pdf-reader", Dark, Split, pdf::reader_page_one),
         shot("light-pdf-reader", Light, Split, pdf::reader_page_one),
         shot(
+            "dark-pdf-smart-invert",
+            Dark,
+            Split,
+            pdf::reader_smart_invert,
+        ),
+        shot(
+            "light-pdf-smart-invert",
+            Light,
+            Split,
+            pdf::reader_smart_invert,
+        ),
+        shot(
+            "dark-pdf-original-page",
+            Dark,
+            Split,
+            pdf::reader_original_page,
+        ),
+        shot("dark-pdf-password", Dark, Split, pdf::reader_password),
+        shot("light-pdf-password", Light, Split, pdf::reader_password),
+        shot(
+            "dark-pdf-password-wrong",
+            Dark,
+            Split,
+            pdf::reader_password_wrong,
+        ),
+        shot(
             "dark-pdf-reader-killed",
             Dark,
             Split,

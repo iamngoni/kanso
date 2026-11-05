@@ -70,6 +70,7 @@ fn write_frames(dir: &Path) -> std::io::Result<usize> {
             &Request::Render {
                 page: 3,
                 width_px: 1224,
+                smart_invert: false,
             },
             &[],
         ),

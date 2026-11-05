@@ -421,8 +421,23 @@ impl Worker {
 
     /// Draws a page `width_px` wide (the worker caps it).
     pub fn render(&mut self, page: u32, width_px: u32) -> Result<RenderedPage, WorkerError> {
+        self.render_as(page, width_px, false)
+    }
+
+    /// As [`Worker::render`]; with `smart_invert` the page is drawn for a dark
+    /// reader (text light, pictures in their own colours).
+    pub fn render_as(
+        &mut self,
+        page: u32,
+        width_px: u32,
+        smart_invert: bool,
+    ) -> Result<RenderedPage, WorkerError> {
         let (response, bgra) = self.call(
-            &Request::Render { page, width_px },
+            &Request::Render {
+                page,
+                width_px,
+                smart_invert,
+            },
             &[],
             self.deadlines.request,
         )?;
