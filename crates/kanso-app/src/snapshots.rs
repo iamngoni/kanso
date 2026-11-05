@@ -6254,11 +6254,13 @@ fn snapshots() {
         }
         // A short confirmation sits near the top, as the account's do, and
         // the developer sheet has its warning where the check usually looks.
-        if name.ends_with("-remove")
-            || name.ends_with("-plugin-developer")
-            || name.contains("-record-system-")
-        {
+        if name.ends_with("-remove") || name.ends_with("-plugin-developer") {
             plugin_shot.dialog_sample_y = Some(30.);
+        }
+        // The Record sheet is tall and starts near the window's top, so 30
+        // lands on its border; sample just below it, above the title.
+        if name.contains("-record-system-") {
+            plugin_shot.dialog_sample_y = Some(45.);
         }
         shots.push(plugin_shot);
     }

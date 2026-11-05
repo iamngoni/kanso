@@ -261,3 +261,49 @@ fn the_quit_question_opens_when_quit_comes_from_the_main_window(cx: &mut TestApp
             .unwrap()
     );
 }
+
+#[gpui_kit::test]
+fn a_system_track_left_for_a_locked_note_is_recovered_into_a_note_of_its_own(
+    cx: &mut TestAppContext,
+) {
+    let f = setup(cx);
+    let root = in_progress_dir(f.dir.path());
+    // The recording was for a note that is locked by the time of Recover.
+    let book = f
+        .store
+        .role_book(kanso_core::roles::Role::Inbox, kanso_store::Origin::Ui)
+        .unwrap();
+    let made = f
+        .store
+        .put(
+            kanso_core::DocType::Note,
+            serde_json::json!({"title": "Locked", "body": "secret", "bookId": book}),
+            kanso_store::Put::Upsert,
+            kanso_store::Origin::Ui,
+        )
+        .unwrap();
+    let locked = f
+        .store
+        .lock_note(serde_json::json!({
+            "_id": made.id,
+            "_rev": made.rev,
+            "title": "Locked",
+            "body": "",
+            "bookId": book,
+            (kanso_core::model::LOCK_FIELD): {"v": 1},
+        }))
+        .unwrap();
+    assert!(f.store.note(&locked.id).unwrap().unwrap().is_locked());
+    let mut options = RecorderOptions::new(Channels::Mono, vec![RecordSource::SystemAudio]);
+    options.id = Some("call-4-sys".into());
+    options.note_id = Some(locked.id.clone());
+    let mut recorder = Recorder::create(&root, options).unwrap();
+    recorder.push(&vec![0.2f32; 48_000]).unwrap();
+    std::mem::forget(recorder);
+    let track = kanso_audio::recovery::scan(&root, None).remove(0);
+    // Not an error that the banner would offer again and again.
+    let done = recording::recover_now(&f.store, &track).unwrap();
+    assert_ne!(done.saved.note_id, locked.id);
+    assert_eq!(f.store.note(&locked.id).unwrap().unwrap().body, "");
+    assert!(!root.join("call-4-sys").exists());
+}

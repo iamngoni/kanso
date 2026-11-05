@@ -13,7 +13,7 @@
 //! around, so the stream is told to make a 2 by 2 picture once a second,
 //! and the picture is dropped the moment it arrives.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -109,7 +109,7 @@ struct SinkState {
     dropped: Arc<AtomicU64>,
     failure: Failure,
     /// A format the sink can't read was seen once; say so once.
-    unreadable: Mutex<bool>,
+    unreadable: AtomicBool,
 }
 
 define_class!(
@@ -160,11 +160,10 @@ impl Sink {
     /// Mono samples from one audio sample buffer into the ring buffer.
     fn take(&self, sample: &CMSampleBuffer) {
         let mut mono = Vec::new();
+        // This runs on ScreenCaptureKit's queue, called from Objective-C:
+        // nothing here may panic.
         if let Err(why) = read_mono(sample, &mut mono) {
-            let mut said = self.ivars().unreadable.lock().unwrap();
-            if !*said {
-                *said = true;
-                drop(said);
+            if !self.ivars().unreadable.swap(true, Ordering::Relaxed) {
                 self.fail(why);
             }
             return;
@@ -203,6 +202,14 @@ fn read_mono(sample: &CMSampleBuffer, out: &mut Vec<f32>) -> Result<(), String> 
             .ok_or("the system sent sound with no format")?;
         if asbd.mFormatFlags & kAudioFormatFlagIsFloat == 0 || asbd.mBitsPerChannel != 32 {
             return Err("the system sent sound in a format Kanso can't read".into());
+        }
+        // The source says it is 48 kHz; another rate would play at the
+        // wrong speed and slide off the clock, so stop rather than guess.
+        if (asbd.mSampleRate - f64::from(SAMPLE_RATE)).abs() > 0.5 {
+            return Err(format!(
+                "the system sent sound at {} Hz, not {SAMPLE_RATE}",
+                asbd.mSampleRate
+            ));
         }
         let planar = asbd.mFormatFlags & kAudioFormatFlagIsNonInterleaved != 0;
 
@@ -263,8 +270,8 @@ fn read_mono(sample: &CMSampleBuffer, out: &mut Vec<f32>) -> Result<(), String> 
 /// Keeps the stream alive; dropping it stops the capture.
 struct Running {
     stream: Retained<SCStream>,
-    _sink: Retained<Sink>,
-    _queue: DispatchRetained<DispatchQueue>,
+    sink: Retained<Sink>,
+    queue: DispatchRetained<DispatchQueue>,
 }
 
 impl Drop for Running {
@@ -276,6 +283,18 @@ impl Drop for Running {
         // SAFETY: stops a stream this value started; the handler only sends.
         unsafe { self.stream.stopCaptureWithCompletionHandler(Some(&done)) };
         let _ = rx.recv_timeout(Duration::from_secs(3));
+        // The sink is released next. Take it off the stream (the stop may
+        // have timed out) and let any callback already queued run out, so
+        // none reaches a freed sink.
+        let output: &ProtocolObject<dyn SCStreamOutput> = ProtocolObject::from_ref(&*self.sink);
+        for kind in [SCStreamOutputType::Audio, SCStreamOutputType::Screen] {
+            // SAFETY: removes an output this value added; an error only means
+            // it wasn't there.
+            let _ = unsafe { self.stream.removeStreamOutput_type_error(output, kind) };
+        }
+        // The queue is serial and never runs this drop, so this can't wait
+        // on itself.
+        self.queue.exec_sync(|| {});
     }
 }
 
@@ -456,7 +475,7 @@ fn start(target: &SystemAudioTarget) -> Result<MacSource, AudioError> {
         producer: Mutex::new(producer),
         dropped: dropped.clone(),
         failure: failure.clone(),
-        unreadable: Mutex::new(false),
+        unreadable: AtomicBool::new(false),
     });
     let queue = DispatchQueue::new("app.kanso.system-audio", None);
     // SAFETY: the sink adopts both protocols; the queue outlives the stream
@@ -487,8 +506,8 @@ fn start(target: &SystemAudioTarget) -> Result<MacSource, AudioError> {
     unsafe { stream.startCaptureWithCompletionHandler(Some(&started)) };
     let running = Running {
         stream,
-        _sink: sink,
-        _queue: queue,
+        sink,
+        queue,
     };
     match rx.recv_timeout(ANSWER) {
         Ok(None) => {}
