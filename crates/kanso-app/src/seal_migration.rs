@@ -42,14 +42,15 @@ fn attachments(n: usize) -> String {
     format!("{n} attachment{}", if n == 1 { "" } else { "s" })
 }
 
-/// What the prompt says. With the notes open (a key is held) it also counts
-/// their attachments and size; without, it says when that is known.
+/// What the prompt says. With every waiting note open (the keys held fit
+/// them all) it also counts their attachments and size, as the phone does;
+/// else it says when that is known, rather than count part of them.
 pub fn prompt_words(pending: &Pending, scan: Option<&Scan>) -> String {
     let mut words = format!(
         "Attachments of your locked notes aren't sealed yet. Enter your lock password to seal them now. {} still have pictures and files stored in plain form.",
         notes(pending.notes()),
     );
-    match scan.filter(|scan| scan.notes > 0) {
+    match scan.filter(|scan| scan.notes > 0 && scan.unopened == 0) {
         Some(scan) => {
             words.push_str(&format!(
                 " {} ({}) will be sealed.",
@@ -419,6 +420,21 @@ mod tests {
         assert!(open.contains("1 locked note "));
         assert!(open.contains("12 attachments (84 MB) will be sealed."));
         assert!(open.contains("2 attachments are also used by other notes"));
+        // Some notes open and some not: no count of part of them.
+        let partly = prompt_words(
+            &pending(2, 0, 0),
+            Some(&Scan {
+                notes: 1,
+                unopened: 1,
+                summary: Summary {
+                    files: 5,
+                    bytes: 1024,
+                    shared: 0,
+                },
+            }),
+        );
+        assert!(!partly.contains("5 attachments"));
+        assert!(partly.contains("once the password opens the notes"));
     }
 
     #[::core::prelude::v1::test]
