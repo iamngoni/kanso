@@ -575,3 +575,451 @@ fn links_are_replaced_only_where_the_whole_id_matches() {
         "a inkdrop://file:new b inkdrop://file:abcd"
     );
 }
+
+// MARK: Review of #290
+
+/// Starts locking `note` with `key` and stops it once `stop_at` files are
+/// sealed, as a crash or a Cancel would.
+fn stop_locking(world: &World, note: &mut Note, key: &LockKey, keys: &KeyBook, stop_at: usize) {
+    let locking = HashSet::from([note.id.clone()]);
+    let mut copies = HashMap::new();
+    let mut watch = |progress: &Progress| {
+        if progress.phase == Phase::Sealing && progress.done == stop_at {
+            Err("stopped".to_owned())
+        } else {
+            Ok(())
+        }
+    };
+    let mut job = Job::new(&world.store, keys, &locking, &mut copies, &mut watch);
+    let text = note.body.clone();
+    let err = seal_note_files(&mut job, note, &text, key).unwrap_err();
+    assert_eq!(err, FilesError::Stopped("stopped".into()));
+}
+
+fn password(words: &str) -> LockPassword {
+    LockPassword::new(words).unwrap()
+}
+
+/// A password change while a lock is stopped: the stopped lock's keys move
+/// to the new password, so Finish locking works with it alone. Before, they
+/// stayed under the old one, and with it forgotten the sealed files never
+/// opened again.
+#[test]
+fn a_password_change_moves_a_stopped_locks_keys_to_the_new_password() {
+    let world = world();
+    let one = world.file("one.png", b"first picture bytes");
+    let two = world.file("two.png", b"second picture bytes");
+    let mut note = world.note(&[one.clone(), two.clone()]);
+    // The first lock ever: no other locked note gives the old key away.
+    stop_locking(&world, &mut note, &key(), &KeyBook::default(), 1);
+    assert_eq!(
+        world.store.attachment_state(&one).unwrap(),
+        AttachmentState::Sealed
+    );
+
+    let (new_key, skipped) = rekey(
+        &world.store,
+        &password("first password"),
+        &password("a new password"),
+        KdfParams::TEST,
+    )
+    .unwrap();
+    assert_eq!(skipped, 0);
+    let stopped = world.store.note(&note.id).unwrap().unwrap();
+    assert!(interrupted(&world.store, &stopped).is_some());
+    assert!(
+        !opens_interrupted(&stopped, &key()),
+        "the old password is done"
+    );
+    // What the app does: the new password, with the stopped lock's header.
+    let header = interrupted_header(&stopped).unwrap();
+    let typed = LockKey::for_envelope(&password("a new password"), &header).unwrap();
+    assert!(new_key.fits(&header));
+    assert!(opens_interrupted(&stopped, &typed));
+
+    let mut note = stopped;
+    world.lock(&mut note, &typed, &KeyBook::default());
+    let keys = KeyBook::default();
+    let locked = world.store.note(&note.id).unwrap().unwrap();
+    assert!(locked.is_locked());
+    keys.remember_note(&locked, &typed);
+    for (id, bytes) in [
+        (&one, &b"first picture bytes"[..]),
+        (&two, b"second picture bytes"),
+    ] {
+        assert_eq!(
+            bytes_of(read_file(&world.store, id, &keys)).as_deref(),
+            Some(bytes)
+        );
+    }
+}
+
+/// Undoing a stopped lock leaves sealed a file that a locked note took
+/// since (its link pasted into the open locked note): before, it was
+/// decrypted under that note.
+#[test]
+fn undoing_a_stopped_lock_keeps_a_file_another_locked_note_holds() {
+    let world = world();
+    let shared = world.file("shared.png", b"shared bytes");
+    let other_file = world.file("other.png", b"other bytes");
+    let own = world.file("own.png", b"own bytes");
+    let keys = KeyBook::default();
+    let mut locked = world.note(std::slice::from_ref(&own));
+    world.lock(&mut locked, &key(), &keys);
+    let mut stopped = world.note(&[shared.clone(), other_file.clone()]);
+    stop_locking(&world, &mut stopped, &key(), &keys, 1);
+    assert_eq!(
+        world.store.attachment_state(&shared).unwrap(),
+        AttachmentState::Sealed
+    );
+    // The open locked note takes the sealed file, with the key held.
+    let body = format!("{}![](inkdrop://{shared})\n", locked.body);
+    save_locked(&world.store, &keys, &mut locked, &body, &key()).unwrap();
+
+    let stopped = world.store.note(&stopped.id).unwrap().unwrap();
+    undo_locking(&world.store, &stopped, &key()).unwrap();
+    assert_eq!(
+        world.store.attachment_state(&shared).unwrap(),
+        AttachmentState::Sealed,
+        "the locked note's file stays sealed"
+    );
+    // The plain note shows a plain copy of it instead.
+    let after = world.store.note(&stopped.id).unwrap().unwrap();
+    assert!(!after.body.contains(&shared));
+    let copy = kanso_core::tasks::linked_file_ids(&after.body)
+        .into_iter()
+        .find(|id| id != &other_file)
+        .unwrap();
+    assert_eq!(world.stored(&copy), b"shared bytes");
+    assert_eq!(world.stored(&other_file), b"other bytes");
+    let fresh = KeyBook::default();
+    fresh.remember_note(&world.store.note(&locked.id).unwrap().unwrap(), &key());
+    assert_eq!(
+        bytes_of(read_file(&world.store, &shared, &fresh)),
+        Some(b"shared bytes".to_vec())
+    );
+}
+
+/// A notebook's lock stops on its second note, which found the file both
+/// notes show sealed already. The first note is then deleted for good, and
+/// the second one's lock undone: its list was the last holding the file's
+/// key, so the file is decrypted. Before, it stayed sealed with no key
+/// anywhere, under a plain note.
+#[test]
+fn undoing_the_last_list_that_holds_a_key_decrypts_the_file() {
+    let world = world();
+    let shared = world.file("shared.png", b"shared bytes");
+    let first_own = world.file("a.png", b"a bytes");
+    let second_own = world.file("b.png", b"b bytes");
+    let first = world.note(&[shared.clone(), first_own.clone()]);
+    let second = world.note(&[shared.clone(), second_own.clone()]);
+    let mut seen = 0;
+    let mut watch = |progress: &Progress| {
+        if progress.phase == Phase::Sealing && progress.done == 2 {
+            seen += 1;
+            if seen == 2 {
+                return Err("stopped".to_owned());
+            }
+        }
+        Ok(())
+    };
+    let err = crate::lock::seal_notebook_with(
+        &world.store,
+        &world.book,
+        &key(),
+        &KeyBook::default(),
+        &mut watch,
+    )
+    .unwrap_err();
+    assert_eq!(err, "stopped");
+    // Which note went first is the notebook's order.
+    let (done, stopped) =
+        if world.store.attachment_state(&second_own).unwrap() == AttachmentState::Plain {
+            (first, second)
+        } else {
+            (second, first)
+        };
+    world.store.delete(&done.id, Origin::Ui).unwrap();
+
+    let stopped = world.store.note(&stopped.id).unwrap().unwrap();
+    assert!(interrupted(&world.store, &stopped).is_some());
+    undo_locking(&world.store, &stopped, &key()).unwrap();
+    assert_eq!(
+        world.store.attachment_state(&shared).unwrap(),
+        AttachmentState::Plain
+    );
+    assert_eq!(world.stored(&shared), b"shared bytes");
+}
+
+fn canvas_body(cards: &[&str]) -> String {
+    use kanso_core::canvas::{Canvas, Node, to_body};
+    to_body(&Canvas {
+        nodes: cards
+            .iter()
+            .enumerate()
+            .map(|(ix, file)| Node {
+                id: format!("c{ix}"),
+                kind: "file".into(),
+                file: Some((*file).to_owned()),
+                width: 100.0,
+                height: 80.0,
+                ..Node::default()
+            })
+            .collect(),
+        ..Canvas::default()
+    })
+}
+
+impl World {
+    fn canvas(&self, cards: &[&str]) -> Note {
+        let id = self
+            .store
+            .put(
+                DocType::Note,
+                json!({"bookId": self.book, "title": "Board", "doctype": "canvas", "body": canvas_body(cards)}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        self.store.note(&id).unwrap().unwrap()
+    }
+}
+
+/// A canvas's attachment card shows a file without a link: locking a note
+/// that shows it too copies it, so the unlocked canvas keeps reading it.
+#[test]
+fn a_canvas_card_keeps_its_file_when_a_note_that_shows_it_locks() {
+    let world = world();
+    let file = world.file("card.png", b"card bytes");
+    let _canvas = world.canvas(&[&file]);
+    assert_eq!(world.store.file_owners(&file).unwrap().len(), 1);
+    let mut note = world.note(std::slice::from_ref(&file));
+    let counts = world.lock(&mut note, &key(), &KeyBook::default());
+    assert_eq!(counts.copied, 1);
+    assert_eq!(
+        world.store.attachment_state(&file).unwrap(),
+        AttachmentState::Plain
+    );
+    assert_eq!(world.stored(&file), b"card bytes");
+}
+
+/// A locked canvas seals the files its cards show.
+#[test]
+fn a_locked_canvas_seals_the_files_its_cards_show() {
+    let world = world();
+    let file = world.file("card.png", b"card bytes");
+    let mut canvas = world.canvas(&[&file]);
+    let keys = KeyBook::default();
+    let counts = world.lock(&mut canvas, &key(), &keys);
+    assert_eq!(counts.sealed, 1);
+    assert_eq!(
+        world.store.attachment_state(&file).unwrap(),
+        AttachmentState::Sealed
+    );
+    assert_eq!(
+        bytes_of(read_file(&world.store, &file, &keys)),
+        Some(b"card bytes".to_vec())
+    );
+}
+
+/// A file document a sync brought without its bytes.
+fn without_bytes(world: &World) -> String {
+    let id = "file:waiting1".to_owned();
+    world
+        .store
+        .apply_remote(
+            &kanso_store::SyncDoc {
+                id: id.clone(),
+                rev: "1-aaaa".into(),
+                deleted: false,
+                fields: json!({
+                    "name": "later.png",
+                    "contentType": "image/png",
+                    "contentLength": 4,
+                    "md5digest": "0123456789abcdef0123456789abcdef",
+                    "createdAt": 1,
+                    "updatedAt": 1,
+                })
+                .as_object()
+                .unwrap()
+                .clone(),
+                base_rev: None,
+            },
+            None,
+            None,
+        )
+        .unwrap();
+    assert_eq!(
+        world.store.attachment_state(&id).unwrap(),
+        AttachmentState::Plain
+    );
+    id
+}
+
+/// A file whose bytes haven't arrived: a lock refuses before it writes
+/// anything, and a save of a locked note leaves it for later instead of
+/// refusing the save (which held the typed text back).
+#[test]
+fn a_file_still_downloading_refuses_a_lock_and_never_holds_back_a_save() {
+    let world = world();
+    let ready = world.file("ready.png", b"ready bytes");
+    let waiting = without_bytes(&world);
+    let mut note = world.note(&[ready.clone(), waiting.clone()]);
+    let before = world.store.note(&note.id).unwrap().unwrap();
+    let locking = HashSet::from([note.id.clone()]);
+    let mut copies = HashMap::new();
+    let mut watch = |_: &Progress| Ok(());
+    let keys = KeyBook::default();
+    let mut job = Job::new(&world.store, &keys, &locking, &mut copies, &mut watch);
+    let text = note.body.clone();
+    let err = seal_note_files(&mut job, &mut note, &text, &key()).unwrap_err();
+    assert!(err.to_string().contains("finished downloading"), "{err}");
+    assert_eq!(
+        world.store.note(&note.id).unwrap().unwrap(),
+        before,
+        "nothing written"
+    );
+    assert_eq!(
+        world.store.attachment_state(&ready).unwrap(),
+        AttachmentState::Plain
+    );
+
+    // A locked note's save, with the file linked since.
+    let mut locked = world.note(std::slice::from_ref(&ready));
+    world.lock(&mut locked, &key(), &keys);
+    let body = format!("{}![](inkdrop://{waiting})\nmore text\n", locked.body);
+    let counts = save_locked(&world.store, &keys, &mut locked, &body, &key()).unwrap();
+    assert_eq!(counts.waiting, 1);
+    let stored = world.store.note(&locked.id).unwrap().unwrap();
+    let envelope = Envelope::from_extra(&stored.extra).unwrap().unwrap();
+    assert!(
+        key()
+            .open(&stored.id, &envelope)
+            .unwrap()
+            .contains("more text")
+    );
+}
+
+/// A PDF over 10 MB already in a note seals with its lock and opens again:
+/// the store takes a sealed PDF up to the 50 MB PDF limit.
+#[test]
+fn a_pdf_over_ten_megabytes_seals_and_opens() {
+    let world = world();
+    let mut pdf = b"%PDF-1.4\n".to_vec();
+    pdf.resize(12 * 1024 * 1024, b'x');
+    let id = world
+        .store
+        .put(
+            DocType::File,
+            json!({"name": "big.pdf", "contentType": "application/pdf", "_attachments": {"index": {
+                "content_type": "application/pdf",
+                "data": STANDARD.encode(&pdf),
+            }}}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let mut note = world.note(std::slice::from_ref(&id));
+    let keys = KeyBook::default();
+    world.lock(&mut note, &key(), &keys);
+    assert_eq!(
+        world.store.attachment_state(&id).unwrap(),
+        AttachmentState::Sealed
+    );
+    assert_eq!(bytes_of(read_file(&world.store, &id, &keys)), Some(pdf));
+}
+
+/// `set_note_files` writes a list beside a note whose text links sealed
+/// files, but only those the list holds: it can't point a plain note at
+/// another note's sealed file.
+#[test]
+fn a_list_write_never_lets_a_plain_note_link_a_sealed_file_it_doesnt_hold() {
+    let world = world();
+    let file = world.file("theirs.png", b"theirs");
+    let note = world.note(std::slice::from_ref(&file));
+    // The file is sealed (for another note) under the note's feet.
+    let mut meta = world.store.file_meta(&file).unwrap().unwrap();
+    let seal = SealId::random();
+    FileLock::store(Some(&FileLock::sealed(seal.encode())), &mut meta.extra);
+    world
+        .store
+        .put_sealed_file(meta, Attachment::new(vec![1; 64]))
+        .unwrap();
+    assert!(world.store.set_note_files(&note.id, &[]).is_err());
+    let entry = NoteFile {
+        file: file.clone(),
+        v: 1,
+        seal: seal.encode(),
+        key: STANDARD.encode([0u8; 73]),
+        extra: Default::default(),
+    };
+    assert!(world.store.set_note_files(&note.id, &[entry]).is_ok());
+}
+
+/// The store canary scan, after a lock: no byte of a locked note's picture,
+/// its words read by OCR, or its PDF's page text is left anywhere in the
+/// library's files (the database, its write-ahead log).
+#[test]
+fn a_locked_notes_files_leave_no_plaintext_in_the_library() {
+    const CANARY: &str = "zqxcanary-lockflow-41c7-harbour";
+    let world = world();
+    let picture = world.file("canary.png", format!("PNG {CANARY} bytes").as_bytes());
+    let md5 = world
+        .store
+        .file_meta(&picture)
+        .unwrap()
+        .unwrap()
+        .md5digest
+        .unwrap();
+    assert!(
+        world
+            .store
+            .set_image_text(&picture, &md5, &format!("ocr {CANARY}"), "test")
+            .unwrap()
+    );
+    let pdf = world
+        .store
+        .put(
+            DocType::File,
+            json!({"name": "c.pdf", "contentType": "application/pdf", "_attachments": {"index": {
+                "content_type": "application/pdf",
+                "data": STANDARD.encode(b"%PDF-1.4 canary pdf body"),
+            }}}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let pdf_md5 = world
+        .store
+        .file_meta(&pdf)
+        .unwrap()
+        .unwrap()
+        .md5digest
+        .unwrap();
+    world
+        .store
+        .set_pdf_text(&pdf, &pdf_md5, &[format!("page {CANARY}")], "test")
+        .unwrap();
+    let mut note = world.note(&[picture.clone(), pdf.clone()]);
+    let scan = |world: &World| -> bool {
+        let db = world.store.path().to_owned();
+        ["", "-wal"].iter().any(|suffix| {
+            let mut name = db.as_os_str().to_owned();
+            name.push(suffix);
+            std::fs::read(std::path::PathBuf::from(name)).is_ok_and(|bytes| {
+                bytes
+                    .windows(CANARY.len())
+                    .any(|window| window == CANARY.as_bytes())
+            })
+        })
+    };
+    assert!(scan(&world), "positive control: the plain library shows it");
+    world.lock(&mut note, &key(), &KeyBook::default());
+    assert!(
+        !scan(&world),
+        "a plain copy of a locked note's file is left"
+    );
+}

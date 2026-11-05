@@ -258,6 +258,8 @@ impl Session {
         let mut copies = HashMap::new();
         let mut watch = |_: &files::Progress| Ok(());
         let mut job = files::Job::new(store, &self.file_keys, &locking, &mut copies, &mut watch);
+        // A save: a file still downloading waits for the next one.
+        job.leave_waiting = true;
         let text = note.body.clone();
         let (body, _) =
             files::seal_note_files(&mut job, note, &text, &key).map_err(|err| err.to_string())?;
@@ -532,6 +534,41 @@ pub fn rekey(
         // A note changed meanwhile keeps its old seal; it opens with the old
         // password until changed again.
         if store.lock_note(value).is_err() {
+            skipped += 1;
+        }
+    }
+    // A lock that stopped between a note's files left its keys wrapped
+    // under the old password beside the plain note. They move too, so
+    // Finish locking and Undo locking take the new password: with the old
+    // one forgotten, files sealed under it would never open again. One the
+    // old password doesn't open stays as it is.
+    let journal_envelope = key.seal("kanso-journal", "");
+    for note in store
+        .plain_notes_with_files()
+        .map_err(|err| err.to_string())?
+    {
+        let Some(header) = files::interrupted_header(&note) else {
+            continue;
+        };
+        if !old_keys.iter().any(|old_key| old_key.fits(&header)) {
+            // The first lock ever made can stop with no locked note beside
+            // it: its own header gives the key.
+            match LockKey::for_envelope(old, &header) {
+                Ok(old_key) => old_keys.push(old_key),
+                Err(_) => {
+                    skipped += 1;
+                    continue;
+                }
+            }
+        }
+        let moved = old_keys
+            .iter()
+            .find_map(|old_key| files::rewrap_journal(&note, old_key, &key, &journal_envelope));
+        let Some(moved) = moved else {
+            skipped += 1;
+            continue;
+        };
+        if store.set_note_files(&note.id, &moved).is_err() {
             skipped += 1;
         }
     }
