@@ -7,15 +7,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
+import '../../../core/views/widgets/kanso_feedback.dart';
 import '../../../core/views/widgets/kanso_text_field.dart';
 import '../../../injection.dart';
-import '../../../note/views/widgets/attachment_sheet.dart' show byteSize;
 import '../../models/data/lock_form_status.dart';
 import '../../models/data/lock_mode.dart';
 import '../../models/data/lock_target.dart';
 import '../../state/lock_setup/lock_setup_bloc.dart';
 import '../../state/lock_status/lock_status_bloc.dart';
+import '../../utils/copy_notice_words.dart';
 import '../../utils/seal_progress_rules.dart';
+import '../../utils/seal_size.dart';
 import 'lock_form_sheet.dart';
 import 'lock_progress_sheet.dart';
 
@@ -82,15 +84,25 @@ class _LockItemSheetState extends State<LockItemSheet> {
       listener: (context, state) {
         if (state.status == LockFormStatus.done) {
           context.read<LockStatusBloc>().add(const LockStatusEvent.refreshed());
+          // Files copied because other notes also show them, said once.
+          final feedback = KansoFeedback.maybeOf(context);
+          final copied = copyNoticeWords(l10n, state.copyNotice);
           Navigator.of(context).pop();
+          if (copied != null) {
+            feedback?.show(
+              KansoFeedbackMessage(text: copied, tone: KansoFeedbackTone.info),
+            );
+          }
         } else if (state.status == LockFormStatus.stopped) {
           // Cancel stopped it: say what is left, then let the sheet go.
-          final messenger = ScaffoldMessenger.maybeOf(context);
+          final feedback = KansoFeedback.maybeOf(context);
           final words = note
               ? l10n.lockStoppedMessage
               : l10n.lockStoppedNotebookMessage;
           Navigator.of(context).pop();
-          messenger?.showSnackBar(SnackBar(content: Text(words)));
+          feedback?.show(
+            KansoFeedbackMessage(text: words, tone: KansoFeedbackTone.info),
+          );
         }
       },
       builder: (context, state) {
@@ -121,7 +133,10 @@ class _LockItemSheetState extends State<LockItemSheet> {
         // What the dialog says of the pictures and files it seals.
         final files = <String>[
           if (summary != null && summary.files > 0)
-            l10n.lockFilesSealed(summary.files, byteSize(summary.bytes)),
+            l10n.lockFilesSealed(
+              summary.files,
+              sealSize(summary.bytes, underOneKb: l10n.lockSizeUnderOneKb),
+            ),
           if (summary != null && summary.shared > 0)
             l10n.lockFilesShared(summary.shared),
         ].join(' ');

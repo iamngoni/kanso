@@ -125,6 +125,7 @@ class LockSetupBloc extends Bloc<LockSetupEvent, LockSetupState> {
       ),
     );
     final result = await _watched(password: event.password);
+    final copied = await _copiesOf(result);
     result.fold(
       (error) => emit(
         // Cancel stopped it: the note waits to be finished or undone.
@@ -136,7 +137,11 @@ class LockSetupBloc extends Bloc<LockSetupEvent, LockSetupState> {
             : state.copyWith(status: LockFormStatus.failed, error: error),
       ),
       (count) => emit(
-        state.copyWith(status: LockFormStatus.done, count: count),
+        state.copyWith(
+          status: LockFormStatus.done,
+          count: count,
+          copyNotice: copied,
+        ),
       ),
     );
   }
@@ -154,6 +159,7 @@ class LockSetupBloc extends Bloc<LockSetupEvent, LockSetupState> {
       ),
     );
     final result = await _watched();
+    final copied = await _copiesOf(result);
     result.fold(
       (error) => emit(
         // Cancel stopped it: the note waits to be finished or undone.
@@ -168,10 +174,22 @@ class LockSetupBloc extends Bloc<LockSetupEvent, LockSetupState> {
             : state.copyWith(status: LockFormStatus.failed, error: error),
       ),
       (count) => emit(
-        state.copyWith(status: LockFormStatus.done, count: count),
+        state.copyWith(
+          status: LockFormStatus.done,
+          count: count,
+          copyNotice: copied,
+        ),
       ),
     );
   }
+
+  /// The files a finished lock copied, to be said once; null when it
+  /// failed or copied none.
+  Future<LockCopyNotice?> _copiesOf(
+    Either<ApplicationError, int> result,
+  ) async => result.isRight()
+      ? (await _session.takeCopyNotice()).toOption().toNullable()
+      : null;
 
   /// Locks the target, with [password] or with the open session's key; the
   /// number of notes sealed (1 for a note).

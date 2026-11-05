@@ -1127,6 +1127,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   LocalTime dco_decode_box_autoadd_local_time(dynamic raw);
 
   @protected
+  LockCopyNotice dco_decode_box_autoadd_lock_copy_notice(dynamic raw);
+
+  @protected
   LockedInfo dco_decode_box_autoadd_locked_info(dynamic raw);
 
   @protected
@@ -2193,6 +2196,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   LocalTime dco_decode_local_time(dynamic raw);
 
   @protected
+  LockCopyNotice dco_decode_lock_copy_notice(dynamic raw);
+
+  @protected
   LockEvent dco_decode_lock_event(dynamic raw);
 
   @protected
@@ -2371,6 +2377,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   LiveStatus? dco_decode_opt_box_autoadd_live_status(dynamic raw);
+
+  @protected
+  LockCopyNotice? dco_decode_opt_box_autoadd_lock_copy_notice(dynamic raw);
 
   @protected
   MadeNote? dco_decode_opt_box_autoadd_made_note(dynamic raw);
@@ -4098,6 +4107,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   LocalTime sse_decode_box_autoadd_local_time(SseDeserializer deserializer);
 
   @protected
+  LockCopyNotice sse_decode_box_autoadd_lock_copy_notice(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LockedInfo sse_decode_box_autoadd_locked_info(SseDeserializer deserializer);
 
   @protected
@@ -5370,6 +5384,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   LocalTime sse_decode_local_time(SseDeserializer deserializer);
 
   @protected
+  LockCopyNotice sse_decode_lock_copy_notice(SseDeserializer deserializer);
+
+  @protected
   LockEvent sse_decode_lock_event(SseDeserializer deserializer);
 
   @protected
@@ -5578,6 +5595,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   LiveStatus? sse_decode_opt_box_autoadd_live_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  LockCopyNotice? sse_decode_opt_box_autoadd_lock_copy_notice(
     SseDeserializer deserializer,
   );
 
@@ -7620,6 +7642,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_lock_copy_notice(
+    LockCopyNotice self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_locked_info(
     LockedInfo self,
     SseSerializer serializer,
@@ -9315,6 +9343,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_local_time(LocalTime self, SseSerializer serializer);
 
   @protected
+  void sse_encode_lock_copy_notice(
+    LockCopyNotice self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_lock_event(LockEvent self, SseSerializer serializer);
 
   @protected
@@ -9563,6 +9597,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_live_status(
     LiveStatus? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_lock_copy_notice(
+    LockCopyNotice? self,
     SseSerializer serializer,
   );
 

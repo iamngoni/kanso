@@ -2951,14 +2951,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lockRemoveNoteMessage =>
-      'The note\'s text is kept as plain text again: search, backlinks, tasks and the local API can read it.';
+      'The note\'s text is kept as plain text again: search, backlinks, tasks and the local API can read it. Its pictures and files are decrypted again too; one that another locked note also shows is copied, so that note keeps its sealed copy.';
 
   @override
   String get lockRemoveNotebookTitle => 'Remove the notebook\'s lock?';
 
   @override
-  String get lockRemoveNotebookMessage =>
-      'The notes in it are kept as plain text again: search, backlinks, tasks and the local API can read them.';
+  String lockRemoveNotebookMessage(String name) {
+    return 'Notes put in “$name” from now on aren\'t locked. The notes in it now stay locked: remove a note\'s lock to keep its text as plain text again.';
+  }
 
   @override
   String get lockRemoveButton => 'Remove Lock';
@@ -3375,16 +3376,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(origin, {
-      'ui': 'Edited in Kanso',
-      'api': 'Replaced through the API',
-      'sync': 'Replaced by sync',
-      'import': 'Replaced by an import',
-      'collab': 'Edited in a shared note',
-      'agent': 'Suggested by an agent, applied by you',
-      'plugin': 'Changed by a plugin',
-      'other': 'Saved version',
-    });
+    String _temp0 = intl.Intl.selectLogic(
+      origin,
+      {
+        'ui': 'Edited in Kanso',
+        'api': 'Replaced through the API',
+        'sync': 'Replaced by sync',
+        'import': 'Replaced by an import',
+        'collab': 'Edited in a shared note',
+        'agent': 'Suggested by an agent, applied by you',
+        'plugin': 'Changed by a plugin',
+        'other': 'Saved version',
+      },
+    );
     return '$_temp0';
   }
 
@@ -7199,10 +7203,10 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count pictures and files ($size) are',
-      one: '1 picture or file ($size) is',
+      other: 'Its pictures and files ($size) are',
+      one: 'Its picture or file ($size) is',
     );
-    return '$_temp0 sealed with it.';
+    return '$_temp0 sealed too.';
   }
 
   @override
@@ -7216,10 +7220,10 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp1 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'them',
-      one: 'it',
+      other: 'copies',
+      one: 'copy',
     );
-    return '$_temp0 also used by other notes: locking seals a copy of $_temp1, and the other notes keep theirs.';
+    return '$_temp0 also used by other notes: the locked note keeps its own sealed $_temp1, and the other notes keep theirs.';
   }
 
   @override
@@ -7229,7 +7233,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lockProgressTitleNotebook => 'Locking notebook';
 
   @override
-  String get lockProgressTitleRemove => 'Removing the lock';
+  String get lockProgressTitleRemove => 'Removing lock';
 
   @override
   String lockProgressLine(int count, String size) {
@@ -7243,12 +7247,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String lockProgressUnsealingLine(int count, String size) {
+  String lockProgressUnsealingLine(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Unsealing $count attachments, $size',
-      one: 'Unsealing 1 attachment, $size',
+      other: 'Unsealing $count attachments',
+      one: 'Unsealing 1 attachment',
     );
     return '$_temp0';
   }
@@ -7259,10 +7263,49 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get lockSizeUnderOneKb => 'under 1 KB';
+
+  @override
+  String get lockProgressPreparing => 'Getting ready';
+
+  @override
+  String get lockProgressLocking => 'Locking the note';
+
+  @override
   String get lockProgressCancel => 'Cancel';
 
   @override
-  String get lockProgressStopping => 'Stopping after this file…';
+  String get lockProgressStopping => 'Stopping after this file';
+
+  @override
+  String lockCopiedMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Locked. $count attachments are also used by other notes, so this note has its own sealed copies.',
+      one:
+          'Locked. 1 attachment is also used by other notes, so this note has its own sealed copy.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockUnsealedMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Lock removed. $count attachments were copied for this note, because another locked note still shows the sealed ones.',
+      one:
+          'Lock removed. 1 attachment was copied for this note, because another locked note still shows the sealed one.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lockRemoveStoppedMessage =>
+      'Removing the lock stopped. The note is still locked, and its pictures and files are still sealed.';
 
   @override
   String get lockStoppedMessage =>

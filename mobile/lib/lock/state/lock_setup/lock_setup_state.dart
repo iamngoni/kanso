@@ -25,5 +25,9 @@ abstract class LockSetupState with _$LockSetupState {
 
     /// Whether Cancel was pressed: it stops after the file being sealed.
     @Default(false) bool cancelling,
+
+    /// The files sealed as copies because notes that stay unlocked also show
+    /// them, once [status] is done.
+    LockCopyNotice? copyNotice,
   }) = _LockSetupState;
 }
