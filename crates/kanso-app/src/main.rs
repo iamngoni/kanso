@@ -42,6 +42,7 @@ mod canvas_state_tests;
 mod canvas_view;
 mod capture;
 mod capture_cli;
+mod capture_request;
 mod capture_voice;
 #[cfg(test)]
 mod capture_voice_tests;
@@ -570,15 +571,25 @@ fn run_app(
                 .map_err(|_| "Kanso is quitting".to_owned())
         }));
     }
-    // Sign in with Apple returns through the browser and `kanso://` outside
-    // macOS, and files come from a second `kanso`; the second one forwards
-    // them here.
-    #[cfg(not(target_os = "macos"))]
+    // The local link, on every platform: Sign in with Apple returns through
+    // the browser and `kanso://` outside macOS, and files, stickies and
+    // notes to capture come from a second `kanso`; the second one forwards
+    // them here. The link can only add notes, never read them.
     {
         let opener = opener.clone();
         let sink: url_callback::FileSink = Arc::new(move |paths| opener.paths(paths));
-        if let Err(err) = url_callback::listen(&data_dir, &url_callback::ROUTER, sink) {
-            eprintln!("kanso: Sign in with Apple and opening files can't reach Kanso: {err}");
+        let captures: url_callback::CaptureSink = {
+            let store = store.clone();
+            Arc::new(move |request| {
+                capture_cli::add_note(&store, &request, kanso_store::Origin::Api).map(|(id, _)| id)
+            })
+        };
+        if let Err(err) =
+            url_callback::listen_with(&data_dir, &url_callback::ROUTER, sink, captures)
+        {
+            eprintln!(
+                "kanso: `kanso capture` and `kanso sticky` can't reach this Kanso while it is open ({err}). Restart Kanso, or quit it to capture from the command line."
+            );
         }
     }
 
