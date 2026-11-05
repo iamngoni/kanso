@@ -67,6 +67,10 @@ trait Mcp {
 
 struct NodeMcp {
     child: Child,
+    /// What the server wrote to stderr, kept for the failure message: with
+    /// the stream thrown away, a server that died under load looked the
+    /// same as one that was merely slow.
+    stderr: tempfile::NamedTempFile,
     stdin: ChildStdin,
     lines: Receiver<String>,
     next_id: u64,
@@ -134,13 +138,16 @@ impl NodeMcp {
     fn spawn(mut command: Command, url: &str) -> NodeMcp {
         // Test credentials only; these override anything in the environment.
         // The variable names are the ones the Node server reads.
+        let stderr = tempfile::NamedTempFile::new().expect("a file for the server's stderr");
         let mut child = command
             .env("INKDROP_LOCAL_SERVER_URL", url)
             .env("INKDROP_LOCAL_USERNAME", USER)
             .env("INKDROP_LOCAL_PASSWORD", PASS)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(Stdio::from(
+                stderr.reopen().expect("reopen the stderr file"),
+            ))
             .spawn()
             .expect("start the Node MCP server");
         let stdin = child.stdin.take().unwrap();
@@ -155,6 +162,7 @@ impl NodeMcp {
         });
         NodeMcp {
             child,
+            stderr,
             stdin,
             lines,
             next_id: 0,
@@ -176,7 +184,13 @@ impl Mcp for NodeMcp {
             let line = self
                 .lines
                 .recv_timeout(Duration::from_secs(120))
-                .unwrap_or_else(|_| panic!("no answer from the Node MCP server to {method}"));
+                .unwrap_or_else(|_| {
+                    let status = self.child.try_wait();
+                    let stderr = std::fs::read_to_string(self.stderr.path()).unwrap_or_default();
+                    panic!(
+                        "no answer from the Node MCP server to {method} (exit: {status:?}); stderr:\n{stderr}"
+                    )
+                });
             let Ok(message) = serde_json::from_str::<Value>(&line) else {
                 continue;
             };
@@ -606,6 +620,26 @@ fn canonical(value: &Value) -> String {
         Value::Array(items) => {
             let items: Vec<String> = items.iter().map(canonical).collect();
             format!("[{}]", items.join(","))
+        }
+        // A text block that holds a JSON document is compared as one: its
+        // key order is not significant either. It is not the same in every
+        // build: `serde_json` keeps insertion order only where some crate in
+        // the build turns on `preserve_order` (kanso-engine does, so any
+        // build with it, `cargo test --workspace` among them, has it), and
+        // then a file's document comes out in the order it was stored in
+        // over REST but in the order the tool built it in over /mcp. Built
+        // alone, the maps are sorted and the two agree by luck.
+        Value::String(text) if text.starts_with(['{', '[']) => {
+            // Node's cut can leave half a surrogate pair at the end of a
+            // string, which a strict parser refuses (see `normalized`).
+            let lone = regex_lite::Regex::new(r#"\\u[dD][89abAB][0-9a-fA-F]{2}""#).unwrap();
+            let text = lone.replace_all(text, "\"");
+            match serde_json::from_str::<Value>(&text) {
+                Ok(parsed @ (Value::Object(_) | Value::Array(_))) => {
+                    Value::from(canonical(&parsed)).to_string()
+                }
+                _ => value.to_string(),
+            }
         }
         other => other.to_string(),
     }
