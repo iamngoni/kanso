@@ -2160,6 +2160,7 @@ fn settings_scans_reading(
     workspace: &Entity<Workspace>,
     store: &Store,
 ) {
+    crate::pdf::ocr::SHOWN_AS_SUPPORTED.store(true, std::sync::atomic::Ordering::Relaxed);
     cx.update(|cx| {
         crate::pdf::ocr::set_paused(false, cx);
         cx.default_global::<crate::pdf::ocr::ScannedPages>().status =
@@ -2179,6 +2180,7 @@ fn settings_scans_paused(
     workspace: &Entity<Workspace>,
     store: &Store,
 ) {
+    crate::pdf::ocr::SHOWN_AS_SUPPORTED.store(true, std::sync::atomic::Ordering::Relaxed);
     cx.update(|cx| {
         crate::pdf::ocr::set_paused(true, cx);
         cx.default_global::<crate::pdf::ocr::ScannedPages>().status =
@@ -6145,31 +6147,43 @@ fn snapshots() {
         ),
         shot("dark-settings-general", Dark, Edit, settings_general),
         shot("light-settings-general", Light, Edit, settings_general),
-        // Scanned PDF pages being read, and paused.
-        shot(
-            "dark-settings-scans-reading",
-            Dark,
-            Edit,
-            settings_scans_reading,
-        ),
-        shot(
-            "light-settings-scans-reading",
-            Light,
-            Edit,
-            settings_scans_reading,
-        ),
-        shot(
-            "dark-settings-scans-paused",
-            Dark,
-            Edit,
-            settings_scans_paused,
-        ),
-        shot(
-            "light-settings-scans-paused",
-            Light,
-            Edit,
-            settings_scans_paused,
-        ),
+        // Scanned PDF pages being read, and paused (tall, so Discovery shows).
+        Shot {
+            size: size(px(1440.), px(4000.)),
+            ..shot(
+                "dark-settings-scans-reading",
+                Dark,
+                Edit,
+                settings_scans_reading,
+            )
+        },
+        Shot {
+            size: size(px(1440.), px(4000.)),
+            ..shot(
+                "light-settings-scans-reading",
+                Light,
+                Edit,
+                settings_scans_reading,
+            )
+        },
+        Shot {
+            size: size(px(1440.), px(4000.)),
+            ..shot(
+                "dark-settings-scans-paused",
+                Dark,
+                Edit,
+                settings_scans_paused,
+            )
+        },
+        Shot {
+            size: size(px(1440.), px(4000.)),
+            ..shot(
+                "light-settings-scans-paused",
+                Light,
+                Edit,
+                settings_scans_paused,
+            )
+        },
         shot("dark-settings-editor", Dark, Edit, settings_editor),
         // The Record sheet's system audio choices.
         Shot {

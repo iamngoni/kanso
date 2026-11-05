@@ -44,8 +44,17 @@ const PAUSED_LOOK: Duration = Duration::from_millis(500);
 /// Whether this device can read scanned pages: a text reader and the PDF
 /// worker are both here.
 pub fn supported() -> bool {
+    #[cfg(test)]
+    if SHOWN_AS_SUPPORTED.load(Ordering::Relaxed) {
+        return true;
+    }
     crate::ocr::supported() && super::index::supported()
 }
+
+/// Snapshots draw the row of a device that can read scans, with no worker
+/// beside the test binary.
+#[cfg(test)]
+pub(crate) static SHOWN_AS_SUPPORTED: AtomicBool = AtomicBool::new(false);
 
 #[derive(Default)]
 pub struct ScannedPages {
@@ -82,7 +91,7 @@ pub fn init(cx: &mut App) {
 /// image text are both on and this device can read, stopped otherwise.
 /// Called at launch and when either switch changes.
 pub fn refresh(cx: &mut App) {
-    let discovery = cx.global::<AppState>().config.discovery.clone();
+    let discovery = cx.global::<AppState>().config.discovery;
     if discovery.pdf_text && discovery.image_text && supported() {
         start(cx);
     } else {

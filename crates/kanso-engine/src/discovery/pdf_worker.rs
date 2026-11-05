@@ -229,7 +229,7 @@ fn png_of(page: &kanso_pdf::client::RenderedPage) -> Option<Vec<u8>> {
     use image::ImageEncoder as _;
     use image::codecs::png::{CompressionType, FilterType, PngEncoder};
     let mut rgb = Vec::with_capacity(page.bgra.len() / 4 * 3);
-    for px in page.bgra.chunks_exact(4) {
+    for px in page.bgra.as_chunks::<4>().0 {
         rgb.extend_from_slice(&[px[2], px[1], px[0]]);
     }
     let mut out = Vec::new();
