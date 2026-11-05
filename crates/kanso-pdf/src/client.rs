@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 
 use crate::protocol::{
     BYTES_PER_PIXEL, ErrorKind, FrameError, MAX_BLOB_BYTES, MAX_PAGE_BYTES, Request, Response,
-    check_document, page_is_sound, read_frame, write_frame,
+    check_document, page_is_sound, read_frame, render_size, write_frame,
 };
 
 #[cfg(windows)]
@@ -289,6 +289,9 @@ pub struct Worker {
     output: BufReader<Box<dyn std::io::Read + Send>>,
     watch: Shared,
     opened: bool,
+    /// The page sizes the open reported (and [`check_document`] passed): a
+    /// page that comes back is held to the size asked for, not just the caps.
+    sizes: Vec<[f32; 2]>,
     dead: Option<WorkerError>,
     deadlines: Deadlines,
 }
@@ -315,6 +318,7 @@ impl Worker {
             output: BufReader::new(output),
             watch,
             opened: false,
+            sizes: Vec::new(),
             dead: None,
             deadlines,
         })
@@ -346,6 +350,7 @@ impl Worker {
                 encrypted,
             } if check_document(pages, &sizes).is_ok() => {
                 self.opened = true;
+                self.sizes.clone_from(&sizes);
                 Ok(Opened {
                     pages,
                     sizes,
@@ -368,14 +373,30 @@ impl Worker {
                 page: answered,
                 width,
                 height,
-            } if answered == page && page_is_sound(width, height, bgra.len()) => Ok(RenderedPage {
-                page,
-                width,
-                height,
-                bgra,
-            }),
+            } if answered == page
+                && page_is_sound(width, height, bgra.len())
+                && self.fits_request(page, width_px, width, height) =>
+            {
+                Ok(RenderedPage {
+                    page,
+                    width,
+                    height,
+                    bgra,
+                })
+            }
             _ => Err(self.misbehaved()),
         }
+    }
+
+    /// Whether a page that came back is no bigger than the one asked for:
+    /// the size [`render_size`] gives for the page's declared size and the
+    /// requested width. Within the global caps alone, a worker that has been
+    /// taken over could answer every small request with a 64 MB page.
+    fn fits_request(&self, page: u32, width_px: u32, width: u32, height: u32) -> bool {
+        self.sizes
+            .get(page as usize)
+            .and_then(|[w, h]| render_size(*w, *h, width_px))
+            .is_some_and(|(max_w, max_h)| width <= max_w && height <= max_h)
     }
 
     /// The worker's process id, while it has one.
@@ -415,6 +436,13 @@ impl Worker {
         let result = self.exchange(request, blob);
         let timed_out = self.disarm();
         match result {
+            // Only a page carries a blob; anything else with one attached is
+            // not what a worker sends.
+            Ok((ref response, ref blob))
+                if !blob.is_empty() && !matches!(response, Response::Page { .. }) =>
+            {
+                Err(self.misbehaved())
+            }
             Ok((Response::Error { kind, .. }, _)) => {
                 // The words are the app's, chosen by the kind: a worker that
                 // has been taken over could otherwise put any text, of any

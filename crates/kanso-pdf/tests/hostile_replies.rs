@@ -243,3 +243,83 @@ fn a_worker_that_stops_mid_reply_is_a_crash() {
     assert!(started.elapsed() < Duration::from_secs(4));
     assert_eq!(error.message(), "This PDF couldn't be opened.");
 }
+
+#[test]
+fn a_page_bigger_than_asked_for_is_refused() {
+    // Within the global caps, but not what a 100 px request of a Letter page
+    // draws to (100 x 129): a taken-over worker answering every small
+    // request with a page at the 64 MB cap.
+    for (name, width, height) in [
+        ("the whole cap", 4096, 4096),
+        ("a pixel too wide", 101, 129),
+        ("a pixel too tall", 100, 130),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let mut reply = frame(&opened(1, vec![[612.0, 792.0]]), &[]);
+        reply.extend(frame(
+            &Response::Page {
+                page: 0,
+                width,
+                height,
+            },
+            &vec![0u8; width as usize * height as usize * 4],
+        ));
+        let mut worker = start(dir.path(), &reply);
+        worker.open(&sample_pdf(1), None).unwrap();
+        let error = worker.render(0, 100).unwrap_err();
+        assert_eq!(error, WorkerError::BadReply, "{name}: {error:?}");
+        assert!(worker.failure().is_some(), "{name}: the worker was kept");
+    }
+    // The size the request asks for is believed.
+    let dir = tempfile::tempdir().unwrap();
+    let mut reply = frame(&opened(1, vec![[612.0, 792.0]]), &[]);
+    reply.extend(frame(
+        &Response::Page {
+            page: 0,
+            width: 100,
+            height: 129,
+        },
+        &vec![0u8; 100 * 129 * 4],
+    ));
+    let mut worker = start(dir.path(), &reply);
+    worker.open(&sample_pdf(1), None).unwrap();
+    let page = worker.render(0, 100).unwrap();
+    assert_eq!((page.width, page.height), (100, 129));
+}
+
+#[test]
+fn a_page_the_document_does_not_have_is_refused() {
+    // The worker says page 3 of a one-page document drew.
+    let dir = tempfile::tempdir().unwrap();
+    let mut reply = frame(&opened(1, vec![[612.0, 792.0]]), &[]);
+    reply.extend(frame(
+        &Response::Page {
+            page: 3,
+            width: 1,
+            height: 1,
+        },
+        &[0u8; 4],
+    ));
+    let mut worker = start(dir.path(), &reply);
+    worker.open(&sample_pdf(1), None).unwrap();
+    assert_eq!(worker.render(3, 100).unwrap_err(), WorkerError::BadReply);
+}
+
+#[test]
+fn only_a_page_carries_bytes() {
+    // An open answer, or a refusal, with a blob attached.
+    assert_not_trusted(
+        &frame(&opened(1, vec![[612.0, 792.0]]), &[7u8; 4096]),
+        "an open with bytes",
+    );
+    assert_not_trusted(
+        &frame(
+            &Response::Error {
+                kind: ErrorKind::Unreadable,
+                message: String::new(),
+            },
+            &[7u8; 4096],
+        ),
+        "a refusal with bytes",
+    );
+}
