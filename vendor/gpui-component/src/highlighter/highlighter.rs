@@ -25,6 +25,26 @@ const MAX_INJECTION_LANGUAGE_BYTES: usize = 64;
 const MAX_NON_COMBINED_INJECTION_PARSES: usize = 512;
 const INJECTION_PARSE_TIMEOUT: Duration = Duration::from_millis(20);
 
+/// Microseconds the injection parse timeout is set to, or 0 for the default.
+static INJECTION_PARSE_TIMEOUT_MICROS: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
+/// Replaces how long one injection parse may take before it is given up on
+/// (`None` restores the default, 20 ms). For tests that compare this
+/// highlighter's output with another's: on a loaded machine a 20 ms
+/// deadline cuts parses that take no time at rest.
+pub fn set_injection_parse_timeout(timeout: Option<Duration>) {
+    let micros = timeout.map_or(0, |t| (t.as_micros() as u64).max(1));
+    INJECTION_PARSE_TIMEOUT_MICROS.store(micros, std::sync::atomic::Ordering::Relaxed);
+}
+
+fn injection_parse_timeout() -> Duration {
+    match INJECTION_PARSE_TIMEOUT_MICROS.load(std::sync::atomic::Ordering::Relaxed) {
+        0 => INJECTION_PARSE_TIMEOUT,
+        micros => Duration::from_micros(micros),
+    }
+}
+
 /// A syntax highlighter that supports incremental parsing, multiline text,
 /// and caching of highlight results.
 #[allow(unused)]
@@ -953,9 +973,10 @@ impl SyntaxHighlighter {
         parser.set_language(&grammar).ok()?;
         parser.set_included_ranges(&ranges).ok()?;
         let parse_start = Instant::now();
+        let parse_timeout = injection_parse_timeout();
         let mut timed_out = false;
         let mut progress = |_: &tree_sitter::ParseState| -> ControlFlow<()> {
-            if parse_start.elapsed() > INJECTION_PARSE_TIMEOUT {
+            if parse_start.elapsed() > parse_timeout {
                 timed_out = true;
                 ControlFlow::Break(())
             } else {
