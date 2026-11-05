@@ -21,6 +21,13 @@ use crate::workspace::AppState;
 /// Store meta key: the version that ran before the last update.
 pub const META_PREVIOUS: &str = "update.previous_version";
 
+/// Why the library opened plain this run (the system's key store refused its
+/// key, or there wasn't room to encrypt it), set by the app as it starts. Its
+/// presence is what the "Your library isn't encrypted yet" notice looks at.
+pub struct PlainLibrary(pub String);
+
+impl Global for PlainLibrary {}
+
 /// The notices this run knows, and the version that ran before the last
 /// update. Tests and snapshots put their own list in.
 pub struct NoticeBoard {
@@ -47,6 +54,7 @@ pub fn build_context(
     login: bool,
     signed_in_to_sync: bool,
     library_key_saved: bool,
+    library_plain: bool,
 ) -> NoticeContext {
     NoticeContext {
         current,
@@ -54,6 +62,7 @@ pub fn build_context(
         had_login: login,
         signed_in_to_sync,
         library_key_saved,
+        library_plain,
     }
 }
 
@@ -75,7 +84,18 @@ fn context(cx: &App) -> NoticeContext {
         login,
         signed_in,
         true,
+        // Set once, as the library opens: the secret store refused its key or
+        // there wasn't room to encrypt it.
+        cx.has_global::<PlainLibrary>(),
     )
+}
+
+/// Why the library is plain, for the notice's sheet: what Kanso found when
+/// it tried. `None` for a notice that has no such detail.
+pub fn detail(id: &str, cx: &App) -> Option<String> {
+    (id == notices::LIBRARY_PLAIN_ID)
+        .then(|| cx.try_global::<PlainLibrary>().map(|plain| plain.0.clone()))
+        .flatten()
 }
 
 fn list(cx: &App) -> &'static [Notice] {
