@@ -4,12 +4,24 @@
 /// A PDF of Letter pages, one per content stream, with Helvetica as `/F1` and
 /// Helvetica-Bold as `/F2`.
 pub fn pages_pdf(contents: &[String]) -> Vec<u8> {
-    build_pdf(contents, &[])
+    pages_pdf_on(contents, "[0 0 612 792]", 0)
 }
 
-/// As [`pages_pdf`], with image XObjects: each `(width, height, rgb)` is
+/// As [`pages_pdf`], with the pages' `/MediaBox` (as PDF array text) and
+/// `/Rotate` (degrees clockwise) given, for tests of rotated pages and of
+/// pages whose box does not start at the origin.
+pub fn pages_pdf_on(contents: &[String], media_box: &str, rotate: u16) -> Vec<u8> {
+    build_pdf(contents, media_box, rotate, &[])
+}
+
+/// As [`pages_pdf_on`], with image XObjects: each `(width, height, rgb)` is
 /// `/Im1`, `/Im2`, … on every page.
-fn build_pdf(contents: &[String], images: &[(u32, u32, Vec<u8>)]) -> Vec<u8> {
+fn build_pdf(
+    contents: &[String],
+    media_box: &str,
+    rotate: u16,
+    images: &[(u32, u32, Vec<u8>)],
+) -> Vec<u8> {
     let pages = contents.len();
     let image_base = 5 + 2 * pages;
     let xobjects: String = (0..images.len())
@@ -27,7 +39,7 @@ fn build_pdf(contents: &[String], images: &[(u32, u32, Vec<u8>)]) -> Vec<u8> {
     objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>".into());
     for (i, content) in contents.iter().enumerate() {
         objects.push(format!(
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << {xobjects}>> >> /Contents {} 0 R >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox {media_box} /Rotate {rotate} /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << {xobjects}>> >> /Contents {} 0 R >>",
             6 + 2 * i
         ));
         objects.push(format!(
@@ -127,7 +139,7 @@ pub fn photo_pdf() -> Vec<u8> {
     ]
     .join("\n");
     let rgb: Vec<u8> = PHOTO_RGB.iter().copied().cycle().take(4 * 4 * 3).collect();
-    build_pdf(&[page], &[(4, 4, rgb)])
+    build_pdf(&[page], "[0 0 612 792]", 0, &[(4, 4, rgb)])
 }
 
 /// A one-page PDF encrypted with the standard handler (RC4, 40-bit, revision

@@ -15,9 +15,11 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::protocol::{
-    BYTES_PER_PIXEL, ErrorKind, FrameError, MAX_BLOB_BYTES, MAX_PAGE_BYTES, Request, Response,
-    check_document, page_is_sound, read_frame, render_size, write_frame,
+    BYTES_PER_PIXEL, ErrorKind, FrameError, MAX_BLOB_BYTES, MAX_DOC_TEXT_BYTES, MAX_PAGE_BYTES,
+    MAX_TEXT_WINDOW, Request, Response, check_document, page_is_sound, plain_text_pages,
+    read_frame, render_size, text_page_is_sound, text_window, write_frame,
 };
+use crate::text::PageText;
 
 #[cfg(windows)]
 mod launch_windows;
@@ -42,6 +44,33 @@ mod tests {
                     && w <= MAX_PAGE_POINTS
                     && h <= MAX_PAGE_POINTS
             );
+        }
+    }
+
+    proptest! {
+        /// Pages that arrive one after another are kept within the
+        /// document's room: the total never passes it, each page is the
+        /// start of what arrived, and nothing is cut while there was room.
+        #[test]
+        fn a_documents_text_is_kept_within_its_room(
+            pages in proptest::collection::vec(".{0,30}", 0..12),
+            room in 0usize..120,
+        ) {
+            let mut used = 0usize;
+            let mut kept = Vec::new();
+            let mut any_cut = false;
+            for page in &pages {
+                let (fit, cut) = fit_text(page.clone(), room - used);
+                prop_assert!(page.starts_with(&fit));
+                prop_assert_eq!(cut, fit.len() < page.len());
+                used += fit.len();
+                any_cut |= cut;
+                kept.push(fit);
+            }
+            prop_assert!(used <= room);
+            let all: usize = pages.iter().map(String::len).sum();
+            prop_assert_eq!(any_cut, all > room);
+            prop_assert_eq!(kept.iter().map(String::len).sum::<usize>(), used);
         }
     }
 
@@ -83,6 +112,9 @@ mod tests {
 pub const REQUEST_DEADLINE: Duration = Duration::from_secs(5);
 /// How long opening a document may take.
 pub const OPEN_DEADLINE: Duration = Duration::from_secs(60);
+/// How long reading a whole document's text may take, over all the windows
+/// of it (each window is also held to [`REQUEST_DEADLINE`]).
+pub const DOCUMENT_TEXT_DEADLINE: Duration = Duration::from_secs(120);
 
 /// How long the worker gets before it is killed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -136,6 +168,9 @@ pub enum WorkerError {
     /// The worker's answer was not what was asked for.
     #[error("The PDF reader sent something unexpected.")]
     BadReply,
+    /// The caller stopped a long read (text extraction in the background).
+    #[error("Reading the PDF was stopped.")]
+    Cancelled,
 }
 
 impl WorkerError {
@@ -177,6 +212,29 @@ impl std::fmt::Debug for RenderedPage {
             self.page, self.width, self.height
         )
     }
+}
+
+/// The words of a document's pages, one string for each, page 1 first.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DocumentText {
+    pub pages: Vec<String>,
+    /// A page was cut at [`crate::protocol::MAX_PAGE_CHARS`] or the document at
+    /// [`MAX_DOC_TEXT_BYTES`]: what is here is the start of the text.
+    pub truncated: bool,
+}
+
+/// `page` cut to at most `room` bytes, at a character boundary; whether it
+/// was cut.
+fn fit_text(mut page: String, room: usize) -> (String, bool) {
+    if page.len() <= room {
+        return (page, false);
+    }
+    let mut cut = room;
+    while !page.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    page.truncate(cut);
+    (page, true)
 }
 
 /// Finds the worker beside the running app (a macOS bundle's `MacOS`, the
@@ -414,6 +472,116 @@ impl Worker {
             .is_some_and(|(max_w, max_h)| width <= max_w && height <= max_h)
     }
 
+    /// A page's characters with their boxes (`page` is 0-based; the text's
+    /// own page number is 1-based). Cut at [`crate::protocol::MAX_PAGE_CHARS`] characters.
+    pub fn text(&mut self, page: u32) -> Result<PageText, WorkerError> {
+        let (response, blob) = self.call(&Request::Text { page }, &[], self.deadlines.request)?;
+        match response {
+            Response::TextPage {
+                page: answered,
+                chars,
+                ..
+            } if answered == page => {
+                let size = self.sizes.get(page as usize).copied();
+                match (size, serde_json::from_slice::<PageText>(&blob)) {
+                    (Some(size), Ok(text)) if text_page_is_sound(page, size, chars, &text) => {
+                        Ok(text)
+                    }
+                    _ => Err(self.misbehaved()),
+                }
+            }
+            _ => Err(self.misbehaved()),
+        }
+    }
+
+    /// The plain text of up to `count` pages from `from` (0-based): no more
+    /// than [`MAX_TEXT_WINDOW`] pages and none past the document's end. The
+    /// answer has one string for each page of that window, each cut at
+    /// [`crate::protocol::MAX_PAGE_CHARS`]; a page with no text layer is empty.
+    pub fn plain_text(&mut self, from: u32, count: u32) -> Result<Vec<String>, WorkerError> {
+        self.plain_text_within(from, count, self.deadlines.request)
+            .map(|text| text.pages)
+    }
+
+    fn plain_text_within(
+        &mut self,
+        from: u32,
+        count: u32,
+        deadline: Duration,
+    ) -> Result<DocumentText, WorkerError> {
+        let pages = self.sizes.len() as u32;
+        // Nothing to ask for is the worker's NoSuchPage, said here.
+        if text_window(pages, from, count).is_none() {
+            let kind = ErrorKind::NoSuchPage;
+            return Err(WorkerError::Refused {
+                kind,
+                message: refusal_words(kind).to_owned(),
+            });
+        }
+        let (response, blob) = self.call(&Request::PlainText { from, count }, &[], deadline)?;
+        match response {
+            Response::PlainText {
+                from: answered,
+                lens,
+                truncated,
+            } => match plain_text_pages(pages, (from, count), answered, &lens, &blob) {
+                Some(pages) => Ok(DocumentText { pages, truncated }),
+                None => Err(self.misbehaved()),
+            },
+            _ => Err(self.misbehaved()),
+        }
+    }
+
+    /// The plain text of the whole document, for search: window after window
+    /// of [`MAX_TEXT_WINDOW`] pages, each under the request deadline, all
+    /// within `budget`. Its own job, not a render: `cancelled` is asked
+    /// between windows, and a read that is cancelled or runs out of budget
+    /// ends the worker. Pages past [`MAX_DOC_TEXT_BYTES`] of text in all are
+    /// left empty, and the last page that fits is cut; both set `truncated`.
+    pub fn document_text(
+        &mut self,
+        budget: Duration,
+        cancelled: &dyn Fn() -> bool,
+    ) -> Result<DocumentText, WorkerError> {
+        let total = self.sizes.len() as u32;
+        let started = Instant::now();
+        let mut out = DocumentText {
+            pages: Vec::with_capacity(total as usize),
+            truncated: false,
+        };
+        let mut bytes = 0usize;
+        let mut next = 0;
+        while let Some(window) = text_window(total, next, MAX_TEXT_WINDOW) {
+            if cancelled() {
+                return Err(self.end(WorkerError::Cancelled));
+            }
+            let left = budget.saturating_sub(started.elapsed());
+            if left.is_zero() {
+                return Err(self.end(WorkerError::TimedOut));
+            }
+            let reply = self.plain_text_within(
+                window.start,
+                MAX_TEXT_WINDOW,
+                left.min(self.deadlines.request),
+            )?;
+            out.truncated |= reply.truncated;
+            for page in reply.pages {
+                let (page, cut) = fit_text(page, MAX_DOC_TEXT_BYTES - bytes);
+                bytes += page.len();
+                out.truncated |= cut;
+                out.pages.push(page);
+            }
+            next = window.end;
+            if bytes >= MAX_DOC_TEXT_BYTES && next < total {
+                // The rest is not read: the document is indexed truncated.
+                out.pages.resize(total as usize, String::new());
+                out.truncated = true;
+                break;
+            }
+        }
+        Ok(out)
+    }
+
     /// The worker's process id, while it has one.
     pub fn pid(&self) -> Option<u32> {
         self.process.lock().ok()?.id()
@@ -451,10 +619,16 @@ impl Worker {
         let result = self.exchange(request, blob);
         let timed_out = self.disarm();
         match result {
-            // Only a page carries a blob; anything else with one attached is
-            // not what a worker sends.
+            // Only a page and a page's text carry a blob; anything else with
+            // one attached is not what a worker sends.
             Ok((ref response, ref blob))
-                if !blob.is_empty() && !matches!(response, Response::Page { .. }) =>
+                if !blob.is_empty()
+                    && !matches!(
+                        response,
+                        Response::Page { .. }
+                            | Response::TextPage { .. }
+                            | Response::PlainText { .. }
+                    ) =>
             {
                 Err(self.misbehaved())
             }
