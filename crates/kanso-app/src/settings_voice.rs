@@ -179,7 +179,7 @@ fn capture_rows(cx: &mut Context<SettingsView>, colors: &Colors) -> Vec<Row> {
 // no-prop-test: layout and buttons; `speakers::model_words` says what it shows.
 fn speaker_rows(cx: &mut Context<SettingsView>, on: bool, colors: &Colors) -> Vec<Row> {
     let switch = Row::new(Lucide::Users, "Tell speakers apart")
-        .detail(SPEAKERS_DETAIL)
+        .detail(speakers_detail())
         .trailing(
             div().debug_selector(|| "voice-speakers".into()).child(
                 Switch::new("voice-speakers")
@@ -214,8 +214,15 @@ fn speaker_rows(cx: &mut Context<SettingsView>, on: bool, colors: &Colors) -> Ve
     rows
 }
 
-/// What the Tell speakers apart row says under its title.
-const SPEAKERS_DETAIL: &str = "Puts \"Speaker 1\", \"Speaker 2\" before the paragraphs of a recording's transcript, by how each voice sounds. Rename them in the note. Your microphone stays \"You\". It takes a little longer to transcribe, and it can mix up voices that sound alike.";
+/// What the Tell speakers apart row says under its title, before it is
+/// turned on: turning it on downloads the speaker models, so it says so,
+/// and how big they are. Pure.
+fn speakers_detail() -> String {
+    format!(
+        "Puts \"Speaker 1\", \"Speaker 2\" before the paragraphs of a recording's transcript, by how each voice sounds. Rename them in the note. Your microphone stays \"You\". Turning it on downloads two speaker models ({}) once. It takes a little longer to transcribe, and it can mix up voices that sound alike.",
+        megabytes(speakers::total_size())
+    )
+}
 
 // no-prop-test: layout; `speakers::model_words` has the tests.
 fn speaker_model_row(state: &ModelState, colors: &Colors) -> Row {
@@ -331,7 +338,7 @@ fn model_row(model: &ModelState, colors: &Colors) -> Row {
 
 #[cfg(test)]
 mod tests {
-    use super::{ModelState, model_words, tidy_detail};
+    use super::{ModelState, model_words, speakers_detail, tidy_detail};
     use proptest::prelude::*;
 
     #[test]
@@ -348,6 +355,16 @@ mod tests {
             "Downloading the voice model… 50%"
         );
         assert!(model_words(&ModelState::Ready).1.contains("NVIDIA"));
+    }
+
+    // no-prop-test: one fixed sentence.
+    #[test]
+    fn the_speakers_switch_says_it_downloads_and_how_much() {
+        let detail = speakers_detail();
+        assert!(
+            detail.contains("downloads two speaker models (28.1\u{a0}MB)"),
+            "{detail}"
+        );
     }
 
     // no-prop-test: two fixed sentences.
