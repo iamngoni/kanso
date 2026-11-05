@@ -11,6 +11,7 @@
 use std::io::{BufRead as _, Write as _};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::Mutex;
+use std::time::Duration;
 
 use gpui_kit::component::{StyledExt as _, h_flex, v_flex};
 use gpui_kit::*;
@@ -179,8 +180,14 @@ pub fn run_child() -> anyhow::Result<()> {
             while let Ok(next) = rx.recv().await {
                 let Some((stage, percent)) = next else { break };
                 view.update(cx, |view, cx| {
+                    // Each stage has its own bar (the backups' starts at
+                    // 0 after the library's 100); within one it only grows.
+                    view.percent = if stage == view.stage {
+                        percent.max(view.percent)
+                    } else {
+                        percent
+                    };
                     view.stage = stage;
-                    view.percent = percent.max(view.percent);
                     cx.notify();
                 });
             }
@@ -192,19 +199,36 @@ pub fn run_child() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// How long the window's process has to close once its input ends, before
+/// it is killed: the library window never waits on it for longer.
+const CHILD_GRACE: Duration = Duration::from_secs(3);
+
 /// Reports an encryption's progress to a person: in a window while the app
 /// starts, on standard error from a command.
 pub struct Reporter {
     window: Option<Mutex<(Child, ChildStdin)>>,
     last: Mutex<Option<String>>,
+    grace: Duration,
 }
 
 impl Reporter {
     /// A reporter that draws the window, or says nothing when it can't.
+    /// The window's process gets only progress lines: no key, no path, no
+    /// argument but its command's name.
     pub fn window() -> Reporter {
-        let spawned = std::env::current_exe().ok().and_then(|exe| {
-            let mut child = Command::new(exe)
-                .arg("encrypt-progress")
+        let command = std::env::current_exe().ok().map(|exe| {
+            let mut command = Command::new(exe);
+            command.arg("encrypt-progress");
+            command
+        });
+        Reporter::child(command, CHILD_GRACE)
+    }
+
+    /// A reporter that writes its lines to `command`'s input, which is given
+    /// `grace` to end once they stop.
+    fn child(command: Option<Command>, grace: Duration) -> Reporter {
+        let spawned = command.and_then(|mut command| {
+            let mut child = command
                 .stdin(Stdio::piped())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
@@ -216,6 +240,7 @@ impl Reporter {
         Reporter {
             window: spawned,
             last: Mutex::new(None),
+            grace,
         }
     }
 
@@ -225,6 +250,7 @@ impl Reporter {
         Reporter {
             window: None,
             last: Mutex::new(None),
+            grace: CHILD_GRACE,
         }
     }
 
@@ -252,7 +278,18 @@ impl Drop for Reporter {
     fn drop(&mut self) {
         if let Some(window) = self.window.take() {
             let (mut child, stdin) = window.into_inner().expect("reporter poisoned");
+            // Its input ends, and it closes. One that doesn't (hung, or
+            // stuck opening a window) is killed: the library never waits on
+            // a progress bar.
             drop(stdin);
+            let until = std::time::Instant::now() + self.grace;
+            while std::time::Instant::now() < until {
+                if !matches!(child.try_wait(), Ok(None)) {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            let _ = child.kill();
             let _ = child.wait();
         }
     }
@@ -309,6 +346,41 @@ mod tests {
                 assert!(percent <= 100);
             }
         }
+    }
+
+    /// A window process that never closes doesn't hold the library back:
+    /// it is killed after its grace. (The drop used to wait on it forever.)
+    #[cfg(unix)]
+    #[test]
+    fn a_hung_window_process_never_holds_the_library_back() {
+        let mut command = std::process::Command::new("sleep");
+        command.arg("30");
+        let reporter = super::Reporter::child(Some(command), std::time::Duration::from_millis(200));
+        reporter.report(EncryptProgress {
+            stage: EncryptStage::Copying,
+            fraction: 0.5,
+        });
+        let started = std::time::Instant::now();
+        drop(reporter);
+        assert!(started.elapsed() < std::time::Duration::from_secs(5));
+    }
+
+    /// A window process that died takes nothing with it: the lines that
+    /// follow go nowhere, and nothing panics.
+    #[cfg(unix)]
+    #[test]
+    fn a_dead_window_process_is_ignored() {
+        let mut command = std::process::Command::new("sh");
+        command.args(["-c", "exit 3"]);
+        let reporter = super::Reporter::child(Some(command), std::time::Duration::from_millis(200));
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        for percent in 0..=100u8 {
+            reporter.report(EncryptProgress {
+                stage: EncryptStage::Copying,
+                fraction: f32::from(percent) / 100.,
+            });
+        }
+        drop(reporter);
     }
 
     #[test]
