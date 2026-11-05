@@ -92,6 +92,7 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org).
 
 | Commit type | Section |
 |---|---|
+| any type marked breaking (`feat!:`, or a `BREAKING CHANGE` footer) | Breaking (first; needs an update notice, below) |
 | `feat` | New |
 | `perf`, `style`, `ui`, `refactor(ui)` | Improved |
 | `fix`, `revert` | Fixed |
@@ -124,6 +125,39 @@ no-reply address; otherwise "by" and their name), so each feature is credited
 to the person who made it. Keep contributors' commits as they wrote them
 (merge, don't squash) for this to work.
 
+## Breaking changes
+
+A change that breaks something people rely on ships an **update notice**:
+a banner and a How to fix sheet in the app, with the steps to fix what
+broke (issue #243). The release tooling refuses a breaking change without
+one.
+
+1. Add the notice to `NOTICES` in `crates/kanso-core/src/notices.rs`: a
+   never-reused `id` (`api-keys-0.10`), the `since` version, a title, what
+   changed, numbered `steps`, and an `applies` check so only people the
+   change affects see it.
+2. Mark the commit breaking (`feat(api)!: …`, or a `BREAKING CHANGE:`
+   footer) and add a footer naming the notice:
+
+   ```text
+   feat(server)!: Drop the local API's username and password
+
+   Notice: api-keys-0.10
+   ```
+
+3. git-cliff then lists it under **Breaking** and ends the entry with
+   `(notice: api-keys-0.10)`. For an entry written by hand, end it with
+   that text yourself.
+
+`kanso-release check-notices --changelog CHANGELOG.md --version <v>` holds
+the release to this. It fails when a Breaking entry doesn't end with
+`(notice: <id>)`, when the ID isn't in `NOTICES`, when the notice starts
+after this version, or when a notice has no title, no explanation or no
+steps. Without `--changelog` it checks only the list. `scripts/release.sh`
+runs it after writing the changelog section, and the release workflow runs
+it again before the feed is made, so neither a local nor a tagged release
+can ship without a notice.
+
 ## Cutting a release
 
 From a clean `master` that matches `origin/master`:
@@ -143,7 +177,8 @@ git push origin master && git push origin v0.2.0   # or pass --push above
 3. adds the release's section to `CHANGELOG.md` with
    `git cliff --unreleased --tag v<version>` (a section written ahead, as
    0.1.0's was, only gets today's date);
-4. commits `chore(release): v<version>` and tags `v<version>`, then prints
+4. runs `kanso-release check-notices` on that section (above);
+5. commits `chore(release): v<version>` and tags `v<version>`, then prints
    the push commands. It pushes only with `--push`.
 
 The tag starts `.github/workflows/release.yml`, which builds each platform,

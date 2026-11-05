@@ -57,6 +57,12 @@ body = """
 {%- if reporter is matching("^[\\p{L}\\p{N} ._-]{1,39}$") %}, reported by {{ reporter }}{% endif -%}
 {%- endif -%}
 {%- endfor %}
+{#- Last on the line: the update notice a breaking change ships. -#}
+{%- if commit.breaking -%}
+{%- for f in commit.footers -%}
+{%- if f.token == "Notice" and f.value is matching("^[a-z0-9][a-z0-9.-]*$") %} (notice: {{ f.value }}){% endif -%}
+{%- endfor -%}
+{%- endif %}
 {%- endfor %}
 {% endfor %}
 """
@@ -98,6 +104,11 @@ commit_parsers = [
   { message = "^chore\\(release\\)", skip = true },
   # Formatting and lint-only commits change nothing anyone sees.
   { message = "^style(\\(.*\\))?: (?i)(rustfmt|format|clippy)", skip = true },
+  # A breaking change gets its own group, listed first. Its commit carries a
+  # "Notice: <id>" footer, printed as "(notice: <id>)" at the end of the entry
+  # so that `kanso-release check-notices` can hold the release to it.
+  { message = "^[a-z-]+(\\(.*\\))?!:", group = "<!-- 0 -->Breaking" },
+  { footer = "^BREAKING[ -]CHANGE", group = "<!-- 0 -->Breaking" },
   { message = "^feat", group = "<!-- 0 -->New" },
   { message = "^perf", group = "<!-- 1 -->Improved" },
   { message = "^style", group = "<!-- 1 -->Improved" },

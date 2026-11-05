@@ -126,6 +126,9 @@ cut() {
 	fi
 	kanso_release notes --changelog CHANGELOG.md --version "$version" --out /dev/null >/dev/null ||
 		die "CHANGELOG.md has no section for $version"
+	# Every breaking change needs an update notice (docs/RELEASING.md).
+	kanso_release check-notices --changelog CHANGELOG.md --version "$version" ||
+		die "a breaking change in $version has no update notice; fix it, then undo this run (git checkout CHANGELOG.md Cargo.toml Cargo.lock) and run it again"
 
 	git add Cargo.toml Cargo.lock CHANGELOG.md
 	# The first release may change nothing (0.1.0 is already the version and
