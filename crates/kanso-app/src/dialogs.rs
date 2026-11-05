@@ -55,18 +55,6 @@ pub fn prompt_checked(
     prompt(title, initial, false, ok_label, window, cx, on_ok);
 }
 
-/// Asks for a password or token, shown as dots while it is typed. It starts
-/// empty, so the current one never appears.
-pub fn prompt_secret(
-    title: impl Into<SharedString>,
-    ok_label: impl Into<SharedString>,
-    window: &mut Window,
-    cx: &mut App,
-    on_ok: impl Fn(String, &mut Window, &mut App) -> Result<(), String> + 'static,
-) {
-    prompt(title, "", true, ok_label, window, cx, on_ok);
-}
-
 fn prompt(
     title: impl Into<SharedString>,
     initial: &str,

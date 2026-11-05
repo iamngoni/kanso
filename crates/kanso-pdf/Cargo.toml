@@ -24,6 +24,7 @@ kanso-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+unicode-normalization.workspace = true
 # PDFium's Rust binding (MIT OR Apache-2.0). Pinned together with the PDFium
 # build scripts/fetch-pdfium.sh downloads: `pdfium_7881` is the API of build
 # 7881. No `image` feature: pages leave the worker as raw BGRA.

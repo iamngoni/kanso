@@ -292,7 +292,7 @@ impl Shared {
         let mut slot = slot.lock().expect("plugin slot poisoned");
         let dir = self.plugin_dir(id);
         slot.egress
-            .get_or_insert_with(|| install::read_egress(&dir))
+            .get_or_insert_with(|| install::read_egress(&self.store, &dir, id))
             .entries()
     }
 
@@ -504,7 +504,7 @@ impl Shared {
             rate,
             ..
         } = &mut *slot;
-        let egress = egress.get_or_insert_with(|| install::read_egress(&dir));
+        let egress = egress.get_or_insert_with(|| install::read_egress(&self.store, &dir, id));
         let before = egress.len();
         let rate = rate.get_or_insert_with(RateLimit::new);
         let mut network = Net {
@@ -536,7 +536,7 @@ impl Shared {
         if let Some(egress) = &slot.egress
             && egress.len() != before
         {
-            install::write_egress(&dir, egress).ok();
+            install::write_egress(&self.store, id, egress).ok();
         }
         slot.last_used = Some(Instant::now());
         let disabled = self.settle(id, &mut slot, result.as_ref().err(), outcome.refused);
@@ -784,6 +784,7 @@ impl Shared {
         let installed = self.installed(id).ok_or("It isn't installed.")?;
         self.stop(id);
         install::remove(&self.plugins_dir, id).map_err(|e| e.to_string())?;
+        install::forget(&self.store, id);
         for name in &installed.manifest.permissions.secrets {
             self.secrets.delete(&secret_item(id, name)).ok();
         }

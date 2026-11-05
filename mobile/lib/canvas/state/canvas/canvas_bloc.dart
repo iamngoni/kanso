@@ -83,6 +83,7 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
           (doc) => partial
               ? doc.eraseAlong(path, radius, _known())
               : doc.eraseStrokesAlong(path, radius, _known()),
+          quietIfUnchanged: true,
         );
       case CanvasLassoClosedEvent(:final polygon):
         final doc = _document;
@@ -171,12 +172,23 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
     call, {
     bool saveNow = false,
     bool selectBorn = false,
+    bool quietIfUnchanged = false,
   }) async {
     final doc = _document;
     if (doc == null) {
       return;
     }
+    final shown = state.view;
     final result = await call(doc);
+    // A whole erase gesture is one call; one that touched nothing changes
+    // nothing, so it shows nothing and starts no save.
+    final same = result.toOption().toNullable();
+    if (quietIfUnchanged &&
+        shown != null &&
+        same != null &&
+        _sameDocument(shown, same)) {
+      return;
+    }
     var failed = false;
     result.fold((error) {
       failed = true;
@@ -220,6 +232,23 @@ class CanvasBloc extends Bloc<CanvasEvent, CanvasState> {
         );
       },
     );
+  }
+
+  /// Whether `a` and `b` show the same document: the same strokes, the same
+  /// history and the same size.
+  bool _sameDocument(CanvasView a, CanvasView b) {
+    if (a.bytes != b.bytes ||
+        a.canUndo != b.canUndo ||
+        a.canRedo != b.canRedo ||
+        a.strokes.length != b.strokes.length) {
+      return false;
+    }
+    for (var i = 0; i < a.strokes.length; i++) {
+      if (a.strokes[i].id != b.strokes[i].id) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /// The IDs of the strokes the screen holds outlines for.

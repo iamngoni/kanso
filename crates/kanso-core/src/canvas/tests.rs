@@ -6,7 +6,7 @@ use serde_json::{Map, Value};
 
 use super::*;
 
-fn config(cases: u32) -> ProptestConfig {
+pub(super) fn config(cases: u32) -> ProptestConfig {
     ProptestConfig {
         cases,
         failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("regressions"))),
@@ -110,7 +110,7 @@ fn arb_node(ix: usize) -> impl Strategy<Value = Node> {
         )
 }
 
-fn arb_canvas() -> impl Strategy<Value = Canvas> {
+pub(super) fn arb_canvas() -> impl Strategy<Value = Canvas> {
     (1usize..10).prop_flat_map(|n| {
         let nodes: Vec<_> = (0..n).map(arb_node).collect();
         (
@@ -375,12 +375,15 @@ proptest! {
     /// The exported file has whole-number geometry, ink or not.
     #[test]
     fn prop_obsidian_geometry_is_integer(canvas in arb_canvas()) {
-        let files: HashMap<String, String> = canvas
-            .nodes
-            .iter()
-            .filter(|n| n.kind == INK)
-            .map(|n| (n.id.clone(), format!("{}.png", n.id)))
-            .collect();
+        let files = ExportFiles {
+            ink: canvas
+                .nodes
+                .iter()
+                .filter(|n| n.kind == INK)
+                .map(|n| (n.id.clone(), format!("{}.png", n.id)))
+                .collect(),
+            ..ExportFiles::default()
+        };
         let text = canvas.to_obsidian_json(&files);
         let value: Value = serde_json::from_str(&text).unwrap();
         for node in value["nodes"].as_array().unwrap() {

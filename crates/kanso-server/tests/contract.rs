@@ -27,7 +27,7 @@ use std::time::Duration;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use common::{PASS, PNG, USER};
-use kanso_server::{ServerConfig, ServerHandle, basic_header};
+use kanso_server::{ServerConfig, ServerHandle};
 use kanso_store::Store;
 use serde_json::{Value, json};
 
@@ -211,7 +211,7 @@ impl NativeMcp {
     fn post(&self, message: &Value) -> reqwest::blocking::Response {
         self.client
             .post(&self.url)
-            .header("Authorization", basic_header(USER, PASS))
+            .header("Authorization", common::auth())
             .header("Accept", "application/json, text/event-stream")
             .json(message)
             .send()
@@ -261,6 +261,12 @@ struct Run {
     out_path: PathBuf,
     tools: Value,
     templates: Value,
+    /// Whether the tools may read and write local files. The Node server
+    /// does so itself; Kanso's `/mcp` never does for an API key.
+    local_paths: bool,
+    /// Steps whose results differ because of that, left out of the
+    /// step-by-step comparison.
+    local_path_steps: Vec<usize>,
 }
 
 fn text(result: &Value, index: usize) -> &str {
@@ -288,6 +294,8 @@ impl Run {
             out_path,
             tools: Value::Null,
             templates: Value::Null,
+            local_paths: true,
+            local_path_steps: Vec::new(),
         }
     }
 
@@ -329,6 +337,25 @@ impl Run {
         id
     }
 
+    /// The `pixel.png` file, created over REST.
+    fn create_file_over_rest(&mut self) -> String {
+        let response: Value = reqwest::blocking::Client::new()
+            .post(format!("{}/files", self.base_url))
+            .header("Authorization", common::auth())
+            .json(&json!({
+                "name": "pixel.png",
+                "contentType": "image/png",
+                "_attachments": { "index": { "content_type": "image/png", "data": STANDARD.encode(PNG) } },
+            }))
+            .send()
+            .unwrap()
+            .json()
+            .unwrap();
+        let id = response["id"].as_str().unwrap().to_owned();
+        self.ids.push(id.clone());
+        id
+    }
+
     /// A note created over REST, for fields the tools can't set.
     fn create_over_rest(&mut self, note: Value) -> String {
         // As in `call`: a note made in the same millisecond as the one
@@ -336,7 +363,7 @@ impl Run {
         std::thread::sleep(Duration::from_millis(5));
         let response: Value = reqwest::blocking::Client::new()
             .post(format!("{}/notes", self.base_url))
-            .header("Authorization", basic_header(USER, PASS))
+            .header("Authorization", common::auth())
             .json(&note)
             .send()
             .unwrap()
@@ -478,7 +505,15 @@ impl Run {
         self.ok("read-backlinks", json!({ "noteId": n1 }));
         self.ok("read-backlinks", json!({ "noteId": n3 }));
 
-        let f1 = self.create("create-file", json!({ "filePath": png_path }));
+        let f1 = if self.local_paths {
+            self.create("create-file", json!({ "filePath": png_path }))
+        } else {
+            // A key is never given local file paths: the path is refused,
+            // and the file is made over REST instead.
+            self.local_path_steps.push(self.steps.len());
+            self.call("create-file", json!({ "filePath": png_path }), true);
+            self.create_file_over_rest()
+        };
         self.create(
             "create-file",
             json!({ "data": STANDARD.encode(PNG), "contentType": "image/png", "name": "inline.png" }),
@@ -487,9 +522,13 @@ impl Run {
         self.ok("read-file", json!({ "fileId": f1 }));
         self.ok("read-file", json!({ "fileId": f1, "includeImage": false }));
         let out = self.out_path.clone();
-        self.ok(
+        if !self.local_paths {
+            self.local_path_steps.push(self.steps.len());
+        }
+        self.call(
             "read-file",
             json!({ "fileId": bare(&f1), "outputPath": out }),
+            !self.local_paths,
         );
 
         let answer = self.mcp.request(
@@ -608,11 +647,13 @@ fn verify_store(name: &str, store: &Store, ids: &[String], out: &Path) {
     }
     assert_eq!(f1["name"], "pixel.png", "{name}");
     assert_eq!(f2["name"], "inline.png", "{name}");
-    assert_eq!(
-        std::fs::read(out).unwrap(),
-        PNG,
-        "{name}: read-file outputPath"
-    );
+    if out.exists() {
+        assert_eq!(
+            std::fs::read(out).unwrap(),
+            PNG,
+            "{name}: read-file outputPath"
+        );
+    }
     let counts = store.counts().unwrap();
     for (doc_type, n) in [
         (kanso_core::DocType::Note, 4),
@@ -643,9 +684,8 @@ fn start_server() -> Server {
         store.clone(),
         ServerConfig {
             bind: "127.0.0.1:0".parse().unwrap(),
-            username: USER.into(),
-            password: PASS.into(),
         },
+        common::keys_for(&store),
     );
     let addr = handle.local_addr().expect("server bound");
     Server {
@@ -698,7 +738,12 @@ fn node_mcp_server_and_native_mcp_agree() {
         native_server.url.clone(),
         files.path().join("native-out.png"),
     );
+    native.local_paths = false;
     native.sequence(&png_path);
+    assert!(
+        !native.out_path.exists(),
+        "a key's read-file wrote a local file"
+    );
     let names: Vec<&str> = native
         .tools
         .as_array()
@@ -779,13 +824,14 @@ fn node_mcp_server_and_native_mcp_agree() {
 
     // Same results, step by step.
     assert_eq!(node.steps.len(), native.steps.len());
-    for ((step, a), b) in node
+    for (at, ((step, a), b)) in node
         .steps
         .iter()
         .zip(node.normalized())
         .zip(native.normalized())
+        .enumerate()
     {
-        if a != b {
+        if a != b && !native.local_path_steps.contains(&at) {
             failures.push(format!(
                 "{} differs:\n  node:   {a}\n  native: {b}",
                 step.label

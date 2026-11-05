@@ -1,8 +1,8 @@
 //! Kanso's agent visibility and permission boundary.
 //!
-//! A request signed in with the local API's credentials is [`Caller::Full`]:
-//! everything the API serves. One with an agent's token is
-//! [`Caller::Agent`]: `/mcp` only, the read tools its [`AgentScope`] names,
+//! A request signed in with an API key is [`Caller::Key`]: what its access
+//! allows, through the same [`Visibility`] as an agent. One with an agent's
+//! token is [`Caller::Agent`]: `/mcp` only, the read tools its [`AgentScope`] names,
 //! and only the notes [`Visibility`] lets through. A note is visible when it
 //! is live, not in the trash, not locked (sealed, or in a locked notebook),
 //! not tagged `#ai-exclude`, and in the scope's notebooks or the notebooks
@@ -20,10 +20,11 @@ use std::time::Duration;
 
 use kanso_core::model::{LOCK_FIELD, PUBLISH_FIELD, SHARE_FIELD, TRASH_BOOK_ID};
 use kanso_core::{DocType, Note};
-use kanso_store::Store;
+use kanso_store::{KeyAccess, Store};
 use serde_json::Value;
 
 use crate::changeset::TaskId;
+use crate::key_model::KeyId;
 use crate::tokens::TokenId;
 
 /// The tools an agent may ever be given: reads, and none that reach
@@ -312,11 +313,16 @@ impl AgentScope {
 /// Who sent a request.
 #[derive(Clone, Debug)]
 pub enum Caller {
-    /// The local API's credentials: everything.
-    Full,
     /// An agent's token.
     Agent {
         token: TokenId,
+        scope: Arc<AgentScope>,
+    },
+    /// An API key (issue #243): what it may do is its `access`, and what it
+    /// may see its `scope`.
+    Key {
+        id: KeyId,
+        access: KeyAccess,
         scope: Arc<AgentScope>,
     },
 }
@@ -358,6 +364,9 @@ pub(crate) struct Visibility<'a> {
     spent: std::cell::RefCell<HashSet<String>>,
     /// Where the lines shown are numbered, when a token is asking.
     numbering: Option<(crate::tokens::TokenStore, TokenId)>,
+    /// Whether notebooks and tags carry a note count, of the notes this
+    /// caller sees (API keys). Agents get none.
+    keep_counts: bool,
 }
 
 /// `2026-10-14` for a time in milliseconds since the epoch.
@@ -415,7 +424,20 @@ impl<'a> Visibility<'a> {
             budget: None,
             spent: Default::default(),
             numbering: None,
+            keep_counts: false,
         })
+    }
+
+    /// Gives notebooks and tags a count of the notes this caller sees,
+    /// never the library's own count, which includes locked, trashed,
+    /// excluded and out-of-scope notes.
+    pub(crate) fn with_counts(mut self) -> Visibility<'a> {
+        self.keep_counts = true;
+        self
+    }
+
+    pub(crate) fn keeps_counts(&self) -> bool {
+        self.keep_counts
     }
 
     /// Whether notebook `id` is one the agent may see.
@@ -462,14 +484,27 @@ impl<'a> Visibility<'a> {
         if note.is_trashed() || !self.book_visible(&note.book_id) {
             return None;
         }
-        let excluded = note.tags.iter().any(|tag| {
-            kanso_core::tags::is_ai_exclude(tag)
-                || self
-                    .tag_names
-                    .get(tag)
-                    .is_some_and(|name| kanso_core::tags::is_ai_exclude(name))
-        });
-        (!excluded).then_some(note)
+        (!self.excluded(&note)).then_some(note)
+    }
+
+    /// Whether `note` is tagged `#ai-exclude`.
+    pub(crate) fn excluded(&self, note: &Note) -> bool {
+        note.tags
+            .iter()
+            .any(|tag| kanso_core::tags::is_ai_exclude(tag) || self.tag_is_ai_exclude(tag))
+    }
+
+    /// Whether tag `id` is the `#ai-exclude` tag, which no caller sees or
+    /// changes: renaming or deleting it would show the notes it hides.
+    pub(crate) fn tag_is_ai_exclude(&self, id: &str) -> bool {
+        self.tag_names
+            .get(id)
+            .is_some_and(|name| kanso_core::tags::is_ai_exclude(name))
+    }
+
+    /// The store this visibility reads.
+    pub(crate) fn store(&self) -> &'a Store {
+        self.store
     }
 
     /// Limits this request to the notes left of a read budget: `read` are
