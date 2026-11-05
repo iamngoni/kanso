@@ -13,7 +13,7 @@
 
 use std::collections::HashSet;
 use std::fmt;
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use base64::Engine as _;
@@ -25,6 +25,7 @@ use subtle::{Choice, ConstantTimeEq as _};
 use crate::auth::{bearer, decode_basic};
 #[cfg(test)]
 use crate::key_model::KEY_LEN;
+use crate::lease::{DRAIN, KeyGate, Lease};
 use crate::key_model::{KEY_PREFIX, KeyId, MintedKey, NewKey, is_key_shaped};
 use crate::scope::{AgentScope, Caller, READ_TOOLS, SUGGEST_TOOLS};
 
@@ -86,6 +87,8 @@ struct Cached {
     scope: Arc<AgentScope>,
     /// When `last_used_at` was last written, in ms.
     written: AtomicI64,
+    /// What the requests signed in by this key hold.
+    gate: Arc<KeyGate>,
 }
 
 impl Cached {
@@ -96,6 +99,7 @@ impl Cached {
             access: key.row.access,
             written: AtomicI64::new(key.row.last_used_at.unwrap_or(0)),
             id: KeyId(key.row.id),
+            gate: KeyGate::new(),
         }
     }
 }
@@ -108,6 +112,9 @@ pub struct KeyStore {
     /// When a request was last refused for want of a valid key, in ms; 0
     /// before any was. Shared by every clone, kept in memory only.
     refused: Arc<AtomicI64>,
+    /// Counts every change to the keys, by any handle: lets a page showing
+    /// them tell that they moved.
+    changes: Arc<AtomicU64>,
     clock: Clock,
 }
 
@@ -132,6 +139,7 @@ impl KeyStore {
             store,
             live: Arc::new(RwLock::new(Vec::new())),
             refused: Arc::new(AtomicI64::new(0)),
+            changes: Arc::new(AtomicU64::new(0)),
             clock,
         };
         keys.reload()?;
@@ -150,19 +158,42 @@ impl KeyStore {
 
     /// Reads the live keys from the table again, for when something other
     /// than this handle changed it. On an error the cache is emptied, so a
-    /// key the table no longer vouches for is never accepted.
+    /// key the table no longer vouches for is never accepted. A key that is
+    /// gone after the reload is cut off from the requests it signed in.
     pub fn reload(&self) -> kanso_store::Result<()> {
         let mut live = self.write();
-        match self.store.api_keys_live() {
+        let loaded = self.store.api_keys_live();
+        let mut old = std::mem::take(&mut *live);
+        let result = match loaded {
             Ok(keys) => {
-                *live = keys.into_iter().map(Cached::new).collect();
+                *live = keys
+                    .into_iter()
+                    .map(|key| {
+                        let mut entry = Cached::new(key);
+                        // The same key keeps its gate: its requests go on.
+                        if let Some(at) = old
+                            .iter()
+                            .position(|o| o.id == entry.id && o.hash == entry.hash)
+                        {
+                            entry.gate = old.swap_remove(at).gate;
+                        }
+                        entry
+                    })
+                    .collect();
                 Ok(())
             }
-            Err(e) => {
-                live.clear();
-                Err(e)
-            }
+            Err(e) => Err(e),
+        };
+        for gone in &old {
+            gone.gate.close();
         }
+        self.changes.fetch_add(1, Ordering::Relaxed);
+        result
+    }
+
+    /// How many times the keys have changed since this handle was opened.
+    pub fn changes(&self) -> u64 {
+        self.changes.load(Ordering::Relaxed)
     }
 
     /// Makes a key. The key comes back in the result and nowhere else: only
@@ -203,6 +234,7 @@ impl KeyStore {
             },
             token_hash: row.token_hash,
         }));
+        self.changes.fetch_add(1, Ordering::Relaxed);
         Ok(MintedKey { id, key })
     }
 
@@ -210,11 +242,22 @@ impl KeyStore {
     /// compared in constant time. A use is saved as `last_used_at`, at most
     /// once a minute per key; a failed save never refuses the request.
     pub fn verify(&self, key: &str) -> Option<Caller> {
+        self.check(key, false).map(|(caller, _)| caller)
+    }
+
+    /// [`KeyStore::verify`], and a [`Lease`] the request holds until it is
+    /// answered: a revoke waits for it and cuts the request short.
+    pub(crate) fn verify_leased(&self, key: &str) -> Option<(Caller, Lease)> {
+        let (caller, lease) = self.check(key, true)?;
+        lease.map(|lease| (caller, lease))
+    }
+
+    fn check(&self, key: &str, lease: bool) -> Option<(Caller, Option<Lease>)> {
         if !is_key_shaped(key) {
             return None;
         }
         let given = hash(key);
-        let (caller, written, id) = {
+        let (caller, written, id, lease) = {
             let live = self.read();
             let mut found: Option<&Cached> = None;
             for entry in live.iter() {
@@ -224,6 +267,13 @@ impl KeyStore {
                 }
             }
             let entry = found?;
+            // Taken under the read lock a revoke needs to write: a key is
+            // either still here to lease, or already refused.
+            let lease = if lease {
+                Some(entry.gate.lease()?)
+            } else {
+                None
+            };
             (
                 Caller::Key {
                     id: entry.id.clone(),
@@ -232,6 +282,7 @@ impl KeyStore {
                 },
                 entry.written.load(Ordering::Relaxed),
                 entry.id.clone(),
+                lease,
             )
         };
         let now = (self.clock)();
@@ -244,18 +295,35 @@ impl KeyStore {
                 entry.written.store(now, Ordering::Relaxed);
             }
         }
-        Some(caller)
+        Some((caller, lease))
     }
 
-    /// Revokes key `id`. It is refused from the next request on, and
-    /// nothing brings it back. `false` when there is no such live key.
+    /// Revokes key `id`. No request is accepted on it from now on, a request
+    /// it already signed in is cut short, and this returns only once none of
+    /// them is still working in the library (at most [`DRAIN`] if the
+    /// library is stuck), so nothing the key started finishes after it.
+    /// Nothing brings the key back. `false` when there is no such live key.
     pub fn revoke(&self, id: &KeyId) -> kanso_store::Result<bool> {
         let mut live = self.write();
         // Out of the cache first: if the table write fails, the key is
         // still refused here, and `reload` finds it live again only if the
         // table says so.
+        let gates: Vec<Arc<KeyGate>> = live
+            .iter()
+            .filter(|entry| entry.id == *id)
+            .map(|entry| entry.gate.clone())
+            .collect();
         live.retain(|entry| entry.id != *id);
-        self.store.api_key_revoke(id.as_str(), (self.clock)())
+        for gate in &gates {
+            gate.close();
+        }
+        let revoked = self.store.api_key_revoke(id.as_str(), (self.clock)());
+        drop(live);
+        self.changes.fetch_add(1, Ordering::Relaxed);
+        for gate in &gates {
+            gate.drain(DRAIN);
+        }
+        revoked
     }
 
     /// Notes that a request was just refused for want of a valid key. Only

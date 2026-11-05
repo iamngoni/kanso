@@ -26,6 +26,7 @@ mod error;
 mod key_model;
 mod keyed;
 mod keys;
+mod lease;
 mod mcp;
 mod proposal;
 mod rest;

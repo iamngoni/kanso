@@ -92,9 +92,13 @@ pub(crate) async fn blocking<T: Send + 'static>(
     f: impl FnOnce(&kanso_store::Store) -> ApiResult<T> + Send + 'static,
 ) -> ApiResult<T> {
     let store = state.store.clone();
-    tokio::task::spawn_blocking(move || f(&store))
+    // The store call keeps the request's key lease until it returns, and is
+    // not begun for a key revoked while it waited.
+    let lease = crate::lease::Lease::current();
+    tokio::task::spawn_blocking(move || crate::lease::guarded(lease, || f(&store)))
         .await
         .map_err(|err| ApiError::internal(format!("The request failed: {err}")))?
+        .unwrap_or_else(|| Err(ApiError::unauthorized()))
 }
 
 /// The request body as JSON, with CouchDB-style errors for bodies that are
