@@ -203,10 +203,51 @@ pub fn run_child() -> anyhow::Result<()> {
 /// it is killed: the library window never waits on it for longer.
 const CHILD_GRACE: Duration = Duration::from_secs(3);
 
+/// The process that draws the window, as the reporter uses it.
+trait ProgressWindow: Send {
+    /// Sends one line of the protocol. A process that is gone is ignored.
+    fn send(&mut self, line: &str);
+    /// Ends its input, which tells it to close.
+    fn end_input(&mut self);
+    /// Whether it has exited (or can't be asked any more).
+    fn exited(&mut self) -> bool;
+    /// Stops it for good, and reaps it.
+    fn kill(&mut self);
+}
+
+/// The real window: `kanso encrypt-progress`, fed on its standard input.
+struct ChildWindow {
+    child: Child,
+    stdin: Option<ChildStdin>,
+}
+
+// no-prop-test: a thin wrapper around a child process; the drop's logic is tested with a stand-in.
+impl ProgressWindow for ChildWindow {
+    fn send(&mut self, line: &str) {
+        if let Some(stdin) = &mut self.stdin {
+            let _ = writeln!(stdin, "{line}");
+            let _ = stdin.flush();
+        }
+    }
+
+    fn end_input(&mut self) {
+        self.stdin = None;
+    }
+
+    fn exited(&mut self) -> bool {
+        !matches!(self.child.try_wait(), Ok(None))
+    }
+
+    fn kill(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
 /// Reports an encryption's progress to a person: in a window while the app
 /// starts, on standard error from a command.
 pub struct Reporter {
-    window: Option<Mutex<(Child, ChildStdin)>>,
+    window: Option<Mutex<Box<dyn ProgressWindow>>>,
     last: Mutex<Option<String>>,
     grace: Duration,
 }
@@ -216,29 +257,28 @@ impl Reporter {
     /// The window's process gets only progress lines: no key, no path, no
     /// argument but its command's name.
     pub fn window() -> Reporter {
-        let command = std::env::current_exe().ok().map(|exe| {
-            let mut command = Command::new(exe);
-            command.arg("encrypt-progress");
-            command
-        });
-        Reporter::child(command, CHILD_GRACE)
-    }
-
-    /// A reporter that writes its lines to `command`'s input, which is given
-    /// `grace` to end once they stop.
-    fn child(command: Option<Command>, grace: Duration) -> Reporter {
-        let spawned = command.and_then(|mut command| {
-            let mut child = command
+        let spawned = std::env::current_exe().ok().and_then(|exe| {
+            let mut child = Command::new(exe)
+                .arg("encrypt-progress")
                 .stdin(Stdio::piped())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()
                 .ok()?;
             let stdin = child.stdin.take()?;
-            Some(Mutex::new((child, stdin)))
+            Some(Box::new(ChildWindow {
+                child,
+                stdin: Some(stdin),
+            }) as Box<dyn ProgressWindow>)
         });
+        Reporter::showing(spawned, CHILD_GRACE)
+    }
+
+    /// A reporter that sends its lines to `window`, which is given `grace`
+    /// to close once they stop.
+    fn showing(window: Option<Box<dyn ProgressWindow>>, grace: Duration) -> Reporter {
         Reporter {
-            window: spawned,
+            window: window.map(Mutex::new),
             last: Mutex::new(None),
             grace,
         }
@@ -265,9 +305,7 @@ impl Reporter {
             *last = Some(line.clone());
         }
         if let Some(window) = &self.window {
-            let mut window = window.lock().expect("reporter poisoned");
-            let _ = writeln!(window.1, "{line}");
-            let _ = window.1.flush();
+            window.lock().expect("reporter poisoned").send(&line);
         } else if progress.percent().is_multiple_of(10) {
             eprintln!("kanso: {}", title(progress.stage, progress.percent()));
         }
@@ -277,20 +315,19 @@ impl Reporter {
 impl Drop for Reporter {
     fn drop(&mut self) {
         if let Some(window) = self.window.take() {
-            let (mut child, stdin) = window.into_inner().expect("reporter poisoned");
+            let mut window = window.into_inner().expect("reporter poisoned");
             // Its input ends, and it closes. One that doesn't (hung, or
             // stuck opening a window) is killed: the library never waits on
             // a progress bar.
-            drop(stdin);
+            window.end_input();
             let until = std::time::Instant::now() + self.grace;
             while std::time::Instant::now() < until {
-                if !matches!(child.try_wait(), Ok(None)) {
+                if window.exited() {
                     return;
                 }
                 std::thread::sleep(Duration::from_millis(20));
             }
-            let _ = child.kill();
-            let _ = child.wait();
+            window.kill();
         }
     }
 }
@@ -348,14 +385,58 @@ mod tests {
         }
     }
 
+    /// A stand-in window process: it exits `exits_after` checks after its
+    /// input ends (never, for `None`), and says what was done to it.
+    #[derive(Default)]
+    struct Seen {
+        lines: Vec<String>,
+        input_ended: bool,
+        killed: bool,
+    }
+
+    struct StandIn {
+        seen: std::sync::Arc<std::sync::Mutex<Seen>>,
+        exits_after: Option<usize>,
+        checks: usize,
+    }
+
+    impl super::ProgressWindow for StandIn {
+        fn send(&mut self, line: &str) {
+            self.seen.lock().unwrap().lines.push(line.to_owned());
+        }
+        fn end_input(&mut self) {
+            self.seen.lock().unwrap().input_ended = true;
+        }
+        fn exited(&mut self) -> bool {
+            self.checks += 1;
+            self.exits_after.is_some_and(|after| self.checks > after)
+        }
+        fn kill(&mut self) {
+            self.seen.lock().unwrap().killed = true;
+        }
+    }
+
+    fn stand_in(
+        exits_after: Option<usize>,
+        grace: std::time::Duration,
+    ) -> (super::Reporter, std::sync::Arc<std::sync::Mutex<Seen>>) {
+        let seen = std::sync::Arc::new(std::sync::Mutex::new(Seen::default()));
+        let window = StandIn {
+            seen: seen.clone(),
+            exits_after,
+            checks: 0,
+        };
+        (
+            super::Reporter::showing(Some(Box::new(window)), grace),
+            seen,
+        )
+    }
+
     /// A window process that never closes doesn't hold the library back:
     /// it is killed after its grace. (The drop used to wait on it forever.)
-    #[cfg(unix)]
     #[test]
     fn a_hung_window_process_never_holds_the_library_back() {
-        let mut command = std::process::Command::new("sleep");
-        command.arg("30");
-        let reporter = super::Reporter::child(Some(command), std::time::Duration::from_millis(200));
+        let (reporter, seen) = stand_in(None, std::time::Duration::from_millis(100));
         reporter.report(EncryptProgress {
             stage: EncryptStage::Copying,
             fraction: 0.5,
@@ -363,24 +444,19 @@ mod tests {
         let started = std::time::Instant::now();
         drop(reporter);
         assert!(started.elapsed() < std::time::Duration::from_secs(5));
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.lines, ["copying 50"]);
+        assert!(seen.input_ended && seen.killed);
     }
 
-    /// A window process that died takes nothing with it: the lines that
-    /// follow go nowhere, and nothing panics.
-    #[cfg(unix)]
+    /// A window process that closes when its input ends is left to close,
+    /// never killed.
     #[test]
-    fn a_dead_window_process_is_ignored() {
-        let mut command = std::process::Command::new("sh");
-        command.args(["-c", "exit 3"]);
-        let reporter = super::Reporter::child(Some(command), std::time::Duration::from_millis(200));
-        std::thread::sleep(std::time::Duration::from_millis(200));
-        for percent in 0..=100u8 {
-            reporter.report(EncryptProgress {
-                stage: EncryptStage::Copying,
-                fraction: f32::from(percent) / 100.,
-            });
-        }
+    fn a_window_process_that_closes_is_not_killed() {
+        let (reporter, seen) = stand_in(Some(2), std::time::Duration::from_secs(5));
         drop(reporter);
+        let seen = seen.lock().unwrap();
+        assert!(seen.input_ended && !seen.killed);
     }
 
     #[test]
