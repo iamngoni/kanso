@@ -20,9 +20,11 @@ pub mod features;
 pub mod prices;
 pub mod prompt;
 pub mod raw_tool;
+pub mod recording_summary;
 pub mod tidy;
 mod tidy_model;
 pub mod triage;
+pub mod trouble;
 
 #[cfg(feature = "acp")]
 pub use agent::{AgentCheck, AgentKind, AgentSettings};
@@ -37,6 +39,7 @@ pub use prompt::{
     build_numbered,
 };
 pub use raw_tool::{RawRun, RawTool};
+pub use trouble::{LocalApp, Trouble, Words, classify as classify_trouble};
 
 /// The tool types a question can use. Re-exported so the app does not depend
 /// on agent-runtime directly.

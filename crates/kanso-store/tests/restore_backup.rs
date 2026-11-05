@@ -438,6 +438,151 @@ fn a_backup_from_another_computer_brings_no_api_keys() {
     assert_eq!(live_keys(&db, &ours), ["ours"]);
 }
 
+/// The sync keys of a library: every one of these `meta` entries it holds.
+const SYNC_NAMES: [&str; 12] = [
+    "sync.v2.origin",
+    "sync.v2.account_id",
+    "sync.v2.username",
+    "sync.v2.server",
+    "sync.v2.library_id",
+    "sync.v2.device_secret",
+    "sync.v2.hardware",
+    "sync.v2.last_seq",
+    "sync.v2.epoch",
+    "sync.v2.refetch_after",
+    "sync.v2.quota.docs",
+    "sync.last_seq",
+];
+
+/// The device identity, the only sync keys a restore keeps (docs/ACCOUNTS.md
+/// › Device identity). Spelled out, not taken from the store's list, so a
+/// change to that list fails here.
+const DEVICE_IDENTITY: [&str; 3] = [
+    "sync.v2.library_id",
+    "sync.v2.device_secret",
+    "sync.v2.hardware",
+];
+
+fn sync_meta(db: &Path, key: &LibraryKey) -> Vec<(String, String)> {
+    let store = Store::open_with_key(db, Some(key)).unwrap();
+    SYNC_NAMES
+        .iter()
+        .filter_map(|name| {
+            store
+                .meta(name)
+                .unwrap()
+                .map(|value| ((*name).to_owned(), value))
+        })
+        .collect()
+}
+
+/// A binding as a library signed in as `who` would hold it, cursor and all.
+fn bind(db: &Path, key: &LibraryKey, who: &str) {
+    let store = Store::open_with_key(db, Some(key)).unwrap();
+    for name in SYNC_NAMES {
+        store.set_meta(name, &format!("{name}@{who}")).unwrap();
+    }
+}
+
+/// Marks every note of the library as on the server.
+fn mark_all_synced(db: &Path, key: &LibraryKey) {
+    let store = Store::open_with_key(db, Some(key)).unwrap();
+    for state in store.sync_states().unwrap() {
+        store.mark_synced(&state.id, &state.rev, None).unwrap();
+    }
+}
+
+/// Regression: a backup made on another computer carried that library's
+/// account, server and device identity, and the restore adopted them, so the
+/// library claimed to be signed in as someone else. A restore keeps this
+/// library's binding: here, none.
+#[test]
+fn a_restore_never_adopts_the_backups_sync_binding() {
+    let there = tempfile::tempdir().unwrap();
+    let here = tempfile::tempdir().unwrap();
+    let theirs = key_from(40);
+    let ours = key_from(41);
+    library(there.path(), &theirs, &["a"]);
+    bind(&db_path(there.path()), &theirs, "them");
+    let backup = Store::open_with_key(db_path(there.path()), Some(&theirs))
+        .unwrap()
+        .backup_now(&there.path().join("backups"), 1)
+        .unwrap();
+    library(here.path(), &ours, &["f"]);
+    let db = db_path(here.path());
+    stage_restore(&db, &backup, Some(&theirs), &ours).unwrap();
+    assert!(apply_staged_restore(&db, &ours, &here.path().join("backups"), 2).unwrap());
+    assert_eq!(marks(&db, &ours), ["a"]);
+    assert_eq!(sync_meta(&db, &ours), []);
+}
+
+/// The library's own device identity survives a restore; its account
+/// binding doesn't, and neither does any cursor or epoch. Regression (PR
+/// #301 review): the binding was kept, so the next sign-in resumed with no
+/// question and merged at once, bringing back every note deleted since the
+/// backup (`kanso-sync/tests/restore_sync.rs`).
+#[test]
+fn a_restore_keeps_only_this_librarys_device_identity() {
+    let there = tempfile::tempdir().unwrap();
+    let here = tempfile::tempdir().unwrap();
+    let theirs = key_from(42);
+    let ours = key_from(43);
+    library(there.path(), &theirs, &["a"]);
+    bind(&db_path(there.path()), &theirs, "them");
+    let backup = Store::open_with_key(db_path(there.path()), Some(&theirs))
+        .unwrap()
+        .backup_now(&there.path().join("backups"), 1)
+        .unwrap();
+    library(here.path(), &ours, &["f"]);
+    let db = db_path(here.path());
+    bind(&db, &ours, "me");
+    stage_restore(&db, &backup, Some(&theirs), &ours).unwrap();
+    assert!(apply_staged_restore(&db, &ours, &here.path().join("backups"), 2).unwrap());
+    let found = sync_meta(&db, &ours);
+    let names: Vec<&str> = found.iter().map(|(name, _)| name.as_str()).collect();
+    assert_eq!(names, DEVICE_IDENTITY);
+    assert!(found.iter().all(|(_, value)| value.ends_with("@me")));
+}
+
+/// A backup's notes come back unsynced: none claims to be on a server.
+#[test]
+fn restored_notes_forget_what_they_synced() {
+    let there = tempfile::tempdir().unwrap();
+    let here = tempfile::tempdir().unwrap();
+    let theirs = key_from(44);
+    let ours = key_from(45);
+    library(there.path(), &theirs, &["a"]);
+    mark_all_synced(&db_path(there.path()), &theirs);
+    let backup = Store::open_with_key(db_path(there.path()), Some(&theirs))
+        .unwrap()
+        .backup_now(&there.path().join("backups"), 1)
+        .unwrap();
+    {
+        let store = Store::open_with_key(db_path(there.path()), Some(&theirs)).unwrap();
+        assert!(
+            store
+                .sync_states()
+                .unwrap()
+                .iter()
+                .any(|state| state.synced_rev.is_some()),
+            "the fixture really synced something"
+        );
+    }
+    library(here.path(), &ours, &["f"]);
+    let db = db_path(here.path());
+    stage_restore(&db, &backup, Some(&theirs), &ours).unwrap();
+    apply_staged_restore(&db, &ours, &here.path().join("backups"), 2).unwrap();
+    let store = Store::open_with_key(&db, Some(&ours)).unwrap();
+    let states = store.sync_states().unwrap();
+    assert!(!states.is_empty());
+    assert!(
+        states
+            .iter()
+            .filter(|state| !state.deleted)
+            .all(|state| state.synced_rev.is_none() && state.synced_gen == 0)
+    );
+}
+
 /// A library that is missing when a restore is applied (deleted by hand,
 /// say) takes the staged copy.
 #[test]
@@ -510,5 +655,51 @@ proptest! {
             marks(&keep.join("kanso-manual-9.db"), &ours),
             in_library.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>()
         );
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        cases: 8,
+        rng_seed: RngSeed::Fixed(0x006b_616e_736f),
+        failure_persistence: None,
+        ..ProptestConfig::default()
+    })]
+
+    /// Invariants: whichever bindings the backup and the library hold (or
+    /// none), a restore leaves exactly the library's own device identity,
+    /// no account binding and no cursor, and never a trace of the backup's.
+    #[test]
+    fn prop_a_restore_keeps_only_the_librarys_own_device_identity(
+        theirs_bound in any::<bool>(),
+        ours_bound in any::<bool>(),
+        theirs in 1u8..=100,
+        ours in 101u8..=200,
+    ) {
+        let there = tempfile::tempdir().unwrap();
+        let here = tempfile::tempdir().unwrap();
+        let theirs = key_from(theirs);
+        let ours = key_from(ours);
+        library(there.path(), &theirs, &["a"]);
+        if theirs_bound {
+            bind(&db_path(there.path()), &theirs, "them");
+        }
+        let backup = Store::open_with_key(db_path(there.path()), Some(&theirs))
+            .unwrap()
+            .backup_now(&there.path().join("backups"), 1)
+            .unwrap();
+        library(here.path(), &ours, &["f"]);
+        let db = db_path(here.path());
+        if ours_bound {
+            bind(&db, &ours, "me");
+        }
+        stage_restore(&db, &backup, Some(&theirs), &ours).unwrap();
+        apply_staged_restore(&db, &ours, &here.path().join("backups"), 2).unwrap();
+        let found = sync_meta(&db, &ours);
+        let own = found.iter().all(|(name, value)| {
+            DEVICE_IDENTITY.contains(&name.as_str()) && value.ends_with("@me")
+        });
+        prop_assert!(own);
+        prop_assert_eq!(found.len(), if ours_bound { DEVICE_IDENTITY.len() } else { 0 });
     }
 }

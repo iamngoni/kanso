@@ -1395,6 +1395,13 @@ fn a_key_made_in_settings_opens_the_server_and_revoking_it_closes_it_even_after_
 ) {
     let f = setup(cx);
     cx.update(|cx| {
+        // The New key sheet slides in over 250 ms of wall-clock time, which
+        // the test clock does not drive. A click is a press and a release
+        // with a frame between, and on a loaded machine the frame lands
+        // far enough along the slide that the sheet has moved from under
+        // the press: the button never sees a click. Without the motion
+        // the sheet stands still.
+        cx.set_reduce_motion(true);
         AppState::update_config(cx, |config| {
             config.server.enabled = true;
             config.server.bind_address = "127.0.0.1".into();

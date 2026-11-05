@@ -885,7 +885,14 @@ impl Store {
                 } else {
                     (&local.fields, &fields)
                 };
-                if let Some(merged) = union_loops_and_acks(base, other) {
+                let mut united = union_loops_and_acks(base, other);
+                // A PDF's highlights made on the other side are kept too.
+                if doc_type == DocType::Note
+                    && let Some(merged) = merge_pdf_highlights(united.as_ref().unwrap_or(base), other)
+                {
+                    united = Some(merged);
+                }
+                if let Some(merged) = united {
                     let above = kanso_core::Rev {
                         generation: local_rev.generation.max(remote_rev.generation),
                         hash: String::new(),
@@ -960,6 +967,33 @@ fn merge_canvas_fields(
         merged = unioned;
     }
     Some(merged)
+}
+
+/// `base` with the PDF highlights of `other` folded into each `kanso-pdf`
+/// block both bodies have ([`kanso_pdf::merge::merge_bodies`]): two devices
+/// highlighting the same PDF apart keep every highlight, and one deleted on
+/// either side stays deleted. `None` when that changes nothing, when either
+/// side is locked (sealed) or shared (its text is merged by the room), or
+/// when the result would be past the body limit.
+fn merge_pdf_highlights(
+    base: &Map<String, Value>,
+    other: &Map<String, Value>,
+) -> Option<Map<String, Value>> {
+    let apart = |f: &Map<String, Value>| {
+        f.contains_key(kanso_core::model::LOCK_FIELD)
+            || f.contains_key(kanso_core::model::SHARE_FIELD)
+    };
+    if apart(base) || apart(other) {
+        return None;
+    }
+    let body = |f: &Map<String, Value>| f.get("body").and_then(Value::as_str).map(str::to_owned);
+    let merged = kanso_pdf::merge::merge_bodies(&body(base)?, &body(other)?)?;
+    if merged.chars().count() > kanso_core::model::MAX_BODY_LEN {
+        return None;
+    }
+    let mut out = base.clone();
+    out.insert("body".into(), merged.into());
+    Some(out)
 }
 
 /// `base` with the loops and reminder acks of `other` folded in

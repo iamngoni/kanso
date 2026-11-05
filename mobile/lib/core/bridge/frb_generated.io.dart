@@ -35,6 +35,8 @@ import 'api/player.dart';
 import 'api/player_types.dart';
 import 'api/publish.dart';
 import 'api/recording.dart';
+import 'api/recording_summary.dart';
+import 'api/recording_summary_types.dart';
 import 'api/recording_types.dart';
 import 'api/renderer.dart';
 import 'api/shared.dart';
@@ -161,6 +163,10 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoRecordingPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoRecordingSummaryPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummaryPtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoRendererPtr => wire
@@ -336,6 +342,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoRecording
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    dynamic raw,
+  );
+
+  @protected
+  KansoRecordingSummary
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
     dynamic raw,
   );
 
@@ -522,6 +534,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoRecording
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    dynamic raw,
+  );
+
+  @protected
+  KansoRecordingSummary
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
     dynamic raw,
   );
 
@@ -718,6 +736,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoRecordingSummary
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
+    dynamic raw,
+  );
+
+  @protected
   KansoRenderer
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRenderer(
     dynamic raw,
@@ -814,6 +838,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   RustStreamSink<RelatedState> dco_decode_StreamSink_related_state_Sse(
+    dynamic raw,
+  );
+
+  @protected
+  RustStreamSink<SealProgress> dco_decode_StreamSink_seal_progress_Sse(
     dynamic raw,
   );
 
@@ -1056,6 +1085,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   InkStyle dco_decode_box_autoadd_ink_style(dynamic raw);
 
   @protected
+  InterruptedLock dco_decode_box_autoadd_interrupted_lock(dynamic raw);
+
+  @protected
   LinkTarget dco_decode_box_autoadd_link_target(dynamic raw);
 
   @protected
@@ -1119,6 +1151,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PalettePlace dco_decode_box_autoadd_palette_place(dynamic raw);
 
   @protected
+  PdfHighlightChange dco_decode_box_autoadd_pdf_highlight_change(dynamic raw);
+
+  @protected
   PeopleSettings dco_decode_box_autoadd_people_settings(dynamic raw);
 
   @protected
@@ -1180,6 +1215,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   SketchInfo dco_decode_box_autoadd_sketch_info(dynamic raw);
+
+  @protected
+  SummaryDraftView dco_decode_box_autoadd_summary_draft_view(dynamic raw);
 
   @protected
   SyncProblemKind dco_decode_box_autoadd_sync_problem_kind(dynamic raw);
@@ -1560,6 +1598,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   InstalledIconThemeRow dco_decode_installed_icon_theme_row(dynamic raw);
 
   @protected
+  InterruptedLock dco_decode_interrupted_lock(dynamic raw);
+
+  @protected
   InvitationRow dco_decode_invitation_row(dynamic raw);
 
   @protected
@@ -1850,6 +1891,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PasskeyRow> dco_decode_list_passkey_row(dynamic raw);
 
   @protected
+  List<PdfHighlightRow> dco_decode_list_pdf_highlight_row(dynamic raw);
+
+  @protected
+  List<PdfNotes> dco_decode_list_pdf_notes(dynamic raw);
+
+  @protected
   List<PenSample> dco_decode_list_pen_sample(dynamic raw);
 
   @protected
@@ -2002,6 +2049,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<SuggestedTag> dco_decode_list_suggested_tag(dynamic raw);
 
   @protected
+  List<SummaryItemView> dco_decode_list_summary_item_view(dynamic raw);
+
+  @protected
   List<SyncIntervalOption> dco_decode_list_sync_interval_option(dynamic raw);
 
   @protected
@@ -2117,6 +2167,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   LockStatus dco_decode_lock_status(dynamic raw);
+
+  @protected
+  LockSummary dco_decode_lock_summary(dynamic raw);
 
   @protected
   LockedInfo dco_decode_locked_info(dynamic raw);
@@ -2267,6 +2320,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ImportPhase? dco_decode_opt_box_autoadd_import_phase(dynamic raw);
+
+  @protected
+  InterruptedLock? dco_decode_opt_box_autoadd_interrupted_lock(dynamic raw);
 
   @protected
   LinkTarget? dco_decode_opt_box_autoadd_link_target(dynamic raw);
@@ -2485,6 +2541,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PasskeyRow dco_decode_passkey_row(dynamic raw);
+
+  @protected
+  PdfHighlightChange dco_decode_pdf_highlight_change(dynamic raw);
+
+  @protected
+  PdfHighlightRow dco_decode_pdf_highlight_row(dynamic raw);
+
+  @protected
+  PdfNotes dco_decode_pdf_notes(dynamic raw);
 
   @protected
   PenSample dco_decode_pen_sample(dynamic raw);
@@ -2739,6 +2804,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Saved dco_decode_saved(dynamic raw);
 
   @protected
+  SealPhase dco_decode_seal_phase(dynamic raw);
+
+  @protected
+  SealProgress dco_decode_seal_progress(dynamic raw);
+
+  @protected
   SearchScope dco_decode_search_scope(dynamic raw);
 
   @protected
@@ -2812,6 +2883,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   SuggestedTag dco_decode_suggested_tag(dynamic raw);
+
+  @protected
+  SummaryApplied dco_decode_summary_applied(dynamic raw);
+
+  @protected
+  SummaryDraftView dco_decode_summary_draft_view(dynamic raw);
+
+  @protected
+  SummaryItemView dco_decode_summary_item_view(dynamic raw);
+
+  @protected
+  SummaryOffer dco_decode_summary_offer(dynamic raw);
 
   @protected
   SvgRow dco_decode_svg_row(dynamic raw);
@@ -3141,6 +3224,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoRecordingSummary
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoRenderer
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRenderer(
     SseDeserializer deserializer,
@@ -3323,6 +3412,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoRecording
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoRecordingSummary
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
     SseDeserializer deserializer,
   );
 
@@ -3519,6 +3614,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoRecordingSummary
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoRenderer
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRenderer(
     SseDeserializer deserializer,
@@ -3625,6 +3726,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   RustStreamSink<RelatedState> sse_decode_StreamSink_related_state_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<SealProgress> sse_decode_StreamSink_seal_progress_Sse(
     SseDeserializer deserializer,
   );
 
@@ -3903,6 +4009,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   InkStyle sse_decode_box_autoadd_ink_style(SseDeserializer deserializer);
 
   @protected
+  InterruptedLock sse_decode_box_autoadd_interrupted_lock(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LinkTarget sse_decode_box_autoadd_link_target(SseDeserializer deserializer);
 
   @protected
@@ -3976,6 +4087,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PalettePlace sse_decode_box_autoadd_palette_place(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PdfHighlightChange sse_decode_box_autoadd_pdf_highlight_change(
     SseDeserializer deserializer,
   );
 
@@ -4057,6 +4173,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   SketchInfo sse_decode_box_autoadd_sketch_info(SseDeserializer deserializer);
+
+  @protected
+  SummaryDraftView sse_decode_box_autoadd_summary_draft_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SyncProblemKind sse_decode_box_autoadd_sync_problem_kind(
@@ -4455,6 +4576,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  InterruptedLock sse_decode_interrupted_lock(SseDeserializer deserializer);
+
+  @protected
   InvitationRow sse_decode_invitation_row(SseDeserializer deserializer);
 
   @protected
@@ -4831,6 +4955,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PasskeyRow> sse_decode_list_passkey_row(SseDeserializer deserializer);
 
   @protected
+  List<PdfHighlightRow> sse_decode_list_pdf_highlight_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PdfNotes> sse_decode_list_pdf_notes(SseDeserializer deserializer);
+
+  @protected
   List<PenSample> sse_decode_list_pen_sample(SseDeserializer deserializer);
 
   @protected
@@ -5033,6 +5165,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<SummaryItemView> sse_decode_list_summary_item_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SyncIntervalOption> sse_decode_list_sync_interval_option(
     SseDeserializer deserializer,
   );
@@ -5158,6 +5295,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   LockStatus sse_decode_lock_status(SseDeserializer deserializer);
+
+  @protected
+  LockSummary sse_decode_lock_summary(SseDeserializer deserializer);
 
   @protected
   LockedInfo sse_decode_locked_info(SseDeserializer deserializer);
@@ -5330,6 +5470,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ImportPhase? sse_decode_opt_box_autoadd_import_phase(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  InterruptedLock? sse_decode_opt_box_autoadd_interrupted_lock(
     SseDeserializer deserializer,
   );
 
@@ -5608,6 +5753,17 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PasskeyRow sse_decode_passkey_row(SseDeserializer deserializer);
 
   @protected
+  PdfHighlightChange sse_decode_pdf_highlight_change(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PdfHighlightRow sse_decode_pdf_highlight_row(SseDeserializer deserializer);
+
+  @protected
+  PdfNotes sse_decode_pdf_notes(SseDeserializer deserializer);
+
+  @protected
   PenSample sse_decode_pen_sample(SseDeserializer deserializer);
 
   @protected
@@ -5880,6 +6036,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Saved sse_decode_saved(SseDeserializer deserializer);
 
   @protected
+  SealPhase sse_decode_seal_phase(SseDeserializer deserializer);
+
+  @protected
+  SealProgress sse_decode_seal_progress(SseDeserializer deserializer);
+
+  @protected
   SearchScope sse_decode_search_scope(SseDeserializer deserializer);
 
   @protected
@@ -5955,6 +6117,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   SuggestedTag sse_decode_suggested_tag(SseDeserializer deserializer);
+
+  @protected
+  SummaryApplied sse_decode_summary_applied(SseDeserializer deserializer);
+
+  @protected
+  SummaryDraftView sse_decode_summary_draft_view(SseDeserializer deserializer);
+
+  @protected
+  SummaryItemView sse_decode_summary_item_view(SseDeserializer deserializer);
+
+  @protected
+  SummaryOffer sse_decode_summary_offer(SseDeserializer deserializer);
 
   @protected
   SvgRow sse_decode_svg_row(SseDeserializer deserializer);
@@ -6319,6 +6493,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
+    KansoRecordingSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRenderer(
     KansoRenderer self,
     SseSerializer serializer,
@@ -6531,6 +6712,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording(
     KansoRecording self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
+    KansoRecordingSummary self,
     SseSerializer serializer,
   );
 
@@ -6759,6 +6947,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
+    KansoRecordingSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRenderer(
     KansoRenderer self,
     SseSerializer serializer,
@@ -6886,6 +7081,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_StreamSink_related_state_Sse(
     RustStreamSink<RelatedState> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_seal_progress_Sse(
+    RustStreamSink<SealProgress> self,
     SseSerializer serializer,
   );
 
@@ -7262,6 +7463,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_interrupted_lock(
+    InterruptedLock self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_link_target(
     LinkTarget self,
     SseSerializer serializer,
@@ -7385,6 +7592,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_pdf_highlight_change(
+    PdfHighlightChange self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_people_settings(
     PeopleSettings self,
     SseSerializer serializer,
@@ -7498,6 +7711,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_sketch_info(
     SketchInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_summary_draft_view(
+    SummaryDraftView self,
     SseSerializer serializer,
   );
 
@@ -7972,6 +8191,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_installed_icon_theme_row(
     InstalledIconThemeRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_interrupted_lock(
+    InterruptedLock self,
     SseSerializer serializer,
   );
 
@@ -8495,6 +8720,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_pdf_highlight_row(
+    List<PdfHighlightRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_pdf_notes(List<PdfNotes> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_pen_sample(
     List<PenSample> self,
     SseSerializer serializer,
@@ -8774,6 +9008,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_summary_item_view(
+    List<SummaryItemView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_sync_interval_option(
     List<SyncIntervalOption> self,
     SseSerializer serializer,
@@ -8940,6 +9180,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_lock_status(LockStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_lock_summary(LockSummary self, SseSerializer serializer);
 
   @protected
   void sse_encode_locked_info(LockedInfo self, SseSerializer serializer);
@@ -9145,6 +9388,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_import_phase(
     ImportPhase? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_interrupted_lock(
+    InterruptedLock? self,
     SseSerializer serializer,
   );
 
@@ -9509,6 +9758,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_passkey_row(PasskeyRow self, SseSerializer serializer);
 
   @protected
+  void sse_encode_pdf_highlight_change(
+    PdfHighlightChange self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_pdf_highlight_row(
+    PdfHighlightRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_pdf_notes(PdfNotes self, SseSerializer serializer);
+
+  @protected
   void sse_encode_pen_sample(PenSample self, SseSerializer serializer);
 
   @protected
@@ -9848,6 +10112,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_saved(Saved self, SseSerializer serializer);
 
   @protected
+  void sse_encode_seal_phase(SealPhase self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_seal_progress(SealProgress self, SseSerializer serializer);
+
+  @protected
   void sse_encode_search_scope(SearchScope self, SseSerializer serializer);
 
   @protected
@@ -9930,6 +10200,27 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_suggested_tag(SuggestedTag self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_summary_applied(
+    SummaryApplied self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_summary_draft_view(
+    SummaryDraftView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_summary_item_view(
+    SummaryItemView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_summary_offer(SummaryOffer self, SseSerializer serializer);
 
   @protected
   void sse_encode_svg_row(SvgRow self, SseSerializer serializer);
@@ -10995,6 +11286,40 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecording =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummaryPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummaryPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummaryPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummary =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoRecordingSummaryPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

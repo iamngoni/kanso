@@ -121,8 +121,23 @@ pub fn apply(
             words.push_str(kanso_engine::pages::notebook_model::HOME_MOVED_LINE);
         }
     }
+    say_with_undo(&store, edits, words, window, cx);
+}
+
+/// Says `words` in a notice with Undo, and keeps `edits` for Cmd/Ctrl+Z for
+/// as long as the notice is up: another feature's one-write change to notes
+/// (a recording's summary) takes the same Undo as a batch.
+pub fn say_with_undo(
+    store: &Arc<Store>,
+    edits: Vec<Edit>,
+    words: String,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    let store = store.clone();
     let serial = remember(&store, &edits, cx);
     let notification =
+
         // Each batch's notice takes the place of the one before, so its
         // Undo is always for the latest change. A notice with an action
         // never hides by itself: Cmd/Ctrl+Z works for exactly as long as

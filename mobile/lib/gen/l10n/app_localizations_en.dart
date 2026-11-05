@@ -1456,6 +1456,56 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previewTask => 'Task';
 
   @override
+  String get pdfNotesTitle => 'Highlights';
+
+  @override
+  String get pdfNotesEmpty => 'This note has no highlights.';
+
+  @override
+  String pdfNotesPage(int page) {
+    return 'Page $page';
+  }
+
+  @override
+  String get pdfNotesNotInNote => 'Not in the note';
+
+  @override
+  String get pdfNotesReadOnly =>
+      'These highlights can\'t be changed here: the note\'s highlight data can\'t be read.';
+
+  @override
+  String get pdfNotesCommentHint => 'Add a note';
+
+  @override
+  String get pdfNotesSaveNote => 'Save note';
+
+  @override
+  String get pdfNotesAddToNote => 'Add quote to the note';
+
+  @override
+  String get pdfNotesDelete => 'Delete highlight';
+
+  @override
+  String pdfNotesColor(String color) {
+    String _temp0 = intl.Intl.selectLogic(
+      color,
+      {
+        'yellow': 'Yellow',
+        'green': 'Green',
+        'blue': 'Blue',
+        'pink': 'Pink',
+        'other': 'Colour',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String pdfNotesOpen(String summary) {
+    return '$summary. Show the highlights.';
+  }
+
+  @override
   String get previewEmptyDrawing => 'An empty drawing';
 
   @override
@@ -2852,7 +2902,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lockNoteConfirmMessage =>
-      'Its text and the pictures and files it links to are sealed, and its earlier versions are deleted. A file another note still shows gets a sealed copy. It stays open until the locked notes lock again.';
+      'Its text is sealed, and its earlier versions are deleted. It stays open until the locked notes lock again.';
 
   @override
   String get lockNotebookAskTitle => 'Lock notebook';
@@ -2862,7 +2912,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lockNotebookConfirmMessage =>
-      'Every note in it, and the pictures and files they link to, are sealed, and new notes added to it are sealed too. A file another note still shows gets a sealed copy.';
+      'Every note in it is sealed, and new notes added to it are sealed too.';
 
   @override
   String get lockNotebookMenu => 'Lock Notebook…';
@@ -3308,19 +3358,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(
-      origin,
-      {
-        'ui': 'Edited in Kanso',
-        'api': 'Replaced through the API',
-        'sync': 'Replaced by sync',
-        'import': 'Replaced by an import',
-        'collab': 'Edited in a shared note',
-        'agent': 'Suggested by an agent, applied by you',
-        'plugin': 'Changed by a plugin',
-        'other': 'Saved version',
-      },
-    );
+    String _temp0 = intl.Intl.selectLogic(origin, {
+      'ui': 'Edited in Kanso',
+      'api': 'Replaced through the API',
+      'sync': 'Replaced by sync',
+      'import': 'Replaced by an import',
+      'collab': 'Edited in a shared note',
+      'agent': 'Suggested by an agent, applied by you',
+      'plugin': 'Changed by a plugin',
+      'other': 'Saved version',
+    });
     return '$_temp0';
   }
 
@@ -5076,19 +5123,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiTroubleKey =>
-      'Your model turned the key down. Check the API key in AI settings.';
+      'Your model turned the key down. The API key was refused. Check it in Settings › AI, then try again.';
 
   @override
   String get aiTroubleBusy =>
-      'Your model is busy right now. Wait a moment, then try again.';
+      'Your model is busy. It\'s limiting requests right now. Wait a moment, then try again.';
 
   @override
   String get aiTroubleSlow =>
-      'Your model took too long to answer. Try again, or pick a smaller model.';
+      'Your model took too long. It didn\'t answer in time. Try again, or pick a smaller model in Settings › AI.';
 
   @override
   String get aiTroubleMissing =>
-      'The model in AI settings isn\'t available. Choose another, then try again.';
+      'Your model wasn\'t found. The model named in Settings › AI isn\'t available. Choose another, then try again.';
 
   @override
   String aiTroubleReachLocal(String app) {
@@ -5097,15 +5144,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiTroubleReach =>
-      'Couldn\'t reach your model. Check your connection and the address in AI settings.';
+      'Couldn\'t reach your model. Check your connection and the address in Settings › AI, then try again.';
 
   @override
   String get aiTroubleSetup =>
-      'AI isn\'t set up yet. Choose a model in AI settings to use this.';
+      'AI isn\'t set up yet. Choose a model in Settings › AI to use this.';
 
   @override
   String get aiTroubleOther =>
-      'Your model ran into a problem. Try again, or check AI settings.';
+      'Your model ran into a problem. Try again. If it keeps happening, check Settings › AI.';
+
+  @override
+  String get aiTroubleMissingKey =>
+      'No API key is saved. Add one in Settings › AI: choose your provider, then paste the key into API key.';
+
+  @override
+  String get aiTroubleMissingModel =>
+      'No model is chosen. Pick a model in Settings › AI, then try again.';
+
+  @override
+  String get aiTroubleMissingUrl =>
+      'No server address is set. Enter the server\'s address in Settings › AI, then try again.';
+
+  @override
+  String get aiTroubleNoAgent =>
+      'No agent is set up. Choose an agent in Settings › AI, or type the command of your own. Then try again.';
+
+  @override
+  String get aiTroubleAgentNotInstalled =>
+      'Your agent isn\'t installed. Install it, or choose another agent in Settings › AI and use Find to check again.';
+
+  @override
+  String get aiTroubleAgentNeedsNode =>
+      'Your agent needs a newer Node. Install the Node version it asks for, then use Find again in Settings › AI.';
+
+  @override
+  String get aiTroubleNoTools =>
+      'This model can\'t use tools. Pick a model that supports tools in Settings › AI.';
+
+  @override
+  String get aiTroubleServerDown =>
+      'Your model\'s server had a problem. That\'s on its side. Wait a moment, then try again.';
+
+  @override
+  String get aiTroubleBlocked =>
+      'Something blocked the request. A proxy, firewall or region limit turned it away before it reached your model, so it isn\'t your API key. Check your network and the address in Settings › AI, then try again.';
+
+  @override
+  String get aiTroubleReachLocalModel =>
+      'Couldn\'t reach your model. Is Ollama or LM Studio running? Start it, then try again.';
 
   @override
   String get aiTroubleRetry => 'Try again';
@@ -5361,6 +5448,97 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String voiceTidyFailed(String reason) {
     return 'Couldn\'t tidy this note: $reason.';
+  }
+
+  @override
+  String get recordingSummaryMenu => 'Summarise recording';
+
+  @override
+  String get recordingSummaryTitle => 'Summarise recording';
+
+  @override
+  String get recordingSummaryClose => 'Close';
+
+  @override
+  String get recordingSummaryUnavailable =>
+      'To summarise a recording, turn on AI in Settings and open a note that holds the transcript of a recording. Locked notes, notes in the trash and notes tagged #ai-exclude are never sent.';
+
+  @override
+  String get recordingSummaryNothingYet =>
+      'Nothing is sent until you choose Send. You will see the summary and the action items before anything is written.';
+
+  @override
+  String get recordingSummaryReplacesNote =>
+      'This note already has a summary. A new one replaces it.';
+
+  @override
+  String get recordingSummaryWorking => 'Summarising the transcript…';
+
+  @override
+  String get recordingSummaryCancelHint =>
+      'Cancel stops the request. The note is not changed.';
+
+  @override
+  String get recordingSummaryUnchanged => 'The note is not changed.';
+
+  @override
+  String get recordingSummarySend => 'Send';
+
+  @override
+  String get recordingSummaryCancel => 'Cancel';
+
+  @override
+  String get recordingSummaryDiscard => 'Discard';
+
+  @override
+  String get recordingSummaryApply => 'Apply';
+
+  @override
+  String get recordingSummaryTryAgain => 'Try again';
+
+  @override
+  String get recordingSummarySectionSummary => 'Summary';
+
+  @override
+  String get recordingSummarySectionDecisions => 'Decisions';
+
+  @override
+  String get recordingSummarySectionActions => 'Action items';
+
+  @override
+  String get recordingSummaryActionsHint =>
+      'Only the ticked ones are written into the note.';
+
+  @override
+  String get recordingSummaryCut =>
+      'The transcript was long, so only its first part was summarised.';
+
+  @override
+  String get recordingSummaryAdded => 'Summary added above the transcript.';
+
+  @override
+  String get recordingSummaryReplaced => 'Summary replaced.';
+
+  @override
+  String recordingSummaryFailed(String reason) {
+    return 'Couldn\'t summarise this recording. $reason';
+  }
+
+  @override
+  String recordingSummaryApplyFailed(String reason) {
+    return 'Nothing was written. $reason';
+  }
+
+  @override
+  String recordingSummaryDropped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count items were left out for want of a quote from the recording.',
+      one: 'One item was left out for want of a quote from the recording.',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -6986,4 +7164,113 @@ class AppLocalizationsEn extends AppLocalizations {
   String noticeStep(int number, String step) {
     return 'Step $number: $step';
   }
+
+  @override
+  String lockFilesSealed(int count, String size) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pictures and files ($size) are',
+      one: '1 picture or file ($size) is',
+    );
+    return '$_temp0 sealed with it.';
+  }
+
+  @override
+  String lockFilesShared(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count attachments are',
+      one: '1 attachment is',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'them',
+      one: 'it',
+    );
+    return '$_temp0 also used by other notes: locking seals a copy of $_temp1, and the other notes keep theirs.';
+  }
+
+  @override
+  String get lockProgressTitleNote => 'Locking note';
+
+  @override
+  String get lockProgressTitleNotebook => 'Locking notebook';
+
+  @override
+  String get lockProgressTitleRemove => 'Removing the lock';
+
+  @override
+  String lockProgressLine(int count, String size) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Sealing $count attachments, $size',
+      one: 'Sealing 1 attachment, $size',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockProgressUnsealingLine(int count, String size) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Unsealing $count attachments, $size',
+      one: 'Unsealing 1 attachment, $size',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockProgressCount(int done, int total) {
+    return '$done of $total';
+  }
+
+  @override
+  String get lockProgressCancel => 'Cancel';
+
+  @override
+  String get lockProgressStopping => 'Stopping after this file…';
+
+  @override
+  String get lockStoppedMessage =>
+      'Locking stopped. The note isn\'t locked yet: finish locking it or undo it from the bar above the note.';
+
+  @override
+  String get lockStoppedNotebookMessage =>
+      'Locking stopped. The notebook isn\'t locked yet: lock it again to finish.';
+
+  @override
+  String lockInterruptedMessage(int sealed, int files) {
+    return 'Locking this note didn\'t finish: $sealed of its $files pictures and files are sealed, and the note isn\'t locked yet. Finish locking, or undo it to keep everything as it was.';
+  }
+
+  @override
+  String get lockInterruptedFinish => 'Finish locking';
+
+  @override
+  String get lockInterruptedUndo => 'Undo locking';
+
+  @override
+  String get lockInterruptedWorking => 'Working…';
+
+  @override
+  String get lockInterruptedPasswordTitle => 'Enter the lock password';
+
+  @override
+  String get lockInterruptedPasswordMessage =>
+      'The notes are closed. The lock password this note was being locked with finishes or undoes it.';
+
+  @override
+  String get lockInterruptedContinue => 'Continue';
+
+  @override
+  String get lockInterruptedFailed => 'That didn\'t work. Try again.';
+
+  @override
+  String get lockFilesNotice =>
+      'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.';
 }

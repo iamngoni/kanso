@@ -2106,6 +2106,27 @@ class InstalledIconThemeRow {
           iconCount == other.iconCount;
 }
 
+class InterruptedLock {
+  final int files;
+  final int sealed;
+
+  const InterruptedLock({
+    required this.files,
+    required this.sealed,
+  });
+
+  @override
+  int get hashCode => files.hashCode ^ sealed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InterruptedLock &&
+          runtimeType == other.runtimeType &&
+          files == other.files &&
+          sealed == other.sealed;
+}
+
 class InvitationRow {
   final String shareId;
   final String? title;
@@ -2846,6 +2867,30 @@ class LockStatus {
           hasLockPassword == other.hasLockPassword &&
           unlocked == other.unlocked &&
           biometricsOn == other.biometricsOn;
+}
+
+class LockSummary {
+  final int files;
+  final int bytes;
+  final int shared;
+
+  const LockSummary({
+    required this.files,
+    required this.bytes,
+    required this.shared,
+  });
+
+  @override
+  int get hashCode => files.hashCode ^ bytes.hashCode ^ shared.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LockSummary &&
+          runtimeType == other.runtimeType &&
+          files == other.files &&
+          bytes == other.bytes &&
+          shared == other.shared;
 }
 
 class LockedInfo {
@@ -3763,6 +3808,98 @@ class PasskeyRow {
 }
 
 @freezed
+sealed class PdfHighlightChange with _$PdfHighlightChange {
+  const PdfHighlightChange._();
+
+  const factory PdfHighlightChange.comment({
+    required String comment,
+  }) = PdfHighlightChange_Comment;
+  const factory PdfHighlightChange.color({
+    required String color,
+  }) = PdfHighlightChange_Color;
+  const factory PdfHighlightChange.addQuote() = PdfHighlightChange_AddQuote;
+  const factory PdfHighlightChange.delete() = PdfHighlightChange_Delete;
+}
+
+class PdfHighlightRow {
+  final String id;
+  final int page;
+  final String color;
+  final String text;
+  final String? comment;
+  final bool inNote;
+
+  const PdfHighlightRow({
+    required this.id,
+    required this.page,
+    required this.color,
+    required this.text,
+    this.comment,
+    required this.inNote,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      page.hashCode ^
+      color.hashCode ^
+      text.hashCode ^
+      comment.hashCode ^
+      inNote.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PdfHighlightRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          page == other.page &&
+          color == other.color &&
+          text == other.text &&
+          comment == other.comment &&
+          inNote == other.inNote;
+}
+
+class PdfNotes {
+  final String file;
+  final String name;
+  final String url;
+  final bool editable;
+  final String? why;
+  final List<PdfHighlightRow> highlights;
+
+  const PdfNotes({
+    required this.file,
+    required this.name,
+    required this.url,
+    required this.editable,
+    this.why,
+    required this.highlights,
+  });
+
+  @override
+  int get hashCode =>
+      file.hashCode ^
+      name.hashCode ^
+      url.hashCode ^
+      editable.hashCode ^
+      why.hashCode ^
+      highlights.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PdfNotes &&
+          runtimeType == other.runtimeType &&
+          file == other.file &&
+          name == other.name &&
+          url == other.url &&
+          editable == other.editable &&
+          why == other.why &&
+          highlights == other.highlights;
+}
+
+@freezed
 sealed class PersonLookup with _$PersonLookup {
   const PersonLookup._();
 
@@ -3929,6 +4066,10 @@ sealed class PreviewBlock with _$PreviewBlock {
     required PreviewSvg svg,
   }) = PreviewBlock_Sketch;
   const factory PreviewBlock.emptyDrawing() = PreviewBlock_EmptyDrawing;
+  const factory PreviewBlock.pdfNotes({
+    String? url,
+    required String summary,
+  }) = PreviewBlock_PdfNotes;
   const factory PreviewBlock.canvas({
     required String note,
     String? group,
@@ -5046,6 +5187,47 @@ class Saved {
           runtimeType == other.runtimeType &&
           id == other.id &&
           rev == other.rev;
+}
+
+enum SealPhase {
+  preparing,
+  sealing,
+  locking,
+}
+
+class SealProgress {
+  final SealPhase phase;
+  final int done;
+  final int total;
+  final int bytesDone;
+  final int bytesTotal;
+
+  const SealProgress({
+    required this.phase,
+    required this.done,
+    required this.total,
+    required this.bytesDone,
+    required this.bytesTotal,
+  });
+
+  @override
+  int get hashCode =>
+      phase.hashCode ^
+      done.hashCode ^
+      total.hashCode ^
+      bytesDone.hashCode ^
+      bytesTotal.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SealProgress &&
+          runtimeType == other.runtimeType &&
+          phase == other.phase &&
+          done == other.done &&
+          total == other.total &&
+          bytesDone == other.bytesDone &&
+          bytesTotal == other.bytesTotal;
 }
 
 @freezed

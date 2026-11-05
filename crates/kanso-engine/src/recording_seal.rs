@@ -2,53 +2,35 @@
 //!
 //! The note's text is sealed, so adding the audio line means opening it with
 //! the lock key the session holds, and the audio's own bytes are sealed
-//! before they reach SQLite: each part gets a random file key, the part is
-//! sealed under it (`kanso_sync::lock::seal_container`), and the key is
-//! wrapped under the note's lock key and kept in the note's `kansoFiles`
-//! list, exactly as #44 describes. Nothing here writes a plaintext part into
-//! the library or a plaintext line into a locked note.
+//! before they reach SQLite. Both go through #44 step 3's helpers in
+//! [`crate::lock::files`], so a recording is sealed exactly as any other
+//! attachment of a locked note:
 //!
-//! **Minimum, pending #44 step 3.** The app's lock, unlock and rekey flow
-//! (`feat/seal-lock-flow`) will bring a general helper that seals any
-//! attachment of a locked note. This is the one thing recordings need of it:
-//! seal a new part into a locked note that is open. It reads and writes the
-//! same documents (`kansoFileLock`, `kansoFiles`), so the two reconcile by
-//! one calling the other. When step 3 lands:
+//! - each part is sealed by [`files::seal_new_file`] (a random file key,
+//!   the container checked to open before it is written, the key wrapped
+//!   under the note's lock key into the note's `kansoFiles`);
+//! - the note is written by [`files::save_locked`], the locked-note save,
+//!   which also seals whatever else the text shows that isn't sealed yet.
+//!   A note locked before sealing existed (no list) is sealed that way on
+//!   its first recording, so it no longer refuses one.
+//! - A new note in a locked notebook takes a recording when the key opens
+//!   the notebook: it is made sealed, never with plain text.
 //!
-//! - `SealedTarget::attach` calls its seal-an-attachment helper instead of
-//!   sealing here, and `SealedTarget::write`/[`edit_text`] go through its
-//!   locked-note save rather than `Store::lock_note` directly.
-//! - The `NotSealable` refusal in [`open_target`] (no `kansoFiles`, links
-//!   files) narrows to notes never unlocked since: step 3 seals those on
-//!   unlock.
-//! - The app's `locked::key_for_note`/`opened_parts` read file keys from
-//!   step 3's session map (`FileKeys`) instead of unwrapping per call.
-//! - Recording into a new note in a locked notebook can be allowed.
-//!
-//! Rekey needs nothing here: it re-wraps the `kansoFiles` keys this writes.
-//!
-//! A locked note that has no `kansoFiles` list was locked before sealing
-//! existed and may link attachments that are still plain. It takes a
-//! recording only when its text links no attachment at all, so the new list
-//! is the whole truth; otherwise it is refused until step 3 seals what it
-//! links.
+//! Nothing here writes a plaintext part into the library or a plaintext
+//! line into a locked note. Rekey needs nothing here: it re-wraps the
+//! `kansoFiles` keys this writes.
 
 use std::path::Path;
 
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD;
 use kanso_core::DocType;
 use kanso_core::model::{
-    FileLock, FileMeta, KANSO_FILES_FIELD, Note, NoteFile, note_files_from_extra, store_note_files,
+    KANSO_FILES_FIELD, Note, NoteFile, note_files_from_extra, store_note_files,
 };
-use kanso_core::tasks::linked_file_ids;
-use kanso_store::{Attachment, Origin, Put, Store};
-use kanso_sync::lock::{
-    Envelope, FileKey, LockKey, SEGMENT_CONTENT, SEGMENT_METADATA, SealId, SealedFileMetadata,
-    SealedSegment, seal_container, wrap_file_key,
-};
+use kanso_store::{Origin, Put, Store};
+use kanso_sync::lock::{Envelope, LockKey};
 use serde_json::json;
 
+use crate::lock::files::{self, KeyBook};
 use crate::recording_flow::{AUDIO_TYPE, FlowError, part_file_id};
 
 /// The note a recording goes into, read for editing: a plain note, or a
@@ -67,6 +49,8 @@ pub(crate) struct SealedTarget<'k> {
     envelope: Envelope,
     /// The sealed files the note owns, including the ones just attached.
     files: Vec<NoteFile>,
+    /// The file keys of the parts sealed here.
+    keys: KeyBook,
 }
 
 /// Opens note `note_id` for a recording: a plain one as it is; a locked one
@@ -96,10 +80,11 @@ pub(crate) fn open_target<'k>(
         .to_string();
     let files = match note_files_from_extra(&note.extra) {
         Some(files) => files,
-        // No list: only a note that links nothing has nothing unsealed.
+        // A damaged list can't say what the note holds.
         None if note.extra.contains_key(KANSO_FILES_FIELD) => return Err(FlowError::NotSealable),
-        None if linked_file_ids(&body).is_empty() => Vec::new(),
-        None => return Err(FlowError::NotSealable),
+        // No list: locked before sealing existed. The save seals what the
+        // text shows ([`files::save_locked`]).
+        None => Vec::new(),
     };
     Ok(Target::Sealed(Box::new(SealedTarget {
         note,
@@ -107,7 +92,51 @@ pub(crate) fn open_target<'k>(
         key,
         envelope,
         files,
+        keys: KeyBook::default(),
     })))
+}
+
+/// A new note `id` titled `title` in locked notebook `book`, made sealed
+/// under `key` (which must open the notebook) and opened for a recording.
+/// `None` when the notebook isn't locked. Made empty first: a note in a
+/// locked notebook never holds plain text.
+pub(crate) fn new_in_locked_book<'k>(
+    store: &Store,
+    id: &str,
+    title: &str,
+    book: &str,
+    key: Option<&'k LockKey>,
+) -> Result<Option<Target<'k>>, FlowError> {
+    let Some(lock) = crate::lock::Target::of_book(book, store) else {
+        return Ok(None);
+    };
+    let envelope = lock.envelope.map_err(|_| FlowError::Locked)?;
+    let key = key
+        .filter(|key| key.fits(&envelope))
+        .ok_or(FlowError::Locked)?;
+    let note = match store.note(id)? {
+        // Saved before: open what is there.
+        Some(note) if note.is_locked() => return open_target(store, id, Some(key)).map(Some),
+        // Made, and a crash came before it was sealed: it is still empty.
+        Some(note) => note,
+        None => {
+            let made = store.put(
+                DocType::Note,
+                json!({"_id": id, "title": title, "body": "", "bookId": book}),
+                Put::Upsert,
+                Origin::Ui,
+            )?;
+            store.note(&made.id)?.ok_or(FlowError::Missing)?
+        }
+    };
+    Ok(Some(Target::Sealed(Box::new(SealedTarget {
+        envelope: key.seal(&note.id, ""),
+        note,
+        body: String::new(),
+        key,
+        files: Vec::new(),
+        keys: KeyBook::default(),
+    }))))
 }
 
 /// Rewrites the text of note `note_id` as `edit` returns it (`None` leaves
@@ -230,79 +259,40 @@ impl SealedTarget<'_> {
             return Err(FlowError::TooLarge);
         }
         let bytes = std::fs::read(path).map_err(|e| FlowError::Read(e.to_string()))?;
-        let seal = SealId::random();
-        let file_key = FileKey::random();
-        let metadata = SealedFileMetadata {
-            name: format!("{label} part {}.opus", index + 1),
-            content_type: AUDIO_TYPE.to_owned(),
-            public_in: Vec::new(),
-        };
-        let container = seal_container(
-            &id,
-            &seal,
-            &file_key,
-            &[
-                SealedSegment {
-                    kind: SEGMENT_CONTENT,
-                    bytes,
-                },
-                SealedSegment {
-                    kind: SEGMENT_METADATA,
-                    bytes: metadata
-                        .to_canonical_json()
-                        .map_err(|e| FlowError::Read(e.to_string()))?,
-                },
-            ],
-        );
-        let wrapped = wrap_file_key(
+        let entry = files::seal_new_file(
+            store,
+            &self.keys,
             self.key,
             &self.envelope,
             &self.note.id,
             &id,
-            &seal,
-            &file_key,
-        );
-        // The stored name and type are the placeholders; the real ones are
-        // in the container.
-        let mut file = FileMeta {
-            id: id.clone(),
-            rev: store.get(&id)?.map(|doc| doc.rev),
-            name: kanso_core::model::SEALED_FILE_NAME.to_owned(),
-            content_type: kanso_core::model::SEALED_FILE_CONTENT_TYPE.to_owned(),
-            content_length: 0,
-            public_in: Vec::new(),
-            md5digest: None,
-            created_at: kanso_core::now_ms(),
-            extra: Default::default(),
-        };
-        let mut lock = FileLock::sealed(seal.encode());
-        lock.meta = true;
-        FileLock::store(Some(&lock), &mut file.extra);
-        store.put_sealed_file(file, Attachment::new(container))?;
+            bytes,
+            &format!("{label} part {}.opus", index + 1),
+            AUDIO_TYPE,
+        )
+        .map_err(|err| FlowError::Read(err.to_string()))?;
         self.files.retain(|f| f.file != id);
-        self.files.push(NoteFile {
-            file: id.clone(),
-            v: 1,
-            seal: seal.encode(),
-            key: STANDARD.encode(wrapped),
-            extra: Default::default(),
-        });
+        self.files.push(entry);
         Ok(id)
     }
 
-    /// Seals `body` and the list of files into the note and stores it.
+    /// Seals `body` and the list of files into the note and stores it, the
+    /// way the editor saves a locked note ([`files::save_locked`]).
     fn write(self, store: &Store, body: &str) -> Result<(), FlowError> {
         let SealedTarget {
             mut note,
             key,
-            files,
+            envelope,
+            files: listed,
+            keys,
             ..
         } = self;
-        Envelope::store(Some(&key.seal(&note.id, body)), &mut note.extra);
-        store_note_files(Some(&files), &mut note.extra);
-        note.body.clear();
-        let value = serde_json::to_value(&note).map_err(|e| FlowError::Read(e.to_string()))?;
-        store.lock_note(value)?;
+        Envelope::store(Some(&envelope), &mut note.extra);
+        store_note_files(Some(&listed), &mut note.extra);
+        files::save_locked(store, &keys, &mut note, body, key).map_err(|err| match err {
+            files::FilesError::NeedsUnlock { .. } => FlowError::NotSealable,
+            other => FlowError::Read(other.to_string()),
+        })?;
         Ok(())
     }
 }

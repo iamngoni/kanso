@@ -82,6 +82,7 @@ impl OverviewParts {
             rich: Arc::new(Rich {
                 wake,
                 store,
+                files: Default::default(),
                 edits,
                 links: links.clone(),
                 note: Arc::new(Mutex::new(None)),

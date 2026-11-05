@@ -11,6 +11,7 @@
 //! A password is handed over once, used for the open, and dropped. Nothing
 //! here keeps it, and it is not part of any event or of `Debug`.
 
+use crate::attachments::FileKeys;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
@@ -48,6 +49,9 @@ pub enum Event {
     },
     /// One page could not be drawn; the worker is still up.
     RenderFailed { job: Job },
+    /// The characters of a page, for selecting and highlighting (1-based
+    /// page number inside).
+    Text(Box<kanso_pdf::PageText>),
     /// The worker is gone or the document cannot be shown; the words are for
     /// the person reading.
     Failed(String),
@@ -56,6 +60,8 @@ pub enum Event {
 #[derive(Default)]
 struct Inbox {
     jobs: Vec<Job>,
+    /// Pages (0-based) whose characters are wanted, most wanted first.
+    text: Vec<u32>,
     running: Option<Job>,
     password: Option<String>,
     closed: bool,
@@ -82,6 +88,7 @@ impl Session {
     /// Starts the thread for `file_id`. Events come on the channel.
     pub fn start(
         store: Arc<Store>,
+        keys: FileKeys,
         file_id: String,
         paths: Option<WorkerPaths>,
     ) -> (Session, async_channel::Receiver<Event>) {
@@ -104,7 +111,7 @@ impl Session {
         let thread_shared = shared.clone();
         let spawned = std::thread::Builder::new()
             .name("pdf-session".into())
-            .spawn(move || run(&thread_shared, &store, &file_id, paths.as_ref(), &tx));
+            .spawn(move || run(&thread_shared, &store, &keys, &file_id, paths.as_ref(), &tx));
         if spawned.is_err() {
             // Nothing to draw with; the reader will say so on the next call.
             shared.inbox.lock().map(|mut i| i.closed = true).ok();
@@ -117,6 +124,18 @@ impl Session {
         if let Ok(mut inbox) = self.shared.inbox.lock() {
             let running = inbox.running;
             inbox.jobs = jobs.into_iter().filter(|j| Some(*j) != running).collect();
+            self.shared.wake.notify_all();
+        }
+    }
+
+    /// More pages (0-based) whose text the reader wants, most wanted first.
+    pub fn want_text(&self, pages: Vec<u32>) {
+        if let Ok(mut inbox) = self.shared.inbox.lock() {
+            for page in pages {
+                if !inbox.text.contains(&page) {
+                    inbox.text.push(page);
+                }
+            }
             self.shared.wake.notify_all();
         }
     }
@@ -152,6 +171,7 @@ impl Drop for Session {
 fn run(
     shared: &Shared,
     store: &Store,
+    keys: &FileKeys,
     file_id: &str,
     paths: Option<&WorkerPaths>,
     tx: &async_channel::Sender<Event>,
@@ -161,11 +181,10 @@ fn run(
         send(Event::Failed(UNAVAILABLE.to_owned()));
         return;
     };
-    // Only a PDF the library holds in the clear; a sealed one is not returned
-    // at all.
-    let bytes = match store.attachment(file_id) {
-        Ok(Some((content_type, attachment))) if content_type == "application/pdf" => {
-            attachment.data
+    // A sealed PDF opens only with the file key this session holds for it.
+    let bytes = match crate::attachments::open_with(store, file_id, keys) {
+        crate::attachments::Opened::Opened(file) if file.content_type == "application/pdf" => {
+            file.bytes
         }
         _ => {
             send(Event::Failed(NOT_READABLE.to_owned()));
@@ -226,6 +245,30 @@ fn run(
                     drop(inbox);
                     worker.close();
                     return;
+                }
+                // Text is small and quick, and a selection waits on it.
+                if !inbox.text.is_empty() {
+                    let page = inbox.text.remove(0);
+                    drop(inbox);
+                    match worker.text(page) {
+                        Ok(text) => {
+                            if !send(Event::Text(Box::new(text))) {
+                                worker.close();
+                                return;
+                            }
+                        }
+                        Err(error) => {
+                            if worker.failure().is_some() {
+                                send(Event::Failed(error.message()));
+                                return;
+                            }
+                        }
+                    }
+                    let Ok(again) = shared.inbox.lock() else {
+                        return;
+                    };
+                    inbox = again;
+                    continue;
                 }
                 if !inbox.jobs.is_empty() {
                     let job = inbox.jobs.remove(0);

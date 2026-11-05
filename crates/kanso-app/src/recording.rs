@@ -341,10 +341,7 @@ fn begin(plan: RecordPlan, cx: &mut App) {
     // A note that is gone, or locked with no key to seal the audio under,
     // can't take it: say so now, not after an hour of recording.
     let store = cx.global::<AppState>().store.clone();
-    let lock_key = plan
-        .destination
-        .note_id()
-        .and_then(|note| crate::locked::key_for_note(note, cx));
+    let lock_key = crate::locked::key_for_destination(&plan.destination, cx);
     if let Err(err) = check_destination_with(&store, &plan.destination, lock_key.as_deref()) {
         notify(Notification::error(err.to_string()), cx);
         return;
@@ -645,11 +642,7 @@ pub fn finish(finish: Finish, cx: &mut App) {
     // (the notes locked again meanwhile). It lives until the save is done
     // and is wiped with the last `Arc`; without one, the session stays on
     // disk and Recover waits for the unlock.
-    let key = plan
-        .destination
-        .note_id()
-        .and_then(|note| crate::locked::key_for_note(note, cx))
-        .or(lock_key);
+    let key = crate::locked::key_for_destination(&plan.destination, cx).or(lock_key);
     let (tx, rx) = async_channel::bounded(1);
     let thread_id = id.clone();
     let spawned = std::thread::Builder::new()

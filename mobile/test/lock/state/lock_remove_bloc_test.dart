@@ -2,6 +2,8 @@
 // Created 2026-10-27.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,6 +36,9 @@ void main() {
     when(() => session.removeNotebookLock('book:1')).thenAnswer(
       (_) async => const Right<ApplicationError, Unit>(unit),
     );
+    when(
+      () => session.lockProgress(),
+    ).thenAnswer((_) => const Stream<SealProgress>.empty());
   });
 
   LockRemoveBloc build() => LockRemoveBloc(session);

@@ -9,12 +9,15 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_text_field.dart';
 import '../../../injection.dart';
+import '../../../note/views/widgets/attachment_sheet.dart' show byteSize;
 import '../../models/data/lock_form_status.dart';
 import '../../models/data/lock_mode.dart';
 import '../../models/data/lock_target.dart';
 import '../../state/lock_setup/lock_setup_bloc.dart';
 import '../../state/lock_status/lock_status_bloc.dart';
+import '../../utils/seal_progress_rules.dart';
 import 'lock_form_sheet.dart';
+import 'lock_progress_sheet.dart';
 
 /// Locks a note or a notebook the desktop's three ways: "Set a lock
 /// password" the first time (typed twice), the lock password when the notes
@@ -80,10 +83,48 @@ class _LockItemSheetState extends State<LockItemSheet> {
         if (state.status == LockFormStatus.done) {
           context.read<LockStatusBloc>().add(const LockStatusEvent.refreshed());
           Navigator.of(context).pop();
+        } else if (state.status == LockFormStatus.stopped) {
+          // Cancel stopped it: say what is left, then let the sheet go.
+          final messenger = ScaffoldMessenger.maybeOf(context);
+          final words = note
+              ? l10n.lockStoppedMessage
+              : l10n.lockStoppedNotebookMessage;
+          Navigator.of(context).pop();
+          messenger?.showSnackBar(SnackBar(content: Text(words)));
         }
       },
       builder: (context, state) {
         final working = state.status == LockFormStatus.working;
+        final summary = state.summary;
+        final progress = state.progress;
+        // A long lock counts its files on a sheet of its own.
+        if (working &&
+            ((summary != null &&
+                    wantsProgressSheet(
+                      files: summary.files,
+                      bytes: summary.bytes,
+                    )) ||
+                (progress != null && progressWantsSheet(progress)))) {
+          return LockProgressSheet(
+            title: note
+                ? l10n.lockProgressTitleNote
+                : l10n.lockProgressTitleNotebook,
+            files: summary?.files ?? 0,
+            bytes: summary?.bytes ?? 0,
+            progress: progress,
+            cancelling: state.cancelling,
+            onCancel: () => context.read<LockSetupBloc>().add(
+              const LockSetupEvent.cancelled(),
+            ),
+          );
+        }
+        // What the dialog says of the pictures and files it seals.
+        final files = <String>[
+          if (summary != null && summary.files > 0)
+            l10n.lockFilesSealed(summary.files, byteSize(summary.bytes)),
+          if (summary != null && summary.shared > 0)
+            l10n.lockFilesShared(summary.shared),
+        ].join(' ');
         final ready = state.status != LockFormStatus.loading;
         final setting = state.mode == LockMode.setPassword;
         return LockFormSheet(
@@ -94,14 +135,17 @@ class _LockItemSheetState extends State<LockItemSheet> {
             LockMode.confirm =>
               note ? l10n.lockNoteConfirmTitle : l10n.lockNotebookConfirmTitle,
           },
-          message: switch (state.mode) {
-            LockMode.setPassword => l10n.lockSetMessage,
-            LockMode.askPassword => null,
-            LockMode.confirm =>
-              note
-                  ? l10n.lockNoteConfirmMessage
-                  : l10n.lockNotebookConfirmMessage,
-          },
+          message: _joined(<String?>[
+            switch (state.mode) {
+              LockMode.setPassword => l10n.lockSetMessage,
+              LockMode.askPassword => null,
+              LockMode.confirm =>
+                note
+                    ? l10n.lockNoteConfirmMessage
+                    : l10n.lockNotebookConfirmMessage,
+            },
+            files,
+          ]),
           fields: <Widget>[
             if (state.mode != LockMode.confirm)
               KansoTextField(
@@ -143,4 +187,10 @@ class _LockItemSheetState extends State<LockItemSheet> {
       },
     );
   }
+}
+
+/// The non-empty [parts] as one paragraph, or null when there are none.
+String? _joined(List<String?> parts) {
+  final text = parts.whereType<String>().where((part) => part.isNotEmpty);
+  return text.isEmpty ? null : text.join(' ');
 }

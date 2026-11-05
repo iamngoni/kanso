@@ -52,6 +52,13 @@ pub(crate) fn routes() -> Router<AppState> {
     }
     router
         .route("/{id}", get(get_doc).post(post_doc).delete(delete_doc))
+        // A canvas note's document and its batches of edits. The first
+        // segment is named as the alias route's, which it shares.
+        .route("/{kind}/canvas", get(read_canvas).patch(edit_canvas))
+        .route(
+            "/{kind}/{id}/canvas",
+            get(read_canvas_alias).patch(edit_canvas_alias),
+        )
         .route(
             "/{kind}/{id}",
             get(get_alias).post(post_alias).delete(delete_alias),
@@ -181,6 +188,15 @@ async fn list_notes(
         skip: params.count("skip")?.unwrap_or(0),
         sort: params.get("sort").map(api::parse_sort).unwrap_or_default(),
         descending: params.flag("descending", true)?,
+        doctype: match params.get("doctype") {
+            None => None,
+            Some(kind @ ("canvas" | "markdown")) => Some(kind.to_owned()),
+            Some(_) => {
+                return Err(ApiError::bad_request(
+                    "'doctype' must be canvas or markdown.",
+                ));
+            }
+        },
     };
     blocking_as(&state, caller, move |store, key| {
         keyed::list_notes(store, key, &query)
@@ -332,6 +348,63 @@ async fn remove(state: AppState, caller: Caller, id: String) -> JsonResult {
         let vis = key.visibility(store)?;
         keyed::check_write(store, key, &vis, doc_type, Some(&id), &Default::default())?;
         api::delete(store, &id)
+    })
+    .await
+    .map(Json)
+}
+
+async fn read_canvas(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    path: Result<Path<String>, PathRejection>,
+    params: Params,
+) -> JsonResult {
+    canvas_read(state, caller, doc_id(path)?, params).await
+}
+
+async fn read_canvas_alias(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    path: Result<Path<(String, String)>, PathRejection>,
+    params: Params,
+) -> JsonResult {
+    canvas_read(state, caller, alias_id(path)?, params).await
+}
+
+async fn canvas_read(state: AppState, caller: Caller, id: String, params: Params) -> JsonResult {
+    let params = QueryParams::parse(params)?;
+    let group = params.get("group").map(str::to_owned);
+    blocking_as(&state, caller, move |store, key| {
+        keyed::read_canvas(store, key, &id, group.as_deref())
+    })
+    .await
+    .map(Json)
+}
+
+async fn edit_canvas(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    path: Result<Path<String>, PathRejection>,
+    body: Body,
+) -> JsonResult {
+    canvas_edit(state, caller, doc_id(path)?, body).await
+}
+
+async fn edit_canvas_alias(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    path: Result<Path<(String, String)>, PathRejection>,
+    body: Body,
+) -> JsonResult {
+    canvas_edit(state, caller, alias_id(path)?, body).await
+}
+
+async fn canvas_edit(state: AppState, caller: Caller, id: String, body: Body) -> JsonResult {
+    Key::of(&caller)?.require_write()?;
+    let body = json_body(body)?;
+    let host = state.canvases.clone();
+    blocking_as(&state, caller, move |store, key| {
+        keyed::edit_canvas(store, &host, key, &id, &body)
     })
     .await
     .map(Json)
