@@ -3,8 +3,8 @@
 //! A new library is made encrypted: its key is 256 random bits, kept as the
 //! Keychain (or Credential Manager, or Secret Service) item
 //! `library-key:<key_id>`, unlocked with the login session. A library made
-//! before this stays plain until it is encrypted (a later step), and opens
-//! exactly as it always did.
+//! before this is plain, and is encrypted at the first open that can keep a
+//! key (step 10); see `open_library`.
 //!
 //! The item can't be named by the library's ID, which lives inside the
 //! encrypted file. `<db>.keyid` beside the library holds an opaque random
@@ -12,7 +12,10 @@
 
 use std::path::{Path, PathBuf};
 
-use kanso_store::{LibraryFile, LibraryKey, Store, StoreError};
+use kanso_store::{
+    EncryptOptions, Encrypted, LibraryFile, LibraryKey, Store, StoreError, encrypt_library,
+    encryption_unfinished, recover_encryption,
+};
 
 use crate::keychain::{SecretError, SecretStore, library_key_item};
 use crate::library_key_model::{Encryption, KeyItem, OpenedLibrary};
@@ -85,27 +88,44 @@ pub fn save_key(
 
 /// Opens the library at `db`.
 ///
-/// - A plain file opens plain, as before.
 /// - An encrypted file opens with the key the secrets hold for it. No key
 ///   (the item is gone, or this computer never had it) is
 ///   [`StoreError::WrongKey`]: "Kanso can't open this library with this
 ///   computer's key."
+/// - A plain file is encrypted first (issue #243 step 10), and opens
+///   encrypted. This is decided by the file's header at every open, not once:
+///   a library that stayed plain because the secret store couldn't keep a key
+///   is encrypted at the first open that can. When it can't be, the library
+///   opens plain and the answer says why ([`Encryption::PlainNoKeychain`],
+///   [`Encryption::PlainEncryptFailed`]); nothing is lost either way.
 /// - A new library is made encrypted. If the secret store can't keep the key
 ///   (a Linux computer with no Secret Service, say), it is made plain
-///   instead, never half-keyed: the answer says so, and a later step
+///   instead, never half-keyed: the answer says so, and the next open
 ///   encrypts it.
+///
+/// The caller holds the data-folder lock, so no other program has the
+/// library open while it is converted.
 pub fn open_library(
     db: &Path,
     secrets: &dyn SecretStore,
 ) -> Result<OpenedLibrary, OpenLibraryError> {
+    open_library_with(db, secrets, &EncryptOptions::default())
+}
+
+/// [`open_library`], reporting progress and steps of an encryption to `opts`.
+pub fn open_library_with(
+    db: &Path,
+    secrets: &dyn SecretStore,
+    opts: &EncryptOptions,
+) -> Result<OpenedLibrary, OpenLibraryError> {
     if let Some(dir) = db.parent() {
         std::fs::create_dir_all(dir).map_err(StoreError::from)?;
     }
+    if encryption_unfinished(db) {
+        return finish_encryption(db, secrets, opts);
+    }
     match LibraryFile::of(db) {
-        LibraryFile::Plain => Ok(OpenedLibrary {
-            store: Store::open(db)?,
-            encryption: Encryption::Plain,
-        }),
+        LibraryFile::Plain => encrypt_existing(db, secrets, opts),
         LibraryFile::Encrypted => {
             let key = read_key_id(db)
                 .map(|id| load_key(secrets, &id))
@@ -120,6 +140,91 @@ pub fn open_library(
         }
         LibraryFile::New => create_library(db, secrets),
     }
+}
+
+/// A conversion a crash stopped: finish it with the key it used, or, with
+/// no key to be had, put the plain library back and start again.
+fn finish_encryption(
+    db: &Path,
+    secrets: &dyn SecretStore,
+    opts: &EncryptOptions,
+) -> Result<OpenedLibrary, OpenLibraryError> {
+    let known = match read_key_id(db) {
+        Some(id) => load_key(secrets, &id).map_err(OpenLibraryError::Keychain)?,
+        None => None,
+    };
+    if known.is_none() {
+        match recover_encryption(db, None, opts) {
+            Ok(_) | Err(StoreError::WrongKey) => {}
+            Err(err) => return Err(err.into()),
+        }
+        if encryption_unfinished(db) {
+            return Err(StoreError::Converting.into());
+        }
+        return open_library_with(db, secrets, opts);
+    }
+    encrypt_existing(db, secrets, opts)
+}
+
+/// The library's key: the one its name beside it points to, or a new one
+/// kept in `secrets` and read back before anything is encrypted with it.
+fn key_for_encrypting(db: &Path, secrets: &dyn SecretStore) -> Result<LibraryKey, SecretError> {
+    if let Some(id) = read_key_id(db)
+        && let Some(key) = load_key(secrets, &id)?
+    {
+        return Ok(key);
+    }
+    let key = LibraryKey::generate();
+    let key_id = new_key_id();
+    let kept = save_key(secrets, &key_id, &key).and_then(|()| match load_key(secrets, &key_id)? {
+        Some(read) if read == key => Ok(()),
+        _ => Err(SecretError("the key did not read back".into())),
+    });
+    if let Err(err) = kept {
+        let _ = secrets.delete(&library_key_item(&key_id));
+        return Err(err);
+    }
+    // The key is safe before the library is touched, so a crash from here
+    // leaves an unused item, never a library with no key.
+    if let Err(err) = write_key_id(db, &key_id) {
+        let _ = secrets.delete(&library_key_item(&key_id));
+        return Err(SecretError(format!("couldn't write the key's name: {err}")));
+    }
+    Ok(key)
+}
+
+/// Encrypts the plain library at `db`, then opens it. A library that can't
+/// be encrypted now opens plain.
+fn encrypt_existing(
+    db: &Path,
+    secrets: &dyn SecretStore,
+    opts: &EncryptOptions,
+) -> Result<OpenedLibrary, OpenLibraryError> {
+    let unfinished = encryption_unfinished(db);
+    let key = match key_for_encrypting(db, secrets) {
+        Ok(key) => key,
+        Err(err) if unfinished => return Err(OpenLibraryError::Keychain(err)),
+        Err(err) => return plain_after(db, Encryption::PlainNoKeychain(err.0)),
+    };
+    match encrypt_library(db, &key, opts) {
+        Ok(done) => Ok(OpenedLibrary {
+            store: Store::open_with_key(db, Some(&key))?,
+            encryption: if done == Encrypted::Converted {
+                Encryption::Converted
+            } else {
+                Encryption::Encrypted
+            },
+        }),
+        Err(err) => plain_after(db, Encryption::PlainEncryptFailed(err.to_string())),
+    }
+}
+
+/// The library as it is after an encryption that did not happen: plain.
+fn plain_after(db: &Path, why: Encryption) -> Result<OpenedLibrary, OpenLibraryError> {
+    Ok(OpenedLibrary {
+        store: Store::open(db)?,
+        encryption: why,
+    })
 }
 
 fn create_library(db: &Path, secrets: &dyn SecretStore) -> Result<OpenedLibrary, OpenLibraryError> {

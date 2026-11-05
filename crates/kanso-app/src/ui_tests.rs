@@ -4634,6 +4634,64 @@ fn how_to_fix_marks_a_notice_fixed_and_can_be_closed(cx: &mut TestAppContext) {
     assert_eq!(vcx.debug_bounds("notice-steps"), None);
 }
 
+/// The plain-library notice shows while the library could not be encrypted
+/// and says what Kanso found; Dismiss keeps the choice.
+// no-prop-test: drives one window; `prop_the_plain_library_notice_is_for_libraries_that_are_plain`
+// in kanso-core holds the rule.
+#[gpui_kit::test]
+fn the_plain_library_notice_shows_only_while_the_library_is_plain(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    f.draw(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    let mut notice = kanso_core::notices::NOTICES
+        .iter()
+        .find(|notice| notice.id == kanso_core::notices::LIBRARY_PLAIN_ID)
+        .unwrap()
+        .clone();
+    // As if the release had been reached.
+    notice.since = semver::Version::new(0, 9, 0);
+    let list: &'static [kanso_core::notices::Notice] = Box::leak(Box::new([notice]));
+    vcx.update(|_, cx| {
+        cx.set_global(crate::notices::NoticeBoard {
+            list,
+            previous: None,
+        });
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    // Encrypted: nothing to say.
+    assert!(vcx.read(crate::notices::banner).is_none());
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+
+    vcx.update(|_, cx| {
+        cx.set_global(crate::notices::PlainLibrary(
+            "The system keychain wouldn't keep the library's key.".into(),
+        ));
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    let pick = vcx.read(crate::notices::banner).unwrap();
+    assert_eq!(pick.notice.id, kanso_core::notices::LIBRARY_PLAIN_ID);
+    assert!(vcx.debug_bounds("notice-banner").is_some());
+    // The banner has no button besides How to fix and Dismiss.
+    assert_eq!(vcx.debug_bounds("notice-action"), None);
+
+    let bounds = vcx.debug_bounds("notice-how-to-fix").unwrap();
+    vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("notice-detail").is_some());
+    assert!(vcx.debug_bounds("notice-steps").is_some());
+    let bounds = vcx.debug_bounds("notice-sheet-dismiss").unwrap();
+    vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+    assert_eq!(
+        f.saved_config().notices.dismissed,
+        [kanso_core::notices::LIBRARY_PLAIN_ID]
+    );
+}
+
 /// The API keys notice shows only for a library whose config recorded a
 /// login, and Dismiss keeps the choice.
 // no-prop-test: drives one window; `prop_the_api_keys_notice_is_for_libraries_that_had_a_login`

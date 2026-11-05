@@ -20,7 +20,7 @@ pub use crate::notice_model::{
 /// Every notice this version knows about. A change that breaks something
 /// adds one here; it is never reused or removed while a version that shows it
 /// is supported.
-pub const NOTICES: &[Notice] = &[API_KEYS];
+pub const NOTICES: &[Notice] = &[API_KEYS, LIBRARY_PLAIN];
 
 /// The ID of the API keys notice. Never reused.
 pub const API_KEYS_ID: &str = "api-keys-0.10";
@@ -48,6 +48,36 @@ fn had_login(ctx: &NoticeContext) -> bool {
     ctx.had_login
 }
 
+/// The ID of the notice for a library that could not be encrypted. Never
+/// reused.
+pub const LIBRARY_PLAIN_ID: &str = "library-plain-0.10";
+
+/// Kanso encrypts the library on disk (issue #243), but when it can't (the
+/// system's key store refuses the key, or the disk is too small) the library
+/// stays a plain file that any program running as you can read. Nothing is
+/// lost, and Kanso tries again at every launch; this says so, and how to
+/// help it. It shows only while the library is plain. The phones keep stock
+/// SQLite and never show it.
+const LIBRARY_PLAIN: Notice = Notice {
+    id: LIBRARY_PLAIN_ID,
+    since: semver::Version::new(0, 10, 0),
+    title: "Your library isn't encrypted yet",
+    what_changed: "Kanso encrypts your library on this computer, but couldn't this time, so it is still a plain file that any program running as you can read. Your notes are safe and nothing is lost. Kanso tries again each time it opens, and this goes away when it works.",
+    steps: &[
+        "Check that this computer's keychain is unlocked and lets Kanso keep an item. On Linux, run a Secret Service such as GNOME Keyring or KeePassXC.",
+        "On a server with no keychain, sign in with `kanso account sign-in --secrets file`, which keeps the library key in an owner-only file, and set KANSO_SECRETS_KEY_FILE to a key file kept away from the Kanso folder.",
+        "Make sure the disk that holds the Kanso folder has free space about the size of your library.",
+        "Quit Kanso and open it again.",
+    ],
+    action: None,
+    applies: library_plain,
+    platforms: Platforms::Desktop,
+};
+
+fn library_plain(ctx: &NoticeContext) -> bool {
+    ctx.library_plain
+}
+
 impl Platforms {
     /// Whether an app on `platform` shows it.
     pub fn includes(self, platform: Platform) -> bool {
@@ -70,6 +100,7 @@ impl NoticeContext {
             had_login: false,
             signed_in_to_sync: false,
             library_key_saved: false,
+            library_plain: false,
         }
     }
 }
@@ -277,16 +308,18 @@ mod tests {
             any::<bool>(),
             any::<bool>(),
             any::<bool>(),
+            any::<bool>(),
         )
-            .prop_map(
-                |(current, previous, had_login, signed_in, saved)| NoticeContext {
+            .prop_map(|(current, previous, had_login, signed_in, saved, plain)| {
+                NoticeContext {
                     current,
                     previous,
                     had_login,
                     signed_in_to_sync: signed_in,
                     library_key_saved: saved,
-                },
-            )
+                    library_plain: plain,
+                }
+            })
     }
 
     fn platform() -> impl Strategy<Value = Platform> {
@@ -391,6 +424,40 @@ mod tests {
             .expect("the API keys notice ships")
     }
 
+    fn library_plain() -> &'static Notice {
+        NOTICES
+            .iter()
+            .find(|notice| notice.id == LIBRARY_PLAIN_ID)
+            .expect("the plain-library notice ships")
+    }
+
+    #[test]
+    fn the_plain_library_notice_says_why_and_what_to_do() {
+        let notice = library_plain();
+        assert_eq!(notice.platforms, Platforms::Desktop);
+        assert!(notice.what_changed.contains("nothing is lost"));
+        assert!(notice.what_changed.contains("tries again"));
+        assert!(notice.steps.iter().any(|step| step.contains("keychain")));
+        assert!(notice.steps.iter().any(|step| step.contains("free space")));
+        assert!(
+            notice
+                .steps
+                .iter()
+                .any(|step| step.contains("KANSO_SECRETS_KEY_FILE"))
+        );
+    }
+
+    #[test]
+    fn the_plain_library_notice_follows_the_library_not_the_update() {
+        let mut ctx = NoticeContext::new(Version::new(0, 10, 0));
+        assert!(!library_plain().applies_to(&ctx, Platform::Desktop));
+        ctx.library_plain = true;
+        assert!(library_plain().applies_to(&ctx, Platform::Desktop));
+        // Encrypted later, it is gone with no one dismissing it.
+        ctx.library_plain = false;
+        assert!(!library_plain().applies_to(&ctx, Platform::Desktop));
+    }
+
     #[test]
     fn the_api_keys_notice_says_where_to_go_and_how_to_update_each_tool() {
         let notice = api_keys();
@@ -418,6 +485,19 @@ mod tests {
                 && platform == Platform::Desktop
                 && ctx.current >= Version::new(0, 10, 0);
             prop_assert_eq!(api_keys().applies_to(&ctx, platform), expected);
+        }
+
+        /// The plain-library notice is for a library that is plain, on the
+        /// desktop, once the release has it; the phones never show it.
+        #[test]
+        fn prop_the_plain_library_notice_is_for_libraries_that_are_plain(
+            ctx in context(),
+            platform in platform(),
+        ) {
+            let expected = ctx.library_plain
+                && platform == Platform::Desktop
+                && ctx.current >= Version::new(0, 10, 0);
+            prop_assert_eq!(library_plain().applies_to(&ctx, platform), expected);
         }
 
         /// `applies` reads only the context: asking again, or asking a copy,

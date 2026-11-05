@@ -93,6 +93,8 @@ fn context(
         had_login: false,
         signed_in_to_sync,
         library_key_saved: true,
+        // The phones' library stays on stock SQLite; the OS protects it.
+        library_plain: false,
     })
 }
 
