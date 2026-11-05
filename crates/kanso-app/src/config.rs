@@ -27,7 +27,7 @@ pub struct ServerSettings {
         deserialize_with = "is_filled",
         skip_serializing
     )]
-    login_name_seen: bool,
+    pub(crate) login_name_seen: bool,
     /// Likewise for `password`.
     #[serde(
         default,
@@ -35,7 +35,7 @@ pub struct ServerSettings {
         deserialize_with = "is_filled",
         skip_serializing
     )]
-    login_password_seen: bool,
+    pub(crate) login_password_seen: bool,
 }
 
 /// Reads a field only for whether it holds text, dropping the text at once.
@@ -1741,7 +1741,7 @@ mod tests {
         )
         .unwrap();
         assert!(old.migrate());
-        assert_eq!(old.version, 5);
+        assert_eq!(old.version, CONFIG_VERSION);
         assert_eq!(old.ai.backend, AiBackend::Api);
         assert!(old.ai.enabled);
         assert_eq!(old.ai.provider, kanso_ai::Provider::Anthropic);
@@ -1781,7 +1781,7 @@ mod tests {
         assert_eq!(written["appearance"]["iconTheme"], "phosphor");
         assert!(written["appearance"].get("iconPack").is_none());
         let mut current: AppConfig = serde_json::from_str(
-            r#"{"version": 5, "appearance": {"iconTheme": "mine", "iconPack": "old"}}"#,
+            r#"{"version": 6, "appearance": {"iconTheme": "mine", "iconPack": "old"}}"#,
         )
         .unwrap();
         assert!(!current.migrate());
@@ -2025,10 +2025,16 @@ mod tests {
                 prop_assert!(!written.contains(password.as_str()), "{}", written);
             }
             let json: serde_json::Value = serde_json::from_str(&written).unwrap();
-            prop_assert!(json["server"].get("password").is_none());
-            prop_assert!(json["server"].get("username").is_none());
-            prop_assert_eq!(json["hadLogin"].as_bool(), Some(config.had_login));
-            prop_assert_eq!(mode_of(&path), 0o600);
+            // A file already at this version with no login isn't rewritten.
+            let rewritten = version < CONFIG_VERSION || has_text(&user) || has_text(&password);
+            if rewritten {
+                prop_assert!(json["server"].get("password").is_none());
+                prop_assert!(json["server"].get("username").is_none());
+                prop_assert_eq!(json["hadLogin"].as_bool(), Some(config.had_login));
+                prop_assert_eq!(mode_of(&path), 0o600);
+            } else {
+                prop_assert_eq!(mode_of(&path), old_mode);
+            }
         }
 
         /// Migrating twice changes nothing: the second load says nothing
@@ -2043,6 +2049,10 @@ mod tests {
             let dir = tempfile::tempdir().unwrap();
             let path = dir.path().join("config.json");
             std::fs::write(&path, old_config_text(version, &user, &password, None, port)).unwrap();
+            {
+                use std::os::unix::fs::PermissionsExt as _;
+                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+            }
             let first = AppConfig::load_migrated(&path).unwrap();
             let bytes = std::fs::read(&path).unwrap();
             let mut again = AppConfig::load(&path).unwrap();
@@ -2096,12 +2106,12 @@ mod tests {
     fn loading_alone_never_writes_the_file() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
-        let text = old_config_text(5, &Some("me".into()), &Some("secret".into()), None, 1234);
+        let text = old_config_text(5, &Some("me".into()), &Some("pw-xyz".into()), None, 1234);
         std::fs::write(&path, &text).unwrap();
         let config = AppConfig::load(&path).unwrap();
         assert!(config.had_login);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), text);
-        assert!(!format!("{config:?}").contains("secret"));
+        assert!(!format!("{config:?}").contains("pw-xyz"));
     }
 
     #[test]

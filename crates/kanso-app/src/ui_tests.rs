@@ -4585,12 +4585,16 @@ fn how_to_fix_marks_a_notice_fixed_and_can_be_closed(cx: &mut TestAppContext) {
     f.draw(&mut vcx);
     if crate::layout::LIGHTS_IN_BAND {
         let lights_end = crate::layout::TRAFFIC_LIGHTS.0 + 2. * 20. + 14.;
-        let title = vcx.debug_bounds("notice-title").expect("the banner is drawn");
+        let title = vcx
+            .debug_bounds("notice-title")
+            .expect("the banner is drawn");
         assert!(f32::from(title.left()) > lights_end, "{title:?}");
         // Zoomed out, the lights stay their size, and so does their room.
         vcx.update(|_, cx| crate::zoom::set(75, cx));
         f.draw(&mut vcx);
-        let title = vcx.debug_bounds("notice-title").expect("the banner is drawn");
+        let title = vcx
+            .debug_bounds("notice-title")
+            .expect("the banner is drawn");
         assert!(f32::from(title.left()) > lights_end, "{title:?}");
         let banner = vcx.debug_bounds("notice-banner").unwrap();
         assert!(f32::from(banner.size.height) >= 36., "{banner:?}");
