@@ -65,8 +65,8 @@ mod plugins_settings;
 mod plugins_sheets;
 mod record_sheet;
 mod recording_sheet;
-mod rename_speakers;
 mod recording_summary;
+mod rename_speakers;
 mod voice;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead

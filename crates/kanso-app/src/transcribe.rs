@@ -509,9 +509,9 @@ fn run(mut job: Job, cx: &mut App) {
                 *progress.lock().unwrap() = Progress::default();
                 let parts = match &source {
                     Source::Recording { file_ids, .. } => {
-                        read_parts(&store, file_ids, sealed_for_speakers)
+                        read_parts(&store, &keys, file_ids, sealed_for_speakers)
                     }
-                    _ => read_source(&store, &source).map(|one| vec![one]),
+                    _ => read_source(&store, &keys, &source).map(|one| vec![one]),
                 };
                 let spoken = parts.and_then(|parts| {
                     file::diarize_parts(
