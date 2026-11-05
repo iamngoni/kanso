@@ -243,6 +243,11 @@ else
 fi
 plutil -lint "$entitlements" >/dev/null
 
+# The library is encrypted with SQLCipher on CommonCrypto (issue #243), which
+# is part of macOS. A build that picked up a Homebrew OpenSSL would only run
+# on a Mac that has it: refuse to bundle one. Every binary and library.
+scripts/check-macos-crypto.sh "$app"/Contents/MacOS/* "$app"/Contents/Frameworks/*.dylib
+
 # The plugin host, the PDF worker and the PDFium library are signed first,
 # with no entitlements: they need none, and the hardened runtime keeps them
 # from loading code they weren't built with. The worker contains itself with

@@ -177,6 +177,14 @@ pub fn open_how_to_fix(notice: &'static Notice, window: &mut Window, cx: &mut Ap
                     .text_color(colors.text_secondary)
                     .child(notice.what_changed),
             )
+            .children(notices::detail(notice.id, cx).map(|detail| {
+                div()
+                    .debug_selector(|| "notice-detail".into())
+                    .text_size(px(12.5))
+                    .line_height(px(18.))
+                    .text_color(colors.text_muted)
+                    .child(format!("What Kanso found: {detail}"))
+            }))
             .child(
                 v_flex()
                     .debug_selector(|| "notice-steps".into())
