@@ -13,10 +13,13 @@ use kanso_pdf::highlights::{Annotations, Located, Status, locate};
 use kanso_pdf::model::Color;
 use kanso_store::pdf_ink;
 
-use crate::boundary::guard;
+use crate::boundary::{guard, held};
 use crate::errors::KansoError;
 use crate::library::Library;
 use crate::model::{PdfHighlightChange, PdfHighlightRow, PdfInkRow, PdfNotes, Saved};
+use kanso_core::Note;
+use kanso_engine::lock::SealedInk;
+use kanso_sync::lock::Envelope;
 
 fn color_name(color: Color) -> &'static str {
     match color {
@@ -138,9 +141,11 @@ pub(crate) fn change_in(
 /// back there.
 pub(crate) fn clear_ink_in(
     store: &kanso_store::Store,
+    note_id: &str,
     body: &str,
     file: &str,
     page: u32,
+    files: &dyn pdf_ink::InkFiles,
 ) -> Result<Option<String>, KansoError> {
     let invalid = |e: kanso_pdf::PdfError| KansoError::invalid(e.to_string());
     if matches!(locate(body, file), Located::Missing) {
@@ -149,14 +154,15 @@ pub(crate) fn clear_ink_in(
         ));
     }
     let mut annots = Annotations::from_body(body, file, "");
-    pdf_ink::load_ink(store, &mut annots).map_err(KansoError::invalid)?;
+    pdf_ink::load_ink_with(store, &mut annots, files).map_err(KansoError::invalid)?;
     if !annots
         .clear_page_ink(page, kanso_core::now_ms())
         .map_err(invalid)?
     {
         return Ok(None);
     }
-    pdf_ink::publish_ink(store, &mut annots, body).map_err(KansoError::invalid)?;
+    pdf_ink::publish_ink_with(store, &mut annots, note_id, body, files)
+        .map_err(KansoError::invalid)?;
     Ok(annots
         .save_edit(body)
         .map_err(invalid)?
@@ -169,7 +175,8 @@ impl Library {
     /// note is locked and closed.
     pub fn pdf_highlights(&self, note_id: &str) -> Result<Vec<PdfNotes>, KansoError> {
         guard(|| {
-            let (_, body) = self.readable_text(note_id)?.ok_or(KansoError::Locked)?;
+            let (note, body) = self.readable_text(note_id)?.ok_or(KansoError::Locked)?;
+            let files = self.ink_files(&note);
             Ok(files_in(&body)
                 .into_iter()
                 .map(|file| {
@@ -177,7 +184,7 @@ impl Library {
                     let mut annots = Annotations::from_body(&body, &file, "");
                     // Ink that outgrew the note is read from its attachment.
                     // One that has not arrived yet is listed when it does.
-                    let _ = pdf_ink::load_ink(&self.inner.store, &mut annots);
+                    let _ = pdf_ink::load_ink_with(&self.inner.store, &mut annots, &files);
                     notes_of(&annots, &body, &file, &name)
                 })
                 .collect())
@@ -229,7 +236,8 @@ impl Library {
             if rev != base_rev {
                 return Err(KansoError::Conflict { current_rev: rev });
             }
-            match clear_ink_in(&self.inner.store, &body, file, page)? {
+            let files = self.ink_files(&note);
+            match clear_ink_in(&self.inner.store, note_id, &body, file, page, &files)? {
                 Some(next) => self.save(note_id, &rev, next),
                 None => Ok(Saved {
                     id: note_id.to_owned(),
@@ -237,6 +245,21 @@ impl Library {
                 }),
             }
         })
+    }
+
+    /// The lock-aware byte store for `note`'s ink. A locked note uses its
+    /// held lock key for a new sealed attachment; a plain note stays plain.
+    fn ink_files(&self, note: &Note) -> SealedInk {
+        let keys = held(&self.inner.keys).file_keys();
+        if note.is_locked() {
+            if let Some(Ok(envelope)) = Envelope::from_extra(&note.extra)
+                && let Some(key) = held(&self.inner.keys).fitting(&envelope)
+            {
+                return SealedInk::new(keys, note, key);
+            }
+            return SealedInk::reading(keys);
+        }
+        SealedInk::plain(keys)
     }
 
     fn pdf_name(&self, file: &str) -> String {

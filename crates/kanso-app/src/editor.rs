@@ -2899,11 +2899,39 @@ impl NoteEditor {
             return;
         }
         let body = self.body.read(cx).value().to_string();
+        let note_id = self
+            .note
+            .as_ref()
+            .map(|note| note.id.clone())
+            .expect("the note was checked above");
+        let files = match (self.note.as_ref(), self.lock.clone()) {
+            (Some(note), LockView::Open) if note.is_locked() => {
+                match crate::locked::LockKeys::sealing_key(note, cx) {
+                    Some(key) => kanso_engine::lock::SealedInk::new(
+                        crate::attachments::FileKeys::peek(cx).book().clone(),
+                        note,
+                        key,
+                    ),
+                    None => kanso_engine::lock::SealedInk::reading(
+                        crate::attachments::FileKeys::peek(cx).book().clone(),
+                    ),
+                }
+            }
+            _ => kanso_engine::lock::SealedInk::plain(
+                crate::attachments::FileKeys::peek(cx).book().clone(),
+            ),
+        };
         // Pencil ink too big for the note goes to its attachment first.
         let with_ink = |annotations: &kanso_pdf::Annotations| {
             let mut annotations = annotations.clone();
-            kanso_store::pdf_ink::publish_ink(&self.store, &mut annotations, &body)
-                .map(|()| annotations)
+            kanso_store::pdf_ink::publish_ink_with(
+                &self.store,
+                &mut annotations,
+                &note_id,
+                &body,
+                &files,
+            )
+            .map(|()| annotations)
         };
         let edit = match write {
             Write::Save(annotations) => match with_ink(annotations) {

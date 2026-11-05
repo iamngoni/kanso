@@ -216,6 +216,14 @@ impl Library {
                 apply_inline_tags(&self.inner.store, &mut note, None);
             }
             if state == LockView::Open {
+                // A locked note's linked files are sealed with its text, as
+                // the editor's save does; this also lists a newly sealed ink
+                // attachment.
+                if note.is_locked()
+                    && let Some(sealed_body) = self.locks().seal_open_files(&mut note)?
+                {
+                    note.body = sealed_body;
+                }
                 held(&self.inner.keys)
                     .seal(&mut note, Instant::now())
                     .map_err(|_| KansoError::Locked)?;

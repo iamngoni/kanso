@@ -102,6 +102,9 @@ struct View {
 /// The reader for one PDF attachment.
 pub struct PdfReader {
     store: Arc<Store>,
+    /// The session's file keys, shared with the lock session and emptied
+    /// when the notes are locked again.
+    file_keys: crate::attachments::FileKeys,
     /// The attachment's document id (`file:…`).
     file_id: String,
     name: String,
@@ -236,6 +239,7 @@ impl PdfReader {
             .is_some_and(|value| value == "1");
         let mut reader = PdfReader {
             store,
+            file_keys: crate::attachments::FileKeys::of(cx),
             file_id,
             name,
             state: ReaderState::Loading,
@@ -308,7 +312,7 @@ impl PdfReader {
         self.notes.asked.clear();
         let (session, events) = Session::start(
             self.store.clone(),
-            crate::attachments::FileKeys::of(cx),
+            self.file_keys.clone(),
             self.file_id.clone(),
             self.paths.clone(),
         );

@@ -2,7 +2,8 @@
 //! strokes in whenever the note is read again. The attachment itself, and
 //! writing it, are `kanso_store::pdf_ink`, which the phone uses too.
 
-use kanso_store::pdf_ink::{Held, read_ink_file};
+use kanso_engine::lock::SealedInk;
+use kanso_store::pdf_ink::{Held, INK_SEALED, read_ink_with};
 
 use super::*;
 
@@ -22,13 +23,15 @@ impl PdfReader {
         if !annots.ink_pending && rev_now.is_some() && rev_now == self.ink_rev {
             return;
         }
-        match read_ink_file(&self.store, &id) {
+        let files = SealedInk::reading(self.file_keys.book().clone());
+        match read_ink_with(&self.store, &id, &files) {
             Held::Found(file, rev) => {
                 if annots.absorb_ink(&file).is_ok() {
                     self.ink_rev = rev;
                 }
             }
             Held::Missing => {}
+            Held::Sealed => self.notes.notice = Some(INK_SEALED.to_owned()),
             Held::Unreadable(why) => {
                 self.notes.notice = Some(format!("The pencil marks could not be read: {why}"));
             }

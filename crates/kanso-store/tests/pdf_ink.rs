@@ -11,6 +11,7 @@ use kanso_store::{Origin, Put, Store};
 use serde_json::json;
 
 const FILE: &str = "file:report";
+const NOTE: &str = "note:q3";
 
 fn store() -> (tempfile::TempDir, Store) {
     let dir = tempfile::tempdir().unwrap();
@@ -80,7 +81,7 @@ fn small_ink_stays_in_the_note_and_makes_no_attachment() {
         extra: Default::default(),
     })
     .unwrap();
-    publish_ink(&store, &mut a, "").unwrap();
+    publish_ink(&store, &mut a, NOTE, "").unwrap();
     assert!(a.ink_file_id().is_none());
     assert!(a.save_edit("N").unwrap().unwrap().apply("N").len() < INLINE_INK_BYTES);
 }
@@ -90,7 +91,7 @@ fn big_ink_goes_to_an_attachment_the_note_owns_and_reads_back() {
     let (_dir, store) = store();
     let mut a = Annotations::new(FILE, "m");
     a.set_page_ink(heavy(3, "a")).unwrap();
-    publish_ink(&store, &mut a, "").unwrap();
+    publish_ink(&store, &mut a, NOTE, "").unwrap();
     let id = a.ink_file_id().expect("the ink has an attachment");
     // It is a file document of the ink type.
     let meta = store.file_meta(&id).unwrap().unwrap();
@@ -98,7 +99,7 @@ fn big_ink_goes_to_an_attachment_the_note_owns_and_reads_back() {
     // The note's body holds only the link, and owns the attachment through it.
     let body = a.save_edit("Notes").unwrap().unwrap().apply("Notes");
     assert!(body.len() < 2_000);
-    put_note(&store, "note:q3", &body);
+    put_note(&store, NOTE, &body);
     assert_eq!(store.files_of_note("note:q3").unwrap(), vec![id.clone()]);
     // Another reader of the note gets the strokes from the attachment.
     let mut b = Annotations::from_body(&body, FILE, "m");
@@ -113,14 +114,14 @@ fn a_second_save_rewrites_the_same_attachment() {
     let (_dir, store) = store();
     let mut a = Annotations::new(FILE, "m");
     a.set_page_ink(heavy(1, "a")).unwrap();
-    publish_ink(&store, &mut a, "").unwrap();
+    publish_ink(&store, &mut a, NOTE, "").unwrap();
     let id = a.ink_file_id().unwrap();
     let body = a.save_edit("N").unwrap().unwrap().apply("N");
     a.set_page_ink(heavy(2, "b")).unwrap();
     // A save that has not yet seen the link takes it from the body.
     let mut fresh = a.clone();
     fresh.block.ink_file = None;
-    publish_ink(&store, &mut fresh, &body).unwrap();
+    publish_ink(&store, &mut fresh, NOTE, &body).unwrap();
     assert_eq!(fresh.ink_file_id().as_deref(), Some(id.as_str()));
     match read_ink_file(&store, &id) {
         Held::Found(file, _) => assert_eq!(file.pages.len(), 2),
@@ -133,7 +134,7 @@ fn another_devices_strokes_are_kept_when_this_one_saves() {
     let (_dir, store) = store();
     let mut theirs = Annotations::new(FILE, "m");
     theirs.set_page_ink(heavy(1, "t")).unwrap();
-    publish_ink(&store, &mut theirs, "").unwrap();
+    publish_ink(&store, &mut theirs, NOTE, "").unwrap();
     let body = theirs.save_edit("N").unwrap().unwrap().apply("N");
     // This device read the note before the attachment had arrived, drew on
     // another page, and saves.
@@ -141,7 +142,7 @@ fn another_devices_strokes_are_kept_when_this_one_saves() {
     assert!(mine.ink_pending);
     assert!(load_ink(&store, &mut mine).unwrap());
     mine.set_page_ink(heavy(2, "m")).unwrap();
-    publish_ink(&store, &mut mine, &body).unwrap();
+    publish_ink(&store, &mut mine, NOTE, &body).unwrap();
     match read_ink_file(&store, &mine.ink_file_id().unwrap()) {
         Held::Found(file, _) => {
             let pages: Vec<u32> = file.pages.iter().map(|p| p.page).collect();
@@ -166,7 +167,7 @@ fn ink_whose_attachment_has_not_arrived_is_not_written_over() {
     assert!(mine.set_page_ink(heavy(2, "m")).is_err());
     assert!(!load_ink(&store, &mut mine).unwrap());
     // And nothing is saved over what is not here yet.
-    assert!(publish_ink(&store, &mut mine, &body).is_err());
+    assert!(publish_ink(&store, &mut mine, NOTE, &body).is_err());
 }
 
 #[test]
@@ -174,7 +175,7 @@ fn a_damaged_attachment_is_reported_and_left_alone() {
     let (_dir, store) = store();
     let mut a = Annotations::new(FILE, "m");
     a.set_page_ink(heavy(1, "a")).unwrap();
-    publish_ink(&store, &mut a, "").unwrap();
+    publish_ink(&store, &mut a, NOTE, "").unwrap();
     let id = a.ink_file_id().unwrap();
     let meta = store.file_meta(&id).unwrap().unwrap();
     store
@@ -190,5 +191,5 @@ fn a_damaged_attachment_is_reported_and_left_alone() {
         )
         .unwrap();
     assert!(matches!(read_ink_file(&store, &id), Held::Unreadable(_)));
-    assert!(publish_ink(&store, &mut a, "").is_err());
+    assert!(publish_ink(&store, &mut a, NOTE, "").is_err());
 }
