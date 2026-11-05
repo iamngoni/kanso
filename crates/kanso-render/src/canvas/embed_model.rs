@@ -47,6 +47,9 @@ pub enum EmbedNote {
     Locked,
     /// The note isn't a canvas.
     NotCanvas,
+    /// A note outside what is being shown: a published notebook's page
+    /// embeds a canvas from another notebook. Nothing of it is read.
+    Elsewhere,
     /// A canvas note: its title and its body (the fenced JSON).
     Open { title: String, body: Arc<str> },
 }
@@ -66,6 +69,9 @@ pub enum Shown {
     Missing,
     /// The note is not a canvas.
     NotCanvas,
+    /// The canvas is outside what is published (another notebook than the
+    /// published one): nothing of it is read or drawn.
+    Elsewhere,
     /// The canvas can't be drawn; the reason.
     Invalid(String),
 }

@@ -2110,7 +2110,9 @@ mod preview_blocks {
                                 svg: svg.into(),
                             },
                             Shown::Locked => PreviewCanvasShown::Locked,
-                            Shown::Missing => PreviewCanvasShown::Missing,
+                            // Only a published notebook's pages leave a
+                            // canvas out as elsewhere; never the phone's.
+                            Shown::Missing | Shown::Elsewhere => PreviewCanvasShown::Missing,
                             Shown::NotCanvas => PreviewCanvasShown::NotCanvas,
                             Shown::Invalid(message) => PreviewCanvasShown::Invalid { message },
                         },

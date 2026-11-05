@@ -134,6 +134,7 @@ pub fn show(embed: &Embed, notes: Notes<'_>, palette: &Palette) -> Shown {
         None => Shown::Missing,
         Some(EmbedNote::Locked) => Shown::Locked,
         Some(EmbedNote::NotCanvas) => Shown::NotCanvas,
+        Some(EmbedNote::Elsewhere) => Shown::Elsewhere,
         Some(EmbedNote::Open { title, body }) => {
             let spec = Spec {
                 title,
@@ -157,6 +158,7 @@ pub fn placeholder_text(shown: &Shown) -> Option<&'static str> {
         Shown::Locked => Some("Locked canvas"),
         Shown::Missing => Some("Canvas not found"),
         Shown::NotCanvas => Some("This note isn't a canvas"),
+        Shown::Elsewhere => Some("Canvas not published"),
         Shown::Invalid(_) => Some("Couldn't draw this canvas"),
     }
 }

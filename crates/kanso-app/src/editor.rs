@@ -2151,6 +2151,9 @@ impl NoteEditor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // A canvas this note embeds may have changed, or been locked.
+        self.preview
+            .update(cx, |preview, cx| preview.canvas_changed(&change.id, cx));
         let Some(note) = &self.note else {
             return;
         };

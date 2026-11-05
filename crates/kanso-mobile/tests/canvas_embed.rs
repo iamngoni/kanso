@@ -61,3 +61,29 @@ fn a_canvas_embed_draws_and_a_locked_one_never_does() {
     let page = renderer.preview_html(&host, palette()).unwrap();
     assert!(!page.contains("Launch plan"));
 }
+
+/// The phone opens an embedded canvas with the link the widget makes from
+/// the block's `note:` ID (`canvasLink` in preview_figure.dart): the bare
+/// ID after `inkdrop://note/`, which names the canvas. With `note:` left
+/// in, the link names no note and a tap does nothing.
+#[test]
+fn the_embed_tap_link_opens_the_canvas() {
+    use kanso_mobile::PreviewLink;
+    let phone = lone_phone();
+    let library = &phone.library;
+    let canvas = library
+        .create_canvas(None, None, "Roadmap".to_owned())
+        .unwrap()
+        .id;
+    let host = note(library, "Host", &format!("```canvas\n{canvas}\n```\n"));
+    let renderer = library.renderer();
+    let bare = canvas.strip_prefix("note:").unwrap();
+    let opened = renderer
+        .link_target(&host, &format!("inkdrop://note/{bare}"))
+        .unwrap();
+    assert!(matches!(opened, PreviewLink::Note { ref id, .. } if *id == canvas));
+    let doubled = renderer
+        .link_target(&host, &format!("inkdrop://note/{canvas}"))
+        .unwrap();
+    assert_eq!(doubled, PreviewLink::Nothing);
+}

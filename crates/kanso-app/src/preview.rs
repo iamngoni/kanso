@@ -262,6 +262,14 @@ impl Preview {
         }
     }
 
+    /// Note or notebook `id` changed: a canvas this preview embeds may have
+    /// been locked, trashed or redrawn, so it is read again and drawn anew.
+    pub fn canvas_changed(&mut self, id: &str, cx: &mut Context<Self>) {
+        if crate::preview_canvas::forget(id, &self.shown) {
+            self.drawings_ready(cx);
+        }
+    }
+
     /// Notes changed: query views show their notes as they are now. A note
     /// without a query has nothing to redraw.
     pub fn queries_changed(&mut self, cx: &mut Context<Self>) {

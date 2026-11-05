@@ -60,7 +60,9 @@ pub fn plan(store: &Store, book_id: &str) -> Result<SitePlan, StoreError> {
     };
     let mut slugs: HashSet<String> = HashSet::new();
     let mut files: HashSet<String> = HashSet::new();
-    for (book, group) in notebooks_under(book_id, &books) {
+    let notebooks = notebooks_under(book_id, &books);
+    let published: HashSet<String> = notebooks.iter().map(|(book, _)| book.clone()).collect();
+    for (book, group) in notebooks {
         let params = SearchParams {
             query: Query {
                 clauses: vec![Clause::field(Field::BookId, &book)],
@@ -91,7 +93,7 @@ pub fn plan(store: &Store, book_id: &str) -> Result<SitePlan, StoreError> {
             }
             for embed in kanso_core::canvas::embed::find(&note.body) {
                 if !plan.canvases.contains_key(&embed.note)
-                    && let Some(found) = crate::canvas_embed::embed_note(store, &embed.note)
+                    && let Some(found) = site_canvas(store, &embed.note, &published)?
                 {
                     plan.canvases.insert(embed.note, found);
                 }
@@ -121,6 +123,30 @@ pub fn plan(store: &Store, book_id: &str) -> Result<SitePlan, StoreError> {
         }
     }
     Ok(plan)
+}
+
+/// What a published page shows for an embed of canvas `id`. A site holds
+/// only its own notebooks' notes (a link out to another note is plain
+/// text), so a canvas in another notebook is [`EmbedNote::Elsewhere`] and
+/// never read, whatever it is; one in the site is read as anywhere else (a
+/// locked one is a placeholder). `None` for no such note.
+fn site_canvas(
+    store: &Store,
+    id: &str,
+    published: &HashSet<String>,
+) -> Result<Option<kanso_render::canvas::embed::EmbedNote>, StoreError> {
+    let Some(book) = store.get(id)?.and_then(|doc| {
+        doc.fields
+            .get("bookId")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned)
+    }) else {
+        return Ok(None);
+    };
+    if !published.contains(&book) {
+        return Ok(Some(kanso_render::canvas::embed::EmbedNote::Elsewhere));
+    }
+    Ok(crate::canvas_embed::embed_note(store, id))
 }
 
 /// An attachment's type and bytes by ID, when the store has it.
@@ -375,6 +401,7 @@ mod tests {
     use kanso_core::DocType;
     use kanso_core::links::{FILE_LINK_PREFIX as FILE, NOTE_LINK_PREFIX as NOTE};
     use kanso_render::Palette;
+    use kanso_render::canvas::embed::EmbedNote;
     use kanso_store::{Origin, Put, Store};
     use kanso_sync::share::ShareError;
     use kanso_sync::share::{KansoPublish, ShareKey, new_share_id, open_share, seal_share};
@@ -528,6 +555,57 @@ mod tests {
             super::plan(&store, "book:work").unwrap().fingerprint(),
             before
         );
+    }
+
+    /// A published page draws a canvas from its own notebooks, and leaves a
+    /// canvas from any other notebook out unread, as it leaves a link to a
+    /// note it doesn't hold as text: publishing a notebook never publishes
+    /// another notebook's canvas.
+    #[test]
+    fn a_site_draws_only_its_own_canvases() {
+        let (_dir, store) = store();
+        let canvas = |id: &str, words: &str, book: &str| {
+            store
+                .put(
+                    DocType::Note,
+                    json!({"_id": id, "title": words, "doctype": "canvas", "bookId": book,
+                        "body": format!("```canvas\n{{\"nodes\":[{{\"id\":\"t\",\"type\":\"text\",\"text\":\"{words}\",\"x\":0,\"y\":0,\"width\":220,\"height\":80}}],\"edges\":[]}}\n```")}),
+                    Put::Upsert,
+                    Origin::Ui,
+                )
+                .unwrap();
+        };
+        canvas("note:mine", "Roadmap words", "book:old");
+        canvas("note:theirs", "Private plans", "book:home");
+        note(
+            &store,
+            "note:e",
+            "Embeds",
+            "```canvas\nnote:mine\n```\n\n```canvas\nnote:theirs\n```\n\n```canvas\nnote:gone\n```\n",
+            "book:work",
+        );
+        let plan = plan(&store, "book:work").unwrap();
+        assert!(matches!(
+            plan.canvases.get("note:mine"),
+            Some(EmbedNote::Open { .. })
+        ));
+        assert_eq!(
+            plan.canvases.get("note:theirs"),
+            Some(&EmbedNote::Elsewhere)
+        );
+        assert_eq!(plan.canvases.get("note:gone"), None);
+        let bundle = build(
+            &plan,
+            &attachments(&store),
+            &Palette::LIGHT,
+            &PageStyle::default(),
+        )
+        .unwrap();
+        let page = &bundle.pages["embeds"].html;
+        assert!(page.contains("Roadmap words"));
+        assert!(page.contains("Canvas not published"));
+        let all = String::from_utf8(bundle.to_bytes()).unwrap();
+        assert!(!all.contains("Private plans"));
     }
 
     /// An attachment that isn't an image (from an import) is offered on

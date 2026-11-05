@@ -75,6 +75,11 @@ class PreviewEmptyDrawing extends StatelessWidget {
   }
 }
 
+/// The in-app link that opens canvas note [note] (`note:<id>`): note links
+/// carry the bare ID, as `inkdrop://note/<id>`.
+String canvasLink(String note) =>
+    'inkdrop://note/${note.startsWith('note:') ? note.substring(5) : note}';
+
 /// A canvas a note embeds: its picture at its size, made smaller to fit the
 /// note's width, with the notice the embed carries under it; tapping it
 /// opens the canvas. A locked, missing or undrawable canvas is a quiet
@@ -128,13 +133,22 @@ class PreviewCanvas extends StatelessWidget {
         l10n.previewCanvasInvalid,
       ),
     };
+    // Only a canvas that is there opens: a missing, foreign or broken one
+    // is just its words, for a screen reader too.
+    final opens = switch (shown) {
+      PreviewCanvasShown_Drawing() || PreviewCanvasShown_Locked() => true,
+      _ => false,
+    };
+    if (!opens) {
+      return body;
+    }
     return Semantics(
       button: true,
       label: l10n.previewCanvasOpen,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         // A locked canvas opens like any locked note: it asks for the lock.
-        onTap: () => scope.onLink('inkdrop://note/$note'),
+        onTap: () => scope.onLink(canvasLink(note)),
         child: body,
       ),
     );
@@ -147,6 +161,7 @@ class PreviewCanvas extends StatelessWidget {
       child: Container(
         constraints: const BoxConstraints(maxWidth: 380),
         height: 96,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: style.surface,
@@ -160,9 +175,14 @@ class PreviewCanvas extends StatelessWidget {
               KansoIcon(KansoIcons.lock, size: style.size, color: style.muted),
               const SizedBox(width: 6),
             ],
-            Text(
-              words,
-              style: style.sized(0.8667).copyWith(color: style.muted),
+            Flexible(
+              child: Text(
+                words,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: style.sized(0.8667).copyWith(color: style.muted),
+              ),
             ),
           ],
         ),
