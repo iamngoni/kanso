@@ -171,6 +171,8 @@ fn probe(file: &Path, addr: &str, library: &Path) {
                 .is_ok()
         )
     );
+    println!("list_processes={}", word(lists_processes()));
+    println!("inherited_fds={}", word(has_inherited_fds()));
     println!(
         "read_library={}",
         word(
@@ -180,6 +182,42 @@ fn probe(file: &Path, addr: &str, library: &Path) {
         )
     );
     io::stdout().flush().ok();
+}
+
+/// Whether the other processes on the system can be listed: the process
+/// table on macOS (`kern.proc.all`), `/proc` on Linux.
+#[cfg(target_os = "macos")]
+fn lists_processes() -> bool {
+    // SAFETY: a size-only sysctl query.
+    unsafe {
+        let mut mib = [libc::CTL_KERN, libc::KERN_PROC, libc::KERN_PROC_ALL, 0];
+        let mut len = 0usize;
+        libc::sysctl(
+            mib.as_mut_ptr(),
+            3,
+            std::ptr::null_mut(),
+            &mut len,
+            std::ptr::null_mut(),
+            0,
+        ) == 0
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn lists_processes() -> bool {
+    std::fs::read_dir("/proc").is_ok()
+}
+
+/// Whether a descriptor beyond stdin, stdout and stderr is open.
+#[cfg(unix)]
+fn has_inherited_fds() -> bool {
+    // SAFETY: fcntl on a number that may not be open just fails.
+    (3..1024).any(|fd| unsafe { libc::fcntl(fd, libc::F_GETFD) } != -1)
+}
+
+#[cfg(not(unix))]
+fn has_inherited_fds() -> bool {
+    false
 }
 
 fn failure(kind: ErrorKind, message: impl Into<String>) -> (Response, Vec<u8>) {

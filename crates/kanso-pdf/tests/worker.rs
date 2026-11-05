@@ -183,6 +183,30 @@ fn a_worker_that_dies_on_its_own_is_the_same_error() {
 }
 
 #[cfg(unix)]
+/// A square page at the long-edge cap is 64 MB of pixels, more than a PDF
+/// may be: the app still takes it, rather than calling the worker hostile.
+#[test]
+fn a_page_at_the_full_pixel_cap_arrives() {
+    // The same length, so the cross-reference table stays right.
+    let mut square = pdf(1);
+    let at = square
+        .windows(7)
+        .position(|w| w == b"612 792")
+        .expect("the page box");
+    square[at..at + 7].copy_from_slice(b"600 600");
+    let mut worker = Worker::start(&paths()).unwrap();
+    worker.open(&square, None).unwrap();
+    let page = worker
+        .render(0, u32::MAX)
+        .expect("a full-size page renders");
+    assert_eq!(
+        (page.width, page.height),
+        (MAX_LONG_EDGE_PX, MAX_LONG_EDGE_PX)
+    );
+    assert_eq!(page.bgra.len(), MAX_PAGE_BYTES);
+    assert!(worker.failure().is_none());
+}
+
 fn worker_pid(worker: &Worker) -> u32 {
     worker.pid().expect("a running worker has a process id")
 }
@@ -279,8 +303,31 @@ fn the_contained_worker_cannot_read_the_home_folder_or_open_a_socket() {
     assert!(std::net::TcpStream::connect(&addr).is_ok());
     listener.set_nonblocking(true).unwrap();
 
+    // A descriptor the app left inheritable, open on the secret: the
+    // sandbox would not stop reads through it, so the worker closes it.
+    let leaked = std::fs::File::open(&secret).unwrap();
+    {
+        use std::os::fd::AsRawFd;
+        // SAFETY: clears close-on-exec on a descriptor this test owns.
+        assert_eq!(
+            unsafe { libc::fcntl(leaked.as_raw_fd(), libc::F_SETFD, 0) },
+            0
+        );
+    }
+
     let (status, report) = probe(&secret, &addr, &[]);
+    drop(leaked);
     assert!(status.success(), "{report}");
+    assert_eq!(
+        reached(&report, "inherited_fds"),
+        "denied",
+        "kept the app's files"
+    );
+    assert_eq!(
+        reached(&report, "list_processes"),
+        "denied",
+        "listed the other programs running"
+    );
     assert_eq!(reached(&report, "contained"), "yes");
     assert_eq!(reached(&report, "read_file"), "denied", "read a home file");
     assert_eq!(reached(&report, "list_dir"), "denied", "listed the home");

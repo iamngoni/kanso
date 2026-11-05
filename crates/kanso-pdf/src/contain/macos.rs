@@ -6,7 +6,9 @@
 //! and unlike a `sandbox-exec` wrapper it is applied by the worker, so a
 //! worker that is started some other way still contains itself or refuses.
 //! The profile is deny-by-default: reads under the allowed folders and the
-//! system's fonts and frameworks, nothing else, no network, no processes.
+//! system's fonts and frameworks, named sysctls, nothing else, no network,
+//! no processes. Descriptors open before it is applied are not checked by
+//! it, so the worker closes every inherited one first (`contain`).
 
 use std::ffi::{CStr, CString, c_char, c_int};
 use std::path::Path;
@@ -30,6 +32,21 @@ const SYSTEM_READS: &[&str] = &[
     "/private/var/db/dyld",
 ];
 
+/// Sysctls the C library, the allocator and PDFium read: the processor and
+/// the OS version. Never `kern.proc*`, `kern.procargs*` or the host name.
+const SYSCTL_PREFIXES: &[&str] = &["hw.", "kern.os"];
+const SYSCTL_NAMES: &[&str] = &[
+    "kern.version",
+    "kern.argmax",
+    "kern.maxfilesperproc",
+    "kern.usrstack64",
+    "kern.secure_kernel",
+    "kern.hv_vmm_present",
+    "sysctl.proc_cputype",
+    "sysctl.proc_native",
+    "vm.footprint_suspend",
+];
+
 /// The profile text for these allowed folders. Pure.
 pub(super) fn profile(allow: &Allow) -> Result<String, ContainError> {
     let mut text = String::from("(version 1)\n(deny default)\n");
@@ -48,7 +65,17 @@ pub(super) fn profile(allow: &Allow) -> Result<String, ContainError> {
     );
     text.push_str("(allow file-read* file-write* (literal \"/dev/null\"))\n");
     text.push_str("(allow file-read* (literal \"/dev/urandom\") (literal \"/dev/random\"))\n");
-    text.push_str("(allow sysctl-read)\n");
+    // Named system facts only. A blanket `sysctl-read` would hand over the
+    // process table and, through `kern.procargs2`, the arguments and
+    // environment of every program the user runs, the app included.
+    text.push_str("(allow sysctl-read\n");
+    for name in SYSCTL_PREFIXES {
+        text.push_str(&format!("    (sysctl-name-prefix \"{name}\")\n"));
+    }
+    for name in SYSCTL_NAMES {
+        text.push_str(&format!("    (sysctl-name \"{name}\")\n"));
+    }
+    text.push_str(")\n");
     text.push_str("(allow signal (target self))\n");
     text.push_str("(allow process-info-pidinfo (target self))\n");
     text.push_str("(allow mach-lookup (global-name \"com.apple.system.notification_center\"))\n");
@@ -151,5 +178,9 @@ mod tests {
         assert!(text.contains("/Applications/Kanso.app/Contents/Frameworks"));
         assert!(!text.contains("network"));
         assert!(!text.contains("/Users"));
+        // Sysctls by name only: no process table, no host name.
+        assert!(!text.contains("(allow sysctl-read)"));
+        assert!(!text.contains("kern.proc"));
+        assert!(!text.contains("kern.hostname"));
     }
 }

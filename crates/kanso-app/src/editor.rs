@@ -1186,6 +1186,11 @@ impl NoteEditor {
         self.lock = note
             .as_mut()
             .map_or(LockView::Plain, |note| crate::locked::reveal(note, cx));
+        // Nor does it stay open on a note that is locked now (its notebook
+        // was locked, or the keys went): the pixels would be in the clear.
+        if self.lock != LockView::Plain {
+            self.pdf = None;
+        }
         // A suggestion belongs to the note it was asked for, in the clear.
         if self.lock != LockView::Plain
             || self.inline.as_ref().is_some_and(|suggestion| {
@@ -1375,6 +1380,9 @@ impl NoteEditor {
                 self.note = Some(note);
                 self.lock = LockView::Open;
                 self.inline = None;
+                // A locked note's PDF doesn't open (issue #43, step 12), so
+                // one already open closes with the lock.
+                self.pdf = None;
                 crate::metrics::record(cx, crate::metrics::Feature::Lock);
                 cx.notify();
             }
@@ -2063,6 +2071,7 @@ impl NoteEditor {
                     self.from_peer = false;
                     if sealed_now {
                         self.lock = LockView::Open;
+                        self.pdf = None;
                     }
                     // The write was based on the current version, so there is
                     // nothing left to choose between.
@@ -7065,7 +7074,14 @@ mod writing_tests {
                 kanso_sync::KdfParams::TEST,
             )
             .unwrap();
+            // Open on the plain note, then lock it: the reader goes too.
+            editor.open_file_link(&url, window, cx);
+            assert!(editor.pdf.is_some());
             editor.lock_with(&key, cx);
+            assert!(
+                editor.pdf.is_none(),
+                "the reader stayed open on a locked note"
+            );
             editor.open_file_link(&url, window, cx);
             assert!(editor.pdf.is_none(), "a locked note's PDF opened");
         });

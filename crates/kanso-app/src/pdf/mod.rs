@@ -111,8 +111,21 @@ impl PdfReader {
             focus: cx.focus_handle(),
             task: None,
         };
+        // The page's texture leaves the window's atlas with the reader: it
+        // is the document in the clear, and up to 64 MB.
+        cx.on_release(|reader: &mut PdfReader, cx| reader.forget_image(cx))
+            .detach();
         reader.show_page(page.max(1) - 1, cx);
         reader
+    }
+
+    /// Lets go of the page on show, and of its texture in every window.
+    fn forget_image(&mut self, cx: &mut App) {
+        if let Some(image) = self.image.take() {
+            // Deferred: the window this runs in may be mid-update, and out of
+            // the app's reach until it ends.
+            cx.defer(move |cx| cx.drop_image(image, None));
+        }
     }
 
     pub fn focus_handle(&self) -> &FocusHandle {
@@ -136,7 +149,7 @@ impl PdfReader {
         let prior = self.worker.take();
         if prior.is_none() {
             self.state = ReaderState::Loading;
-            self.image = None;
+            self.forget_image(cx);
         }
         let (store, id, paths, width) = (
             self.store.clone(),
@@ -162,6 +175,7 @@ impl PdfReader {
                 let (width, height) = (page.width, page.height);
                 match texture::texture(page) {
                     Some(image) => {
+                        self.forget_image(cx);
                         self.image = Some(image);
                         self.state = ReaderState::Showing {
                             page: index.min(pages.saturating_sub(1)) + 1,
@@ -170,16 +184,16 @@ impl PdfReader {
                             height,
                         };
                     }
-                    None => self.fail(NOT_READABLE.to_owned()),
+                    None => self.fail(NOT_READABLE.to_owned(), cx),
                 }
             }
-            Err(words) => self.fail(words),
+            Err(words) => self.fail(words, cx),
         }
         cx.notify();
     }
 
-    fn fail(&mut self, words: String) {
-        self.image = None;
+    fn fail(&mut self, words: String, cx: &mut App) {
+        self.forget_image(cx);
         self.worker = None;
         self.state = ReaderState::Failed(words);
     }

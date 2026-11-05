@@ -15,12 +15,42 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::protocol::{
-    BYTES_PER_PIXEL, ErrorKind, FrameError, MAX_BLOB_BYTES, MAX_PAGE_BYTES, MAX_PAGES, Request,
-    Response, page_is_sound, read_frame, write_frame,
+    BYTES_PER_PIXEL, ErrorKind, FrameError, MAX_PAGE_BYTES, MAX_PAGES, Request, Response,
+    page_is_sound, read_frame, write_frame,
 };
 
 #[cfg(windows)]
 mod launch_windows;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        /// A size a hostile worker could send that is not a page is refused.
+        #[test]
+        fn only_a_real_page_size_is_sound(w in any::<f32>(), h in any::<f32>()) {
+            let sound = size_is_sound([w, h]);
+            prop_assert_eq!(
+                sound,
+                w.is_finite() && h.is_finite() && w > 0.0 && h > 0.0 && w <= 75_000.0 && h <= 75_000.0
+            );
+        }
+    }
+
+    #[test]
+    fn a_refusal_is_worded_by_the_app() {
+        assert_eq!(
+            refusal_words(ErrorKind::Internal),
+            "This PDF couldn't be opened."
+        );
+        assert_eq!(
+            refusal_words(ErrorKind::PasswordRequired),
+            "This PDF needs a password."
+        );
+    }
+}
 
 /// How long a request may take before the worker is killed.
 pub const REQUEST_DEADLINE: Duration = Duration::from_secs(5);
@@ -276,7 +306,10 @@ impl Worker {
                 pages,
                 sizes,
                 encrypted,
-            } if pages <= MAX_PAGES && sizes.len() == pages as usize => {
+            } if pages <= MAX_PAGES
+                && sizes.len() == pages as usize
+                && sizes.iter().all(|size| size_is_sound(*size)) =>
+            {
                 self.opened = true;
                 Ok(Opened {
                     pages,
@@ -347,16 +380,20 @@ impl Worker {
         let result = self.exchange(request, blob);
         let timed_out = self.disarm();
         match result {
-            Ok((Response::Error { kind, message }, _)) => {
+            Ok((Response::Error { kind, .. }, _)) => {
+                // The words are the app's, chosen by the kind: a worker that
+                // has been taken over could otherwise put any text, of any
+                // length, in the reader.
+                let refused = WorkerError::Refused {
+                    kind,
+                    message: refusal_words(kind).to_owned(),
+                };
                 // A failed open ends the worker's use; other failures leave
                 // it ready for the next request.
                 if !self.opened {
-                    self.end(WorkerError::Refused {
-                        kind,
-                        message: message.clone(),
-                    });
+                    self.end(refused.clone());
                 }
-                Err(WorkerError::Refused { kind, message })
+                Err(refused)
             }
             Ok(reply) => Ok(reply),
             Err(_) if timed_out => Err(self.end(WorkerError::TimedOut)),
@@ -371,7 +408,9 @@ impl Worker {
         blob: &[u8],
     ) -> Result<(Response, Vec<u8>), FrameError> {
         write_frame(&mut self.input, request, blob)?;
-        match read_frame::<Response>(&mut self.output, MAX_PAGE_BYTES.min(MAX_BLOB_BYTES))? {
+        // A page may be up to 64 MB of pixels (4096 x 4096 x 4), more than a
+        // PDF may be; no answer carries more.
+        match read_frame::<Response>(&mut self.output, MAX_PAGE_BYTES)? {
             Some(reply) => Ok(reply),
             None => Err(FrameError::Io(std::io::ErrorKind::UnexpectedEof.into())),
         }
@@ -488,6 +527,27 @@ fn spawn(paths: &WorkerPaths) -> Result<Pipes, WorkerError> {
         Box::new(stdin),
         Box::new(stdout),
     ))
+}
+
+/// What the reader says when the worker refuses a request.
+pub fn refusal_words(kind: ErrorKind) -> &'static str {
+    match kind {
+        ErrorKind::PasswordRequired => "This PDF needs a password.",
+        ErrorKind::WrongPassword => "That password isn't right.",
+        ErrorKind::TooManyPages => "This PDF has more than 2,000 pages.",
+        ErrorKind::NoSuchPage => "There is no such page.",
+        ErrorKind::Unreadable | ErrorKind::Protocol | ErrorKind::Internal => {
+            "This PDF couldn't be opened."
+        }
+    }
+}
+
+/// A page size in points the reader can lay out: finite, positive, and no
+/// larger than PDF's 200-inch limit scaled by the largest user unit PDFium
+/// honours (75,000 is generous for both).
+fn size_is_sound([width, height]: [f32; 2]) -> bool {
+    let ok = |side: f32| side.is_finite() && side > 0.0 && side <= 75_000.0;
+    ok(width) && ok(height)
 }
 
 /// Bytes a page of this many pixels takes; the app's texture budget.

@@ -8,8 +8,11 @@
 //! | OS | Mechanism |
 //! |---|---|
 //! | macOS | A deny-by-default Seatbelt profile applied to the process (`sandbox_init`): files only under the worker's own library folders and the system's fonts, no network, no new processes |
-//! | Linux | Landlock (reads only under the library and font folders) plus a seccomp filter (no sockets, no `exec`, no `ptrace`) |
+//! | Linux | Landlock (reads only under the library and font folders; TCP, signals and abstract sockets scoped where the kernel has them) plus a seccomp denylist (sockets and socket I/O, `exec`, `fork` and namespace-making `clone`, `clone3` as unknown, `ptrace`, other processes' memory, descriptors, signals and limits, mounts, `bpf`, `io_uring`, `userfaultfd`, `perf_event_open`, keys, modules) |
 //! | Windows | An AppContainer token with no capabilities (the app starts the worker in one, see [`crate::client`]) inside a Job Object that limits memory and forbids child processes |
+//!
+//! Every descriptor above stderr is closed first: a sandbox checks a file
+//! when it is opened, so one the app left inheritable would stay readable.
 //!
 //! After applying its mechanism the worker checks that it took hold (it can
 //! no longer open a file outside its folders or create a socket), and a
@@ -72,6 +75,10 @@ pub fn contain(allow: &Allow) -> Result<(), ContainError> {
     if std::env::var_os(FAIL_FOR_TEST).is_some() {
         return Err(ContainError("containment was made to fail".into()));
     }
+    // A sandbox checks a file when it is opened, not a descriptor that is
+    // already open: anything the app left inheritable (a database, a socket)
+    // would still be readable inside it. Only the protocol's pipes stay.
+    close_inherited()?;
     limit_memory()?;
     platform::apply(allow)?;
     platform::verify()
@@ -112,6 +119,57 @@ fn limit_memory() -> Result<(), ContainError> {
 
 #[cfg(not(unix))]
 fn limit_memory() -> Result<(), ContainError> {
+    Ok(())
+}
+
+/// Closes every descriptor but stdin, stdout and stderr. The worker has
+/// opened nothing yet, so whatever is above 2 came from whoever started it.
+#[cfg(unix)]
+fn close_inherited() -> Result<(), ContainError> {
+    let listed = if cfg!(target_os = "linux") {
+        "/proc/self/fd"
+    } else {
+        "/dev/fd"
+    };
+    let open: Option<Vec<libc::c_int>> = std::fs::read_dir(listed).ok().map(|dir| {
+        dir.filter_map(|entry| entry.ok()?.file_name().to_str()?.parse().ok())
+            .collect()
+    });
+    match open {
+        // The listing's own descriptor is among them, closed already; closing
+        // it again is a harmless EBADF.
+        Some(fds) => {
+            for fd in fds.into_iter().filter(|fd| *fd > 2) {
+                // SAFETY: closing a descriptor this process does not use.
+                unsafe { libc::close(fd) };
+            }
+        }
+        // No listing (no /proc): every number up to the descriptor limit.
+        None => {
+            // SAFETY: plain sysconf.
+            let max = unsafe { libc::sysconf(libc::_SC_OPEN_MAX) };
+            let max = if max <= 0 { 65_536 } else { max.min(1 << 20) };
+            for fd in 3..max as libc::c_int {
+                // SAFETY: as above.
+                unsafe { libc::close(fd) };
+            }
+        }
+    }
+    // Check: nothing above 2 may be left.
+    // SAFETY: fcntl on a number that may not be open just fails.
+    let left = (3..1024).any(|fd| unsafe { libc::fcntl(fd, libc::F_GETFD) } != -1);
+    if left {
+        return Err(ContainError(
+            "an inherited file is still open in the PDF reader".into(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn close_inherited() -> Result<(), ContainError> {
+    // The app hands the worker only its pipes (a handle list, see
+    // `client::launch_windows`).
     Ok(())
 }
 
