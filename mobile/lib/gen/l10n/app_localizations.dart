@@ -9220,6 +9220,12 @@ abstract class AppLocalizations {
   /// **'Couldn\'t summarise this recording. {reason}'**
   String recordingSummaryFailed(String reason);
 
+  /// Said under the review when Apply could not write the summary (the note was locked, changed or lost its transcript meanwhile).
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was written. {reason}'**
+  String recordingSummaryApplyFailed(String reason);
+
   /// Said when the AI gave items the transcript does not back.
   ///
   /// In en, this message translates to:

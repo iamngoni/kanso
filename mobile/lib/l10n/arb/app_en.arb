@@ -6855,7 +6855,16 @@
       }
     }
   },
-  "recordingSummaryDropped": "{count, plural, =1{One item was left out for want of a quote from the recording.} other{{count} items were left out for want of a quote from the recording.}}",
+  "recordingSummaryApplyFailed": "Nothing was written. {reason}",
+  "@recordingSummaryApplyFailed": {
+    "description": "Said under the review when Apply could not write the summary (the note was locked, changed or lost its transcript meanwhile).",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingSummaryDropped":"{count, plural, =1{One item was left out for want of a quote from the recording.} other{{count} items were left out for want of a quote from the recording.}}",
   "@recordingSummaryDropped": {
     "description": "Said when the AI gave items the transcript does not back.",
     "placeholders": {

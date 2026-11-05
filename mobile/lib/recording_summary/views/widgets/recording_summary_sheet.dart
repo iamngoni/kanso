@@ -76,6 +76,9 @@ class _RecordingSummarySheetState extends State<RecordingSummarySheet> {
   SummaryDraftView? _draft;
   Set<int> _ticked = <int>{};
   String? _failure;
+
+  /// Why the last Apply wrote nothing, shown under the review.
+  String? _applyFailure;
   bool _closed = false;
 
   @override
@@ -146,6 +149,7 @@ class _RecordingSummarySheetState extends State<RecordingSummarySheet> {
     }
     final l10n = context.l10n;
     final undo = widget.undoNotice;
+    setState(() => _applyFailure = null);
     final result = await widget.repository.apply(
       widget.noteId,
       draft,
@@ -155,10 +159,9 @@ class _RecordingSummarySheetState extends State<RecordingSummarySheet> {
       return;
     }
     result.fold(
-      (error) => setState(() {
-        _phase = SummaryPhase.failed;
-        _failure = error.message;
-      }),
+      // The review stays, so what was looked over is not lost: the reason
+      // shows under it, and Apply can be pressed again.
+      (error) => setState(() => _applyFailure = error.message),
       (applied) {
         final ticket = applied.undo;
         if (ticket != null && undo != null) {
@@ -343,6 +346,14 @@ class _RecordingSummarySheetState extends State<RecordingSummarySheet> {
             child: Text(
               l10n.recordingSummaryReplacesNote,
               style: typography.meta.copyWith(color: colors.textMuted),
+            ),
+          ),
+        if (_applyFailure case final reason?)
+          Padding(
+            padding: const EdgeInsets.only(top: KansoSpacing.sm),
+            child: Text(
+              l10n.recordingSummaryApplyFailed(reason),
+              style: typography.body.copyWith(color: colors.danger),
             ),
           ),
       ],

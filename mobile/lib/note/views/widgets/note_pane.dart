@@ -232,7 +232,9 @@ class NotePane extends StatelessWidget {
                                       ).toString(),
                                     ),
                                   ),
-                                if (readable)
+                                // Never offered for a locked note, as on the
+                                // desktop: it is kept out of AI.
+                                if (readable && note.lock is LockState_Plain)
                                   NoteMenuAction.summarizeRecording: () =>
                                       unawaited(
                                         showRecordingSummarySheet(

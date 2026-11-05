@@ -3308,16 +3308,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(origin, {
-      'ui': 'Edited in Kanso',
-      'api': 'Replaced through the API',
-      'sync': 'Replaced by sync',
-      'import': 'Replaced by an import',
-      'collab': 'Edited in a shared note',
-      'agent': 'Suggested by an agent, applied by you',
-      'plugin': 'Changed by a plugin',
-      'other': 'Saved version',
-    });
+    String _temp0 = intl.Intl.selectLogic(
+      origin,
+      {
+        'ui': 'Edited in Kanso',
+        'api': 'Replaced through the API',
+        'sync': 'Replaced by sync',
+        'import': 'Replaced by an import',
+        'collab': 'Edited in a shared note',
+        'agent': 'Suggested by an agent, applied by you',
+        'plugin': 'Changed by a plugin',
+        'other': 'Saved version',
+      },
+    );
     return '$_temp0';
   }
 
@@ -5432,6 +5435,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String recordingSummaryFailed(String reason) {
     return 'Couldn\'t summarise this recording. $reason';
+  }
+
+  @override
+  String recordingSummaryApplyFailed(String reason) {
+    return 'Nothing was written. $reason';
   }
 
   @override

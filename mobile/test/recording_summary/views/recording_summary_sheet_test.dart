@@ -147,6 +147,32 @@ void main() {
     verifyNever(() => repository.apply(any(), any(), any()));
   });
 
+  // no-prop-test: drives the sheet over a mocked repository.
+  testWidgets('an Apply that writes nothing keeps the review and says why', (
+    tester,
+  ) async {
+    when(() => repository.apply(any(), any(), any())).thenAnswer(
+      (_) async => const Left<ApplicationError, SummaryApplied>(
+        ApplicationError.invalid(message: 'This note is kept out of AI.'),
+      ),
+    );
+    await pumpRouted(
+      tester,
+      sheet(phase: SummaryPhase.review, draft: _draft),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Apply'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Nothing was written. This note is kept out of AI.'),
+      findsOneWidget,
+    );
+    // What was looked over is still there, and Apply can be pressed again.
+    expect(find.text('Send the onboarding draft'), findsOneWidget);
+    expect(find.text('Apply'), findsOneWidget);
+    verifyNever(() => repository.summarize(any()));
+  });
+
   // no-prop-test: a note that cannot be summarised.
   testWidgets('a note that cannot be summarised says what is needed', (
     tester,
@@ -180,6 +206,31 @@ void main() {
         tester,
         sheet(phase: SummaryPhase.review, draft: _draft),
         name: 'phone_recording_summary_review_${brightness.name}',
+        size: phoneSize,
+        brightness: brightness,
+      );
+    });
+
+    // no-prop-test: pixels.
+    testWidgets('the review of a cut transcript, ${brightness.name}', (
+      tester,
+    ) async {
+      await expectGoldenOnBothPlatforms(
+        tester,
+        sheet(
+          phase: SummaryPhase.review,
+          draft: const SummaryDraftView(
+            fileId: 'file:abc123',
+            overview: <String>['The beta ships on the 6th.'],
+            decisions: <SummaryItemView>[],
+            actions: <SummaryItemView>[
+              SummaryItemView(text: 'Send the onboarding draft', moment: 47),
+            ],
+            dropped: 0,
+            cut: true,
+          ),
+        ),
+        name: 'phone_recording_summary_review_cut_${brightness.name}',
         size: phoneSize,
         brightness: brightness,
       );
