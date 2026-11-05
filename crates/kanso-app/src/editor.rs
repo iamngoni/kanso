@@ -3482,6 +3482,27 @@ impl NoteEditor {
         true
     }
 
+    /// [`Self::insert_transcript_below`] for a fresh transcription: a new
+    /// transcript of a recording keeps the names the person gave the
+    /// voices of the one it replaces (`recording_speakers::carry_names`).
+    // no-prop-test: glue over `transcribe::fresh_transcript_edit`, which has the properties.
+    pub fn insert_new_transcript_below(
+        &mut self,
+        file_id: Option<&str>,
+        transcript: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        if self.note.is_none() || matches!(self.lock, LockView::Closed(_)) {
+            return false;
+        }
+        self.smart_edit(window, cx, |_, text, selection| {
+            crate::transcribe::fresh_transcript_edit(text, file_id, transcript, selection)
+        });
+        self.schedule_autosave(cx);
+        true
+    }
+
     /// The audio attachment linked on the caret's line: its file ID and
     /// name.
     pub fn audio_on_caret_line(&self, cx: &App) -> Option<(String, String)> {

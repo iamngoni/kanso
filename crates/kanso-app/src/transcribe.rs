@@ -77,6 +77,26 @@ pub fn linked_files(line: &str) -> Vec<String> {
     found
 }
 
+/// [`transcript_edit`] for a transcript just made from the recording: when
+/// it replaces one already in `text`, the names the person gave that one's
+/// voices are kept (`recording_speakers::carry_names`), so transcribing
+/// again never undoes Rename Speakers. Pure.
+pub fn fresh_transcript_edit(
+    text: &str,
+    file_id: Option<&str>,
+    transcript: &str,
+    selection: Range<usize>,
+) -> Option<Edit> {
+    let kept = file_id
+        .and_then(|id| kanso_engine::recording_speakers::carry_names(text, transcript.trim(), id));
+    transcript_edit(
+        text,
+        file_id,
+        kept.as_deref().unwrap_or(transcript),
+        selection,
+    )
+}
+
 /// The edit that puts `transcript` in `text` as a paragraph of its own:
 /// under the line that links to `file_id`, or, without one, at the end.
 /// The caret (`selection`) stays on the same text. Nothing for an empty
@@ -735,7 +755,7 @@ fn insert(job: &Job, text: &str, cx: &mut App) {
     if let (Some(editor), true) = (editor, shown) {
         let put = job.window.update(cx, |_, window, cx| {
             editor.update(cx, |editor, cx| {
-                editor.insert_transcript_below(file_id.as_deref(), &text, window, cx)
+                editor.insert_new_transcript_below(file_id.as_deref(), &text, window, cx)
             })
         });
         if matches!(put, Ok(true)) {
@@ -786,7 +806,7 @@ fn insert_into_store(
     key: Option<&kanso_sync::lock::LockKey>,
 ) -> Result<(), String> {
     let edit = |body: &str| {
-        let edit = transcript_edit(body, file_id, text, 0..0)?;
+        let edit = fresh_transcript_edit(body, file_id, text, 0..0)?;
         let mut body = body.to_owned();
         body.replace_range(edit.range, &edit.text);
         Some(body)
@@ -1054,6 +1074,83 @@ mod tests {
         let renamed =
             kanso_engine::recording_speakers::rename(&text, "file:m1", "Speaker 2", "Priya");
         assert!(renamed.unwrap().contains("?t=40) Priya: Words."));
+    }
+
+    /// Transcribing a recording again keeps the names given to its voices
+    /// with Rename Speakers; the rename sheet's own write is never undone
+    /// by that (it goes through `transcript_edit`).
+    #[test]
+    fn transcribing_again_keeps_renamed_speakers() {
+        use super::{file::Timed, fresh_transcript_edit, transcript_text};
+        use kanso_audio::Speaker;
+        use kanso_engine::recording_speakers::rename;
+        use kanso_voice::diarize::{Diarization, Turn};
+        use std::time::Duration;
+        let said = |secs, text: &str| Timed {
+            start: Duration::from_secs(secs),
+            text: text.into(),
+            speaker: Some(Speaker::Meeting),
+        };
+        let pieces = [
+            said(0, "Hello."),
+            said(20, "Beta ships."),
+            said(40, "Agreed."),
+        ];
+        let turn = |start, end, speaker| Turn {
+            start,
+            end,
+            speaker,
+        };
+        let spoken = Diarization {
+            turns: vec![turn(0., 20., 0), turn(20., 40., 1), turn(40., 60., 0)],
+            seconds: 60.,
+        };
+        let first = transcript_text(Some("file:m1"), &pieces, Some(&spoken));
+        let body = format!("Notes\n\n{first}\n\nTail");
+        let named = rename(&body, "file:m1", "Speaker 1", "Priya").unwrap();
+        // This time Priya's two paragraphs come out as two voices, so the
+        // numbers move.
+        let spoken = Diarization {
+            turns: vec![turn(0., 20., 0), turn(20., 40., 1), turn(40., 60., 2)],
+            seconds: 60.,
+        };
+        let again = transcript_text(Some("file:m1"), &pieces, Some(&spoken));
+        assert!(again.contains("?t=40) Speaker 3: Agreed."), "{again}");
+        // Into a note that isn't open, as stored.
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path().join("k.db")).unwrap();
+        let book = store
+            .put(
+                DocType::Book,
+                serde_json::json!({"name": "B"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        let note = store
+            .put(
+                DocType::Note,
+                serde_json::json!({"title": "t", "body": named, "bookId": book}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        insert_into_store(&store, &note, Some("file:m1"), &again, None).unwrap();
+        let out = store.note(&note).unwrap().unwrap().body;
+        // And in the open editor's text: the same edit.
+        let edit = fresh_transcript_edit(&named, Some("file:m1"), &again, 0..0).unwrap();
+        assert_eq!(apply(&named, &edit), out);
+        assert!(out.contains("?t=0) Priya: Hello."), "{out}");
+        assert!(out.contains("?t=20) Speaker 2: Beta ships."), "{out}");
+        assert!(out.contains("?t=40) Priya: Agreed."), "{out}");
+        assert!(out.starts_with("Notes\n\n") && out.ends_with("\n\nTail"));
+        // Renaming back to Kanso's label is what the person asked for.
+        let back = rename(&named, "file:m1", "Priya", "Speaker 1").unwrap();
+        let range = super::recording_note::transcript_range(&back, "file:m1").unwrap();
+        let edit = transcript_edit(&named, Some("file:m1"), &back[range], 0..0).unwrap();
+        assert_eq!(apply(&named, &edit), back);
     }
 
     #[test]

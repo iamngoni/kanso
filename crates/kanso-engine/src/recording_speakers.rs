@@ -197,6 +197,91 @@ pub fn rename_many(body: &str, file_id: &str, changes: &[(String, String)]) -> O
     changed.then(|| format!("{}{block}{}", &body[..range.start], &body[range.end..]))
 }
 
+/// The seconds a paragraph line's moment link points at, when the line is
+/// a paragraph of a recording.
+fn moment_seconds(line: &str) -> Option<u32> {
+    after_link(line)?;
+    let open = line.find("](")? + 2;
+    let close = line[open..].find(')')? + open;
+    parse_moment(&line[open..close]).map(|m| m.seconds)
+}
+
+/// `new_body`'s transcript of `file_id`, from a fresh transcription of the
+/// same recording, with the names the person gave its voices in
+/// `old_body`'s transcript kept: a voice Kanso labels (`Speaker 2`, `You`)
+/// takes the name most of its paragraphs had in the old transcript at the
+/// same moments, when more than half of them had that one name and it is
+/// not one of Kanso's own labels. So transcribing a recording again does
+/// not undo "Rename Speakers". `None` when no name carries over. Pure.
+pub fn carry_names(old_body: &str, new_body: &str, file_id: &str) -> Option<String> {
+    let old_range = transcript_range(old_body, file_id)?;
+    let given: Vec<String> = speakers(old_body, file_id)
+        .into_iter()
+        .map(|s| s.name)
+        .filter(|name| !is_ours(name))
+        .collect();
+    if given.is_empty() {
+        return None;
+    }
+    // The old paragraphs in order: when each starts, and its given name.
+    let old: Vec<(u32, Option<&str>)> = old_body[old_range.clone()]
+        .lines()
+        .filter_map(|line| {
+            let at = moment_seconds(line)?;
+            let name = name_range(line)
+                .map(|(a, b)| &line[a..b])
+                .filter(|name| given.iter().any(|g| g == name));
+            Some((at, name))
+        })
+        .collect();
+    let new_range = transcript_range(new_body, file_id)?;
+    // Per label of ours in the new transcript: how many of its paragraphs
+    // fall in an old paragraph, and the votes for each old name.
+    let mut tallies: Vec<(&str, usize, Vec<(&str, usize)>)> = Vec::new();
+    for line in new_body[new_range].lines() {
+        let (Some(at), Some((a, b))) = (moment_seconds(line), name_range(line)) else {
+            continue;
+        };
+        let label = &line[a..b];
+        if !is_ours(label) {
+            continue;
+        }
+        let Some(&(_, name)) = old.iter().rev().find(|(start, _)| *start <= at) else {
+            continue;
+        };
+        let at = match tallies.iter().position(|(l, ..)| *l == label) {
+            Some(at) => at,
+            None => {
+                tallies.push((label, 0, Vec::new()));
+                tallies.len() - 1
+            }
+        };
+        let (_, heard, votes) = &mut tallies[at];
+        *heard += 1;
+        if let Some(name) = name {
+            match votes.iter_mut().find(|(n, _)| *n == name) {
+                Some((_, count)) => *count += 1,
+                None => votes.push((name, 1)),
+            }
+        }
+    }
+    let changes: Vec<(String, String)> = tallies
+        .into_iter()
+        .filter_map(|(label, heard, votes)| {
+            // The first name to reach the most votes, for a stable answer.
+            let (name, count) =
+                votes
+                    .into_iter()
+                    .fold(None, |best: Option<(&str, usize)>, (n, c)| match best {
+                        Some((_, b)) if b >= c => best,
+                        _ => Some((n, c)),
+                    })?;
+            (count * 2 > heard).then(|| (label.to_owned(), name.to_owned()))
+        })
+        .collect();
+    rename_many(new_body, file_id, &changes)
+}
+
 /// The changes a form asks for: each of `names` paired with what was typed
 /// for it, left out when the typed name is empty after cleaning or is the
 /// name it already has. Pure.
@@ -306,6 +391,50 @@ mod tests {
             ],
         );
         format!("# Meeting\n\nSpeaker 1: my own note\n\n{b}\n\nSpeaker 1 owes a draft.")
+    }
+
+    #[test]
+    fn a_new_transcript_keeps_the_names_given_to_its_voices() {
+        let named = rename_many(
+            &meeting(),
+            "file:abc",
+            &[
+                ("Speaker 1".into(), "Priya".into()),
+                ("You".into(), "Ngoni".into()),
+            ],
+        )
+        .unwrap();
+        // Transcribed again, the voices came out numbered the other way
+        // round: the names follow the voices, not the numbers.
+        let fresh = block(
+            "file:abc",
+            &[
+                (0, Some("You"), "Morning!"),
+                (20, Some("Speaker 2"), "Beta ships on the 6th."),
+                (40, Some("Speaker 1"), "Onboarding is the risk."),
+                (60, Some("Speaker 2"), "Agreed: ship anyway."),
+            ],
+        );
+        let kept = carry_names(&named, &fresh, "file:abc").unwrap();
+        let shown: Vec<_> = speakers(&kept, "file:abc")
+            .into_iter()
+            .map(|s| (s.name, s.paragraphs))
+            .collect();
+        assert_eq!(
+            shown,
+            vec![
+                ("Ngoni".to_owned(), 1),
+                ("Priya".to_owned(), 2),
+                ("Speaker 1".to_owned(), 1)
+            ]
+        );
+        assert!(kept.contains("?t=0) Ngoni: Morning!"), "{kept}");
+        // Nothing renamed: nothing to keep.
+        assert_eq!(carry_names(&meeting(), &fresh, "file:abc"), None);
+        // No old transcript, or a fresh one without labels: nothing either.
+        assert_eq!(carry_names("no transcript", &fresh, "file:abc"), None);
+        let plain = block("file:abc", &[(0, None, "Morning."), (20, None, "Beta.")]);
+        assert_eq!(carry_names(&named, &plain, "file:abc"), None);
     }
 
     #[test]
@@ -629,6 +758,50 @@ mod tests {
                 let first = first_recording(&out);
                 prop_assert_eq!(first.as_deref(), Some("file:p"));
             }
+        }
+
+        /// Transcribing the same recording again, whatever numbers the
+        /// voices come out with, gives every paragraph the name it had:
+        /// the names follow the voices. Only names move.
+        #[test]
+        fn prop_a_new_transcript_keeps_given_names(
+            who in proptest::collection::vec(0usize..4, 1..12),
+            given in proptest::collection::vec("[A-Z][a-z]{2,8}", 4),
+            renumber in Just((0usize..4).collect::<Vec<_>>()).prop_shuffle(),
+        ) {
+            prop_assume!(given.iter().all(|g| !is_ours(g)));
+            let label = |w: usize| format!("Speaker {}", w + 1);
+            let names: Vec<String> = who.iter().map(|w| label(*w)).collect();
+            let asked: Vec<(String, String)> =
+                (0..4).map(|w| (label(w), given[w].clone())).collect();
+            let named = rename_many(&turns(&names), "file:p", &asked).unwrap();
+            let again: Vec<String> = who.iter().map(|w| label(renumber[*w])).collect();
+            let fresh = turns(&again);
+            let kept = carry_names(&named, &fresh, "file:p").unwrap();
+            prop_assert_eq!(&kept, &named);
+            // The fresh transcript's words and moments are all still there.
+            let strip = |b: &str| -> Vec<String> {
+                b.lines()
+                    .map(|l| match name_range(l) {
+                        Some((a, e)) => format!("{}{}", &l[..a], &l[e..]),
+                        None => l.to_owned(),
+                    })
+                    .collect()
+            };
+            prop_assert_eq!(strip(&kept), strip(&fresh));
+        }
+
+        /// Names Kanso wrote itself never carry over: a transcript nobody
+        /// renamed leaves a new one as it came.
+        #[test]
+        fn prop_kansos_own_labels_never_carry(
+            before in proptest::collection::vec(0usize..4, 1..12),
+            after in proptest::collection::vec(0usize..4, 1..12),
+        ) {
+            let label = |w: &usize| format!("Speaker {}", w + 1);
+            let old = turns(&before.iter().map(label).collect::<Vec<_>>());
+            let fresh = turns(&after.iter().map(label).collect::<Vec<_>>());
+            prop_assert_eq!(carry_names(&old, &fresh, "file:p"), None);
         }
 
         /// A cleaned name is always safe to write: short, one line, no
