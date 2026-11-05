@@ -2,10 +2,12 @@
 //! a page drawn dark where it is text, and left alone where it is a picture.
 //!
 //! The worker draws the page as it is, then runs [`smart_invert`] over the
-//! bitmap. Outside the pictures' boxes, every pixel keeps its hue and its
-//! saturation and has its lightness turned over, so black text becomes light
-//! text, the white page becomes a dark page, and a red line stays red and a
-//! blue chart stays blue. Inside a picture's box the original pixels stay.
+//! bitmap. Outside the pictures' boxes, every pixel keeps its hue and how
+//! coloured it is (its chroma) and has its lightness turned over, so black
+//! text becomes light text, the white page becomes a dark page, and a red
+//! line stays red and a blue chart stays blue. A paper that is almost white
+//! stays almost grey: keeping HSL saturation instead would blow a tint of
+//! one level into a strong colour. Inside a picture's box the original pixels stay.
 //! A scan, one picture that fills the page, counts as text and is inverted
 //! whole, since leaving it would put a white sheet in a dark reader.
 //!
@@ -80,7 +82,7 @@ pub fn keep_rects(pictures: &[PixelRect], width: u32, height: u32) -> Vec<PixelR
         .collect()
 }
 
-/// Turns one pixel's lightness over, keeping its hue and saturation.
+/// Turns one pixel's lightness over, keeping its hue and chroma.
 fn invert_pixel([b, g, r]: [u8; 3]) -> [u8; 3] {
     let (r, g, b) = (
         f32::from(r) / 255.0,
@@ -91,13 +93,16 @@ fn invert_pixel([b, g, r]: [u8; 3]) -> [u8; 3] {
     let lightness = (max + min) / 2.0;
     let spread = max - min;
     let target = PAGE_LIGHTNESS + (1.0 - lightness) * (INK_LIGHTNESS - PAGE_LIGHTNESS);
-    // The colour's offsets from grey keep their direction (the hue) and are
-    // scaled to the saturation the new lightness allows.
+    // The colour's offsets from grey keep their direction (the hue) and their
+    // size (the chroma), as far as the new lightness has room for. Not the
+    // HSL saturation: near white and near black it is huge for a tiny
+    // spread, so an off-white paper (255, 255, 254) came out dark olive
+    // (54, 54, 0) and a scan's paper turned to coloured speckle.
+    let room = 1.0 - (2.0 * target - 1.0).abs();
     let scale = if spread <= f32::EPSILON {
         0.0
     } else {
-        let saturation = spread / (1.0 - (2.0 * lightness - 1.0).abs());
-        saturation * (1.0 - (2.0 * target - 1.0).abs()) / spread
+        spread.min(room) / spread
     };
     let out = |v: f32| ((target + (v - lightness) * scale).clamp(0.0, 1.0) * 255.0).round() as u8;
     [out(b), out(g), out(r)]
@@ -202,6 +207,33 @@ mod tests {
         assert!(r > g && r > b, "{r} {g} {b}");
         let [b, g, r] = invert_pixel([217, 115, 51]);
         assert!(b > g && b > r, "{r} {g} {b}");
+    }
+
+    /// Paper that is not quite white (an off-white, cream, the paper of a
+    /// scan) and ink that is not quite black come out nearly grey: no more
+    /// coloured than they went in.
+    #[test]
+    fn nearly_white_and_nearly_black_stay_nearly_grey() {
+        for [b, g, r] in [
+            [254, 255, 255],
+            [253, 255, 254],
+            [255, 252, 250],
+            [240, 250, 255],
+            [236, 244, 246],
+            [0, 0, 2],
+            [32, 31, 35],
+        ] {
+            let [b2, g2, r2] = invert_pixel([b, g, r]);
+            let before = r.max(g).max(b) - r.min(g).min(b);
+            let after = r2.max(g2).max(b2) - r2.min(g2).min(b2);
+            assert!(
+                after <= before + 1,
+                "({r},{g},{b}) became ({r2},{g2},{b2})"
+            );
+        }
+        // And paper stays a dark page, ink a light one.
+        assert!(invert_pixel([240, 250, 255]).iter().all(|&v| v < 60));
+        assert!(invert_pixel([0, 0, 2]).iter().all(|&v| v > 200));
     }
 
     #[test]
@@ -340,6 +372,16 @@ mod tests {
             prop_assert!(diff.min(360.0 - diff) < 12.0, "{diff}");
             let after = r2.max(g2).max(b2) - r2.min(g2).min(b2);
             prop_assert!(after >= 40, "{after}");
+        }
+
+        /// No pixel comes out more coloured than it went in (within
+        /// rounding), so a faint tint is never blown up.
+        #[test]
+        fn a_colour_never_gets_more_colourful(b in any::<u8>(), g in any::<u8>(), r in any::<u8>()) {
+            let [b2, g2, r2] = invert_pixel([b, g, r]);
+            let before = r.max(g).max(b) - r.min(g).min(b);
+            let after = r2.max(g2).max(b2) - r2.min(g2).min(b2);
+            prop_assert!(after <= before + 1, "({r},{g},{b}) became ({r2},{g2},{b2})");
         }
     }
 }
