@@ -48,15 +48,20 @@ fn setup(cx: &mut TestAppContext) -> Fixture {
 
 /// A recording a crash left: five seconds of sound, never finished.
 fn leave_a_crash(root: &std::path::Path) -> String {
-    let mut options = RecorderOptions::new(Channels::Mono, vec![RecordSource::Microphone]);
-    options.id = Some("crash-1".into());
+    leave_a_session(root, "crash-1", RecordSource::Microphone)
+}
+
+/// The same for session `id`, from `source`.
+fn leave_a_session(root: &std::path::Path, id: &str, source: RecordSource) -> String {
+    let mut options = RecorderOptions::new(Channels::Mono, vec![source]);
+    options.id = Some(id.into());
     let mut recorder = Recorder::create(root, options).unwrap();
     let tone: Vec<f32> = (0..48_000 * 5)
         .map(|i| 0.4 * (std::f32::consts::TAU * 330.0 * i as f32 / 48_000.0).sin())
         .collect();
     recorder.push(&tone).unwrap();
     std::mem::forget(recorder);
-    "crash-1".into()
+    id.into()
 }
 
 fn notice(cx: &mut TestAppContext) -> Option<Notice> {
@@ -109,6 +114,58 @@ fn recover_attaches_the_audio_to_a_new_note_and_clears_the_banner(cx: &mut TestA
     // Nothing is left to recover.
     cx.update(recording::scan);
     assert_eq!(notice(cx), None);
+}
+
+#[gpui_kit::test]
+fn a_crash_with_system_audio_is_one_recording_with_two_lines(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let root = in_progress_dir(f.dir.path());
+    leave_a_session(&root, "call-1", RecordSource::Microphone);
+    leave_a_session(&root, "call-1-sys", RecordSource::SystemAudio);
+    // One banner for the pair, under the microphone's name.
+    cx.update(recording::scan);
+    match notice(cx) {
+        Some(Notice::Crash(banner)) => assert_eq!(banner.id, "call-1"),
+        other => panic!("expected the crash banner, got {other:?}"),
+    }
+    let mut found = kanso_audio::recovery::scan(&root, None);
+    let track = found.remove(found.iter().position(|r| r.id == "call-1-sys").unwrap());
+    let mic = found.remove(0);
+    let done = recording::recover_with(&f.store, &mic, Some(&track)).unwrap();
+    let note = f.store.note(&done.saved.note_id).unwrap().unwrap();
+    assert!(note.title.starts_with("Meeting — "), "{}", note.title);
+    let lines = kanso_engine::recording_player::link_lines(&note.body);
+    assert_eq!(lines.len(), 2, "{}", note.body);
+    assert_eq!(done.system_file_ids, vec!["file:rec-call-1-sys-1"]);
+    assert!(note.body.contains("[System audio · "), "{}", note.body);
+    // Both folders went with it; nothing is left to offer.
+    assert!(!root.join("call-1").exists() && !root.join("call-1-sys").exists());
+    cx.update(recording::scan);
+    assert_eq!(notice(cx), None);
+}
+
+#[gpui_kit::test]
+fn a_system_track_left_alone_joins_its_recordings_note(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let root = in_progress_dir(f.dir.path());
+    leave_a_session(&root, "call-2", RecordSource::Microphone);
+    let mic = kanso_audio::recovery::scan(&root, None).remove(0);
+    let done = recording::recover_now(&f.store, &mic).unwrap();
+    // The track's folder turns up later (or was recovered separately).
+    leave_a_session(&root, "call-2-sys", RecordSource::SystemAudio);
+    let track = kanso_audio::recovery::scan(&root, None).remove(0);
+    let again = recording::recover_now(&f.store, &track).unwrap();
+    assert_eq!(again.saved.note_id, done.saved.note_id);
+    assert!(!again.saved.created);
+    let body = f.store.note(&done.saved.note_id).unwrap().unwrap().body;
+    assert!(body.contains("[System audio · "), "{body}");
+    assert_eq!(kanso_engine::recording_player::link_lines(&body).len(), 2);
+    // A track with no recording to join is a note of its own.
+    leave_a_session(&root, "call-3-sys", RecordSource::SystemAudio);
+    let alone = kanso_audio::recovery::scan(&root, None).remove(0);
+    let made = recording::recover_now(&f.store, &alone).unwrap();
+    let note = f.store.note(&made.saved.note_id).unwrap().unwrap();
+    assert!(note.title.starts_with("Meeting — "), "{}", note.title);
 }
 
 #[gpui_kit::test]

@@ -57,6 +57,7 @@ mod plugins_panel;
 mod plugins_settings;
 mod plugins_sheets;
 mod record_sheet;
+mod recording_sheet;
 mod voice;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead
@@ -6239,6 +6240,7 @@ fn snapshots() {
     for (name, prepare, dialog) in plugins_settings::SHOTS
         .iter()
         .chain(plugins_sheets::SHOTS)
+        .chain(recording_sheet::SHOTS)
         .chain(plugins_panel::SHOTS)
     {
         let theme = if name.starts_with("dark-") {
@@ -6252,7 +6254,10 @@ fn snapshots() {
         }
         // A short confirmation sits near the top, as the account's do, and
         // the developer sheet has its warning where the check usually looks.
-        if name.ends_with("-remove") || name.ends_with("-plugin-developer") {
+        if name.ends_with("-remove")
+            || name.ends_with("-plugin-developer")
+            || name.contains("-record-system-")
+        {
             plugin_shot.dialog_sample_y = Some(30.);
         }
         shots.push(plugin_shot);

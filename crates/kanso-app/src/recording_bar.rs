@@ -71,7 +71,7 @@ fn recording_bar(row: Stateful<Div>, state: &BarState, colors: &Colors) -> impl 
     .child(div().flex_1().child(if paused {
         format!("{} · Paused", state.label)
     } else {
-        state.label.to_owned()
+        state.label.clone()
     }))
     .child(
         Button::new("recording-pause")
