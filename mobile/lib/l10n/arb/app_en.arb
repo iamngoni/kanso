@@ -1953,6 +1953,23 @@
       }
     }
   },
+  "pdfNotesInkTitle": "Pencil marks",
+  "@pdfNotesInkTitle": {
+    "description": "Heading, in the sheet that lists a note's PDF highlights, over the pages that have pencil marks drawn on them."
+  },
+  "pdfNotesInkStrokes": "{strokes, plural, =1{1 stroke} other{{strokes} strokes}}",
+  "@pdfNotesInkStrokes": {
+    "description": "How many pencil strokes are drawn on one page of a PDF.",
+    "placeholders": {
+      "strokes": {
+        "type": "int"
+      }
+    }
+  },
+  "pdfNotesInkClear": "Clear page",
+  "@pdfNotesInkClear": {
+    "description": "Button that rubs out all the pencil marks on one page of a PDF."
+  },
   "previewEmptyDrawing": "An empty drawing",
   "@previewEmptyDrawing": {
     "description": "Shown in a note's preview for a drawing with nothing in it yet."
@@ -6533,6 +6550,18 @@
   "aiTroubleAgentNeedsNode": "Your agent needs a newer Node. Install the Node version it asks for, then use Find again in Settings › AI.",
   "@aiTroubleAgentNeedsNode": {
     "description": "The chosen agent needs a newer Node."
+  },
+  "aiTroubleAgentSignIn": "Your agent needs you to sign in. Sign in to your agent, then try again.",
+  "@aiTroubleAgentSignIn": {
+    "description": "The selected agent needs the person to sign in."
+  },
+  "aiTroubleBilling": "Your provider needs a billing change. Check your billing or plan with your AI provider, then try again.",
+  "@aiTroubleBilling": {
+    "description": "The provider account has run out of credits or needs a plan change."
+  },
+  "aiTroubleWrongAddress": "Your model server address looks wrong. Check the address in Settings › AI, then try again.",
+  "@aiTroubleWrongAddress": {
+    "description": "The configured server address does not point to its API."
   },
   "aiTroubleNoTools": "This model can't use tools. Pick a model that supports tools in Settings › AI.",
   "@aiTroubleNoTools": {

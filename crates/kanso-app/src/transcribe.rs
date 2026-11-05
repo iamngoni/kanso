@@ -325,11 +325,40 @@ pub fn show_telling_for_snapshot(
 /// Stops the transcription; nothing goes into the note.
 // no-prop-test: glue.
 pub fn cancel(cx: &mut App) {
-    if let Some(job) = cx.default_global::<Transcription>().job.take() {
+    if let Some(job) = cancel_job(&mut cx.default_global::<Transcription>().job) {
         job.cancel.store(true, Ordering::Relaxed);
         forget_if_recording(&job, cx);
     }
     cx.refresh_windows();
+}
+
+/// Cancelling while diarization is running keeps the job alive: the words
+/// have already been transcribed and must still be inserted when diarization
+/// stops. Cancelling earlier removes the job, so no partial transcript lands.
+fn cancel_job(job: &mut Option<Job>) -> Option<Job> {
+    let current = job.as_ref()?;
+    current.cancel.store(true, Ordering::Relaxed);
+    if current.telling.load(Ordering::Relaxed) {
+        None
+    } else {
+        job.take()
+    }
+}
+
+/// The transcript is complete before diarization starts. A cancellation or
+/// failure in that second pass leaves the words available to insert.
+fn keep_transcript_after_diarization(
+    pieces: Vec<file::Timed>,
+    spoken: Result<kanso_voice::diarize::Diarization, VoiceError>,
+) -> (
+    Vec<file::Timed>,
+    Result<Option<kanso_voice::diarize::Diarization>, VoiceError>,
+) {
+    let spoken = match spoken {
+        Err(VoiceError::Cancelled) => Ok(None),
+        other => other.map(Some),
+    };
+    (pieces, spoken)
 }
 
 /// A recording made in Kanso that is no longer being transcribed is no
@@ -521,9 +550,9 @@ fn run(mut job: Job, cx: &mut App) {
             };
             // The words are in; now who said them. Not being able to tell
             // is no reason to lose the transcript.
-            let outcome = result.and_then(|pieces| {
+            let outcome = result.map(|pieces| {
                 let Some((segmentation, embedding)) = speaker_dirs else {
-                    return Ok((pieces, Ok(None)));
+                    return (pieces, Ok(None));
                 };
                 telling.store(true, Ordering::Relaxed);
                 *progress.lock().unwrap() = Progress::default();
@@ -550,10 +579,11 @@ fn run(mut job: Job, cx: &mut App) {
                         &mut |at| *progress.lock().unwrap() = at,
                     )
                 });
-                match spoken {
-                    Err(VoiceError::Cancelled) => Err(VoiceError::Cancelled),
-                    other => Ok((pieces, other.map(Some))),
-                }
+                // Cancellation here means "keep the words, skip the names".
+                // Cancellation during transcription still returns an error
+                // above, before `pieces` exist.
+                let (pieces, spoken) = keep_transcript_after_diarization(pieces, spoken);
+                (pieces, spoken)
             });
             let _ = done_tx.try_send(outcome);
         });
@@ -565,7 +595,6 @@ fn run(mut job: Job, cx: &mut App) {
         );
         return;
     }
-    let cancel = job.cancel.clone();
     let task = cx.spawn(async move |cx| {
         let result = loop {
             let tick = cx.background_executor().timer(TICK);
@@ -576,9 +605,6 @@ fn run(mut job: Job, cx: &mut App) {
             }
         };
         cx.update(|cx| {
-            if cancel.load(Ordering::Relaxed) {
-                return;
-            }
             let Some(job) = cx.default_global::<Transcription>().job.take() else {
                 return;
             };
@@ -589,6 +615,7 @@ fn run(mut job: Job, cx: &mut App) {
             match result {
                 Ok((pieces, spoken)) => {
                     let spoken = match spoken {
+                        Err(VoiceError::Cancelled) => None,
                         Ok(spoken) => spoken,
                         Err(why) => {
                             // A model that failed its check (or to load)
@@ -882,11 +909,32 @@ fn notify(job: &Job, notification: Notification, cx: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::{
-        Edit, attach_audio, audio_link, insert_into_store, is_audio, linked_files, transcript_edit,
+        Edit, attach_audio, audio_link, insert_into_store, is_audio,
+        keep_transcript_after_diarization, linked_files, transcript_edit, transcript_text,
     };
     use kanso_core::DocType;
     use kanso_store::{Origin, Put, Store};
+    use kanso_voice::{VoiceError, file};
     use proptest::prelude::*;
+    use std::time::Duration;
+
+    #[test]
+    fn cancelling_diarization_keeps_the_completed_transcript_without_speaker_labels() {
+        let pieces = vec![file::Timed {
+            start: Duration::from_secs(12),
+            text: "The launch is on Friday.".into(),
+            speaker: None,
+        }];
+
+        let (kept, speakers) =
+            keep_transcript_after_diarization(pieces.clone(), Err(VoiceError::Cancelled));
+
+        assert_eq!(kept, pieces);
+        assert!(matches!(speakers, Ok(None)));
+        let text = transcript_text(Some("file:meeting"), &kept, None);
+        assert!(text.contains("The launch is on Friday."));
+        assert!(!text.contains("Speaker "));
+    }
 
     fn apply(text: &str, edit: &Edit) -> String {
         format!(

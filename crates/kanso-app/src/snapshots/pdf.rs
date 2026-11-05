@@ -170,6 +170,59 @@ pub(super) fn reader_highlights(
     draw(cx, window);
 }
 
+/// Pencil on a page (step 10): a pen, a pencil leaning on its side, a
+/// highlighter, a partial erase through one stroke and the bar and panel
+/// that go with it, over a highlighted line.
+pub(super) fn reader_ink(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    use crate::canvas_state::Tool;
+    use kanso_pdf::model::Color;
+    let reader = open_reader(
+        cx,
+        window,
+        workspace,
+        store,
+        &kanso_pdf::fixtures::report_pdf(),
+    );
+    wait_until(cx, window, &reader, |reader| reader.test_has_text(1));
+    // A wavy line, pressing harder towards the middle.
+    let wave = |y: f64, x0: f64, x1: f64| -> Vec<(f64, f64, f64)> {
+        (0..=40)
+            .map(|i| {
+                let t = f64::from(i) / 40.0;
+                (
+                    x0 + (x1 - x0) * t,
+                    y + 18.0 * (t * std::f64::consts::TAU * 2.0).sin(),
+                    0.15 + 0.8 * (t * std::f64::consts::PI).sin(),
+                )
+            })
+            .collect()
+    };
+    cx.update_window(window, |_, window, cx| {
+        reader.update(cx, |reader, cx| {
+            reader.test_hide_rail();
+            reader.test_select_lines(1, 0..1, cx);
+            reader.test_pick(Color::Yellow, window, cx);
+            reader.test_pencil(window, cx);
+            reader.test_pencil_tool(Tool::Pen, cx);
+            reader.test_stroke(1, &wave(430., 90., 700.), window, cx);
+            reader.test_pencil_tool(Tool::Pencil, cx);
+            reader.test_stroke(1, &wave(520., 90., 700.), window, cx);
+            reader.test_pencil_tool(Tool::Highlighter, cx);
+            reader.test_stroke(1, &wave(610., 120., 600.), window, cx);
+            reader.test_pencil_tool(Tool::Partial, cx);
+            reader.test_stroke(1, &[(390., 380., 0.5), (390., 640., 0.5)], window, cx);
+            reader.test_pencil_tool(Tool::Pen, cx);
+        });
+    })
+    .unwrap();
+    draw(cx, window);
+}
+
 /// The highlights left the note: the last ones stay, read-only, with Restore
 /// annotations.
 pub(super) fn reader_highlights_restore(

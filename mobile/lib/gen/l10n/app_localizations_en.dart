@@ -1506,6 +1506,23 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get pdfNotesInkTitle => 'Pencil marks';
+
+  @override
+  String pdfNotesInkStrokes(int strokes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      strokes,
+      locale: localeName,
+      other: '$strokes strokes',
+      one: '1 stroke',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get pdfNotesInkClear => 'Clear page';
+
+  @override
   String get previewEmptyDrawing => 'An empty drawing';
 
   @override
@@ -5177,6 +5194,18 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiTroubleAgentNeedsNode =>
       'Your agent needs a newer Node. Install the Node version it asks for, then use Find again in Settings › AI.';
+
+  @override
+  String get aiTroubleAgentSignIn =>
+      'Your agent needs you to sign in. Sign in to your agent, then try again.';
+
+  @override
+  String get aiTroubleBilling =>
+      'Your provider needs a billing change. Check your billing or plan with your AI provider, then try again.';
+
+  @override
+  String get aiTroubleWrongAddress =>
+      'Your model server address looks wrong. Check the address in Settings › AI, then try again.';
 
   @override
   String get aiTroubleNoTools =>
