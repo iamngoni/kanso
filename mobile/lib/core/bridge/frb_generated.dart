@@ -25227,6 +25227,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  PreviewCanvasShown dco_decode_box_autoadd_preview_canvas_shown(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_preview_canvas_shown(raw);
+  }
+
+  @protected
   PreviewOptions dco_decode_box_autoadd_preview_options(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_preview_options(raw);
@@ -27708,6 +27714,14 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  List<PreviewCanvasNotice> dco_decode_list_preview_canvas_notice(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_preview_canvas_notice)
+        .toList();
+  }
+
+  @protected
   List<PreviewCell> dco_decode_list_preview_cell(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_preview_cell).toList();
@@ -29863,6 +29877,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       case 8:
         return PreviewBlock_EmptyDrawing();
       case 9:
+        return PreviewBlock_Canvas(
+          note: dco_decode_String(raw[1]),
+          group: dco_decode_opt_String(raw[2]),
+          shown: dco_decode_box_autoadd_preview_canvas_shown(raw[3]),
+        );
+      case 10:
         return PreviewBlock_Failed(
           badge: dco_decode_String(raw[1]),
           detail: dco_decode_String(raw[2]),
@@ -29870,19 +29890,49 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           code: dco_decode_String(raw[4]),
           copy: dco_decode_opt_box_autoadd_u_32(raw[5]),
         );
-      case 10:
+      case 11:
         return PreviewBlock_Query(
           columns: dco_decode_list_String(raw[1]),
           rows: dco_decode_list_preview_query_row(raw[2]),
         );
-      case 11:
+      case 12:
         return PreviewBlock_QueryInvalid(
           code: dco_decode_String(raw[1]),
           message: dco_decode_String(raw[2]),
         );
-      case 12:
+      case 13:
         return PreviewBlock_Html(
           text: dco_decode_String(raw[1]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  PreviewCanvasNotice dco_decode_preview_canvas_notice(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return PreviewCanvasNotice.values[raw as int];
+  }
+
+  @protected
+  PreviewCanvasShown dco_decode_preview_canvas_shown(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return PreviewCanvasShown_Drawing(
+          svg: dco_decode_box_autoadd_preview_svg(raw[1]),
+          notices: dco_decode_list_preview_canvas_notice(raw[2]),
+        );
+      case 1:
+        return PreviewCanvasShown_Locked();
+      case 2:
+        return PreviewCanvasShown_Missing();
+      case 3:
+        return PreviewCanvasShown_NotCanvas();
+      case 4:
+        return PreviewCanvasShown_Invalid(
+          message: dco_decode_String(raw[1]),
         );
       default:
         throw Exception("unreachable");
@@ -34135,6 +34185,14 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  PreviewCanvasShown sse_decode_box_autoadd_preview_canvas_shown(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_preview_canvas_shown(deserializer));
+  }
+
+  @protected
   PreviewOptions sse_decode_box_autoadd_preview_options(
     SseDeserializer deserializer,
   ) {
@@ -37393,6 +37451,20 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  List<PreviewCanvasNotice> sse_decode_list_preview_canvas_notice(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <PreviewCanvasNotice>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_preview_canvas_notice(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<PreviewCell> sse_decode_list_preview_cell(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -40464,6 +40536,17 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       case 8:
         return PreviewBlock_EmptyDrawing();
       case 9:
+        var var_note = sse_decode_String(deserializer);
+        var var_group = sse_decode_opt_String(deserializer);
+        var var_shown = sse_decode_box_autoadd_preview_canvas_shown(
+          deserializer,
+        );
+        return PreviewBlock_Canvas(
+          note: var_note,
+          group: var_group,
+          shown: var_shown,
+        );
+      case 10:
         var var_badge = sse_decode_String(deserializer);
         var var_detail = sse_decode_String(deserializer);
         var var_language = sse_decode_opt_String(deserializer);
@@ -40476,17 +40559,52 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           code: var_code,
           copy: var_copy,
         );
-      case 10:
+      case 11:
         var var_columns = sse_decode_list_String(deserializer);
         var var_rows = sse_decode_list_preview_query_row(deserializer);
         return PreviewBlock_Query(columns: var_columns, rows: var_rows);
-      case 11:
+      case 12:
         var var_code = sse_decode_String(deserializer);
         var var_message = sse_decode_String(deserializer);
         return PreviewBlock_QueryInvalid(code: var_code, message: var_message);
-      case 12:
+      case 13:
         var var_text = sse_decode_String(deserializer);
         return PreviewBlock_Html(text: var_text);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  PreviewCanvasNotice sse_decode_preview_canvas_notice(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return PreviewCanvasNotice.values[inner];
+  }
+
+  @protected
+  PreviewCanvasShown sse_decode_preview_canvas_shown(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_svg = sse_decode_box_autoadd_preview_svg(deserializer);
+        var var_notices = sse_decode_list_preview_canvas_notice(deserializer);
+        return PreviewCanvasShown_Drawing(svg: var_svg, notices: var_notices);
+      case 1:
+        return PreviewCanvasShown_Locked();
+      case 2:
+        return PreviewCanvasShown_Missing();
+      case 3:
+        return PreviewCanvasShown_NotCanvas();
+      case 4:
+        var var_message = sse_decode_String(deserializer);
+        return PreviewCanvasShown_Invalid(message: var_message);
       default:
         throw UnimplementedError('');
     }
@@ -45034,6 +45152,15 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_box_autoadd_preview_canvas_shown(
+    PreviewCanvasShown self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_preview_canvas_shown(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_preview_options(
     PreviewOptions self,
     SseSerializer serializer,
@@ -47722,6 +47849,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_list_preview_canvas_notice(
+    List<PreviewCanvasNotice> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_preview_canvas_notice(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_preview_cell(
     List<PreviewCell> self,
     SseSerializer serializer,
@@ -50257,6 +50396,15 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
         sse_encode_box_autoadd_preview_svg(svg, serializer);
       case PreviewBlock_EmptyDrawing():
         sse_encode_i_32(8, serializer);
+      case PreviewBlock_Canvas(
+        note: final note,
+        group: final group,
+        shown: final shown,
+      ):
+        sse_encode_i_32(9, serializer);
+        sse_encode_String(note, serializer);
+        sse_encode_opt_String(group, serializer);
+        sse_encode_box_autoadd_preview_canvas_shown(shown, serializer);
       case PreviewBlock_Failed(
         badge: final badge,
         detail: final detail,
@@ -50264,23 +50412,55 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
         code: final code,
         copy: final copy,
       ):
-        sse_encode_i_32(9, serializer);
+        sse_encode_i_32(10, serializer);
         sse_encode_String(badge, serializer);
         sse_encode_String(detail, serializer);
         sse_encode_opt_String(language, serializer);
         sse_encode_String(code, serializer);
         sse_encode_opt_box_autoadd_u_32(copy, serializer);
       case PreviewBlock_Query(columns: final columns, rows: final rows):
-        sse_encode_i_32(10, serializer);
+        sse_encode_i_32(11, serializer);
         sse_encode_list_String(columns, serializer);
         sse_encode_list_preview_query_row(rows, serializer);
       case PreviewBlock_QueryInvalid(code: final code, message: final message):
-        sse_encode_i_32(11, serializer);
+        sse_encode_i_32(12, serializer);
         sse_encode_String(code, serializer);
         sse_encode_String(message, serializer);
       case PreviewBlock_Html(text: final text):
-        sse_encode_i_32(12, serializer);
+        sse_encode_i_32(13, serializer);
         sse_encode_String(text, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_preview_canvas_notice(
+    PreviewCanvasNotice self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_preview_canvas_shown(
+    PreviewCanvasShown self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case PreviewCanvasShown_Drawing(svg: final svg, notices: final notices):
+        sse_encode_i_32(0, serializer);
+        sse_encode_box_autoadd_preview_svg(svg, serializer);
+        sse_encode_list_preview_canvas_notice(notices, serializer);
+      case PreviewCanvasShown_Locked():
+        sse_encode_i_32(1, serializer);
+      case PreviewCanvasShown_Missing():
+        sse_encode_i_32(2, serializer);
+      case PreviewCanvasShown_NotCanvas():
+        sse_encode_i_32(3, serializer);
+      case PreviewCanvasShown_Invalid(message: final message):
+        sse_encode_i_32(4, serializer);
+        sse_encode_String(message, serializer);
     }
   }
 

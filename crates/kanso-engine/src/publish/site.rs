@@ -89,6 +89,13 @@ pub fn plan(store: &Store, book_id: &str) -> Result<SitePlan, StoreError> {
                 plan.locked.push(note.title.clone());
                 continue;
             }
+            for embed in kanso_core::canvas::embed::find(&note.body) {
+                if !plan.canvases.contains_key(&embed.note)
+                    && let Some(found) = crate::canvas_embed::embed_note(store, &embed.note)
+                {
+                    plan.canvases.insert(embed.note, found);
+                }
+            }
             let slug = slug_for(&note.title, &|s| slugs.contains(s));
             slugs.insert(slug.clone());
             for id in attachments_in(&note.body) {
@@ -153,6 +160,11 @@ pub fn build(
     let known: HashMap<&str, &PlannedFile> =
         plan.files.iter().map(|f| (f.id.as_str(), f)).collect();
     let attached = |id: &str| known.contains_key(id).then(|| attachments(id)).flatten();
+    let canvases = |id: &str| plan.canvases.get(id).cloned();
+    let options = kanso_render::html::PageOptions {
+        notes: Some(&canvases),
+        ..style.options()
+    };
     let mut bundle = SiteBundle::new(&plan.name);
     let mut downloads: Vec<(String, Vec<String>)> = Vec::new();
     for note in &plan.notes {
@@ -162,7 +174,7 @@ pub fn build(
             palette,
             &attached,
             Some(&site),
-            &style.options(),
+            &options,
         );
         bundle.pages.insert(
             note.slug.clone(),
@@ -542,6 +554,7 @@ mod tests {
                 ),
             ],
             locked: Vec::new(),
+            canvases: Default::default(),
             publish: None,
             files: vec![PlannedFile {
                 id: "file:pdf".into(),
@@ -654,6 +667,7 @@ mod tests {
                 })
                 .collect(),
             locked: locked.iter().map(|s| (*s).to_owned()).collect(),
+            canvases: Default::default(),
             files: (0..images)
                 .map(|ix| file(ix, "image/png"))
                 .chain((0..others).map(|ix| file(100 + ix, "application/pdf")))

@@ -147,6 +147,7 @@ mod plugins_model;
 mod pouch_import;
 mod presentation;
 mod preview;
+mod preview_canvas;
 mod preview_chunks;
 mod preview_rich;
 mod preview_tasks;

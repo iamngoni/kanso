@@ -302,6 +302,9 @@ pub struct NoteEditor {
     /// Lines (first, last, 0-based) of note `.0` to mark for a few seconds
     /// once it opens: where a receipt in an Ask answer points.
     pending_highlight: Option<(String, u32, u32)>,
+    /// A group (`.1`) of canvas note `.0` to show filling the view once it
+    /// opens: where an embed's "Open at this group" points.
+    pending_canvas_group: Option<(String, String)>,
     /// The timer that lets go of a marked range.
     highlight_task: Option<Task<()>>,
     /// A byte offset of note `.0`'s text to put the caret at once it
@@ -674,6 +677,7 @@ impl NoteEditor {
             wiki_task: None,
             pending_reveal: None,
             pending_highlight: None,
+            pending_canvas_group: None,
             highlight_task: None,
             pending_caret: None,
             pending_place: None,
@@ -1205,6 +1209,10 @@ impl NoteEditor {
             let (id, canvas_body) = (n.id.clone(), n.body.clone());
             self.canvas
                 .update(cx, |view, cx| view.open(&id, &canvas_body, read_only, cx));
+            if let Some((_, group)) = self.pending_canvas_group.take_if(|(note, _)| *note == id) {
+                self.canvas
+                    .update(cx, |view, cx| view.focus_group(&group, cx));
+            }
         } else {
             self.canvas.update(cx, |view, cx| view.clear(cx));
         }
@@ -1659,6 +1667,17 @@ impl NoteEditor {
             })
             .ok();
         }));
+    }
+
+    /// Shows group `group` of canvas note `id` filling the view: now when
+    /// that canvas is open, else once it opens.
+    pub fn focus_canvas_group(&mut self, id: String, group: String, cx: &mut Context<Self>) {
+        if self.note_id() == Some(id.as_str()) && self.canvas_body.is_some() {
+            self.canvas
+                .update(cx, |view, cx| view.focus_group(&group, cx));
+        } else {
+            self.pending_canvas_group = Some((id, group));
+        }
     }
 
     /// Shows lines `first` to `last` of note `id` marked, once it opens.

@@ -28768,6 +28768,11 @@ const _: fn() = || {
             let _: crate::api::types::PreviewSvg = svg;
         }
         crate::api::types::PreviewBlock::EmptyDrawing => {}
+        crate::api::types::PreviewBlock::Canvas { note, group, shown } => {
+            let _: String = note;
+            let _: Option<String> = group;
+            let _: crate::api::types::PreviewCanvasShown = shown;
+        }
         crate::api::types::PreviewBlock::Failed {
             badge,
             detail,
@@ -28791,6 +28796,18 @@ const _: fn() = || {
         }
         crate::api::types::PreviewBlock::Html { text } => {
             let _: String = text;
+        }
+    }
+    match None::<crate::api::types::PreviewCanvasShown>.unwrap() {
+        crate::api::types::PreviewCanvasShown::Drawing { svg, notices } => {
+            let _: crate::api::types::PreviewSvg = svg;
+            let _: Vec<crate::api::types::PreviewCanvasNotice> = notices;
+        }
+        crate::api::types::PreviewCanvasShown::Locked => {}
+        crate::api::types::PreviewCanvasShown::Missing => {}
+        crate::api::types::PreviewCanvasShown::NotCanvas => {}
+        crate::api::types::PreviewCanvasShown::Invalid { message } => {
+            let _: String = message;
         }
     }
     {
@@ -34702,6 +34719,20 @@ impl SseDecode for Vec<crate::api::types::PreviewBlock> {
     }
 }
 
+impl SseDecode for Vec<crate::api::types::PreviewCanvasNotice> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::types::PreviewCanvasNotice>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::types::PreviewCell> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -38093,6 +38124,17 @@ impl SseDecode for crate::api::types::PreviewBlock {
                 return crate::api::types::PreviewBlock::EmptyDrawing;
             }
             9 => {
+                let mut var_note = <String>::sse_decode(deserializer);
+                let mut var_group = <Option<String>>::sse_decode(deserializer);
+                let mut var_shown =
+                    <crate::api::types::PreviewCanvasShown>::sse_decode(deserializer);
+                return crate::api::types::PreviewBlock::Canvas {
+                    note: var_note,
+                    group: var_group,
+                    shown: var_shown,
+                };
+            }
+            10 => {
                 let mut var_badge = <String>::sse_decode(deserializer);
                 let mut var_detail = <String>::sse_decode(deserializer);
                 let mut var_language = <Option<String>>::sse_decode(deserializer);
@@ -38106,7 +38148,7 @@ impl SseDecode for crate::api::types::PreviewBlock {
                     copy: var_copy,
                 };
             }
-            10 => {
+            11 => {
                 let mut var_columns = <Vec<String>>::sse_decode(deserializer);
                 let mut var_rows =
                     <Vec<crate::api::types::PreviewQueryRow>>::sse_decode(deserializer);
@@ -38115,7 +38157,7 @@ impl SseDecode for crate::api::types::PreviewBlock {
                     rows: var_rows,
                 };
             }
-            11 => {
+            12 => {
                 let mut var_code = <String>::sse_decode(deserializer);
                 let mut var_message = <String>::sse_decode(deserializer);
                 return crate::api::types::PreviewBlock::QueryInvalid {
@@ -38123,9 +38165,57 @@ impl SseDecode for crate::api::types::PreviewBlock {
                     message: var_message,
                 };
             }
-            12 => {
+            13 => {
                 let mut var_text = <String>::sse_decode(deserializer);
                 return crate::api::types::PreviewBlock::Html { text: var_text };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseDecode for crate::api::types::PreviewCanvasNotice {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::types::PreviewCanvasNotice::WholeCanvas,
+            1 => crate::api::types::PreviewCanvasNotice::GroupMissing,
+            _ => unreachable!("Invalid variant for PreviewCanvasNotice: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::PreviewCanvasShown {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_svg = <crate::api::types::PreviewSvg>::sse_decode(deserializer);
+                let mut var_notices =
+                    <Vec<crate::api::types::PreviewCanvasNotice>>::sse_decode(deserializer);
+                return crate::api::types::PreviewCanvasShown::Drawing {
+                    svg: var_svg,
+                    notices: var_notices,
+                };
+            }
+            1 => {
+                return crate::api::types::PreviewCanvasShown::Locked;
+            }
+            2 => {
+                return crate::api::types::PreviewCanvasShown::Missing;
+            }
+            3 => {
+                return crate::api::types::PreviewCanvasShown::NotCanvas;
+            }
+            4 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::api::types::PreviewCanvasShown::Invalid {
+                    message: var_message,
+                };
             }
             _ => {
                 unimplemented!("");
@@ -49499,6 +49589,13 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::PreviewBloc
             ]
             .into_dart(),
             crate::api::types::PreviewBlock::EmptyDrawing => [8.into_dart()].into_dart(),
+            crate::api::types::PreviewBlock::Canvas { note, group, shown } => [
+                9.into_dart(),
+                note.into_into_dart().into_dart(),
+                group.into_into_dart().into_dart(),
+                shown.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::api::types::PreviewBlock::Failed {
                 badge,
                 detail,
@@ -49506,7 +49603,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::PreviewBloc
                 code,
                 copy,
             } => [
-                9.into_dart(),
+                10.into_dart(),
                 badge.into_into_dart().into_dart(),
                 detail.into_into_dart().into_dart(),
                 language.into_into_dart().into_dart(),
@@ -49515,19 +49612,19 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::PreviewBloc
             ]
             .into_dart(),
             crate::api::types::PreviewBlock::Query { columns, rows } => [
-                10.into_dart(),
+                11.into_dart(),
                 columns.into_into_dart().into_dart(),
                 rows.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::types::PreviewBlock::QueryInvalid { code, message } => [
-                11.into_dart(),
+                12.into_dart(),
                 code.into_into_dart().into_dart(),
                 message.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::types::PreviewBlock::Html { text } => {
-                [12.into_dart(), text.into_into_dart().into_dart()].into_dart()
+                [13.into_dart(), text.into_into_dart().into_dart()].into_dart()
             }
             _ => {
                 unimplemented!("");
@@ -49543,6 +49640,60 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::PreviewBloc
     for crate::api::types::PreviewBlock
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::PreviewBlock> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::PreviewCanvasNotice> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::types::PreviewCanvasNotice::WholeCanvas => 0.into_dart(),
+            crate::api::types::PreviewCanvasNotice::GroupMissing => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::PreviewCanvasNotice>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::PreviewCanvasNotice>>
+    for crate::api::types::PreviewCanvasNotice
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::PreviewCanvasNotice> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::PreviewCanvasShown> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::types::PreviewCanvasShown::Drawing { svg, notices } => [
+                0.into_dart(),
+                svg.into_into_dart().into_dart(),
+                notices.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::types::PreviewCanvasShown::Locked => [1.into_dart()].into_dart(),
+            crate::api::types::PreviewCanvasShown::Missing => [2.into_dart()].into_dart(),
+            crate::api::types::PreviewCanvasShown::NotCanvas => [3.into_dart()].into_dart(),
+            crate::api::types::PreviewCanvasShown::Invalid { message } => {
+                [4.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::PreviewCanvasShown>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::PreviewCanvasShown>>
+    for crate::api::types::PreviewCanvasShown
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::PreviewCanvasShown> {
         self.into()
     }
 }
@@ -56779,6 +56930,16 @@ impl SseEncode for Vec<crate::api::types::PreviewBlock> {
     }
 }
 
+impl SseEncode for Vec<crate::api::types::PreviewCanvasNotice> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::types::PreviewCanvasNotice>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::types::PreviewCell> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -59374,6 +59535,12 @@ impl SseEncode for crate::api::types::PreviewBlock {
             crate::api::types::PreviewBlock::EmptyDrawing => {
                 <i32>::sse_encode(8, serializer);
             }
+            crate::api::types::PreviewBlock::Canvas { note, group, shown } => {
+                <i32>::sse_encode(9, serializer);
+                <String>::sse_encode(note, serializer);
+                <Option<String>>::sse_encode(group, serializer);
+                <crate::api::types::PreviewCanvasShown>::sse_encode(shown, serializer);
+            }
             crate::api::types::PreviewBlock::Failed {
                 badge,
                 detail,
@@ -59381,7 +59548,7 @@ impl SseEncode for crate::api::types::PreviewBlock {
                 code,
                 copy,
             } => {
-                <i32>::sse_encode(9, serializer);
+                <i32>::sse_encode(10, serializer);
                 <String>::sse_encode(badge, serializer);
                 <String>::sse_encode(detail, serializer);
                 <Option<String>>::sse_encode(language, serializer);
@@ -59389,18 +59556,63 @@ impl SseEncode for crate::api::types::PreviewBlock {
                 <Option<u32>>::sse_encode(copy, serializer);
             }
             crate::api::types::PreviewBlock::Query { columns, rows } => {
-                <i32>::sse_encode(10, serializer);
+                <i32>::sse_encode(11, serializer);
                 <Vec<String>>::sse_encode(columns, serializer);
                 <Vec<crate::api::types::PreviewQueryRow>>::sse_encode(rows, serializer);
             }
             crate::api::types::PreviewBlock::QueryInvalid { code, message } => {
-                <i32>::sse_encode(11, serializer);
+                <i32>::sse_encode(12, serializer);
                 <String>::sse_encode(code, serializer);
                 <String>::sse_encode(message, serializer);
             }
             crate::api::types::PreviewBlock::Html { text } => {
-                <i32>::sse_encode(12, serializer);
+                <i32>::sse_encode(13, serializer);
                 <String>::sse_encode(text, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseEncode for crate::api::types::PreviewCanvasNotice {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::types::PreviewCanvasNotice::WholeCanvas => 0,
+                crate::api::types::PreviewCanvasNotice::GroupMissing => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::types::PreviewCanvasShown {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::types::PreviewCanvasShown::Drawing { svg, notices } => {
+                <i32>::sse_encode(0, serializer);
+                <crate::api::types::PreviewSvg>::sse_encode(svg, serializer);
+                <Vec<crate::api::types::PreviewCanvasNotice>>::sse_encode(notices, serializer);
+            }
+            crate::api::types::PreviewCanvasShown::Locked => {
+                <i32>::sse_encode(1, serializer);
+            }
+            crate::api::types::PreviewCanvasShown::Missing => {
+                <i32>::sse_encode(2, serializer);
+            }
+            crate::api::types::PreviewCanvasShown::NotCanvas => {
+                <i32>::sse_encode(3, serializer);
+            }
+            crate::api::types::PreviewCanvasShown::Invalid { message } => {
+                <i32>::sse_encode(4, serializer);
+                <String>::sse_encode(message, serializer);
             }
             _ => {
                 unimplemented!("");

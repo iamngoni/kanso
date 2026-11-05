@@ -470,6 +470,12 @@ impl Library {
         })
     }
 
+    /// What a `canvas` fence naming note `id` shows; a locked canvas is
+    /// found without its text being read.
+    pub(crate) fn embed_note(&self, id: &str) -> Option<kanso_render::canvas::embed::EmbedNote> {
+        kanso_engine::canvas_embed::embed_note(&self.inner.store, id)
+    }
+
     /// The note as the store has it (sealed text empty), or not found.
     pub(crate) fn stored(&self, id: &str) -> Result<Note, KansoError> {
         if DocType::of_id(id) != Some(DocType::Note) {

@@ -1290,6 +1290,90 @@ fn page_preview(
 /// An Excalidraw drawing in a note.
 const DRAWING_NOTE: &str = "How a note travels.\n\n```excalidraw\n{\"type\":\"excalidraw\",\"version\":2,\"elements\":[{\"type\":\"rectangle\",\"x\":0,\"y\":0,\"width\":160,\"height\":80,\"strokeColor\":\"#1e1e1e\",\"backgroundColor\":\"#a5d8ff\",\"fillStyle\":\"hachure\",\"strokeWidth\":2,\"roughness\":1,\"seed\":7,\"roundness\":{\"type\":3}},{\"type\":\"text\",\"x\":20,\"y\":27,\"width\":120,\"height\":25,\"text\":\"Kanso\",\"fontSize\":20,\"fontFamily\":1,\"textAlign\":\"center\",\"strokeColor\":\"#1e1e1e\",\"seed\":8},{\"type\":\"arrow\",\"x\":170,\"y\":40,\"width\":110,\"height\":0,\"points\":[[0,0],[110,0]],\"strokeColor\":\"#1e1e1e\",\"endArrowhead\":\"arrow\",\"strokeWidth\":2,\"roughness\":1,\"seed\":9},{\"type\":\"ellipse\",\"x\":290,\"y\":0,\"width\":140,\"height\":80,\"strokeColor\":\"#e03131\",\"backgroundColor\":\"#ffc9c9\",\"fillStyle\":\"solid\",\"strokeWidth\":2,\"roughness\":1,\"seed\":10},{\"type\":\"text\",\"x\":310,\"y\":27,\"width\":100,\"height\":25,\"text\":\"Worker\",\"fontSize\":20,\"fontFamily\":1,\"textAlign\":\"center\",\"strokeColor\":\"#1e1e1e\",\"seed\":11},{\"type\":\"freedraw\",\"x\":40,\"y\":110,\"width\":300,\"height\":30,\"points\":[[0,10],[40,0],[80,20],[120,5],[160,25],[200,8],[240,22],[300,12]],\"strokeColor\":\"#2f9e44\",\"strokeWidth\":2,\"seed\":12}]}\n```\n\nSealed on the way.\n";
 
+/// A note that embeds a canvas (`how`: `drawing`, `group`, `locked`,
+/// `huge`), the canvas note being fixed for the preview rather than stored.
+fn canvas_embed(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+    how: &str,
+) {
+    use kanso_core::canvas::{Canvas, Node, to_body};
+    use kanso_render::canvas::embed::EmbedNote;
+    let card = |id: &str, x: f64, text: &str| Node {
+        id: id.into(),
+        kind: "text".into(),
+        x,
+        y: 0.0,
+        width: 220.0,
+        height: 90.0,
+        text: Some(text.into()),
+        ..Node::default()
+    };
+    let mut canvas = Canvas::default();
+    canvas.put_node(card("a", 0.0, "Plan the launch"), 1);
+    canvas.put_node(card("b", 300.0, "Write the notes"), 2);
+    canvas.put_node(
+        Node {
+            id: "g1".into(),
+            kind: "group".into(),
+            label: Some("Launch".into()),
+            x: -20.0,
+            y: -20.0,
+            width: 280.0,
+            height: 130.0,
+            ..Node::default()
+        },
+        3,
+    );
+    if how == "huge" {
+        canvas.put_node(card("far", 20_000.0, "Far away"), 4);
+    }
+    let id = format!("note:snapshot-{how}");
+    let found = match how {
+        "locked" => EmbedNote::Locked,
+        _ => EmbedNote::Open {
+            title: "Launch board".into(),
+            body: to_body(&canvas).into(),
+        },
+    };
+    crate::preview_canvas::seed(&id, found);
+    let group = if how == "group" { "\ngroup:g1" } else { "" };
+    let body = format!(
+        "Where the launch stands.\n\n```canvas\n{id}{group}\n```\n\nThe rest is in the notes below.\n"
+    );
+    open_new_note(cx, workspace, store, "Launch status", &body);
+    settle_drawings(cx, window);
+}
+
+fn canvas_embed_drawing(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    canvas_embed(cx, window, workspace, store, "drawing");
+}
+
+fn canvas_embed_locked(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    canvas_embed(cx, window, workspace, store, "locked");
+}
+
+fn canvas_embed_huge(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    canvas_embed(cx, window, workspace, store, "huge");
+}
+
 /// Lets math and diagrams finish drawing: they draw on threads of their
 /// own, which the test clock doesn't wait for.
 fn settle_drawings(cx: &mut HeadlessAppContext, window: AnyWindowHandle) {
@@ -5235,6 +5319,22 @@ fn snapshots() {
         shot("light-rich-split", Light, Split, rich_note),
         shot("dark-drawing", Dark, Preview, drawing_note),
         shot("light-drawing", Light, Preview, drawing_note),
+        shot("dark-canvas-embed", Dark, Preview, canvas_embed_drawing),
+        shot("light-canvas-embed", Light, Preview, canvas_embed_drawing),
+        shot(
+            "light-canvas-embed-locked",
+            Light,
+            Preview,
+            canvas_embed_locked,
+        ),
+        shot(
+            "dark-canvas-embed-locked",
+            Dark,
+            Preview,
+            canvas_embed_locked,
+        ),
+        shot("light-canvas-embed-huge", Light, Preview, canvas_embed_huge),
+        shot("dark-canvas-embed-huge", Dark, Preview, canvas_embed_huge),
         shot("dark-images-bar", Dark, Preview, bar_sized_images),
         shot("light-images-bar", Light, Split, bar_sized_images),
         shot("dark-image-dragging", Dark, Preview, dragging_image),

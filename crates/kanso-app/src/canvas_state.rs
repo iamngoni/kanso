@@ -647,6 +647,20 @@ impl CanvasState {
         self.view = Viewport::fit(&corners, size, 48., 2.0);
     }
 
+    /// The viewport showing group `id`, as an embed's "Open at this group"
+    /// does. `false` (and the view as it was) when there is no such group.
+    pub fn fit_group(&mut self, id: &str, size: [f32; 2]) -> bool {
+        let Some(b) = self.canvas.group_bounds(id) else {
+            return false;
+        };
+        let corners = [
+            [b.x as f32, b.y as f32],
+            [b.right() as f32, b.bottom() as f32],
+        ];
+        self.view = Viewport::fit(&corners, size, 48., 2.0);
+        true
+    }
+
     #[cfg(test)]
     /// The outline polygon of a finished stroke, kept until the stroke
     /// changes (a stroke never changes: its version is its identity).

@@ -24,6 +24,8 @@ serde_json.workspace = true
 # The SVG parser GPUI draws with, at its version: finds a diagram's real
 # bounds, whatever the SVG says.
 usvg = "0.46"
+# Draws that SVG as pixels, for "Copy as image" (the renderer GPUI uses).
+resvg = { version = "0.46", default-features = false }
 
 # rquickjs ships no bindings for phones: generate them with the build
 # machine's libclang (Xcode's, or the Android NDK's), as scripts/mobile-test.sh

@@ -116,6 +116,9 @@ pub struct CanvasView {
     bounds: Rc<Cell<Bounds<Pixels>>>,
     /// Fit the view at the next paint.
     fit: Rc<Cell<bool>>,
+    /// Show this group at the next paint instead of everything (an
+    /// embed's "Open at this group"); the whole content when it is gone.
+    focus_group: Option<String>,
     /// The card a double click edits is the one pressed.
     pressed_card: Option<String>,
     /// The pointer over the surface, in view points: where a drop lands.
@@ -151,6 +154,7 @@ impl CanvasView {
             hover: None,
             bounds: Rc::new(Cell::new(Bounds::default())),
             fit: Rc::new(Cell::new(true)),
+            focus_group: None,
             pressed_card: None,
             pointer: [0., 0.],
             budget: Budget::Ok,
@@ -192,6 +196,13 @@ impl CanvasView {
                 self.broken = Some(why);
             }
         }
+        cx.notify();
+    }
+
+    /// Shows group `id` filling the view, at the next paint.
+    pub fn focus_group(&mut self, id: &str, cx: &mut Context<Self>) {
+        self.focus_group = Some(id.to_owned());
+        self.fit.set(true);
         cx.notify();
     }
 
@@ -1106,8 +1117,12 @@ impl Render for CanvasView {
         };
         if self.fit.get() && self.bounds.get().size.width > px(1.) {
             self.fit.set(false);
+            let group = self.focus_group.take();
             if let Some(state) = &mut self.state {
-                state.fit(size);
+                let shown = group.as_deref().is_some_and(|g| state.fit_group(g, size));
+                if !shown {
+                    state.fit(size);
+                }
             }
         }
         let view = self

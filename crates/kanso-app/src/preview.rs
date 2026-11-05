@@ -155,6 +155,7 @@ impl Preview {
             wake,
             store: store.clone(),
             edits: resizes.clone(),
+            links: links.clone(),
             note: note.clone(),
             text_scale: Mutex::new(1.),
         });
@@ -698,8 +699,8 @@ const PICTURE: &str = "kanso-picture";
 const FRONT_MATTER: &str = "kanso-front-matter";
 /// Changes when [`quote_extensions`] parses differently, so a text view
 /// re-parses its note. 3: math, diagrams and drawings. 4: due-date chips.
-/// 5: query views. 6: front matter hidden.
-const QUOTE_PARSER_REVISION: u64 = 6;
+/// 5: query views. 6: front matter hidden. 7: embedded canvases.
+const QUOTE_PARSER_REVISION: u64 = 7;
 
 /// Front matter, drawn as nothing: the Properties section shows it.
 fn front_matter_node(node: &markdown_ast::Node) -> Option<MarkdownNode> {
