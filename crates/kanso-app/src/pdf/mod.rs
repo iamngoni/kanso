@@ -33,6 +33,7 @@ mod prefetch;
 mod session;
 mod texture;
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -40,7 +41,10 @@ use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::scroll::Scrollbar;
-use gpui_kit::component::{ActiveTheme as _, Icon, Selectable as _, Sizable as _, h_flex, v_flex};
+use gpui_kit::component::{
+    ActiveTheme as _, Disableable as _, Icon, Selectable as _, Sizable as _, WindowExt as _,
+    h_flex, v_flex,
+};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_pdf::client::WorkerPaths;
@@ -155,6 +159,8 @@ pub struct PdfReader {
     save_task: Option<Task<()>>,
     flash_task: Option<Task<()>>,
     comment: Entity<InputState>,
+    export_path: Option<PathBuf>,
+    exporting: bool,
 
     scroll: ScrollHandle,
     rail_scroll: ScrollHandle,
@@ -273,6 +279,8 @@ impl PdfReader {
             save_task: None,
             flash_task: None,
             comment,
+            export_path: None,
+            exporting: false,
             scroll: ScrollHandle::new(),
             rail_scroll: ScrollHandle::new(),
             password,
@@ -388,6 +396,31 @@ impl PdfReader {
                 self.failed.insert(job);
             }
             Event::Text(text) => self.on_text(*text, cx),
+            Event::Exported(result) => {
+                self.exporting = false;
+                let Some(path) = self.export_path.take() else {
+                    return;
+                };
+                match result.and_then(|bytes| {
+                    std::fs::write(&path, bytes).map_err(|error| error.to_string())
+                }) {
+                    Ok(()) => {
+                        cx.reveal_path(&path);
+                        window.push_notification(
+                            gpui_kit::component::notification::Notification::success(
+                                "Saved the annotated PDF copy.",
+                            ),
+                            cx,
+                        );
+                    }
+                    Err(error) => window.push_notification(
+                        gpui_kit::component::notification::Notification::error(format!(
+                            "Couldn't save the PDF copy: {error}"
+                        )),
+                        cx,
+                    ),
+                }
+            }
             Event::Failed(words) => self.fail(words),
         }
         cx.notify();
@@ -829,6 +862,80 @@ impl PdfReader {
             .selected(selected)
     }
 
+    /// Explains that the saved copy is a plain file, then saves bytes returned
+    /// by the contained worker. No PDFium call runs in the app process.
+    fn export_copy(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.exporting || !matches!(self.state, ReaderState::Showing { .. }) {
+            return;
+        }
+        let Some(annotations) = self.notes.annots.as_ref() else {
+            return;
+        };
+        if !annotations.is_editable() {
+            self.notes.notice =
+                Some("These annotations can't be exported until they can be read.".into());
+            cx.notify();
+            return;
+        }
+        if annotations.ink_pending {
+            self.notes.notice = Some(kanso_pdf::highlights::INK_ARRIVING.into());
+            cx.notify();
+            return;
+        }
+        let stem = std::path::Path::new(&self.name)
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .unwrap_or(&self.name);
+        let name = kanso_engine::export::file_name(stem, "pdf");
+        let start = crate::paths::home().join("Documents");
+        let start = if start.is_dir() {
+            start
+        } else {
+            crate::paths::home()
+        };
+        let reader = cx.entity().downgrade();
+        crate::dialogs::confirm(
+            "Save an annotated copy?",
+            "The exported PDF is a plain file. Anyone who can open it can read its annotations, even when the note is locked.",
+            "Choose where to save",
+            window,
+            cx,
+            move |window, cx| {
+                let picked = cx.prompt_for_new_path(&start, Some(&name));
+                let reader = reader.clone();
+                window
+                    .spawn(cx, async move |cx| {
+                        let Ok(Ok(Some(path))) = picked.await else {
+                            return;
+                        };
+                        reader
+                            .update(cx, |this, cx| this.begin_export(path, cx))
+                            .ok();
+                    })
+                    .detach();
+            },
+        );
+    }
+
+    fn begin_export(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        let Some(annotations) = self.notes.annots.as_ref() else {
+            return;
+        };
+        if !annotations.is_editable() {
+            return;
+        }
+        if annotations.ink_pending {
+            return;
+        }
+        let Some(session) = self.session.as_ref() else {
+            return;
+        };
+        self.export_path = Some(path);
+        self.exporting = true;
+        session.export(annotations.block.clone());
+        cx.notify();
+    }
+
     fn header(&self, colors: &Colors, cx: &mut Context<Self>) -> impl IntoElement {
         let showing = matches!(self.state, ReaderState::Showing { .. });
         let pages = match self.state {
@@ -881,6 +988,19 @@ impl PdfReader {
                         .on_click(
                             cx.listener(|this, _, window, cx| this.toggle_pencil(window, cx)),
                         ),
+                )
+                .child(
+                    Button::new("pdf-export")
+                        .debug_selector(|| "pdf-export".into())
+                        .ghost()
+                        .small()
+                        .label(if self.exporting {
+                            "Exporting…"
+                        } else {
+                            "Export copy"
+                        })
+                        .disabled(self.exporting)
+                        .on_click(cx.listener(|this, _, window, cx| this.export_copy(window, cx))),
                 )
                 .child(
                     self.button("pdf-rail", Lucide::PanelLeft, "Thumbnails", self.rail_open)

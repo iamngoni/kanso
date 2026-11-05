@@ -31,6 +31,8 @@ pub const MAX_LONG_EDGE_PX: u32 = 4_096;
 pub const MAX_PAGE_BYTES: usize = 64 * 1024 * 1024;
 /// The most JSON metadata one frame may carry.
 pub const MAX_JSON_BYTES: usize = 1024 * 1024;
+/// Maximum encoded annotation block supplied for one export.
+pub const MAX_EXPORT_ANNOTATION_BYTES: usize = 8 * 1024 * 1024;
 /// The most a frame's blob may carry: a PDF at its size limit, or a page.
 pub const MAX_BLOB_BYTES: usize = kanso_core::model::MAX_PDF_SIZE;
 
@@ -78,6 +80,9 @@ pub enum Request {
     /// search: [`Response::PlainText`]. Cheaper than [`Request::Text`]: no
     /// boxes, one string a page.
     PlainText { from: u32, count: u32 },
+    /// Writes the JSON annotation block in the input frame's blob into this
+    /// in-memory document and returns a new PDF byte vector.
+    Export,
     /// Closes the document; the worker answers [`Response::Closed`] and exits.
     Close,
 }
@@ -114,6 +119,8 @@ pub enum Response {
     },
     /// The document is closed.
     Closed,
+    /// A new PDF has been written; the frame blob contains its bytes.
+    Exported,
     /// The request failed. The worker stays up for everything but a failed
     /// open.
     Error { kind: ErrorKind, message: String },

@@ -329,6 +329,16 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   static String? parseColor({required String text}) =>
       KansoCore.instance.api.crateApiLibraryKansoLibraryParseColor(text: text);
 
+  /// Reserved for the eventual phone renderer; fails closed while disabled.
+  Future<Uint8List> pdfExportCopy({
+    required String noteId,
+    required String file,
+  });
+
+  /// The phone export hook is feature-flagged off until its isolated
+  /// renderer boundary is chosen and reviewed (PR #310).
+  bool pdfExportEnabled();
+
   /// Changes one highlight of a PDF in a note drawn at `base_rev`.
   Future<Saved> pdfHighlightChange({
     required String noteId,

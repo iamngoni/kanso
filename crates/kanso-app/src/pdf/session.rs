@@ -49,6 +49,8 @@ pub enum Event {
     },
     /// One page could not be drawn; the worker is still up.
     RenderFailed { job: Job },
+    /// A new annotated PDF copy from the contained worker.
+    Exported(Result<Vec<u8>, String>),
     /// The characters of a page, for selecting and highlighting (1-based
     /// page number inside).
     Text(Box<kanso_pdf::PageText>),
@@ -63,6 +65,7 @@ struct Inbox {
     /// Pages (0-based) whose characters are wanted, most wanted first.
     text: Vec<u32>,
     running: Option<Job>,
+    export: Option<kanso_pdf::model::PdfBlock>,
     password: Option<String>,
     closed: bool,
 }
@@ -144,6 +147,14 @@ impl Session {
     pub fn submit_password(&self, password: String) {
         if let Ok(mut inbox) = self.shared.inbox.lock() {
             inbox.password = Some(password);
+            self.shared.wake.notify_all();
+        }
+    }
+
+    /// Asks the open contained worker for a new annotated copy.
+    pub fn export(&self, block: kanso_pdf::model::PdfBlock) {
+        if let Ok(mut inbox) = self.shared.inbox.lock() {
+            inbox.export = Some(block);
             self.shared.wake.notify_all();
         }
     }
@@ -263,6 +274,19 @@ fn run(
                                 return;
                             }
                         }
+                    }
+                    let Ok(again) = shared.inbox.lock() else {
+                        return;
+                    };
+                    inbox = again;
+                    continue;
+                }
+                if let Some(block) = inbox.export.take() {
+                    drop(inbox);
+                    let result = worker.export(block).map_err(|error| error.message());
+                    if !send(Event::Exported(result)) {
+                        worker.close();
+                        return;
                     }
                     let Ok(again) = shared.inbox.lock() else {
                         return;
