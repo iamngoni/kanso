@@ -33,11 +33,12 @@ assets = [
     ["target/release/kanso-plugin-host", "usr/bin/", "755"],
     # PDFs are drawn in a contained helper beside its PDFium library, where
     # the app looks for them (kanso_pdf::client::locate); scripts/fetch-pdfium.sh
-    # fetches the library.
+    # fetches the library, and scripts/deb-build.sh stages this machine's
+    # (linux-x64 or linux-arm64) in target/deb/pdfium.
     ["target/release/kanso-pdf-worker", "usr/lib/kanso/", "755"],
-    ["../../vendor/pdfium/linux-x64/lib/libpdfium.so", "usr/lib/kanso/", "755"],
-    ["../../vendor/pdfium/linux-x64/LICENSE", "usr/share/doc/kanso/pdfium/LICENSE", "644"],
-    ["../../vendor/pdfium/linux-x64/licenses/*", "usr/share/doc/kanso/pdfium/licenses/", "644"],
+    ["../../target/deb/pdfium/lib/libpdfium.so", "usr/lib/kanso/", "755"],
+    ["../../target/deb/pdfium/LICENSE", "usr/share/doc/kanso/pdfium/LICENSE", "644"],
+    ["../../target/deb/pdfium/licenses/*", "usr/share/doc/kanso/pdfium/licenses/", "644"],
     ["../../assets/linux/kanso.desktop", "usr/share/applications/", "644"],
     ["../../assets/icon/kanso.png", "usr/share/icons/hicolor/512x512/apps/", "644"],
 ]

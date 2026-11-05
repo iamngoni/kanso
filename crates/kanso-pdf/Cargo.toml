@@ -18,6 +18,11 @@ name = "kanso-pdf-worker"
 path = "src/bin/kanso-pdf-worker.rs"
 required-features = ["render"]
 
+# Writes the hostile-PDF corpus and the fuzz target's seeds to a folder.
+[[example]]
+name = "pdf_corpus"
+required-features = ["test-support"]
+
 [dependencies]
 fastrand.workspace = true
 kanso-core.workspace = true

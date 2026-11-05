@@ -13,6 +13,8 @@ pub mod client;
 pub mod contain;
 #[cfg(feature = "test-support")]
 pub mod fixtures;
+#[cfg(feature = "test-support")]
+pub mod hostile;
 pub mod invert;
 pub mod link;
 pub mod model;

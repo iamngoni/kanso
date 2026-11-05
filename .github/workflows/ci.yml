@@ -64,6 +64,12 @@ jobs:
       # the target folder (issue #43).
       - name: PDFium
         run: scripts/fetch-pdfium.sh
+      # PDF JavaScript runs in V8; the library in the build is the one
+      # without it (issue #43, step 9).
+      - name: PDFium is not a V8 build
+        run: scripts/check-pdfium-no-v8.sh vendor/pdfium
+      # With `render`, this also runs the hostile-PDF corpus through the real
+      # worker (kanso-pdf/tests/hostile.rs).
       - run: cargo test --workspace --locked --features kanso-pdf/render
 
   # The app and the command-line tools build for Windows and Linux too (the
@@ -135,6 +141,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           scripts/fetch-pdfium.sh
+          scripts/check-pdfium-no-v8.sh vendor/pdfium
           cargo test --locked -p kanso-pdf --features render
         shell: bash
 
@@ -167,6 +174,54 @@ jobs:
       - run: scripts/mobile-check.sh
       # The library and integration tests, in the first iPhone simulator.
       - run: scripts/mobile-test.sh ios-sim
+
+  # The PDF worker's hardening (issue #43, step 9), on GitHub's own runners so
+  # it also runs for a pull request from a fork: it builds only kanso-pdf
+  # (no PDFium, no window) and runs nothing from the PR with a secret.
+  # - The check that refuses a V8 build of PDFium is itself tested, against
+  #   stand-ins and against the real V8 archive of the build Kanso pins, and
+  #   run on the library Kanso would ship.
+  # - A short fuzz run of the protocol decoder (cargo-fuzz, nightly), seeded
+  #   with valid frames and the hostile-PDF corpus. The hostile PDFs go
+  #   through the real worker in the `rust` and `portability` jobs above.
+  pdf-hardening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # The PDFium binary and the `pdfium-render` wrapper are a pair: the
+      # wrapper's `pdfium_<build>` feature is the pinned build, so the weekly
+      # bump (.github/workflows/pdfium-bump.yml) cannot ship one without the
+      # other (issue #43, step 15).
+      - name: PDFium binary and wrapper are a pair
+        run: |
+          scripts/test-check-pdfium-pair.sh
+          scripts/check-pdfium-pair.sh
+      - name: PDFium is not a V8 build
+        run: |
+          scripts/test-check-pdfium.sh --real-v8
+          scripts/fetch-pdfium.sh linux-x64
+          scripts/check-pdfium-no-v8.sh vendor/pdfium
+      - run: scripts/ci-rust.sh
+      # Cargo refuses a `pdfium_<build>` feature the pinned wrapper doesn't have.
+      - name: pdfium-render has the feature
+        run: cargo tree --locked -p kanso-pdf --features render -e features -i pdfium-render >/dev/null
+      - run: rustup toolchain install nightly --profile minimal
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: |
+            . -> target
+            crates/kanso-pdf/fuzz -> target
+      - run: cargo install cargo-fuzz --locked --version 0.13.2
+      - name: Fuzz the worker protocol (60 s)
+        run: scripts/pdf-fuzz.sh 60
+      # A crash is kept for whoever reads the failure.
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: failure()
+        with:
+          name: pdf-fuzz-crashes
+          path: crates/kanso-pdf/fuzz/artifacts
+          if-no-files-found: ignore
 
   worker:
     # Self-hosted, so never for a pull request: a fork's would run a
