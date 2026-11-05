@@ -46,6 +46,8 @@ if [ ! -f vendor/pdfium/linux-x64/lib/libpdfium.so ]; then
 	echo "  scripts/fetch-pdfium.sh linux-x64" >&2
 	exit 1
 fi
+# The library that goes in the package is the build without V8 (issue #43).
+scripts/check-pdfium-no-v8.sh vendor/pdfium/linux-x64/lib/libpdfium.so
 
 maintainer=$(sed -n 's/^maintainer = "\(.*\)"$/\1/p' crates/kanso-app/Cargo.toml | head -1)
 if [ -z "$maintainer" ]; then

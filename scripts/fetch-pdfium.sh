@@ -11,6 +11,11 @@
 # the library (lib/libpdfium.dylib, bin/pdfium.dll or lib/libpdfium.so), the
 # archive's LICENSE and its licenses/ folder, which ship in the app's notices.
 #
+# Only the non-V8 build is ever installed: PDF JavaScript runs in V8, and
+# without it no PDF's script can run. The archive's name, its args.gn and the
+# library itself are checked (scripts/check-pdfium-no-v8.sh), and a V8 build
+# stops the script.
+#
 # PDFIUM_BUILD and the checksums below are a pair with the `pdfium-render`
 # version and its `pdfium_<build>` feature in crates/kanso-pdf/Cargo.toml.
 # Bump all of them together: a wrapper built for one PDFium API against a
@@ -55,7 +60,9 @@ expected=$(sha256_for "$platform") || {
 }
 
 dest=${PDFIUM_DIR:-vendor/pdfium}/$platform
-if [ -f "$dest/BUILD" ] && [ "$(cat "$dest/BUILD")" = "$PDFIUM_BUILD $expected" ]; then
+if [ -f "$dest/BUILD" ] && [ -f "$dest/args.gn" ] && [ "$(cat "$dest/BUILD")" = "$PDFIUM_BUILD $expected" ]; then
+    # Looked at again, so a library swapped in after the fetch is caught.
+    scripts/check-pdfium-no-v8.sh "$dest" >/dev/null
     echo "PDFium $PDFIUM_BUILD ($platform) is already in $dest."
     exit 0
 fi
@@ -63,6 +70,13 @@ fi
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 archive="pdfium-$platform.tgz"
+# The V8 archives are named pdfium-v8-<platform>.tgz; that is never fetched.
+case "$archive" in
+*v8*)
+    echo "fetch-pdfium: $archive is a V8 build; Kanso only ships the non-V8 build." >&2
+    exit 1
+    ;;
+esac
 url="https://github.com/$REPO/releases/download/chromium/$PDFIUM_BUILD/$archive"
 curl --fail --silent --show-error --location --output "$work/$archive" "$url"
 
@@ -81,8 +95,10 @@ fi
 mkdir "$work/unpacked"
 tar -xzf "$work/$archive" -C "$work/unpacked"
 
-# Kanso ships the build without V8: PDF JavaScript can't run in it.
-if ! grep -q '^pdf_enable_v8 = false' "$work/unpacked/args.gn"; then
+# Kanso ships the build without V8: PDF JavaScript can't run in it. The
+# checksum above pins the exact archive; this is the second lock, on what is
+# inside it.
+if ! scripts/check-pdfium-no-v8.sh "$work/unpacked" >/dev/null; then
     echo "fetch-pdfium: $archive was built with V8; Kanso only ships the non-V8 build." >&2
     exit 1
 fi
@@ -94,5 +110,7 @@ mkdir -p "$dest"
 cp "$work/unpacked/LICENSE" "$dest/LICENSE"
 cp -R "$work/unpacked/licenses" "$dest/licenses"
 cp "$work/unpacked/VERSION" "$dest/VERSION"
+# The build's own record of how it was made, which the V8 check reads.
+cp "$work/unpacked/args.gn" "$dest/args.gn"
 echo "$PDFIUM_BUILD $expected" >"$dest/BUILD"
 echo "PDFium $PDFIUM_BUILD ($platform) is in $dest."

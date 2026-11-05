@@ -245,6 +245,13 @@ jobs:
             rm -f "$RUNNER_TEMP/AuthKey.p8"
           fi
 
+      # What goes in the archive is the PDFium build without V8, whatever was
+      # fetched or cached: PDF JavaScript can't run in it (issue #43).
+      - name: PDFium is not a V8 build (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: scripts/check-pdfium-no-v8.sh vendor/pdfium/win-x64
+
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: powershell
@@ -306,6 +313,8 @@ jobs:
           install -m 755 target/release/kanso-pdf-worker "$stem/kanso-pdf-worker"
           strip "$stem/kanso-pdf-worker"
           install -m 755 vendor/pdfium/linux-x64/lib/libpdfium.so "$stem/libpdfium.so"
+          # The library in the archive is the PDFium build without V8.
+          scripts/check-pdfium-no-v8.sh "$stem/libpdfium.so"
           mkdir -p "$stem/pdfium-licenses"
           cp -R vendor/pdfium/linux-x64/licenses/. "$stem/pdfium-licenses/"
           cp vendor/pdfium/linux-x64/LICENSE "$stem/pdfium-licenses/LICENSE"
