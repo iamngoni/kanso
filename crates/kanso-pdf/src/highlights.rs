@@ -15,7 +15,7 @@
 use std::collections::BTreeSet;
 
 use crate::PdfError;
-use crate::annotation::{find_blocks, new_highlight_id, upsert_block};
+use crate::annotation::new_highlight_id;
 use crate::link::PdfLink;
 use crate::model::{Color, Highlight, MAX_COMMENT_CHARS, PdfBlock};
 use crate::quote::{Edit, append_quote, render_quote};
@@ -36,25 +36,15 @@ pub enum Located {
     Broken(PdfError),
 }
 
-/// Finds the block for `file` (`file:<id>`) in `body`.
+/// Finds the block for `file` (`file:<id>`) in `body`. Several blocks for
+/// the same PDF (two editors of a shared note each wrote one) read as one,
+/// their highlights united; when any of them can't be read, none is used.
 pub fn locate(body: &str, file: &str) -> Located {
-    for span in find_blocks(body) {
-        let text = body[span.json].trim();
-        match PdfBlock::parse(text) {
-            Ok(block) if block.file == file => return Located::Found(block),
-            Ok(_) => {}
-            Err(e) => {
-                let names_us = match serde_json::from_str::<serde_json::Value>(text) {
-                    Ok(v) => v.get("file").and_then(serde_json::Value::as_str) == Some(file),
-                    Err(_) => text.contains(&format!("\"{file}\"")),
-                };
-                if names_us {
-                    return Located::Broken(e);
-                }
-            }
-        }
+    match crate::merge::united(body, file) {
+        Ok(Some(block)) => Located::Found(block),
+        Ok(None) => Located::Missing,
+        Err(e) => Located::Broken(e),
     }
-    Located::Missing
 }
 
 /// Whether the highlights can be changed.
@@ -177,7 +167,10 @@ impl Annotations {
             .iter_mut()
             .find(|h| h.id == id)
             .ok_or_else(|| PdfError::Invalid("That highlight no longer exists.".into()))?;
-        h.color = color;
+        if h.color != color {
+            h.color = color;
+            h.rev = h.rev.saturating_add(1);
+        }
         Ok(())
     }
 
@@ -195,24 +188,24 @@ impl Annotations {
         })
     }
 
-    /// The edit that saves the highlights into `body`; `None` when the body
-    /// already has exactly these. An unreadable block is an error.
+    /// The edit that saves the highlights into `body`, united with the
+    /// version of them the body holds now: highlights another editor (or
+    /// device) added since are kept, and the ones deleted here stay deleted.
+    /// `None` when the body already says all of it. A block for this PDF that
+    /// can't be read is an error, and is never written over.
     pub fn save_edit(&self, body: &str) -> Result<Option<Edit>, PdfError> {
         self.check()?;
-        if let Located::Found(b) = locate(body, &self.block.file)
-            && b == self.block
-        {
-            return Ok(None);
-        }
-        upsert_block(body, &self.block).map(Some)
+        crate::merge::save_into(body, &self.block)
     }
 
-    /// The edit that writes the last highlights back after the block left.
-    pub fn restore_edit(&self, body: &str) -> Result<Edit, PdfError> {
+    /// The edit that writes the last highlights back after the block left
+    /// the note (united with a block that came back meanwhile, if any).
+    /// `None` when the body already has them all.
+    pub fn restore_edit(&self, body: &str) -> Result<Option<Edit>, PdfError> {
         if let Status::Unreadable(why) = &self.status {
             return Err(PdfError::Invalid(why.clone()));
         }
-        upsert_block(body, &self.block)
+        crate::merge::save_into(body, &self.block)
     }
 
     /// The Markdown quote for a highlight, to put under `## Highlights`.
@@ -298,6 +291,7 @@ pub fn new_highlight(parts: HighlightParts, color: Color, now_ms: i64) -> Option
         color,
         comment: None,
         created_at: now_ms,
+        rev: 0,
         extra: Default::default(),
     })
 }

@@ -172,7 +172,7 @@ fn a_block_that_left_the_note_is_read_only_until_restored() {
     assert!(view.set_comment(&id, Some("x")).is_err());
     assert!(view.add(parts(1, "more"), Color::Pink, 2).is_err());
     assert!(view.save_edit("Notes").is_err());
-    let restored = view.restore_edit("Notes").unwrap().apply("Notes");
+    let restored = view.restore_edit("Notes").unwrap().unwrap().apply("Notes");
     let mut after = view.clone();
     after.sync(&restored);
     assert_eq!(after.status, Status::Editable);
