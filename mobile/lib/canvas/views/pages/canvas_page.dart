@@ -22,14 +22,17 @@ import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_switch.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../injection.dart';
+import '../../../sharing/views/widgets/share_note_sheet.dart';
 import '../../models/repos/abs/canvas_repository.dart';
 import '../../state/canvas/canvas_bloc.dart';
 import '../../utils/canvas_share.dart';
 import '../widgets/canvas_banner.dart';
 import '../widgets/canvas_card_sheet.dart';
 import '../widgets/canvas_painter.dart';
+import '../widgets/canvas_share_bar.dart';
 import '../widgets/canvas_surface.dart';
 import '../widgets/canvas_toolbar.dart';
+import '../widgets/canvas_view_only_bar.dart';
 
 /// A canvas note opened for drawing: pen, finger and eraser on an endless
 /// page, with text and note cards and arrows. The document is saved when a
@@ -63,9 +66,22 @@ class _CanvasScreen extends StatefulWidget {
 
 class _CanvasScreenState extends State<_CanvasScreen> {
   final CanvasViewController _view = CanvasViewController();
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    // The library leaves a shared canvas's room when the app goes to the
+    // background; coming back to the front joins it again.
+    _lifecycle = AppLifecycleListener(
+      onResume: () =>
+          context.read<CanvasBloc>().add(const CanvasEvent.resumed()),
+    );
+  }
 
   @override
   void dispose() {
+    _lifecycle.dispose();
     _view.dispose();
     super.dispose();
   }
@@ -109,20 +125,22 @@ class _CanvasScreenState extends State<_CanvasScreen> {
                         onPressed: () => context.pop(),
                       ),
                 trailing: <Widget>[
-                  KansoIconButton(
-                    icon: KansoIcons.undo,
-                    semanticLabel: l10n.canvasUndo,
-                    onPressed: view?.canUndo ?? false
-                        ? () => bloc.add(const CanvasEvent.undone())
-                        : null,
-                  ),
-                  KansoIconButton(
-                    icon: KansoIcons.redo2,
-                    semanticLabel: l10n.canvasRedo,
-                    onPressed: view?.canRedo ?? false
-                        ? () => bloc.add(const CanvasEvent.redone())
-                        : null,
-                  ),
+                  if (!(view?.readOnly ?? false)) ...<Widget>[
+                    KansoIconButton(
+                      icon: KansoIcons.undo,
+                      semanticLabel: l10n.canvasUndo,
+                      onPressed: view?.canUndo ?? false
+                          ? () => bloc.add(const CanvasEvent.undone())
+                          : null,
+                    ),
+                    KansoIconButton(
+                      icon: KansoIcons.redo2,
+                      semanticLabel: l10n.canvasRedo,
+                      onPressed: view?.canRedo ?? false
+                          ? () => bloc.add(const CanvasEvent.redone())
+                          : null,
+                    ),
+                  ],
                   KansoIconButton(
                     icon: KansoIcons.maximize,
                     semanticLabel: l10n.canvasFit,
@@ -191,6 +209,7 @@ class _CanvasScreenState extends State<_CanvasScreen> {
     final theme = _theme(context);
     return Column(
       children: <Widget>[
+        CanvasShareBar(view: view, pointers: state.pointers),
         CanvasBanner(view: view, problem: state.problem),
         Expanded(
           child: Semantics(
@@ -204,6 +223,10 @@ class _CanvasScreenState extends State<_CanvasScreen> {
               stylusSeen: state.stylusSeen,
               selection: <String>{for (final k in state.selection) k.strokeId},
               edit: state.edit,
+              readOnly: view.readOnly,
+              shared: view.shared,
+              pointers: state.pointers,
+              erasedUnderPen: state.erasedUnderPen,
               theme: theme,
               controller: _view,
               preview: getIt<CanvasRepository>().preview,
@@ -227,27 +250,41 @@ class _CanvasScreenState extends State<_CanvasScreen> {
               onCardTapped: (card) => unawaited(_card(context, card)),
               onPlace: (at) => unawaited(_newCard(context, at)),
               onArrow: (from, to) => bloc.add(CanvasEvent.arrowAdded(from, to)),
+              onGesture: ({required active}) =>
+                  bloc.add(CanvasEvent.gestureChanged(active: active)),
+              onStream: (samples) =>
+                  bloc.add(CanvasEvent.strokeStreamed(samples)),
+              onStrokeCancelled: () =>
+                  bloc.add(const CanvasEvent.strokeCancelled()),
+              onPointer: (at) => bloc.add(
+                at == null
+                    ? const CanvasEvent.pointerLeft()
+                    : CanvasEvent.pointerMoved(at.dx, at.dy),
+              ),
             ),
           ),
         ),
-        CanvasToolbar(
-          tool: state.tool,
-          color: state.color,
-          width: state.width,
-          dark: theme.dark,
-          text: theme.text,
-          selected: state.selection,
-          onTool: (tool) => bloc.add(CanvasEvent.toolChanged(tool)),
-          onColor: (color) => bloc.add(CanvasEvent.colorChanged(color)),
-          onWidth: (width) => bloc.add(CanvasEvent.widthChanged(width)),
-          onDeleteSelection: () =>
-              bloc.add(const CanvasEvent.selectionDeleted()),
-          onClearSelection: () =>
-              bloc.add(const CanvasEvent.selectionCleared()),
-          onMoveToNew: () => bloc.add(
-            CanvasEvent.selectionMovedToNewCanvas(l10n.canvasUntitled),
+        if (view.readOnly)
+          const CanvasViewOnlyBar()
+        else
+          CanvasToolbar(
+            tool: state.tool,
+            color: state.color,
+            width: state.width,
+            dark: theme.dark,
+            text: theme.text,
+            selected: state.selection,
+            onTool: (tool) => bloc.add(CanvasEvent.toolChanged(tool)),
+            onColor: (color) => bloc.add(CanvasEvent.colorChanged(color)),
+            onWidth: (width) => bloc.add(CanvasEvent.widthChanged(width)),
+            onDeleteSelection: () =>
+                bloc.add(const CanvasEvent.selectionDeleted()),
+            onClearSelection: () =>
+                bloc.add(const CanvasEvent.selectionCleared()),
+            onMoveToNew: () => bloc.add(
+              CanvasEvent.selectionMovedToNewCanvas(l10n.canvasUntitled),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -263,6 +300,15 @@ class _CanvasScreenState extends State<_CanvasScreen> {
   Future<void> _card(BuildContext context, CanvasCard card) async {
     final bloc = context.read<CanvasBloc>();
     final router = GoRouter.of(context);
+    if (bloc.state.view?.readOnly ?? false) {
+      // A canvas to look at: a note card opens its note, a text card has
+      // nothing to change.
+      final id = card.noteId;
+      if (id != null) {
+        unawaited(router.push('${KansoRoutes.noteById}/$id'));
+      }
+      return;
+    }
     final choice = await CanvasCardSheet.show(context, card: card);
     switch (choice) {
       case CardText(:final text):
@@ -285,16 +331,20 @@ class _CanvasScreenState extends State<_CanvasScreen> {
       context,
       builder: (sheet) => BlocProvider<CanvasBloc>.value(
         value: bloc,
-        child: _MoreSheet(title: state.view?.title ?? ''),
+        child: _MoreSheet(
+          title: state.view?.title ?? '',
+          noteId: state.view?.noteId ?? '',
+        ),
       ),
     );
   }
 }
 
 class _MoreSheet extends StatelessWidget {
-  const _MoreSheet({required this.title});
+  const _MoreSheet({required this.title, required this.noteId});
 
   final String title;
+  final String noteId;
 
   Future<void> _export(
     BuildContext context, {
@@ -332,22 +382,33 @@ class _MoreSheet extends StatelessWidget {
       builder: (context, state) => Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          KansoSettingsRow(
-            label: l10n.canvasFingerDraws,
-            icon: KansoIcons.hand,
-            trailing: KansoSwitch(
-              value: state.fingerDraws,
-              onChanged: (on) => context.read<CanvasBloc>().add(
-                CanvasEvent.fingerDrawsChanged(on: on),
+          if (!(state.view?.readOnly ?? false)) ...<Widget>[
+            KansoSettingsRow(
+              label: l10n.canvasFingerDraws,
+              icon: KansoIcons.hand,
+              trailing: KansoSwitch(
+                value: state.fingerDraws,
+                onChanged: (on) => context.read<CanvasBloc>().add(
+                  CanvasEvent.fingerDrawsChanged(on: on),
+                ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: KansoSpacing.md),
-            child: Text(
-              l10n.canvasFingerDrawsHelp,
-              style: context.typography.meta,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: KansoSpacing.md),
+              child: Text(
+                l10n.canvasFingerDrawsHelp,
+                style: context.typography.meta,
+              ),
             ),
+          ],
+          KansoSettingsRow(
+            label: l10n.canvasShareAction,
+            icon: KansoIcons.users,
+            onTap: () {
+              final host = Navigator.of(context, rootNavigator: true).context;
+              Navigator.of(context).pop();
+              unawaited(ShareNoteSheet.show(host, noteId));
+            },
           ),
           KansoSettingsRow(
             label: l10n.canvasExportSvg,
