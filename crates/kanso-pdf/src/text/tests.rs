@@ -220,10 +220,12 @@ fn words_break_where_pdfium_put_a_space_whatever_the_gap() {
 fn without_reported_spaces_the_fallback_scales_with_the_advance_not_the_height() {
     // The same word gap, 2.5 points, is a space between narrow tall letters
     // and nothing between wide short ones: only the advance tells.
-    let narrow = row_page("ab cd", 3.0, 12.0, 2.5, false);
-    assert_eq!(all_text(&doc_of(&[narrow])), "ab cd");
-    let wide = row_page("ab cd", 12.0, 3.0, 2.5, false);
-    assert_eq!(all_text(&doc_of(&[wide])), "abcd");
+    // (Lines long enough that the median advance is a letter's: on a short
+    // one the height bounds it.)
+    let narrow = row_page("abc def", 3.0, 12.0, 2.5, false);
+    assert_eq!(all_text(&doc_of(&[narrow])), "abc def");
+    let wide = row_page("abc def", 12.0, 3.0, 2.5, false);
+    assert_eq!(all_text(&doc_of(&[wide])), "abcdef");
 }
 
 #[test]
@@ -603,4 +605,294 @@ proptest! {
         prop_assume!(!fold_str(&phrase).is_empty());
         prop_assert!(doc.find_index().count(&mangled) >= 1);
     }
+}
+
+// ---- Where the space marks sit ---------------------------------------
+
+/// A page of one row of `text`, laid out right to left the way a
+/// right-to-left script is displayed, its characters in logical order (the
+/// order PDFium gives), each marked when a space came just before it in
+/// that order: what the worker has before it calls `anchor_spaces`.
+fn rtl_row(text: &str) -> PageText {
+    let mut placed = Vec::new();
+    let mut right = 500.0;
+    let mut space = false;
+    for ch in text.chars() {
+        if ch == ' ' {
+            right -= WORD_GAP;
+            space = true;
+            continue;
+        }
+        placed.push(Placed {
+            ch,
+            rect: [right - CHAR_W, 40.0, right, 40.0 + CHAR_H],
+            space_before: std::mem::take(&mut space),
+        });
+        right -= CHAR_W;
+    }
+    page_from(1, &placed, 600.0, 200.0, 0)
+}
+
+#[test]
+fn right_to_left_words_break_where_pdfium_put_its_spaces() {
+    // Logical "אבג דה": on the page "דה" is the left word, read here (the
+    // layout reads left to right) as "הד", then "גבא".
+    let mut p = rtl_row("אבג דה");
+    // As PDFium has it, the mark is on "ד", the left word's right end:
+    // taken as is, it would cut "הד" in two and join "ד" to "גבא".
+    assert_eq!(all_text(&doc_of(std::slice::from_ref(&p))), "ה דגבא");
+    p.anchor_spaces();
+    let doc = doc_of(&[p]);
+    assert_eq!(all_text(&doc), "הד גבא");
+    // Double-click and Find agree with the words, on the same glyphs.
+    let word = doc.word_at(CharPos { page: 1, index: 3 }).expect("a word");
+    assert_eq!(doc.text(&word), "גבא");
+    let hits = doc.find_index().hits("גבא");
+    assert_eq!(hits, vec![word]);
+    assert_eq!(doc.quads(&hits[0]), doc.quads(&word));
+}
+
+#[test]
+fn a_left_to_right_word_after_right_to_left_ones_is_its_own_word() {
+    // Logical "אב גדה xyz", drawn as PDFs draw it: "xyz" at the left, then
+    // the Hebrew words right to left. PDFium gives the Hebrew in logical
+    // order and the Latin after it.
+    let mut placed = Vec::new();
+    let mut put = |ch: char, x: f64, space: bool| {
+        placed.push(Placed {
+            ch,
+            rect: [x, 40.0, x + CHAR_W, 40.0 + CHAR_H],
+            space_before: space,
+        });
+    };
+    let x = |slot: f64, gaps: f64| 40.0 + slot * CHAR_W + gaps * WORD_GAP;
+    // On the page: x y z _ ה ד ג _ ב א
+    put('א', x(7.0, 2.0), false);
+    put('ב', x(6.0, 2.0), false);
+    put('ג', x(5.0, 1.0), true);
+    put('ד', x(4.0, 1.0), false);
+    put('ה', x(3.0, 1.0), false);
+    put('x', x(0.0, 0.0), true);
+    put('y', x(1.0, 0.0), false);
+    put('z', x(2.0, 0.0), false);
+    let mut p = page_from(1, &placed, 600.0, 200.0, 0);
+    p.anchor_spaces();
+    assert_eq!(all_text(&doc_of(&[p])), "xyz הדג בא");
+}
+
+#[test]
+fn every_word_gets_one_mark_on_its_leftmost_char_unless_the_page_is_one_word() {
+    let mut p = rtl_row("אבג דה");
+    p.anchor_spaces();
+    let marked: String = p
+        .chars
+        .iter()
+        .filter(|c| c.space_before)
+        .map(|c| c.ch)
+        .collect();
+    // The leftmost of "אבג" is "ג", of "דה" it is "ה".
+    assert_eq!(marked, "גה");
+    // One word, no space: PDFium said nothing, so nothing is marked and the
+    // layout measures gaps.
+    let mut one = row_page("ab cd", 6.0, 8.0, 5.0, false);
+    one.chars[0].space_before = true;
+    one.anchor_spaces();
+    assert!(one.chars.iter().all(|c| !c.space_before));
+    assert_eq!(all_text(&doc_of(&[one])), "ab cd");
+    let mut empty = row_page("", 6.0, 8.0, 5.0, true);
+    empty.anchor_spaces();
+    assert!(empty.chars.is_empty());
+}
+
+/// A page of `cols` (one column) in PDFium's text order: left to right, or
+/// mirrored to read right to left with the characters still in logical
+/// order. Marked as the worker marks before anchoring.
+fn stream_page(cols: &[Column], rotation: u16, rtl: bool) -> PageText {
+    let (mut placed, w, h) = place(cols);
+    for p in &mut placed {
+        p.space_before = false;
+    }
+    // `place` puts words in order and characters in order, so the first
+    // character of each word but the first of a line follows a space, and
+    // the first of a line follows a line break.
+    let mut k = 0;
+    for para in cols.iter().flatten() {
+        for line in para {
+            for (wi, word) in line.iter().enumerate() {
+                for ci in 0..word.chars().count() {
+                    placed[k].space_before = ci == 0 && (wi > 0 || k > 0);
+                    k += 1;
+                }
+            }
+        }
+    }
+    if rtl {
+        for p in &mut placed {
+            p.rect = [w - p.rect[2], p.rect[1], w - p.rect[0], p.rect[3]];
+        }
+    }
+    page_from(1, &placed, w, h, rotation)
+}
+
+/// What a page of `cols` copies as when it reads right to left: the layout
+/// reads left to right, so every line comes out reversed.
+fn expected_rtl(cols: &[Column]) -> String {
+    cols.iter()
+        .map(|c| {
+            c.iter()
+                .map(|p| {
+                    p.iter()
+                        .map(|l| l.join(" ").chars().rev().collect::<String>())
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                })
+                .collect::<Vec<_>>()
+                .join("\n\n")
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+/// Anchored marks give every word whole, in either direction, on a page
+/// turned any way, whatever order the characters then come in. The seed is
+/// pinned, so a failure is a failure on every run.
+#[test]
+fn anchored_spaces_hold_in_every_direction_and_any_order() {
+    use proptest::test_runner::{Config, RngAlgorithm, TestRng, TestRunner};
+    let mut runner = TestRunner::new_with_rng(
+        Config::with_cases(96),
+        TestRng::from_seed(RngAlgorithm::ChaCha, b"kanso-pdf-anchor-spaces-pinned-s"),
+    );
+    let cols = prop::collection::vec(
+        prop::collection::vec(prop::collection::vec(word_strategy(), 1..5), 1..4),
+        1..3,
+    )
+    .prop_map(|paras| vec![paras]);
+    let strategy = (
+        cols,
+        prop::sample::select(vec![0u16, 90, 180, 270]),
+        any::<bool>(),
+        any::<u64>(),
+    );
+    runner
+        .run(&strategy, |(cols, rotation, rtl, seed)| {
+            let mut p = stream_page(&cols, rotation, rtl);
+            p.anchor_spaces();
+            let doc = doc_of(&[shuffled(p, seed)]);
+            let want = if rtl {
+                expected_rtl(&cols)
+            } else {
+                expected(&cols)
+            };
+            prop_assert_eq!(all_text(&doc), want);
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
+fn sideways_words_are_anchored_in_their_own_direction() {
+    // "AB CD" running bottom to top (turns 3) at the left edge of an
+    // upright page: A is lowest. Its leftmost character, in its own
+    // reading frame, is its lowest.
+    let mut p = PageText {
+        page: 1,
+        width: 600.0,
+        height: 200.0,
+        rotation: 0,
+        chars: Vec::new(),
+    };
+    let mut y1 = 150.0;
+    for (i, ch) in "AB CD".chars().enumerate() {
+        if ch == ' ' {
+            y1 -= WORD_GAP;
+            continue;
+        }
+        p.chars.push(TextChar {
+            ch,
+            quad: Quad::new(
+                10.0 / 600.0,
+                (y1 - CHAR_W) / 200.0,
+                18.0 / 600.0,
+                y1 / 200.0,
+            ),
+            turns: 3,
+            space_before: i == 3,
+        });
+        y1 -= CHAR_W;
+    }
+    p.anchor_spaces();
+    assert!(p.chars[2].space_before, "C starts the second word");
+    assert!(!p.chars[3].space_before);
+    assert_eq!(all_text(&doc_of(&[p])), "AB CD");
+}
+
+// ---- The fallback on short lines -------------------------------------
+
+#[test]
+fn the_fallback_finds_spaces_on_a_line_with_no_advance_inside_a_word() {
+    // Every advance on "x y z" spans a space, so its median is no letter's
+    // advance; the line's height bounds it.
+    let short = row_page("x y z", 5.0, 6.0, 3.0, false);
+    assert_eq!(all_text(&doc_of(&[short])), "x y z");
+    // A short word is still whole.
+    let word = row_page("abc", 5.0, 6.0, 0.0, false);
+    assert_eq!(all_text(&doc_of(&[word])), "abc");
+    let one = row_page("a", 5.0, 6.0, 0.0, false);
+    assert_eq!(all_text(&doc_of(&[one])), "a");
+}
+
+/// No input makes the layout or the anchoring panic: boxes of any size,
+/// stacked, zero-width or not finite, marks anywhere, any direction. The
+/// seed is pinned.
+#[test]
+fn junk_with_marks_never_panics() {
+    use proptest::test_runner::{Config, RngAlgorithm, TestRng, TestRunner};
+    let mut runner = TestRunner::new_with_rng(
+        Config::with_cases(256),
+        TestRng::from_seed(RngAlgorithm::ChaCha, b"kanso-pdf-junk-with-marks-pinned"),
+    );
+    let coord = prop_oneof![
+        8 => 0.0f64..1.0,
+        1 => Just(0.5),
+        1 => Just(f64::NAN),
+        1 => Just(f64::INFINITY),
+        1 => Just(-1e300),
+    ];
+    let ch = (
+        prop::char::any(),
+        [coord.clone(), coord.clone(), coord.clone(), coord],
+        0u8..8,
+        any::<bool>(),
+    )
+        .prop_map(|(ch, q, turns, space_before)| TextChar {
+            ch,
+            quad: Quad(q),
+            turns,
+            space_before,
+        });
+    let page = (
+        prop::collection::vec(ch, 0..40),
+        prop_oneof![Just(0.0), Just(f64::NAN), 1.0f64..2000.0],
+        any::<u16>(),
+    );
+    runner
+        .run(&page, |(chars, side, rotation)| {
+            let mut p = PageText {
+                page: 1,
+                width: side,
+                height: side,
+                rotation,
+                chars,
+            };
+            let _ = doc_of(std::slice::from_ref(&p));
+            p.anchor_spaces();
+            let doc = doc_of(&[p]);
+            if let Some(all) = doc.select_all() {
+                let _ = doc.text(&all);
+                let _ = doc.quads(&all);
+            }
+            Ok(())
+        })
+        .unwrap();
 }

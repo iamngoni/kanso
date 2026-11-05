@@ -488,3 +488,150 @@ fn the_words_are_the_plain_text_with_whitespace_normalised() {
         assert_eq!(normalised, written, "plain text of page {i}");
     }
 }
+
+/// A one-page PDF in Helvetica whose `/ToUnicode` maps `a` to `e` to the
+/// Hebrew letters alef to he: PDFium then reads the text as right to left,
+/// and gives it in logical order.
+fn hebrew_pdf(content: &str) -> Vec<u8> {
+    let cmap = "/CIDInit /ProcSet findresource begin 12 dict begin begincmap \
+        /CMapName /Hebrew def 1 begincodespacerange <00> <FF> endcodespacerange \
+        5 beginbfchar <61> <05D0> <62> <05D1> <63> <05D2> <64> <05D3> <65> <05D4> endbfchar \
+        endcmap CMapName currentdict /CMap defineresource pop end end";
+    let objects = [
+        "<< /Type /Catalog /Pages 2 0 R >>".to_string(),
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>".into(),
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>".into(),
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /ToUnicode 6 0 R >>".into(),
+        format!("<< /Length {} >>\nstream\n{content}\nendstream", content.len()),
+        format!("<< /Length {} >>\nstream\n{cmap}\nendstream", cmap.len()),
+    ];
+    let mut out = b"%PDF-1.4\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, body) in objects.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n{body}\nendobj\n", i + 1).as_bytes());
+    }
+    let xref = out.len();
+    out.extend_from_slice(
+        format!("xref\n0 {}\n0000000000 65535 f \n", objects.len() + 1).as_bytes(),
+    );
+    for offset in offsets {
+        out.extend_from_slice(format!("{offset:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(
+        format!(
+            "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n",
+            objects.len() + 1
+        )
+        .as_bytes(),
+    );
+    out
+}
+
+/// Right-to-left words come out whole. PDFium gives them in logical order,
+/// so the space before a word sits, in its order, before the word's right
+/// end; the mark must still break the word at its left. The layout reads
+/// left to right, so the words come out as they lie on the page.
+#[test]
+fn right_to_left_words_break_where_pdfium_puts_spaces() {
+    let cases = [
+        // Drawn left to right, as most producers draw: on the page
+        // "הדג בא", logically "אב גדה".
+        (
+            "BT /F1 24 Tf 72 700 Td (edc ba) Tj ET",
+            vec!["הדג", "בא"],
+            "אב גדה",
+        ),
+        // Drawn in logical order, moving left after each letter.
+        (
+            "BT /F1 24 Tf 300 700 Td (a) Tj -20 0 Td (b) Tj -30 0 Td (c) Tj -15 0 Td (d) Tj ET",
+            vec!["דג", "ב", "א"],
+            "א ב גד",
+        ),
+        // A Latin word after them (its letters have no mapping, so they
+        // stay Latin), drawn at the left.
+        (
+            "BT /F1 24 Tf 72 700 Td (xyz edc ba) Tj ET",
+            vec!["xyz", "הדג", "בא"],
+            "אב גדה xyz",
+        ),
+    ];
+    for (content, want, plain) in cases {
+        let mut worker = open(&hebrew_pdf(content));
+        let text = worker.text(0).unwrap();
+        assert_eq!(layout_words(&text), want, "{content}");
+        // Search reads PDFium's own text, in logical order, as it did.
+        assert_eq!(
+            worker.plain_text(0, 1).unwrap()[0].trim(),
+            plain,
+            "{content}"
+        );
+    }
+}
+
+/// Rotated text, spaces at the start and end of a line, a tab, and lines
+/// broken by `T*`: every word whole, and the plain text PDFium's own.
+#[test]
+fn words_break_right_in_rotated_text_and_around_line_ends() {
+    let words3 = vec!["Kanso", "reads", "quickly"];
+    let cases: [(&str, Vec<&str>); 7] = [
+        (
+            "BT /F1 12 Tf 0 1 -1 0 300 300 Tm (Kanso reads quickly) Tj ET",
+            words3.clone(),
+        ),
+        (
+            "BT /F1 12 Tf -1 0 0 -1 400 300 Tm (Kanso reads quickly) Tj ET",
+            words3.clone(),
+        ),
+        (
+            "BT /F1 12 Tf 0 -1 1 0 300 500 Tm (Kanso reads quickly) Tj ET",
+            words3,
+        ),
+        (
+            "BT /F1 12 Tf 72 700 Td (   leading words) Tj 0 -20 Td (trailing words   ) Tj 0 -20 Td (next line) Tj ET",
+            vec!["leading", "words", "trailing", "words", "next", "line"],
+        ),
+        (
+            "BT /F1 12 Tf 72 700 Td (tab\tbetween) Tj ET",
+            vec!["tab", "between"],
+        ),
+        (
+            "BT /F1 12 Tf 72 700 Td 14 TL (one two) Tj T* (three four) Tj ET",
+            vec!["one", "two", "three", "four"],
+        ),
+        (
+            "BT /F1 12 Tf 72 700 Td (Run the) Tj /F4 12 Tf ( cargo build ) Tj /F3 12 Tf (command now) Tj ET",
+            vec!["Run", "the", "cargo", "build", "command", "now"],
+        ),
+    ];
+    for (content, want) in cases {
+        let mut worker = open(&pages_pdf(&[content.to_string()]));
+        let mut text = worker.text(0).unwrap();
+        assert_eq!(layout_words(&text), want, "{content}");
+        let plain = worker.plain_text(0, 1).unwrap().remove(0);
+        assert_eq!(words(&plain), want, "{content}");
+        // And the fallback reads them the same.
+        for c in &mut text.chars {
+            c.space_before = false;
+        }
+        assert_eq!(layout_words(&text), want, "fallback: {content}");
+    }
+}
+
+/// Short lines with the marks cleared: the fallback has one to three
+/// advances to measure, and still finds the words, in every font.
+#[test]
+fn the_fallback_reads_short_lines() {
+    for (name, font) in FONTS {
+        for size in [9u32, 12] {
+            for s in ["x y z", "I am", "il WM", "ab", "a"] {
+                let mut worker = open(&pages_pdf(&[line(font, size, 700, s)]));
+                let mut text = worker.text(0).unwrap();
+                for c in &mut text.chars {
+                    c.space_before = false;
+                }
+                assert_eq!(layout_words(&text), words(s), "{name} {size} pt: {s}");
+            }
+        }
+    }
+}

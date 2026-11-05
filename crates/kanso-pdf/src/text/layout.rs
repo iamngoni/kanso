@@ -20,7 +20,7 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
-use super::model::{Block, Glyph, Line, PageLayout, PageText, Sep};
+use super::model::{Block, Glyph, Line, PageLayout, PageText, Sep, TextChar};
 use crate::model::Quad;
 
 /// A gap wider than this (times the median height) inside a line splits it
@@ -40,6 +40,12 @@ const FIXED_PITCH_SPACE_GAP: f64 = 0.8;
 /// [`FIXED_PITCH_SLACK`] of the median one.
 const FIXED_PITCH_SHARE: f64 = 0.7;
 const FIXED_PITCH_SLACK: f64 = 0.03;
+/// On a line with fewer advances than this, the median advance may span a
+/// space ("x y z" has no advance inside a word), so the pitch is held to at
+/// most [`SHORT_PITCH`] times the line's height: about a letter's advance
+/// in the standard fonts (Helvetica and Times 1.0, Courier 1.3).
+const SHORT_LINE: usize = 4;
+const SHORT_PITCH: f64 = 1.0;
 /// Lines closer than this (vertical gap, times the height) share a block.
 const BLOCK_GAP: f64 = 0.5;
 /// A vertical cut between columns needs a gutter this wide.
@@ -121,21 +127,58 @@ fn median(mut v: Vec<f64>) -> f64 {
     }
 }
 
+/// The page's size in points, with 1 for a side that is not a positive
+/// number.
+fn page_size(input: &PageText) -> (f64, f64) {
+    let side = |v: f64| if v.is_finite() && v > 0.0 { v } else { 1.0 };
+    (side(input.width), side(input.height))
+}
+
+/// See [`PageText::anchor_spaces`]. A word's leftmost character is found in
+/// the frame its first character reads left to right in, among the word's
+/// characters that run the same way; on a tie, the earlier one.
+pub(super) fn anchor_spaces(page: &mut PageText) {
+    // With no space anywhere PDFium has said nothing, and the layout falls
+    // back to measuring gaps.
+    if !page.chars.iter().skip(1).any(|c| c.space_before) {
+        for c in &mut page.chars {
+            c.space_before = false;
+        }
+        return;
+    }
+    let (w, h) = page_size(page);
+    let page_turns = ((page.rotation % 360) / 90) as u8;
+    let d = |c: &TextChar| (page_turns + c.turns % 4) % 4;
+    let mut start = 0;
+    while start < page.chars.len() {
+        let end = page.chars[start + 1..]
+            .iter()
+            .position(|c| c.space_before)
+            .map_or(page.chars.len(), |i| start + 1 + i);
+        let first = d(&page.chars[start]);
+        let mut left = start;
+        let mut left_x = f64::INFINITY;
+        for (i, c) in page.chars[start..end].iter().enumerate() {
+            let x = upright_rect(first, w, h, &c.quad)[0];
+            if d(c) == first && x < left_x {
+                (left, left_x) = (start + i, x);
+            }
+        }
+        for c in &mut page.chars[start..end] {
+            c.space_before = false;
+        }
+        // Every word, the page's first too: in right-to-left text the first
+        // word ends the line, with the next word's gap at its left. At the
+        // start of a line the mark does nothing.
+        page.chars[left].space_before = true;
+        start = end;
+    }
+}
+
 /// Lay out one page. Characters may come in any order; the same set of
 /// characters always gives the same layout.
 pub fn layout_page(input: &PageText) -> PageLayout {
-    let (w, h) = (
-        if input.width.is_finite() && input.width > 0.0 {
-            input.width
-        } else {
-            1.0
-        },
-        if input.height.is_finite() && input.height > 0.0 {
-            input.height
-        } else {
-            1.0
-        },
-    );
+    let (w, h) = page_size(input);
     let page_turns = ((input.rotation % 360) / 90) as u8;
 
     // Characters that run the same way on the display form a group.
@@ -355,7 +398,10 @@ fn make_segment(items: &[Item], idx: Vec<usize>) -> Segment {
     let (pitch, fixed) = if advances.is_empty() {
         (0.5 * height, false)
     } else {
-        let pitch = median(advances.clone());
+        let mut pitch = median(advances.clone());
+        if advances.len() < SHORT_LINE {
+            pitch = pitch.min(SHORT_PITCH * height);
+        }
         let same = advances
             .iter()
             .filter(|a| (**a - pitch).abs() <= FIXED_PITCH_SLACK * pitch)
