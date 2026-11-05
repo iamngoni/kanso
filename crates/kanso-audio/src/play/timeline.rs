@@ -132,6 +132,36 @@ mod tests {
             );
         }
 
+        /// Audio seeks and scrubs stay on the recording's frame clock across
+        /// randomly sized parts, including the frame immediately around a seam.
+        #[test]
+        fn prop_frame_seek_and_scrub_cross_part_boundaries(
+            lengths in proptest::collection::vec(1u64..2_000, 1..8),
+            position in 0u32..=10_000,
+        ) {
+            const FRAME_US: u64 = 20_000;
+            let timeline = Timeline::new(lengths.iter().map(|frames| frames * FRAME_US).collect());
+            let total_frames = lengths.iter().sum::<u64>();
+            let target = total_frames * u64::from(position) / 10_000;
+            let place = timeline.locate(target * FRAME_US).unwrap();
+            let landed = timeline.start_of(place.part) / FRAME_US + place.offset_us / FRAME_US;
+            prop_assert!(landed <= target);
+            prop_assert!(target - landed <= 1, "seek missed by {} frames", target - landed);
+
+            let mut boundary = 0;
+            for (part, frames) in lengths.iter().enumerate().take(lengths.len() - 1) {
+                boundary += frames;
+                let before = timeline.locate((boundary - 1) * FRAME_US).unwrap();
+                let at = timeline.locate(boundary * FRAME_US).unwrap();
+                let after = timeline.locate((boundary + 1) * FRAME_US).unwrap();
+                prop_assert_eq!(before.part, part);
+                prop_assert_eq!(at.part, part + 1);
+                prop_assert_eq!(at.offset_us, 0);
+                prop_assert_eq!(after.part, part + 1);
+                prop_assert_eq!(after.offset_us, FRAME_US);
+            }
+        }
+
         /// Moving never leaves the recording, and forward never goes back.
         #[test]
         fn prop_shifted_stays_inside(

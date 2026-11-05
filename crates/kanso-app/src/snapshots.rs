@@ -6208,6 +6208,15 @@ fn snapshots() {
         Shot {
             dialog_width: crate::record_sheet::WIDTH,
             ..shot(
+                "dark-record-output-picker",
+                Dark,
+                Edit,
+                record_sheet::output_picker_dark,
+            )
+        },
+        Shot {
+            dialog_width: crate::record_sheet::WIDTH,
+            ..shot(
                 "light-record-keep-transcript-only",
                 Light,
                 Edit,
@@ -6434,6 +6443,19 @@ fn snapshots() {
             voice::editor_transcribing,
         ),
         shot("dark-recording-bar", Dark, Edit, voice::recording_bar),
+        shot("light-recording-bar", Light, Edit, voice::recording_bar),
+        shot(
+            "dark-recording-player",
+            Dark,
+            Preview,
+            voice::recording_player,
+        ),
+        shot(
+            "light-recording-player",
+            Light,
+            Preview,
+            voice::recording_player,
+        ),
         shot(
             "light-recording-paused",
             Light,
