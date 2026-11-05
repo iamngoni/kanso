@@ -587,3 +587,330 @@ fn a_copy_that_does_not_match_is_refused() {
         0
     );
 }
+
+fn beside(db: &Path, suffix: &str) -> PathBuf {
+    let mut name = db.as_os_str().to_owned();
+    name.push(suffix);
+    PathBuf::from(name)
+}
+
+fn write_marker(db: &Path, phase: &str) {
+    std::fs::write(
+        beside(db, ".encrypting"),
+        format!("{{\"v\":1,\"phase\":\"{phase}\"}}"),
+    )
+    .unwrap();
+}
+
+/// Runs a conversion that changes the encrypted copy with `tamper` (given a
+/// keyed connection to it) right after the export, and checks the copy is
+/// refused and the library left plain and whole.
+fn assert_tampered_copy_is_refused(
+    dir: &Path,
+    key: &LibraryKey,
+    tamper: &(dyn Fn(&Connection) + Sync),
+) {
+    let db = db_path(dir);
+    let before = contents(&db, None);
+    let copy = beside(&db, ".enc");
+    let hook = |step: EncryptStep| {
+        if step == EncryptStep::Exported {
+            let conn = Connection::open(&copy).unwrap();
+            conn.execute_batch(&format!("PRAGMA key = \"x'{}'\";", key.to_hex().as_str()))
+                .unwrap();
+            tamper(&conn);
+        }
+    };
+    let opts = EncryptOptions {
+        after_step: Some(&hook),
+        ..EncryptOptions::default()
+    };
+    let result = encrypt_library(&db, key, &opts);
+    assert!(result.is_err(), "a changed copy was swapped in: {result:?}");
+    assert_eq!(LibraryFile::of(&db), LibraryFile::Plain);
+    assert!(!encryption_unfinished(&db));
+    assert_eq!(contents(&db, None), before);
+}
+
+/// The compare covers rowids: the columns alone miss a row moved to another
+/// rowid.
+#[test]
+fn a_copy_with_a_changed_rowid_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    plain_library(dir.path(), &[("one".into(), "two".into())]);
+    assert_tampered_copy_is_refused(dir.path(), &key_from(20), &|conn| {
+        conn.execute_batch(
+            "UPDATE docs SET rowid = rowid + 100000 WHERE rowid = (SELECT max(rowid) FROM docs)",
+        )
+        .unwrap();
+    });
+}
+
+/// The compare covers `sqlite_sequence`, the counters of AUTOINCREMENT
+/// tables: a counter that went back would hand out a used ID again.
+#[test]
+fn a_copy_with_a_changed_autoincrement_counter_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    plain_library(dir.path(), &[("one".into(), "two".into())]);
+    Connection::open(db_path(dir.path()))
+        .unwrap()
+        .execute_batch(
+            "CREATE TABLE counted (id INTEGER PRIMARY KEY AUTOINCREMENT, v);
+             INSERT INTO counted (v) VALUES (1), (2), (3);
+             DELETE FROM counted;",
+        )
+        .unwrap();
+    assert_tampered_copy_is_refused(dir.path(), &key_from(21), &|conn| {
+        conn.execute_batch("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'counted'")
+            .unwrap();
+    });
+}
+
+/// The compare covers each object's SQL, not only its name: an index of the
+/// same name over other columns is a different schema.
+#[test]
+fn a_copy_with_a_changed_index_definition_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    plain_library(dir.path(), &[("one".into(), "two".into())]);
+    assert_tampered_copy_is_refused(dir.path(), &key_from(22), &|conn| {
+        conn.execute_batch("DROP INDEX docs_book; CREATE INDEX docs_book ON docs (book_id)")
+            .unwrap();
+    });
+}
+
+/// The plain library's second name is a hard link: the same file. This
+/// follows both names through the conversion and proves the overwrite goes
+/// to the plain file only, after the encrypted one has taken the library's
+/// name, and never to the library.
+#[cfg(unix)]
+#[test]
+fn the_overwrite_reaches_the_plain_file_and_never_the_library() {
+    use std::os::unix::fs::MetadataExt as _;
+    let dir = tempfile::tempdir().unwrap();
+    plain_library(dir.path(), &[("one".into(), "orchard two".into())]);
+    let db = db_path(dir.path());
+    let safety = beside(&db, ".plain");
+    let copy = beside(&db, ".enc");
+    let before = contents(&db, None);
+    let plain_ino = std::fs::metadata(&db).unwrap().ino();
+    // A handle on the plain file itself, kept through the conversion.
+    let plain = std::fs::File::open(&db).unwrap();
+    let ino = |path: &Path| std::fs::metadata(path).ok().map(|meta| meta.ino());
+    let seen = std::sync::Mutex::new(Vec::new());
+    let hook = |step: EncryptStep| {
+        seen.lock()
+            .unwrap()
+            .push((step, ino(&db), ino(&safety), ino(&copy)));
+    };
+    let opts = EncryptOptions {
+        after_step: Some(&hook),
+        ..EncryptOptions::default()
+    };
+    let key = key_from(23);
+    encrypt_library(&db, &key, &opts).unwrap();
+    let seen = seen.into_inner().unwrap();
+    let at = |step: EncryptStep| *seen.iter().find(|s| s.0 == step).unwrap();
+    let copy_ino = at(EncryptStep::Verified).3.unwrap();
+    assert_ne!(copy_ino, plain_ino);
+    // Linked: two names, one plain file; the copy is apart.
+    assert_eq!(
+        at(EncryptStep::SafetyLinked),
+        (
+            EncryptStep::SafetyLinked,
+            Some(plain_ino),
+            Some(plain_ino),
+            Some(copy_ino)
+        )
+    );
+    // Swapped and confirmed: the library is the copy; the plain file is
+    // only its second name.
+    for step in [EncryptStep::Swapped, EncryptStep::Confirmed] {
+        assert_eq!(at(step), (step, Some(copy_ino), Some(plain_ino), None));
+    }
+    // Shredded: the second name is gone and the library is still the copy.
+    assert_eq!(
+        at(EncryptStep::PlainShredded),
+        (EncryptStep::PlainShredded, Some(copy_ino), None, None)
+    );
+    // The overwrite went to the plain file: through the handle it is empty.
+    assert_eq!(plain.metadata().unwrap().len(), 0);
+    drop(plain);
+    assert_eq!(contents(&db, Some(&key)), before);
+    assert_finished(dir.path(), &key);
+    assert_no_canary(dir.path());
+}
+
+/// A second name that is the encrypted library itself (not the plain file)
+/// must never be overwritten: that would destroy the only library.
+#[cfg(unix)]
+#[test]
+fn a_second_name_for_the_encrypted_library_is_never_overwritten() {
+    let dir = tempfile::tempdir().unwrap();
+    plain_library(dir.path(), &[("one".into(), "orchard two".into())]);
+    let db = db_path(dir.path());
+    let key = key_from(24);
+    encrypt_library(&db, &key, &EncryptOptions::default()).unwrap();
+    let before = contents(&db, Some(&key));
+    std::fs::hard_link(&db, beside(&db, ".plain")).unwrap();
+    write_marker(&db, "cleanup");
+    encrypt_library(&db, &key, &EncryptOptions::default()).unwrap();
+    assert_eq!(contents(&db, Some(&key)), before);
+    assert_finished(dir.path(), &key);
+}
+
+/// A plain copy from an earlier attempt that is not the library is never
+/// put back over it: the conversion stops, says which file, and the library
+/// stays as it is.
+#[test]
+fn a_stale_plain_copy_is_never_put_back_over_the_library() {
+    let dir = tempfile::tempdir().unwrap();
+    plain_library(dir.path(), &[("one".into(), "two".into())]);
+    let db = db_path(dir.path());
+    // An older library under the plain copy's name.
+    std::fs::copy(&db, beside(&db, ".plain")).unwrap();
+    let older = contents(&beside(&db, ".plain"), None);
+    {
+        let store = Store::open(&db).unwrap();
+        add_note(&store, "newer", "written after the copy");
+    }
+    let before = contents(&db, None);
+    assert_ne!(before, older);
+    let err = encrypt_library(&db, &key_from(25), &EncryptOptions::default()).unwrap_err();
+    assert_eq!(LibraryFile::of(&db), LibraryFile::Plain);
+    assert!(
+        contents(&db, None) == before,
+        "the library was replaced: {err}"
+    );
+    assert!(err.to_string().contains("kanso.db.plain"), "{err}");
+    // The other file is left for the person to look at.
+    assert_eq!(contents(&beside(&db, ".plain"), None), older);
+    assert!(!encryption_unfinished(&db));
+}
+
+/// On a disk without hard links the plain library's second name is a copy.
+/// A crash partway through that copy leaves a partial file under the name;
+/// the next launch must make it again, never compare with it or put it
+/// back over the library.
+#[test]
+fn a_partial_plain_copy_from_a_crash_is_never_put_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let notes: Vec<(String, String)> = (0..30)
+        .map(|i| (format!("note {i}"), "orchard words ".repeat(30)))
+        .collect();
+    plain_library(dir.path(), &notes);
+    let db = db_path(dir.path());
+    let before = contents(&db, None);
+    let key = key_from(31);
+    crash_at(dir.path(), &key, EncryptStep::WalRemoved);
+    // The copy stopped halfway.
+    let bytes = std::fs::read(&db).unwrap();
+    std::fs::write(beside(&db, ".plain"), &bytes[..bytes.len() / 2]).unwrap();
+    encrypt_library(&db, &key, &EncryptOptions::default()).unwrap();
+    assert_eq!(contents(&db, Some(&key)), before);
+    assert_finished(dir.path(), &key);
+    assert_no_canary(dir.path());
+}
+
+/// A marker that says the copy was still being made, beside a library that
+/// is already encrypted, is stale: the library opens as it is.
+#[test]
+fn a_stale_exporting_marker_beside_an_encrypted_library_is_cleared() {
+    let dir = tempfile::tempdir().unwrap();
+    plain_library(dir.path(), &[("one".into(), "orchard two".into())]);
+    let db = db_path(dir.path());
+    let key = key_from(26);
+    encrypt_library(&db, &key, &EncryptOptions::default()).unwrap();
+    let before = contents(&db, Some(&key));
+    write_marker(&db, "exporting");
+    std::fs::write(beside(&db, ".enc"), b"partial").unwrap();
+    assert!(encryption_unfinished(&db));
+    assert_eq!(
+        encrypt_library(&db, &key, &EncryptOptions::default()).unwrap(),
+        Encrypted::AlreadyEncrypted
+    );
+    assert_eq!(contents(&db, Some(&key)), before);
+    assert_finished(dir.path(), &key);
+}
+
+/// The library's name gone with its plain copy kept: the copy comes back.
+#[test]
+fn a_missing_library_with_its_plain_copy_kept_is_put_back() {
+    let dir = tempfile::tempdir().unwrap();
+    plain_library(dir.path(), &[("one".into(), "orchard two".into())]);
+    let db = db_path(dir.path());
+    let before = contents(&db, None);
+    std::fs::rename(&db, beside(&db, ".plain")).unwrap();
+    write_marker(&db, "ready");
+    let key = key_from(27);
+    encrypt_library(&db, &key, &EncryptOptions::default()).unwrap();
+    assert_eq!(contents(&db, Some(&key)), before);
+    assert_finished(dir.path(), &key);
+}
+
+/// A state Kanso can't sort out says what to do, naming the marker, and
+/// deletes nothing.
+#[test]
+fn an_unexpected_state_says_how_to_get_out() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = db_path(dir.path());
+    std::fs::write(beside(&db, ".enc"), b"partial").unwrap();
+    write_marker(&db, "exporting");
+    let err = encrypt_library(&db, &key_from(28), &EncryptOptions::default()).unwrap_err();
+    let text = err.to_string();
+    assert!(text.contains("kanso.db.encrypting"), "{text}");
+    assert!(text.contains("remove"), "{text}");
+    assert!(beside(&db, ".enc").exists());
+}
+
+/// A crash after a backup's swap, before its plaintext was overwritten:
+/// the next run overwrites it and keeps the encrypted backup.
+#[test]
+fn a_backup_swapped_but_not_shredded_is_finished() {
+    let dir = tempfile::tempdir().unwrap();
+    plain_library(dir.path(), &[("one".into(), "orchard two".into())]);
+    let backups = dir.path().join("backups");
+    Store::open(db_path(dir.path()))
+        .unwrap()
+        .backup_now(&backups, 6_000)
+        .unwrap();
+    let backup = backups.join("kanso-manual-6000.db");
+    let before = contents(&backup, None);
+    let key = key_from(29);
+    // The encrypted backup, made apart, then swapped in over a backup whose
+    // plaintext keeps a second name, as a crash before the overwrite leaves.
+    let apart = dir.path().join("apart");
+    std::fs::create_dir(&apart).unwrap();
+    std::fs::copy(&backup, apart.join("kanso-manual-6000.db")).unwrap();
+    encrypt_backups(&apart, &key, &EncryptOptions::default()).unwrap();
+    std::fs::hard_link(&backup, backups.join("kanso-manual-6000.db.old")).unwrap();
+    std::fs::rename(apart.join("kanso-manual-6000.db"), &backup).unwrap();
+    std::fs::remove_dir_all(&apart).unwrap();
+
+    let report = encrypt_backups(&backups, &key, &EncryptOptions::default()).unwrap();
+    assert_eq!(report.converted, 0);
+    assert_eq!(names(&backups), vec!["kanso-manual-6000.db".to_owned()]);
+    assert_eq!(contents(&backup, Some(&key)), before);
+    assert_no_canary(&backups);
+}
+
+/// A backup whose only name left is its plaintext's second one is put back
+/// and encrypted, never deleted.
+#[test]
+fn a_backup_known_only_by_its_second_name_is_kept() {
+    let dir = tempfile::tempdir().unwrap();
+    plain_library(dir.path(), &[("one".into(), "orchard two".into())]);
+    let backups = dir.path().join("backups");
+    Store::open(db_path(dir.path()))
+        .unwrap()
+        .backup_now(&backups, 7_000)
+        .unwrap();
+    let backup = backups.join("kanso-manual-7000.db");
+    let before = contents(&backup, None);
+    std::fs::rename(&backup, backups.join("kanso-manual-7000.db.old")).unwrap();
+    let key = key_from(30);
+    let report = encrypt_backups(&backups, &key, &EncryptOptions::default()).unwrap();
+    assert_eq!(report.converted, 1);
+    assert_eq!(names(&backups), vec!["kanso-manual-7000.db".to_owned()]);
+    assert_eq!(contents(&backup, Some(&key)), before);
+    assert_no_canary(&backups);
+}
