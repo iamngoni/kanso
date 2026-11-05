@@ -7,6 +7,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../ai_settings/state/ai_status/ai_status_bloc.dart';
 import '../../../assist/utils/assist_editor_extras.dart';
+import '../../../canvas/models/repos/abs/canvas_repository.dart';
+import '../../../canvas/utils/sketch_editor_extras.dart';
 import '../../../core/configs/kanso_theme.dart';
 import '../../../core/configs/kanso_theme_scope.dart';
 import '../../../core/models/repos/abs/ai_repository.dart';
@@ -17,7 +19,9 @@ import '../../../core/utils/kanso_scroll_behavior.dart';
 import '../../../core/utils/syntax_theme_id.dart';
 import '../../../core/views/widgets/kanso_feedback.dart';
 import '../../../core/views/widgets/kanso_page_route.dart';
+import '../../../dictation/utils/combined_editor_extras.dart';
 import '../../../dictation/views/widgets/dictation_scope.dart';
+import '../../../editor_extras/models/data/editor_extras.dart';
 import '../../../gen/l10n/app_localizations.dart';
 import '../../../injection.dart';
 import '../../../note/state/note/note_bloc.dart';
@@ -52,6 +56,7 @@ class NoteWindowApp extends StatefulWidget {
 
 class _NoteWindowAppState extends State<NoteWindowApp> {
   AssistEditorExtras? assistant;
+  EditorExtras? others;
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +94,13 @@ class _NoteWindowAppState extends State<NoteWindowApp> {
                   selectionLabel: context.l10n.assistSelectionAction,
                   keyLabel: context.l10n.assistAccessoryLabel,
                 );
+                others ??= CombinedEditorExtras(
+                  assistant!,
+                  SketchEditorExtras(
+                    repository: getIt<CanvasRepository>(),
+                    label: context.l10n.sketchInsertKey,
+                  ),
+                );
                 final brightness = switch (state.themeMode) {
                   ThemeMode.light => Brightness.light,
                   ThemeMode.dark => Brightness.dark,
@@ -114,7 +126,7 @@ class _NoteWindowAppState extends State<NoteWindowApp> {
                         cursorColor: theme.colors.accent,
                         child: KansoFeedbackHost(
                           child: DictationScope(
-                            others: assistant,
+                            others: others,
                             child: child ?? const SizedBox.shrink(),
                           ),
                         ),

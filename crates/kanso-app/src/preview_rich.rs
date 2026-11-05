@@ -8,6 +8,7 @@
 //! drawn shows as its code, with a badge saying why.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
 
@@ -48,12 +49,25 @@ pub struct Rich {
     pub note: Arc<Mutex<Option<String>>>,
     /// How much larger than the setting text is drawn: 1, except on a slide.
     pub text_scale: Mutex<f32>,
+    /// Whether the sketches in the note can't be drawn on: the note is
+    /// shared, in the trash, or read only for another reason.
+    pub sketch_read_only: AtomicBool,
+    /// Which preview the sketches drawn here belong to
+    /// ([`crate::sketch_view::next_owner`]): two windows on one note each
+    /// keep their own, and one moving to another note never lets go of the
+    /// other's unsaved ink.
+    pub sketch_owner: u64,
 }
 
 impl Rich {
     /// How much larger than the setting text is drawn.
     pub fn text_scale(&self) -> f32 {
         self.text_scale.lock().map_or(1., |scale| *scale)
+    }
+
+    /// Whether the sketches in the note can't be drawn on.
+    pub fn sketch_read_only(&self) -> bool {
+        self.sketch_read_only.load(Ordering::Relaxed)
     }
 
     pub(crate) fn waker(&self) -> impl FnOnce() + Send + 'static {
@@ -157,6 +171,13 @@ pub fn block(node: &markdown_ast::Node, markdown: &str) -> Option<Block> {
         }
         Node::Code(code) if fence_is(&code.lang, "excalidraw") => {
             (Kind::Excalidraw, code.value.clone(), None)
+        }
+        // A Kanso sketch; any other `sketch` block is code.
+        Node::Code(code)
+            if fence_is(&code.lang, "sketch")
+                && kanso_render::canvas::sketch::parse(&code.value).is_some() =>
+        {
+            (Kind::Sketch, code.value.clone(), None)
         }
         // A canvas note's own fence holds JSON and is not an embed.
         Node::Code(code)
@@ -408,6 +429,9 @@ fn render_block(
     let at = node.source_range().map_or(0, |r| r.start) as u64;
     if let Some(line) = &block.pdf {
         return pdf_line(line, rich, at, cx);
+    }
+    if block.kind == Kind::Sketch {
+        return crate::sketch_view::element(block, at, rich, window, cx);
     }
     if block.kind == Kind::Canvas {
         return crate::preview_canvas::render(block, rich, at, window, cx);

@@ -34,6 +34,8 @@ mod recognize_tests;
 mod sanitize;
 pub mod sketch;
 #[cfg(test)]
+mod sketch_tests;
+#[cfg(test)]
 mod tests;
 mod text;
 

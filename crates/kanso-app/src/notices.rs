@@ -67,9 +67,8 @@ pub fn build_context(
 }
 
 /// The context now. "A login existed" is the fact `config.json` recorded
-/// when it dropped the login; "the library key was saved" is true until a
-/// later step records it (there is no key to save yet), so no notice is
-/// raised by a fact Kanso can't tell.
+/// when it dropped the login; "the library key was saved" is what the person
+/// chose on the library key's sheet, kept in `config.json` too.
 fn context(cx: &App) -> NoticeContext {
     let board = cx.try_global::<NoticeBoard>();
     let signed_in = cx
@@ -78,12 +77,13 @@ fn context(cx: &App) -> NoticeContext {
     let login = cx
         .try_global::<AppState>()
         .is_some_and(|state| state.config.had_login);
+    let key_saved = crate::library_key_sheet::key_saved(cx);
     build_context(
         crate::updates::current_version(),
         board.and_then(|board| board.previous.clone()),
         login,
         signed_in,
-        true,
+        key_saved,
         // Set once, as the library opens: the secret store refused its key or
         // there wasn't room to encrypt it.
         cx.has_global::<PlainLibrary>(),

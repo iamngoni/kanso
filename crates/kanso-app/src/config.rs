@@ -806,6 +806,13 @@ pub struct AppConfig {
     /// them (issue #243). Recorded the first time the file is read, kept for
     /// good, and what the API keys notice checks.
     pub had_login: bool,
+    /// The key the person said they saved, by "I've saved it" on the
+    /// library key's sheet (issue #243 step 11): its
+    /// [`fingerprint`](kanso_store::LibraryKey::fingerprint), never the key.
+    /// The key counts as saved only while it is still the library's, so a
+    /// library made again with a new key asks again. Until then the sheet
+    /// comes back at each launch.
+    pub saved_library_key: Option<String>,
     pub sync: SyncSettings,
     pub appearance: Appearance,
     pub launch_at_login: bool,
@@ -866,6 +873,7 @@ impl Default for AppConfig {
             version: CONFIG_VERSION,
             server: ServerSettings::default(),
             had_login: false,
+            saved_library_key: None,
             sync: SyncSettings::default(),
             appearance: Appearance::default(),
             launch_at_login: false,
@@ -1356,6 +1364,7 @@ mod tests {
                         ..ServerSettings::default()
                     },
                     had_login: false,
+                    saved_library_key: login.then(|| "0123456789abcdef".to_owned()),
                     sync,
                     appearance: Appearance {
                         theme,

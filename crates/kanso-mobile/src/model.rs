@@ -1738,6 +1738,15 @@ pub enum PreviewBlock {
         kind: PreviewFigureKind,
         svg: PreviewSvg,
     },
+    /// An inline sketch: its ID in the note, its box in points, whether it
+    /// has any ink yet, and its drawing.
+    Sketch {
+        id: String,
+        width: u32,
+        height: u32,
+        empty: bool,
+        svg: PreviewSvg,
+    },
     /// An Excalidraw drawing with nothing in it yet.
     EmptyDrawing,
     /// The line that stands for a PDF's highlights: "4 highlights · 1
@@ -2095,6 +2104,19 @@ mod preview_blocks {
                         FigureKind::Drawing => PreviewFigureKind::Drawing,
                         FigureKind::Plugin => PreviewFigureKind::Plugin,
                     },
+                    svg: svg.into(),
+                },
+                Block::Sketch {
+                    id,
+                    width,
+                    height,
+                    empty,
+                    svg,
+                } => PreviewBlock::Sketch {
+                    id,
+                    width,
+                    height,
+                    empty,
                     svg: svg.into(),
                 },
                 Block::EmptyDrawing => PreviewBlock::EmptyDrawing,

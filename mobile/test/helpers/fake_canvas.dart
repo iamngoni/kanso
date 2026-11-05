@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:dartz/dartz.dart';
 import 'package:kanso/canvas/models/repos/abs/canvas_repository.dart';
 import 'package:kanso/core/bridge/api/canvas_types.dart';
+import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 
 /// A square outline `size` big at `(x, y)`, as the library would make one.
@@ -111,6 +112,12 @@ class FakeCanvasDocument implements CanvasDocument {
   ApplicationError? drawError;
   int saves = 0;
   int _next = 0;
+
+  /// What the document is when it is an inline sketch.
+  SketchInfo? sketch;
+
+  /// The titles "Open as canvas" was asked with.
+  final List<String> canvasTitles = <String>[];
   List<CanvasStroke>? _undone;
 
   /// The view as it is: strokes already known by the caller come back
@@ -255,6 +262,17 @@ class FakeCanvasDocument implements CanvasDocument {
   }
 
   @override
+  SketchInfo? get sketchInfo => sketch;
+
+  @override
+  Future<CanvasResult<Saved>> openAsCanvas(String title) async {
+    canvasTitles.add(title);
+    return const Right<ApplicationError, Saved>(
+      Saved(id: 'canvas-new', rev: '1-a'),
+    );
+  }
+
+  @override
   Future<CanvasResult<CanvasSaved>> save() async {
     final error = saveError;
     if (error != null) {
@@ -355,10 +373,55 @@ class FakeCanvasRepository implements CanvasRepository {
         : Left<ApplicationError, CanvasDocument>(error);
   }
 
+  /// The sketches opened, as `note/sketch`.
+  final List<String> sketchOpens = <String>[];
+
+  @override
+  Future<CanvasResult<CanvasDocument>> openSketch(
+    String noteId,
+    String sketchId,
+  ) async {
+    sketchOpens.add('$noteId/$sketchId');
+    final error = openError;
+    return error == null
+        ? Right<ApplicationError, CanvasDocument>(document)
+        : Left<ApplicationError, CanvasDocument>(error);
+  }
+
   @override
   List<double> preview(InkStyle style, List<PenSample> samples) => <double>[
     for (final s in samples) ...<double>[s.x, s.y],
   ];
+
+  /// The notes that are shared, which take no new sketch.
+  final Set<String> sharedNotes = <String>{};
+
+  /// The notes "Insert sketch" was asked for, in order.
+  final List<String> inserts = <String>[];
+
+  @override
+  bool takesSketches(String noteId) => !sharedNotes.contains(noteId);
+
+  @override
+  Future<CanvasResult<SketchInserted>> insertSketch({
+    required String noteId,
+    required String body,
+    required int at,
+    required int width,
+    required int height,
+  }) async {
+    inserts.add(noteId);
+    if (sharedNotes.contains(noteId)) {
+      return const Left<ApplicationError, SketchInserted>(
+        ApplicationError.invalid(message: 'shared'),
+      );
+    }
+    final fence = '\n```sketch\n{"w":$width,"h":$height}\n```\n';
+    final next = body.replaceRange(at, at, fence);
+    return Right<ApplicationError, SketchInserted>(
+      SketchInserted(body: next, id: 'sk-new', cursor: at + fence.length),
+    );
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

@@ -200,7 +200,7 @@ pub use ai_model::*;
 pub use approvals::Approvals;
 pub use backups::BACKUPS_SUMMARY;
 pub use brief_model::*;
-pub use canvas::{CanvasSession, ink_preview};
+pub use canvas::{CanvasSession, SHARED_INSERT_WORDS, ink_preview, sketch_insert};
 pub use canvas_model::*;
 pub use canvas_shared_model::*;
 pub use cards::Cards;

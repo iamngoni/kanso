@@ -1182,6 +1182,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   SignOutReasonKind dco_decode_box_autoadd_sign_out_reason_kind(dynamic raw);
 
   @protected
+  SketchInfo dco_decode_box_autoadd_sketch_info(dynamic raw);
+
+  @protected
   SyncProblemKind dco_decode_box_autoadd_sync_problem_kind(dynamic raw);
 
   @protected
@@ -2355,6 +2358,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  SketchInfo? dco_decode_opt_box_autoadd_sketch_info(dynamic raw);
+
+  @protected
   SyncProblemKind? dco_decode_opt_box_autoadd_sync_problem_kind(dynamic raw);
 
   @protected
@@ -2791,6 +2797,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   SignedUp dco_decode_signed_up(dynamic raw);
+
+  @protected
+  SketchInfo dco_decode_sketch_info(dynamic raw);
+
+  @protected
+  SketchInserted dco_decode_sketch_inserted(dynamic raw);
 
   @protected
   SortKey dco_decode_sort_key(dynamic raw);
@@ -4065,6 +4077,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   SignOutReasonKind sse_decode_box_autoadd_sign_out_reason_kind(
     SseDeserializer deserializer,
   );
+
+  @protected
+  SketchInfo sse_decode_box_autoadd_sketch_info(SseDeserializer deserializer);
 
   @protected
   SyncProblemKind sse_decode_box_autoadd_sync_problem_kind(
@@ -5472,6 +5487,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  SketchInfo? sse_decode_opt_box_autoadd_sketch_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SyncProblemKind? sse_decode_opt_box_autoadd_sync_problem_kind(
     SseDeserializer deserializer,
   );
@@ -5944,6 +5964,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   SignedUp sse_decode_signed_up(SseDeserializer deserializer);
+
+  @protected
+  SketchInfo sse_decode_sketch_info(SseDeserializer deserializer);
+
+  @protected
+  SketchInserted sse_decode_sketch_inserted(SseDeserializer deserializer);
 
   @protected
   SortKey sse_decode_sort_key(SseDeserializer deserializer);
@@ -7514,6 +7540,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_sign_out_reason_kind(
     SignOutReasonKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_sketch_info(
+    SketchInfo self,
     SseSerializer serializer,
   );
 
@@ -9327,6 +9359,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_sketch_info(
+    SketchInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_sync_problem_kind(
     SyncProblemKind? self,
     SseSerializer serializer,
@@ -9928,6 +9966,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_signed_up(SignedUp self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sketch_info(SketchInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sketch_inserted(
+    SketchInserted self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_sort_key(SortKey self, SseSerializer serializer);
