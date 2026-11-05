@@ -3864,7 +3864,10 @@ class PdfInkRow {
   final int page;
   final int strokes;
 
-  const PdfInkRow({required this.page, required this.strokes});
+  const PdfInkRow({
+    required this.page,
+    required this.strokes,
+  });
 
   @override
   int get hashCode => page.hashCode ^ strokes.hashCode;
