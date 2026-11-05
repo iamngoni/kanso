@@ -6,6 +6,7 @@
 
 mod common;
 
+use std::io::Cursor;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
@@ -520,6 +521,80 @@ fn a_pdf_over_ten_mib_syncs_to_the_server_and_to_another_device() {
     let (kind, got) = b.store.attachment("file:bigpdf").unwrap().unwrap();
     assert_eq!(kind, "application/pdf");
     assert_eq!(got.data, pdf);
+}
+
+#[test]
+fn a_recording_and_timestamped_transcript_sync_play_and_seek_on_the_second_device() {
+    let (server, a, b) = two_synced();
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("in-progress");
+    let mut options = kanso_audio::RecorderOptions::new(
+        kanso_audio::Channels::Mono,
+        vec![kanso_audio::RecordSource::Microphone],
+    );
+    options.id = Some("sync-recording".into());
+    options.encode.max_part_frames = 200;
+    let mut recorder = kanso_audio::Recorder::create(&root, options).unwrap();
+    let pcm: Vec<f32> = (0..48_000 * 2)
+        .map(|i| 0.35 * (std::f32::consts::TAU * 440.0 * i as f32 / 48_000.0).sin())
+        .collect();
+    recorder.push(&pcm).unwrap();
+    let audio = recorder.finish().unwrap();
+    assert_eq!(audio.parts.len(), 1);
+    let bytes = std::fs::read(&audio.parts[0].0).unwrap();
+    put(
+        &a.store,
+        DocType::File,
+        json!({
+            "_id": "file:recording-sync-1", "name": "Recording part 1.opus",
+            "contentType": "audio/ogg", "createdAt": 1,
+            "_attachments": {"index": {
+                "content_type": "audio/ogg",
+                "data": base64::engine::general_purpose::STANDARD.encode(&bytes),
+            }},
+        }),
+    )
+    .unwrap();
+    note(
+        &a.store,
+        "note:recording-sync",
+        "book:b1",
+        "[Audio · 2 sec](inkdrop://file:recording-sync-1)\n\n<!-- kanso:transcript -->\n[00:01](kanso-audio://file:recording-sync-1?t=1) We agreed.\n<!-- /kanso:transcript -->",
+        200,
+    );
+
+    a.sync(&server);
+    b.sync(&server);
+    let note = b.store.note("note:recording-sync").unwrap().unwrap();
+    assert!(
+        note.body
+            .contains("kanso-audio://file:recording-sync-1?t=1")
+    );
+    assert!(note.body.contains("<!-- kanso:transcript -->"));
+    let (kind, attachment) = b
+        .store
+        .attachment("file:recording-sync-1")
+        .unwrap()
+        .expect("the second device has the synced audio bytes");
+    assert_eq!(kind, "audio/ogg");
+    let mut player = kanso_audio::OpusReader::open(Cursor::new(attachment.data)).unwrap();
+    assert_eq!(player.info().total_samples, pcm.len() as u64);
+    player.seek(48_000).unwrap();
+    assert_eq!(player.read_to_end().unwrap().len(), 48_000);
+
+    // A file deletion is a sync tombstone; the other device drops the live
+    // attachment and cannot keep playing bytes that the note no longer owns.
+    a.store
+        .delete("file:recording-sync-1", kanso_store::Origin::Api)
+        .unwrap();
+    a.sync(&server);
+    b.sync(&server);
+    assert!(
+        b.store
+            .attachment("file:recording-sync-1")
+            .unwrap()
+            .is_none()
+    );
 }
 
 /// A server from before 50 MiB PDFs answers 413 `too_large` for the

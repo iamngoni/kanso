@@ -166,6 +166,49 @@ pub(super) fn recording_bar(
     });
 }
 
+/// A saved recording open in the preview, with the real player and scrubber.
+pub(super) fn recording_player(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    let directory = tempfile::tempdir().unwrap();
+    let mut recorder = kanso_audio::Recorder::create(
+        &directory.path().join("in-progress"),
+        kanso_audio::RecorderOptions::new(
+            kanso_audio::Channels::Mono,
+            vec![kanso_audio::RecordSource::Microphone],
+        ),
+    )
+    .unwrap();
+    let pcm: Vec<f32> = (0..48_000 * 5)
+        .map(|i| 0.35 * (std::f32::consts::TAU * 440.0 * i as f32 / 48_000.0).sin())
+        .collect();
+    recorder.push(&pcm).unwrap();
+    let finished = recorder.finish().unwrap();
+    let saved = kanso_engine::recording_flow::save_recording(
+        store,
+        &kanso_engine::recording_flow::Recorded {
+            session_id: "snapshot-player".into(),
+            parts: finished.parts.into_iter().map(|(path, _)| path).collect(),
+            duration_secs: 5,
+            mic_only: true,
+            when: "28 May 2026, 09:45".into(),
+        },
+        &kanso_engine::recording_flow::Destination::NewNote { book_id: None },
+        kanso_store::Origin::Ui,
+    )
+    .unwrap();
+    let body = store.note(&saved.note_id).unwrap().unwrap().body;
+    super::open_new_note(cx, workspace, store, "Recording player", &body);
+    cx.update(|cx| {
+        workspace.update(cx, |workspace, cx| {
+            workspace.set_view_mode_for_test(crate::config::ViewMode::Preview, cx);
+        });
+    });
+}
+
 /// The same bar while paused.
 pub(super) fn recording_paused(
     cx: &mut HeadlessAppContext,

@@ -1467,6 +1467,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String pdfNotesScanned(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count scanned pages were read on a computer and are searchable',
+      one: '1 scanned page was read on a computer and is searchable',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get pdfNotesNotInNote => 'Not in the note';
 
   @override

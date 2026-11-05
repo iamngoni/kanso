@@ -2656,6 +2656,12 @@ abstract class AppLocalizations {
   /// **'Page {page}'**
   String pdfNotesPage(int page);
 
+  /// Said under a PDF's name in the highlights sheet: how many of its scanned pages have words that a computer read, so search finds them on the phone too.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 scanned page was read on a computer and is searchable} other{{count} scanned pages were read on a computer and are searchable}}'**
+  String pdfNotesScanned(int count);
+
   /// Said of a highlight whose quote is no longer in the note's text.
   ///
   /// In en, this message translates to:

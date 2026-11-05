@@ -31809,8 +31809,8 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   PdfNotes dco_decode_pdf_notes(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return PdfNotes(
       file: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
@@ -31818,7 +31818,8 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       editable: dco_decode_bool(arr[3]),
       why: dco_decode_opt_String(arr[4]),
       highlights: dco_decode_list_pdf_highlight_row(arr[5]),
-      ink: dco_decode_list_pdf_ink_row(arr[6]),
+      scannedPages: dco_decode_u_32(arr[6]),
+      ink: dco_decode_list_pdf_ink_row(arr[7]),
     );
   }
 
@@ -43090,6 +43091,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     var var_editable = sse_decode_bool(deserializer);
     var var_why = sse_decode_opt_String(deserializer);
     var var_highlights = sse_decode_list_pdf_highlight_row(deserializer);
+    var var_scannedPages = sse_decode_u_32(deserializer);
     var var_ink = sse_decode_list_pdf_ink_row(deserializer);
     return PdfNotes(
       file: var_file,
@@ -43098,6 +43100,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       editable: var_editable,
       why: var_why,
       highlights: var_highlights,
+      scannedPages: var_scannedPages,
       ink: var_ink,
     );
   }
@@ -53657,6 +53660,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_bool(self.editable, serializer);
     sse_encode_opt_String(self.why, serializer);
     sse_encode_list_pdf_highlight_row(self.highlights, serializer);
+    sse_encode_u_32(self.scannedPages, serializer);
     sse_encode_list_pdf_ink_row(self.ink, serializer);
   }
 

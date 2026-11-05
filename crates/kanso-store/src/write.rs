@@ -157,6 +157,7 @@ pub(crate) fn store_row(
     {
         snapshot(tx, id, prev, origin)?;
     }
+    let mut newly_locked = false;
     if locked {
         let was_locked = match previous.filter(|prev| !prev.deleted) {
             Some(prev) => {
@@ -165,8 +166,16 @@ pub(crate) fn store_row(
             // A new note has nothing to forget.
             None => true,
         };
-        forget_text(tx, id, salt_now.as_deref(), !was_locked)?;
+        newly_locked = !was_locked;
+        forget_text(tx, id, salt_now.as_deref(), newly_locked)?;
     }
+    // The PDFs the note linked until now, read before this write replaces
+    // the list: words read from their scans may have to go (issue #43).
+    let pdfs_before = if is_note {
+        crate::pdf_ocr::files_before(tx, id, newly_locked)?
+    } else {
+        None
+    };
     let book_ids_before = match doc_type {
         DocType::Book => Some(locked_book_ids(tx)?),
         _ => None,
@@ -199,7 +208,7 @@ pub(crate) fn store_row(
         record_overview(tx, id, fields, previous, deleted, locked, origin)?;
     }
     if let Some(before) = book_ids_before {
-        books_changed(tx, before, origin)?;
+        books_changed(tx, before, origin, changes)?;
     }
     if doc_type == DocType::File && deleted {
         tx.execute("DELETE FROM blobs WHERE file_id = ?", [id])?;
@@ -226,6 +235,14 @@ pub(crate) fn store_row(
         deleted,
         origin,
     });
+    // Words read from a scanned PDF stay readable only while a note that
+    // isn't locked links it, however this write arrived (issue #43).
+    if let Some(files) = pdfs_before {
+        crate::pdf_ocr::after_note_write(tx, &files, newly_locked, changes)?;
+    }
+    if doc_type == DocType::File {
+        crate::pdf_ocr::guard_file(tx, id, (!deleted).then_some(fields), changes)?;
+    }
     Ok(())
 }
 
@@ -498,7 +515,12 @@ fn in_locked_book_of(tx: &Transaction, fields: &Map<String, Value>) -> Result<bo
 /// After a notebook was written: the notes of every notebook that became
 /// locked, or stopped being locked, are indexed again as they now read. A
 /// local write may not do this to a note with plain text ([`guard_note`]).
-fn books_changed(tx: &Transaction, before: BTreeSet<String>, origin: Origin) -> Result<()> {
+fn books_changed(
+    tx: &Transaction,
+    before: BTreeSet<String>,
+    origin: Origin,
+    changes: &mut Vec<Change>,
+) -> Result<()> {
     let after = locked_book_ids(tx)?;
     // Only Kanso (or a lock taken off on another device) unlocks a
     // notebook: moving one out of a locked notebook would, too.
@@ -535,7 +557,11 @@ fn books_changed(tx: &Transaction, before: BTreeSet<String>, origin: Origin) -> 
             if locked {
                 forget_text(tx, &note, salt.as_deref(), now_locked && salt.is_none())?;
             }
+            let pdfs = crate::pdf_ocr::files_before(tx, &note, now_locked)?;
             index_note(tx, &note, Some(&row.fields), locked, now_locked)?;
+            if let Some(files) = pdfs {
+                crate::pdf_ocr::after_note_write(tx, &files, now_locked, changes)?;
+            }
         }
     }
     Ok(())
@@ -553,6 +579,12 @@ thread_local! {
 /// Whether the write just made forgot a note's text; clears it.
 pub(crate) fn forgot_text() -> bool {
     FORGOT_TEXT.replace(false)
+}
+
+/// Says a write overwrote plain text that must not stay in the write-ahead
+/// log (see [`forgot_text`]).
+pub(crate) fn set_forgot_text() {
+    FORGOT_TEXT.set(true);
 }
 
 /// The salt a locked note's text is sealed under; `None` when it isn't
@@ -1064,6 +1096,7 @@ impl Store {
                 return Err(StoreError::Conflict);
             }
             fields.remove(OCR_FIELD);
+            fields.remove(kanso_core::model::PDF_OCR_FIELD);
             fields.remove(UNSEALED_FIELD);
             let mut normalized = normalize(
                 DocType::File,
@@ -1233,6 +1266,7 @@ fn unseal_in(
     }
     fields.remove(FILE_LOCK_FIELD);
     fields.remove(OCR_FIELD);
+    fields.remove(kanso_core::model::PDF_OCR_FIELD);
     fields.insert(UNSEALED_FIELD.into(), json!({"seal": lock.seal}));
     let mut normalized = normalize(
         DocType::File,
@@ -1352,6 +1386,7 @@ fn put_in(
                 }
             }
             merged.remove(OCR_FIELD);
+            merged.remove(kanso_core::model::PDF_OCR_FIELD);
         } else {
             merged.remove(FILE_LOCK_FIELD);
         }

@@ -2656,6 +2656,10 @@ pub struct PdfNotes {
     pub why: Option<String>,
     /// By page, then in the order they were made.
     pub highlights: Vec<PdfHighlightRow>,
+    /// How many scanned pages of the PDF have words that were read on a
+    /// computer (issue #43, step 8): they are searchable here, and the
+    /// highlights on them are made of them. 0 when none were read.
+    pub scanned_pages: u32,
     /// The pages with pencil marks (step 10), in page order.
     pub ink: Vec<PdfInkRow>,
 }

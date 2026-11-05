@@ -2,6 +2,10 @@
 //! and the Ogg container for real.
 
 use std::io::{self, Cursor, Write};
+#[cfg(unix)]
+use std::io::{BufRead, BufReader, Read};
+#[cfg(unix)]
+use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 
 use kanso_audio::header::{parse_head, parse_tags};
@@ -11,6 +15,127 @@ use kanso_audio::{
 };
 use ogg::PacketReader;
 use proptest::prelude::*;
+
+/// Child entry point for the kill test. A ready line is the synchronization
+/// point: the parent kills us only after the recorder has durably written
+/// several checkpoints and whole Ogg pages.
+#[cfg(unix)]
+#[test]
+fn real_process_kill_probe() {
+    let Ok(mode) = std::env::var("KANSO_RECORDING_KILL_CHILD") else {
+        return;
+    };
+    let path = std::path::PathBuf::from(std::env::var_os("KANSO_RECORDING_KILL_DIR").unwrap());
+    let root = path.join("recordings").join("in-progress");
+    if mode == "record" {
+        let mut options = kanso_audio::RecorderOptions::new(
+            Channels::Mono,
+            vec![kanso_audio::RecordSource::Microphone],
+        );
+        options.id = Some("killed-session".into());
+        // Five 20 ms frames per part makes the fsync boundary observable.
+        options.encode.max_part_frames = 5;
+        let mut recorder = kanso_audio::Recorder::create(&root, options).unwrap();
+        let pcm = signal(SAMPLE_RATE as usize * 12, 1, 2026);
+        for chunk in pcm.chunks(960) {
+            recorder.push(chunk).unwrap();
+        }
+        println!("READY");
+        io::stdout().flush().unwrap();
+        let mut byte = [0];
+        let _ = io::stdin().read(&mut byte);
+        return;
+    }
+    assert_eq!(mode, "recover");
+    let session_dir = root.join("killed-session");
+    let before = std::fs::read(session_dir.join(kanso_audio::session::SESSION_FILE)).unwrap();
+    let sidecar: serde_json::Value = serde_json::from_slice(&before).unwrap();
+    assert_eq!(sidecar["state"], "recording");
+    assert_eq!(sidecar["sources"][0], "microphone");
+    let mut found = kanso_audio::recovery::scan(&root, None);
+    assert_eq!(found.len(), 1);
+    let recoverable = found.remove(0);
+    assert!(!recoverable.parts.is_empty());
+    let durable_samples = recoverable.samples;
+    let recovered = kanso_audio::recovery::recover(&recoverable).unwrap();
+    assert_eq!(recovered.session.state, kanso_audio::SessionState::Stopped);
+    assert_eq!(recovered.parts.len(), recoverable.parts.len());
+    assert_eq!(
+        recovered
+            .parts
+            .iter()
+            .map(|(_, part)| part.samples)
+            .sum::<u64>(),
+        durable_samples
+    );
+    let requested = SAMPLE_RATE as u64 * 12;
+    assert!(
+        recovered.session.samples <= requested,
+        "recovery cannot invent samples"
+    );
+    assert!(
+        recovered.parts.len() > 2,
+        "the run crossed several part boundaries"
+    );
+    assert!(
+        requested - recovered.session.samples <= 5 * FRAME_SAMPLES as u64,
+        "only the unfinished final part may be lost"
+    );
+    for (index, (path, part)) in recovered.parts.iter().enumerate() {
+        assert_eq!(part.index as usize, index, "no earlier part was lost");
+        let (reader, pcm) = decode(std::fs::read(path).unwrap());
+        assert_eq!(reader.info().total_samples, part.samples);
+        assert_eq!(pcm.len() as u64, part.samples);
+    }
+    assert!(recovered.session.samples > 0);
+    println!("RECOVERED {}", recovered.session.samples);
+}
+
+/// Kills a separate recorder process after its ready marker, then launches a
+/// fresh process to scan, repair and decode the surviving recording.
+#[cfg(unix)]
+#[test]
+fn sigkill_recovery_keeps_every_durable_part_playable() {
+    let directory = tempfile::tempdir().unwrap();
+    let executable = std::env::current_exe().unwrap();
+    let mut child = Command::new(&executable)
+        .args(["--exact", "real_process_kill_probe", "--nocapture"])
+        .env("KANSO_RECORDING_KILL_CHILD", "record")
+        .env("KANSO_RECORDING_KILL_DIR", directory.path())
+        .stdout(Stdio::piped())
+        .stdin(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let _keep_stdin_open = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let ready = loop {
+        let mut line = String::new();
+        assert!(
+            stdout.read_line(&mut line).unwrap() > 0,
+            "child exited before ready"
+        );
+        if line.trim() == "READY" {
+            break line;
+        }
+    };
+    assert_eq!(ready.trim(), "READY");
+    child.kill().unwrap(); // Unix Child::kill sends SIGKILL.
+    let killed = child.wait().unwrap();
+    assert!(!killed.success(), "the recording process was not killed");
+
+    let output = Command::new(executable)
+        .args(["--exact", "real_process_kill_probe", "--nocapture"])
+        .env("KANSO_RECORDING_KILL_CHILD", "recover")
+        .env("KANSO_RECORDING_KILL_DIR", directory.path())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "relaunch failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("RECOVERED"));
+}
 
 /// A steady two-tone signal, per channel (the right is a fifth above the
 /// left), plus a little deterministic noise so the encoder has bytes to
@@ -439,6 +564,93 @@ proptest! {
             let tail = reader.read_to_end().unwrap();
             prop_assert_eq!(tail.len() as u64, (samples as u64 - target) * 2);
         }
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        rng_seed: proptest::test_runner::RngSeed::Fixed(20_261_017),
+        ..ProptestConfig::with_cases(24)
+    })]
+
+    /// Real libopus encode/decode preserves the exact sample clock across
+    /// silence, clipped input and random PCM, including when the stream is
+    /// split into multiple independently playable parts.
+    #[test]
+    fn prop_opus_round_trip_has_exact_time_and_bounded_error(
+        samples in 15_000usize..48_001,
+        shape in 0u8..3,
+        seed in any::<u32>(),
+        chunk in 1usize..4_000,
+    ) {
+        let base = signal(samples, 1, seed);
+        let gain = 0.5 + (seed % 500) as f32 / 1_000.0;
+        let pcm = base.into_iter().map(|sample| match shape {
+            0 => 0.0, // silence
+            1 => sample * gain, // seeded random low-level PCM
+            _ => (sample * gain * 4.0).clamp(-1.0, 1.0), // clipped PCM
+        }).collect::<Vec<_>>();
+        let mut config = EncodeConfig::new(Channels::Mono);
+        config.bitrate = 64_000;
+        config.max_part_frames = 13;
+        let (memory, parts) = record(&pcm, config, chunk);
+        prop_assert!(parts.len() > 1, "the small frame cap exercises joins");
+        let mut joined = Vec::new();
+        let mut total_frames = 0u64;
+        for (part_index, part) in parts.iter().enumerate() {
+            let (reader, decoded) = decode(memory.bytes(part_index));
+            prop_assert_eq!(reader.info().total_samples, part.samples);
+            prop_assert_eq!(decoded.len() as u64, part.samples);
+            total_frames += part.samples;
+            joined.extend(decoded);
+        }
+        prop_assert_eq!(total_frames, samples as u64);
+        prop_assert_eq!(joined.len(), pcm.len());
+        let expected_duration_us = samples as u64 * 1_000_000 / SAMPLE_RATE as u64;
+        let decoded_duration_us = total_frames * 1_000_000 / SAMPLE_RATE as u64;
+        prop_assert_eq!(decoded_duration_us, expected_duration_us);
+        let rms = pcm.iter().zip(&joined)
+            .map(|(a, b)| f64::from(*a - *b).powi(2))
+            .sum::<f64>() / samples as f64;
+        prop_assert!(rms.sqrt() <= 0.25, "RMS error {} for input shape {shape}", rms.sqrt());
+    }
+
+    /// Seeking through a randomly split recording drops exactly the frames
+    /// before the target, even when the target is in a later Ogg part.
+    #[test]
+    fn prop_seek_across_random_parts_keeps_the_timeline_exact(
+        audio_frames in 100u64..501,
+        part_frames in 5u64..51,
+        target_frame in 0u64..=500,
+        seed in any::<u32>(),
+    ) {
+        let audio_frames = audio_frames.min(500);
+        let target_frame = target_frame.min(audio_frames);
+        let samples = audio_frames as usize * FRAME_SAMPLES;
+        let pcm = signal(samples, 1, seed);
+        let mut config = EncodeConfig::new(Channels::Mono);
+        config.max_part_frames = part_frames;
+        let (memory, parts) = record(&pcm, config, 2_111);
+        prop_assert!(parts.len() > 1);
+
+        let mut remaining = target_frame * FRAME_SAMPLES as u64;
+        let mut tail = Vec::new();
+        for (index, part) in parts.iter().enumerate() {
+            if remaining >= part.samples {
+                remaining -= part.samples;
+                continue;
+            }
+            let mut reader = OpusReader::open(Cursor::new(memory.bytes(index))).unwrap();
+            reader.seek(remaining).unwrap();
+            tail.extend(reader.read_to_end().unwrap());
+            remaining = 0;
+            for later in index + 1..parts.len() {
+                tail.extend(decode(memory.bytes(later)).1);
+            }
+            break;
+        }
+        prop_assert_eq!(remaining, 0);
+        prop_assert_eq!(tail.len(), samples - target_frame as usize * FRAME_SAMPLES);
     }
 }
 
