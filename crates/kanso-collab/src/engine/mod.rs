@@ -496,6 +496,19 @@ impl Engine {
             )?;
             return Ok(false);
         }
+        // A shared note takes no new inline sketch (#45): two people
+        // replacing one sketch's JSON would be merged character by character
+        // into a broken fence. Whatever adds one (an API write, a pasted
+        // fence, an older app) is kept as a private note instead, and the
+        // shared text stays as it was.
+        if kanso_core::canvas::sketch::adds_sketch(&base.1, &local.1) {
+            self.keep_text_copy(
+                loaded,
+                Some(local),
+                "Sketches can't be added to a shared note: the edit is kept in a private note.",
+            )?;
+            return Ok(false);
+        }
         let (title_now, body_now) = loaded.text();
         let title = rebase(&base.0, &local.0, &title_now);
         let body = rebase(&base.1, &local.1, &body_now);

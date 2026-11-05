@@ -121,8 +121,12 @@ impl Link {
 }
 
 impl State {
-    /// Whether the canvas takes drawing: it doesn't for a viewer.
+    /// Whether the canvas takes drawing: it doesn't for a viewer, nor for
+    /// the sketch of a shared note (or one in the trash).
     pub(super) fn writable(&self) -> Result<(), KansoError> {
+        if self.sketch.as_ref().is_some_and(|target| target.read_only) {
+            return Err(KansoError::invalid(super::SHARED_WORDS));
+        }
         if self.read_only {
             return Err(KansoError::invalid(
                 "This canvas is shared to look at: you can't draw on it.",

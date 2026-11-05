@@ -100,6 +100,10 @@ mod launch;
 mod layout;
 mod library;
 mod library_import;
+mod library_key_model;
+mod library_key_sheet;
+#[cfg(test)]
+mod library_key_tests;
 mod library_open;
 #[cfg(test)]
 mod links_tests;
@@ -174,6 +178,7 @@ mod recording_tests;
 mod related;
 mod reminders;
 mod replace;
+mod restore_sheet;
 mod resurface;
 mod review_queue;
 #[cfg(test)]
@@ -203,6 +208,7 @@ mod shared_inbox;
 #[cfg(test)]
 mod shortcuts_parity_tests;
 mod sidebar;
+mod sketch_view;
 mod smart_paste;
 #[cfg(test)]
 mod snapshots;
@@ -793,13 +799,15 @@ fn open_main_window(cx: &mut App) {
                 .update(cx, |_, window, cx| {
                     let editor = view.read(cx).editor.clone();
                     view.update(cx, |workspace, cx| workspace.launch_to_overview(window, cx));
-                    window.on_window_should_close(cx, move |_, cx| {
-                        editor.update(cx, |editor, cx| editor.flush(cx));
+                    window.on_window_should_close(cx, move |window, cx| {
+                        // A sketch's ink from the last two seconds included.
+                        editor.update(cx, |editor, cx| editor.flush_with_sketches(window, cx));
                         true
                     });
                     offer_first_import(window, cx);
                     updates::announce(window, cx);
                     metrics::show_notice(window, cx);
+                    library_key_sheet::offer_at_launch(window, cx);
                 })
                 .ok();
         }

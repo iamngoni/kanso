@@ -76,12 +76,15 @@ pub fn check_list(list: &[Notice]) -> Vec<Problem> {
     problems
 }
 
-/// The entries under `### Breaking` in a changelog section: each bullet
-/// line, joined with the lines that continue it.
+/// The entries under `### Breaking` in a changelog section: each top-level
+/// bullet, joined with the lines that continue it. A bullet nested under an
+/// entry (and what follows it, up to the next entry) is detail, not an entry
+/// of its own, so it is the entry's own text that has to end with the notice.
 fn breaking_entries(section: &str) -> Vec<String> {
     let mut entries: Vec<String> = Vec::new();
     let mut inside = false;
     let mut in_fence = false;
+    let mut in_detail = false;
     for line in section.lines() {
         let trimmed = line.trim_start();
         if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
@@ -99,9 +102,15 @@ fn breaking_entries(section: &str) -> Vec<String> {
         if !inside {
             continue;
         }
-        if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
+        let bullet = trimmed.starts_with("- ") || trimmed.starts_with("* ");
+        let indent = line.len() - trimmed.len();
+        if bullet && indent < 2 {
             entries.push(trimmed.to_owned());
+            in_detail = false;
+        } else if bullet {
+            in_detail = true;
         } else if !trimmed.is_empty()
+            && !in_detail
             && let Some(last) = entries.last_mut()
         {
             last.push(' ');
@@ -124,12 +133,22 @@ pub fn notice_id(entry: &str) -> Option<&str> {
 /// that isn't in `list`, or a notice that the release would not yet show.
 pub fn check_section(section: &str, version: &str, list: &[Notice]) -> Vec<Problem> {
     let mut problems = Vec::new();
-    let release = semver::Version::parse(version.trim_start_matches('v')).ok();
+    let release = match semver::Version::parse(version.trim_start_matches('v')) {
+        Ok(v) => Some(v),
+        Err(_) => {
+            problems.push(Problem(format!(
+                "\u{201c}{version}\u{201d} isn't a version like 0.10.0 or 0.10.0-beta.1, so no notice's `since` can be checked against it; pass the release's version to --version"
+            )));
+            None
+        }
+    };
     for entry in breaking_entries(section) {
-        let shown = entry.trim_start_matches(['-', '*', ' ']);
+        // The entry as written, without only its bullet: a scope's bold
+        // (`**server:**`) stays whole.
+        let shown = entry[1..].trim_start();
         let Some(id) = notice_id(&entry) else {
             problems.push(Problem(format!(
-                "this breaking change has no update notice: \u{201c}{shown}\u{201d}. Add a notice to NOTICES in crates/kanso-core/src/notices.rs, then end the entry with (notice: <id>); for a generated entry, add a \u{201c}Notice: <id>\u{201d} footer to its commit message"
+                "this breaking change has no update notice: \u{201c}{shown}\u{201d}. Add a notice to NOTICES in crates/kanso-core/src/notices.rs, then make the entry end with (notice: <id>): give its commit a \u{201c}Notice: <id>\u{201d} footer (lower-case letters, digits, dots and hyphens; any other ID isn't printed), or, for a commit already on master, write this release's section in CHANGELOG.md ahead and end the entry with that text yourself (docs/RELEASING.md \u{203a} Breaking changes)"
             )));
             continue;
         };
@@ -210,6 +229,19 @@ mod tests {
         let missing = check_section(&section(&["Keys (abc)"]), "0.10.0", &list);
         assert_eq!(missing.len(), 1);
         assert!(missing[0].0.contains("Notice: <id>"));
+        // The entry is quoted whole, scope and all.
+        let scoped = check_section(&section(&["**server:** Keys (abc)"]), "0.10.0", &list);
+        assert!(
+            scoped[0]
+                .0
+                .contains("\u{201c}**server:** Keys (abc)\u{201d}"),
+            "{scoped:?}"
+        );
+        let starred = check_section("### Breaking\n\n* **app:** Keys\n", "0.10.0", &list);
+        assert!(
+            starred[0].0.contains("\u{201c}**app:** Keys\u{201d}"),
+            "{starred:?}"
+        );
         let unknown = check_section(&section(&["Keys (notice: nope)"]), "0.10.0", &list);
         assert!(unknown[0].0.contains("isn't in NOTICES"));
         let early = check_section(&ok, "0.9.4", &list);
@@ -232,13 +264,195 @@ mod tests {
     }
 
     #[test]
+    fn a_nested_bullet_is_detail_not_an_entry() {
+        let list = [notice("a-1", &["Step."])];
+        let nested = "### Breaking\n\n- Keys change (notice: a-1)\n  - Old logins stop working\n  - Scripts need keys\n    still more\n- Second (notice: a-1)\n";
+        assert_eq!(check_section(nested, "0.10.0", &list), vec![]);
+        // A notice in the detail doesn't stand for the entry's own.
+        let in_detail = "### Breaking\n\n- Keys change\n  - Old logins stop (notice: a-1)\n";
+        assert_eq!(check_section(in_detail, "0.10.0", &list).len(), 1);
+    }
+
+    #[test]
+    fn a_version_that_isnt_one_is_refused() {
+        let list = [notice("a-1", &["Step."])];
+        let ok = section(&["Keys (notice: a-1)"]);
+        let problems = check_section(&ok, "next", &list);
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].0.contains("--version"));
+    }
+
+    #[test]
+    fn a_prerelease_is_before_its_release() {
+        let list = [notice("a-1", &["Step."])];
+        let ok = section(&["Keys (notice: a-1)"]);
+        // The app shows a notice from `since` on, and 0.10.0-beta.1 comes
+        // before 0.10.0, so a beta can't ship the 0.10.0 notice.
+        let beta = check_section(&ok, "0.10.0-beta.1", &list);
+        assert_eq!(beta.len(), 1);
+        assert!(beta[0].0.contains("set `since` to 0.10.0-beta.1 or lower"));
+        assert_eq!(check_section(&ok, "v0.10.0", &list), vec![]);
+        assert_eq!(check_section(&ok, "0.10.1-rc.1", &list), vec![]);
+        assert_eq!(check_section(&ok, "1.0.0", &list), vec![]);
+    }
+
+    /// The release's section of a whole changelog, as `check-notices` reads it.
+    const LOG: &str = "# Changelog\n\nEvery release of Kanso.\n\n\
+        ## [0.10.0](https://x/compare/v0.10.0-beta.1...v0.10.0) - 2026-11-05\n\n\
+        ### Breaking\n\n- Keys ([abc1234](https://x/commit/abc1234)) **(breaking)** by @sam (notice: a-1)\n\n\
+        ### New\n\n- A feature\n\n\
+        ## [0.10.0-beta.1](https://x/compare/v0.9.4...v0.10.0-beta.1) - 2026-11-01\n\n\
+        ### Breaking\n\n- Keys, early ([def5678](https://x/commit/def5678)) **(breaking)**\n\n\
+        ## [0.9.4](https://x/compare/v0.9.3...v0.9.4) - 2026-10-30\n\n### Fixed\n\n- A crash\n";
+
+    fn gate(version: &str) -> Option<Vec<Problem>> {
+        let list = [notice("a-1", &["Step."])];
+        crate::notes::section(LOG, version).map(|s| check_section(&s, version, &list))
+    }
+
+    #[test]
+    fn the_first_section_is_read_alone() {
+        // The newest section (where release.sh puts it) stops at the next
+        // release's heading, so the beta's entry with no notice isn't its.
+        assert_eq!(gate("0.10.0"), Some(vec![]));
+        // The beta's own section is found apart from 0.10.0's, and fails.
+        assert_eq!(gate("0.10.0-beta.1").map(|p| p.len()), Some(1));
+        assert_eq!(gate("0.9.4"), Some(vec![]));
+    }
+
+    #[test]
+    fn a_missing_section_is_none() {
+        // `check-notices` turns this into "has no section for …; run
+        // scripts/release.sh first".
+        assert_eq!(gate("0.10.1"), None);
+        assert_eq!(gate("0.10"), None);
+        assert_eq!(gate("0.10.0-beta"), None);
+    }
+
+    #[test]
     fn the_shipped_changelog_passes_the_gate() {
         let log = include_str!("../../../CHANGELOG.md");
-        let top = crate::notes::section(log, "0.1.0").unwrap();
-        assert_eq!(check_section(&top, "0.1.0", NOTICES), vec![]);
+        let versions: Vec<&str> = log
+            .lines()
+            .filter_map(|l| l.strip_prefix("## [")?.split(']').next())
+            .collect();
+        assert!(versions.len() > 5, "{versions:?}");
+        for v in versions {
+            let section = crate::notes::section(log, v).unwrap();
+            assert_eq!(check_section(&section, v, NOTICES), vec![], "{v}");
+        }
+    }
+
+    /// What one generated Breaking entry is, for the parser property.
+    #[derive(Clone, Copy, Debug)]
+    enum Entry {
+        /// Ends with the known notice.
+        Known,
+        /// Ends with the known notice, wrapped over two lines.
+        Wrapped,
+        /// Ends with the known notice, with nested detail under it.
+        WithDetail,
+        /// Ends with an ID that isn't in the list.
+        Unknown,
+        /// Has no notice.
+        Missing,
+        /// Names the notice only in its nested detail.
+        OnlyInDetail,
+    }
+
+    fn entry_strategy() -> impl Strategy<Value = Entry> {
+        prop_oneof![
+            Just(Entry::Known),
+            Just(Entry::Wrapped),
+            Just(Entry::WithDetail),
+            Just(Entry::Unknown),
+            Just(Entry::Missing),
+            Just(Entry::OnlyInDetail),
+        ]
+    }
+
+    fn render(entry: Entry, text: &str) -> String {
+        let link = "([abc1234](https://x/commit/abc1234)) **(breaking)**";
+        match entry {
+            Entry::Known => format!("- {text} {link} (notice: known-1)\n"),
+            Entry::Wrapped => format!("- {text}\n  {link} (notice: known-1)\n"),
+            Entry::WithDetail => {
+                format!("- {text} {link} (notice: known-1)\n  - detail {text}\n    more\n")
+            }
+            Entry::Unknown => format!("- {text} {link} (notice: other-2)\n"),
+            Entry::Missing => format!("- {text} {link}\n"),
+            Entry::OnlyInDetail => format!("- {text} {link}\n  - detail (notice: known-1)\n"),
+        }
     }
 
     proptest! {
+        #![proptest_config(ProptestConfig {
+            rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+            ..ProptestConfig::with_cases(256)
+        })]
+
+        /// Over a whole changelog of releases and prereleases, each with its
+        /// own groups and entries, the gate on one release's section flags
+        /// exactly that release's Breaking entries without a known notice it
+        /// can show, and nothing from any other release.
+        #[test]
+        fn prop_the_gate_reads_exactly_the_releases_breaking_entries(
+            releases in prop::collection::vec(
+                (
+                    any::<bool>(),
+                    prop::collection::vec(
+                        (prop::sample::select(vec!["New", "Breaking", "Fixed", "Under the hood"]),
+                         prop::collection::vec((entry_strategy(), "[a-z]{1,8}( [a-z]{1,8}){0,3}"), 0..4)),
+                        0..4,
+                    ),
+                ),
+                1..6,
+            ),
+            pick in any::<prop::sample::Index>(),
+        ) {
+            let list = [notice("known-1", &["Step."])];
+            // Newest first: 0.11.0, 0.11.0-beta.1, 0.10.0, ... An odd one is
+            // the beta of the release above it, so their headings share a
+            // prefix. The notice starts at 0.10.0, so the oldest ones (from
+            // 0.10.0-beta.1 down) can't show it.
+            let version = |i: usize| {
+                let minor = 11 - i / 2;
+                if i.is_multiple_of(2) { format!("0.{minor}.0") } else { format!("0.{minor}.0-beta.1") }
+            };
+            let mut log = String::from("# Changelog\n\nEvery release of Kanso.\n\n");
+            for (i, (linked, groups)) in releases.iter().enumerate() {
+                let v = version(i);
+                if *linked {
+                    log.push_str(&format!("## [{v}](https://x/compare/a...v{v}) - 2026-11-05\n\n"));
+                } else {
+                    log.push_str(&format!("## {v} - 2026-11-05\n\n"));
+                }
+                for (group, entries) in groups {
+                    log.push_str(&format!("### {group}\n\n"));
+                    for (entry, text) in entries {
+                        log.push_str(&render(*entry, text));
+                    }
+                    log.push('\n');
+                }
+            }
+            let i = pick.index(releases.len());
+            let v = version(i);
+            let release = semver::Version::parse(&v).unwrap();
+            let shown = release >= semver::Version::new(0, 10, 0);
+            let expected: usize = releases[i]
+                .1
+                .iter()
+                .filter(|(group, _)| *group == "Breaking")
+                .flat_map(|(_, entries)| entries)
+                .filter(|(entry, _)| match entry {
+                    Entry::Known | Entry::Wrapped | Entry::WithDetail => !shown,
+                    Entry::Unknown | Entry::Missing | Entry::OnlyInDetail => true,
+                })
+                .count();
+            let section = crate::notes::section(&log, &v).unwrap();
+            prop_assert_eq!(check_section(&section, &v, &list).len(), expected, "{}", section);
+        }
+
         /// Whatever the entries, the gate flags exactly those that don't end
         /// with a known notice's ID.
         #[test]
