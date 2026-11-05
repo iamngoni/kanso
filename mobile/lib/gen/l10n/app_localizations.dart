@@ -2710,23 +2710,263 @@ abstract class AppLocalizations {
   /// **'{summary}. Show the highlights.'**
   String pdfNotesOpen(String summary);
 
-  /// Heading, in the sheet that lists a note's PDF highlights, over the pages that have pencil marks drawn on them.
+  /// Button that closes the PDF reader.
   ///
   /// In en, this message translates to:
-  /// **'Pencil marks'**
-  String get pdfNotesInkTitle;
+  /// **'Close'**
+  String get pdfReaderClose;
 
-  /// How many pencil strokes are drawn on one page of a PDF.
+  /// The page in view of a PDF's pages, under the title.
   ///
   /// In en, this message translates to:
-  /// **'{strokes, plural, =1{1 stroke} other{{strokes} strokes}}'**
-  String pdfNotesInkStrokes(int strokes);
+  /// **'Page {page} of {pages}'**
+  String pdfReaderPageOf(int page, int pages);
 
-  /// Button that rubs out all the pencil marks on one page of a PDF.
+  /// Read by a screen reader for the page chip at the foot of the PDF reader.
   ///
   /// In en, this message translates to:
-  /// **'Clear page'**
-  String get pdfNotesInkClear;
+  /// **'Page {page} of {pages}. Go to a page.'**
+  String pdfReaderPageChip(int page, int pages);
+
+  /// Shown while a PDF is being read.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening the PDF…'**
+  String get pdfReaderLoading;
+
+  /// Shown when a PDF fails to open for a reason the app has no words for.
+  ///
+  /// In en, this message translates to:
+  /// **'The PDF couldn\'t be opened.'**
+  String get pdfReaderOpenFailed;
+
+  /// Button that opens the PDF again after a failure.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get pdfReaderTryAgain;
+
+  /// Title of the message shown when a PDF is unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This PDF can\'t be opened'**
+  String get pdfReaderUnavailableTitle;
+
+  /// Title of the message shown for a PDF in a locked note.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get pdfReaderLockedTitle;
+
+  /// Title of the message shown when the reader refuses a PDF.
+  ///
+  /// In en, this message translates to:
+  /// **'This PDF was refused'**
+  String get pdfReaderRefusedTitle;
+
+  /// Title of the message shown when an attachment is not a PDF.
+  ///
+  /// In en, this message translates to:
+  /// **'This file isn\'t a PDF'**
+  String get pdfReaderNotPdfTitle;
+
+  /// Message shown when an attachment is not a PDF.
+  ///
+  /// In en, this message translates to:
+  /// **'The attachment isn\'t a PDF, or its bytes can\'t be read as one.'**
+  String get pdfReaderNotPdfMessage;
+
+  /// Title of the panel asking for an encrypted PDF's password.
+  ///
+  /// In en, this message translates to:
+  /// **'This PDF is password-protected'**
+  String get pdfReaderPasswordTitle;
+
+  /// Message under the password panel's title.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter its password to read it.'**
+  String get pdfReaderPasswordMessage;
+
+  /// Label of the password field of an encrypted PDF.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get pdfReaderPasswordHint;
+
+  /// Shown under the password field when the password was wrong.
+  ///
+  /// In en, this message translates to:
+  /// **'That password doesn\'t open this PDF.'**
+  String get pdfReaderWrongPassword;
+
+  /// Button that opens an encrypted PDF with the typed password.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get pdfReaderUnlock;
+
+  /// Button that opens the PDF's search bar.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get pdfReaderSearch;
+
+  /// Placeholder of the PDF's search field.
+  ///
+  /// In en, this message translates to:
+  /// **'Search this PDF'**
+  String get pdfReaderSearchHint;
+
+  /// Read by a screen reader for the button that empties the PDF's search field.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get pdfReaderSearchClear;
+
+  /// Shown while the PDF's text is searched.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching…'**
+  String get pdfReaderSearchSearching;
+
+  /// Shown when the PDF's search finds nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches'**
+  String get pdfReaderSearchNone;
+
+  /// The hit of a PDF search shown, of the hits found.
+  ///
+  /// In en, this message translates to:
+  /// **'{index} of {total}'**
+  String pdfReaderSearchCount(int index, int total);
+
+  /// Said of pages the PDF search could not read, such as scanned pages.
+  ///
+  /// In en, this message translates to:
+  /// **'{pages, plural, =1{1 page has no text} other{{pages} pages have no text}}'**
+  String pdfReaderSearchNoText(int pages);
+
+  /// Read by a screen reader for the button that shows the hit before this one.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous match'**
+  String get pdfReaderPreviousMatch;
+
+  /// Read by a screen reader for the button that shows the next hit.
+  ///
+  /// In en, this message translates to:
+  /// **'Next match'**
+  String get pdfReaderNextMatch;
+
+  /// Title of the PDF reader's zoom sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom'**
+  String get pdfReaderZoom;
+
+  /// Shows the PDF page with its original colours instead of the dark rendering.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the page as printed'**
+  String get pdfReaderOriginalPage;
+
+  /// Draws the PDF page light on dark for the current dark theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Invert for dark mode'**
+  String get pdfReaderInvertPage;
+
+  /// The zoom that makes a page as wide as the screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit width'**
+  String get pdfReaderZoomFitWidth;
+
+  /// A page width as a percentage of the screen's.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String pdfReaderZoomPercent(int percent);
+
+  /// Title of the sheet that lists a PDF's highlights, and the button that opens it.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlights'**
+  String get pdfReaderHighlights;
+
+  /// A highlight's page in the PDF reader's highlights sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Page {page}'**
+  String pdfReaderHighlightPage(int page);
+
+  /// Shown when the note the PDF belongs to cannot take a new highlight.
+  ///
+  /// In en, this message translates to:
+  /// **'This note\'s highlights can\'t be changed here.'**
+  String get pdfReaderNotEditable;
+
+  /// Choice that puts the selected words into the note with the highlight.
+  ///
+  /// In en, this message translates to:
+  /// **'Add quote to note'**
+  String get pdfReaderAddQuote;
+
+  /// Button that copies the selected words.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get pdfReaderSelectionCopy;
+
+  /// Shown after the selected words are copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get pdfReaderCopied;
+
+  /// The highlight button while the highlight is being saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlighting…'**
+  String get pdfReaderHighlighting;
+
+  /// Button that highlights the selected words.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight'**
+  String get pdfReaderHighlightAction;
+
+  /// Shown in a PDF page's place when its picture cannot be drawn.
+  ///
+  /// In en, this message translates to:
+  /// **'This page couldn\'t be drawn.'**
+  String get pdfReaderPageFailed;
+
+  /// Title of the sheet that asks for a page number.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to page'**
+  String get pdfReaderJumpToPage;
+
+  /// Label of the field for a page number.
+  ///
+  /// In en, this message translates to:
+  /// **'Page number'**
+  String get pdfReaderPageNumber;
+
+  /// Shown when the typed page number is not in the document.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a page from 1 to {pages}.'**
+  String pdfReaderInvalidPage(int pages);
+
+  /// Button that goes to the typed page.
+  ///
+  /// In en, this message translates to:
+  /// **'Go'**
+  String get pdfReaderGo;
 
   /// Shown in a note's preview for a drawing with nothing in it yet.
   ///
@@ -8812,24 +9052,6 @@ abstract class AppLocalizations {
   /// **'Your agent needs a newer Node. Install the Node version it asks for, then use Find again in Settings › AI.'**
   String get aiTroubleAgentNeedsNode;
 
-  /// The selected agent needs the person to sign in.
-  ///
-  /// In en, this message translates to:
-  /// **'Your agent needs you to sign in. Sign in to your agent, then try again.'**
-  String get aiTroubleAgentSignIn;
-
-  /// The provider account has run out of credits or needs a plan change.
-  ///
-  /// In en, this message translates to:
-  /// **'Your provider needs a billing change. Check your billing or plan with your AI provider, then try again.'**
-  String get aiTroubleBilling;
-
-  /// The configured server address does not point to its API.
-  ///
-  /// In en, this message translates to:
-  /// **'Your model server address looks wrong. Check the address in Settings › AI, then try again.'**
-  String get aiTroubleWrongAddress;
-
   /// A task needs a model that can use tools.
   ///
   /// In en, this message translates to:
@@ -12477,6 +12699,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.'**
   String get lockFilesNotice;
+
+  /// Heading, in the sheet that lists a note's PDF highlights, over the pages that have pencil marks drawn on them.
+  ///
+  /// In en, this message translates to:
+  /// **'Pencil marks'**
+  String get pdfNotesInkTitle;
+
+  /// How many pencil strokes are drawn on one page of a PDF.
+  ///
+  /// In en, this message translates to:
+  /// **'{strokes, plural, =1{1 stroke} other{{strokes} strokes}}'**
+  String pdfNotesInkStrokes(int strokes);
+
+  /// Button that rubs out all the pencil marks on one page of a PDF.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear page'**
+  String get pdfNotesInkClear;
+
+  /// The selected agent needs the person to sign in.
+  ///
+  /// In en, this message translates to:
+  /// **'Your agent needs you to sign in. Sign in to your agent, then try again.'**
+  String get aiTroubleAgentSignIn;
+
+  /// The provider account has run out of credits or needs a plan change.
+  ///
+  /// In en, this message translates to:
+  /// **'Your provider needs a billing change. Check your billing or plan with your AI provider, then try again.'**
+  String get aiTroubleBilling;
+
+  /// The configured server address does not point to its API.
+  ///
+  /// In en, this message translates to:
+  /// **'Your model server address looks wrong. Check the address in Settings › AI, then try again.'**
+  String get aiTroubleWrongAddress;
 
   /// A note's menu row that renames the speakers named in a recording's transcript.
   ///

@@ -4364,6 +4364,12 @@ sealed class PreviewLink with _$PreviewLink {
     required String contentType,
     required int size,
   }) = PreviewLink_Attachment;
+  const factory PreviewLink.pdf({
+    required String id,
+    required String name,
+    int? page,
+    String? highlight,
+  }) = PreviewLink_Pdf;
   const factory PreviewLink.task({
     required int index,
   }) = PreviewLink_Task;

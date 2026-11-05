@@ -33,8 +33,10 @@ kanso-metrics.workspace = true
 # updater's fetch (every redirect hop is held to the gallery's address rules).
 kanso-gallery.workspace = true
 kanso-render.workspace = true
-# A PDF's highlights in a note: the block's rules, shared with the desktop reader.
-kanso-pdf.workspace = true
+# The PDF reader (issue #43): the desktop's worker loop run inside the app
+# (`render` is PDFium, bound at run time from the library the build bundles),
+# and the highlight rules shared with the desktop reader.
+kanso-pdf = { workspace = true, features = ["render"] }
 kanso-store.workspace = true
 kanso-server.workspace = true
 # Without the desktop Keychain: secrets go through `Secrets`, and the phones'
@@ -98,6 +100,8 @@ async-trait = "0.1"
 futures-util = "0.3"
 # Image attachments the discovery tests make.
 base64.workspace = true
+# PDFs built in code for the reader's tests.
+kanso-pdf = { workspace = true, features = ["render", "test-support"] }
 # This crate's integration tests use the test-support constructors.
 kanso-mobile = { path = ".", features = ["test-support"] }
 # Generators for the sync problems the status maps.

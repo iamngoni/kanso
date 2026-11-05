@@ -44,6 +44,7 @@ use crate::api::linking::*;
 use crate::api::locks::*;
 use crate::api::metrics::*;
 use crate::api::notebook_home::*;
+use crate::api::pdf::*;
 use crate::api::people::*;
 use crate::api::player::*;
 use crate::api::publish::*;
@@ -68,7 +69,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1621327993;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1655783755;
 
 // Section: executor
 
@@ -13874,6 +13875,53 @@ fn wire__crate__api__library__KansoLibrary_parse_color_impl(
         },
     )
 }
+fn wire__crate__api__library__KansoLibrary_pdf_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoLibrary_pdf",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let mut api_that_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_that, 0, false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
+                    }
+                }
+                let api_that_guard = api_that_guard.unwrap();
+                let output_ok =
+                    Ok::<_, ()>(crate::api::library::KansoLibrary::pdf(&*api_that_guard))?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__library__KansoLibrary_pdf_export_copy_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -20929,6 +20977,621 @@ fn wire__crate__api__notebook_home__KansoNotebookHome_words_impl(
                     let api_that_guard = api_that_guard.unwrap();
                     let output_ok = Ok::<_, ()>(
                         crate::api::notebook_home::KansoNotebookHome::words(&*api_that_guard),
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__pdf__KansoPdfReader_add_highlight_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoPdfReader_add_highlight",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>,
+            >>::sse_decode(&mut deserializer);
+            let api_base_rev = <String>::sse_decode(&mut deserializer);
+            let api_start = <crate::api::pdf_types::PdfCharPos>::sse_decode(&mut deserializer);
+            let api_end = <crate::api::pdf_types::PdfCharPos>::sse_decode(&mut deserializer);
+            let api_color = <String>::sse_decode(&mut deserializer);
+            let api_quote = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::pdf::KansoPdfReader::add_highlight(
+                        &*api_that_guard,
+                        api_base_rev,
+                        api_start,
+                        api_end,
+                        api_color,
+                        api_quote,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__pdf__KansoPdfReader_add_ink_stroke_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoPdfReader_add_ink_stroke",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>,
+            >>::sse_decode(&mut deserializer);
+            let api_base_rev = <String>::sse_decode(&mut deserializer);
+            let api_page = <u32>::sse_decode(&mut deserializer);
+            let api_stroke = <crate::api::pdf_types::PdfInkStroke>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::pdf::KansoPdfReader::add_ink_stroke(
+                        &*api_that_guard,
+                        api_base_rev,
+                        api_page,
+                        api_stroke,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__pdf__KansoPdfReader_close_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoPdfReader_close",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let mut api_that_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_that, 0, false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
+                    }
+                }
+                let api_that_guard = api_that_guard.unwrap();
+                let output_ok = Ok::<_, ()>({
+                    crate::api::pdf::KansoPdfReader::close(&*api_that_guard);
+                })?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__pdf__KansoPdfReader_extend_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoPdfReader_extend",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>,
+            >>::sse_decode(&mut deserializer);
+            let api_anchor = <crate::api::pdf_types::PdfCharPos>::sse_decode(&mut deserializer);
+            let api_page = <u32>::sse_decode(&mut deserializer);
+            let api_x = <f64>::sse_decode(&mut deserializer);
+            let api_y = <f64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::pdf::KansoPdfReader::extend(
+                        &*api_that_guard,
+                        api_anchor,
+                        api_page,
+                        api_x,
+                        api_y,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__pdf__KansoPdfReader_find_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoPdfReader_find",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>,
+            >>::sse_decode(&mut deserializer);
+            let api_query = <String>::sse_decode(&mut deserializer);
+            let api_limit = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::pdf::KansoPdfReader::find(
+                        &*api_that_guard,
+                        api_query,
+                        api_limit,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__pdf__KansoPdfReader_line_at_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoPdfReader_line_at",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>,
+            >>::sse_decode(&mut deserializer);
+            let api_page = <u32>::sse_decode(&mut deserializer);
+            let api_x = <f64>::sse_decode(&mut deserializer);
+            let api_y = <f64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::pdf::KansoPdfReader::line_at(
+                        &*api_that_guard,
+                        api_page,
+                        api_x,
+                        api_y,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__pdf__KansoPdfReader_render_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoPdfReader_render",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>,
+            >>::sse_decode(&mut deserializer);
+            let api_page = <u32>::sse_decode(&mut deserializer);
+            let api_width_px = <u32>::sse_decode(&mut deserializer);
+            let api_invert = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::pdf::KansoPdfReader::render(
+                        &*api_that_guard,
+                        api_page,
+                        api_width_px,
+                        api_invert,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__pdf__KansoPdfReader_select_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoPdfReader_select",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>,
+            >>::sse_decode(&mut deserializer);
+            let api_start = <crate::api::pdf_types::PdfCharPos>::sse_decode(&mut deserializer);
+            let api_end = <crate::api::pdf_types::PdfCharPos>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::pdf::KansoPdfReader::select(
+                        &*api_that_guard,
+                        api_start,
+                        api_end,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__pdf__KansoPdfReader_word_at_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoPdfReader_word_at",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>,
+            >>::sse_decode(&mut deserializer);
+            let api_page = <u32>::sse_decode(&mut deserializer);
+            let api_x = <f64>::sse_decode(&mut deserializer);
+            let api_y = <f64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::pdf::KansoPdfReader::word_at(
+                        &*api_that_guard,
+                        api_page,
+                        api_x,
+                        api_y,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__pdf__KansoPdf_marks_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoPdf_marks",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdf>,
+            >>::sse_decode(&mut deserializer);
+            let api_note_id = <String>::sse_decode(&mut deserializer);
+            let api_file = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::pdf::KansoPdf::marks(&*api_that_guard, api_note_id, api_file)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__pdf__KansoPdf_open_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoPdf_open",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdf>,
+            >>::sse_decode(&mut deserializer);
+            let api_note_id = <String>::sse_decode(&mut deserializer);
+            let api_file = <String>::sse_decode(&mut deserializer);
+            let api_password = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::pdf::KansoPdf::open(
+                        &*api_that_guard,
+                        api_note_id,
+                        api_file,
+                        api_password,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -30967,6 +31630,43 @@ const _: fn() = || {
         let _: Option<i64> = PasskeyRow.last_used_ms;
         let _: bool = PasskeyRow.can_unlock;
     }
+    {
+        let PdfCharPos = None::<crate::api::pdf_types::PdfCharPos>.unwrap();
+        let _: u32 = PdfCharPos.page;
+        let _: u32 = PdfCharPos.index;
+    }
+    match None::<crate::api::pdf_types::PdfDeclined>.unwrap() {
+        crate::api::pdf_types::PdfDeclined::NeedsPassword => {}
+        crate::api::pdf_types::PdfDeclined::WrongPassword => {}
+        crate::api::pdf_types::PdfDeclined::LockedNote { message } => {
+            let _: String = message;
+        }
+        crate::api::pdf_types::PdfDeclined::Unavailable { message } => {
+            let _: String = message;
+        }
+        crate::api::pdf_types::PdfDeclined::Refused { message } => {
+            let _: String = message;
+        }
+        crate::api::pdf_types::PdfDeclined::NotAPdf => {}
+    }
+    {
+        let PdfEdited = None::<crate::api::pdf_types::PdfEdited>.unwrap();
+        let _: String = PdfEdited.rev;
+        let _: Option<String> = PdfEdited.id;
+        let _: bool = PdfEdited.merged;
+        let _: bool = PdfEdited.gone;
+    }
+    {
+        let PdfFindHit = None::<crate::api::pdf_types::PdfFindHit>.unwrap();
+        let _: u32 = PdfFindHit.page;
+        let _: Vec<crate::api::pdf_types::PdfPageMarks> = PdfFindHit.marks;
+    }
+    {
+        let PdfFound = None::<crate::api::pdf_types::PdfFound>.unwrap();
+        let _: u32 = PdfFound.total;
+        let _: Vec<crate::api::pdf_types::PdfFindHit> = PdfFound.hits;
+        let _: u32 = PdfFound.pages_without_text;
+    }
     match None::<crate::api::types::PdfHighlightChange>.unwrap() {
         crate::api::types::PdfHighlightChange::Comment { comment } => {
             let _: String = comment;
@@ -30987,9 +31687,52 @@ const _: fn() = || {
         let _: bool = PdfHighlightRow.in_note;
     }
     {
+        let PdfInfo = None::<crate::api::pdf_types::PdfInfo>.unwrap();
+        let _: String = PdfInfo.file;
+        let _: String = PdfInfo.name;
+        let _: u32 = PdfInfo.pages;
+        let _: Vec<crate::api::pdf_types::PdfPageSize> = PdfInfo.sizes;
+        let _: bool = PdfInfo.encrypted;
+        let _: String = PdfInfo.note_id;
+        let _: bool = PdfInfo.editable;
+    }
+    {
+        let PdfInkPage = None::<crate::api::pdf_types::PdfInkPage>.unwrap();
+        let _: u32 = PdfInkPage.page;
+        let _: Vec<crate::api::pdf_types::PdfInkStroke> = PdfInkPage.strokes;
+    }
+    {
+        let PdfInkPoint = None::<crate::api::pdf_types::PdfInkPoint>.unwrap();
+        let _: f64 = PdfInkPoint.x;
+        let _: f64 = PdfInkPoint.y;
+        let _: f64 = PdfInkPoint.pressure;
+    }
+    {
         let PdfInkRow = None::<crate::api::types::PdfInkRow>.unwrap();
         let _: u32 = PdfInkRow.page;
         let _: u32 = PdfInkRow.strokes;
+    }
+    {
+        let PdfInkStroke = None::<crate::api::pdf_types::PdfInkStroke>.unwrap();
+        let _: String = PdfInkStroke.tool;
+        let _: String = PdfInkStroke.color;
+        let _: f64 = PdfInkStroke.width;
+        let _: Vec<crate::api::pdf_types::PdfInkPoint> = PdfInkStroke.points;
+    }
+    {
+        let PdfMark = None::<crate::api::pdf_types::PdfMark>.unwrap();
+        let _: String = PdfMark.id;
+        let _: String = PdfMark.color;
+        let _: u32 = PdfMark.page;
+        let _: Vec<crate::api::pdf_types::PdfPageMarks> = PdfMark.marks;
+    }
+    {
+        let PdfMarks = None::<crate::api::pdf_types::PdfMarks>.unwrap();
+        let _: String = PdfMarks.rev;
+        let _: bool = PdfMarks.editable;
+        let _: Option<String> = PdfMarks.why;
+        let _: Vec<crate::api::pdf_types::PdfMark> = PdfMarks.marks;
+        let _: Vec<crate::api::pdf_types::PdfInkPage> = PdfMarks.ink;
     }
     {
         let PdfNotes = None::<crate::api::types::PdfNotes>.unwrap();
@@ -31001,6 +31744,37 @@ const _: fn() = || {
         let _: Vec<crate::api::types::PdfHighlightRow> = PdfNotes.highlights;
         let _: u32 = PdfNotes.scanned_pages;
         let _: Vec<crate::api::types::PdfInkRow> = PdfNotes.ink;
+    }
+    {
+        let PdfPageImage = None::<crate::api::pdf_types::PdfPageImage>.unwrap();
+        let _: u32 = PdfPageImage.page;
+        let _: u32 = PdfPageImage.width;
+        let _: u32 = PdfPageImage.height;
+        let _: Vec<u8> = PdfPageImage.bgra;
+    }
+    {
+        let PdfPageMarks = None::<crate::api::pdf_types::PdfPageMarks>.unwrap();
+        let _: u32 = PdfPageMarks.page;
+        let _: Vec<crate::api::pdf_types::PdfRect> = PdfPageMarks.rects;
+    }
+    {
+        let PdfPageSize = None::<crate::api::pdf_types::PdfPageSize>.unwrap();
+        let _: f32 = PdfPageSize.width;
+        let _: f32 = PdfPageSize.height;
+    }
+    {
+        let PdfRect = None::<crate::api::pdf_types::PdfRect>.unwrap();
+        let _: f64 = PdfRect.x0;
+        let _: f64 = PdfRect.y0;
+        let _: f64 = PdfRect.x1;
+        let _: f64 = PdfRect.y1;
+    }
+    {
+        let PdfSelection = None::<crate::api::pdf_types::PdfSelection>.unwrap();
+        let _: crate::api::pdf_types::PdfCharPos = PdfSelection.start;
+        let _: crate::api::pdf_types::PdfCharPos = PdfSelection.end;
+        let _: String = PdfSelection.text;
+        let _: Vec<crate::api::pdf_types::PdfPageMarks> = PdfSelection.marks;
     }
     {
         let PenSample = None::<crate::api::canvas_types::PenSample>.unwrap();
@@ -31301,6 +32075,17 @@ const _: fn() = || {
             let _: String = name;
             let _: String = content_type;
             let _: u64 = size;
+        }
+        crate::api::types::PreviewLink::Pdf {
+            id,
+            name,
+            page,
+            highlight,
+        } => {
+            let _: String = id;
+            let _: String = name;
+            let _: Option<u32> = page;
+            let _: Option<String> = highlight;
         }
         crate::api::types::PreviewLink::Task { index } => {
             let _: u32 = index;
@@ -32196,6 +32981,12 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoNotebookHome>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
+    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdf>
+);
+flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
+    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>
+);
+flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPeople>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
@@ -32433,6 +33224,26 @@ impl SseDecode for KansoNotebookHome {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <RustOpaqueMoi<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoNotebookHome>,
+        >>::sse_decode(deserializer);
+        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
+    }
+}
+
+impl SseDecode for KansoPdf {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <RustOpaqueMoi<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdf>,
+        >>::sse_decode(deserializer);
+        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
+    }
+}
+
+impl SseDecode for KansoPdfReader {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <RustOpaqueMoi<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>,
         >>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
     }
@@ -32758,6 +33569,26 @@ impl SseDecode
 
 impl SseDecode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoNotebookHome>>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <usize>::sse_decode(deserializer);
+        return decode_rust_opaque_moi(inner);
+    }
+}
+
+impl SseDecode
+    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdf>>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <usize>::sse_decode(deserializer);
+        return decode_rust_opaque_moi(inner);
+    }
+}
+
+impl SseDecode
+    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -37202,6 +38033,20 @@ impl SseDecode for Vec<crate::api::types::PasskeyRow> {
     }
 }
 
+impl SseDecode for Vec<crate::api::pdf_types::PdfFindHit> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::pdf_types::PdfFindHit>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::types::PdfHighlightRow> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -37209,6 +38054,34 @@ impl SseDecode for Vec<crate::api::types::PdfHighlightRow> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::types::PdfHighlightRow>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::pdf_types::PdfInkPage> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::pdf_types::PdfInkPage>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::pdf_types::PdfInkPoint> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::pdf_types::PdfInkPoint>::sse_decode(
                 deserializer,
             ));
         }
@@ -37228,6 +38101,32 @@ impl SseDecode for Vec<crate::api::types::PdfInkRow> {
     }
 }
 
+impl SseDecode for Vec<crate::api::pdf_types::PdfInkStroke> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::pdf_types::PdfInkStroke>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::pdf_types::PdfMark> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::pdf_types::PdfMark>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::types::PdfNotes> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -37235,6 +38134,46 @@ impl SseDecode for Vec<crate::api::types::PdfNotes> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::types::PdfNotes>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::pdf_types::PdfPageMarks> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::pdf_types::PdfPageMarks>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::pdf_types::PdfPageSize> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::pdf_types::PdfPageSize>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::pdf_types::PdfRect> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::pdf_types::PdfRect>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -39155,6 +40094,17 @@ impl SseDecode for Option<String> {
     }
 }
 
+impl SseDecode for Option<KansoPdfReader> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<KansoPdfReader>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::ai::AskLines> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -39573,6 +40523,43 @@ impl SseDecode for Option<crate::api::linking_types::PalettePlace> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::linking_types::PalettePlace>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::pdf_types::PdfDeclined> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::pdf_types::PdfDeclined>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::pdf_types::PdfInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::pdf_types::PdfInfo>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::pdf_types::PdfSelection> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::pdf_types::PdfSelection>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -40620,6 +41607,99 @@ impl SseDecode for crate::api::types::PasskeyRow {
     }
 }
 
+impl SseDecode for crate::api::pdf_types::PdfCharPos {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_page = <u32>::sse_decode(deserializer);
+        let mut var_index = <u32>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfCharPos {
+            page: var_page,
+            index: var_index,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfDeclined {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::api::pdf_types::PdfDeclined::NeedsPassword;
+            }
+            1 => {
+                return crate::api::pdf_types::PdfDeclined::WrongPassword;
+            }
+            2 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::api::pdf_types::PdfDeclined::LockedNote {
+                    message: var_message,
+                };
+            }
+            3 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::api::pdf_types::PdfDeclined::Unavailable {
+                    message: var_message,
+                };
+            }
+            4 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::api::pdf_types::PdfDeclined::Refused {
+                    message: var_message,
+                };
+            }
+            5 => {
+                return crate::api::pdf_types::PdfDeclined::NotAPdf;
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfEdited {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_rev = <String>::sse_decode(deserializer);
+        let mut var_id = <Option<String>>::sse_decode(deserializer);
+        let mut var_merged = <bool>::sse_decode(deserializer);
+        let mut var_gone = <bool>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfEdited {
+            rev: var_rev,
+            id: var_id,
+            merged: var_merged,
+            gone: var_gone,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfFindHit {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_page = <u32>::sse_decode(deserializer);
+        let mut var_marks = <Vec<crate::api::pdf_types::PdfPageMarks>>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfFindHit {
+            page: var_page,
+            marks: var_marks,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfFound {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_total = <u32>::sse_decode(deserializer);
+        let mut var_hits = <Vec<crate::api::pdf_types::PdfFindHit>>::sse_decode(deserializer);
+        let mut var_pagesWithoutText = <u32>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfFound {
+            total: var_total,
+            hits: var_hits,
+            pages_without_text: var_pagesWithoutText,
+        };
+    }
+}
+
 impl SseDecode for crate::api::types::PdfHighlightChange {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -40668,6 +41748,54 @@ impl SseDecode for crate::api::types::PdfHighlightRow {
     }
 }
 
+impl SseDecode for crate::api::pdf_types::PdfInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_file = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_pages = <u32>::sse_decode(deserializer);
+        let mut var_sizes = <Vec<crate::api::pdf_types::PdfPageSize>>::sse_decode(deserializer);
+        let mut var_encrypted = <bool>::sse_decode(deserializer);
+        let mut var_noteId = <String>::sse_decode(deserializer);
+        let mut var_editable = <bool>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfInfo {
+            file: var_file,
+            name: var_name,
+            pages: var_pages,
+            sizes: var_sizes,
+            encrypted: var_encrypted,
+            note_id: var_noteId,
+            editable: var_editable,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfInkPage {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_page = <u32>::sse_decode(deserializer);
+        let mut var_strokes = <Vec<crate::api::pdf_types::PdfInkStroke>>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfInkPage {
+            page: var_page,
+            strokes: var_strokes,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfInkPoint {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_x = <f64>::sse_decode(deserializer);
+        let mut var_y = <f64>::sse_decode(deserializer);
+        let mut var_pressure = <f64>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfInkPoint {
+            x: var_x,
+            y: var_y,
+            pressure: var_pressure,
+        };
+    }
+}
+
 impl SseDecode for crate::api::types::PdfInkRow {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -40676,6 +41804,56 @@ impl SseDecode for crate::api::types::PdfInkRow {
         return crate::api::types::PdfInkRow {
             page: var_page,
             strokes: var_strokes,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfInkStroke {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_tool = <String>::sse_decode(deserializer);
+        let mut var_color = <String>::sse_decode(deserializer);
+        let mut var_width = <f64>::sse_decode(deserializer);
+        let mut var_points = <Vec<crate::api::pdf_types::PdfInkPoint>>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfInkStroke {
+            tool: var_tool,
+            color: var_color,
+            width: var_width,
+            points: var_points,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfMark {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_color = <String>::sse_decode(deserializer);
+        let mut var_page = <u32>::sse_decode(deserializer);
+        let mut var_marks = <Vec<crate::api::pdf_types::PdfPageMarks>>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfMark {
+            id: var_id,
+            color: var_color,
+            page: var_page,
+            marks: var_marks,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfMarks {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_rev = <String>::sse_decode(deserializer);
+        let mut var_editable = <bool>::sse_decode(deserializer);
+        let mut var_why = <Option<String>>::sse_decode(deserializer);
+        let mut var_marks = <Vec<crate::api::pdf_types::PdfMark>>::sse_decode(deserializer);
+        let mut var_ink = <Vec<crate::api::pdf_types::PdfInkPage>>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfMarks {
+            rev: var_rev,
+            editable: var_editable,
+            why: var_why,
+            marks: var_marks,
+            ink: var_ink,
         };
     }
 }
@@ -40701,6 +41879,93 @@ impl SseDecode for crate::api::types::PdfNotes {
             highlights: var_highlights,
             scanned_pages: var_scannedPages,
             ink: var_ink,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf::PdfOpenResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_reader = <Option<KansoPdfReader>>::sse_decode(deserializer);
+        let mut var_info = <Option<crate::api::pdf_types::PdfInfo>>::sse_decode(deserializer);
+        let mut var_declined =
+            <Option<crate::api::pdf_types::PdfDeclined>>::sse_decode(deserializer);
+        return crate::api::pdf::PdfOpenResult {
+            reader: var_reader,
+            info: var_info,
+            declined: var_declined,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfPageImage {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_page = <u32>::sse_decode(deserializer);
+        let mut var_width = <u32>::sse_decode(deserializer);
+        let mut var_height = <u32>::sse_decode(deserializer);
+        let mut var_bgra = <Vec<u8>>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfPageImage {
+            page: var_page,
+            width: var_width,
+            height: var_height,
+            bgra: var_bgra,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfPageMarks {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_page = <u32>::sse_decode(deserializer);
+        let mut var_rects = <Vec<crate::api::pdf_types::PdfRect>>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfPageMarks {
+            page: var_page,
+            rects: var_rects,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfPageSize {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_width = <f32>::sse_decode(deserializer);
+        let mut var_height = <f32>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfPageSize {
+            width: var_width,
+            height: var_height,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfRect {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_x0 = <f64>::sse_decode(deserializer);
+        let mut var_y0 = <f64>::sse_decode(deserializer);
+        let mut var_x1 = <f64>::sse_decode(deserializer);
+        let mut var_y1 = <f64>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfRect {
+            x0: var_x0,
+            y0: var_y0,
+            x1: var_x1,
+            y1: var_y1,
+        };
+    }
+}
+
+impl SseDecode for crate::api::pdf_types::PdfSelection {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_start = <crate::api::pdf_types::PdfCharPos>::sse_decode(deserializer);
+        let mut var_end = <crate::api::pdf_types::PdfCharPos>::sse_decode(deserializer);
+        let mut var_text = <String>::sse_decode(deserializer);
+        let mut var_marks = <Vec<crate::api::pdf_types::PdfPageMarks>>::sse_decode(deserializer);
+        return crate::api::pdf_types::PdfSelection {
+            start: var_start,
+            end: var_end,
+            text: var_text,
+            marks: var_marks,
         };
     }
 }
@@ -41343,17 +42608,29 @@ impl SseDecode for crate::api::types::PreviewLink {
                 };
             }
             6 => {
-                let mut var_index = <u32>::sse_decode(deserializer);
-                return crate::api::types::PreviewLink::Task { index: var_index };
+                let mut var_id = <String>::sse_decode(deserializer);
+                let mut var_name = <String>::sse_decode(deserializer);
+                let mut var_page = <Option<u32>>::sse_decode(deserializer);
+                let mut var_highlight = <Option<String>>::sse_decode(deserializer);
+                return crate::api::types::PreviewLink::Pdf {
+                    id: var_id,
+                    name: var_name,
+                    page: var_page,
+                    highlight: var_highlight,
+                };
             }
             7 => {
                 let mut var_index = <u32>::sse_decode(deserializer);
-                return crate::api::types::PreviewLink::CopyCode { index: var_index };
+                return crate::api::types::PreviewLink::Task { index: var_index };
             }
             8 => {
-                return crate::api::types::PreviewLink::Due;
+                let mut var_index = <u32>::sse_decode(deserializer);
+                return crate::api::types::PreviewLink::CopyCode { index: var_index };
             }
             9 => {
+                return crate::api::types::PreviewLink::Due;
+            }
+            10 => {
                 let mut var_fileId = <String>::sse_decode(deserializer);
                 let mut var_seconds = <u32>::sse_decode(deserializer);
                 return crate::api::types::PreviewLink::Audio {
@@ -41361,7 +42638,7 @@ impl SseDecode for crate::api::types::PreviewLink {
                     seconds: var_seconds,
                 };
             }
-            10 => {
+            11 => {
                 return crate::api::types::PreviewLink::Nothing;
             }
             _ => {
@@ -44917,1208 +46194,1232 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        263 => wire__crate__api__library__KansoLibrary_pdf_export_copy_impl(
+        264 => wire__crate__api__library__KansoLibrary_pdf_export_copy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        265 => wire__crate__api__library__KansoLibrary_pdf_highlight_change_impl(
+        266 => wire__crate__api__library__KansoLibrary_pdf_highlight_change_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        266 => wire__crate__api__library__KansoLibrary_pdf_highlights_impl(
+        267 => wire__crate__api__library__KansoLibrary_pdf_highlights_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        267 => wire__crate__api__library__KansoLibrary_pdf_ink_clear_impl(
+        268 => wire__crate__api__library__KansoLibrary_pdf_ink_clear_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        270 => wire__crate__api__library__KansoLibrary_properties_impl(
+        271 => wire__crate__api__library__KansoLibrary_properties_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        271 => wire__crate__api__library__KansoLibrary_publisher_impl(
+        272 => wire__crate__api__library__KansoLibrary_publisher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        272 => wire__crate__api__library__KansoLibrary_query_view_impl(
+        273 => wire__crate__api__library__KansoLibrary_query_view_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        276 => wire__crate__api__library__KansoLibrary_reminder_answer_impl(
+        277 => wire__crate__api__library__KansoLibrary_reminder_answer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        277 => wire__crate__api__library__KansoLibrary_reminders_forget_impl(
+        278 => wire__crate__api__library__KansoLibrary_reminders_forget_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        278 => wire__crate__api__library__KansoLibrary_reminders_forget_future_impl(
+        279 => wire__crate__api__library__KansoLibrary_reminders_forget_future_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        279 => wire__crate__api__library__KansoLibrary_reminders_plan_impl(
+        280 => wire__crate__api__library__KansoLibrary_reminders_plan_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        280 => wire__crate__api__library__KansoLibrary_rename_notebook_impl(
+        281 => wire__crate__api__library__KansoLibrary_rename_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        281 => wire__crate__api__library__KansoLibrary_rename_tag_impl(
+        282 => wire__crate__api__library__KansoLibrary_rename_tag_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        283 => wire__crate__api__library__KansoLibrary_replace_apply_impl(
+        284 => wire__crate__api__library__KansoLibrary_replace_apply_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        284 => wire__crate__api__library__KansoLibrary_replace_preview_impl(
+        285 => wire__crate__api__library__KansoLibrary_replace_preview_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        285 => wire__crate__api__library__KansoLibrary_replace_undo_impl(
+        286 => wire__crate__api__library__KansoLibrary_replace_undo_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        286 => wire__crate__api__library__KansoLibrary_restore_version_impl(
+        287 => wire__crate__api__library__KansoLibrary_restore_version_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        287 => {
+        288 => {
             wire__crate__api__library__KansoLibrary_review_impl(port, ptr, rust_vec_len, data_len)
         }
-        288 => wire__crate__api__library__KansoLibrary_revisit_of_impl(
+        289 => wire__crate__api__library__KansoLibrary_revisit_of_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        290 => wire__crate__api__library__KansoLibrary_save_impl(port, ptr, rust_vec_len, data_len),
-        291 => wire__crate__api__library__KansoLibrary_save_drops_impl(
+        291 => wire__crate__api__library__KansoLibrary_save_impl(port, ptr, rust_vec_len, data_len),
+        292 => wire__crate__api__library__KansoLibrary_save_drops_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        292 => wire__crate__api__library__KansoLibrary_save_review_impl(
+        293 => wire__crate__api__library__KansoLibrary_save_review_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        293 => {
+        294 => {
             wire__crate__api__library__KansoLibrary_search_impl(port, ptr, rust_vec_len, data_len)
         }
-        294 => wire__crate__api__library__KansoLibrary_set_brief_prefs_impl(
+        295 => wire__crate__api__library__KansoLibrary_set_brief_prefs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        295 => wire__crate__api__library__KansoLibrary_set_daily_template_impl(
+        296 => wire__crate__api__library__KansoLibrary_set_daily_template_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        296 => wire__crate__api__library__KansoLibrary_set_default_word_goal_impl(
+        297 => wire__crate__api__library__KansoLibrary_set_default_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        297 => wire__crate__api__library__KansoLibrary_set_note_word_goal_impl(
+        298 => wire__crate__api__library__KansoLibrary_set_note_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        298 => wire__crate__api__library__KansoLibrary_set_notebook_color_impl(
+        299 => wire__crate__api__library__KansoLibrary_set_notebook_color_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        299 => wire__crate__api__library__KansoLibrary_set_notebook_icon_impl(
+        300 => wire__crate__api__library__KansoLibrary_set_notebook_icon_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        300 => wire__crate__api__library__KansoLibrary_set_revisit_impl(
+        301 => wire__crate__api__library__KansoLibrary_set_revisit_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        301 => wire__crate__api__library__KansoLibrary_set_tag_color_impl(
+        302 => wire__crate__api__library__KansoLibrary_set_tag_color_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        302 => {
+        303 => {
             wire__crate__api__library__KansoLibrary_set_task_impl(port, ptr, rust_vec_len, data_len)
         }
-        303 => wire__crate__api__library__KansoLibrary_set_voice_settings_impl(
+        304 => wire__crate__api__library__KansoLibrary_set_voice_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        305 => {
+        306 => {
             wire__crate__api__library__KansoLibrary_sketch_impl(port, ptr, rust_vec_len, data_len)
         }
-        306 => wire__crate__api__library__KansoLibrary_sketch_insert_impl(
+        307 => wire__crate__api__library__KansoLibrary_sketch_insert_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        310 => wire__crate__api__library__KansoLibrary_tag_places_impl(
+        311 => wire__crate__api__library__KansoLibrary_tag_places_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        311 => wire__crate__api__library__KansoLibrary_tags_impl(port, ptr, rust_vec_len, data_len),
-        313 => {
+        312 => wire__crate__api__library__KansoLibrary_tags_impl(port, ptr, rust_vec_len, data_len),
+        314 => {
             wire__crate__api__library__KansoLibrary_tasks_impl(port, ptr, rust_vec_len, data_len)
         }
-        314 => wire__crate__api__library__KansoLibrary_templates_impl(
+        315 => wire__crate__api__library__KansoLibrary_templates_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        316 => wire__crate__api__library__KansoLibrary_today_note_impl(
+        317 => wire__crate__api__library__KansoLibrary_today_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        317 => wire__crate__api__library__KansoLibrary_toggle_fold_impl(
+        318 => wire__crate__api__library__KansoLibrary_toggle_fold_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        318 => wire__crate__api__library__KansoLibrary_toggle_task_at_impl(
+        319 => wire__crate__api__library__KansoLibrary_toggle_task_at_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        319 => {
+        320 => {
             wire__crate__api__library__KansoLibrary_trash_impl(port, ptr, rust_vec_len, data_len)
         }
-        321 => wire__crate__api__library__KansoLibrary_undo_impl(port, ptr, rust_vec_len, data_len),
-        322 => wire__crate__api__library__KansoLibrary_update_notices_impl(
+        322 => wire__crate__api__library__KansoLibrary_undo_impl(port, ptr, rust_vec_len, data_len),
+        323 => wire__crate__api__library__KansoLibrary_update_notices_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        323 => wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
+        324 => wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        325 => wire__crate__api__library__KansoLibrary_voice_settings_impl(
+        326 => wire__crate__api__library__KansoLibrary_voice_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        326 => wire__crate__api__library__KansoLibrary_word_goal_presets_impl(
+        327 => wire__crate__api__library__KansoLibrary_word_goal_presets_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        327 => wire__crate__api__linking__KansoLinking_backlinks_impl(
+        328 => wire__crate__api__linking__KansoLinking_backlinks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        329 => wire__crate__api__linking__KansoLinking_link_mention_impl(
+        330 => wire__crate__api__linking__KansoLinking_link_mention_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        331 => {
+        332 => {
             wire__crate__api__linking__KansoLinking_palette_impl(port, ptr, rust_vec_len, data_len)
         }
-        332 => wire__crate__api__linking__KansoLinking_quick_open_impl(
+        333 => wire__crate__api__linking__KansoLinking_quick_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        333 => wire__crate__api__linking__KansoLinking_unlinked_mentions_impl(
+        334 => wire__crate__api__linking__KansoLinking_unlinked_mentions_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        334 => wire__crate__api__locks__KansoLocks_begin_biometric_enrollment_impl(
+        335 => wire__crate__api__locks__KansoLocks_begin_biometric_enrollment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        335 => wire__crate__api__locks__KansoLocks_begin_biometric_unlock_impl(
+        336 => wire__crate__api__locks__KansoLocks_begin_biometric_unlock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        336 => wire__crate__api__locks__KansoLocks_biometrics_on_impl(
+        337 => wire__crate__api__locks__KansoLocks_biometrics_on_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        337 => {
+        338 => {
             wire__crate__api__locks__KansoLocks_cancel_lock_impl(port, ptr, rust_vec_len, data_len)
         }
-        338 => wire__crate__api__locks__KansoLocks_change_password_impl(
+        339 => wire__crate__api__locks__KansoLocks_change_password_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        339 => wire__crate__api__locks__KansoLocks_files_migration_impl(
+        340 => wire__crate__api__locks__KansoLocks_files_migration_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        340 => wire__crate__api__locks__KansoLocks_finish_locking_impl(
+        341 => wire__crate__api__locks__KansoLocks_finish_locking_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        341 => wire__crate__api__locks__KansoLocks_interrupted_lock_impl(
+        342 => wire__crate__api__locks__KansoLocks_interrupted_lock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        342 => wire__crate__api__locks__KansoLocks_is_note_unlocked_impl(
+        343 => wire__crate__api__locks__KansoLocks_is_note_unlocked_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        343 => {
+        344 => {
             wire__crate__api__locks__KansoLocks_is_unlocked_impl(port, ptr, rust_vec_len, data_len)
         }
-        344 => {
+        345 => {
             wire__crate__api__locks__KansoLocks_library_id_impl(port, ptr, rust_vec_len, data_len)
         }
-        345 => wire__crate__api__locks__KansoLocks_lock_impl(port, ptr, rust_vec_len, data_len),
-        346 => {
+        346 => wire__crate__api__locks__KansoLocks_lock_impl(port, ptr, rust_vec_len, data_len),
+        347 => {
             wire__crate__api__locks__KansoLocks_lock_events_impl(port, ptr, rust_vec_len, data_len)
         }
-        347 => wire__crate__api__locks__KansoLocks_lock_for_background_impl(
+        348 => wire__crate__api__locks__KansoLocks_lock_for_background_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        348 => {
+        349 => {
             wire__crate__api__locks__KansoLocks_lock_note_impl(port, ptr, rust_vec_len, data_len)
         }
-        349 => wire__crate__api__locks__KansoLocks_lock_note_with_session_impl(
+        350 => wire__crate__api__locks__KansoLocks_lock_note_with_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        350 => wire__crate__api__locks__KansoLocks_lock_notebook_impl(
+        351 => wire__crate__api__locks__KansoLocks_lock_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        351 => wire__crate__api__locks__KansoLocks_lock_progress_impl(
+        352 => wire__crate__api__locks__KansoLocks_lock_progress_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        352 => {
+        353 => {
             wire__crate__api__locks__KansoLocks_lock_status_impl(port, ptr, rust_vec_len, data_len)
         }
-        353 => wire__crate__api__locks__KansoLocks_note_lock_summary_impl(
+        354 => wire__crate__api__locks__KansoLocks_note_lock_summary_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        354 => wire__crate__api__locks__KansoLocks_notebook_is_open_impl(
+        355 => wire__crate__api__locks__KansoLocks_notebook_is_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        355 => wire__crate__api__locks__KansoLocks_notebook_lock_summary_impl(
+        356 => wire__crate__api__locks__KansoLocks_notebook_lock_summary_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        356 => wire__crate__api__locks__KansoLocks_postpone_files_migration_impl(
+        357 => wire__crate__api__locks__KansoLocks_postpone_files_migration_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        357 => wire__crate__api__locks__KansoLocks_remove_note_lock_impl(
+        358 => wire__crate__api__locks__KansoLocks_remove_note_lock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        358 => wire__crate__api__locks__KansoLocks_remove_notebook_lock_impl(
+        359 => wire__crate__api__locks__KansoLocks_remove_notebook_lock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        359 => wire__crate__api__locks__KansoLocks_seal_locked_attachments_impl(
+        360 => wire__crate__api__locks__KansoLocks_seal_locked_attachments_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        360 => wire__crate__api__locks__KansoLocks_take_copy_notice_impl(
+        361 => wire__crate__api__locks__KansoLocks_take_copy_notice_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        361 => wire__crate__api__locks__KansoLocks_take_seal_failure_notice_impl(
+        362 => wire__crate__api__locks__KansoLocks_take_seal_failure_notice_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        362 => wire__crate__api__locks__KansoLocks_take_sealed_files_notice_impl(
+        363 => wire__crate__api__locks__KansoLocks_take_sealed_files_notice_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        363 => wire__crate__api__locks__KansoLocks_turn_off_biometrics_impl(
+        364 => wire__crate__api__locks__KansoLocks_turn_off_biometrics_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        364 => wire__crate__api__locks__KansoLocks_undo_files_migration_impl(
+        365 => wire__crate__api__locks__KansoLocks_undo_files_migration_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        365 => {
+        366 => {
             wire__crate__api__locks__KansoLocks_undo_locking_impl(port, ptr, rust_vec_len, data_len)
         }
-        366 => wire__crate__api__locks__KansoLocks_unlock_impl(port, ptr, rust_vec_len, data_len),
-        367 => {
+        367 => wire__crate__api__locks__KansoLocks_unlock_impl(port, ptr, rust_vec_len, data_len),
+        368 => {
             wire__crate__api__locks__KansoLocks_unlock_note_impl(port, ptr, rust_vec_len, data_len)
         }
-        368 => wire__crate__api__locks__KansoLocks_unlock_notebook_impl(
+        369 => wire__crate__api__locks__KansoLocks_unlock_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        369 => wire__crate__api__metrics__KansoMetrics_end_session_impl(
+        370 => wire__crate__api__metrics__KansoMetrics_end_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        370 => {
+        371 => {
             wire__crate__api__metrics__KansoMetrics_launched_impl(port, ptr, rust_vec_len, data_len)
         }
-        371 => wire__crate__api__metrics__KansoMetrics_mark_notice_seen_impl(
+        372 => wire__crate__api__metrics__KansoMetrics_mark_notice_seen_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        372 => wire__crate__api__metrics__KansoMetrics_notice_seen_impl(
+        373 => wire__crate__api__metrics__KansoMetrics_notice_seen_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        373 => {
+        374 => {
             wire__crate__api__metrics__KansoMetrics_record_impl(port, ptr, rust_vec_len, data_len)
         }
-        374 => {
+        375 => {
             wire__crate__api__metrics__KansoMetrics_send_due_impl(port, ptr, rust_vec_len, data_len)
         }
-        375 => wire__crate__api__notebook_home__KansoNotebookHome_after_move_impl(
+        376 => wire__crate__api__notebook_home__KansoNotebookHome_after_move_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        376 => wire__crate__api__notebook_home__KansoNotebookHome_candidates_impl(
+        377 => wire__crate__api__notebook_home__KansoNotebookHome_candidates_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        377 => wire__crate__api__notebook_home__KansoNotebookHome_card_impl(
+        378 => wire__crate__api__notebook_home__KansoNotebookHome_card_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        378 => wire__crate__api__notebook_home__KansoNotebookHome_choose_home_impl(
+        379 => wire__crate__api__notebook_home__KansoNotebookHome_choose_home_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        379 => wire__crate__api__notebook_home__KansoNotebookHome_clear_home_impl(
+        380 => wire__crate__api__notebook_home__KansoNotebookHome_clear_home_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        380 => wire__crate__api__notebook_home__KansoNotebookHome_copy_into_home_impl(
+        381 => wire__crate__api__notebook_home__KansoNotebookHome_copy_into_home_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        381 => wire__crate__api__notebook_home__KansoNotebookHome_customise_impl(
+        382 => wire__crate__api__notebook_home__KansoNotebookHome_customise_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        382 => wire__crate__api__notebook_home__KansoNotebookHome_hide_impl(
+        383 => wire__crate__api__notebook_home__KansoNotebookHome_hide_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        383 => wire__crate__api__notebook_home__KansoNotebookHome_map_impl(
+        384 => wire__crate__api__notebook_home__KansoNotebookHome_map_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        384 => wire__crate__api__notebook_home__KansoNotebookHome_new_home_impl(
+        385 => wire__crate__api__notebook_home__KansoNotebookHome_new_home_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        385 => wire__crate__api__notebook_home__KansoNotebookHome_not_right_impl(
+        386 => wire__crate__api__notebook_home__KansoNotebookHome_not_right_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        386 => wire__crate__api__notebook_home__KansoNotebookHome_open_impl(
+        387 => wire__crate__api__notebook_home__KansoNotebookHome_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        387 => wire__crate__api__notebook_home__KansoNotebookHome_pin_impl(
+        388 => wire__crate__api__notebook_home__KansoNotebookHome_pin_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        388 => wire__crate__api__notebook_home__KansoNotebookHome_refresh_all_impl(
+        389 => wire__crate__api__notebook_home__KansoNotebookHome_refresh_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        389 => wire__crate__api__notebook_home__KansoNotebookHome_refresh_section_impl(
+        390 => wire__crate__api__notebook_home__KansoNotebookHome_refresh_section_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        390 => wire__crate__api__notebook_home__KansoNotebookHome_reset_layout_impl(
+        391 => wire__crate__api__notebook_home__KansoNotebookHome_reset_layout_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        391 => wire__crate__api__notebook_home__KansoNotebookHome_section_markdown_impl(
+        392 => wire__crate__api__notebook_home__KansoNotebookHome_section_markdown_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        392 => wire__crate__api__notebook_home__KansoNotebookHome_sections_impl(
+        393 => wire__crate__api__notebook_home__KansoNotebookHome_sections_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        393 => wire__crate__api__notebook_home__KansoNotebookHome_set_settings_impl(
+        394 => wire__crate__api__notebook_home__KansoNotebookHome_set_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        394 => wire__crate__api__notebook_home__KansoNotebookHome_settings_impl(
+        395 => wire__crate__api__notebook_home__KansoNotebookHome_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        395 => wire__crate__api__notebook_home__KansoNotebookHome_show_all_impl(
+        396 => wire__crate__api__notebook_home__KansoNotebookHome_show_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        396 => wire__crate__api__notebook_home__KansoNotebookHome_show_hidden_impl(
+        397 => wire__crate__api__notebook_home__KansoNotebookHome_show_hidden_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        397 => wire__crate__api__notebook_home__KansoNotebookHome_words_impl(
+        398 => wire__crate__api__notebook_home__KansoNotebookHome_words_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        398 => {
+        399 => wire__crate__api__pdf__KansoPdfReader_add_highlight_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        400 => wire__crate__api__pdf__KansoPdfReader_add_ink_stroke_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        402 => wire__crate__api__pdf__KansoPdfReader_extend_impl(port, ptr, rust_vec_len, data_len),
+        403 => wire__crate__api__pdf__KansoPdfReader_find_impl(port, ptr, rust_vec_len, data_len),
+        404 => {
+            wire__crate__api__pdf__KansoPdfReader_line_at_impl(port, ptr, rust_vec_len, data_len)
+        }
+        405 => wire__crate__api__pdf__KansoPdfReader_render_impl(port, ptr, rust_vec_len, data_len),
+        406 => wire__crate__api__pdf__KansoPdfReader_select_impl(port, ptr, rust_vec_len, data_len),
+        407 => {
+            wire__crate__api__pdf__KansoPdfReader_word_at_impl(port, ptr, rust_vec_len, data_len)
+        }
+        408 => wire__crate__api__pdf__KansoPdf_marks_impl(port, ptr, rust_vec_len, data_len),
+        409 => wire__crate__api__pdf__KansoPdf_open_impl(port, ptr, rust_vec_len, data_len),
+        410 => {
             wire__crate__api__people__KansoPeople_add_alias_impl(port, ptr, rust_vec_len, data_len)
         }
-        399 => wire__crate__api__people__KansoPeople_confirm_alias_impl(
+        411 => wire__crate__api__people__KansoPeople_confirm_alias_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        400 => wire__crate__api__people__KansoPeople_copy_into_note_impl(
+        412 => wire__crate__api__people__KansoPeople_copy_into_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        401 => wire__crate__api__people__KansoPeople_create_impl(port, ptr, rust_vec_len, data_len),
-        402 => wire__crate__api__people__KansoPeople_detect_impl(port, ptr, rust_vec_len, data_len),
-        403 => wire__crate__api__people__KansoPeople_detect_with_ai_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        404 => {
-            wire__crate__api__people__KansoPeople_dismiss_impl(port, ptr, rust_vec_len, data_len)
-        }
-        405 => {
-            wire__crate__api__people__KansoPeople_dismissed_impl(port, ptr, rust_vec_len, data_len)
-        }
-        406 => wire__crate__api__people__KansoPeople_hide_impl(port, ptr, rust_vec_len, data_len),
-        407 => wire__crate__api__people__KansoPeople_merge_impl(port, ptr, rust_vec_len, data_len),
-        408 => {
-            wire__crate__api__people__KansoPeople_not_right_impl(port, ptr, rust_vec_len, data_len)
-        }
-        409 => wire__crate__api__people__KansoPeople_page_impl(port, ptr, rust_vec_len, data_len),
-        410 => wire__crate__api__people__KansoPeople_pages_impl(port, ptr, rust_vec_len, data_len),
-        411 => wire__crate__api__people__KansoPeople_pin_impl(port, ptr, rust_vec_len, data_len),
-        412 => wire__crate__api__people__KansoPeople_refresh_all_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        413 => wire__crate__api__people__KansoPeople_refresh_section_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        414 => wire__crate__api__people__KansoPeople_section_markdown_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        415 => wire__crate__api__people__KansoPeople_set_settings_impl(
+        413 => wire__crate__api__people__KansoPeople_create_impl(port, ptr, rust_vec_len, data_len),
+        414 => wire__crate__api__people__KansoPeople_detect_impl(port, ptr, rust_vec_len, data_len),
+        415 => wire__crate__api__people__KansoPeople_detect_with_ai_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         416 => {
-            wire__crate__api__people__KansoPeople_settings_impl(port, ptr, rust_vec_len, data_len)
+            wire__crate__api__people__KansoPeople_dismiss_impl(port, ptr, rust_vec_len, data_len)
         }
         417 => {
+            wire__crate__api__people__KansoPeople_dismissed_impl(port, ptr, rust_vec_len, data_len)
+        }
+        418 => wire__crate__api__people__KansoPeople_hide_impl(port, ptr, rust_vec_len, data_len),
+        419 => wire__crate__api__people__KansoPeople_merge_impl(port, ptr, rust_vec_len, data_len),
+        420 => {
+            wire__crate__api__people__KansoPeople_not_right_impl(port, ptr, rust_vec_len, data_len)
+        }
+        421 => wire__crate__api__people__KansoPeople_page_impl(port, ptr, rust_vec_len, data_len),
+        422 => wire__crate__api__people__KansoPeople_pages_impl(port, ptr, rust_vec_len, data_len),
+        423 => wire__crate__api__people__KansoPeople_pin_impl(port, ptr, rust_vec_len, data_len),
+        424 => wire__crate__api__people__KansoPeople_refresh_all_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        425 => wire__crate__api__people__KansoPeople_refresh_section_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        426 => wire__crate__api__people__KansoPeople_section_markdown_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        427 => wire__crate__api__people__KansoPeople_set_settings_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        428 => {
+            wire__crate__api__people__KansoPeople_settings_impl(port, ptr, rust_vec_len, data_len)
+        }
+        429 => {
             wire__crate__api__people__KansoPeople_show_all_impl(port, ptr, rust_vec_len, data_len)
         }
-        418 => wire__crate__api__people__KansoPeople_show_hidden_impl(
+        430 => wire__crate__api__people__KansoPeople_show_hidden_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        419 => wire__crate__api__people__KansoPeople_status_impl(port, ptr, rust_vec_len, data_len),
-        420 => wire__crate__api__people__KansoPeople_suggest_again_impl(
+        431 => wire__crate__api__people__KansoPeople_status_impl(port, ptr, rust_vec_len, data_len),
+        432 => wire__crate__api__people__KansoPeople_suggest_again_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        421 => wire__crate__api__people__KansoPeople_suggestions_impl(
+        433 => wire__crate__api__people__KansoPeople_suggestions_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        430 => wire__crate__api__player__KansoPlayers_note_recording_impl(
+        442 => wire__crate__api__player__KansoPlayers_note_recording_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        431 => wire__crate__api__player__KansoPlayers_open_impl(port, ptr, rust_vec_len, data_len),
-        433 => wire__crate__api__publish__KansoPublisher_expiry_options_impl(
+        443 => wire__crate__api__player__KansoPlayers_open_impl(port, ptr, rust_vec_len, data_len),
+        445 => wire__crate__api__publish__KansoPublisher_expiry_options_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        434 => {
+        446 => {
             wire__crate__api__publish__KansoPublisher_note_impl(port, ptr, rust_vec_len, data_len)
         }
-        435 => wire__crate__api__publish__KansoPublisher_notebook_impl(
+        447 => wire__crate__api__publish__KansoPublisher_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        436 => wire__crate__api__publish__KansoPublisher_publish_note_impl(
+        448 => wire__crate__api__publish__KansoPublisher_publish_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        437 => wire__crate__api__publish__KansoPublisher_publish_notebook_impl(
+        449 => wire__crate__api__publish__KansoPublisher_publish_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        438 => wire__crate__api__publish__KansoPublisher_unpublish_note_impl(
+        450 => wire__crate__api__publish__KansoPublisher_unpublish_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        439 => wire__crate__api__publish__KansoPublisher_unpublish_notebook_impl(
+        451 => wire__crate__api__publish__KansoPublisher_unpublish_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        440 => wire__crate__api__recording__KansoRecorder_discard_found_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        441 => {
-            wire__crate__api__recording__KansoRecorder_found_impl(port, ptr, rust_vec_len, data_len)
-        }
-        442 => wire__crate__api__recording__KansoRecorder_recover_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        443 => {
-            wire__crate__api__recording__KansoRecorder_start_impl(port, ptr, rust_vec_len, data_len)
-        }
-        444 => wire__crate__api__recording_speakers__KansoRecordingSpeakers_names_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        445 => wire__crate__api__recording_speakers__KansoRecordingSpeakers_rename_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        446 => wire__crate__api__recording_summary__KansoRecordingSummary_apply_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        447 => wire__crate__api__recording_summary__KansoRecordingSummary_offer_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        448 => wire__crate__api__recording_summary__KansoRecordingSummary_summarize_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        449 => wire__crate__api__recording__KansoRecording_discard_impl(
+        452 => wire__crate__api__recording__KansoRecorder_discard_found_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         453 => {
+            wire__crate__api__recording__KansoRecorder_found_impl(port, ptr, rust_vec_len, data_len)
+        }
+        454 => wire__crate__api__recording__KansoRecorder_recover_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        455 => {
+            wire__crate__api__recording__KansoRecorder_start_impl(port, ptr, rust_vec_len, data_len)
+        }
+        456 => wire__crate__api__recording_speakers__KansoRecordingSpeakers_names_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        457 => wire__crate__api__recording_speakers__KansoRecordingSpeakers_rename_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        458 => wire__crate__api__recording_summary__KansoRecordingSummary_apply_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        459 => wire__crate__api__recording_summary__KansoRecordingSummary_offer_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        460 => wire__crate__api__recording_summary__KansoRecordingSummary_summarize_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        461 => wire__crate__api__recording__KansoRecording_discard_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        465 => {
             wire__crate__api__recording__KansoRecording_stop_impl(port, ptr, rust_vec_len, data_len)
         }
-        454 => wire__crate__api__renderer__KansoRenderer_builtin_theme_tokens_impl(
+        466 => wire__crate__api__renderer__KansoRenderer_builtin_theme_tokens_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        455 => wire__crate__api__renderer__KansoRenderer_builtin_themes_impl(
+        467 => wire__crate__api__renderer__KansoRenderer_builtin_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        456 => wire__crate__api__renderer__KansoRenderer_code_block_impl(
+        468 => wire__crate__api__renderer__KansoRenderer_code_block_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        457 => wire__crate__api__renderer__KansoRenderer_diagram_renderer_impl(
+        469 => wire__crate__api__renderer__KansoRenderer_diagram_renderer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        458 => wire__crate__api__renderer__KansoRenderer_diagram_svg_impl(
+        470 => wire__crate__api__renderer__KansoRenderer_diagram_svg_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        459 => wire__crate__api__renderer__KansoRenderer_highlight_impl(
+        471 => wire__crate__api__renderer__KansoRenderer_highlight_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        460 => wire__crate__api__renderer__KansoRenderer_icon_theme_icons_impl(
+        472 => wire__crate__api__renderer__KansoRenderer_icon_theme_icons_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        461 => wire__crate__api__renderer__KansoRenderer_icon_themes_impl(
+        473 => wire__crate__api__renderer__KansoRenderer_icon_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        462 => wire__crate__api__renderer__KansoRenderer_link_target_impl(
+        474 => wire__crate__api__renderer__KansoRenderer_link_target_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        463 => wire__crate__api__renderer__KansoRenderer_math_svg_impl(
+        475 => wire__crate__api__renderer__KansoRenderer_math_svg_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        464 => wire__crate__api__renderer__KansoRenderer_page_html_impl(
+        476 => wire__crate__api__renderer__KansoRenderer_page_html_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        465 => wire__crate__api__renderer__KansoRenderer_page_pdf_impl(
+        477 => wire__crate__api__renderer__KansoRenderer_page_pdf_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        466 => wire__crate__api__renderer__KansoRenderer_preview_blocks_impl(
+        478 => wire__crate__api__renderer__KansoRenderer_preview_blocks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        467 => wire__crate__api__renderer__KansoRenderer_preview_blocks_for_text_impl(
+        479 => wire__crate__api__renderer__KansoRenderer_preview_blocks_for_text_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        468 => wire__crate__api__renderer__KansoRenderer_preview_html_impl(
+        480 => wire__crate__api__renderer__KansoRenderer_preview_html_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        469 => wire__crate__api__renderer__KansoRenderer_preview_html_with_impl(
+        481 => wire__crate__api__renderer__KansoRenderer_preview_html_with_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        470 => wire__crate__api__renderer__KansoRenderer_set_diagram_renderer_impl(
+        482 => wire__crate__api__renderer__KansoRenderer_set_diagram_renderer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        471 => wire__crate__api__renderer__KansoRenderer_set_fonts_impl(
+        483 => wire__crate__api__renderer__KansoRenderer_set_fonts_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        472 => wire__crate__api__renderer__KansoRenderer_styled_runs_impl(
+        484 => wire__crate__api__renderer__KansoRenderer_styled_runs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        473 => wire__crate__api__renderer__KansoRenderer_theme_tokens_impl(
+        485 => wire__crate__api__renderer__KansoRenderer_theme_tokens_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        474 => wire__crate__api__shared__KansoShared_accept_impl(port, ptr, rust_vec_len, data_len),
-        475 => wire__crate__api__shared__KansoShared_accept_new_key_impl(
+        486 => wire__crate__api__shared__KansoShared_accept_impl(port, ptr, rust_vec_len, data_len),
+        487 => wire__crate__api__shared__KansoShared_accept_new_key_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        476 => wire__crate__api__shared__KansoShared_add_comment_impl(
+        488 => wire__crate__api__shared__KansoShared_add_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        477 => wire__crate__api__shared__KansoShared_approve_request_impl(
+        489 => wire__crate__api__shared__KansoShared_approve_request_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        478 => {
+        490 => {
             wire__crate__api__shared__KansoShared_can_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        479 => wire__crate__api__shared__KansoShared_cancel_link_impl(
+        491 => wire__crate__api__shared__KansoShared_cancel_link_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        480 => {
+        492 => {
             wire__crate__api__shared__KansoShared_close_live_impl(port, ptr, rust_vec_len, data_len)
         }
-        481 => {
+        493 => {
             wire__crate__api__shared__KansoShared_comments_impl(port, ptr, rust_vec_len, data_len)
         }
-        482 => wire__crate__api__shared__KansoShared_comments_band_impl(
+        494 => wire__crate__api__shared__KansoShared_comments_band_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        483 => wire__crate__api__shared__KansoShared_create_link_impl(
+        495 => wire__crate__api__shared__KansoShared_create_link_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        484 => {
+        496 => {
             wire__crate__api__shared__KansoShared_decline_impl(port, ptr, rust_vec_len, data_len)
         }
-        485 => wire__crate__api__shared__KansoShared_decline_request_impl(
+        497 => wire__crate__api__shared__KansoShared_decline_request_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        486 => wire__crate__api__shared__KansoShared_delete_comment_impl(
+        498 => wire__crate__api__shared__KansoShared_delete_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        487 => wire__crate__api__shared__KansoShared_dismiss_problems_impl(
+        499 => wire__crate__api__shared__KansoShared_dismiss_problems_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        488 => wire__crate__api__shared__KansoShared_edit_comment_impl(
+        500 => wire__crate__api__shared__KansoShared_edit_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        489 => wire__crate__api__shared__KansoShared_events_impl(port, ptr, rust_vec_len, data_len),
-        490 => wire__crate__api__shared__KansoShared_info_impl(port, ptr, rust_vec_len, data_len),
-        491 => wire__crate__api__shared__KansoShared_invitations_impl(
+        501 => wire__crate__api__shared__KansoShared_events_impl(port, ptr, rust_vec_len, data_len),
+        502 => wire__crate__api__shared__KansoShared_info_impl(port, ptr, rust_vec_len, data_len),
+        503 => wire__crate__api__shared__KansoShared_invitations_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        492 => wire__crate__api__shared__KansoShared_invite_impl(port, ptr, rust_vec_len, data_len),
-        493 => wire__crate__api__shared__KansoShared_join_impl(port, ptr, rust_vec_len, data_len),
-        494 => wire__crate__api__shared__KansoShared_leave_impl(port, ptr, rust_vec_len, data_len),
-        495 => wire__crate__api__shared__KansoShared_live_status_impl(
+        504 => wire__crate__api__shared__KansoShared_invite_impl(port, ptr, rust_vec_len, data_len),
+        505 => wire__crate__api__shared__KansoShared_join_impl(port, ptr, rust_vec_len, data_len),
+        506 => wire__crate__api__shared__KansoShared_leave_impl(port, ptr, rust_vec_len, data_len),
+        507 => wire__crate__api__shared__KansoShared_live_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        496 => wire__crate__api__shared__KansoShared_lookup_person_impl(
+        508 => wire__crate__api__shared__KansoShared_lookup_person_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        497 => wire__crate__api__shared__KansoShared_open_comments_impl(
+        509 => wire__crate__api__shared__KansoShared_open_comments_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        498 => {
+        510 => {
             wire__crate__api__shared__KansoShared_open_live_impl(port, ptr, rust_vec_len, data_len)
         }
-        499 => wire__crate__api__shared__KansoShared_remove_impl(port, ptr, rust_vec_len, data_len),
-        500 => wire__crate__api__shared__KansoShared_resolve_comment_impl(
+        511 => wire__crate__api__shared__KansoShared_remove_impl(port, ptr, rust_vec_len, data_len),
+        512 => wire__crate__api__shared__KansoShared_resolve_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        501 => {
+        513 => {
             wire__crate__api__shared__KansoShared_set_role_impl(port, ptr, rust_vec_len, data_len)
         }
-        502 => wire__crate__api__shared__KansoShared_share_impl(port, ptr, rust_vec_len, data_len),
-        503 => wire__crate__api__shared__KansoShared_stop_impl(port, ptr, rust_vec_len, data_len),
-        504 => wire__crate__api__shared__KansoShared_sync_shared_impl(
+        514 => wire__crate__api__shared__KansoShared_share_impl(port, ptr, rust_vec_len, data_len),
+        515 => wire__crate__api__shared__KansoShared_stop_impl(port, ptr, rust_vec_len, data_len),
+        516 => wire__crate__api__shared__KansoShared_sync_shared_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        505 => wire__crate__api__shared__KansoShared_verify_person_impl(
+        517 => wire__crate__api__shared__KansoShared_verify_person_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        506 => {
+        518 => {
             wire__crate__api__sync__KansoSync_check_server_impl(port, ptr, rust_vec_len, data_len)
         }
-        507 => {
+        519 => {
             wire__crate__api__sync__KansoSync_default_server_impl(port, ptr, rust_vec_len, data_len)
         }
-        511 => {
+        523 => {
             wire__crate__api__sync__KansoSync_push_enabled_impl(port, ptr, rust_vec_len, data_len)
         }
-        512 => {
+        524 => {
             wire__crate__api__sync__KansoSync_refresh_push_impl(port, ptr, rust_vec_len, data_len)
         }
-        513 => {
+        525 => {
             wire__crate__api__sync__KansoSync_set_foreground_impl(port, ptr, rust_vec_len, data_len)
         }
-        514 => wire__crate__api__sync__KansoSync_set_push_enabled_impl(
+        526 => wire__crate__api__sync__KansoSync_set_push_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        515 => {
+        527 => {
             wire__crate__api__sync__KansoSync_set_push_token_impl(port, ptr, rust_vec_len, data_len)
         }
-        516 => {
+        528 => {
             wire__crate__api__sync__KansoSync_set_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        517 => wire__crate__api__sync__KansoSync_settings_impl(port, ptr, rust_vec_len, data_len),
-        518 => wire__crate__api__sync__KansoSync_sign_in_password_impl(
+        529 => wire__crate__api__sync__KansoSync_settings_impl(port, ptr, rust_vec_len, data_len),
+        530 => wire__crate__api__sync__KansoSync_sign_in_password_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        519 => wire__crate__api__sync__KansoSync_sign_out_impl(port, ptr, rust_vec_len, data_len),
-        520 => wire__crate__api__sync__KansoSync_status_impl(port, ptr, rust_vec_len, data_len),
-        522 => {
+        531 => wire__crate__api__sync__KansoSync_sign_out_impl(port, ptr, rust_vec_len, data_len),
+        532 => wire__crate__api__sync__KansoSync_status_impl(port, ptr, rust_vec_len, data_len),
+        534 => {
             wire__crate__api__sync__KansoSync_status_stream_impl(port, ptr, rust_vec_len, data_len)
         }
-        523 => wire__crate__api__sync__KansoSync_sync_now_impl(port, ptr, rust_vec_len, data_len),
-        524 => wire__crate__api__themes__KansoThemes_fit_impl(port, ptr, rust_vec_len, data_len),
-        525 => wire__crate__api__themes__KansoThemes_icon_themes_impl(
+        535 => wire__crate__api__sync__KansoSync_sync_now_impl(port, ptr, rust_vec_len, data_len),
+        536 => wire__crate__api__themes__KansoThemes_fit_impl(port, ptr, rust_vec_len, data_len),
+        537 => wire__crate__api__themes__KansoThemes_icon_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        526 => wire__crate__api__themes__KansoThemes_import_impl(port, ptr, rust_vec_len, data_len),
-        527 => wire__crate__api__themes__KansoThemes_import_icon_theme_impl(
+        538 => wire__crate__api__themes__KansoThemes_import_impl(port, ptr, rust_vec_len, data_len),
+        539 => wire__crate__api__themes__KansoThemes_import_icon_theme_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        528 => wire__crate__api__themes__KansoThemes_list_impl(port, ptr, rust_vec_len, data_len),
-        529 => {
+        540 => wire__crate__api__themes__KansoThemes_list_impl(port, ptr, rust_vec_len, data_len),
+        541 => {
             wire__crate__api__themes__KansoThemes_notices_impl(port, ptr, rust_vec_len, data_len)
         }
-        530 => wire__crate__api__themes__KansoThemes_styled_runs_impl(
+        542 => wire__crate__api__themes__KansoThemes_styled_runs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        531 => wire__crate__api__triage__KansoTriage_card_impl(port, ptr, rust_vec_len, data_len),
-        532 => wire__crate__api__triage__KansoTriage_cards_impl(port, ptr, rust_vec_len, data_len),
-        533 => wire__crate__api__triage__KansoTriage_file_impl(port, ptr, rust_vec_len, data_len),
-        534 => wire__crate__api__triage__KansoTriage_plan_impl(port, ptr, rust_vec_len, data_len),
-        535 => wire__crate__api__triage__KansoTriage_refine_impl(port, ptr, rust_vec_len, data_len),
-        536 => wire__crate__api__triage__KansoTriage_reject_impl(port, ptr, rust_vec_len, data_len),
-        537 => {
+        543 => wire__crate__api__triage__KansoTriage_card_impl(port, ptr, rust_vec_len, data_len),
+        544 => wire__crate__api__triage__KansoTriage_cards_impl(port, ptr, rust_vec_len, data_len),
+        545 => wire__crate__api__triage__KansoTriage_file_impl(port, ptr, rust_vec_len, data_len),
+        546 => wire__crate__api__triage__KansoTriage_plan_impl(port, ptr, rust_vec_len, data_len),
+        547 => wire__crate__api__triage__KansoTriage_refine_impl(port, ptr, rust_vec_len, data_len),
+        548 => wire__crate__api__triage__KansoTriage_reject_impl(port, ptr, rust_vec_len, data_len),
+        549 => {
             wire__crate__api__triage__KansoTriage_resolve_impl(port, ptr, rust_vec_len, data_len)
         }
-        538 => wire__crate__api__triage__KansoTriage_set_settings_impl(
+        550 => wire__crate__api__triage__KansoTriage_set_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        539 => {
+        551 => {
             wire__crate__api__triage__KansoTriage_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        540 => wire__crate__api__triage__KansoTriage_status_impl(port, ptr, rust_vec_len, data_len),
-        541 => {
+        552 => wire__crate__api__triage__KansoTriage_status_impl(port, ptr, rust_vec_len, data_len),
+        553 => {
             wire__crate__api__triage__KansoTriage_unreject_impl(port, ptr, rust_vec_len, data_len)
         }
-        542 => wire__crate__api__voice_capture__KansoVoiceCapture_discard_drop_impl(
+        554 => wire__crate__api__voice_capture__KansoVoiceCapture_discard_drop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        543 => wire__crate__api__voice_capture__KansoVoiceCapture_drops_impl(
+        555 => wire__crate__api__voice_capture__KansoVoiceCapture_drops_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        544 => wire__crate__api__voice_capture__KansoVoiceCapture_note_info_impl(
+        556 => wire__crate__api__voice_capture__KansoVoiceCapture_note_info_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        545 => wire__crate__api__voice_capture__KansoVoiceCapture_quarantine_drop_impl(
+        557 => wire__crate__api__voice_capture__KansoVoiceCapture_quarantine_drop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        546 => wire__crate__api__voice_capture__KansoVoiceCapture_save_impl(
+        558 => wire__crate__api__voice_capture__KansoVoiceCapture_save_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        547 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_impl(
+        559 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        548 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_audio_only_impl(
+        560 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_audio_only_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        549 => wire__crate__api__voice_capture__KansoVoiceCapture_tidy_note_impl(
+        561 => wire__crate__api__voice_capture__KansoVoiceCapture_tidy_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        550 => {
+        562 => {
             wire__crate__api__diagnostics__backup_excluded_impl(port, ptr, rust_vec_len, data_len)
         }
-        558 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
-        560 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
-        562 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
-        563 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
+        570 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
+        572 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
+        574 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
+        575 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -46203,81 +47504,83 @@ fn pde_ffi_dispatcher_sync_impl(
         262 => {
             wire__crate__api__library__KansoLibrary_parse_color_impl(ptr, rust_vec_len, data_len)
         }
-        264 => wire__crate__api__library__KansoLibrary_pdf_export_enabled_impl(
+        263 => wire__crate__api__library__KansoLibrary_pdf_impl(ptr, rust_vec_len, data_len),
+        265 => wire__crate__api__library__KansoLibrary_pdf_export_enabled_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        268 => wire__crate__api__library__KansoLibrary_people_impl(ptr, rust_vec_len, data_len),
-        269 => wire__crate__api__library__KansoLibrary_players_impl(ptr, rust_vec_len, data_len),
-        273 => wire__crate__api__library__KansoLibrary_recorder_impl(ptr, rust_vec_len, data_len),
-        274 => wire__crate__api__library__KansoLibrary_recording_speakers_impl(
+        269 => wire__crate__api__library__KansoLibrary_people_impl(ptr, rust_vec_len, data_len),
+        270 => wire__crate__api__library__KansoLibrary_players_impl(ptr, rust_vec_len, data_len),
+        274 => wire__crate__api__library__KansoLibrary_recorder_impl(ptr, rust_vec_len, data_len),
+        275 => wire__crate__api__library__KansoLibrary_recording_speakers_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        275 => wire__crate__api__library__KansoLibrary_recording_summary_impl(
+        276 => wire__crate__api__library__KansoLibrary_recording_summary_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        282 => wire__crate__api__library__KansoLibrary_renderer_impl(ptr, rust_vec_len, data_len),
-        289 => wire__crate__api__library__KansoLibrary_revisit_options_impl(
+        283 => wire__crate__api__library__KansoLibrary_renderer_impl(ptr, rust_vec_len, data_len),
+        290 => wire__crate__api__library__KansoLibrary_revisit_options_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        304 => wire__crate__api__library__KansoLibrary_shared_impl(ptr, rust_vec_len, data_len),
-        307 => wire__crate__api__library__KansoLibrary_statuses_impl(ptr, rust_vec_len, data_len),
-        308 => wire__crate__api__library__KansoLibrary_syncing_impl(ptr, rust_vec_len, data_len),
-        309 => wire__crate__api__library__KansoLibrary_tag_colors_impl(ptr, rust_vec_len, data_len),
-        312 => {
+        305 => wire__crate__api__library__KansoLibrary_shared_impl(ptr, rust_vec_len, data_len),
+        308 => wire__crate__api__library__KansoLibrary_statuses_impl(ptr, rust_vec_len, data_len),
+        309 => wire__crate__api__library__KansoLibrary_syncing_impl(ptr, rust_vec_len, data_len),
+        310 => wire__crate__api__library__KansoLibrary_tag_colors_impl(ptr, rust_vec_len, data_len),
+        313 => {
             wire__crate__api__library__KansoLibrary_takes_sketches_impl(ptr, rust_vec_len, data_len)
         }
-        315 => wire__crate__api__library__KansoLibrary_themes_impl(ptr, rust_vec_len, data_len),
-        320 => wire__crate__api__library__KansoLibrary_triage_impl(ptr, rust_vec_len, data_len),
-        324 => {
+        316 => wire__crate__api__library__KansoLibrary_themes_impl(ptr, rust_vec_len, data_len),
+        321 => wire__crate__api__library__KansoLibrary_triage_impl(ptr, rust_vec_len, data_len),
+        325 => {
             wire__crate__api__library__KansoLibrary_voice_capture_impl(ptr, rust_vec_len, data_len)
         }
-        328 => wire__crate__api__linking__KansoLinking_current_heading_impl(
+        329 => wire__crate__api__linking__KansoLinking_current_heading_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        330 => wire__crate__api__linking__KansoLinking_outline_impl(ptr, rust_vec_len, data_len),
-        422 => wire__crate__api__player__KansoPlayer_pause_impl(ptr, rust_vec_len, data_len),
-        423 => wire__crate__api__player__KansoPlayer_play_impl(ptr, rust_vec_len, data_len),
-        424 => wire__crate__api__player__KansoPlayer_seek_ms_impl(ptr, rust_vec_len, data_len),
-        425 => wire__crate__api__player__KansoPlayer_set_speed_impl(ptr, rust_vec_len, data_len),
-        426 => wire__crate__api__player__KansoPlayer_set_volume_impl(ptr, rust_vec_len, data_len),
-        427 => wire__crate__api__player__KansoPlayer_skip_ms_impl(ptr, rust_vec_len, data_len),
-        428 => wire__crate__api__player__KansoPlayer_status_impl(ptr, rust_vec_len, data_len),
-        429 => wire__crate__api__player__KansoPlayer_toggle_impl(ptr, rust_vec_len, data_len),
-        432 => wire__crate__api__player__KansoPlayers_parts_state_impl(ptr, rust_vec_len, data_len),
-        450 => wire__crate__api__recording__KansoRecording_pause_impl(ptr, rust_vec_len, data_len),
-        451 => wire__crate__api__recording__KansoRecording_resume_impl(ptr, rust_vec_len, data_len),
-        452 => wire__crate__api__recording__KansoRecording_status_impl(ptr, rust_vec_len, data_len),
-        508 => wire__crate__api__sync__KansoSync_interval_label_impl(ptr, rust_vec_len, data_len),
-        509 => wire__crate__api__sync__KansoSync_interval_options_impl(ptr, rust_vec_len, data_len),
-        510 => wire__crate__api__sync__KansoSync_interval_phrase_impl(ptr, rust_vec_len, data_len),
-        521 => wire__crate__api__sync__KansoSync_status_line_impl(ptr, rust_vec_len, data_len),
-        551 => wire__crate__api__library__backups_summary_impl(ptr, rust_vec_len, data_len),
-        552 => wire__crate__api__canvas__canvas_ink_preview_impl(ptr, rust_vec_len, data_len),
-        553 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
-        554 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
-        555 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
-        556 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
-        557 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
-        559 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
-        561 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
-        564 => {
+        331 => wire__crate__api__linking__KansoLinking_outline_impl(ptr, rust_vec_len, data_len),
+        401 => wire__crate__api__pdf__KansoPdfReader_close_impl(ptr, rust_vec_len, data_len),
+        434 => wire__crate__api__player__KansoPlayer_pause_impl(ptr, rust_vec_len, data_len),
+        435 => wire__crate__api__player__KansoPlayer_play_impl(ptr, rust_vec_len, data_len),
+        436 => wire__crate__api__player__KansoPlayer_seek_ms_impl(ptr, rust_vec_len, data_len),
+        437 => wire__crate__api__player__KansoPlayer_set_speed_impl(ptr, rust_vec_len, data_len),
+        438 => wire__crate__api__player__KansoPlayer_set_volume_impl(ptr, rust_vec_len, data_len),
+        439 => wire__crate__api__player__KansoPlayer_skip_ms_impl(ptr, rust_vec_len, data_len),
+        440 => wire__crate__api__player__KansoPlayer_status_impl(ptr, rust_vec_len, data_len),
+        441 => wire__crate__api__player__KansoPlayer_toggle_impl(ptr, rust_vec_len, data_len),
+        444 => wire__crate__api__player__KansoPlayers_parts_state_impl(ptr, rust_vec_len, data_len),
+        462 => wire__crate__api__recording__KansoRecording_pause_impl(ptr, rust_vec_len, data_len),
+        463 => wire__crate__api__recording__KansoRecording_resume_impl(ptr, rust_vec_len, data_len),
+        464 => wire__crate__api__recording__KansoRecording_status_impl(ptr, rust_vec_len, data_len),
+        520 => wire__crate__api__sync__KansoSync_interval_label_impl(ptr, rust_vec_len, data_len),
+        521 => wire__crate__api__sync__KansoSync_interval_options_impl(ptr, rust_vec_len, data_len),
+        522 => wire__crate__api__sync__KansoSync_interval_phrase_impl(ptr, rust_vec_len, data_len),
+        533 => wire__crate__api__sync__KansoSync_status_line_impl(ptr, rust_vec_len, data_len),
+        563 => wire__crate__api__library__backups_summary_impl(ptr, rust_vec_len, data_len),
+        564 => wire__crate__api__canvas__canvas_ink_preview_impl(ptr, rust_vec_len, data_len),
+        565 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
+        566 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
+        567 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
+        568 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
+        569 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
+        571 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
+        573 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
+        576 => {
             wire__crate__api__word_goal__word_goal_format_count_impl(ptr, rust_vec_len, data_len)
         }
-        565 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
-        566 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
-        567 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
-        568 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
-        569 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
+        577 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
+        578 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
+        579 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
+        580 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
+        581 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -46571,6 +47874,36 @@ impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<
 
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<KansoNotebookHome>> for KansoNotebookHome {
     fn into_into_dart(self) -> FrbWrapper<KansoNotebookHome> {
+        self.into()
+    }
+}
+
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<KansoPdf> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
+            .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<KansoPdf> {}
+
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<KansoPdf>> for KansoPdf {
+    fn into_into_dart(self) -> FrbWrapper<KansoPdf> {
+        self.into()
+    }
+}
+
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<KansoPdfReader> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
+            .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<KansoPdfReader> {}
+
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<KansoPdfReader>> for KansoPdfReader {
+    fn into_into_dart(self) -> FrbWrapper<KansoPdfReader> {
         self.into()
     }
 }
@@ -52772,6 +54105,126 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::PasskeyRow>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfCharPos> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.page.into_into_dart().into_dart(),
+            self.0.index.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfCharPos>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfCharPos>>
+    for crate::api::pdf_types::PdfCharPos
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfCharPos> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfDeclined> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::pdf_types::PdfDeclined::NeedsPassword => [0.into_dart()].into_dart(),
+            crate::api::pdf_types::PdfDeclined::WrongPassword => [1.into_dart()].into_dart(),
+            crate::api::pdf_types::PdfDeclined::LockedNote { message } => {
+                [2.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::pdf_types::PdfDeclined::Unavailable { message } => {
+                [3.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::pdf_types::PdfDeclined::Refused { message } => {
+                [4.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::pdf_types::PdfDeclined::NotAPdf => [5.into_dart()].into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfDeclined>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfDeclined>>
+    for crate::api::pdf_types::PdfDeclined
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfDeclined> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfEdited> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.rev.into_into_dart().into_dart(),
+            self.0.id.into_into_dart().into_dart(),
+            self.0.merged.into_into_dart().into_dart(),
+            self.0.gone.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfEdited>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfEdited>>
+    for crate::api::pdf_types::PdfEdited
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfEdited> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfFindHit> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.page.into_into_dart().into_dart(),
+            self.0.marks.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfFindHit>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfFindHit>>
+    for crate::api::pdf_types::PdfFindHit
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfFindHit> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfFound> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.total.into_into_dart().into_dart(),
+            self.0.hits.into_into_dart().into_dart(),
+            self.0.pages_without_text.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfFound>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfFound>>
+    for crate::api::pdf_types::PdfFound
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfFound> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::PdfHighlightChange> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self.0 {
@@ -52826,6 +54279,75 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::PdfHighligh
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfInfo> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.file.into_into_dart().into_dart(),
+            self.0.name.into_into_dart().into_dart(),
+            self.0.pages.into_into_dart().into_dart(),
+            self.0.sizes.into_into_dart().into_dart(),
+            self.0.encrypted.into_into_dart().into_dart(),
+            self.0.note_id.into_into_dart().into_dart(),
+            self.0.editable.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfInfo>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfInfo>>
+    for crate::api::pdf_types::PdfInfo
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfInfo> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfInkPage> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.page.into_into_dart().into_dart(),
+            self.0.strokes.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfInkPage>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfInkPage>>
+    for crate::api::pdf_types::PdfInkPage
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfInkPage> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfInkPoint> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.x.into_into_dart().into_dart(),
+            self.0.y.into_into_dart().into_dart(),
+            self.0.pressure.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfInkPoint>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfInkPoint>>
+    for crate::api::pdf_types::PdfInkPoint
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfInkPoint> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::PdfInkRow> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -52843,6 +54365,76 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::PdfInkRow>>
     for crate::api::types::PdfInkRow
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::PdfInkRow> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfInkStroke> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.tool.into_into_dart().into_dart(),
+            self.0.color.into_into_dart().into_dart(),
+            self.0.width.into_into_dart().into_dart(),
+            self.0.points.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfInkStroke>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfInkStroke>>
+    for crate::api::pdf_types::PdfInkStroke
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfInkStroke> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfMark> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.id.into_into_dart().into_dart(),
+            self.0.color.into_into_dart().into_dart(),
+            self.0.page.into_into_dart().into_dart(),
+            self.0.marks.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfMark>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfMark>>
+    for crate::api::pdf_types::PdfMark
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfMark> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfMarks> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.rev.into_into_dart().into_dart(),
+            self.0.editable.into_into_dart().into_dart(),
+            self.0.why.into_into_dart().into_dart(),
+            self.0.marks.into_into_dart().into_dart(),
+            self.0.ink.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfMarks>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfMarks>>
+    for crate::api::pdf_types::PdfMarks
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfMarks> {
         self.into()
     }
 }
@@ -52870,6 +54462,139 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::PdfNotes>>
     for crate::api::types::PdfNotes
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::PdfNotes> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::pdf::PdfOpenResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.reader.into_into_dart().into_dart(),
+            self.info.into_into_dart().into_dart(),
+            self.declined.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::pdf::PdfOpenResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::pdf::PdfOpenResult>
+    for crate::api::pdf::PdfOpenResult
+{
+    fn into_into_dart(self) -> crate::api::pdf::PdfOpenResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfPageImage> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.page.into_into_dart().into_dart(),
+            self.0.width.into_into_dart().into_dart(),
+            self.0.height.into_into_dart().into_dart(),
+            self.0.bgra.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfPageImage>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfPageImage>>
+    for crate::api::pdf_types::PdfPageImage
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfPageImage> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfPageMarks> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.page.into_into_dart().into_dart(),
+            self.0.rects.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfPageMarks>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfPageMarks>>
+    for crate::api::pdf_types::PdfPageMarks
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfPageMarks> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfPageSize> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.width.into_into_dart().into_dart(),
+            self.0.height.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfPageSize>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfPageSize>>
+    for crate::api::pdf_types::PdfPageSize
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfPageSize> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfRect> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.x0.into_into_dart().into_dart(),
+            self.0.y0.into_into_dart().into_dart(),
+            self.0.x1.into_into_dart().into_dart(),
+            self.0.y1.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfRect>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfRect>>
+    for crate::api::pdf_types::PdfRect
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfRect> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::pdf_types::PdfSelection> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.start.into_into_dart().into_dart(),
+            self.0.end.into_into_dart().into_dart(),
+            self.0.text.into_into_dart().into_dart(),
+            self.0.marks.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::pdf_types::PdfSelection>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::pdf_types::PdfSelection>>
+    for crate::api::pdf_types::PdfSelection
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::pdf_types::PdfSelection> {
         self.into()
     }
 }
@@ -53623,20 +55348,33 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::PreviewLink
                 size.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::api::types::PreviewLink::Pdf {
+                id,
+                name,
+                page,
+                highlight,
+            } => [
+                6.into_dart(),
+                id.into_into_dart().into_dart(),
+                name.into_into_dart().into_dart(),
+                page.into_into_dart().into_dart(),
+                highlight.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::api::types::PreviewLink::Task { index } => {
-                [6.into_dart(), index.into_into_dart().into_dart()].into_dart()
-            }
-            crate::api::types::PreviewLink::CopyCode { index } => {
                 [7.into_dart(), index.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::types::PreviewLink::Due => [8.into_dart()].into_dart(),
+            crate::api::types::PreviewLink::CopyCode { index } => {
+                [8.into_dart(), index.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::types::PreviewLink::Due => [9.into_dart()].into_dart(),
             crate::api::types::PreviewLink::Audio { file_id, seconds } => [
-                9.into_dart(),
+                10.into_dart(),
                 file_id.into_into_dart().into_dart(),
                 seconds.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::types::PreviewLink::Nothing => [10.into_dart()].into_dart(),
+            crate::api::types::PreviewLink::Nothing => [11.into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -57243,6 +58981,20 @@ impl SseEncode for KansoNotebookHome {
     }
 }
 
+impl SseEncode for KansoPdf {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdf>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
+    }
+}
+
+impl SseEncode for KansoPdfReader {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
+    }
+}
+
 impl SseEncode for KansoPeople {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -57549,6 +59301,28 @@ impl SseEncode
 
 impl SseEncode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoNotebookHome>>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        let (ptr, size) = self.sse_encode_raw();
+        <usize>::sse_encode(ptr, serializer);
+        <i32>::sse_encode(size, serializer);
+    }
+}
+
+impl SseEncode
+    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdf>>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        let (ptr, size) = self.sse_encode_raw();
+        <usize>::sse_encode(ptr, serializer);
+        <i32>::sse_encode(size, serializer);
+    }
+}
+
+impl SseEncode
+    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -60949,12 +62723,42 @@ impl SseEncode for Vec<crate::api::types::PasskeyRow> {
     }
 }
 
+impl SseEncode for Vec<crate::api::pdf_types::PdfFindHit> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::pdf_types::PdfFindHit>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::types::PdfHighlightRow> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::types::PdfHighlightRow>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::pdf_types::PdfInkPage> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::pdf_types::PdfInkPage>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::pdf_types::PdfInkPoint> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::pdf_types::PdfInkPoint>::sse_encode(item, serializer);
         }
     }
 }
@@ -60969,12 +62773,62 @@ impl SseEncode for Vec<crate::api::types::PdfInkRow> {
     }
 }
 
+impl SseEncode for Vec<crate::api::pdf_types::PdfInkStroke> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::pdf_types::PdfInkStroke>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::pdf_types::PdfMark> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::pdf_types::PdfMark>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::types::PdfNotes> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::types::PdfNotes>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::pdf_types::PdfPageMarks> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::pdf_types::PdfPageMarks>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::pdf_types::PdfPageSize> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::pdf_types::PdfPageSize>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::pdf_types::PdfRect> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::pdf_types::PdfRect>::sse_encode(item, serializer);
         }
     }
 }
@@ -62443,6 +64297,16 @@ impl SseEncode for Option<String> {
     }
 }
 
+impl SseEncode for Option<KansoPdfReader> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <KansoPdfReader>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::ai::AskLines> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -62799,6 +64663,36 @@ impl SseEncode for Option<crate::api::linking_types::PalettePlace> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::linking_types::PalettePlace>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::pdf_types::PdfDeclined> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::pdf_types::PdfDeclined>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::pdf_types::PdfInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::pdf_types::PdfInfo>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::pdf_types::PdfSelection> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::pdf_types::PdfSelection>::sse_encode(value, serializer);
         }
     }
 }
@@ -63583,6 +65477,73 @@ impl SseEncode for crate::api::types::PasskeyRow {
     }
 }
 
+impl SseEncode for crate::api::pdf_types::PdfCharPos {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.page, serializer);
+        <u32>::sse_encode(self.index, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfDeclined {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::pdf_types::PdfDeclined::NeedsPassword => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::api::pdf_types::PdfDeclined::WrongPassword => {
+                <i32>::sse_encode(1, serializer);
+            }
+            crate::api::pdf_types::PdfDeclined::LockedNote { message } => {
+                <i32>::sse_encode(2, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::api::pdf_types::PdfDeclined::Unavailable { message } => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::api::pdf_types::PdfDeclined::Refused { message } => {
+                <i32>::sse_encode(4, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::api::pdf_types::PdfDeclined::NotAPdf => {
+                <i32>::sse_encode(5, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfEdited {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.rev, serializer);
+        <Option<String>>::sse_encode(self.id, serializer);
+        <bool>::sse_encode(self.merged, serializer);
+        <bool>::sse_encode(self.gone, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfFindHit {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.page, serializer);
+        <Vec<crate::api::pdf_types::PdfPageMarks>>::sse_encode(self.marks, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfFound {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.total, serializer);
+        <Vec<crate::api::pdf_types::PdfFindHit>>::sse_encode(self.hits, serializer);
+        <u32>::sse_encode(self.pages_without_text, serializer);
+    }
+}
+
 impl SseEncode for crate::api::types::PdfHighlightChange {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -63620,11 +65581,72 @@ impl SseEncode for crate::api::types::PdfHighlightRow {
     }
 }
 
+impl SseEncode for crate::api::pdf_types::PdfInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.file, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <u32>::sse_encode(self.pages, serializer);
+        <Vec<crate::api::pdf_types::PdfPageSize>>::sse_encode(self.sizes, serializer);
+        <bool>::sse_encode(self.encrypted, serializer);
+        <String>::sse_encode(self.note_id, serializer);
+        <bool>::sse_encode(self.editable, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfInkPage {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.page, serializer);
+        <Vec<crate::api::pdf_types::PdfInkStroke>>::sse_encode(self.strokes, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfInkPoint {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.x, serializer);
+        <f64>::sse_encode(self.y, serializer);
+        <f64>::sse_encode(self.pressure, serializer);
+    }
+}
+
 impl SseEncode for crate::api::types::PdfInkRow {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u32>::sse_encode(self.page, serializer);
         <u32>::sse_encode(self.strokes, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfInkStroke {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.tool, serializer);
+        <String>::sse_encode(self.color, serializer);
+        <f64>::sse_encode(self.width, serializer);
+        <Vec<crate::api::pdf_types::PdfInkPoint>>::sse_encode(self.points, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfMark {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.color, serializer);
+        <u32>::sse_encode(self.page, serializer);
+        <Vec<crate::api::pdf_types::PdfPageMarks>>::sse_encode(self.marks, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfMarks {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.rev, serializer);
+        <bool>::sse_encode(self.editable, serializer);
+        <Option<String>>::sse_encode(self.why, serializer);
+        <Vec<crate::api::pdf_types::PdfMark>>::sse_encode(self.marks, serializer);
+        <Vec<crate::api::pdf_types::PdfInkPage>>::sse_encode(self.ink, serializer);
     }
 }
 
@@ -63639,6 +65661,61 @@ impl SseEncode for crate::api::types::PdfNotes {
         <Vec<crate::api::types::PdfHighlightRow>>::sse_encode(self.highlights, serializer);
         <u32>::sse_encode(self.scanned_pages, serializer);
         <Vec<crate::api::types::PdfInkRow>>::sse_encode(self.ink, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf::PdfOpenResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<KansoPdfReader>>::sse_encode(self.reader, serializer);
+        <Option<crate::api::pdf_types::PdfInfo>>::sse_encode(self.info, serializer);
+        <Option<crate::api::pdf_types::PdfDeclined>>::sse_encode(self.declined, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfPageImage {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.page, serializer);
+        <u32>::sse_encode(self.width, serializer);
+        <u32>::sse_encode(self.height, serializer);
+        <Vec<u8>>::sse_encode(self.bgra, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfPageMarks {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.page, serializer);
+        <Vec<crate::api::pdf_types::PdfRect>>::sse_encode(self.rects, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfPageSize {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f32>::sse_encode(self.width, serializer);
+        <f32>::sse_encode(self.height, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfRect {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <f64>::sse_encode(self.x0, serializer);
+        <f64>::sse_encode(self.y0, serializer);
+        <f64>::sse_encode(self.x1, serializer);
+        <f64>::sse_encode(self.y1, serializer);
+    }
+}
+
+impl SseEncode for crate::api::pdf_types::PdfSelection {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::pdf_types::PdfCharPos>::sse_encode(self.start, serializer);
+        <crate::api::pdf_types::PdfCharPos>::sse_encode(self.end, serializer);
+        <String>::sse_encode(self.text, serializer);
+        <Vec<crate::api::pdf_types::PdfPageMarks>>::sse_encode(self.marks, serializer);
     }
 }
 
@@ -64153,24 +66230,36 @@ impl SseEncode for crate::api::types::PreviewLink {
                 <String>::sse_encode(content_type, serializer);
                 <u64>::sse_encode(size, serializer);
             }
-            crate::api::types::PreviewLink::Task { index } => {
+            crate::api::types::PreviewLink::Pdf {
+                id,
+                name,
+                page,
+                highlight,
+            } => {
                 <i32>::sse_encode(6, serializer);
-                <u32>::sse_encode(index, serializer);
+                <String>::sse_encode(id, serializer);
+                <String>::sse_encode(name, serializer);
+                <Option<u32>>::sse_encode(page, serializer);
+                <Option<String>>::sse_encode(highlight, serializer);
             }
-            crate::api::types::PreviewLink::CopyCode { index } => {
+            crate::api::types::PreviewLink::Task { index } => {
                 <i32>::sse_encode(7, serializer);
                 <u32>::sse_encode(index, serializer);
             }
-            crate::api::types::PreviewLink::Due => {
+            crate::api::types::PreviewLink::CopyCode { index } => {
                 <i32>::sse_encode(8, serializer);
+                <u32>::sse_encode(index, serializer);
+            }
+            crate::api::types::PreviewLink::Due => {
+                <i32>::sse_encode(9, serializer);
             }
             crate::api::types::PreviewLink::Audio { file_id, seconds } => {
-                <i32>::sse_encode(9, serializer);
+                <i32>::sse_encode(10, serializer);
                 <String>::sse_encode(file_id, serializer);
                 <u32>::sse_encode(seconds, serializer);
             }
             crate::api::types::PreviewLink::Nothing => {
-                <i32>::sse_encode(10, serializer);
+                <i32>::sse_encode(11, serializer);
             }
             _ => {
                 unimplemented!("");
@@ -66120,6 +68209,7 @@ mod io {
     use crate::api::locks::*;
     use crate::api::metrics::*;
     use crate::api::notebook_home::*;
+    use crate::api::pdf::*;
     use crate::api::people::*;
     use crate::api::player::*;
     use crate::api::publish::*;
@@ -66406,6 +68496,34 @@ mod io {
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoNotebookHome>>::decrement_strong_count(ptr as _);
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdf>>::increment_strong_count(ptr as _);
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdf>>::decrement_strong_count(ptr as _);
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>>::increment_strong_count(ptr as _);
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoPdfReader>>::decrement_strong_count(ptr as _);
     }
 
     #[unsafe(no_mangle)]

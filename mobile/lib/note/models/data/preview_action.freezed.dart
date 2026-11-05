@@ -55,14 +55,15 @@ extension PreviewActionPatterns on PreviewAction {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PreviewOpenNote value)?  openNote,TResult Function( PreviewOpenTag value)?  openTag,TResult Function( PreviewScrollTo value)?  scrollTo,TResult Function( PreviewShowAttachment value)?  showAttachment,TResult Function( PreviewCopyCode value)?  copyCode,TResult Function( PreviewPlayMoment value)?  playMoment,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PreviewOpenNote value)?  openNote,TResult Function( PreviewOpenTag value)?  openTag,TResult Function( PreviewScrollTo value)?  scrollTo,TResult Function( PreviewShowAttachment value)?  showAttachment,TResult Function( PreviewOpenPdf value)?  openPdf,TResult Function( PreviewCopyCode value)?  copyCode,TResult Function( PreviewPlayMoment value)?  playMoment,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case PreviewOpenNote() when openNote != null:
 return openNote(_that);case PreviewOpenTag() when openTag != null:
 return openTag(_that);case PreviewScrollTo() when scrollTo != null:
 return scrollTo(_that);case PreviewShowAttachment() when showAttachment != null:
-return showAttachment(_that);case PreviewCopyCode() when copyCode != null:
+return showAttachment(_that);case PreviewOpenPdf() when openPdf != null:
+return openPdf(_that);case PreviewCopyCode() when copyCode != null:
 return copyCode(_that);case PreviewPlayMoment() when playMoment != null:
 return playMoment(_that);case _:
   return orElse();
@@ -82,14 +83,15 @@ return playMoment(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PreviewOpenNote value)  openNote,required TResult Function( PreviewOpenTag value)  openTag,required TResult Function( PreviewScrollTo value)  scrollTo,required TResult Function( PreviewShowAttachment value)  showAttachment,required TResult Function( PreviewCopyCode value)  copyCode,required TResult Function( PreviewPlayMoment value)  playMoment,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PreviewOpenNote value)  openNote,required TResult Function( PreviewOpenTag value)  openTag,required TResult Function( PreviewScrollTo value)  scrollTo,required TResult Function( PreviewShowAttachment value)  showAttachment,required TResult Function( PreviewOpenPdf value)  openPdf,required TResult Function( PreviewCopyCode value)  copyCode,required TResult Function( PreviewPlayMoment value)  playMoment,}){
 final _that = this;
 switch (_that) {
 case PreviewOpenNote():
 return openNote(_that);case PreviewOpenTag():
 return openTag(_that);case PreviewScrollTo():
 return scrollTo(_that);case PreviewShowAttachment():
-return showAttachment(_that);case PreviewCopyCode():
+return showAttachment(_that);case PreviewOpenPdf():
+return openPdf(_that);case PreviewCopyCode():
 return copyCode(_that);case PreviewPlayMoment():
 return playMoment(_that);}
 }
@@ -105,14 +107,15 @@ return playMoment(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PreviewOpenNote value)?  openNote,TResult? Function( PreviewOpenTag value)?  openTag,TResult? Function( PreviewScrollTo value)?  scrollTo,TResult? Function( PreviewShowAttachment value)?  showAttachment,TResult? Function( PreviewCopyCode value)?  copyCode,TResult? Function( PreviewPlayMoment value)?  playMoment,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PreviewOpenNote value)?  openNote,TResult? Function( PreviewOpenTag value)?  openTag,TResult? Function( PreviewScrollTo value)?  scrollTo,TResult? Function( PreviewShowAttachment value)?  showAttachment,TResult? Function( PreviewOpenPdf value)?  openPdf,TResult? Function( PreviewCopyCode value)?  copyCode,TResult? Function( PreviewPlayMoment value)?  playMoment,}){
 final _that = this;
 switch (_that) {
 case PreviewOpenNote() when openNote != null:
 return openNote(_that);case PreviewOpenTag() when openTag != null:
 return openTag(_that);case PreviewScrollTo() when scrollTo != null:
 return scrollTo(_that);case PreviewShowAttachment() when showAttachment != null:
-return showAttachment(_that);case PreviewCopyCode() when copyCode != null:
+return showAttachment(_that);case PreviewOpenPdf() when openPdf != null:
+return openPdf(_that);case PreviewCopyCode() when copyCode != null:
 return copyCode(_that);case PreviewPlayMoment() when playMoment != null:
 return playMoment(_that);case _:
   return null;
@@ -131,13 +134,14 @@ return playMoment(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String noteId)?  openNote,TResult Function( String name)?  openTag,TResult Function( String anchor)?  scrollTo,TResult Function( AttachmentFile file)?  showAttachment,TResult Function( int index,  String code)?  copyCode,TResult Function( String fileId,  int seconds)?  playMoment,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String noteId)?  openNote,TResult Function( String name)?  openTag,TResult Function( String anchor)?  scrollTo,TResult Function( AttachmentFile file)?  showAttachment,TResult Function( String noteId,  String file,  String name,  int? page,  String? highlight)?  openPdf,TResult Function( int index,  String code)?  copyCode,TResult Function( String fileId,  int seconds)?  playMoment,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PreviewOpenNote() when openNote != null:
 return openNote(_that.noteId);case PreviewOpenTag() when openTag != null:
 return openTag(_that.name);case PreviewScrollTo() when scrollTo != null:
 return scrollTo(_that.anchor);case PreviewShowAttachment() when showAttachment != null:
-return showAttachment(_that.file);case PreviewCopyCode() when copyCode != null:
+return showAttachment(_that.file);case PreviewOpenPdf() when openPdf != null:
+return openPdf(_that.noteId,_that.file,_that.name,_that.page,_that.highlight);case PreviewCopyCode() when copyCode != null:
 return copyCode(_that.index,_that.code);case PreviewPlayMoment() when playMoment != null:
 return playMoment(_that.fileId,_that.seconds);case _:
   return orElse();
@@ -157,13 +161,14 @@ return playMoment(_that.fileId,_that.seconds);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String noteId)  openNote,required TResult Function( String name)  openTag,required TResult Function( String anchor)  scrollTo,required TResult Function( AttachmentFile file)  showAttachment,required TResult Function( int index,  String code)  copyCode,required TResult Function( String fileId,  int seconds)  playMoment,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String noteId)  openNote,required TResult Function( String name)  openTag,required TResult Function( String anchor)  scrollTo,required TResult Function( AttachmentFile file)  showAttachment,required TResult Function( String noteId,  String file,  String name,  int? page,  String? highlight)  openPdf,required TResult Function( int index,  String code)  copyCode,required TResult Function( String fileId,  int seconds)  playMoment,}) {final _that = this;
 switch (_that) {
 case PreviewOpenNote():
 return openNote(_that.noteId);case PreviewOpenTag():
 return openTag(_that.name);case PreviewScrollTo():
 return scrollTo(_that.anchor);case PreviewShowAttachment():
-return showAttachment(_that.file);case PreviewCopyCode():
+return showAttachment(_that.file);case PreviewOpenPdf():
+return openPdf(_that.noteId,_that.file,_that.name,_that.page,_that.highlight);case PreviewCopyCode():
 return copyCode(_that.index,_that.code);case PreviewPlayMoment():
 return playMoment(_that.fileId,_that.seconds);}
 }
@@ -179,13 +184,14 @@ return playMoment(_that.fileId,_that.seconds);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String noteId)?  openNote,TResult? Function( String name)?  openTag,TResult? Function( String anchor)?  scrollTo,TResult? Function( AttachmentFile file)?  showAttachment,TResult? Function( int index,  String code)?  copyCode,TResult? Function( String fileId,  int seconds)?  playMoment,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String noteId)?  openNote,TResult? Function( String name)?  openTag,TResult? Function( String anchor)?  scrollTo,TResult? Function( AttachmentFile file)?  showAttachment,TResult? Function( String noteId,  String file,  String name,  int? page,  String? highlight)?  openPdf,TResult? Function( int index,  String code)?  copyCode,TResult? Function( String fileId,  int seconds)?  playMoment,}) {final _that = this;
 switch (_that) {
 case PreviewOpenNote() when openNote != null:
 return openNote(_that.noteId);case PreviewOpenTag() when openTag != null:
 return openTag(_that.name);case PreviewScrollTo() when scrollTo != null:
 return scrollTo(_that.anchor);case PreviewShowAttachment() when showAttachment != null:
-return showAttachment(_that.file);case PreviewCopyCode() when copyCode != null:
+return showAttachment(_that.file);case PreviewOpenPdf() when openPdf != null:
+return openPdf(_that.noteId,_that.file,_that.name,_that.page,_that.highlight);case PreviewCopyCode() when copyCode != null:
 return copyCode(_that.index,_that.code);case PreviewPlayMoment() when playMoment != null:
 return playMoment(_that.fileId,_that.seconds);case _:
   return null;
@@ -453,6 +459,80 @@ class _$PreviewShowAttachmentCopyWithImpl<$Res>
   return _then(PreviewShowAttachment(
 null == file ? _self.file : file // ignore: cast_nullable_to_non_nullable
 as AttachmentFile,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PreviewOpenPdf implements PreviewAction {
+  const PreviewOpenPdf({required this.noteId, required this.file, required this.name, this.page, this.highlight});
+
+
+ final  String noteId;
+ final  String file;
+ final  String name;
+ final  int? page;
+ final  String? highlight;
+
+/// Create a copy of PreviewAction
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PreviewOpenPdfCopyWith<PreviewOpenPdf> get copyWith => _$PreviewOpenPdfCopyWithImpl<PreviewOpenPdf>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreviewOpenPdf&&(identical(other.noteId, noteId) || other.noteId == noteId)&&(identical(other.file, file) || other.file == file)&&(identical(other.name, name) || other.name == name)&&(identical(other.page, page) || other.page == page)&&(identical(other.highlight, highlight) || other.highlight == highlight));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,noteId,file,name,page,highlight);
+
+@override
+String toString() {
+  return 'PreviewAction.openPdf(noteId: $noteId, file: $file, name: $name, page: $page, highlight: $highlight)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PreviewOpenPdfCopyWith<$Res> implements $PreviewActionCopyWith<$Res> {
+  factory $PreviewOpenPdfCopyWith(PreviewOpenPdf value, $Res Function(PreviewOpenPdf) _then) = _$PreviewOpenPdfCopyWithImpl;
+@useResult
+$Res call({
+ String noteId, String file, String name, int? page, String? highlight
+});
+
+
+
+
+}
+/// @nodoc
+class _$PreviewOpenPdfCopyWithImpl<$Res>
+    implements $PreviewOpenPdfCopyWith<$Res> {
+  _$PreviewOpenPdfCopyWithImpl(this._self, this._then);
+
+  final PreviewOpenPdf _self;
+  final $Res Function(PreviewOpenPdf) _then;
+
+/// Create a copy of PreviewAction
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? noteId = null,Object? file = null,Object? name = null,Object? page = freezed,Object? highlight = freezed,}) {
+  return _then(PreviewOpenPdf(
+noteId: null == noteId ? _self.noteId : noteId // ignore: cast_nullable_to_non_nullable
+as String,file: null == file ? _self.file : file // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,page: freezed == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
+as int?,highlight: freezed == highlight ? _self.highlight : highlight // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

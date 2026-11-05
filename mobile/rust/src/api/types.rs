@@ -1662,6 +1662,12 @@ pub enum _PreviewLink {
         content_type: String,
         size: u64,
     },
+    Pdf {
+        id: String,
+        name: String,
+        page: Option<u32>,
+        highlight: Option<String>,
+    },
     Task {
         index: u32,
     },

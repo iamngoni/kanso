@@ -603,6 +603,17 @@ impl Library {
         }
         let id = format!("file:{rest}");
         Ok(match self.inner.store.file_meta(&id) {
+            // A PDF opens in the reader, at the page and highlight the link
+            // names (`kanso_pdf::PdfLink`, which the desktop parses too).
+            Ok(Some(meta)) if meta.content_type == "application/pdf" => {
+                let link = kanso_pdf::PdfLink::parse(url);
+                PreviewLink::Pdf {
+                    id,
+                    name: meta.name,
+                    page: link.as_ref().and_then(|link| link.page),
+                    highlight: link.and_then(|link| link.highlight),
+                }
+            }
             Ok(Some(meta)) => PreviewLink::Attachment {
                 id,
                 name: meta.name,

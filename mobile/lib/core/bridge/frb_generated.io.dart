@@ -29,6 +29,8 @@ import 'api/notebook_home.dart';
 import 'api/notebook_home_types.dart';
 import 'api/notices_types.dart';
 import 'api/overview_types.dart';
+import 'api/pdf.dart';
+import 'api/pdf_types.dart';
 import 'api/people.dart';
 import 'api/people_types.dart';
 import 'api/player.dart';
@@ -141,6 +143,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoNotebookHomePtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHomePtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoPdfPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_KansoPdfReaderPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReaderPtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_KansoPeoplePtr => wire
@@ -312,6 +322,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoNotebookHome
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPdf
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPdfReader
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
     dynamic raw,
   );
 
@@ -510,6 +532,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoNotebookHome
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPdf
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPdfReader
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
     dynamic raw,
   );
 
@@ -714,6 +748,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoNotebookHome
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPdf
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+    dynamic raw,
+  );
+
+  @protected
+  KansoPdfReader
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
     dynamic raw,
   );
 
@@ -983,6 +1029,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  KansoPdfReader
+  dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+    dynamic raw,
+  );
+
+  @protected
   AccountState dco_decode_box_autoadd_account_state(dynamic raw);
 
   @protected
@@ -1178,7 +1230,22 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PalettePlace dco_decode_box_autoadd_palette_place(dynamic raw);
 
   @protected
+  PdfCharPos dco_decode_box_autoadd_pdf_char_pos(dynamic raw);
+
+  @protected
+  PdfDeclined dco_decode_box_autoadd_pdf_declined(dynamic raw);
+
+  @protected
   PdfHighlightChange dco_decode_box_autoadd_pdf_highlight_change(dynamic raw);
+
+  @protected
+  PdfInfo dco_decode_box_autoadd_pdf_info(dynamic raw);
+
+  @protected
+  PdfInkStroke dco_decode_box_autoadd_pdf_ink_stroke(dynamic raw);
+
+  @protected
+  PdfSelection dco_decode_box_autoadd_pdf_selection(dynamic raw);
 
   @protected
   PeopleSettings dco_decode_box_autoadd_people_settings(dynamic raw);
@@ -1921,13 +1988,37 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PasskeyRow> dco_decode_list_passkey_row(dynamic raw);
 
   @protected
+  List<PdfFindHit> dco_decode_list_pdf_find_hit(dynamic raw);
+
+  @protected
   List<PdfHighlightRow> dco_decode_list_pdf_highlight_row(dynamic raw);
+
+  @protected
+  List<PdfInkPage> dco_decode_list_pdf_ink_page(dynamic raw);
+
+  @protected
+  List<PdfInkPoint> dco_decode_list_pdf_ink_point(dynamic raw);
 
   @protected
   List<PdfInkRow> dco_decode_list_pdf_ink_row(dynamic raw);
 
   @protected
+  List<PdfInkStroke> dco_decode_list_pdf_ink_stroke(dynamic raw);
+
+  @protected
+  List<PdfMark> dco_decode_list_pdf_mark(dynamic raw);
+
+  @protected
   List<PdfNotes> dco_decode_list_pdf_notes(dynamic raw);
+
+  @protected
+  List<PdfPageMarks> dco_decode_list_pdf_page_marks(dynamic raw);
+
+  @protected
+  List<PdfPageSize> dco_decode_list_pdf_page_size(dynamic raw);
+
+  @protected
+  List<PdfRect> dco_decode_list_pdf_rect(dynamic raw);
 
   @protected
   List<PenSample> dco_decode_list_pen_sample(dynamic raw);
@@ -2307,6 +2398,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  KansoPdfReader?
+  dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+    dynamic raw,
+  );
+
+  @protected
   AskLines? dco_decode_opt_box_autoadd_ask_lines(dynamic raw);
 
   @protected
@@ -2413,6 +2510,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PalettePlace? dco_decode_opt_box_autoadd_palette_place(dynamic raw);
+
+  @protected
+  PdfDeclined? dco_decode_opt_box_autoadd_pdf_declined(dynamic raw);
+
+  @protected
+  PdfInfo? dco_decode_opt_box_autoadd_pdf_info(dynamic raw);
+
+  @protected
+  PdfSelection? dco_decode_opt_box_autoadd_pdf_selection(dynamic raw);
 
   @protected
   PersonRow? dco_decode_opt_box_autoadd_person_row(dynamic raw);
@@ -2591,16 +2697,67 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PasskeyRow dco_decode_passkey_row(dynamic raw);
 
   @protected
+  PdfCharPos dco_decode_pdf_char_pos(dynamic raw);
+
+  @protected
+  PdfDeclined dco_decode_pdf_declined(dynamic raw);
+
+  @protected
+  PdfEdited dco_decode_pdf_edited(dynamic raw);
+
+  @protected
+  PdfFindHit dco_decode_pdf_find_hit(dynamic raw);
+
+  @protected
+  PdfFound dco_decode_pdf_found(dynamic raw);
+
+  @protected
   PdfHighlightChange dco_decode_pdf_highlight_change(dynamic raw);
 
   @protected
   PdfHighlightRow dco_decode_pdf_highlight_row(dynamic raw);
 
   @protected
+  PdfInfo dco_decode_pdf_info(dynamic raw);
+
+  @protected
+  PdfInkPage dco_decode_pdf_ink_page(dynamic raw);
+
+  @protected
+  PdfInkPoint dco_decode_pdf_ink_point(dynamic raw);
+
+  @protected
   PdfInkRow dco_decode_pdf_ink_row(dynamic raw);
 
   @protected
+  PdfInkStroke dco_decode_pdf_ink_stroke(dynamic raw);
+
+  @protected
+  PdfMark dco_decode_pdf_mark(dynamic raw);
+
+  @protected
+  PdfMarks dco_decode_pdf_marks(dynamic raw);
+
+  @protected
   PdfNotes dco_decode_pdf_notes(dynamic raw);
+
+  @protected
+  PdfOpenResult dco_decode_pdf_open_result(dynamic raw);
+
+  @protected
+  PdfPageImage dco_decode_pdf_page_image(dynamic raw);
+
+  @protected
+  PdfPageMarks dco_decode_pdf_page_marks(dynamic raw);
+
+  @protected
+  PdfPageSize dco_decode_pdf_page_size(dynamic raw);
+
+  @protected
+  PdfRect dco_decode_pdf_rect(dynamic raw);
+
+  @protected
+  PdfSelection dco_decode_pdf_selection(dynamic raw);
 
   @protected
   PenSample dco_decode_pen_sample(dynamic raw);
@@ -3248,6 +3405,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  KansoPdf
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoPdfReader
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   KansoPeople
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeople(
     SseDeserializer deserializer,
@@ -3442,6 +3611,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoNotebookHome
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoPdf
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoPdfReader
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
     SseDeserializer deserializer,
   );
 
@@ -3646,6 +3827,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   KansoNotebookHome
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoPdf
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KansoPdfReader
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
     SseDeserializer deserializer,
   );
 
@@ -3927,6 +4120,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  KansoPdfReader
+  sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   AccountState sse_decode_box_autoadd_account_state(
     SseDeserializer deserializer,
   );
@@ -4174,7 +4373,26 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  PdfCharPos sse_decode_box_autoadd_pdf_char_pos(SseDeserializer deserializer);
+
+  @protected
+  PdfDeclined sse_decode_box_autoadd_pdf_declined(SseDeserializer deserializer);
+
+  @protected
   PdfHighlightChange sse_decode_box_autoadd_pdf_highlight_change(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PdfInfo sse_decode_box_autoadd_pdf_info(SseDeserializer deserializer);
+
+  @protected
+  PdfInkStroke sse_decode_box_autoadd_pdf_ink_stroke(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PdfSelection sse_decode_box_autoadd_pdf_selection(
     SseDeserializer deserializer,
   );
 
@@ -5041,15 +5259,43 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PasskeyRow> sse_decode_list_passkey_row(SseDeserializer deserializer);
 
   @protected
+  List<PdfFindHit> sse_decode_list_pdf_find_hit(SseDeserializer deserializer);
+
+  @protected
   List<PdfHighlightRow> sse_decode_list_pdf_highlight_row(
     SseDeserializer deserializer,
   );
 
   @protected
+  List<PdfInkPage> sse_decode_list_pdf_ink_page(SseDeserializer deserializer);
+
+  @protected
+  List<PdfInkPoint> sse_decode_list_pdf_ink_point(SseDeserializer deserializer);
+
+  @protected
   List<PdfInkRow> sse_decode_list_pdf_ink_row(SseDeserializer deserializer);
 
   @protected
+  List<PdfInkStroke> sse_decode_list_pdf_ink_stroke(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PdfMark> sse_decode_list_pdf_mark(SseDeserializer deserializer);
+
+  @protected
   List<PdfNotes> sse_decode_list_pdf_notes(SseDeserializer deserializer);
+
+  @protected
+  List<PdfPageMarks> sse_decode_list_pdf_page_marks(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PdfPageSize> sse_decode_list_pdf_page_size(SseDeserializer deserializer);
+
+  @protected
+  List<PdfRect> sse_decode_list_pdf_rect(SseDeserializer deserializer);
 
   @protected
   List<PenSample> sse_decode_list_pen_sample(SseDeserializer deserializer);
@@ -5495,6 +5741,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  KansoPdfReader?
+  sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   AskLines? sse_decode_opt_box_autoadd_ask_lines(SseDeserializer deserializer);
 
   @protected
@@ -5651,6 +5903,19 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PalettePlace? sse_decode_opt_box_autoadd_palette_place(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PdfDeclined? sse_decode_opt_box_autoadd_pdf_declined(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PdfInfo? sse_decode_opt_box_autoadd_pdf_info(SseDeserializer deserializer);
+
+  @protected
+  PdfSelection? sse_decode_opt_box_autoadd_pdf_selection(
     SseDeserializer deserializer,
   );
 
@@ -5863,6 +6128,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PasskeyRow sse_decode_passkey_row(SseDeserializer deserializer);
 
   @protected
+  PdfCharPos sse_decode_pdf_char_pos(SseDeserializer deserializer);
+
+  @protected
+  PdfDeclined sse_decode_pdf_declined(SseDeserializer deserializer);
+
+  @protected
+  PdfEdited sse_decode_pdf_edited(SseDeserializer deserializer);
+
+  @protected
+  PdfFindHit sse_decode_pdf_find_hit(SseDeserializer deserializer);
+
+  @protected
+  PdfFound sse_decode_pdf_found(SseDeserializer deserializer);
+
+  @protected
   PdfHighlightChange sse_decode_pdf_highlight_change(
     SseDeserializer deserializer,
   );
@@ -5871,10 +6151,46 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PdfHighlightRow sse_decode_pdf_highlight_row(SseDeserializer deserializer);
 
   @protected
+  PdfInfo sse_decode_pdf_info(SseDeserializer deserializer);
+
+  @protected
+  PdfInkPage sse_decode_pdf_ink_page(SseDeserializer deserializer);
+
+  @protected
+  PdfInkPoint sse_decode_pdf_ink_point(SseDeserializer deserializer);
+
+  @protected
   PdfInkRow sse_decode_pdf_ink_row(SseDeserializer deserializer);
 
   @protected
+  PdfInkStroke sse_decode_pdf_ink_stroke(SseDeserializer deserializer);
+
+  @protected
+  PdfMark sse_decode_pdf_mark(SseDeserializer deserializer);
+
+  @protected
+  PdfMarks sse_decode_pdf_marks(SseDeserializer deserializer);
+
+  @protected
   PdfNotes sse_decode_pdf_notes(SseDeserializer deserializer);
+
+  @protected
+  PdfOpenResult sse_decode_pdf_open_result(SseDeserializer deserializer);
+
+  @protected
+  PdfPageImage sse_decode_pdf_page_image(SseDeserializer deserializer);
+
+  @protected
+  PdfPageMarks sse_decode_pdf_page_marks(SseDeserializer deserializer);
+
+  @protected
+  PdfPageSize sse_decode_pdf_page_size(SseDeserializer deserializer);
+
+  @protected
+  PdfRect sse_decode_pdf_rect(SseDeserializer deserializer);
+
+  @protected
+  PdfSelection sse_decode_pdf_selection(SseDeserializer deserializer);
 
   @protected
   PenSample sse_decode_pen_sample(SseDeserializer deserializer);
@@ -6573,6 +6889,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+    KansoPdf self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+    KansoPdfReader self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPeople(
     KansoPeople self,
     SseSerializer serializer,
@@ -6799,6 +7129,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
     KansoNotebookHome self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+    KansoPdf self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+    KansoPdfReader self,
     SseSerializer serializer,
   );
 
@@ -7036,6 +7380,20 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome(
     KansoNotebookHome self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+    KansoPdf self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+    KansoPdfReader self,
     SseSerializer serializer,
   );
 
@@ -7376,6 +7734,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void
+  sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+    KansoPdfReader self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_account_state(
@@ -7741,8 +8106,35 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_pdf_char_pos(
+    PdfCharPos self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_pdf_declined(
+    PdfDeclined self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_pdf_highlight_change(
     PdfHighlightChange self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_pdf_info(PdfInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_pdf_ink_stroke(
+    PdfInkStroke self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_pdf_selection(
+    PdfSelection self,
     SseSerializer serializer,
   );
 
@@ -8875,8 +9267,26 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_pdf_find_hit(
+    List<PdfFindHit> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_pdf_highlight_row(
     List<PdfHighlightRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_pdf_ink_page(
+    List<PdfInkPage> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_pdf_ink_point(
+    List<PdfInkPoint> self,
     SseSerializer serializer,
   );
 
@@ -8887,7 +9297,31 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_pdf_ink_stroke(
+    List<PdfInkStroke> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_pdf_mark(List<PdfMark> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_pdf_notes(List<PdfNotes> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_pdf_page_marks(
+    List<PdfPageMarks> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_pdf_page_size(
+    List<PdfPageSize> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_pdf_rect(List<PdfRect> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_pen_sample(
@@ -9466,6 +9900,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
+  void
+  sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+    KansoPdfReader? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_ask_lines(
     AskLines? self,
     SseSerializer serializer,
@@ -9669,6 +10110,24 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_palette_place(
     PalettePlace? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_pdf_declined(
+    PdfDeclined? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_pdf_info(
+    PdfInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_pdf_selection(
+    PdfSelection? self,
     SseSerializer serializer,
   );
 
@@ -9949,6 +10408,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_passkey_row(PasskeyRow self, SseSerializer serializer);
 
   @protected
+  void sse_encode_pdf_char_pos(PdfCharPos self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_declined(PdfDeclined self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_edited(PdfEdited self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_find_hit(PdfFindHit self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_found(PdfFound self, SseSerializer serializer);
+
+  @protected
   void sse_encode_pdf_highlight_change(
     PdfHighlightChange self,
     SseSerializer serializer,
@@ -9961,10 +10435,46 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_pdf_info(PdfInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_ink_page(PdfInkPage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_ink_point(PdfInkPoint self, SseSerializer serializer);
+
+  @protected
   void sse_encode_pdf_ink_row(PdfInkRow self, SseSerializer serializer);
 
   @protected
+  void sse_encode_pdf_ink_stroke(PdfInkStroke self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_mark(PdfMark self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_marks(PdfMarks self, SseSerializer serializer);
+
+  @protected
   void sse_encode_pdf_notes(PdfNotes self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_open_result(PdfOpenResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_page_image(PdfPageImage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_page_marks(PdfPageMarks self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_page_size(PdfPageSize self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_rect(PdfRect self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_selection(PdfSelection self, SseSerializer serializer);
 
   @protected
   void sse_encode_pen_sample(PenSample self, SseSerializer serializer);
@@ -11291,6 +11801,74 @@ class KansoCoreWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHome =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoNotebookHomePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdf =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReaderPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReaderPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReaderPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_kanso_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReader =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoPdfReaderPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

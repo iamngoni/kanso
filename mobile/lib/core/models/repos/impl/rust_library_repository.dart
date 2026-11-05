@@ -341,15 +341,16 @@ class RustLibraryRepository implements LibraryRepository {
     required String file,
     required String id,
     required PdfHighlightChange change,
-  }) => attempt(
-    () => _library.pdfHighlightChange(
+  }) => attempt(() async {
+    final edited = await _library.pdfHighlightChange(
       noteId: noteId,
       baseRev: baseRev,
       file: file,
       id: id,
       change: change,
-    ),
-  );
+    );
+    return Saved(id: edited.id ?? '', rev: edited.rev);
+  });
 
   @override
   Future<Either<ApplicationError, Saved>> pdfInkClear({

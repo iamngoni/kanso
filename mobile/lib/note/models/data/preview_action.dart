@@ -22,10 +22,21 @@ sealed class PreviewAction with _$PreviewAction {
   /// Scrolls the page to the heading whose `id` is [anchor].
   const factory PreviewAction.scrollTo(String anchor) = PreviewScrollTo;
 
-  /// Shows the attachment [file]: an image full screen, anything else in a
-  /// sheet to share it from.
+  /// Shows the attachment [file]: an image full screen, a PDF in the reader
+  /// when its note is known, anything else in a sheet to share it from.
   const factory PreviewAction.showAttachment(AttachmentFile file) =
       PreviewShowAttachment;
+
+  /// Reads the PDF attachment [file] of the note [noteId], at [page]
+  /// (1-based) with the highlight [highlight] in view when the link named
+  /// them.
+  const factory PreviewAction.openPdf({
+    required String noteId,
+    required String file,
+    required String name,
+    int? page,
+    String? highlight,
+  }) = PreviewOpenPdf;
 
   /// Puts [code], the [index]-th code block, on the clipboard.
   const factory PreviewAction.copyCode(int index, String code) =

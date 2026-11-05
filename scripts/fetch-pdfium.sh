@@ -5,6 +5,11 @@
 #
 #   scripts/fetch-pdfium.sh                 this machine's platform
 #   scripts/fetch-pdfium.sh win-x64         another one (for packaging)
+#   scripts/fetch-pdfium.sh ios-device-arm64   a phone's (the app's build hook
+#                                           runs this; ios-simulator-arm64,
+#                                           ios-simulator-x64, android-arm64,
+#                                           android-arm and android-x64 are
+#                                           the others)
 #   PDFIUM_DIR=/some/dir scripts/fetch-pdfium.sh
 #
 # The result is $PDFIUM_DIR/<platform>/ (default vendor/pdfium/<platform>/):
@@ -35,6 +40,12 @@ sha256_for() {
     linux-arm64) echo ee7f7b7d5468958336a818c1cd580bdd20972846b7377b13f9a923d92d1d4674 ;;
     win-x64) echo 73cc0de638ac2095e7445bf56a38200a5b7c7ca0e9f4ba144598f2457377ac08 ;;
     win-arm64) echo d3035d4d2cacac6ecd1a2ece197a3d702a1b2a58466276b9f870b8cb278a9d84 ;;
+    ios-device-arm64) echo 0f73152a94bbfb467dadedce745691e55b09792ed38cc9a6b0d11f2a9dc95ea7 ;;
+    ios-simulator-arm64) echo fcccdae4c81b39234398c102645490705da150d77bec43f75ed60738c2f50cd9 ;;
+    ios-simulator-x64) echo 7186c9ac94d4b25421b9cffd7716ac02e4153c8f27f955c831a98aab2ec107cd ;;
+    android-arm64) echo 16d23bb86c4188d59326dc509938f59df3c417ecfdd3d2ca2f160dc5bd49a839 ;;
+    android-arm) echo 57f7f5c349a3268f39b1737f830e50e271aa3116417abed2c30d0c0840b1b58b ;;
+    android-x64) echo 58bd708d6083173008c63860dbffa93396a2fee00dd76747cbd782bcf4ff9bd4 ;;
     *) return 1 ;;
     esac
 }
@@ -55,7 +66,7 @@ if [ -z "$platform" ]; then
     esac
 fi
 expected=$(sha256_for "$platform") || {
-    echo "fetch-pdfium: unknown platform $platform (mac-arm64, mac-x64, linux-x64, linux-arm64, win-x64, win-arm64)" >&2
+    echo "fetch-pdfium: unknown platform $platform (mac-arm64, mac-x64, linux-x64, linux-arm64, win-x64, win-arm64, ios-device-arm64, ios-simulator-arm64, ios-simulator-x64, android-arm64, android-arm, android-x64)" >&2
     exit 1
 }
 

@@ -1517,21 +1517,155 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get pdfNotesInkTitle => 'Pencil marks';
+  String get pdfReaderClose => 'Close';
 
   @override
-  String pdfNotesInkStrokes(int strokes) {
+  String pdfReaderPageOf(int page, int pages) {
+    return 'Page $page of $pages';
+  }
+
+  @override
+  String pdfReaderPageChip(int page, int pages) {
+    return 'Page $page of $pages. Go to a page.';
+  }
+
+  @override
+  String get pdfReaderLoading => 'Opening the PDF…';
+
+  @override
+  String get pdfReaderOpenFailed => 'The PDF couldn\'t be opened.';
+
+  @override
+  String get pdfReaderTryAgain => 'Try again';
+
+  @override
+  String get pdfReaderUnavailableTitle => 'This PDF can\'t be opened';
+
+  @override
+  String get pdfReaderLockedTitle => 'Locked';
+
+  @override
+  String get pdfReaderRefusedTitle => 'This PDF was refused';
+
+  @override
+  String get pdfReaderNotPdfTitle => 'This file isn\'t a PDF';
+
+  @override
+  String get pdfReaderNotPdfMessage =>
+      'The attachment isn\'t a PDF, or its bytes can\'t be read as one.';
+
+  @override
+  String get pdfReaderPasswordTitle => 'This PDF is password-protected';
+
+  @override
+  String get pdfReaderPasswordMessage => 'Enter its password to read it.';
+
+  @override
+  String get pdfReaderPasswordHint => 'Password';
+
+  @override
+  String get pdfReaderWrongPassword => 'That password doesn\'t open this PDF.';
+
+  @override
+  String get pdfReaderUnlock => 'Open';
+
+  @override
+  String get pdfReaderSearch => 'Search';
+
+  @override
+  String get pdfReaderSearchHint => 'Search this PDF';
+
+  @override
+  String get pdfReaderSearchClear => 'Clear search';
+
+  @override
+  String get pdfReaderSearchSearching => 'Searching…';
+
+  @override
+  String get pdfReaderSearchNone => 'No matches';
+
+  @override
+  String pdfReaderSearchCount(int index, int total) {
+    return '$index of $total';
+  }
+
+  @override
+  String pdfReaderSearchNoText(int pages) {
     String _temp0 = intl.Intl.pluralLogic(
-      strokes,
+      pages,
       locale: localeName,
-      other: '$strokes strokes',
-      one: '1 stroke',
+      other: '$pages pages have no text',
+      one: '1 page has no text',
     );
     return '$_temp0';
   }
 
   @override
-  String get pdfNotesInkClear => 'Clear page';
+  String get pdfReaderPreviousMatch => 'Previous match';
+
+  @override
+  String get pdfReaderNextMatch => 'Next match';
+
+  @override
+  String get pdfReaderZoom => 'Zoom';
+
+  @override
+  String get pdfReaderOriginalPage => 'Show the page as printed';
+
+  @override
+  String get pdfReaderInvertPage => 'Invert for dark mode';
+
+  @override
+  String get pdfReaderZoomFitWidth => 'Fit width';
+
+  @override
+  String pdfReaderZoomPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get pdfReaderHighlights => 'Highlights';
+
+  @override
+  String pdfReaderHighlightPage(int page) {
+    return 'Page $page';
+  }
+
+  @override
+  String get pdfReaderNotEditable =>
+      'This note\'s highlights can\'t be changed here.';
+
+  @override
+  String get pdfReaderAddQuote => 'Add quote to note';
+
+  @override
+  String get pdfReaderSelectionCopy => 'Copy';
+
+  @override
+  String get pdfReaderCopied => 'Copied';
+
+  @override
+  String get pdfReaderHighlighting => 'Highlighting…';
+
+  @override
+  String get pdfReaderHighlightAction => 'Highlight';
+
+  @override
+  String get pdfReaderPageFailed => 'This page couldn\'t be drawn.';
+
+  @override
+  String get pdfReaderJumpToPage => 'Go to page';
+
+  @override
+  String get pdfReaderPageNumber => 'Page number';
+
+  @override
+  String pdfReaderInvalidPage(int pages) {
+    return 'Enter a page from 1 to $pages.';
+  }
+
+  @override
+  String get pdfReaderGo => 'Go';
 
   @override
   String get previewEmptyDrawing => 'An empty drawing';
@@ -5211,18 +5345,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your agent needs a newer Node. Install the Node version it asks for, then use Find again in Settings › AI.';
 
   @override
-  String get aiTroubleAgentSignIn =>
-      'Your agent needs you to sign in. Sign in to your agent, then try again.';
-
-  @override
-  String get aiTroubleBilling =>
-      'Your provider needs a billing change. Check your billing or plan with your AI provider, then try again.';
-
-  @override
-  String get aiTroubleWrongAddress =>
-      'Your model server address looks wrong. Check the address in Settings › AI, then try again.';
-
-  @override
   String get aiTroubleNoTools =>
       'This model can\'t use tools. Pick a model that supports tools in Settings › AI.';
 
@@ -7545,6 +7667,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get lockFilesNotice =>
       'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.';
+
+  @override
+  String get pdfNotesInkTitle => 'Pencil marks';
+
+  @override
+  String pdfNotesInkStrokes(int strokes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      strokes,
+      locale: localeName,
+      other: '$strokes strokes',
+      one: '1 stroke',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get pdfNotesInkClear => 'Clear page';
+
+  @override
+  String get aiTroubleAgentSignIn =>
+      'Your agent needs you to sign in. Sign in to your agent, then try again.';
+
+  @override
+  String get aiTroubleBilling =>
+      'Your provider needs a billing change. Check your billing or plan with your AI provider, then try again.';
+
+  @override
+  String get aiTroubleWrongAddress =>
+      'Your model server address looks wrong. Check the address in Settings › AI, then try again.';
 
   @override
   String get recordingSpeakersMenu => 'Rename speakers';

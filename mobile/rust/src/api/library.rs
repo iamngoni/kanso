@@ -11,7 +11,7 @@ use kanso_mobile::{
     Property, Saved, SearchScope, Share, StatusChoice, Table, TagPlaces, TagRow, TaskBoard,
     TaskListQuery, Ticked, VisibleNotebook,
 };
-use kanso_mobile::{PdfHighlightChange, PdfNotes};
+use kanso_mobile::{PdfEdited, PdfHighlightChange, PdfNotes};
 // A note's history, Replace in all notes and the backups.
 use kanso_mobile::{
     BackupFile, DiffHunk, NoteHistory, PlannedNote, ReplaceOptions, ReplaceOutcome, ReplacePreview,
@@ -34,6 +34,7 @@ use super::linking::KansoLinking;
 use super::locks::KansoLocks;
 use super::metrics::KansoMetrics;
 use super::notebook_home::KansoNotebookHome;
+use super::pdf::KansoPdf;
 use super::people::KansoPeople;
 use super::player::KansoPlayers;
 use super::publish::KansoPublisher;
@@ -207,7 +208,8 @@ impl KansoLibrary {
         self.0.pdf_highlights(&note_id)
     }
 
-    /// Changes one highlight of a PDF in a note drawn at `base_rev`.
+    /// Changes one highlight of a PDF in a note drawn at `base_rev`. A note
+    /// that moved is not refused: the change is made again on its newer text.
     pub fn pdf_highlight_change(
         &self,
         note_id: String,
@@ -215,7 +217,7 @@ impl KansoLibrary {
         file: String,
         id: String,
         change: PdfHighlightChange,
-    ) -> Result<Saved, KansoError> {
+    ) -> Result<PdfEdited, KansoError> {
         self.0
             .pdf_highlight_change(&note_id, &base_rev, &file, &id, change)
     }
@@ -537,6 +539,12 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn discovery(&self) -> KansoDiscovery {
         KansoDiscovery::new(self.0.discovery())
+    }
+
+    /// Reading a note's PDFs: pages, text and highlights.
+    #[frb(sync)]
+    pub fn pdf(&self) -> KansoPdf {
+        KansoPdf::new(self.0.clone())
     }
 
     /// Playing a note's recording.
