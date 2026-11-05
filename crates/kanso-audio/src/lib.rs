@@ -19,6 +19,10 @@
 //! the Screen Recording permission asked for only by [`system_apps`]'s
 //! callers, in the Record sheet).
 //!
+//! [`mix`] puts the microphone and system audio on one stereo timeline
+//! (left you, right the meeting) and keeps their clocks together;
+//! [`speaker`] reads the labels back from the two channels.
+//!
 //! Nothing here knows about speech models, so playback does not pull in
 //! ONNX Runtime; `kanso-voice` depends on this crate, not the other way
 //! round.
@@ -32,6 +36,7 @@ pub mod index;
 #[cfg(any(windows, target_os = "linux"))]
 mod loopback;
 pub mod mic;
+pub mod mix;
 pub mod model;
 pub mod play;
 pub mod record_model;
@@ -39,6 +44,7 @@ pub mod recovery;
 pub mod resample;
 pub mod session;
 pub mod source;
+pub mod speaker;
 pub mod system_apps;
 pub mod system_audio;
 #[cfg(target_os = "linux")]
@@ -53,11 +59,13 @@ pub use decode::OpusReader;
 pub use encode::{DurableWrite, PartSink, PartWriter};
 pub use error::AudioError;
 pub use index::PageIndex;
+pub use mix::{MixPipeline, Mixer};
 pub use model::*;
 pub use play::{Player, Status as PlayStatus};
 pub use record_model::*;
 pub use session::{Recorder, RecorderOptions};
 pub use source::{PcmSource, open, open_bytes};
+pub use speaker::{Speaker, energy, speaker_of};
 pub use system_apps::{
     CaptureApp, GapFiller, MEETING_APPS, PcmBuffer, ScreenAccess, access_words, append_mono,
     denied_words, picker_order,

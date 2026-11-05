@@ -7574,7 +7574,7 @@ extension PreviewBlockPatterns on PreviewBlock {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PreviewBlock_Heading value)?  heading,TResult Function( PreviewBlock_Paragraph value)?  paragraph,TResult Function( PreviewBlock_List value)?  list,TResult Function( PreviewBlock_Quote value)?  quote,TResult Function( PreviewBlock_Code value)?  code,TResult Function( PreviewBlock_Rule value)?  rule,TResult Function( PreviewBlock_Table value)?  table,TResult Function( PreviewBlock_Figure value)?  figure,TResult Function( PreviewBlock_EmptyDrawing value)?  emptyDrawing,TResult Function( PreviewBlock_Failed value)?  failed,TResult Function( PreviewBlock_Query value)?  query,TResult Function( PreviewBlock_QueryInvalid value)?  queryInvalid,TResult Function( PreviewBlock_Html value)?  html,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PreviewBlock_Heading value)?  heading,TResult Function( PreviewBlock_Paragraph value)?  paragraph,TResult Function( PreviewBlock_List value)?  list,TResult Function( PreviewBlock_Quote value)?  quote,TResult Function( PreviewBlock_Code value)?  code,TResult Function( PreviewBlock_Rule value)?  rule,TResult Function( PreviewBlock_Table value)?  table,TResult Function( PreviewBlock_Figure value)?  figure,TResult Function( PreviewBlock_EmptyDrawing value)?  emptyDrawing,TResult Function( PreviewBlock_Canvas value)?  canvas,TResult Function( PreviewBlock_Failed value)?  failed,TResult Function( PreviewBlock_Query value)?  query,TResult Function( PreviewBlock_QueryInvalid value)?  queryInvalid,TResult Function( PreviewBlock_Html value)?  html,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case PreviewBlock_Heading() when heading != null:
@@ -7586,7 +7586,8 @@ return code(_that);case PreviewBlock_Rule() when rule != null:
 return rule(_that);case PreviewBlock_Table() when table != null:
 return table(_that);case PreviewBlock_Figure() when figure != null:
 return figure(_that);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
-return emptyDrawing(_that);case PreviewBlock_Failed() when failed != null:
+return emptyDrawing(_that);case PreviewBlock_Canvas() when canvas != null:
+return canvas(_that);case PreviewBlock_Failed() when failed != null:
 return failed(_that);case PreviewBlock_Query() when query != null:
 return query(_that);case PreviewBlock_QueryInvalid() when queryInvalid != null:
 return queryInvalid(_that);case PreviewBlock_Html() when html != null:
@@ -7608,7 +7609,7 @@ return html(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PreviewBlock_Heading value)  heading,required TResult Function( PreviewBlock_Paragraph value)  paragraph,required TResult Function( PreviewBlock_List value)  list,required TResult Function( PreviewBlock_Quote value)  quote,required TResult Function( PreviewBlock_Code value)  code,required TResult Function( PreviewBlock_Rule value)  rule,required TResult Function( PreviewBlock_Table value)  table,required TResult Function( PreviewBlock_Figure value)  figure,required TResult Function( PreviewBlock_EmptyDrawing value)  emptyDrawing,required TResult Function( PreviewBlock_Failed value)  failed,required TResult Function( PreviewBlock_Query value)  query,required TResult Function( PreviewBlock_QueryInvalid value)  queryInvalid,required TResult Function( PreviewBlock_Html value)  html,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PreviewBlock_Heading value)  heading,required TResult Function( PreviewBlock_Paragraph value)  paragraph,required TResult Function( PreviewBlock_List value)  list,required TResult Function( PreviewBlock_Quote value)  quote,required TResult Function( PreviewBlock_Code value)  code,required TResult Function( PreviewBlock_Rule value)  rule,required TResult Function( PreviewBlock_Table value)  table,required TResult Function( PreviewBlock_Figure value)  figure,required TResult Function( PreviewBlock_EmptyDrawing value)  emptyDrawing,required TResult Function( PreviewBlock_Canvas value)  canvas,required TResult Function( PreviewBlock_Failed value)  failed,required TResult Function( PreviewBlock_Query value)  query,required TResult Function( PreviewBlock_QueryInvalid value)  queryInvalid,required TResult Function( PreviewBlock_Html value)  html,}){
 final _that = this;
 switch (_that) {
 case PreviewBlock_Heading():
@@ -7620,7 +7621,8 @@ return code(_that);case PreviewBlock_Rule():
 return rule(_that);case PreviewBlock_Table():
 return table(_that);case PreviewBlock_Figure():
 return figure(_that);case PreviewBlock_EmptyDrawing():
-return emptyDrawing(_that);case PreviewBlock_Failed():
+return emptyDrawing(_that);case PreviewBlock_Canvas():
+return canvas(_that);case PreviewBlock_Failed():
 return failed(_that);case PreviewBlock_Query():
 return query(_that);case PreviewBlock_QueryInvalid():
 return queryInvalid(_that);case PreviewBlock_Html():
@@ -7638,7 +7640,7 @@ return html(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PreviewBlock_Heading value)?  heading,TResult? Function( PreviewBlock_Paragraph value)?  paragraph,TResult? Function( PreviewBlock_List value)?  list,TResult? Function( PreviewBlock_Quote value)?  quote,TResult? Function( PreviewBlock_Code value)?  code,TResult? Function( PreviewBlock_Rule value)?  rule,TResult? Function( PreviewBlock_Table value)?  table,TResult? Function( PreviewBlock_Figure value)?  figure,TResult? Function( PreviewBlock_EmptyDrawing value)?  emptyDrawing,TResult? Function( PreviewBlock_Failed value)?  failed,TResult? Function( PreviewBlock_Query value)?  query,TResult? Function( PreviewBlock_QueryInvalid value)?  queryInvalid,TResult? Function( PreviewBlock_Html value)?  html,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PreviewBlock_Heading value)?  heading,TResult? Function( PreviewBlock_Paragraph value)?  paragraph,TResult? Function( PreviewBlock_List value)?  list,TResult? Function( PreviewBlock_Quote value)?  quote,TResult? Function( PreviewBlock_Code value)?  code,TResult? Function( PreviewBlock_Rule value)?  rule,TResult? Function( PreviewBlock_Table value)?  table,TResult? Function( PreviewBlock_Figure value)?  figure,TResult? Function( PreviewBlock_EmptyDrawing value)?  emptyDrawing,TResult? Function( PreviewBlock_Canvas value)?  canvas,TResult? Function( PreviewBlock_Failed value)?  failed,TResult? Function( PreviewBlock_Query value)?  query,TResult? Function( PreviewBlock_QueryInvalid value)?  queryInvalid,TResult? Function( PreviewBlock_Html value)?  html,}){
 final _that = this;
 switch (_that) {
 case PreviewBlock_Heading() when heading != null:
@@ -7650,7 +7652,8 @@ return code(_that);case PreviewBlock_Rule() when rule != null:
 return rule(_that);case PreviewBlock_Table() when table != null:
 return table(_that);case PreviewBlock_Figure() when figure != null:
 return figure(_that);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
-return emptyDrawing(_that);case PreviewBlock_Failed() when failed != null:
+return emptyDrawing(_that);case PreviewBlock_Canvas() when canvas != null:
+return canvas(_that);case PreviewBlock_Failed() when failed != null:
 return failed(_that);case PreviewBlock_Query() when query != null:
 return query(_that);case PreviewBlock_QueryInvalid() when queryInvalid != null:
 return queryInvalid(_that);case PreviewBlock_Html() when html != null:
@@ -7671,7 +7674,7 @@ return html(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( int level,  String id,  List<PreviewInline> inlines)?  heading,TResult Function( List<PreviewInline> inlines)?  paragraph,TResult Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)?  list,TResult Function( List<PreviewBlock> blocks)?  quote,TResult Function( String? language,  List<PreviewCodeRun> runs,  int copy)?  code,TResult Function()?  rule,TResult Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)?  table,TResult Function( PreviewFigureKind kind,  PreviewSvg svg)?  figure,TResult Function()?  emptyDrawing,TResult Function( String badge,  String detail,  String? language,  String code,  int? copy)?  failed,TResult Function( List<String> columns,  List<PreviewQueryRow> rows)?  query,TResult Function( String code,  String message)?  queryInvalid,TResult Function( String text)?  html,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( int level,  String id,  List<PreviewInline> inlines)?  heading,TResult Function( List<PreviewInline> inlines)?  paragraph,TResult Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)?  list,TResult Function( List<PreviewBlock> blocks)?  quote,TResult Function( String? language,  List<PreviewCodeRun> runs,  int copy)?  code,TResult Function()?  rule,TResult Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)?  table,TResult Function( PreviewFigureKind kind,  PreviewSvg svg)?  figure,TResult Function()?  emptyDrawing,TResult Function( String note,  String? group,  PreviewCanvasShown shown)?  canvas,TResult Function( String badge,  String detail,  String? language,  String code,  int? copy)?  failed,TResult Function( List<String> columns,  List<PreviewQueryRow> rows)?  query,TResult Function( String code,  String message)?  queryInvalid,TResult Function( String text)?  html,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PreviewBlock_Heading() when heading != null:
 return heading(_that.level,_that.id,_that.inlines);case PreviewBlock_Paragraph() when paragraph != null:
@@ -7682,7 +7685,8 @@ return code(_that.language,_that.runs,_that.copy);case PreviewBlock_Rule() when 
 return rule();case PreviewBlock_Table() when table != null:
 return table(_that.aligns,_that.head,_that.rows);case PreviewBlock_Figure() when figure != null:
 return figure(_that.kind,_that.svg);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
-return emptyDrawing();case PreviewBlock_Failed() when failed != null:
+return emptyDrawing();case PreviewBlock_Canvas() when canvas != null:
+return canvas(_that.note,_that.group,_that.shown);case PreviewBlock_Failed() when failed != null:
 return failed(_that.badge,_that.detail,_that.language,_that.code,_that.copy);case PreviewBlock_Query() when query != null:
 return query(_that.columns,_that.rows);case PreviewBlock_QueryInvalid() when queryInvalid != null:
 return queryInvalid(_that.code,_that.message);case PreviewBlock_Html() when html != null:
@@ -7704,7 +7708,7 @@ return html(_that.text);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( int level,  String id,  List<PreviewInline> inlines)  heading,required TResult Function( List<PreviewInline> inlines)  paragraph,required TResult Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)  list,required TResult Function( List<PreviewBlock> blocks)  quote,required TResult Function( String? language,  List<PreviewCodeRun> runs,  int copy)  code,required TResult Function()  rule,required TResult Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)  table,required TResult Function( PreviewFigureKind kind,  PreviewSvg svg)  figure,required TResult Function()  emptyDrawing,required TResult Function( String badge,  String detail,  String? language,  String code,  int? copy)  failed,required TResult Function( List<String> columns,  List<PreviewQueryRow> rows)  query,required TResult Function( String code,  String message)  queryInvalid,required TResult Function( String text)  html,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( int level,  String id,  List<PreviewInline> inlines)  heading,required TResult Function( List<PreviewInline> inlines)  paragraph,required TResult Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)  list,required TResult Function( List<PreviewBlock> blocks)  quote,required TResult Function( String? language,  List<PreviewCodeRun> runs,  int copy)  code,required TResult Function()  rule,required TResult Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)  table,required TResult Function( PreviewFigureKind kind,  PreviewSvg svg)  figure,required TResult Function()  emptyDrawing,required TResult Function( String note,  String? group,  PreviewCanvasShown shown)  canvas,required TResult Function( String badge,  String detail,  String? language,  String code,  int? copy)  failed,required TResult Function( List<String> columns,  List<PreviewQueryRow> rows)  query,required TResult Function( String code,  String message)  queryInvalid,required TResult Function( String text)  html,}) {final _that = this;
 switch (_that) {
 case PreviewBlock_Heading():
 return heading(_that.level,_that.id,_that.inlines);case PreviewBlock_Paragraph():
@@ -7715,7 +7719,8 @@ return code(_that.language,_that.runs,_that.copy);case PreviewBlock_Rule():
 return rule();case PreviewBlock_Table():
 return table(_that.aligns,_that.head,_that.rows);case PreviewBlock_Figure():
 return figure(_that.kind,_that.svg);case PreviewBlock_EmptyDrawing():
-return emptyDrawing();case PreviewBlock_Failed():
+return emptyDrawing();case PreviewBlock_Canvas():
+return canvas(_that.note,_that.group,_that.shown);case PreviewBlock_Failed():
 return failed(_that.badge,_that.detail,_that.language,_that.code,_that.copy);case PreviewBlock_Query():
 return query(_that.columns,_that.rows);case PreviewBlock_QueryInvalid():
 return queryInvalid(_that.code,_that.message);case PreviewBlock_Html():
@@ -7733,7 +7738,7 @@ return html(_that.text);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( int level,  String id,  List<PreviewInline> inlines)?  heading,TResult? Function( List<PreviewInline> inlines)?  paragraph,TResult? Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)?  list,TResult? Function( List<PreviewBlock> blocks)?  quote,TResult? Function( String? language,  List<PreviewCodeRun> runs,  int copy)?  code,TResult? Function()?  rule,TResult? Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)?  table,TResult? Function( PreviewFigureKind kind,  PreviewSvg svg)?  figure,TResult? Function()?  emptyDrawing,TResult? Function( String badge,  String detail,  String? language,  String code,  int? copy)?  failed,TResult? Function( List<String> columns,  List<PreviewQueryRow> rows)?  query,TResult? Function( String code,  String message)?  queryInvalid,TResult? Function( String text)?  html,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( int level,  String id,  List<PreviewInline> inlines)?  heading,TResult? Function( List<PreviewInline> inlines)?  paragraph,TResult? Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)?  list,TResult? Function( List<PreviewBlock> blocks)?  quote,TResult? Function( String? language,  List<PreviewCodeRun> runs,  int copy)?  code,TResult? Function()?  rule,TResult? Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)?  table,TResult? Function( PreviewFigureKind kind,  PreviewSvg svg)?  figure,TResult? Function()?  emptyDrawing,TResult? Function( String note,  String? group,  PreviewCanvasShown shown)?  canvas,TResult? Function( String badge,  String detail,  String? language,  String code,  int? copy)?  failed,TResult? Function( List<String> columns,  List<PreviewQueryRow> rows)?  query,TResult? Function( String code,  String message)?  queryInvalid,TResult? Function( String text)?  html,}) {final _that = this;
 switch (_that) {
 case PreviewBlock_Heading() when heading != null:
 return heading(_that.level,_that.id,_that.inlines);case PreviewBlock_Paragraph() when paragraph != null:
@@ -7744,7 +7749,8 @@ return code(_that.language,_that.runs,_that.copy);case PreviewBlock_Rule() when 
 return rule();case PreviewBlock_Table() when table != null:
 return table(_that.aligns,_that.head,_that.rows);case PreviewBlock_Figure() when figure != null:
 return figure(_that.kind,_that.svg);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
-return emptyDrawing();case PreviewBlock_Failed() when failed != null:
+return emptyDrawing();case PreviewBlock_Canvas() when canvas != null:
+return canvas(_that.note,_that.group,_that.shown);case PreviewBlock_Failed() when failed != null:
 return failed(_that.badge,_that.detail,_that.language,_that.code,_that.copy);case PreviewBlock_Query() when query != null:
 return query(_that.columns,_that.rows);case PreviewBlock_QueryInvalid() when queryInvalid != null:
 return queryInvalid(_that.code,_that.message);case PreviewBlock_Html() when html != null:
@@ -8353,6 +8359,85 @@ String toString() {
 /// @nodoc
 
 
+class PreviewBlock_Canvas extends PreviewBlock {
+  const PreviewBlock_Canvas({required this.note, this.group, required this.shown}): super._();
+  
+
+ final  String note;
+ final  String? group;
+ final  PreviewCanvasShown shown;
+
+/// Create a copy of PreviewBlock
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PreviewBlock_CanvasCopyWith<PreviewBlock_Canvas> get copyWith => _$PreviewBlock_CanvasCopyWithImpl<PreviewBlock_Canvas>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreviewBlock_Canvas&&(identical(other.note, note) || other.note == note)&&(identical(other.group, group) || other.group == group)&&(identical(other.shown, shown) || other.shown == shown));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,note,group,shown);
+
+@override
+String toString() {
+  return 'PreviewBlock.canvas(note: $note, group: $group, shown: $shown)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PreviewBlock_CanvasCopyWith<$Res> implements $PreviewBlockCopyWith<$Res> {
+  factory $PreviewBlock_CanvasCopyWith(PreviewBlock_Canvas value, $Res Function(PreviewBlock_Canvas) _then) = _$PreviewBlock_CanvasCopyWithImpl;
+@useResult
+$Res call({
+ String note, String? group, PreviewCanvasShown shown
+});
+
+
+$PreviewCanvasShownCopyWith<$Res> get shown;
+
+}
+/// @nodoc
+class _$PreviewBlock_CanvasCopyWithImpl<$Res>
+    implements $PreviewBlock_CanvasCopyWith<$Res> {
+  _$PreviewBlock_CanvasCopyWithImpl(this._self, this._then);
+
+  final PreviewBlock_Canvas _self;
+  final $Res Function(PreviewBlock_Canvas) _then;
+
+/// Create a copy of PreviewBlock
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? note = null,Object? group = freezed,Object? shown = null,}) {
+  return _then(PreviewBlock_Canvas(
+note: null == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
+as String,group: freezed == group ? _self.group : group // ignore: cast_nullable_to_non_nullable
+as String?,shown: null == shown ? _self.shown : shown // ignore: cast_nullable_to_non_nullable
+as PreviewCanvasShown,
+  ));
+}
+
+/// Create a copy of PreviewBlock
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$PreviewCanvasShownCopyWith<$Res> get shown {
+  
+  return $PreviewCanvasShownCopyWith<$Res>(_self.shown, (value) {
+    return _then(_self.copyWith(shown: value));
+  });
+}
+}
+
+/// @nodoc
+
+
 class PreviewBlock_Failed extends PreviewBlock {
   const PreviewBlock_Failed({required this.badge, required this.detail, this.language, required this.code, this.copy}): super._();
   
@@ -8631,6 +8716,420 @@ class _$PreviewBlock_HtmlCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? text = null,}) {
   return _then(PreviewBlock_Html(
 text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+mixin _$PreviewCanvasShown {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreviewCanvasShown);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PreviewCanvasShown()';
+}
+
+
+}
+
+/// @nodoc
+class $PreviewCanvasShownCopyWith<$Res>  {
+$PreviewCanvasShownCopyWith(PreviewCanvasShown _, $Res Function(PreviewCanvasShown) __);
+}
+
+
+/// Adds pattern-matching-related methods to [PreviewCanvasShown].
+extension PreviewCanvasShownPatterns on PreviewCanvasShown {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PreviewCanvasShown_Drawing value)?  drawing,TResult Function( PreviewCanvasShown_Locked value)?  locked,TResult Function( PreviewCanvasShown_Missing value)?  missing,TResult Function( PreviewCanvasShown_NotCanvas value)?  notCanvas,TResult Function( PreviewCanvasShown_Invalid value)?  invalid,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case PreviewCanvasShown_Drawing() when drawing != null:
+return drawing(_that);case PreviewCanvasShown_Locked() when locked != null:
+return locked(_that);case PreviewCanvasShown_Missing() when missing != null:
+return missing(_that);case PreviewCanvasShown_NotCanvas() when notCanvas != null:
+return notCanvas(_that);case PreviewCanvasShown_Invalid() when invalid != null:
+return invalid(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PreviewCanvasShown_Drawing value)  drawing,required TResult Function( PreviewCanvasShown_Locked value)  locked,required TResult Function( PreviewCanvasShown_Missing value)  missing,required TResult Function( PreviewCanvasShown_NotCanvas value)  notCanvas,required TResult Function( PreviewCanvasShown_Invalid value)  invalid,}){
+final _that = this;
+switch (_that) {
+case PreviewCanvasShown_Drawing():
+return drawing(_that);case PreviewCanvasShown_Locked():
+return locked(_that);case PreviewCanvasShown_Missing():
+return missing(_that);case PreviewCanvasShown_NotCanvas():
+return notCanvas(_that);case PreviewCanvasShown_Invalid():
+return invalid(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PreviewCanvasShown_Drawing value)?  drawing,TResult? Function( PreviewCanvasShown_Locked value)?  locked,TResult? Function( PreviewCanvasShown_Missing value)?  missing,TResult? Function( PreviewCanvasShown_NotCanvas value)?  notCanvas,TResult? Function( PreviewCanvasShown_Invalid value)?  invalid,}){
+final _that = this;
+switch (_that) {
+case PreviewCanvasShown_Drawing() when drawing != null:
+return drawing(_that);case PreviewCanvasShown_Locked() when locked != null:
+return locked(_that);case PreviewCanvasShown_Missing() when missing != null:
+return missing(_that);case PreviewCanvasShown_NotCanvas() when notCanvas != null:
+return notCanvas(_that);case PreviewCanvasShown_Invalid() when invalid != null:
+return invalid(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( PreviewSvg svg,  List<PreviewCanvasNotice> notices)?  drawing,TResult Function()?  locked,TResult Function()?  missing,TResult Function()?  notCanvas,TResult Function( String message)?  invalid,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case PreviewCanvasShown_Drawing() when drawing != null:
+return drawing(_that.svg,_that.notices);case PreviewCanvasShown_Locked() when locked != null:
+return locked();case PreviewCanvasShown_Missing() when missing != null:
+return missing();case PreviewCanvasShown_NotCanvas() when notCanvas != null:
+return notCanvas();case PreviewCanvasShown_Invalid() when invalid != null:
+return invalid(_that.message);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( PreviewSvg svg,  List<PreviewCanvasNotice> notices)  drawing,required TResult Function()  locked,required TResult Function()  missing,required TResult Function()  notCanvas,required TResult Function( String message)  invalid,}) {final _that = this;
+switch (_that) {
+case PreviewCanvasShown_Drawing():
+return drawing(_that.svg,_that.notices);case PreviewCanvasShown_Locked():
+return locked();case PreviewCanvasShown_Missing():
+return missing();case PreviewCanvasShown_NotCanvas():
+return notCanvas();case PreviewCanvasShown_Invalid():
+return invalid(_that.message);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( PreviewSvg svg,  List<PreviewCanvasNotice> notices)?  drawing,TResult? Function()?  locked,TResult? Function()?  missing,TResult? Function()?  notCanvas,TResult? Function( String message)?  invalid,}) {final _that = this;
+switch (_that) {
+case PreviewCanvasShown_Drawing() when drawing != null:
+return drawing(_that.svg,_that.notices);case PreviewCanvasShown_Locked() when locked != null:
+return locked();case PreviewCanvasShown_Missing() when missing != null:
+return missing();case PreviewCanvasShown_NotCanvas() when notCanvas != null:
+return notCanvas();case PreviewCanvasShown_Invalid() when invalid != null:
+return invalid(_that.message);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class PreviewCanvasShown_Drawing extends PreviewCanvasShown {
+  const PreviewCanvasShown_Drawing({required this.svg, required final  List<PreviewCanvasNotice> notices}): _notices = notices,super._();
+  
+
+ final  PreviewSvg svg;
+ final  List<PreviewCanvasNotice> _notices;
+ List<PreviewCanvasNotice> get notices {
+  if (_notices is EqualUnmodifiableListView) return _notices;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_notices);
+}
+
+
+/// Create a copy of PreviewCanvasShown
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PreviewCanvasShown_DrawingCopyWith<PreviewCanvasShown_Drawing> get copyWith => _$PreviewCanvasShown_DrawingCopyWithImpl<PreviewCanvasShown_Drawing>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreviewCanvasShown_Drawing&&(identical(other.svg, svg) || other.svg == svg)&&const DeepCollectionEquality().equals(other._notices, _notices));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,svg,const DeepCollectionEquality().hash(_notices));
+
+@override
+String toString() {
+  return 'PreviewCanvasShown.drawing(svg: $svg, notices: $notices)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PreviewCanvasShown_DrawingCopyWith<$Res> implements $PreviewCanvasShownCopyWith<$Res> {
+  factory $PreviewCanvasShown_DrawingCopyWith(PreviewCanvasShown_Drawing value, $Res Function(PreviewCanvasShown_Drawing) _then) = _$PreviewCanvasShown_DrawingCopyWithImpl;
+@useResult
+$Res call({
+ PreviewSvg svg, List<PreviewCanvasNotice> notices
+});
+
+
+
+
+}
+/// @nodoc
+class _$PreviewCanvasShown_DrawingCopyWithImpl<$Res>
+    implements $PreviewCanvasShown_DrawingCopyWith<$Res> {
+  _$PreviewCanvasShown_DrawingCopyWithImpl(this._self, this._then);
+
+  final PreviewCanvasShown_Drawing _self;
+  final $Res Function(PreviewCanvasShown_Drawing) _then;
+
+/// Create a copy of PreviewCanvasShown
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? svg = null,Object? notices = null,}) {
+  return _then(PreviewCanvasShown_Drawing(
+svg: null == svg ? _self.svg : svg // ignore: cast_nullable_to_non_nullable
+as PreviewSvg,notices: null == notices ? _self._notices : notices // ignore: cast_nullable_to_non_nullable
+as List<PreviewCanvasNotice>,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PreviewCanvasShown_Locked extends PreviewCanvasShown {
+  const PreviewCanvasShown_Locked(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreviewCanvasShown_Locked);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PreviewCanvasShown.locked()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PreviewCanvasShown_Missing extends PreviewCanvasShown {
+  const PreviewCanvasShown_Missing(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreviewCanvasShown_Missing);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PreviewCanvasShown.missing()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PreviewCanvasShown_NotCanvas extends PreviewCanvasShown {
+  const PreviewCanvasShown_NotCanvas(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreviewCanvasShown_NotCanvas);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PreviewCanvasShown.notCanvas()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PreviewCanvasShown_Invalid extends PreviewCanvasShown {
+  const PreviewCanvasShown_Invalid({required this.message}): super._();
+  
+
+ final  String message;
+
+/// Create a copy of PreviewCanvasShown
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PreviewCanvasShown_InvalidCopyWith<PreviewCanvasShown_Invalid> get copyWith => _$PreviewCanvasShown_InvalidCopyWithImpl<PreviewCanvasShown_Invalid>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreviewCanvasShown_Invalid&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'PreviewCanvasShown.invalid(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PreviewCanvasShown_InvalidCopyWith<$Res> implements $PreviewCanvasShownCopyWith<$Res> {
+  factory $PreviewCanvasShown_InvalidCopyWith(PreviewCanvasShown_Invalid value, $Res Function(PreviewCanvasShown_Invalid) _then) = _$PreviewCanvasShown_InvalidCopyWithImpl;
+@useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$PreviewCanvasShown_InvalidCopyWithImpl<$Res>
+    implements $PreviewCanvasShown_InvalidCopyWith<$Res> {
+  _$PreviewCanvasShown_InvalidCopyWithImpl(this._self, this._then);
+
+  final PreviewCanvasShown_Invalid _self;
+  final $Res Function(PreviewCanvasShown_Invalid) _then;
+
+/// Create a copy of PreviewCanvasShown
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(PreviewCanvasShown_Invalid(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }

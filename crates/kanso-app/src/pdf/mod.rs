@@ -23,6 +23,7 @@
 //! locked PDF would be a plaintext leak.
 
 mod budget;
+pub mod index;
 mod layout;
 mod model;
 mod prefetch;

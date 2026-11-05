@@ -63,5 +63,10 @@ windows-sys = { version = "0.61", features = [
 [dev-dependencies]
 # This crate's tests use its own fixtures.
 kanso-pdf = { path = ".", features = ["test-support"] }
+# The text tests run the engine's PDF indexing end to end over the real
+# worker (tests/search.rs). The engine depends on this crate's client only, so
+# this is a dev-dependency cycle, which Cargo allows.
+kanso-engine = { workspace = true, features = ["pdf-worker"] }
+kanso-store.workspace = true
 proptest.workspace = true
 tempfile.workspace = true

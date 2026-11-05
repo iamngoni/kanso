@@ -9,6 +9,7 @@ use serde_json::json;
 
 use super::{BOTTOM_BAND_HEIGHT, DAY, DEMO_NOW_MS, MINUTE, Shot, assert_surface, shot_colors};
 use crate::config::InspectorTab;
+use crate::ink_ocr::InkText;
 use crate::layout::TOP_BAND_HEIGHT;
 use crate::related::{MODEL_ID, Related, Status};
 use crate::settings::SettingsPage;
@@ -438,9 +439,23 @@ fn settings_related(
     workspace: &Entity<Workspace>,
     status: Status,
 ) {
+    settings_discovery(cx, window, workspace, status, true);
+}
+
+fn settings_discovery(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    status: Status,
+    ink_text: bool,
+) {
     let on = status != Status::Off;
     set_related(cx, status, on);
-    cx.update(|cx| cx.global_mut::<AppState>().config.discovery.image_text = true);
+    cx.update(|cx| {
+        let discovery = &mut cx.global_mut::<AppState>().config.discovery;
+        discovery.image_text = true;
+        discovery.ink_text = ink_text;
+    });
     super::show_settings(cx, window, workspace, SettingsPage::General);
     // Discovery is the General page's last section.
     cx.update(|cx| {
@@ -542,4 +557,30 @@ pub(super) fn check_graph(image: &image::RgbaImage, shot: &Shot) {
     ] {
         assert_surface(image, scale, at, color, 2, what);
     }
+}
+
+/// Settings' handwriting row while canvases are being read.
+pub(super) fn settings_ink_reading(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    _: &Store,
+) {
+    cx.update(|cx| {
+        cx.default_global::<InkText>().status = crate::ink_ocr::Status::Reading { left: 3 };
+    });
+    settings_related(cx, window, workspace, Status::Off);
+}
+
+/// Settings' handwriting row switched off.
+pub(super) fn settings_ink_off(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    _: &Store,
+) {
+    cx.update(|cx| {
+        cx.default_global::<InkText>().status = crate::ink_ocr::Status::Off;
+    });
+    settings_discovery(cx, window, workspace, Status::Off, false);
 }

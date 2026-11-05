@@ -18,6 +18,31 @@ pub struct ServerSettings {
     pub enabled: bool,
     pub port: u16,
     pub bind_address: String,
+    /// Whether the file held a non-empty `username`. Read only to learn that
+    /// a login existed (issue #243): the text itself is never kept, and
+    /// nothing here is ever written back.
+    #[serde(
+        default,
+        rename = "username",
+        deserialize_with = "is_filled",
+        skip_serializing
+    )]
+    pub(crate) login_name_seen: bool,
+    /// Likewise for `password`.
+    #[serde(
+        default,
+        rename = "password",
+        deserialize_with = "is_filled",
+        skip_serializing
+    )]
+    pub(crate) login_password_seen: bool,
+}
+
+/// Reads a field only for whether it holds text, dropping the text at once.
+/// Anything that isn't a non-empty string reads as absent.
+fn is_filled<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(value.as_str().is_some_and(|text| !text.is_empty()))
 }
 
 impl Default for ServerSettings {
@@ -26,6 +51,8 @@ impl Default for ServerSettings {
             enabled: true,
             port: crate::flavour::CURRENT.default_port,
             bind_address: "127.0.0.1".into(),
+            login_name_seen: false,
+            login_password_seen: false,
         }
     }
 }
@@ -553,6 +580,12 @@ pub struct DiscoverySettings {
     /// Reading the words in image attachments, where the system can
     /// (macOS): on by default there.
     pub image_text: bool,
+    /// Reading the words in PDF attachments (`pdf/index.rs`), through the
+    /// PDF worker: on by default.
+    pub pdf_text: bool,
+    /// Reading handwriting on canvases and sketches (`ink_ocr.rs`), where
+    /// the system can (macOS): on by default there.
+    pub ink_text: bool,
     /// How many links out the inspector's graph reaches: 1 or 2.
     pub graph_hops: u8,
     /// Past notes about the paragraph being written (`resurface.rs`): on
@@ -572,6 +605,8 @@ impl Default for DiscoverySettings {
         DiscoverySettings {
             related_notes: false,
             image_text: cfg!(target_os = "macos"),
+            pdf_text: true,
+            ink_text: cfg!(target_os = "macos"),
             graph_hops: 1,
             resurface: true,
             resurface_margin: true,
@@ -754,7 +789,7 @@ pub struct LockedSettings {
 }
 
 /// The layout [`AppConfig::migrate`] brings older files up to.
-pub const CONFIG_VERSION: u32 = 5;
+pub const CONFIG_VERSION: u32 = 6;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -763,6 +798,10 @@ pub struct AppConfig {
     #[serde(default)]
     pub version: u32,
     pub server: ServerSettings,
+    /// The file held a local API username and password before keys replaced
+    /// them (issue #243). Recorded the first time the file is read, kept for
+    /// good, and what the API keys notice checks.
+    pub had_login: bool,
     pub sync: SyncSettings,
     pub appearance: Appearance,
     pub launch_at_login: bool,
@@ -822,6 +861,7 @@ impl Default for AppConfig {
         AppConfig {
             version: CONFIG_VERSION,
             server: ServerSettings::default(),
+            had_login: false,
             sync: SyncSettings::default(),
             appearance: Appearance::default(),
             launch_at_login: false,
@@ -860,9 +900,15 @@ impl AppConfig {
     /// icons becomes the icon theme of the same folder name, which draws
     /// Kanso's own icons until there is one. Version 5 added where AI
     /// answers come from; an older file means an API key, as before.
+    /// Version 6 retired the local API's username and password: the file
+    /// loses both on its next save, and `had_login` keeps the fact that
+    /// they existed.
     pub fn migrate(&mut self) -> bool {
+        // Before anything else, whatever the version: the login is recorded
+        // and forgotten here, and a file that held one is rewritten without.
+        let scrubbed = self.record_login();
         if self.version >= CONFIG_VERSION {
-            return false;
+            return scrubbed;
         }
         if self.version < 1 && self.appearance.editor_font_size == OLD_DEFAULT_FONT_SIZE {
             self.appearance.editor_font_size = DEFAULT_FONT_SIZE;
@@ -887,13 +933,50 @@ impl AppConfig {
         true
     }
 
+    /// Records that a login existed, when the file held one, and forgets what
+    /// was read of it. A login is a username and a password together, as it
+    /// was before keys. Says whether the file held any login field, so the
+    /// caller rewrites it. Doing it twice is the same as once.
+    pub fn record_login(&mut self) -> bool {
+        let server = &mut self.server;
+        let held = server.login_name_seen || server.login_password_seen;
+        self.had_login |= server.login_name_seen && server.login_password_seen;
+        server.login_name_seen = false;
+        server.login_password_seen = false;
+        held
+    }
+
     /// Reads the config, falling back to defaults for a missing file or field.
+    ///
+    /// A login in the file is noted as `had_login` here, before the caller
+    /// can save anything, so a command that loads and saves without
+    /// migrating still keeps the fact (a save never writes the login back).
+    /// The password itself is never kept. Loading never writes: the relay
+    /// (`kanso mcp`) reads the file this way. [`AppConfig::migrate`] does the
+    /// rest and says the file needs rewriting.
     pub fn load(path: &Path) -> anyhow::Result<AppConfig> {
         match std::fs::read(path) {
-            Ok(bytes) => Ok(serde_json::from_slice(&bytes)?),
+            Ok(bytes) => {
+                let mut config: AppConfig = serde_json::from_slice(&bytes)?;
+                let server = &config.server;
+                config.had_login |= server.login_name_seen && server.login_password_seen;
+                Ok(config)
+            }
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(AppConfig::default()),
             Err(err) => Err(err.into()),
         }
+    }
+
+    /// Reads the config, brings it up to date, and rewrites the file when
+    /// that changed it, atomically and `0600`. A file that held the local
+    /// API's login loses it here, with `had_login` kept. Only the app itself
+    /// calls this; commands that just read go through [`AppConfig::load`].
+    pub fn load_migrated(path: &Path) -> anyhow::Result<AppConfig> {
+        let mut config = AppConfig::load(path)?;
+        if config.migrate() {
+            config.save(path)?;
+        }
+        Ok(config)
     }
 
     /// Writes the config atomically with owner-only permissions (on
@@ -973,6 +1056,8 @@ mod tests {
             (
                 any::<bool>(),
                 any::<bool>(),
+                any::<bool>(),
+                any::<bool>(),
                 1u8..=2,
                 any::<bool>(),
                 any::<bool>(),
@@ -1003,6 +1088,8 @@ mod tests {
                     (
                         related_notes,
                         image_text,
+                        pdf_text,
+                        ink_text,
                         graph_hops,
                         resurface,
                         resurface_margin,
@@ -1030,6 +1117,8 @@ mod tests {
                     discovery: DiscoverySettings {
                         related_notes,
                         image_text,
+                        pdf_text,
+                        ink_text,
                         graph_hops,
                         resurface,
                         resurface_margin,
@@ -1257,7 +1346,9 @@ mod tests {
                         enabled,
                         port,
                         bind_address: bind,
+                        ..ServerSettings::default()
                     },
+                    had_login: false,
                     sync,
                     appearance: Appearance {
                         theme,
@@ -1664,7 +1755,7 @@ mod tests {
         )
         .unwrap();
         assert!(old.migrate());
-        assert_eq!(old.version, 5);
+        assert_eq!(old.version, CONFIG_VERSION);
         assert_eq!(old.ai.backend, AiBackend::Api);
         assert!(old.ai.enabled);
         assert_eq!(old.ai.provider, kanso_ai::Provider::Anthropic);
@@ -1704,7 +1795,7 @@ mod tests {
         assert_eq!(written["appearance"]["iconTheme"], "phosphor");
         assert!(written["appearance"].get("iconPack").is_none());
         let mut current: AppConfig = serde_json::from_str(
-            r#"{"version": 5, "appearance": {"iconTheme": "mine", "iconPack": "old"}}"#,
+            r#"{"version": 6, "appearance": {"iconTheme": "mine", "iconPack": "old"}}"#,
         )
         .unwrap();
         assert!(!current.migrate());
@@ -1872,6 +1963,169 @@ mod tests {
             let back: SyncSettings = serde_json::from_value(json).unwrap();
             prop_assert_eq!(back, sync);
         }
+    }
+
+    /// A text for the old login fields: absent, empty, or a recognisable
+    /// secret, so a leak into the file is easy to find.
+    fn gen_login_field(prefix: &'static str) -> impl Strategy<Value = Option<String>> {
+        prop_oneof![
+            Just(None),
+            Just(Some(String::new())),
+            "[a-z0-9]{8,16}".prop_map(move |tail| Some(format!("{prefix}{tail}"))),
+        ]
+    }
+
+    /// The text of a config from before keys: a version, a login in any
+    /// state, and a setting that must survive.
+    fn old_config_text(
+        version: u32,
+        user: &Option<String>,
+        password: &Option<String>,
+        had_login: Option<bool>,
+        port: u16,
+    ) -> String {
+        let mut server = serde_json::json!({"enabled": true, "port": port});
+        if let Some(user) = user {
+            server["username"] = user.clone().into();
+        }
+        if let Some(password) = password {
+            server["password"] = password.clone().into();
+        }
+        let mut file = serde_json::json!({"version": version, "server": server});
+        if let Some(had) = had_login {
+            file["hadLogin"] = had.into();
+        }
+        file.to_string()
+    }
+
+    fn has_text(field: &Option<String>) -> bool {
+        field.as_ref().is_some_and(|text| !text.is_empty())
+    }
+
+    fn mode_of(path: &Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(96))]
+
+        /// Migrating the old login out of the file (issue #243): the
+        /// password is gone from the bytes, `had_login` is set exactly when
+        /// a login (a username and a password) existed, other settings
+        /// stay, and the file is `0600`, whatever mode the old one had.
+        #[test]
+        fn prop_migration_drops_the_login_and_records_it(
+            version in 0u32..=CONFIG_VERSION,
+            user in gen_login_field("user-"),
+            password in gen_login_field("pw-"),
+            earlier in prop::option::of(any::<bool>()),
+            port in 1024u16..,
+            old_mode in prop::sample::select(vec![0o600u32, 0o644, 0o666]),
+        ) {
+            use std::os::unix::fs::PermissionsExt as _;
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("config.json");
+            std::fs::write(&path, old_config_text(version, &user, &password, earlier, port)).unwrap();
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(old_mode)).unwrap();
+            let login = has_text(&user) && has_text(&password);
+
+            let config = AppConfig::load_migrated(&path).unwrap();
+            prop_assert_eq!(config.had_login, login || earlier == Some(true));
+            prop_assert_eq!(config.server.port, port);
+            prop_assert_eq!(config.version, CONFIG_VERSION.max(version));
+            let written = std::fs::read_to_string(&path).unwrap();
+            if let Some(password) = password.as_ref().filter(|p| !p.is_empty()) {
+                prop_assert!(!written.contains(password.as_str()), "{}", written);
+            }
+            let json: serde_json::Value = serde_json::from_str(&written).unwrap();
+            // A file already at this version with no login isn't rewritten.
+            let rewritten = version < CONFIG_VERSION || has_text(&user) || has_text(&password);
+            if rewritten {
+                prop_assert!(json["server"].get("password").is_none());
+                prop_assert!(json["server"].get("username").is_none());
+                prop_assert_eq!(json["hadLogin"].as_bool(), Some(config.had_login));
+                prop_assert_eq!(mode_of(&path), 0o600);
+            } else {
+                prop_assert_eq!(mode_of(&path), old_mode);
+            }
+        }
+
+        /// Migrating twice changes nothing: the second load says nothing
+        /// needs rewriting, the bytes are the same, and `had_login` stays.
+        #[test]
+        fn prop_the_login_migration_is_idempotent(
+            version in 0u32..=CONFIG_VERSION,
+            user in gen_login_field("user-"),
+            password in gen_login_field("pw-"),
+            port in 1024u16..,
+        ) {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("config.json");
+            std::fs::write(&path, old_config_text(version, &user, &password, None, port)).unwrap();
+            {
+                use std::os::unix::fs::PermissionsExt as _;
+                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+            }
+            let first = AppConfig::load_migrated(&path).unwrap();
+            let bytes = std::fs::read(&path).unwrap();
+            let mut again = AppConfig::load(&path).unwrap();
+            prop_assert!(!again.migrate());
+            prop_assert_eq!(&again, &first);
+            let second = AppConfig::load_migrated(&path).unwrap();
+            prop_assert_eq!(second, first);
+            prop_assert_eq!(std::fs::read(&path).unwrap(), bytes);
+            prop_assert_eq!(mode_of(&path), 0o600);
+        }
+
+        /// The password never survives any save path: loading and saving
+        /// without migrating (as other commands do), saving after a settings
+        /// change, and migrating first all leave it out of the file, and the
+        /// fact that a login existed survives each of them.
+        #[test]
+        fn prop_the_password_never_survives_a_save(
+            version in 0u32..=CONFIG_VERSION + 1,
+            user in "user-[a-z0-9]{4,10}",
+            password in "pw-[a-z0-9]{8,16}",
+            migrate_first in any::<bool>(),
+            port in 1024u16..,
+        ) {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("config.json");
+            std::fs::write(
+                &path,
+                old_config_text(version, &Some(user.clone()), &Some(password.clone()), None, port),
+            )
+            .unwrap();
+            let mut config = AppConfig::load(&path).unwrap();
+            if migrate_first {
+                config.migrate();
+            }
+            // A settings change, then the save every setting goes through.
+            config.server.port = port.saturating_add(1);
+            config.save(&path).unwrap();
+            let written = std::fs::read_to_string(&path).unwrap();
+            prop_assert!(!written.contains(password.as_str()), "{}", written);
+            prop_assert!(!written.contains(user.as_str()), "{}", written);
+            let back = AppConfig::load(&path).unwrap();
+            prop_assert!(back.had_login);
+            prop_assert_eq!(back.server.port, port.saturating_add(1));
+            prop_assert_eq!(mode_of(&path), 0o600);
+        }
+    }
+
+    /// Reading the config for the relay writes nothing, so the old file is
+    /// as it was until the app itself migrates it.
+    #[test]
+    fn loading_alone_never_writes_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let text = old_config_text(5, &Some("me".into()), &Some("pw-xyz".into()), None, 1234);
+        std::fs::write(&path, &text).unwrap();
+        let config = AppConfig::load(&path).unwrap();
+        assert!(config.had_login);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), text);
+        assert!(!format!("{config:?}").contains("pw-xyz"));
     }
 
     #[test]
