@@ -4725,6 +4725,79 @@ fn encrypting_sheet(
     .unwrap();
 }
 
+/// The window for a library that won't open (issue #243, step 10): the
+/// content of the `kanso startup-error` window.
+fn startup_error_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    failure: &crate::startup_error_model::Failure,
+) {
+    use gpui_kit::ParentElement as _;
+    let screen = crate::startup_error_model::describe(
+        failure,
+        Path::new("/Users/me/Library/Application Support/Kanso"),
+    );
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        window.open_alert_dialog(cx, move |alert, _, cx| {
+            let colors = Colors::get(cx);
+            alert
+                .width(px(crate::startup_error::WIDTH))
+                .child(crate::startup_error::body(&screen, colors))
+                .footer(crate::startup_error::buttons(
+                    &screen,
+                    false,
+                    std::rc::Rc::new(|_, _, _| {}),
+                ))
+        });
+    })
+    .unwrap();
+}
+
+fn startup_wrong_key(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use crate::startup_error_model::{Cause, Failure};
+    startup_error_sheet(cx, window, &Failure::Library(Cause::WrongKey));
+}
+
+fn startup_stuck_marker(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use crate::startup_error_model::{Cause, Failure};
+    startup_error_sheet(cx, window, &Failure::Library(Cause::Converting));
+}
+
+fn startup_disk_full(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use crate::startup_error_model::{Cause, Failure};
+    startup_error_sheet(
+        cx,
+        window,
+        &Failure::Library(Cause::DiskFull { needed_mb: 412 }),
+    );
+}
+
+fn startup_lock_held(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use crate::startup_error_model::Failure;
+    startup_error_sheet(cx, window, &Failure::Locked);
+}
+
 /// The API keys notice's banner.
 fn api_keys_banner(
     cx: &mut HeadlessAppContext,
@@ -6856,6 +6929,79 @@ fn snapshots() {
                 Light,
                 Split,
                 library_plain_sheet,
+            )
+        },
+        // The library won't open (issue #243, step 10).
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "dark-startup-error-wrong-key",
+                Dark,
+                Split,
+                startup_wrong_key,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "light-startup-error-wrong-key",
+                Light,
+                Split,
+                startup_wrong_key,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "dark-startup-error-stuck-marker",
+                Dark,
+                Split,
+                startup_stuck_marker,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "light-startup-error-stuck-marker",
+                Light,
+                Split,
+                startup_stuck_marker,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "dark-startup-error-disk-full",
+                Dark,
+                Split,
+                startup_disk_full,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "light-startup-error-disk-full",
+                Light,
+                Split,
+                startup_disk_full,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "dark-startup-error-lock-held",
+                Dark,
+                Split,
+                startup_lock_held,
+            )
+        },
+        Shot {
+            dialog_width: crate::startup_error::WIDTH,
+            ..shot(
+                "light-startup-error-lock-held",
+                Light,
+                Split,
+                startup_lock_held,
             )
         },
         Shot {
