@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/bridge/api/notices_types.dart';
 import '../../../core/router/kanso_routes.dart';
 import '../../../core/state/account/account_bloc.dart';
+import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../state/notices_cubit.dart';
 import 'notice_card.dart';
@@ -101,7 +102,9 @@ class _NoticeCardHostState extends State<NoticeCardHost> {
         }
         return NoticeCard(
           notice: card,
-          countLabel: notices?.countLabel ?? '',
+          countLabel: (notices?.total ?? 0) > 1
+              ? context.l10n.noticeCount(notices!.total)
+              : '',
           onHowToFix: () => _open(context, cubit, card),
           onDismiss: () => cubit.dismiss(card.id, signedIn: _signedIn()),
         );
@@ -136,6 +139,9 @@ class _NoticeCardHostState extends State<NoticeCardHost> {
   }
 
   void _run(BuildContext context, PhoneNotice notice) {
+    if (!context.mounted) {
+      return;
+    }
     switch (notice.actionKind) {
       case PhoneNoticeActionKind.none:
         break;

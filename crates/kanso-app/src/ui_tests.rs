@@ -4435,3 +4435,69 @@ fn an_update_notice_shows_until_it_is_dismissed(cx: &mut TestAppContext) {
     assert_eq!(saved.fixed, ["fixture-first-0.9"]);
     assert_eq!(saved.dismissed.len(), 2);
 }
+
+/// How to fix's own buttons: Mark as fixed puts the notice away (banner and
+/// palette), and the sheet opened again has Done instead of Dismiss, so it
+/// can still be closed with the mouse. On macOS the banner leaves the
+/// traffic lights their room, zoomed out too.
+// no-prop-test: drives one window; the rules are properties in kanso-core.
+#[gpui_kit::test]
+fn how_to_fix_marks_a_notice_fixed_and_can_be_closed(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    f.draw(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    vcx.update(|_, cx| {
+        cx.set_global(crate::notices::NoticeBoard {
+            list: test_notices(),
+            previous: None,
+        });
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    if crate::layout::LIGHTS_IN_BAND {
+        let lights_end = crate::layout::TRAFFIC_LIGHTS.0 + 2. * 20. + 14.;
+        let title = vcx.debug_bounds("notice-title").expect("the banner is drawn");
+        assert!(f32::from(title.left()) > lights_end, "{title:?}");
+        // Zoomed out, the lights stay their size, and so does their room.
+        vcx.update(|_, cx| crate::zoom::set(75, cx));
+        f.draw(&mut vcx);
+        let title = vcx.debug_bounds("notice-title").expect("the banner is drawn");
+        assert!(f32::from(title.left()) > lights_end, "{title:?}");
+        let banner = vcx.debug_bounds("notice-banner").unwrap();
+        assert!(f32::from(banner.size.height) >= 36., "{banner:?}");
+        vcx.update(|_, cx| crate::zoom::set(crate::zoom::DEFAULT_ZOOM, cx));
+        f.draw(&mut vcx);
+    }
+    let click = |vcx: &mut gpui_kit::VisualTestContext, selector: &'static str| {
+        let bounds = vcx
+            .debug_bounds(selector)
+            .unwrap_or_else(|| panic!("{selector} is drawn"));
+        vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    };
+
+    click(&mut vcx, "notice-how-to-fix");
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("notice-sheet-dismiss").is_some());
+    assert_eq!(vcx.debug_bounds("notice-sheet-done"), None);
+    click(&mut vcx, "notice-sheet-fixed");
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-steps"), None);
+    assert_eq!(f.saved_config().notices.fixed, ["fixture-first-0.9"]);
+    let pick = vcx.read(crate::notices::banner).unwrap();
+    assert_eq!(pick.notice.id, "fixture-second-0.9");
+    assert_eq!(vcx.read(crate::notices::listed).len(), 1);
+
+    // Opened again: no Dismiss, no Mark as fixed, but Done.
+    vcx.update(|window, cx| {
+        let notice = crate::notices::find("fixture-first-0.9", cx).unwrap();
+        crate::notice_views::open_how_to_fix(notice, window, cx);
+    });
+    f.draw(&mut vcx);
+    assert!(vcx.debug_bounds("notice-steps").is_some());
+    assert_eq!(vcx.debug_bounds("notice-sheet-dismiss"), None);
+    assert_eq!(vcx.debug_bounds("notice-sheet-fixed"), None);
+    click(&mut vcx, "notice-sheet-done");
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-steps"), None);
+}

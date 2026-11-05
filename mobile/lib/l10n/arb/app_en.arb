@@ -8335,5 +8335,34 @@
   "noticeSheetDone": "Done",
   "@noticeSheetDone": {
     "description": "Closes the sheet of an update notice's steps."
+  },
+  "noticeCount": "1 of {total}",
+  "@noticeCount": {
+    "description": "On the update notice card when more than one notice is waiting: this card is the first of {total}.",
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "noticeOpenSettings": "Open Settings",
+  "@noticeOpenSettings": {
+    "description": "The update notice's button that opens the page of Settings its steps name."
+  },
+  "noticeLearnMore": "Learn More",
+  "@noticeLearnMore": {
+    "description": "The update notice's button that opens a page about the change in the browser."
+  },
+  "noticeStep": "Step {number}: {step}",
+  "@noticeStep": {
+    "description": "What a screen reader says for one numbered step of an update notice.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "step": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -3333,7 +3333,7 @@ impl Render for Workspace {
             // The recording bar, or a notice about one a crash left.
             .children(crate::recording_bar::strip(cx))
             // An update notice that applies, until it is dismissed.
-            .children(crate::notice_views::strip(cx))
+            .children(crate::notice_views::strip(window, cx))
             // The panes run the rest of the height: each has its own top
             // band (on macOS, the title bar's row) and bottom band. The
             // sidebar and the list keep their widths and the editor takes

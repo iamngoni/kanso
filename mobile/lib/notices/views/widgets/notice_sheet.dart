@@ -52,7 +52,10 @@ class NoticeSheet extends StatelessWidget {
             KansoSpacing.md,
             0,
           ),
-          child: Text(notice.title, style: typography.heading2),
+          child: Semantics(
+            header: true,
+            child: Text(notice.title, style: typography.heading2),
+          ),
         ),
         Padding(
           padding: const EdgeInsetsDirectional.fromSTEB(
@@ -71,33 +74,43 @@ class NoticeSheet extends StatelessWidget {
               KansoSpacing.md,
               KansoSpacing.sm,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Container(
-                  width: KansoSizes.iconSmall + 8,
-                  height: KansoSizes.iconSmall + 8,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: colors.text.withValues(alpha: 0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '${i + 1}',
-                    style: typography.secondary.copyWith(
-                      color: colors.textSecondary,
-                      fontWeight: FontWeight.w600,
+            child: MergeSemantics(
+              child: Semantics(
+                label: l10n.noticeStep(i + 1, notice.steps[i]),
+                excludeSemantics: true,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Container(
+                      // Grows with larger text.
+                      constraints: const BoxConstraints(
+                        minWidth: KansoSizes.iconSmall + 8,
+                        minHeight: KansoSizes.iconSmall + 8,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: colors.text.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '${i + 1}',
+                        style: typography.secondary.copyWith(
+                          color: colors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: KansoSpacing.sm),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Text(notice.steps[i], style: typography.body),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: KansoSpacing.sm),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 1),
-                    child: Text(notice.steps[i], style: typography.body),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         Padding(
@@ -111,7 +124,13 @@ class NoticeSheet extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               if (action != null) ...<Widget>[
-                KansoButton(label: notice.actionLabel, onPressed: action),
+                KansoButton(
+                  label: switch (notice.actionKind) {
+                    PhoneNoticeActionKind.openUrl => l10n.noticeLearnMore,
+                    _ => l10n.noticeOpenSettings,
+                  },
+                  onPressed: action,
+                ),
                 const SizedBox(height: KansoSpacing.xs),
               ],
               KansoButton(
