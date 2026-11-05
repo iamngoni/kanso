@@ -37,20 +37,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # `pdfium` is the scripts/fetch-pdfium.sh platform whose library
+          # the leg packages: each architecture ships its own.
           - name: macos-arm64
             os: [self-hosted, macOS, ARM64]
             target: aarch64-apple-darwin
+            pdfium: mac-arm64
           - name: windows-x64
             os: [self-hosted, Windows, X64]
             target: x86_64-pc-windows-msvc
+            pdfium: win-x64
           # Every job runs on the owner's self-hosted runners. The Linux
           # runners' glibc sets the oldest distribution the builds run on.
           - name: linux-x64
             os: [self-hosted, Linux, X64]
             target: x86_64-unknown-linux-gnu
+            pdfium: linux-x64
           - name: linux-arm64
             os: [self-hosted, Linux, ARM64]
             target: aarch64-unknown-linux-gnu
+            pdfium: linux-arm64
     defaults:
       run:
         shell: bash
@@ -121,7 +127,9 @@ jobs:
       - name: PDFium
         if: runner.os != 'macOS'
         shell: bash
-        run: scripts/fetch-pdfium.sh
+        env:
+          PDFIUM_PLATFORM: ${{ matrix.pdfium }}
+        run: scripts/fetch-pdfium.sh "$PDFIUM_PLATFORM"
 
       - name: Build
         run: cargo build --release --locked -p kanso-app -p kanso-plugin-host -p kanso-pdf --features kanso-pdf/render
@@ -303,8 +311,10 @@ jobs:
         if: runner.os == 'Linux'
         env:
           STEM: ${{ steps.version.outputs.stem }}
+          PDFIUM_PLATFORM: ${{ matrix.pdfium }}
         run: |
           stem=$STEM
+          pdfium=vendor/pdfium/$PDFIUM_PLATFORM
           mkdir -p "dist" "$stem"
           install -m 755 target/release/kanso "$stem/kanso"
           strip "$stem/kanso"
@@ -312,12 +322,14 @@ jobs:
           strip "$stem/kanso-plugin-host"
           install -m 755 target/release/kanso-pdf-worker "$stem/kanso-pdf-worker"
           strip "$stem/kanso-pdf-worker"
-          install -m 755 vendor/pdfium/linux-x64/lib/libpdfium.so "$stem/libpdfium.so"
-          # The library in the archive is the PDFium build without V8.
+          install -m 755 "$pdfium/lib/libpdfium.so" "$stem/libpdfium.so"
+          # The library in the archive is the PDFium build without V8, and
+          # for the same machine as the worker beside it.
           scripts/check-pdfium-no-v8.sh "$stem/libpdfium.so"
+          scripts/check-pdfium-arch.sh "$stem/libpdfium.so" "$stem/kanso-pdf-worker"
           mkdir -p "$stem/pdfium-licenses"
-          cp -R vendor/pdfium/linux-x64/licenses/. "$stem/pdfium-licenses/"
-          cp vendor/pdfium/linux-x64/LICENSE "$stem/pdfium-licenses/LICENSE"
+          cp -R "$pdfium/licenses/." "$stem/pdfium-licenses/"
+          cp "$pdfium/LICENSE" "$stem/pdfium-licenses/LICENSE"
           install -m 644 assets/linux/kanso.desktop "$stem/kanso.desktop"
           install -m 644 assets/icon/kanso.png "$stem/kanso.png"
           install -m 755 assets/linux/install.sh "$stem/install.sh"
@@ -331,6 +343,7 @@ jobs:
         continue-on-error: true
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          PDFIUM_PLATFORM: ${{ matrix.pdfium }}
         run: |
           if [ "$(cargo deb --version 2>/dev/null)" != "cargo-deb 3.8.0" ]; then
             cargo install cargo-deb --version 3.8.0 --locked

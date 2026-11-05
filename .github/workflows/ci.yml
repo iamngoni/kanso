@@ -65,10 +65,11 @@ jobs:
       - name: PDFium
         run: scripts/fetch-pdfium.sh
       # PDF JavaScript runs in V8; the library in the build is the one
-      # without it (issue #43, step 9). This also runs the hostile-PDF
-      # corpus through the real worker (kanso-pdf/tests/hostile.rs).
+      # without it (issue #43, step 9).
       - name: PDFium is not a V8 build
         run: scripts/check-pdfium-no-v8.sh vendor/pdfium
+      # With `render`, this also runs the hostile-PDF corpus through the real
+      # worker (kanso-pdf/tests/hostile.rs).
       - run: cargo test --workspace --locked --features kanso-pdf/render
 
   # The app and the command-line tools build for Windows and Linux too (the
