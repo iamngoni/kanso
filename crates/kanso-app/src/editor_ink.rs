@@ -112,8 +112,9 @@ impl NoteEditor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use kanso_core::canvas::{Canvas, INK, Node, Point, Stroke};
+    use super::ink_text_only;
+    use kanso_core::Note;
+    use kanso_core::canvas::{self, Canvas, INK, Node, Point, Stroke};
     use proptest::prelude::*;
     use proptest::test_runner::FileFailurePersistence;
 

@@ -208,6 +208,10 @@ proptest! {
     #[test]
     fn prop_ink_text_change_is_only_the_words(n in 1usize..5, seed in 0u32..40) {
         let mut c = board(n);
+        for node in &mut c.nodes {
+            node.width = 200.0;
+            node.height = 100.0;
+        }
         let before = to_body(&c);
         prop_assert!(ink_text_change(&before, &before).is_none());
         read_all(&mut c);
