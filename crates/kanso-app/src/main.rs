@@ -32,6 +32,7 @@ mod ask_panel;
 #[cfg(test)]
 mod ask_tests;
 mod assets;
+mod attachments;
 mod board_view;
 mod book_colors;
 mod book_icons;
@@ -109,6 +110,7 @@ mod library_open;
 #[cfg(test)]
 mod links_tests;
 mod live_marks;
+mod lock_flow;
 mod locked;
 mod markdown_edit;
 mod markdown_source;

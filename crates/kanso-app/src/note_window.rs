@@ -620,6 +620,9 @@ impl NoteWindow {
             EditorEvent::Notice(message) => {
                 window.push_notification(Notification::error(message.clone()), cx);
             }
+            EditorEvent::Told { message, stays } => {
+                window.push_notification(Notification::info(message.clone()).autohide(!*stays), cx);
+            }
             EditorEvent::ShowHistory => self.show_history(window, cx),
             EditorEvent::Command(command) => self.run_command(*command, window, cx),
             // The palette lives in the main window; it picks for this note

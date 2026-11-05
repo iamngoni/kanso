@@ -55,6 +55,7 @@ pub(crate) mod ask;
 mod discovery;
 mod learn_modals;
 mod library_key;
+mod locking;
 mod pdf;
 mod plugins_panel;
 mod plugins_settings;
@@ -6246,6 +6247,41 @@ fn snapshots() {
                 learn_modals::cards_editing,
             )
         },
+        // Locking with pictures and files: the dialog's line about them and
+        // the copies it makes, the progress sheet, and the bar a lock that
+        // stopped leaves on the note.
+        Shot {
+            dialog_width: 448.,
+            ..shot("dark-lock-dialog", Dark, Edit, locking::lock_dialog)
+        },
+        Shot {
+            dialog_width: 448.,
+            ..shot("light-lock-dialog", Light, Edit, locking::lock_dialog)
+        },
+        Shot {
+            dialog_width: crate::lock_flow::SHEET_WIDTH,
+            // The sheet sits at the top; sample above its title.
+            dialog_sample_y: Some(28.),
+            ..shot("dark-lock-progress", Dark, Edit, locking::lock_progress)
+        },
+        Shot {
+            dialog_width: crate::lock_flow::SHEET_WIDTH,
+            // The sheet sits at the top; sample above its title.
+            dialog_sample_y: Some(28.),
+            ..shot("light-lock-progress", Light, Edit, locking::lock_progress)
+        },
+        shot(
+            "dark-lock-interrupted",
+            Dark,
+            Edit,
+            locking::lock_interrupted,
+        ),
+        shot(
+            "light-lock-interrupted",
+            Light,
+            Edit,
+            locking::lock_interrupted,
+        ),
         // Voice input: the pill while listening and writing, and Settings'
         // Voice input in each state of the model.
         // The PDF reader (issue #43): page 1 drawn by the worker, and the

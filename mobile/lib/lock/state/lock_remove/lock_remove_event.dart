@@ -9,4 +9,8 @@ sealed class LockRemoveEvent with _$LockRemoveEvent {
   /// The person confirmed taking the lock off [target].
   const factory LockRemoveEvent.confirmed(LockTarget target) =
       LockRemoveConfirmedEvent;
+
+  /// Unsealing the files got as far as [progress].
+  const factory LockRemoveEvent.progressed(SealProgress progress) =
+      LockRemoveProgressedEvent;
 }
