@@ -29,7 +29,7 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_engine::recording_note::stamp;
 use kanso_engine::recording_summary::{
-    SummaryDraft, SummaryError, SummaryItem, SummarySource, apply_summary, ground, send_line,
+    SummaryDraft, SummaryError, SummaryItem, SummarySource, apply_summary, ground, send_words,
     summary_source,
 };
 use kanso_store::Origin;
@@ -89,10 +89,27 @@ impl SummarySheet {
         &self.phase
     }
 
-    /// Asks the model, on a worker.
+    /// What the Confirm phase says.
+    #[cfg(test)]
+    pub fn confirm_text(&self) -> &str {
+        &self.send_words
+    }
+
+    /// Asks the model, on a worker. The note is read again through the gate
+    /// first: one locked, trashed or tagged `#ai-exclude` since the sheet
+    /// opened sends nothing.
     pub(crate) fn send(&mut self, cx: &mut Context<Self>) {
         if self.phase != Phase::Confirm && !matches!(self.phase, Phase::Failed(_)) {
             return;
+        }
+        let store = cx.global::<AppState>().store.clone();
+        match summary_source(&store, &self.note_id) {
+            Ok(source) => self.source = source,
+            Err(err) => {
+                self.phase = Phase::Failed(err.to_string());
+                cx.notify();
+                return;
+            }
         }
         self.phase = Phase::Working;
         self.cancel = Arc::new(AtomicBool::new(false));
@@ -472,10 +489,10 @@ impl Render for SummaryFooter {
 }
 
 /// What the Confirm phase says, from the settings as they are now.
-fn send_words(words: usize, cx: &App) -> String {
+fn confirm_words(source: &SummarySource, cx: &App) -> String {
     let ai = &cx.global::<AppState>().config.ai;
     let agent = (ai.backend == AiBackend::Agent).then(|| crate::ai_agent::label(&ai.agent));
-    send_line(words, ai.provider, &ai.base_url, agent.as_deref())
+    send_words(source, ai.provider, &ai.base_url, agent.as_deref())
 }
 
 /// Opens the sheet for note `id`, or says why it can't.
@@ -499,7 +516,7 @@ pub fn open(id: String, window: &mut Window, cx: &mut App) -> Option<Entity<Summ
             return None;
         }
     };
-    let words = send_words(source.words, cx);
+    let words = confirm_words(&source, cx);
     Some(open_with(id, source, words, window, cx))
 }
 

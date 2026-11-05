@@ -11,7 +11,8 @@ use kanso_engine::recording_note::{Segment, render_transcript};
 use kanso_store::{Origin, Put, Store};
 use serde_json::json;
 
-use crate::ai_feature::testing::{Injected, Recorder};
+use crate::ai_feature::Maker;
+use crate::ai_feature::testing::{Injected, Recorder, fake_agent, maker_of};
 use crate::config::AppConfig;
 use crate::recording_summary::{self, Phase, SummarySheet};
 use crate::services::Services;
@@ -34,6 +35,14 @@ struct Fixture {
 }
 
 fn setup(cx: &mut TestAppContext, ai: bool, reply: &str) -> Fixture {
+    let recorder = Recorder::new(reply);
+    let maker = recorder.maker();
+    setup_with(cx, ai, recorder, maker)
+}
+
+/// The fixture over `maker`, which the features get in place of the
+/// settings' backend; `recorder` is what the asserts read.
+fn setup_with(cx: &mut TestAppContext, ai: bool, recorder: Arc<Recorder>, maker: Maker) -> Fixture {
     // The worker thread wakes the sheet's task from outside the scheduler.
     cx.executor().allow_parking();
     let dir = tempfile::tempdir().unwrap();
@@ -42,8 +51,6 @@ fn setup(cx: &mut TestAppContext, ai: bool, reply: &str) -> Fixture {
         .role_book(kanso_core::roles::Role::Inbox, Origin::Ui)
         .unwrap();
     let (app_store, data_dir) = (store.clone(), dir.path().to_path_buf());
-    let recorder = Recorder::new(reply);
-    let maker = recorder.maker();
     let window = cx.update(|cx| {
         gpui_kit::init(cx);
         let mut config = AppConfig::default();
@@ -248,4 +255,122 @@ fn with_ai_off_the_command_does_nothing(cx: &mut TestAppContext) {
     let id = note(&f, &body());
     assert!(open(&f, &id, cx).is_none());
     assert!(f.recorder.sent().is_empty());
+}
+
+// no-prop-test: drives the sheet; `summary_source` has the properties.
+#[gpui_kit::test]
+fn a_note_locked_while_the_sheet_is_open_sends_nothing(cx: &mut TestAppContext) {
+    let f = setup(cx, true, REPLY);
+    let id = note(&f, &body());
+    let sheet = open(&f, &id, cx).expect("the sheet opens");
+    // Locked (or synced in locked) before Send is pressed.
+    f.store
+        .put(
+            DocType::Note,
+            json!({"_id": id, "kansoLock": {"salt": "abc"}}),
+            Put::Merge,
+            Origin::Sync,
+        )
+        .unwrap();
+    send(&sheet, &f, cx);
+    let Phase::Failed(reason) = phase(&sheet, cx) else {
+        panic!("sent anyway");
+    };
+    assert!(reason.contains("kept out of AI"), "{reason}");
+    assert!(f.recorder.sent().is_empty(), "nothing is sent");
+}
+
+// no-prop-test: drives the sheet; the engine has the properties.
+#[gpui_kit::test]
+fn a_note_tagged_ai_exclude_after_review_is_not_written(cx: &mut TestAppContext) {
+    let f = setup(cx, true, REPLY);
+    let id = note(&f, &body());
+    let sheet = open(&f, &id, cx).unwrap();
+    send(&sheet, &f, cx);
+    assert_eq!(settle(&sheet, cx), Phase::Review);
+    let tag = f
+        .store
+        .put(
+            DocType::Tag,
+            json!({"name": "AI-Exclude"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    f.store
+        .put(
+            DocType::Note,
+            json!({"_id": id, "tags": [tag]}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    apply(&sheet, &f, cx);
+    assert_eq!(f.store.note(&id).unwrap().unwrap().body, body());
+}
+
+// no-prop-test: drives the sheet over a note with two recordings.
+#[gpui_kit::test]
+fn only_the_first_recording_is_sent_and_the_sheet_says_so(cx: &mut TestAppContext) {
+    let f = setup(cx, true, REPLY);
+    let second =
+        render_transcript("file:second9", &[seg(0, "A private aside about salaries.")]).unwrap();
+    let id = note(&f, &format!("{}\n\n{second}", body()));
+    let sheet = open(&f, &id, cx).unwrap();
+    let words = cx.read(|cx| sheet.read(cx).confirm_text().to_owned());
+    assert!(words.contains("This note has 2 recordings"), "{words}");
+    send(&sheet, &f, cx);
+    assert_eq!(settle(&sheet, cx), Phase::Review);
+    let sent = f.recorder.sent();
+    assert!(!sent[0].user.contains("salaries"), "the second stays");
+}
+
+// no-prop-test: a backend that cannot be made, as a missing key is.
+#[gpui_kit::test]
+fn a_missing_key_fails_with_a_line_and_changes_nothing(cx: &mut TestAppContext) {
+    let maker: Maker = Arc::new(|| Err(kanso_ai::AiError::MissingKey.to_string()));
+    let f = setup_with(cx, true, Recorder::new(REPLY), maker);
+    let id = note(&f, &body());
+    let sheet = open(&f, &id, cx).unwrap();
+    send(&sheet, &f, cx);
+    let Phase::Failed(reason) = settle(&sheet, cx) else {
+        panic!("no failure");
+    };
+    assert!(reason.contains("Settings › AI"), "{reason}");
+    assert_eq!(f.store.note(&id).unwrap().unwrap().body, body());
+}
+
+// no-prop-test: the in-process fake agent answering with a fixed reply.
+#[gpui_kit::test]
+fn an_agent_answers_through_the_same_review(cx: &mut TestAppContext) {
+    let agent = fake_agent(
+        kanso_acp::fake::Script::Answer(REPLY.to_owned()),
+        "recording-summary",
+    );
+    let f = setup_with(cx, true, Recorder::new(REPLY), maker_of(agent));
+    let id = note(&f, &body());
+    let sheet = open(&f, &id, cx).unwrap();
+    send(&sheet, &f, cx);
+    assert_eq!(settle(&sheet, cx), Phase::Review);
+    apply(&sheet, &f, cx);
+    let after = f.store.note(&id).unwrap().unwrap().body;
+    assert!(after.contains("- [ ] Send the onboarding draft — Priya, by the 30th"));
+    assert!(!after.contains("Invented"));
+}
+
+// no-prop-test: the in-process fake agent answering in prose, not the JSON
+// the sheet reads.
+#[gpui_kit::test]
+fn an_agent_reply_in_prose_fails_and_changes_nothing(cx: &mut TestAppContext) {
+    let agent = fake_agent(
+        kanso_acp::fake::Script::Answer("Sorry, I can't summarise that.".to_owned()),
+        "recording-summary-prose",
+    );
+    let f = setup_with(cx, true, Recorder::new(REPLY), maker_of(agent));
+    let id = note(&f, &body());
+    let sheet = open(&f, &id, cx).unwrap();
+    send(&sheet, &f, cx);
+    assert!(matches!(settle(&sheet, cx), Phase::Failed(_)));
+    assert_eq!(f.store.note(&id).unwrap().unwrap().body, body());
 }
