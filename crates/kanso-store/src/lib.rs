@@ -89,7 +89,7 @@ pub use home_model::{
 };
 pub use ink_text::{InkNote, InkScan};
 pub use library_key_model::{KEY_BYTES, LibraryFile, LibraryKey};
-pub use library_key_words::{KEY_WORDS, WordsError};
+pub use library_key_words::{KEY_WORDS, WordsError, is_key_word};
 pub use loops::{
     BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
 };

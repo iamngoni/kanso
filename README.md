@@ -542,6 +542,7 @@ kanso serve                 # only the API (REST and /mcp), no window; syncs whe
 kanso account sign-in --username ngoni   # sign a headless library in; then kanso serve syncs it
 kanso account status        # account, this device, last sync (works while serve runs)
 kanso mcp                   # MCP over stdin/stdout for agents that start a program; needs KANSO_MCP_TOKEN=<API key>
+kanso api-key create --name "Backup script"   # make an API key with no window (list, revoke); prints only the key
 kanso import obsidian ~/Vault --dry-run   # what an import would bring in
 kanso import notion ~/Downloads/Export.zip  # markdown, obsidian, notion, evernote, …
 kanso import apple-notes                  # the Notes library on this Mac
@@ -557,9 +558,10 @@ Every command takes `--data-dir <dir>`. The default is `$KANSO_DATA_DIR` when se
 ### Headless / VPS
 
 `kanso serve` runs the API and `/mcp` without a window, so an agent on a server (Codex, say) can use
-your notes, with an API key. Keys are made in the app's Settings and stored in the library, which
-never syncs them, and no `kanso` command makes one yet: until the server's library has a key,
-`kanso serve` and `kanso mcp` refuse every request. Sign the server's library in to your account once, with the service stopped, and
+your notes, with an API key. Keys are stored in the library, which never syncs them. On the server,
+with the service stopped, `kanso api-key create --name <name>` prints a new key and nothing else
+(`list` and `revoke` do the rest); until the library has a key, `kanso serve` and `kanso mcp`
+refuse every request. Sign the server's library in to your account once, with the service stopped, and
 `kanso serve` syncs it while it runs: at start, every `sync.intervalSecs` (5 minutes), and 20
 seconds after any API or MCP write.
 

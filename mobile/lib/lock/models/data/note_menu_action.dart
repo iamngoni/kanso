@@ -23,6 +23,10 @@ enum NoteMenuAction {
   /// Opens the Record screen with this note as where the recording goes.
   record,
 
+  /// Summarises the note's recording and lists its action items, with the
+  /// person's own AI.
+  summarizeRecording,
+
   /// What the note's bar would offer, had it room for it: in the menu when
   /// the bar gave way (see `KansoTopBar.hiddenOf`).
   info,
