@@ -143,7 +143,9 @@ pub fn check_section(section: &str, version: &str, list: &[Notice]) -> Vec<Probl
         }
     };
     for entry in breaking_entries(section) {
-        let shown = entry.trim_start_matches(['-', '*', ' ']);
+        // The entry as written, without only its bullet: a scope's bold
+        // (`**server:**`) stays whole.
+        let shown = entry[1..].trim_start();
         let Some(id) = notice_id(&entry) else {
             problems.push(Problem(format!(
                 "this breaking change has no update notice: \u{201c}{shown}\u{201d}. Add a notice to NOTICES in crates/kanso-core/src/notices.rs, then make the entry end with (notice: <id>): give its commit a \u{201c}Notice: <id>\u{201d} footer (lower-case letters, digits, dots and hyphens; any other ID isn't printed), or, for a commit already on master, write this release's section in CHANGELOG.md ahead and end the entry with that text yourself (docs/RELEASING.md \u{203a} Breaking changes)"
@@ -227,6 +229,19 @@ mod tests {
         let missing = check_section(&section(&["Keys (abc)"]), "0.10.0", &list);
         assert_eq!(missing.len(), 1);
         assert!(missing[0].0.contains("Notice: <id>"));
+        // The entry is quoted whole, scope and all.
+        let scoped = check_section(&section(&["**server:** Keys (abc)"]), "0.10.0", &list);
+        assert!(
+            scoped[0]
+                .0
+                .contains("\u{201c}**server:** Keys (abc)\u{201d}"),
+            "{scoped:?}"
+        );
+        let starred = check_section("### Breaking\n\n* **app:** Keys\n", "0.10.0", &list);
+        assert!(
+            starred[0].0.contains("\u{201c}**app:** Keys\u{201d}"),
+            "{starred:?}"
+        );
         let unknown = check_section(&section(&["Keys (notice: nope)"]), "0.10.0", &list);
         assert!(unknown[0].0.contains("isn't in NOTICES"));
         let early = check_section(&ok, "0.9.4", &list);
