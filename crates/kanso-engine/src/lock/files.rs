@@ -325,6 +325,11 @@ pub struct Job<'a> {
     /// the next save ([`Counts::waiting`]) rather than refusing, so the text
     /// is never held back. A note already locked is always saved this way.
     pub leave_waiting: bool,
+    /// Sealing the files of notes locked before sealing existed: a file a
+    /// note locked with another password may link is copied, not sealed in
+    /// place ([`unknown_owners`]). Always so for such a note's own first
+    /// save.
+    pub migrating: bool,
 }
 
 impl<'a> Job<'a> {
@@ -343,6 +348,7 @@ impl<'a> Job<'a> {
             progress: Progress::default(),
             watch,
             leave_waiting: false,
+            migrating: false,
         }
     }
 
@@ -387,9 +393,13 @@ pub fn summarize(store: &Store, notes: &[Note]) -> Summary {
 }
 
 /// Whether a file has a live owner outside `locking` that is not locked, and
-/// so must keep the readable original.
+/// so must keep the readable original. Besides `note_files`, any unlocked
+/// note whose stored JSON names the file counts, as Empty Trash counts it
+/// (`still_owned`): a canvas card the parser rejects still shows it. When
+/// the store can't say, the file is treated as shared: a copy too many is
+/// safe, sealing one an unlocked note shows is not.
 fn shared_with_unlocked(store: &Store, file: &str, locking: &HashSet<String>) -> bool {
-    store
+    let linked = store
         .file_owners(file)
         .unwrap_or_default()
         .into_iter()
@@ -400,7 +410,59 @@ fn shared_with_unlocked(store: &Store, file: &str, locking: &HashSet<String>) ->
                 .ok()
                 .flatten()
                 .is_some_and(|other| !other.is_locked())
+        });
+    linked
+        || store.unlocked_notes_naming(file).map_or(true, |owners| {
+            owners.iter().any(|owner| !locking.contains(owner))
         })
+}
+
+/// Whether a locked note outside `locking` that `key` doesn't open has no
+/// list: an older Kanso locked it with another password, so what its text
+/// links can't be known until that password opens it. A file sealed in
+/// place now could be one it links, which it then couldn't open with its
+/// own password.
+fn unknown_owners(store: &Store, locking: &HashSet<String>, key: &LockKey) -> bool {
+    store.locked_notes().map_or(true, |notes| {
+        notes.iter().any(|note| {
+            !locking.contains(&note.id)
+                && !note.extra.contains_key(KANSO_FILES_FIELD)
+                && Envelope::from_extra(&note.extra)
+                    .and_then(Result::ok)
+                    .is_none_or(|envelope| !key.fits(&envelope))
+        })
+    })
+}
+
+/// The notes whose files a pass is sealing now, in this process.
+static SEALING: std::sync::LazyLock<Mutex<HashSet<String>>> =
+    std::sync::LazyLock::new(Mutex::default);
+
+/// A note's files being sealed by one pass. A second pass on the same note
+/// (the migration and the note's own first open or save, at once) is
+/// refused rather than let write its journal under the first one's feet,
+/// whose files would then be sealed with keys no stored list holds.
+struct Claim(String);
+
+impl Claim {
+    fn take(note_id: &str) -> Result<Claim, FilesError> {
+        let mut sealing = SEALING.lock().unwrap_or_else(PoisonError::into_inner);
+        if !sealing.insert(note_id.to_owned()) {
+            return Err(failed(
+                "This note's pictures and files are being sealed already. Try again in a moment.",
+            ));
+        }
+        Ok(Claim(note_id.to_owned()))
+    }
+}
+
+impl Drop for Claim {
+    fn drop(&mut self) {
+        SEALING
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&self.0);
+    }
 }
 
 /// Replaces the links to file `from` in `body` with links to `to`, only
@@ -538,9 +600,14 @@ pub fn seal_note_files(
     body: &str,
     key: &LockKey,
 ) -> Result<(String, Counts), FilesError> {
+    let _claim = Claim::take(&note.id)?;
     job.tell(Phase::Preparing)?;
     let store = job.store;
     let locked = note.is_locked();
+    // A note an older Kanso locked, being given its list: a file a note
+    // locked with another password may link stays plain for that note.
+    let migrating = job.migrating || (locked && !note.extra.contains_key(KANSO_FILES_FIELD));
+    let mut unknown: Option<bool> = None;
     // What the note's own list says: a lock that stopped (its journal
     // carries the lock's header), or the list of a note already locked. Its
     // keys open again here, and a copy made for a file earlier is reused,
@@ -660,7 +727,9 @@ pub fn seal_note_files(
                     });
                     continue;
                 }
-                let others = shared_with_unlocked(store, &id, &locking);
+                let others = shared_with_unlocked(store, &id, &locking)
+                    || (migrating
+                        && *unknown.get_or_insert_with(|| unknown_owners(store, &locking, key)));
                 let (target, from) = if others {
                     let copy = match job.copies.get(&id) {
                         Some(copy) => copy.clone(),
@@ -739,14 +808,20 @@ pub fn seal_note_files(
     }
     // Phase 1: the wraps go to the note first, so no sealed file outlives the
     // keys that open it.
+    let mut journaled = false;
     if !pending.is_empty() {
         match store.set_note_files(&note.id, &entries) {
-            Ok(written) => note.rev = Some(written.rev),
+            Ok(written) => {
+                note.rev = Some(written.rev);
+                journaled = true;
+            }
             // A note not stored yet has nothing to lose a key from.
             Err(StoreError::NotFound) => {}
             Err(err) => return Err(err.into()),
         }
     }
+    // A sealed file is kept only when the stored journal's key opens it.
+    let holder = journaled.then_some((note.id.as_str(), key));
     // Phase 2: the files.
     job.tell(Phase::Sealing)?;
     for plan in &plans {
@@ -755,7 +830,7 @@ pub fn seal_note_files(
                 .insert(&plan.seal, FileKey::from_bytes(*plan.key.as_bytes()));
             continue;
         }
-        seal_file(store, plan)?;
+        seal_file(store, plan, holder)?;
         job.keys
             .insert(&plan.seal, FileKey::from_bytes(*plan.key.as_bytes()));
         job.progress.done += 1;
@@ -825,8 +900,16 @@ fn owner_title(store: &Store, file: &str, except: &str) -> Option<String> {
         .map(|owner| crate::lock::display_title(&owner))
 }
 
-/// Seals plain file `plan.target` under the plan's key.
-fn seal_file(store: &Store, plan: &Planned) -> Result<(), FilesError> {
+/// Seals plain file `plan.target` under the plan's key. `holder` is the
+/// note whose stored journal holds the plan's key wrapped, and its lock key:
+/// what is stored is then opened with the key that journal gives, the one
+/// a crash leaves, not the one in memory. Without one (a note not stored
+/// yet) the plan's own key is used.
+fn seal_file(
+    store: &Store,
+    plan: &Planned,
+    holder: Option<(&str, &LockKey)>,
+) -> Result<(), FilesError> {
     let mut meta = store
         .file_meta(&plan.target)?
         .ok_or_else(|| failed("The attachment is gone."))?;
@@ -848,10 +931,21 @@ fn seal_file(store: &Store, plan: &Planned) -> Result<(), FilesError> {
     marker.meta = true;
     FileLock::store(Some(&marker), &mut meta.extra);
     store.put_sealed_file(meta, Attachment::new(container))?;
-    // And what was stored is read back and opened before the plain bytes
-    // are let go: a write that didn't take puts them back.
-    let stored = store.stored_attachment(&plan.target)?;
-    if !stored.is_some_and(|stored| opens_to(plan, &stored.data, &plain)) {
+    // And what was stored is read back and opened, with the key the stored
+    // journal gives, before the plain bytes are let go: a write that didn't
+    // take, or a journal another writer replaced meanwhile, puts them back.
+    let file_key = match holder {
+        Some((note_id, key)) => listed_key(store, note_id, key, &plan.target, &plan.seal),
+        None => Some(FileKey::from_bytes(*plan.key.as_bytes())),
+    };
+    let stored = store.stored_attachment(&plan.target).ok().flatten();
+    let kept = match (stored, file_key) {
+        (Some(stored), Some(file_key)) => {
+            opens_to(&plan.target, &plan.seal, &file_key, &stored.data, &plain)
+        }
+        _ => false,
+    };
+    if !kept {
         let mut back = store
             .file_meta(&plan.target)?
             .ok_or_else(|| failed("The attachment is gone."))?;
@@ -989,9 +1083,32 @@ pub fn save_locked(
     Ok(counts)
 }
 
-/// Whether `container` opens, with the plan's key, to content `plain`.
-fn opens_to(plan: &Planned, container: &[u8], plain: &[u8]) -> bool {
-    open_container(&plan.target, &plan.seal, &plan.key, container)
+/// The key of file `id`'s seal generation `seal` that the stored list of
+/// note `note_id` holds, opened with lock key `key`: its journal's entry,
+/// or its list's once it is locked. `None` when the store holds no such
+/// key, so a file sealed with it couldn't be opened after a quit.
+fn listed_key(
+    store: &Store,
+    note_id: &str,
+    key: &LockKey,
+    id: &str,
+    seal: &SealId,
+) -> Option<FileKey> {
+    let note = store.note(note_id).ok().flatten()?;
+    let entry = note_files_from_extra(&note.extra)?
+        .into_iter()
+        .find(|entry| entry.file == id && entry.seal == seal.encode())?;
+    let envelope = header(&entry).or_else(|| Envelope::from_extra(&note.extra)?.ok())?;
+    if !key.fits(&envelope) {
+        return None;
+    }
+    let (listed, file_key) = unwrap_entry(key, &envelope, note_id, &entry)?;
+    (listed.encode() == seal.encode()).then_some(file_key)
+}
+
+/// Whether `container` opens, with `key`, to content `plain`.
+fn opens_to(id: &str, seal: &SealId, key: &FileKey, container: &[u8], plain: &[u8]) -> bool {
+    open_container(id, seal, key, container)
         .ok()
         .and_then(|segments| {
             segments

@@ -289,6 +289,7 @@ pub fn migrate(
     let locking: HashSet<String> = opened.iter().map(|note| note.id.clone()).collect();
     let mut copies = HashMap::new();
     let mut job = Job::new(store, book, &locking, &mut copies, watch);
+    job.migrating = true;
     job.expect(summary);
     for item in gathered.items {
         let Item { mut note, key } = item;

@@ -648,3 +648,292 @@ fn a_password_gives_the_key_of_each_lock_it_opens_and_only_those() {
     // The other password's note still waits.
     assert_eq!(pending(&world.store).legacy, 1);
 }
+
+// MARK: Plaintext left anywhere in the library's folder
+
+/// Every file under `dir`, read whole, the folders inside it too.
+fn every_byte_under(dir: &std::path::Path) -> Vec<u8> {
+    let mut all = Vec::new();
+    for entry in std::fs::read_dir(dir).unwrap().flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            all.extend(every_byte_under(&path));
+        } else if let Ok(bytes) = std::fs::read(&path) {
+            all.extend(bytes);
+        }
+    }
+    all
+}
+
+/// What a note locked before sealing existed may have left in the library:
+/// the file's bytes, its name, the text OCR read from it, the text of a
+/// PDF's pages, and an earlier version of the file in its history. After
+/// the migration none of it is anywhere in the folder: the database, its
+/// log, or any other file there.
+#[test]
+fn after_migration_no_plaintext_of_a_migrated_file_is_left_in_the_folder() {
+    const NAME: &[u8] = b"canaryname-4d1e.png";
+    const OLD_NAME: &[u8] = b"canaryoldname-8b2c.png";
+    const OCR: &[u8] = b"ocr-canary-0e7d5a";
+    const PDF_BYTES: &[u8] = b"%PDF-1.4 pdf-bytes-canary-61c0";
+    const PDF_TEXT: &[u8] = b"pdf-page-canary-93af";
+    let world = world();
+    let image = world.file(std::str::from_utf8(OLD_NAME).unwrap(), CANARY);
+    // Renamed: the old name is in the file's history now.
+    let meta = world.store.file_meta(&image).unwrap().unwrap();
+    world
+        .store
+        .put(
+            DocType::File,
+            json!({"_id": image, "_rev": meta.rev, "name": std::str::from_utf8(NAME).unwrap()}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    let pdf = world
+        .store
+        .put(
+            DocType::File,
+            json!({"name": "doc.pdf", "contentType": "application/pdf",
+                "_attachments": {"index": {"content_type": "application/pdf",
+                "data": STANDARD.encode(PDF_BYTES)}}}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let mut note = world.note(&[image.clone(), pdf.clone()]);
+    // Read while the note was plain.
+    let md5 = |id: &str| world.store.file_meta(id).unwrap().unwrap().md5digest.unwrap();
+    assert!(
+        world
+            .store
+            .set_image_text(&image, &md5(&image), std::str::from_utf8(OCR).unwrap(), "test")
+            .unwrap()
+    );
+    assert!(
+        world
+            .store
+            .set_pdf_text(
+                &pdf,
+                &md5(&pdf),
+                &[std::str::from_utf8(PDF_TEXT).unwrap().to_owned()],
+                "test"
+            )
+            .unwrap()
+    );
+    // Locked by an older Kanso on another device, and synced here: nothing
+    // derived from its files was forgotten.
+    let envelope = key().seal(&note.id, &note.body);
+    Envelope::store(Some(&envelope), &mut note.extra);
+    note.body.clear();
+    world
+        .store
+        .put(
+            DocType::Note,
+            serde_json::to_value(&note).unwrap(),
+            Put::Upsert,
+            Origin::Sync,
+        )
+        .unwrap();
+    assert_eq!(pending(&world.store).legacy, 1);
+    let before = every_byte_under(world.dir.path());
+    for canary in [CANARY, NAME, OLD_NAME, OCR, PDF_BYTES, PDF_TEXT] {
+        assert!(
+            holds(&before, canary),
+            "the control: {} is on disk",
+            String::from_utf8_lossy(canary)
+        );
+    }
+
+    let outcome = run(&world, &[key()]);
+    assert!(outcome.failed.is_empty(), "{:?}", outcome.failed);
+    assert_eq!(outcome.sealed, 2);
+    let after = every_byte_under(world.dir.path());
+    for canary in [CANARY, NAME, OLD_NAME, OCR, PDF_BYTES, PDF_TEXT] {
+        assert!(
+            !holds(&after, canary),
+            "{} is left in the folder",
+            String::from_utf8_lossy(canary)
+        );
+    }
+    assert_eq!(
+        world.contents(&note.id, &key()),
+        vec![Some(CANARY.to_vec()), Some(PDF_BYTES.to_vec())]
+    );
+}
+
+// MARK: Races, other writers, ownership and other passwords
+
+/// Stored locked note `id`, its text opened with `key`.
+fn opened(world: &World, id: &str, key: &LockKey) -> Note {
+    let mut note = world.store.note(id).unwrap().unwrap();
+    let envelope = Envelope::from_extra(&note.extra).unwrap().unwrap();
+    note.body = key.open(id, &envelope).unwrap().to_string();
+    note
+}
+
+/// The migration pass and the lazy seal of a note's first open (the phone)
+/// or first save (the desktop) can reach the same note at once. The second
+/// must not write its journal under the first one's feet: the first seals
+/// with its own journal's keys, and a file sealed under keys no stored list
+/// holds is lost when the app quits.
+#[test]
+fn a_second_pass_cannot_rewrite_the_journal_of_a_note_being_sealed() {
+    let world = world();
+    let file = world.file("a.png", b"raced picture");
+    let mut note = world.note(std::slice::from_ref(&file));
+    world.legacy_lock(&mut note, &key());
+
+    let mut raced = None;
+    let outcome = migrate(&world.store, &KeyBook::default(), &[key()], &mut |progress| {
+        if progress.phase == super::super::Phase::Sealing && raced.is_none() {
+            // The pass wrote its journal and seals next. The lazy seal starts
+            // on the same note, writes its own journal, and is stopped.
+            let before = world.store.note(&note.id).unwrap().unwrap();
+            let mut lazy = opened(&world, &note.id, &key());
+            let text = lazy.body.clone();
+            let locking = HashSet::from([lazy.id.clone()]);
+            let mut copies = HashMap::new();
+            let book = KeyBook::default();
+            let mut stop = |progress: &Progress| {
+                if progress.phase == super::super::Phase::Sealing {
+                    Err("quit".to_owned())
+                } else {
+                    Ok(())
+                }
+            };
+            let mut job = Job::new(&world.store, &book, &locking, &mut copies, &mut stop);
+            let result = seal_note_files(&mut job, &mut lazy, &text, &key());
+            let after = world.store.note(&note.id).unwrap().unwrap();
+            raced = Some((result.is_err(), before == after));
+        }
+        Ok(())
+    });
+    let (refused, untouched) = raced.expect("the pass reached its files");
+    assert!(refused, "the second pass is refused");
+    assert!(untouched, "and writes nothing");
+    assert!(outcome.failed.is_empty(), "{:?}", outcome.failed);
+    // What the store alone opens, as after a quit.
+    assert_eq!(
+        world.contents(&note.id, &key()),
+        vec![Some(b"raced picture".to_vec())]
+    );
+}
+
+/// A writer the pass can't hold off (sync bringing the note from another
+/// device) replaces the note's journal between its writing and the sealing.
+/// A file is only left sealed when the keys the store holds open it; else
+/// its plain bytes are put back and the next run seals it.
+#[test]
+fn a_file_is_only_left_sealed_when_the_stored_list_opens_it() {
+    let world = world();
+    let file = world.file("a.png", b"picture under a rewritten list");
+    let mut note = world.note(std::slice::from_ref(&file));
+    world.legacy_lock(&mut note, &key());
+
+    let mut rewritten = false;
+    let outcome = migrate(&world.store, &KeyBook::default(), &[key()], &mut |progress| {
+        if progress.phase == super::super::Phase::Sealing && !rewritten {
+            rewritten = true;
+            // Another device's version of the note, from before its list.
+            let mut theirs = world.store.note(&note.id).unwrap().unwrap();
+            theirs.extra.remove(KANSO_FILES_FIELD);
+            world
+                .store
+                .put(
+                    DocType::Note,
+                    serde_json::to_value(&theirs).unwrap(),
+                    Put::Upsert,
+                    Origin::Sync,
+                )
+                .unwrap();
+        }
+        Ok(())
+    });
+    assert!(rewritten);
+    assert_eq!(outcome.failed.len(), 1, "the note is tried again");
+    assert_eq!(world.state(&file), AttachmentState::Plain);
+    assert_eq!(world.stored(&file), b"picture under a rewritten list");
+
+    let again = run(&world, &[key()]);
+    assert!(again.failed.is_empty(), "{:?}", again.failed);
+    assert_eq!(world.state(&file), AttachmentState::Sealed);
+    assert_eq!(
+        world.contents(&note.id, &key()),
+        vec![Some(b"picture under a rewritten list".to_vec())]
+    );
+}
+
+/// The store keeps a file for any live note whose JSON names it (Empty
+/// Trash's `still_owned`), a canvas card the canvas parser rejects too. Such
+/// an unlocked note owns the file here as well: the locked note gets a
+/// sealed copy, and the original is never sealed out from under it.
+#[test]
+fn a_file_an_unlocked_note_names_outside_a_link_stays_plain_for_it() {
+    let world = world();
+    let file = world.file("a.png", b"card picture");
+    // Two cards with one ID: not a canvas the parser accepts, but its card
+    // names the file.
+    let canvas = format!(
+        "```canvas\n{{\"nodes\":[{{\"id\":\"c\",\"type\":\"file\",\"file\":\"{file}\",\"x\":0,\"y\":0,\"width\":10,\"height\":10}},{{\"id\":\"c\",\"type\":\"text\",\"text\":\"t\",\"x\":0,\"y\":0,\"width\":10,\"height\":10}}],\"edges\":[]}}\n```\n"
+    );
+    assert!(kanso_core::tasks::shown_file_ids(&canvas).is_empty());
+    world
+        .store
+        .put(
+            DocType::Note,
+            json!({"bookId": world.book, "title": "Board", "body": canvas}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    let mut locked = world.note(std::slice::from_ref(&file));
+    world.legacy_lock(&mut locked, &key());
+
+    let outcome = run(&world, &[key()]);
+    assert!(outcome.failed.is_empty(), "{:?}", outcome.failed);
+    assert_eq!(world.state(&file), AttachmentState::Plain);
+    assert_eq!(world.stored(&file), b"card picture");
+    assert_eq!(
+        world.contents(&locked.id, &key()),
+        vec![Some(b"card picture".to_vec())]
+    );
+}
+
+/// A file note A (one password) and note B (another) both link, before
+/// either is migrated. A pass with A's password can't read B, so can't know
+/// B links it: sealing it in place for A would leave B, opened later with
+/// its own password, without its picture. B keeps it readable with its own
+/// password, and both end up sealed.
+#[test]
+fn a_file_an_unopened_note_may_link_stays_readable_with_that_note_s_password() {
+    let world = world();
+    let file = world.file("s.png", b"picture of two passwords");
+    let mut a = world.note(std::slice::from_ref(&file));
+    let mut b = world.note(std::slice::from_ref(&file));
+    world.legacy_lock(&mut a, &key());
+    world.legacy_lock(&mut b, &other());
+
+    let first = run(&world, &[key()]);
+    assert!(first.failed.is_empty(), "{:?}", first.failed);
+    assert_eq!(first.unopened, 1);
+    assert_eq!(
+        world.contents(&a.id, &key()),
+        vec![Some(b"picture of two passwords".to_vec())]
+    );
+
+    // Later, B's password alone, on a fresh launch.
+    let second = run(&world, &[other()]);
+    assert!(second.failed.is_empty(), "{:?}", second.failed);
+    assert!(pending(&world.store).is_done());
+    for (id, k) in [(&a.id, key()), (&b.id, other())] {
+        assert_eq!(
+            world.contents(id, &k),
+            vec![Some(b"picture of two passwords".to_vec())]
+        );
+        for linked in world.links(id, &k) {
+            assert_eq!(world.state(&linked), AttachmentState::Sealed);
+        }
+    }
+}
