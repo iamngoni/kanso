@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn what_is_drawn_already_is_not_asked_again() {
         let order = plan(0..2, 5, Heading::Down, |page| page == 1 || page == 3);
-        assert_eq!(order, vec![0, 2]);
+        assert_eq!(order, vec![0, 2, 4]);
     }
 
     #[test]

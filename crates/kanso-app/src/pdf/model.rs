@@ -21,16 +21,6 @@ pub enum ReaderState {
     Failed(String),
 }
 
-impl ReaderState {
-    /// "Page 3 of 12", or nothing while there is no page.
-    pub fn page_label(&self) -> Option<String> {
-        match self {
-            ReaderState::Showing { page, pages } => Some(format!("Page {page} of {pages}")),
-            _ => None,
-        }
-    }
-}
-
 /// What the reader says when the PDF is not a PDF Kanso can read, or the
 /// reader is not part of this build.
 pub const UNAVAILABLE: &str = "PDFs can't be read in this copy of Kanso.";
@@ -87,7 +77,7 @@ mod tests {
             more in 0f32..500.,
         ) {
             let width = render_width(shown, display);
-            prop_assert!(width >= 1 && width <= MAX_LONG_EDGE_PX);
+            prop_assert!((1..=MAX_LONG_EDGE_PX).contains(&width));
             if shown >= 1. && display > 0. {
                 let needed = (shown * display).ceil() as u32;
                 prop_assert!(width >= needed.min(MAX_LONG_EDGE_PX));
@@ -99,25 +89,13 @@ mod tests {
         #[test]
         fn widths_come_in_steps(shown in 1f32..2000., display in 1f32..3.) {
             let width = render_width(shown, display);
-            prop_assert!(width % WIDTH_STEP == 0);
+            prop_assert!(width.is_multiple_of(WIDTH_STEP));
         }
 
         #[test]
         fn a_thumbnail_is_never_zero_wide(display in prop_oneof![Just(f32::NAN), Just(0.), -2f32..4.]) {
             prop_assert!(thumb_render_width(display) >= 1);
         }
-    }
-
-    #[test]
-    fn the_label_names_the_page_only_while_one_shows() {
-        let showing = ReaderState::Showing { page: 1, pages: 12 };
-        assert_eq!(showing.page_label().as_deref(), Some("Page 1 of 12"));
-        assert_eq!(ReaderState::Loading.page_label(), None);
-        assert_eq!(ReaderState::Failed("x".into()).page_label(), None);
-        assert_eq!(
-            ReaderState::NeedsPassword { wrong: false }.page_label(),
-            None
-        );
     }
 
     #[test]

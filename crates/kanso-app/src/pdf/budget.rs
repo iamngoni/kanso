@@ -39,15 +39,18 @@ impl<V> PixelBudget<V> {
         }
     }
 
+    #[cfg(test)]
     pub fn limit(&self) -> usize {
         self.limit
     }
 
     /// The bytes held now.
+    #[cfg(test)]
     pub fn used(&self) -> usize {
         self.total
     }
 
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.entries.len()
     }

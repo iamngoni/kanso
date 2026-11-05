@@ -140,7 +140,7 @@ pub fn smart_invert(bgra: &mut [u8], width: u32, height: u32, keep: &[PixelRect]
 }
 
 fn invert_run(run: &mut [u8], greys: &[u8]) {
-    for pixel in run.chunks_exact_mut(BYTES_PER_PIXEL) {
+    for pixel in run.as_chunks_mut::<BYTES_PER_PIXEL>().0 {
         if pixel[0] == pixel[1] && pixel[1] == pixel[2] {
             let v = greys[usize::from(pixel[0])];
             pixel[..3].copy_from_slice(&[v, v, v]);

@@ -71,7 +71,7 @@ impl Zoom {
                 } else {
                     FALLBACK_SIZE[0]
                 };
-                let width = avail.max(1.).min(FIT_MAX_WIDTH);
+                let width = avail.clamp(1., FIT_MAX_WIDTH);
                 (width / widest).max(0.05)
             }
         }
@@ -141,15 +141,19 @@ impl Layout {
 
     fn from_sizes(sizes: Vec<[f32; 2]>, gap: f32, pad: f32) -> Layout {
         let mut tops = Vec::with_capacity(sizes.len() + 1);
+        if sizes.is_empty() {
+            return Layout {
+                sizes,
+                tops: vec![0.],
+            };
+        }
         let mut y = pad.max(0.);
         for size in &sizes {
             tops.push(y);
             y += size[1] + gap.max(0.);
         }
         // The last page has no gap after it, only the padding.
-        if !sizes.is_empty() {
-            y = y - gap.max(0.) + pad.max(0.);
-        }
+        y = y - gap.max(0.) + pad.max(0.);
         tops.push(y);
         Layout { sizes, tops }
     }
@@ -219,7 +223,11 @@ impl Layout {
                 best = (page, shown);
             }
         }
-        if self.pages() == 0 { 0 } else { best.0.min(self.pages() - 1) }
+        if self.pages() == 0 {
+            0
+        } else {
+            best.0.min(self.pages() - 1)
+        }
     }
 
     /// The anchor at `y` pixels down the column.

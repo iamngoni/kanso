@@ -36,9 +36,7 @@ use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::scroll::Scrollbar;
-use gpui_kit::component::{
-    ActiveTheme as _, Icon, Selectable as _, Sizable as _, h_flex, v_flex,
-};
+use gpui_kit::component::{ActiveTheme as _, Icon, Selectable as _, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_pdf::client::WorkerPaths;
@@ -234,7 +232,7 @@ impl PdfReader {
             failed: Default::default(),
             trash: Vec::new(),
             display_scale: window.scale_factor(),
-            dark: false,
+            dark: cx.theme().is_dark(),
             original,
             rail_open: true,
             scroll: ScrollHandle::new(),
@@ -255,7 +253,7 @@ impl PdfReader {
     /// Lets go of every texture, in every window.
     fn release_textures(&mut self, cx: &mut App) {
         self.forget_pages();
-        let images: Vec<Arc<RenderImage>> = self.trash.drain(..).collect();
+        let images: Vec<Arc<RenderImage>> = std::mem::take(&mut self.trash);
         // Deferred: the window this runs in may be mid-update, and out of the
         // app's reach until it ends.
         cx.defer(move |cx| {
@@ -273,11 +271,8 @@ impl PdfReader {
     fn start(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.state = ReaderState::Loading;
         self.forget_pages();
-        let (session, events) = Session::start(
-            self.store.clone(),
-            self.file_id.clone(),
-            self.paths.clone(),
-        );
+        let (session, events) =
+            Session::start(self.store.clone(), self.file_id.clone(), self.paths.clone());
         self.session = Some(session);
         self.events = Some(cx.spawn_in(window, async move |this, cx| {
             while let Ok(event) = events.recv().await {
@@ -315,6 +310,7 @@ impl PdfReader {
                     self.go_to_page(page, window, cx);
                 }
                 self.sync(window, cx);
+                self.show_page_number(window, cx);
             }
             Event::NeedsPassword { wrong } => {
                 self.state = ReaderState::NeedsPassword { wrong };
@@ -327,11 +323,16 @@ impl PdfReader {
                     asked_px: job.width_px,
                     invert: job.invert,
                 };
-                let (cache, keep, focus) = if job.thumb {
-                    let keep = self.thumb_layout_visible();
-                    (&mut self.thumbs, keep, self.current)
+                let keep = if job.thumb {
+                    self.thumb_layout_visible()
                 } else {
-                    (&mut self.pages, self.page_range(), self.current)
+                    self.page_range()
+                };
+                let focus = self.current;
+                let cache = if job.thumb {
+                    &mut self.thumbs
+                } else {
+                    &mut self.pages
                 };
                 if let Some(old) = cache.insert(job.page, tex, bytes) {
                     self.trash.push(old.image);
@@ -414,7 +415,11 @@ impl PdfReader {
         }
         let bounds = self.rail_scroll.bounds();
         let height = f32::from(bounds.size.height);
-        let height = if height > 1. { height } else { FALLBACK_VIEWPORT.1 };
+        let height = if height > 1. {
+            height
+        } else {
+            FALLBACK_VIEWPORT.1
+        };
         self.thumb_layout
             .visible(-f32::from(self.rail_scroll.offset().y), height)
     }
@@ -557,7 +562,13 @@ impl PdfReader {
         self.last_top = top;
         let visible = self.layout.visible(top, height);
         let current = self.layout.current(top, height);
-        if current != self.current || self.state != (ReaderState::Showing { page: current as u32 + 1, pages }) {
+        if current != self.current
+            || self.state
+                != (ReaderState::Showing {
+                    page: current as u32 + 1,
+                    pages,
+                })
+        {
             self.current = current;
             self.state = ReaderState::Showing {
                 page: current as u32 + 1,
@@ -568,21 +579,19 @@ impl PdfReader {
         }
 
         let invert = self.invert();
-        let mut jobs: Vec<Job> = prefetch::plan(
-            visible.clone(),
-            self.layout.pages(),
-            self.heading,
-            |page| self.page_is_current(page),
-        )
-        .into_iter()
-        .map(|page| Job {
-            thumb: false,
-            page,
-            width_px: self.wanted_width(page),
-            invert,
-        })
-        .filter(|job| !self.failed.contains(job))
-        .collect();
+        let mut jobs: Vec<Job> =
+            prefetch::plan(visible.clone(), self.layout.pages(), self.heading, |page| {
+                self.page_is_current(page)
+            })
+            .into_iter()
+            .map(|page| Job {
+                thumb: false,
+                page,
+                width_px: self.wanted_width(page),
+                invert,
+            })
+            .filter(|job| !self.failed.contains(job))
+            .collect();
 
         let rail = self.thumb_layout_visible();
         // The rail's pages come after the column's: they are small and quick.
@@ -658,6 +667,24 @@ impl PdfReader {
         self.pages.get(page).map(|tex| tex.image.clone())
     }
 
+    /// Whether every page on screen and the first thumbnails have their
+    /// picture (or the reader is showing something that has none).
+    #[cfg(test)]
+    pub(crate) fn settled(&self) -> bool {
+        match self.state {
+            ReaderState::Showing { .. } => {
+                self.page_range().all(|page| self.pages.get(page).is_some())
+                    && (!self.rail_open
+                        || self
+                            .thumb_layout_visible()
+                            .take(2)
+                            .all(|page| self.thumbs.get(page).is_some()))
+            }
+            ReaderState::Loading => false,
+            _ => true,
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn thumb_texture(&self, page: usize) -> Option<Arc<RenderImage>> {
         self.thumbs.get(page).map(|tex| tex.image.clone())
@@ -702,7 +729,12 @@ impl PdfReader {
     }
 
     #[cfg(test)]
-    pub(crate) fn pick_original(&mut self, original: bool, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn pick_original(
+        &mut self,
+        original: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if self.original != original {
             self.toggle_original(window, cx);
         }
@@ -737,13 +769,7 @@ impl PdfReader {
 
     // ---- drawing ----------------------------------------------------------------------
 
-    fn button(
-        &self,
-        id: &'static str,
-        icon: Lucide,
-        tip: &'static str,
-        selected: bool,
-    ) -> Button {
+    fn button(&self, id: &'static str, icon: Lucide, tip: &'static str, selected: bool) -> Button {
         Button::new(id)
             .debug_selector(|| id.into())
             .ghost()
@@ -835,9 +861,11 @@ impl PdfReader {
                         "Fit width",
                         self.zoom == Zoom::FitWidth,
                     )
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.set_zoom(Zoom::FitWidth, window, cx)
-                    })),
+                    .on_click(
+                        cx.listener(|this, _, window, cx| {
+                            this.set_zoom(Zoom::FitWidth, window, cx)
+                        }),
+                    ),
                 )
                 .child(
                     self.button(
@@ -846,9 +874,9 @@ impl PdfReader {
                         "Actual size",
                         self.zoom == Zoom::ACTUAL,
                     )
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.set_zoom(Zoom::ACTUAL, window, cx)
-                    })),
+                    .on_click(
+                        cx.listener(|this, _, window, cx| this.set_zoom(Zoom::ACTUAL, window, cx)),
+                    ),
                 )
                 .when(self.dark, |bar| {
                     bar.child(
@@ -862,9 +890,9 @@ impl PdfReader {
                             },
                             self.original,
                         )
-                        .on_click(cx.listener(|this, _, window, cx| {
-                            this.toggle_original(window, cx)
-                        })),
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.toggle_original(window, cx)),
+                        ),
                     )
                 })
             })
@@ -951,7 +979,9 @@ impl PdfReader {
                         div()
                             .text_size(px(12.))
                             .text_color(colors.text_secondary)
-                            .child("Enter its password to read it. Kanso doesn't keep the password."),
+                            .child(
+                                "Enter its password to read it. Kanso doesn't keep the password.",
+                            ),
                     )
                     .child(
                         div()
@@ -1084,47 +1114,48 @@ impl PdfReader {
             } else {
                 rgb(0xffffff)
             };
-            column = column
-                .child(
-                    div()
-                        .id(("pdf-thumb", page))
-                        .debug_selector(move || format!("pdf-thumb-{page}"))
-                        .absolute()
-                        .left(gpui_kit::px((RAIL_WIDTH - w) / 2.))
-                        .top(gpui_kit::px(top))
-                        .w(gpui_kit::px(w))
-                        .h(gpui_kit::px(h))
-                        .bg(blank)
-                        .border_2()
-                        .border_color(if here { colors.accent } else { colors.divider })
-                        .cursor_pointer()
-                        .on_click(cx.listener(move |this, _, window, cx| {
-                            this.go_to_page(page, window, cx)
-                        }))
-                        .when_some(image, |frame, image| {
-                            frame.child(
-                                img(ImageSource::Render(image))
-                                    .object_fit(ObjectFit::Fill)
-                                    .size_full(),
-                            )
-                        }),
-                )
-                .child(
-                    div()
-                        .absolute()
-                        .left_0()
-                        .w(gpui_kit::px(RAIL_WIDTH))
-                        .top(gpui_kit::px(top + h + 4.))
-                        .flex()
-                        .justify_center()
-                        .text_size(px(10.))
-                        .text_color(if here {
-                            colors.text
-                        } else {
-                            colors.text_secondary
-                        })
-                        .child((page + 1).to_string()),
-                );
+            column =
+                column
+                    .child(
+                        div()
+                            .id(("pdf-thumb", page))
+                            .debug_selector(move || format!("pdf-thumb-{page}"))
+                            .absolute()
+                            .left(gpui_kit::px((RAIL_WIDTH - w) / 2.))
+                            .top(gpui_kit::px(top))
+                            .w(gpui_kit::px(w))
+                            .h(gpui_kit::px(h))
+                            .bg(blank)
+                            .border_2()
+                            .border_color(if here { colors.accent } else { colors.divider })
+                            .cursor_pointer()
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                this.go_to_page(page, window, cx)
+                            }))
+                            .when_some(image, |frame, image| {
+                                frame.child(
+                                    img(ImageSource::Render(image))
+                                        .object_fit(ObjectFit::Fill)
+                                        .size_full(),
+                                )
+                            }),
+                    )
+                    .child(
+                        div()
+                            .absolute()
+                            .left_0()
+                            .w(gpui_kit::px(RAIL_WIDTH))
+                            .top(gpui_kit::px(top + h + 4.))
+                            .flex()
+                            .justify_center()
+                            .text_size(px(10.))
+                            .text_color(if here {
+                                colors.text
+                            } else {
+                                colors.text_secondary
+                            })
+                            .child((page + 1).to_string()),
+                    );
         }
         div()
             .id("pdf-rail-box")
@@ -1221,7 +1252,12 @@ impl PdfReader {
     /// Keyboard: Escape closes; Page Up and Down scroll a screen; Home and
     /// End go to the ends; ⌘+ and ⌘− zoom; ⌘0 is actual size; ⌥⌘← and ⌥⌘→
     /// move a page.
-    fn on_key(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) -> bool {
+    fn on_key(
+        &mut self,
+        event: &KeyDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
         let keys = &event.keystroke;
         let command = keys.modifiers.secondary();
         let showing = matches!(self.state, ReaderState::Showing { .. });
@@ -1254,3 +1290,10 @@ impl PdfReader {
 
 #[cfg(test)]
 pub(crate) mod tests;
+
+#[cfg(test)]
+impl PdfReader {
+    pub(crate) fn shows_original(&self) -> bool {
+        self.original
+    }
+}

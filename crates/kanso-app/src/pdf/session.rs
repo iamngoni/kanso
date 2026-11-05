@@ -86,6 +86,16 @@ impl Session {
         paths: Option<WorkerPaths>,
     ) -> (Session, async_channel::Receiver<Event>) {
         let (tx, rx) = async_channel::unbounded();
+        // Nothing to start: say so at once, without a thread.
+        if paths.is_none() {
+            tx.try_send(Event::Failed(UNAVAILABLE.to_owned())).ok();
+            let shared = Arc::new(Shared {
+                inbox: Mutex::new(Inbox::default()),
+                wake: Condvar::new(),
+                pid: AtomicU32::new(0),
+            });
+            return (Session { shared }, rx);
+        }
         let shared = Arc::new(Shared {
             inbox: Mutex::new(Inbox::default()),
             wake: Condvar::new(),
@@ -175,9 +185,8 @@ fn run(
         shared
             .pid
             .store(worker.pid().unwrap_or(0), Ordering::SeqCst);
-        let attempt = worker.open(&bytes, password.as_deref());
-        // The password has done its one job.
-        password = None;
+        // The password is used for this one open and dropped with it.
+        let attempt = worker.open(&bytes, password.take().as_deref());
         match attempt {
             Ok(opened) => break (worker, opened.sizes),
             Err(WorkerError::Refused {
