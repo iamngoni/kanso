@@ -212,8 +212,14 @@ mod tests {
         // Before its version, nothing.
         let shown = card(&store, &list(), &Version::new(0, 9, 4), true).unwrap();
         assert!(shown.card.is_none() && shown.total == 0);
-        // The shipped list has nothing yet.
-        assert!(card(&store, NOTICES, &now, true).unwrap().card.is_none());
+        // The shipped list has nothing for phones: the API keys notice is
+        // for the desktop's local API, which phones don't have.
+        for signed_in in [true, false] {
+            for version in [&now, &Version::new(0, 10, 3), &Version::new(1, 0, 0)] {
+                let shown = card(&store, NOTICES, version, signed_in).unwrap();
+                assert!(shown.card.is_none() && shown.total == 0);
+            }
+        }
     }
 
     #[test]

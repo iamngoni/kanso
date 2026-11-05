@@ -523,13 +523,7 @@ fn forced_x11(config: &AppConfig) -> Option<WindowingRequest> {
 /// Loads the settings, bringing an older file up to date.
 fn load_config(data_dir: &std::path::Path) -> Result<AppConfig> {
     let path = paths::config_path(data_dir);
-    let mut config =
-        AppConfig::load(&path).with_context(|| format!("reading {}", path.display()))?;
-    let migrated = config.migrate();
-    if migrated {
-        config.save(&path)?;
-    }
-    Ok(config)
+    AppConfig::load_migrated(&path).with_context(|| format!("reading {}", path.display()))
 }
 
 /// How long a Kanso opened by an update waits for the one that installed
