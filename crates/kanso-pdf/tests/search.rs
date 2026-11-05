@@ -10,7 +10,7 @@
 
 use kanso_core::{DocType, Query};
 use kanso_engine::attach::{attach_pdf, file_markdown};
-use kanso_engine::discovery::pdf_text::{PdfTextSource, index_next, waiting};
+use kanso_engine::discovery::pdf_text::{Indexed, PdfTextSource, index_next, waiting};
 use kanso_engine::discovery::pdf_worker::WorkerText;
 use kanso_pdf::fixtures::{encrypted_pdf, pages_pdf, report_pdf};
 use kanso_store::{Origin, Put, SearchParams, Store};
@@ -85,10 +85,13 @@ fn lock(store: &Store, note: &str) {
 /// Reads every PDF waiting, one pass at a time like the app's loop.
 fn index_all(store: &Store, source: &dyn PdfTextSource) -> usize {
     let mut read = 0;
-    while index_next(store, source).unwrap() > 0 {
-        read += 1;
+    loop {
+        match index_next(store, source).unwrap() {
+            Indexed::Nothing => return read,
+            Indexed::Read { .. } => read += 1,
+            failed @ Indexed::ReaderFailed { .. } => panic!("the real worker failed: {failed:?}"),
+        }
     }
-    read
 }
 
 #[test]
@@ -131,7 +134,7 @@ fn a_note_is_found_by_a_word_inside_its_linked_pdf() {
     assert_eq!(pages[1].trim(), "Page 2");
 
     // Read once: another pass finds nothing waiting.
-    assert_eq!(index_next(&store, &source).unwrap(), 0);
+    assert_eq!(index_next(&store, &source).unwrap(), Indexed::Nothing);
 }
 
 #[test]
@@ -153,7 +156,7 @@ fn a_locked_notes_pdf_is_never_read_or_found() {
     assert!(store.pdf_pages(&secret_file).unwrap().is_empty());
 
     // Not by a later pass either, nor by one that sees it again.
-    assert_eq!(index_next(&store, &source).unwrap(), 0);
+    assert_eq!(index_next(&store, &source).unwrap(), Indexed::Nothing);
     assert!(find(&store, "zanzibarquartz").is_empty());
 }
 
@@ -170,7 +173,7 @@ fn locking_a_note_after_its_pdf_was_read_takes_the_words_out_of_search() {
     assert!(find(&store, "quinceblossom").is_empty());
     assert!(store.pdf_pages(&file).unwrap().is_empty());
     assert!(!store.pdf_indexed(&file).unwrap());
-    assert_eq!(index_next(&store, &source).unwrap(), 0);
+    assert_eq!(index_next(&store, &source).unwrap(), Indexed::Nothing);
     assert!(find(&store, "quinceblossom").is_empty());
 }
 
@@ -207,4 +210,97 @@ fn turning_pdf_search_off_forgets_the_words_and_on_reads_them_again() {
 
     assert_eq!(index_all(&store, &source), 1);
     assert_eq!(find(&store, "peppermintglacier"), vec![note]);
+}
+
+/// A stand-in for the worker: a shell script in `dir` that runs `body`.
+#[cfg(unix)]
+fn stand_in(dir: &std::path::Path, body: &str) -> WorkerText {
+    use std::os::unix::fs::PermissionsExt;
+    let script = dir.join("worker");
+    std::fs::write(&script, format!("#!/bin/sh\n{body}\n")).unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    WorkerText::new(kanso_pdf::client::WorkerPaths {
+        exe: script,
+        library: Some(common::library()),
+    })
+}
+
+/// A worker that won't run (here it exits at once, as one that can't be
+/// contained does) fails the reader, not the PDF: nothing is kept, however
+/// often it is tried, and the PDF is read once the worker works.
+#[cfg(unix)]
+#[test]
+fn a_worker_that_wont_run_marks_nothing_and_the_pdf_is_read_later() {
+    let (_dir, store) = store();
+    let book = book(&store);
+    let (file, note) = note_with_pdf(&store, &book, "Later", &pdf_saying("saffronharbour"));
+    let scripts = tempfile::tempdir().unwrap();
+    let refusing = stand_in(scripts.path(), "exit 70");
+    for _ in 0..3 {
+        assert!(
+            matches!(
+                index_next(&store, &refusing).unwrap(),
+                Indexed::ReaderFailed { waiting: 1, .. }
+            ),
+            "a worker that won't run was blamed on the PDF"
+        );
+        assert!(!store.pdf_indexed(&file).unwrap());
+        assert_eq!(waiting(&store).unwrap(), 1);
+    }
+    // A missing worker, the same.
+    let missing = WorkerText::new(kanso_pdf::client::WorkerPaths {
+        exe: scripts.path().join("no-such-worker"),
+        library: None,
+    });
+    assert!(matches!(
+        index_next(&store, &missing).unwrap(),
+        Indexed::ReaderFailed { waiting: 1, .. }
+    ));
+    assert!(!store.pdf_indexed(&file).unwrap());
+
+    assert_eq!(index_all(&store, &source()), 1);
+    assert_eq!(find(&store, "saffronharbour"), vec![note]);
+}
+
+/// A worker that crashes once is tried again in a fresh one: the PDF is
+/// read the first time it is offered.
+#[cfg(unix)]
+#[test]
+fn a_worker_that_crashes_once_is_tried_again() {
+    let (_dir, store) = store();
+    let book = book(&store);
+    let (_, note) = note_with_pdf(&store, &book, "Flaky", &pdf_saying("juniperlighthouse"));
+    let scripts = tempfile::tempdir().unwrap();
+    let marker = scripts.path().join("crashed");
+    let flaky = stand_in(
+        scripts.path(),
+        &format!(
+            "if [ -e '{marker}' ]; then exec '{worker}' \"$@\"; fi\n: > '{marker}'\nexit 1",
+            marker = marker.display(),
+            worker = common::WORKER,
+        ),
+    );
+    assert_eq!(
+        index_next(&store, &flaky).unwrap(),
+        Indexed::Read { waiting: 1 }
+    );
+    assert!(marker.exists(), "the stand-in never crashed");
+    assert_eq!(find(&store, "juniperlighthouse"), vec![note]);
+}
+
+/// A PDF the worker gives up on while it reads other PDFs fine is the
+/// PDF's failure: kept as having no text, not tried again.
+#[test]
+fn a_pdf_that_runs_out_of_time_on_a_working_worker_is_kept_as_having_no_text() {
+    let (_dir, store) = store();
+    let book = book(&store);
+    let (file, _) = note_with_pdf(&store, &book, "Slow", &pdf_saying("tamarindvalley"));
+    let out_of_time = source().with_budget(std::time::Duration::ZERO);
+    assert_eq!(
+        index_next(&store, &out_of_time).unwrap(),
+        Indexed::Read { waiting: 1 }
+    );
+    assert!(store.pdf_indexed(&file).unwrap());
+    assert!(store.pdf_pages(&file).unwrap().is_empty());
+    assert_eq!(waiting(&store).unwrap(), 0);
 }

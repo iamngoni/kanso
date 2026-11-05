@@ -119,6 +119,10 @@ pub fn sections(cx: &mut Context<SettingsView>) -> Vec<AnyElement> {
                 "Reading PDFs… {} to go.",
                 crate::text_stats::format_count(left)
             ),
+            pdf_index::Status::Waiting { left } if discovery.pdf_text => format!(
+                "Kanso's PDF reader isn't working right now. It will try again soon; {} to go.",
+                crate::text_stats::format_count(left)
+            ),
             _ => format!(
                 "Reads the words in PDFs you attach, on {device}, so search finds the notes they're in. Turning this off forgets them."
             ),
