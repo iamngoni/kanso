@@ -185,6 +185,8 @@ mod related;
 mod reminders;
 mod replace;
 mod restore_sheet;
+#[cfg(test)]
+mod restore_waiting_tests;
 mod resurface;
 mod review_queue;
 #[cfg(test)]

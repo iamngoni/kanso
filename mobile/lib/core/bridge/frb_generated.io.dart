@@ -1151,6 +1151,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PalettePlace dco_decode_box_autoadd_palette_place(dynamic raw);
 
   @protected
+  PdfHighlightChange dco_decode_box_autoadd_pdf_highlight_change(dynamic raw);
+
+  @protected
   PeopleSettings dco_decode_box_autoadd_people_settings(dynamic raw);
 
   @protected
@@ -1891,6 +1894,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PasskeyRow> dco_decode_list_passkey_row(dynamic raw);
 
   @protected
+  List<PdfHighlightRow> dco_decode_list_pdf_highlight_row(dynamic raw);
+
+  @protected
+  List<PdfNotes> dco_decode_list_pdf_notes(dynamic raw);
+
+  @protected
   List<PenSample> dco_decode_list_pen_sample(dynamic raw);
 
   @protected
@@ -2538,6 +2547,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PasskeyRow dco_decode_passkey_row(dynamic raw);
+
+  @protected
+  PdfHighlightChange dco_decode_pdf_highlight_change(dynamic raw);
+
+  @protected
+  PdfHighlightRow dco_decode_pdf_highlight_row(dynamic raw);
+
+  @protected
+  PdfNotes dco_decode_pdf_notes(dynamic raw);
 
   @protected
   PenSample dco_decode_pen_sample(dynamic raw);
@@ -4079,6 +4097,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  PdfHighlightChange sse_decode_box_autoadd_pdf_highlight_change(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PeopleSettings sse_decode_box_autoadd_people_settings(
     SseDeserializer deserializer,
   );
@@ -4941,6 +4964,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PasskeyRow> sse_decode_list_passkey_row(SseDeserializer deserializer);
 
   @protected
+  List<PdfHighlightRow> sse_decode_list_pdf_highlight_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PdfNotes> sse_decode_list_pdf_notes(SseDeserializer deserializer);
+
+  @protected
   List<PenSample> sse_decode_list_pen_sample(SseDeserializer deserializer);
 
   @protected
@@ -5732,6 +5763,17 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PasskeyRow sse_decode_passkey_row(SseDeserializer deserializer);
+
+  @protected
+  PdfHighlightChange sse_decode_pdf_highlight_change(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PdfHighlightRow sse_decode_pdf_highlight_row(SseDeserializer deserializer);
+
+  @protected
+  PdfNotes sse_decode_pdf_notes(SseDeserializer deserializer);
 
   @protected
   PenSample sse_decode_pen_sample(SseDeserializer deserializer);
@@ -7562,6 +7604,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_pdf_highlight_change(
+    PdfHighlightChange self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_people_settings(
     PeopleSettings self,
     SseSerializer serializer,
@@ -8690,6 +8738,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_pdf_highlight_row(
+    List<PdfHighlightRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_pdf_notes(List<PdfNotes> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_pen_sample(
     List<PenSample> self,
     SseSerializer serializer,
@@ -9723,6 +9780,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_passkey_row(PasskeyRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pdf_highlight_change(
+    PdfHighlightChange self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_pdf_highlight_row(
+    PdfHighlightRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_pdf_notes(PdfNotes self, SseSerializer serializer);
 
   @protected
   void sse_encode_pen_sample(PenSample self, SseSerializer serializer);

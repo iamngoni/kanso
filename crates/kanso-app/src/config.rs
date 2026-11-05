@@ -583,6 +583,9 @@ pub struct DiscoverySettings {
     /// Reading the words in PDF attachments (`pdf/index.rs`), through the
     /// PDF worker: on by default.
     pub pdf_text: bool,
+    /// A highlight in the PDF reader also writes its quote into the note
+    /// (`pdf/annotate.rs`): on by default.
+    pub pdf_quote: bool,
     /// Reading handwriting on canvases and sketches (`ink_ocr.rs`), where
     /// the system can (macOS): on by default there.
     pub ink_text: bool,
@@ -606,6 +609,7 @@ impl Default for DiscoverySettings {
             related_notes: false,
             image_text: cfg!(target_os = "macos"),
             pdf_text: true,
+            pdf_quote: true,
             ink_text: cfg!(target_os = "macos"),
             graph_hops: 1,
             resurface: true,
@@ -1069,6 +1073,7 @@ mod tests {
                 any::<bool>(),
                 any::<bool>(),
                 any::<bool>(),
+                any::<bool>(),
                 1u8..=2,
                 any::<bool>(),
                 any::<bool>(),
@@ -1100,6 +1105,7 @@ mod tests {
                         related_notes,
                         image_text,
                         pdf_text,
+                        pdf_quote,
                         ink_text,
                         graph_hops,
                         resurface,
@@ -1129,6 +1135,7 @@ mod tests {
                         related_notes,
                         image_text,
                         pdf_text,
+                        pdf_quote,
                         ink_text,
                         graph_hops,
                         resurface,

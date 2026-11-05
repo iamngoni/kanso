@@ -133,6 +133,77 @@ pub(super) fn reader_original_page(
     });
 }
 
+/// A report with three highlights (one with a comment) in the panel, and a
+/// fresh selection with its toolbar.
+pub(super) fn reader_highlights(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    use kanso_pdf::model::Color;
+    let reader = open_reader(
+        cx,
+        window,
+        workspace,
+        store,
+        &kanso_pdf::fixtures::report_pdf(),
+    );
+    wait_until(cx, window, &reader, |reader| reader.test_has_text(1));
+    cx.update_window(window, |_, window, cx| {
+        reader.update(cx, |reader, cx| {
+            reader.test_hide_rail();
+            for (lines, color) in [
+                (0..1, Color::Yellow),
+                (1..2, Color::Green),
+                (2..3, Color::Pink),
+            ] {
+                reader.test_select_lines(1, lines, cx);
+                reader.test_pick(color, window, cx);
+            }
+            let id = reader.test_notes().block.highlights[1].id.clone();
+            reader.test_comment(&id, "Check this against the board deck.", window, cx);
+            reader.test_select_lines(1, 3..4, cx);
+        });
+    })
+    .unwrap();
+    draw(cx, window);
+}
+
+/// The highlights left the note: the last ones stay, read-only, with Restore
+/// annotations.
+pub(super) fn reader_highlights_restore(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    use kanso_pdf::model::Color;
+    let reader = open_reader(
+        cx,
+        window,
+        workspace,
+        store,
+        &kanso_pdf::fixtures::report_pdf(),
+    );
+    wait_until(cx, window, &reader, |reader| reader.test_has_text(1));
+    cx.update_window(window, |_, window, cx| {
+        reader.update(cx, |reader, cx| {
+            reader.test_hide_rail();
+            reader.test_select_lines(1, 0..2, cx);
+            reader.test_pick(Color::Blue, window, cx);
+            // The block was written, then the note was restored to a version
+            // without it. (A change not yet written would be written next,
+            // and is never shown as gone.)
+            reader.take_pending();
+            reader.note_changed("Quarterly review".into(), cx);
+            reader.test_show_panel();
+        });
+    })
+    .unwrap();
+    draw(cx, window);
+}
+
 /// An encrypted PDF asking for its password.
 pub(super) fn reader_password(
     cx: &mut HeadlessAppContext,

@@ -26,6 +26,7 @@ import '../../models/data/source_line.dart';
 import '../../state/preview/preview_bloc.dart';
 import 'attachment_sheet.dart';
 import 'note_source_text.dart';
+import 'pdf_highlights_sheet.dart';
 import 'preview/native_preview.dart';
 
 /// A note's text in preview: the core's blocks, drawn by the app in the
@@ -80,14 +81,17 @@ class NotePreview extends StatelessWidget {
       child: _PreviewInputs(
         themes: themes,
         size: size,
-        child: _PlayerHost(
+        child: PdfNotesScope(
           noteId: note.id,
-          body: note.body ?? '',
-          builder: (player) => PreviewPage(
-            palette: (dark ? appearance.dark : appearance.light).preview,
-            source: source,
-            onEdit: onEditAt == null ? null : () => onEditAt!(0),
-            player: player,
+          child: _PlayerHost(
+            noteId: note.id,
+            body: note.body ?? '',
+            builder: (player) => PreviewPage(
+              palette: (dark ? appearance.dark : appearance.light).preview,
+              source: source,
+              onEdit: onEditAt == null ? null : () => onEditAt!(0),
+              player: player,
+            ),
           ),
         ),
       ),

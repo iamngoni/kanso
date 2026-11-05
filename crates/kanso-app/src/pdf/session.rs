@@ -49,6 +49,9 @@ pub enum Event {
     },
     /// One page could not be drawn; the worker is still up.
     RenderFailed { job: Job },
+    /// The characters of a page, for selecting and highlighting (1-based
+    /// page number inside).
+    Text(Box<kanso_pdf::PageText>),
     /// The worker is gone or the document cannot be shown; the words are for
     /// the person reading.
     Failed(String),
@@ -57,6 +60,8 @@ pub enum Event {
 #[derive(Default)]
 struct Inbox {
     jobs: Vec<Job>,
+    /// Pages (0-based) whose characters are wanted, most wanted first.
+    text: Vec<u32>,
     running: Option<Job>,
     password: Option<String>,
     closed: bool,
@@ -119,6 +124,18 @@ impl Session {
         if let Ok(mut inbox) = self.shared.inbox.lock() {
             let running = inbox.running;
             inbox.jobs = jobs.into_iter().filter(|j| Some(*j) != running).collect();
+            self.shared.wake.notify_all();
+        }
+    }
+
+    /// More pages (0-based) whose text the reader wants, most wanted first.
+    pub fn want_text(&self, pages: Vec<u32>) {
+        if let Ok(mut inbox) = self.shared.inbox.lock() {
+            for page in pages {
+                if !inbox.text.contains(&page) {
+                    inbox.text.push(page);
+                }
+            }
             self.shared.wake.notify_all();
         }
     }
@@ -228,6 +245,30 @@ fn run(
                     drop(inbox);
                     worker.close();
                     return;
+                }
+                // Text is small and quick, and a selection waits on it.
+                if !inbox.text.is_empty() {
+                    let page = inbox.text.remove(0);
+                    drop(inbox);
+                    match worker.text(page) {
+                        Ok(text) => {
+                            if !send(Event::Text(Box::new(text))) {
+                                worker.close();
+                                return;
+                            }
+                        }
+                        Err(error) => {
+                            if worker.failure().is_some() {
+                                send(Event::Failed(error.message()));
+                                return;
+                            }
+                        }
+                    }
+                    let Ok(again) = shared.inbox.lock() else {
+                        return;
+                    };
+                    inbox = again;
+                    continue;
                 }
                 if !inbox.jobs.is_empty() {
                     let job = inbox.jobs.remove(0);

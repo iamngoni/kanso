@@ -52,6 +52,9 @@ KANSO_SNAPSHOT_DIR=/tmp/shots cargo test -q -p kanso-app snapshots -- --ignored 
 KANSO_SNAPSHOT_ONLY=dark-update-ready,light-settings-updates ...   # a few
 ```
 
+The same filter matches `theme_thumbnails`, which skips (with a note) unless
+`KANSO_THEME_THUMBS_DIR` is set; `themes/scripts/check.sh` sets it.
+
 PDFs are drawn by `kanso-pdf-worker`, a separate, contained process with the
 PDFium library (issue #43). Fetch the pinned, checksummed library and build
 the worker once, and the reader and its tests find them in the source tree:

@@ -2638,6 +2638,72 @@ abstract class AppLocalizations {
   /// **'Task'**
   String get previewTask;
 
+  /// Title of the sheet that lists the highlights a note holds for its PDFs.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlights'**
+  String get pdfNotesTitle;
+
+  /// Shown in the highlights sheet when the note has no highlights.
+  ///
+  /// In en, this message translates to:
+  /// **'This note has no highlights.'**
+  String get pdfNotesEmpty;
+
+  /// The page of a PDF a highlight is on.
+  ///
+  /// In en, this message translates to:
+  /// **'Page {page}'**
+  String pdfNotesPage(int page);
+
+  /// Said of a highlight whose quote is no longer in the note's text.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in the note'**
+  String get pdfNotesNotInNote;
+
+  /// Shown above a PDF's highlights when the data that holds them in the note can't be read.
+  ///
+  /// In en, this message translates to:
+  /// **'These highlights can\'t be changed here: the note\'s highlight data can\'t be read.'**
+  String get pdfNotesReadOnly;
+
+  /// Placeholder of the field for a highlight's comment.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a note'**
+  String get pdfNotesCommentHint;
+
+  /// Button that saves a highlight's comment.
+  ///
+  /// In en, this message translates to:
+  /// **'Save note'**
+  String get pdfNotesSaveNote;
+
+  /// Button that puts a highlight's quote back into the note's text.
+  ///
+  /// In en, this message translates to:
+  /// **'Add quote to the note'**
+  String get pdfNotesAddToNote;
+
+  /// Button that removes a highlight; its quote stays in the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete highlight'**
+  String get pdfNotesDelete;
+
+  /// Read by a screen reader for a highlight colour choice.
+  ///
+  /// In en, this message translates to:
+  /// **'{color, select, yellow{Yellow} green{Green} blue{Blue} pink{Pink} other{Colour}}'**
+  String pdfNotesColor(String color);
+
+  /// Read by a screen reader for the line in a note's preview that opens its PDF highlights.
+  ///
+  /// In en, this message translates to:
+  /// **'{summary}. Show the highlights.'**
+  String pdfNotesOpen(String summary);
+
   /// Shown in a note's preview for a drawing with nothing in it yet.
   ///
   /// In en, this message translates to:
