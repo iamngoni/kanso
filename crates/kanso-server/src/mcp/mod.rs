@@ -143,9 +143,12 @@ pub(crate) async fn handle(
     let Ok(message) = serde_json::from_slice::<Value>(&bytes) else {
         return error_response(StatusCode::BAD_REQUEST, PARSE_ERROR, "Parse error");
     };
-    match tokio::task::spawn_blocking(move || dispatch(&state, &caller, message)).await {
-        Ok(Some(answer)) => Json(answer).into_response(),
-        Ok(None) => StatusCode::ACCEPTED.into_response(),
+    let lease = crate::lease::Lease::current();
+    let work = move || crate::lease::guarded(lease, || dispatch(&state, &caller, message));
+    match tokio::task::spawn_blocking(work).await {
+        Ok(Some(Some(answer))) => Json(answer).into_response(),
+        Ok(Some(None)) => StatusCode::ACCEPTED.into_response(),
+        Ok(None) => ApiError::unauthorized().into_response(),
         Err(_) => error_response(
             StatusCode::INTERNAL_SERVER_ERROR,
             INTERNAL_ERROR,

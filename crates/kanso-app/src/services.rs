@@ -252,6 +252,10 @@ pub struct Services {
     /// server and Settings must share this one instance: a revoke from
     /// Settings then stops the server's next request (see [`key_store`]).
     keys: Option<(Arc<kanso_store::Store>, KeyStore)>,
+    /// The control channel `kanso api-key` uses to make and revoke keys while this
+    /// Kanso runs (see `control.rs`), and the keys it works on.
+    control: Option<crate::control::ControlServer>,
+    control_target: crate::control::ControlTarget,
     /// The agents' read-only notes tokens (`ai_agent.rs`), accepted on the
     /// local API's `/mcp` while it listens on this computer only, and on
     /// the agents' private listener.
@@ -463,15 +467,34 @@ pub fn key_store(cx: &mut App) -> Result<KeyStore, String> {
     }
     let keys = KeyStore::open(store.clone())
         .map_err(|err| format!("couldn't read the API keys: {err}"))?;
+    services.control_target.set(store.clone(), keys.clone());
     services.keys = Some((store, keys.clone()));
     Ok(keys)
+}
+
+/// Opens the local control channel, so `kanso api-key` can make and revoke keys
+/// while this Kanso runs. Says why not on standard error and goes on.
+pub fn start_control(cx: &mut App) {
+    if key_store(cx).is_err() {
+        return;
+    }
+    let data_dir = cx.global::<AppState>().data_dir.clone();
+    let services = cx.global_mut::<Services>();
+    match crate::control::ControlServer::start(&data_dir, services.control_target.clone()) {
+        Ok(control) => services.control = Some(control),
+        Err(err) => eprintln!(
+            "kanso: `kanso api-key` can't reach this Kanso while it runs ({err}). Quit Kanso to change keys from the command line."
+        ),
+    }
 }
 
 /// Tests and snapshots: the keys to use, with a clock of their own.
 #[cfg(test)]
 pub(crate) fn set_keys_for_test(keys: KeyStore, cx: &mut App) {
     let store = cx.global::<AppState>().store.clone();
-    cx.global_mut::<Services>().keys = Some((store, keys));
+    let services = cx.global_mut::<Services>();
+    services.control_target.set(store.clone(), keys.clone());
+    services.keys = Some((store, keys));
 }
 
 /// Tests: where the local API listens, once it runs.
@@ -617,6 +640,7 @@ pub fn release_writes(restart: bool, cx: &mut App) {
 pub fn stop_server(cx: &mut App) {
     let services = cx.global_mut::<Services>();
     services.port_retry = None;
+    services.control = None;
     if let Some(server) = services.server.take() {
         server.stop().ok();
     }

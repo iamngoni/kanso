@@ -8,10 +8,13 @@
 //! standard error, so `KEY=$(kanso api-key create --name N)` holds exactly
 //! the key. The key is never logged and never part of an error.
 //!
-//! It takes the data-folder lock, as `kanso serve` and the app do, so it
-//! refuses while either is running: a running server keeps its keys in
-//! memory, and a key made or revoked behind its back would not take effect
-//! until it restarted.
+//! With nothing running it takes the data-folder lock, as `kanso serve` and
+//! the app do, and works on the library itself. With Kanso or `kanso serve`
+//! running, the lock is theirs (it also guards encryption and migrations),
+//! so the command goes to that process over its local control channel
+//! (`control.rs`) and is done there, with the keys it serves from: a revoke
+//! takes effect at once, requests the key already started included, and
+//! nothing stops.
 
 use std::io::Write;
 use std::path::Path;
@@ -30,8 +33,8 @@ Usage: kanso api-key create --name <name> [--access read|suggest|write]
        kanso api-key revoke <key id or name> [--data-dir <dir>]
 
 Makes, lists and revokes the API keys of a library, for `kanso serve` and
-`kanso mcp` on a machine with no window. Stop Kanso and `kanso serve` first:
-these commands need the data folder to themselves.
+`kanso mcp` on a machine with no window. They work while Kanso or
+`kanso serve` runs: a revoke takes effect at once, with nothing stopped.
 
 create   Prints the key, and only the key, on standard output. It is shown
          this once: Kanso keeps just a hash. --access is read (the
@@ -253,11 +256,11 @@ pub fn pick_key<'a>(rows: &'a [ApiKeyRow], target: &str) -> Result<&'a ApiKeyRow
 /// and nothing else does; messages go to `err`.
 pub fn execute(
     store: &Arc<Store>,
+    keys: &KeyStore,
     command: Command,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> Result<()> {
-    let keys = KeyStore::open(store.clone()).context("reading the API keys")?;
     let books: Vec<(String, String)> = store
         .books()
         .context("reading the notebooks")?
@@ -291,7 +294,8 @@ pub fn execute(
             writeln!(out, "{}", minted.key)?;
             writeln!(
                 err,
-                "Made the key “{name}” ({}). It is above, and only above: Kanso keeps just a hash, so it can't be shown again. Put it in the program's KANSO_MCP_TOKEN, or send it as “Authorization: Bearer <key>”.",
+                "Made the key “{}” ({}). It is above, and only above: Kanso keeps just a hash, so it can't be shown again. Put it in the program's KANSO_MCP_TOKEN, or send it as “Authorization: Bearer <key>”.",
+                plain(&name),
                 minted.id.as_str()
             )?;
         }
@@ -342,8 +346,9 @@ pub fn execute(
     Ok(())
 }
 
-/// What a data folder in use is told.
-const IN_USE: &str = "Kanso, or `kanso serve`, is running with this data folder, and it keeps its keys in memory, so a key changed from here would not take effect. Quit it (stop `kanso serve`), then run this again. With the app open, use Settings › Local API › API keys instead.";
+/// What a data folder in use, with no compatible control channel to reach it
+/// by, is told: an older Kanso, or a channel that could not start securely.
+const IN_USE: &str = "Kanso, or `kanso serve`, is running with this data folder, but it can't take API key commands from here (it is an older version, or its local control channel could not start securely), and a second process must not write the library behind its back. Update it and restart it, or quit Kanso (stop `kanso serve`), then run this again. With the app open, Settings › Local API › API keys does the same.";
 
 /// `kanso api-key …`.
 pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {
@@ -353,15 +358,36 @@ pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {
         return Ok(());
     }
     let Some(_lock) = lock_data_dir(data_dir)? else {
-        bail!("{IN_USE}");
+        return run_in_running(data_dir, &command);
     };
     let store = Arc::new(crate::library_open::open_store(data_dir)?);
+    let keys = KeyStore::open(store.clone()).context("reading the API keys")?;
     execute(
         &store,
+        &keys,
         command,
         &mut std::io::stdout().lock(),
         &mut std::io::stderr().lock(),
     )
+}
+
+/// The data folder is held by a running Kanso: asks it to do `command`.
+fn run_in_running(data_dir: &Path, command: &Command) -> Result<()> {
+    let Some(request) = crate::control_model::Request::of(command) else {
+        return Ok(());
+    };
+    let sent = crate::control::send(data_dir, &request).with_context(|| {
+        "Kanso is running with this data folder but didn't answer the API key command. Wait a moment and run this again, or restart Kanso"
+    })?;
+    match sent {
+        crate::control::Sent::Done(out, err) => {
+            write!(std::io::stdout().lock(), "{out}")?;
+            write!(std::io::stderr().lock(), "{err}")?;
+            Ok(())
+        }
+        crate::control::Sent::Failed(error) => bail!("{error}"),
+        crate::control::Sent::NoSocket => bail!("{IN_USE}"),
+    }
 }
 
 #[cfg(test)]
@@ -404,7 +430,8 @@ mod tests {
 
     fn run(store: &Arc<Store>, command: Command) -> (Result<()>, String, String) {
         let (mut out, mut err) = (Vec::new(), Vec::new());
-        let result = execute(store, command, &mut out, &mut err);
+        let keys = KeyStore::open(store.clone()).unwrap();
+        let result = execute(store, &keys, command, &mut out, &mut err);
         (
             result,
             String::from_utf8(out).unwrap(),
@@ -613,7 +640,7 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(
-            error.contains("Quit it") && error.contains("Settings"),
+            error.contains("older version") && error.contains("Settings"),
             "{error}"
         );
     }

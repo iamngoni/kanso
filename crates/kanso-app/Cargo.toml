@@ -168,6 +168,8 @@ gpui-pre-apple = "=0.3.9"
 [target.'cfg(unix)'.dependencies]
 # `kanso serve` stops cleanly on SIGINT and SIGTERM (systemd's stop).
 signal-hook = "0.3"
+# The control socket checks which user is on the other end (`control.rs`).
+libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Sticky notes on X11 (`sticky.rs`): the window's ID, and the EWMH request
@@ -219,6 +221,12 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_Console",
     # Reading the clipboard's CF_HTML for pasting formatted text.
     "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
     "Win32_System_DataExchange",
     "Win32_System_Memory",
     # Open at login: the Run key under HKEY_CURRENT_USER.

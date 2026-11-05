@@ -13,6 +13,7 @@ use base64::engine::general_purpose::{GeneralPurpose, GeneralPurposeConfig};
 
 use crate::error::ApiError;
 use crate::keys::{KeyStore, key_from_header};
+use crate::lease::{CURRENT, Lease};
 use crate::scope::Caller;
 use crate::tokens::TokenStore;
 
@@ -49,21 +50,33 @@ pub(crate) fn bearer(header: &[u8]) -> Option<&str> {
 /// agent's live session token on `/mcp` only. `None` is refused. A key is
 /// accepted only when `keys` is given (the agents' private listener has
 /// none).
+#[cfg(test)]
 pub(crate) fn caller(
     keys: Option<&KeyStore>,
     tokens: &TokenStore,
     path: &str,
     header: Option<&[u8]>,
 ) -> Option<Caller> {
+    caller_leased(keys, tokens, path, header).map(|(caller, _)| caller)
+}
+
+/// [`caller`], and the [`Lease`] a key's request holds until it is answered.
+pub(crate) fn caller_leased(
+    keys: Option<&KeyStore>,
+    tokens: &TokenStore,
+    path: &str,
+    header: Option<&[u8]>,
+) -> Option<(Caller, Option<Lease>)> {
     let header = header?;
     if path == MCP_PATH
         && let Some(token) = bearer(header)
         && let Some(caller) = tokens.verify(token)
     {
-        return Some(caller);
+        return Some((caller, None));
     }
     let key = key_from_header(header)?;
-    keys?.verify(&key)
+    let (caller, lease) = keys?.verify_leased(&key)?;
+    Some((caller, Some(lease)))
 }
 
 /// What the sign-in middleware checks against: the library's API keys, when
@@ -84,15 +97,34 @@ pub(crate) async fn require_auth(
         .headers()
         .get(AUTHORIZATION)
         .map(|value| value.as_bytes());
-    match caller(
+    match caller_leased(
         gate.keys.as_ref(),
         &gate.tokens,
         request.uri().path(),
         header,
     ) {
-        Some(caller) => {
+        Some((caller, None)) => {
             request.extensions_mut().insert(caller);
             next.run(request).await
+        }
+        Some((caller, Some(lease))) => {
+            request.extensions_mut().insert(caller);
+            // The request runs holding its key's lease, and is dropped the
+            // moment the key is revoked. A store call it already started
+            // keeps its own lease (`rest::blocking`), which the revoke
+            // waits for; none begins after the revoke.
+            let watch = lease.also();
+            let work = CURRENT.scope(lease, next.run(request));
+            tokio::select! {
+                response = work => {
+                    if watch.is_revoked() {
+                        revoked_response(&gate)
+                    } else {
+                        carry_lease_until_body_ends(response, watch)
+                    }
+                }
+                () = watch.revoked() => revoked_response(&gate),
+            }
         }
         None => {
             if let Some(keys) = &gate.keys {
@@ -103,12 +135,48 @@ pub(crate) async fn require_auth(
     }
 }
 
+/// Keeps an in-flight key lease while a response body is consumed. In
+/// particular, a server-sent stream cannot outlive a successful revoke. If
+/// the gate closes while the transport awaits its next frame, the body ends
+/// without exposing another frame and the lease is released immediately.
+fn carry_lease_until_body_ends(response: Response, lease: crate::lease::Lease) -> Response {
+    use axum::body::HttpBody as _;
+    use http_body_util::BodyExt as _;
+
+    let (parts, body) = response.into_parts();
+    if body.is_end_stream() {
+        drop(lease);
+        return Response::from_parts(parts, body);
+    }
+    let stream = futures_util::stream::unfold((body, lease), |(mut body, lease)| async move {
+        if lease.is_revoked() {
+            return None;
+        }
+        let frame = tokio::select! {
+            frame = body.frame() => frame,
+            () = lease.revoked() => return None,
+        };
+        frame.map(|frame| (frame, (body, lease)))
+    });
+    let body = axum::body::Body::new(http_body_util::StreamBody::new(stream));
+    Response::from_parts(parts, body)
+}
+
+/// The answer to a request whose key was revoked while it ran.
+fn revoked_response(gate: &Gate) -> Response {
+    if let Some(keys) = &gate.keys {
+        keys.note_refused();
+    }
+    ApiError::unauthorized().into_response()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::key_model::{KeyId, NewKey};
     use kanso_store::{KeyAccess, Store};
     use proptest::prelude::*;
+    use proptest::test_runner::RngSeed;
 
     fn fixture() -> (tempfile::TempDir, KeyStore, TokenStore) {
         let dir = tempfile::tempdir().unwrap();
@@ -160,7 +228,11 @@ mod tests {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(128))]
+        #![proptest_config(ProptestConfig {
+            cases: 128,
+            rng_seed: RngSeed::Fixed(0x0061_7574_686b),
+            ..ProptestConfig::default()
+        })]
 
         /// Whatever the header says, a caller is a key only when it carries
         /// a key that was minted and not revoked.
@@ -176,6 +248,270 @@ mod tests {
             }
             let got = caller(Some(&keys), &tokens, "/notes", Some(sent.as_bytes()));
             prop_assert_eq!(got.is_some(), sent.trim() == real && !revoke);
+        }
+    }
+
+    // A key revoked while its request runs: that request never finishes
+    // its work after the revoke returns, and answers 401.
+    mod in_flight {
+        use super::*;
+        use crate::AppState;
+        use axum::body::{Body, Bytes};
+        use axum::extract::State;
+        use axum::http::{Request, StatusCode};
+        use axum::routing::get;
+        use http_body_util::BodyExt as _;
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::time::Duration;
+        use tower::ServiceExt as _;
+
+        struct Rig {
+            _dir: tempfile::TempDir,
+            keys: KeyStore,
+            app: axum::Router,
+            /// Store calls that ran to the end.
+            finished: Arc<AtomicUsize>,
+            /// Store calls that began.
+            begun: Arc<AtomicUsize>,
+        }
+
+        fn rig(store_ms: u64, wait_ms: u64) -> Rig {
+            let dir = tempfile::tempdir().unwrap();
+            let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
+            let keys = KeyStore::open(store.clone()).unwrap();
+            let tokens = TokenStore::new();
+            let finished = Arc::new(AtomicUsize::new(0));
+            let begun = Arc::new(AtomicUsize::new(0));
+            let (f, b) = (finished.clone(), begun.clone());
+            let handler = move |state: State<AppState>| {
+                let (f, b) = (f.clone(), b.clone());
+                async move {
+                    // Waiting before the store call, as a slow body does.
+                    tokio::time::sleep(Duration::from_millis(wait_ms)).await;
+                    crate::rest::blocking(&state, move |_| {
+                        b.fetch_add(1, Ordering::SeqCst);
+                        std::thread::sleep(Duration::from_millis(store_ms));
+                        f.fetch_add(1, Ordering::SeqCst);
+                        Ok(())
+                    })
+                    .await
+                    .map(|()| "done")
+                }
+            };
+            let gate = Gate {
+                keys: Some(keys.clone()),
+                tokens: tokens.clone(),
+            };
+            let app = axum::Router::new()
+                .route("/slow", get(handler))
+                .with_state(AppState {
+                    store,
+                    tokens,
+                    canvases: None,
+                })
+                .layer(axum::middleware::from_fn_with_state(gate, require_auth));
+            Rig {
+                _dir: dir,
+                keys,
+                app,
+                finished,
+                begun,
+            }
+        }
+
+        fn get_slow(rig: &Rig, key: &str) -> tokio::task::JoinHandle<StatusCode> {
+            let app = rig.app.clone();
+            let request = Request::builder()
+                .uri("/slow")
+                .header("authorization", format!("Bearer {key}"))
+                .body(Body::empty())
+                .unwrap();
+            tokio::spawn(async move { app.oneshot(request).await.unwrap().status() })
+        }
+
+        async fn revoke(keys: &KeyStore, id: &str) {
+            let (keys, id) = (keys.clone(), KeyId(id.to_owned()));
+            tokio::task::spawn_blocking(move || keys.revoke(&id).unwrap())
+                .await
+                .unwrap();
+        }
+
+        async fn revoke_with_timeout(
+            keys: &KeyStore,
+            id: &str,
+            timeout: Duration,
+        ) -> Result<bool, String> {
+            let (keys, id) = (keys.clone(), KeyId(id.to_owned()));
+            tokio::task::spawn_blocking(move || keys.revoke_with_timeout(&id, timeout))
+                .await
+                .unwrap()
+                .map_err(|error| error.to_string())
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn a_store_call_under_way_ends_before_the_revoke_returns() {
+            let rig = rig(300, 0);
+            let key = mint(&rig.keys);
+            let id = rig.keys.list().unwrap()[0].id.clone();
+            let request = get_slow(&rig, &key);
+            while rig.begun.load(Ordering::SeqCst) == 0 {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+            revoke(&rig.keys, &id).await;
+            // Nothing is left to finish once the revoke has returned.
+            assert_eq!(rig.finished.load(Ordering::SeqCst), 1);
+            assert_eq!(request.await.unwrap(), StatusCode::UNAUTHORIZED);
+            assert_eq!(rig.finished.load(Ordering::SeqCst), 1);
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn a_request_still_waiting_never_reaches_the_store() {
+            let rig = rig(0, 400);
+            let key = mint(&rig.keys);
+            let other = mint(&rig.keys);
+            let id = rig
+                .keys
+                .list()
+                .unwrap()
+                .into_iter()
+                .find(|row| {
+                    rig.keys.verify(&key).is_some_and(
+                        |c| matches!(c, Caller::Key { id: ref k, .. } if k.as_str() == row.id),
+                    )
+                })
+                .unwrap()
+                .id;
+            let waiting = get_slow(&rig, &key);
+            let kept = get_slow(&rig, &other);
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            revoke(&rig.keys, &id).await;
+            assert_eq!(waiting.await.unwrap(), StatusCode::UNAUTHORIZED);
+            // The other key's request is untouched.
+            assert_eq!(kept.await.unwrap(), StatusCode::OK);
+            assert_eq!(rig.begun.load(Ordering::SeqCst), 1);
+            assert_eq!(rig.finished.load(Ordering::SeqCst), 1);
+            // And the revoked key is refused from now on.
+            assert_eq!(
+                get_slow(&rig, &key).await.unwrap(),
+                StatusCode::UNAUTHORIZED
+            );
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn a_revoke_timeout_is_an_error_while_a_started_write_is_still_running() {
+            let rig = rig(250, 0);
+            let key = mint(&rig.keys);
+            let id = rig.keys.list().unwrap()[0].id.clone();
+            let request = get_slow(&rig, &key);
+            while rig.begun.load(Ordering::SeqCst) == 0 {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+
+            let result = revoke_with_timeout(&rig.keys, &id, Duration::from_millis(20)).await;
+            let error = result.expect_err("a timed-out drain must not report revoke success");
+            assert!(error.contains("revoke did not complete"));
+            assert_eq!(rig.finished.load(Ordering::SeqCst), 0);
+            assert!(rig.keys.verify(&key).is_none());
+            assert_eq!(request.await.unwrap(), StatusCode::UNAUTHORIZED);
+
+            tokio::time::timeout(Duration::from_secs(1), async {
+                while rig.finished.load(Ordering::SeqCst) == 0 {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            })
+            .await
+            .expect("the already-started store call eventually finishes");
+            assert_eq!(rig.finished.load(Ordering::SeqCst), 1);
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn a_stream_holds_its_lease_and_stops_emitting_when_revoked() {
+            let (_dir, keys, tokens) = fixture();
+            let key = mint(&keys);
+            let id = keys.list().unwrap()[0].id.clone();
+            let gate = Gate {
+                keys: Some(keys.clone()),
+                tokens,
+            };
+            let app = axum::Router::new()
+                .route(
+                    "/stream",
+                    get(|| async {
+                        let stream = futures_util::stream::unfold(0usize, |index| async move {
+                            tokio::time::sleep(Duration::from_millis(80)).await;
+                            Some((
+                                Ok::<Bytes, std::io::Error>(Bytes::from_static(b"secret frame")),
+                                index + 1,
+                            ))
+                        });
+                        Body::from_stream(stream)
+                    }),
+                )
+                .layer(axum::middleware::from_fn_with_state(gate, require_auth));
+            let request = Request::builder()
+                .uri("/stream")
+                .header("authorization", format!("Bearer {key}"))
+                .body(Body::empty())
+                .unwrap();
+            let response = app.oneshot(request).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            let mut body = response.into_body();
+            let first = tokio::time::timeout(Duration::from_secs(1), body.frame())
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap();
+            assert_eq!(first.data_ref().unwrap().as_ref(), b"secret frame");
+
+            // Keep polling the stream while revoke closes the gate. The
+            // pending frame is cancelled, releasing the lease the revoke
+            // waits for, and no later frame is yielded.
+            let reading = tokio::spawn(async move { body.frame().await });
+            tokio::time::sleep(Duration::from_millis(10)).await;
+            revoke(&keys, &id).await;
+            assert!(reading.await.unwrap().is_none());
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 256,
+            rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_6579_7376),
+            ..ProptestConfig::default()
+        })]
+
+        /// Whatever order requests come, finish and the key is revoked in,
+        /// no lease is granted once the gate is closed, and a drain ends
+        /// exactly when every lease is let go.
+        #[test]
+        fn prop_a_closed_gate_grants_nothing(steps in prop::collection::vec(0u8..4, 0..40)) {
+            use crate::lease::KeyGate;
+            use std::time::Duration;
+            let gate = KeyGate::new();
+            let mut held = Vec::new();
+            let mut closed = false;
+            for step in steps {
+                match step {
+                    0 => match gate.lease() {
+                        Some(lease) => { prop_assert!(!closed); held.push(lease); }
+                        None => prop_assert!(closed),
+                    },
+                    1 => { held.pop(); }
+                    2 => {
+                        if let Some(first) = held.first() {
+                            let more = first.also();
+                            held.push(more);
+                        }
+                    }
+                    _ => { gate.close(); closed = true; }
+                }
+                prop_assert_eq!(gate.held(), held.len());
+                prop_assert_eq!(gate.drain(Duration::ZERO), held.is_empty());
+                if closed {
+                    prop_assert!(held.iter().all(|lease| lease.is_revoked()));
+                }
+            }
         }
     }
 }

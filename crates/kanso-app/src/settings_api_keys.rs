@@ -37,6 +37,9 @@ use crate::workspace::AppState;
 use crate::zoom::px;
 use crate::{dialogs, services};
 
+/// How often an open page looks for keys changed from the command line.
+const WATCH_EVERY: std::time::Duration = std::time::Duration::from_secs(1);
+
 /// The width of the New key sheet.
 pub const SHEET_WIDTH: f32 = 560.;
 
@@ -51,6 +54,11 @@ pub struct ApiKeysPage {
     book_names: HashMap<String, String>,
     /// Why the keys can't be listed or changed.
     error: Option<String>,
+    /// How many changes the keys had when the rows were read: a key made
+    /// or revoked from `kanso api-key` while this shows moves the count.
+    seen: u64,
+    /// Watches for such changes while the page lives.
+    watch: Option<Task<()>>,
     /// The key the sheet last made, so a test can use it as an agent would.
     #[cfg(test)]
     pub(crate) minted_for_test: Option<String>,
@@ -67,6 +75,8 @@ impl ApiKeysPage {
             rows: Vec::new(),
             book_names: HashMap::new(),
             error: None,
+            seen: 0,
+            watch: None,
             #[cfg(test)]
             minted_for_test: None,
             #[cfg(test)]
@@ -77,6 +87,35 @@ impl ApiKeysPage {
     /// Brings the page up to date each time it shows.
     pub fn shown(&mut self, cx: &mut Context<Self>) {
         self.refresh(cx);
+        if self.watch.is_none() && cfg!(not(test)) {
+            self.watch = Some(cx.spawn(async move |this, cx| {
+                loop {
+                    cx.background_executor().timer(WATCH_EVERY).await;
+                    if this.update(cx, |page, cx| page.catch_up(cx)).is_err() {
+                        break;
+                    }
+                }
+            }));
+        }
+    }
+
+    /// Reads the keys again when something else changed them.
+    fn catch_up(&mut self, cx: &mut Context<Self>) {
+        if self
+            .keys
+            .as_ref()
+            .is_some_and(|keys| keys.changes() != self.seen)
+        {
+            self.refresh(cx);
+        }
+    }
+
+    /// Reads a snapshot against the generation that was current when the
+    /// read began. A concurrent CLI change then remains visible to the next
+    /// poll, even if it happens between reading rows and finishing refresh.
+    fn read_at_generation<T>(keys: &KeyStore, read: impl FnOnce() -> T) -> (u64, T) {
+        let generation = keys.changes();
+        (generation, read())
     }
 
     /// Reads the live keys and the notebook names again.
@@ -88,7 +127,8 @@ impl ApiKeysPage {
         }
         match services::key_store(cx) {
             Ok(keys) => {
-                match keys.list() {
+                let (generation, rows) = Self::read_at_generation(&keys, || keys.list());
+                match rows {
                     Ok(rows) => {
                         self.rows = rows
                             .into_iter()
@@ -97,6 +137,7 @@ impl ApiKeysPage {
                     }
                     Err(err) => self.error = Some(format!("Couldn't list the API keys: {err}")),
                 }
+                self.seen = generation;
                 self.keys = Some(keys);
             }
             Err(reason) => self.error = Some(reason),
@@ -764,4 +805,32 @@ pub(crate) fn open_made_sheet_for_test(
         sheet
     });
     open_sheet(sheet, window, cx);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ApiKeysPage;
+    use kanso_server::{KeyAccess, KeyStore};
+
+    #[test]
+    fn a_key_change_during_a_refresh_remains_visible_to_the_next_poll() {
+        let dir = tempfile::tempdir().unwrap();
+        let store =
+            std::sync::Arc::new(kanso_store::Store::open(dir.path().join("kanso.db")).unwrap());
+        let keys = KeyStore::open(store).unwrap();
+
+        let (seen, rows) = ApiKeysPage::read_at_generation(&keys, || {
+            keys.mint(kanso_server::NewKey {
+                name: "Command line".into(),
+                client: "other".into(),
+                access: KeyAccess::Read,
+                books: None,
+            })
+            .unwrap();
+            keys.list()
+        });
+
+        assert_eq!(rows.unwrap().len(), 1);
+        assert_ne!(keys.changes(), seen);
+    }
 }
