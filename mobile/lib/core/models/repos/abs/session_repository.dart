@@ -127,6 +127,10 @@ abstract interface class SessionRepository {
   /// pictures and files when they are first edited.
   Future<Either<ApplicationError, bool>> takeSealedFilesNotice();
 
+  /// The named attachment that could not be sealed when an older locked
+  /// note opened, or null when none failed.
+  Future<Either<ApplicationError, String?>> takeSealFailureNotice();
+
   /// The files the last Lock Note or Remove Lock copied because another note
   /// also shows them, once, for the sentence said after it; null when it
   /// copied none.

@@ -535,7 +535,8 @@ impl Library {
                     .contains_key(kanso_core::model::KANSO_FILES_FIELD)
                 && let Err(error) = locks.migrate_note_attachments(note)
             {
-                eprintln!("kanso: locked notes: couldn't seal an attachment list: {error}");
+                locks.remember_seal_failure(error.to_string());
+                eprintln!("kanso: locked notes: couldn't seal an attachment list");
             }
         }
         view

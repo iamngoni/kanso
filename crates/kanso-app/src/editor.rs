@@ -5368,9 +5368,9 @@ fn is_pdf_path(path: &std::path::Path) -> bool {
 const PDF_NOTE_READ_ONLY: &str =
     "This note can't be edited right now, so the highlight wasn't saved to it.";
 
-/// What opening a PDF in a locked note says: the PDF viewer does not read
-/// sealed files yet.
-const PDF_IN_LOCKED_NOTE_OPEN: &str = "PDFs in locked notes can't be opened yet, because attachments aren't sealed with the lock. Unlock the note's notebook, or move the PDF to a note that isn't locked.";
+/// What opening a PDF in a locked note says: the PDF reader still reads the
+/// store directly and cannot open the attachment through the lock session.
+const PDF_IN_LOCKED_NOTE_OPEN: &str = "PDFs in locked notes can't be opened yet. Unlock the note first, or move the PDF to a note that isn't locked.";
 
 /// What a pasted or dropped file becomes in the note: an attached image's
 /// Markdown, or a drawing's fenced block (kept in the note itself, so it

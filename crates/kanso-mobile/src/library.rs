@@ -2,7 +2,7 @@
 //! secrets it signs in with. The note calls are in `notes.rs`; the lock
 //! session, sync and renderer handles have their own modules.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, LazyLock, Mutex, Weak};
@@ -65,6 +65,9 @@ pub(crate) struct Inner {
     /// The copies the last lock or Remove Lock made, until the phone says so
     /// (`LockSession::take_copy_notice`).
     pub(crate) copy_notice: Mutex<Option<crate::model::LockCopyNotice>>,
+    /// A failed legacy-file seal, with the name that `files::seal_note_files`
+    /// added, until the note screen says it once.
+    pub(crate) seal_failure_notice: Mutex<VecDeque<String>>,
     /// What the last sync said.
     pub(crate) sync_state: Mutex<SyncState>,
     pub(crate) status_listeners: Listeners<SyncStatus>,
@@ -355,6 +358,7 @@ fn open_inner(
         seal_progress: Listeners::default(),
         lock_cancelled: AtomicBool::new(false),
         copy_notice: Mutex::new(None),
+        seal_failure_notice: Mutex::new(VecDeque::new()),
         sync_state: Mutex::new(SyncState::Off),
         status_listeners: Listeners::default(),
         sync_gate: Mutex::new(()),

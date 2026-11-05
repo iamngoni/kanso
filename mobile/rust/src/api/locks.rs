@@ -121,6 +121,12 @@ impl KansoLocks {
         self.0.take_copy_notice()
     }
 
+    /// The named file that could not be sealed when an older locked note
+    /// opened, for the phone to tell once.
+    pub fn take_seal_failure_notice(&self) -> Result<Option<String>, KansoError> {
+        self.0.take_seal_failure_notice()
+    }
+
     /// Whether the phone should say, once, that notes locked before this
     /// update sealed their attachments.
     pub fn take_sealed_files_notice(&self) -> Result<bool, KansoError> {

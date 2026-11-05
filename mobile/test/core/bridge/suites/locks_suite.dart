@@ -51,6 +51,8 @@ void locksSuite(OpenLibrary open, {BiometricAnswer? answer}) {
 
         // A fresh library has no notes locked before sealing existed.
         expect(await locks.takeSealedFilesNotice(), isFalse);
+        expect(await locks.takeSealFailureNotice(), isNull);
+        expect(await locks.takeSealFailureNotice(), isNull);
       },
     );
 

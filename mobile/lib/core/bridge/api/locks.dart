@@ -83,6 +83,10 @@ abstract class KansoLocks implements RustOpaqueInterface {
   /// shows them, once, for the phone to say so. `None` when none were.
   Future<LockCopyNotice?> takeCopyNotice();
 
+  /// The named file that could not be sealed when an older locked note
+  /// opened, for the phone to tell once.
+  Future<String?> takeSealFailureNotice();
+
   /// Whether the phone should say, once, that notes locked before this
   /// update sealed their attachments.
   Future<bool> takeSealedFilesNotice();

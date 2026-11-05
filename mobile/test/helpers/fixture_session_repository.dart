@@ -242,6 +242,9 @@ class FixtureSessionRepository implements SessionRepository {
   /// What [takeCopyNotice] answers, once.
   LockCopyNotice? copyNotice;
 
+  /// What [takeSealFailureNotice] answers, once.
+  String? sealFailureNotice;
+
   final StreamController<SealProgress> progress =
       StreamController<SealProgress>.broadcast();
 
@@ -321,6 +324,8 @@ class FixtureSessionRepository implements SessionRepository {
     final answer = copyNotice;
     copyNotice = null;
     return Right<ApplicationError, LockCopyNotice?>(answer);
+  }
+
   /// The locked notes waiting to have their attachments sealed, by default
   /// none.
   FilesMigration migration = const FilesMigration(
@@ -362,6 +367,13 @@ class FixtureSessionRepository implements SessionRepository {
       shared: migration.shared,
     );
     return _answer('postponeFilesMigration', unit);
+  }
+
+  @override
+  Future<Either<ApplicationError, String?>> takeSealFailureNotice() async {
+    final answer = sealFailureNotice;
+    sealFailureNotice = null;
+    return Right<ApplicationError, String?>(answer);
   }
 
   ApplicationError? _migrationDenied(String? password) {

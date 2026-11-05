@@ -697,17 +697,19 @@ impl LockSession {
         let Some(Ok(envelope)) = Envelope::from_extra(&note.extra) else {
             return Ok(0);
         };
-        let (key, book) = {
-            let keys = held(&self.inner.keys);
-            let key = keys.fitting(&envelope).ok_or(KansoError::Locked)?;
-            (key, keys.file_keys())
-        };
+        // Keep the session lock through the pass: once the session closes,
+        // no open-time migration may continue sealing under a key it just
+        // forgot.
+        let keys = held(&self.inner.keys);
+        let key = keys.fitting(&envelope).ok_or(KansoError::Locked)?;
+        let book = keys.file_keys();
         // The desktop seals such a note on open with the same call.
         let Some(_) =
             migrate::seal_on_open(&self.inner.store, &book, note, &key).map_err(files_error)?
         else {
             return Ok(0);
         };
+        drop(keys);
         // The first time, the phone says it once (`take_sealed_files_notice`).
         if self.inner.store.meta(FILES_NOTICE_META)?.is_none() {
             self.inner.store.set_meta(FILES_NOTICE_META, "pending")?;
@@ -839,6 +841,17 @@ impl LockSession {
     /// `None` when it made none, or it was already said.
     pub fn take_copy_notice(&self) -> Result<Option<crate::model::LockCopyNotice>, KansoError> {
         guard(|| Ok(held(&self.inner.copy_notice).take()))
+    }
+
+    /// The named file that could not be sealed when an older locked note
+    /// opened, for the phone to tell once. `None` when no file failed.
+    pub fn take_seal_failure_notice(&self) -> Result<Option<String>, KansoError> {
+        guard(|| Ok(held(&self.inner.seal_failure_notice).pop_front()))
+    }
+
+    /// Remembers the already named failure for the note screen to tell.
+    pub(crate) fn remember_seal_failure(&self, words: String) {
+        held(&self.inner.seal_failure_notice).push_back(words);
     }
 
     /// Whether the first edit-save of a note locked by an older Kanso sealed
