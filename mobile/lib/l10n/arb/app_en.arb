@@ -6483,6 +6483,14 @@
   "@aiTroubleServerDown": {
     "description": "The model's server answered with a 5xx error."
   },
+  "aiTroubleBlocked": "Something blocked the request. A proxy, firewall or region limit turned it away before it reached your model, so it isn't your API key. Check your network and the address in Settings › AI, then try again.",
+  "@aiTroubleBlocked": {
+    "description": "A proxy, gateway, firewall or region limit refused an AI request before it reached the provider."
+  },
+  "aiTroubleReachLocalModel": "Couldn't reach your model. Is Ollama or LM Studio running? Start it, then try again.",
+  "@aiTroubleReachLocalModel": {
+    "description": "A local model server could not be reached, and the error doesn't say which app serves it."
+  },
   "aiTroubleRetry": "Try again",
   "@aiTroubleRetry": {
     "description": "Retries the AI action that failed."

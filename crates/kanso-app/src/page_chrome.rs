@@ -634,6 +634,7 @@ mod tests {
     const TITLES: &[&str] = &[
         "No API key is saved",
         "Your model turned the key down",
+        "Something blocked the request",
         "No model is chosen",
         "No server address is set",
         "No agent is set up",
@@ -745,11 +746,23 @@ mod tests {
 
     #[test]
     fn the_ollama_transport_error_reads_as_a_person_would_say_it() {
+        // The runtime labels every Local model error "ollama", LM Studio's
+        // too, so the label alone names both apps.
         let t = ai_trouble(
             "The model reported an error: ollama transport error: failed to call chat completions for streamed message",
         );
         assert_eq!(t.title, "Couldn't reach your model");
-        assert_eq!(t.detail, "Is Ollama running? Start it, then try again.");
+        assert_eq!(
+            t.detail,
+            "Is Ollama or LM Studio running? Start it, then try again."
+        );
+        let lm_studio = ai_trouble(
+            "The model reported an error: ollama transport error: error sending request for url (http://localhost:1234/v1/chat/completions)",
+        );
+        assert_eq!(
+            lm_studio.detail,
+            "Is LM Studio running? Start it, then try again."
+        );
     }
 
     #[test]

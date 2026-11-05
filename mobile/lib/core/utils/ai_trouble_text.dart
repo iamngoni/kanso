@@ -10,6 +10,7 @@ import '../../gen/l10n/app_localizations.dart';
 enum AiTrouble {
   missingKey('missing_key'),
   keyRejected('key_rejected'),
+  blocked('blocked'),
   missingModel('missing_model'),
   missingUrl('missing_url'),
   noAgent('no_agent'),
@@ -23,6 +24,7 @@ enum AiTrouble {
   unreachable('unreachable'),
   unreachableOllama('unreachable_ollama'),
   unreachableLmStudio('unreachable_lm_studio'),
+  unreachableLocal('unreachable_local'),
   notSetUp('not_set_up'),
   other('other');
 
@@ -51,6 +53,55 @@ bool _hasStatusCode(String text, String code) {
     }
     from = at + 1;
   }
+}
+
+/// Whether [text] names [port] as a port of its own (":1234/", ":1234)"),
+/// not the start of ":12345".
+bool _hasPort(String text, String port) {
+  final needle = ':$port';
+  var from = 0;
+  while (true) {
+    final at = text.indexOf(needle, from);
+    if (at < 0) {
+      return false;
+    }
+    final end = at + needle.length;
+    if (end >= text.length || !RegExp('[0-9]').hasMatch(text[end])) {
+      return true;
+    }
+    from = at + 1;
+  }
+}
+
+/// How agent-runtime starts a Local model error. It says "ollama" for every
+/// local server, so it is no sign of which app is serving.
+const List<String> _localLabels = <String>[
+  'ollama transport error',
+  'ollama reported an error',
+  'ollama call returned',
+];
+
+/// Which local app an unreachable-server error points at: a name in the
+/// text, else the app's default port, else "Ollama or LM Studio" when only
+/// the runtime's Local model label is there.
+AiTrouble _unreachable(String lower) {
+  final named = _localLabels.fold(
+    lower,
+    (String text, String label) => text.replaceAll(label, ''),
+  );
+  if (named.contains('lm studio') || named.contains('lmstudio')) {
+    return AiTrouble.unreachableLmStudio;
+  }
+  if (named.contains('ollama') || _hasPort(named, '11434')) {
+    return AiTrouble.unreachableOllama;
+  }
+  if (_hasPort(named, '1234')) {
+    return AiTrouble.unreachableLmStudio;
+  }
+  if (named.length != lower.length) {
+    return AiTrouble.unreachableLocal;
+  }
+  return AiTrouble.unreachable;
 }
 
 /// What [raw] (a model error's text) means.
@@ -88,6 +139,25 @@ AiTrouble classifyAiTrouble(String raw) {
     'old claude code adapter',
   ])) {
     return AiTrouble.agentNotInstalled;
+  }
+  final page = lower.contains('<html') || lower.contains('<!doctype');
+  if (code(<String>['407']) ||
+      has(<String>[
+        'proxy authentication',
+        'unsupported_country',
+        'region, or territory',
+        'location is not supported',
+      ]) ||
+      (page &&
+          (code(<String>['401', '403']) ||
+              has(<String>['unauthori', 'forbidden', 'authorization'])))) {
+    // A proxy's or gateway's own page, not the provider's API: provider APIs
+    // answer in JSON. Checked before the key, which it isn't.
+    return AiTrouble.blocked;
+  }
+  if (has(<String>['access to the model'])) {
+    // Bedrock's 403 for a model the account hasn't been given.
+    return AiTrouble.modelNotFound;
   }
   if (code(<String>['401', '403']) ||
       has(<String>[
@@ -134,13 +204,7 @@ AiTrouble classifyAiTrouble(String raw) {
     'error sending request',
     "can't reach",
   ])) {
-    if (lower.contains('ollama')) {
-      return AiTrouble.unreachableOllama;
-    }
-    if (lower.contains('lm studio') || lower.contains('lmstudio')) {
-      return AiTrouble.unreachableLmStudio;
-    }
-    return AiTrouble.unreachable;
+    return _unreachable(lower);
   }
   if (has(<String>[
     'not set up',
@@ -162,6 +226,8 @@ String aiTroubleWords(AiTrouble trouble, AppLocalizations l10n) {
       return l10n.aiTroubleMissingKey;
     case AiTrouble.keyRejected:
       return l10n.aiTroubleKey;
+    case AiTrouble.blocked:
+      return l10n.aiTroubleBlocked;
     case AiTrouble.missingModel:
       return l10n.aiTroubleMissingModel;
     case AiTrouble.missingUrl:
@@ -188,6 +254,8 @@ String aiTroubleWords(AiTrouble trouble, AppLocalizations l10n) {
       return l10n.aiTroubleReachLocal('Ollama');
     case AiTrouble.unreachableLmStudio:
       return l10n.aiTroubleReachLocal('LM Studio');
+    case AiTrouble.unreachableLocal:
+      return l10n.aiTroubleReachLocalModel;
     case AiTrouble.notSetUp:
       return l10n.aiTroubleSetup;
     case AiTrouble.other:

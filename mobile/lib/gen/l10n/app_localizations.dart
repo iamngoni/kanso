@@ -8734,6 +8734,18 @@ abstract class AppLocalizations {
   /// **'Your model\'s server had a problem. That\'s on its side. Wait a moment, then try again.'**
   String get aiTroubleServerDown;
 
+  /// A proxy, gateway, firewall or region limit refused an AI request before it reached the provider.
+  ///
+  /// In en, this message translates to:
+  /// **'Something blocked the request. A proxy, firewall or region limit turned it away before it reached your model, so it isn\'t your API key. Check your network and the address in Settings › AI, then try again.'**
+  String get aiTroubleBlocked;
+
+  /// A local model server could not be reached, and the error doesn't say which app serves it.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach your model. Is Ollama or LM Studio running? Start it, then try again.'**
+  String get aiTroubleReachLocalModel;
+
   /// Retries the AI action that failed.
   ///
   /// In en, this message translates to:

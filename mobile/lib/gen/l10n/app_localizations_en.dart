@@ -5137,6 +5137,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your model\'s server had a problem. That\'s on its side. Wait a moment, then try again.';
 
   @override
+  String get aiTroubleBlocked =>
+      'Something blocked the request. A proxy, firewall or region limit turned it away before it reached your model, so it isn\'t your API key. Check your network and the address in Settings › AI, then try again.';
+
+  @override
+  String get aiTroubleReachLocalModel =>
+      'Couldn\'t reach your model. Is Ollama or LM Studio running? Start it, then try again.';
+
+  @override
   String get aiTroubleRetry => 'Try again';
 
   @override

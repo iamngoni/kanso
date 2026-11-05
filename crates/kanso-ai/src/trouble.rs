@@ -14,6 +14,10 @@ pub enum Trouble {
     MissingKey,
     /// A key is saved and the provider refused it.
     KeyRejected,
+    /// Something between Kanso and the provider turned the request away: a
+    /// proxy that wants its own sign-in, a gateway's or firewall's page, or a
+    /// region the provider doesn't serve. Not the key.
+    Blocked,
     /// No model name is set.
     MissingModel,
     /// The server's address is empty.
@@ -35,12 +39,34 @@ pub enum Trouble {
     /// The provider's server failed (5xx).
     ServerDown,
     /// The server couldn't be reached; the local app that should be
-    /// running, when the error names one.
-    Unreachable(Option<&'static str>),
+    /// running, when the error tells.
+    Unreachable(Option<LocalApp>),
     /// AI isn't set up at all.
     NotSetUp,
     /// Anything else.
     Other,
+}
+
+/// The app on this computer or network that serves a local model.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LocalApp {
+    Ollama,
+    LmStudio,
+    /// A Local model whose app the error doesn't name. agent-runtime labels
+    /// every Local model error "ollama", LM Studio's included, so that label
+    /// alone names neither.
+    OllamaOrLmStudio,
+}
+
+impl LocalApp {
+    /// The app's name, as the person knows it.
+    pub fn name(self) -> &'static str {
+        match self {
+            LocalApp::Ollama => "Ollama",
+            LocalApp::LmStudio => "LM Studio",
+            LocalApp::OllamaOrLmStudio => "Ollama or LM Studio",
+        }
+    }
 }
 
 /// The words for a [`Trouble`]: a short title and what to do.
@@ -56,6 +82,7 @@ impl Trouble {
         match self {
             Trouble::MissingKey => "missing_key",
             Trouble::KeyRejected => "key_rejected",
+            Trouble::Blocked => "blocked",
             Trouble::MissingModel => "missing_model",
             Trouble::MissingUrl => "missing_url",
             Trouble::NoAgent => "no_agent",
@@ -67,8 +94,9 @@ impl Trouble {
             Trouble::ModelNotFound => "model_not_found",
             Trouble::ServerDown => "server_down",
             Trouble::Unreachable(None) => "unreachable",
-            Trouble::Unreachable(Some("Ollama")) => "unreachable_ollama",
-            Trouble::Unreachable(Some(_)) => "unreachable_lm_studio",
+            Trouble::Unreachable(Some(LocalApp::Ollama)) => "unreachable_ollama",
+            Trouble::Unreachable(Some(LocalApp::LmStudio)) => "unreachable_lm_studio",
+            Trouble::Unreachable(Some(LocalApp::OllamaOrLmStudio)) => "unreachable_local",
             Trouble::NotSetUp => "not_set_up",
             Trouble::Other => "other",
         }
@@ -85,6 +113,11 @@ impl Trouble {
             Trouble::KeyRejected => (
                 "Your model turned the key down",
                 "The API key was refused. Check it in Settings › AI, then try again.".to_owned(),
+            ),
+            Trouble::Blocked => (
+                "Something blocked the request",
+                "A proxy, firewall or region limit turned it away before it reached your model, so it isn't your API key. Check your network and the address in Settings › AI, then try again."
+                    .to_owned(),
             ),
             Trouble::MissingModel => (
                 "No model is chosen",
@@ -133,7 +166,7 @@ impl Trouble {
             ),
             Trouble::Unreachable(Some(app)) => (
                 "Couldn't reach your model",
-                format!("Is {app} running? Start it, then try again."),
+                format!("Is {} running? Start it, then try again.", app.name()),
             ),
             Trouble::Unreachable(None) => (
                 "Couldn't reach your model",
@@ -169,6 +202,46 @@ fn has_server_status(text: &str) -> bool {
     (500..600).any(|code| has_status_code(text, &code.to_string()))
 }
 
+/// Whether `text` names `port` as a port of its own (":1234/", ":1234)"),
+/// not the start of ":12345".
+fn has_port(text: &str, port: &str) -> bool {
+    let needle = format!(":{port}");
+    text.match_indices(&needle).any(|(at, _)| {
+        text[at + needle.len()..]
+            .chars()
+            .next()
+            .is_none_or(|c| !c.is_ascii_digit())
+    })
+}
+
+/// How agent-runtime starts a Local model error. It says "ollama" for
+/// every local server, so it is no sign of which app is serving.
+const LOCAL_LABELS: &[&str] = &[
+    "ollama transport error",
+    "ollama reported an error",
+    "ollama call returned",
+];
+
+/// Which local app an unreachable-server error points at, if any: a name in
+/// the text, else the app's own default port, else "Ollama or LM Studio"
+/// when only the runtime's Local model label is there.
+fn local_app(lower: &str) -> Option<LocalApp> {
+    let named = LOCAL_LABELS
+        .iter()
+        .fold(lower.to_owned(), |text, label| text.replace(label, ""));
+    if named.contains("lm studio") || named.contains("lmstudio") {
+        Some(LocalApp::LmStudio)
+    } else if named.contains("ollama") || has_port(&named, "11434") {
+        Some(LocalApp::Ollama)
+    } else if has_port(&named, "1234") {
+        Some(LocalApp::LmStudio)
+    } else if named.len() != lower.len() {
+        Some(LocalApp::OllamaOrLmStudio)
+    } else {
+        None
+    }
+}
+
 /// What `raw` (an [`AiError`](crate::AiError)'s text, or a provider's own)
 /// means.
 pub fn classify(raw: &str) -> Trouble {
@@ -199,6 +272,22 @@ pub fn classify(raw: &str) -> Trouble {
         "old claude code adapter",
     ]) {
         Trouble::AgentNotInstalled
+    } else if code(&["407"])
+        || has(&[
+            "proxy authentication",
+            "unsupported_country",
+            "region, or territory",
+            "location is not supported",
+        ])
+        || ((lower.contains("<html") || lower.contains("<!doctype"))
+            && (code(&["401", "403"]) || has(&["unauthori", "forbidden", "authorization"])))
+    {
+        // A proxy's or gateway's own page, not the provider's API: provider
+        // APIs answer in JSON. Checked before the key, which it isn't.
+        Trouble::Blocked
+    } else if has(&["access to the model"]) {
+        // Bedrock's 403 for a model the account hasn't been given.
+        Trouble::ModelNotFound
     } else if code(&["401", "403"])
         || has(&[
             "unauthori",
@@ -236,13 +325,7 @@ pub fn classify(raw: &str) -> Trouble {
         "error sending request",
         "can't reach",
     ]) {
-        if lower.contains("ollama") {
-            Trouble::Unreachable(Some("Ollama"))
-        } else if lower.contains("lm studio") || lower.contains("lmstudio") {
-            Trouble::Unreachable(Some("LM Studio"))
-        } else {
-            Trouble::Unreachable(None)
-        }
+        Trouble::Unreachable(local_app(&lower))
     } else if has(&[
         "not set up",
         "not configured",
@@ -329,12 +412,16 @@ mod tests {
     #[test]
     fn transport_names_a_local_app_when_the_error_does() {
         assert_eq!(
-            kind_of(&AiError::Transport("ollama transport error".to_owned())),
-            Trouble::Unreachable(Some("Ollama"))
+            kind_of(&AiError::Transport("Ollama refused".to_owned())),
+            Trouble::Unreachable(Some(LocalApp::Ollama))
         );
         assert_eq!(
             kind_of(&AiError::Transport("LM Studio refused".to_owned())),
-            Trouble::Unreachable(Some("LM Studio"))
+            Trouble::Unreachable(Some(LocalApp::LmStudio))
+        );
+        assert_eq!(
+            kind_of(&AiError::Transport("ollama transport error".to_owned())),
+            Trouble::Unreachable(Some(LocalApp::OllamaOrLmStudio))
         );
         assert_eq!(
             kind_of(&AiError::Transport("dns".to_owned())),
@@ -397,6 +484,51 @@ mod tests {
     }
 
     #[test]
+    fn a_proxy_or_gateway_refusal_is_not_the_key() {
+        for raw in [
+            "The model's server answered 407: Proxy Authentication Required",
+            "The model's server answered 403: <html><head><title>403 Forbidden</title>",
+            "The model's server answered 401: <!DOCTYPE html><title>401 Authorization Required",
+            "The model's server answered 403: Country, region, or territory not supported",
+        ] {
+            assert_eq!(classify(raw), Trouble::Blocked, "{raw}");
+            let words = classify(raw).words();
+            assert!(!words.title.contains("key"), "{}", words.title);
+        }
+        // The provider's own JSON refusal is still the key.
+        assert_eq!(
+            classify("The model's server answered 401: {\"error\":{\"code\":\"invalid_api_key\"}}"),
+            Trouble::KeyRejected
+        );
+    }
+
+    #[test]
+    fn the_local_model_label_names_no_app() {
+        assert_eq!(
+            local_app("ollama transport error: failed to call chat completions"),
+            Some(LocalApp::OllamaOrLmStudio)
+        );
+        assert_eq!(
+            local_app("ollama transport error: (http://localhost:1234/v1)"),
+            Some(LocalApp::LmStudio)
+        );
+        assert_eq!(
+            local_app("ollama transport error: (http://localhost:11434/v1)"),
+            Some(LocalApp::Ollama)
+        );
+        assert_eq!(
+            local_app("custom transport error: (http://h:12345/v1)"),
+            None
+        );
+        assert_eq!(
+            Trouble::Unreachable(Some(LocalApp::OllamaOrLmStudio))
+                .words()
+                .detail,
+            "Is Ollama or LM Studio running? Start it, then try again."
+        );
+    }
+
+    #[test]
     fn off_and_unset_read_as_not_set_up() {
         assert_eq!(classify("AI is off"), Trouble::NotSetUp);
         assert_eq!(classify("no provider chosen"), Trouble::NotSetUp);
@@ -413,6 +545,7 @@ mod tests {
     const ALL: &[Trouble] = &[
         Trouble::MissingKey,
         Trouble::KeyRejected,
+        Trouble::Blocked,
         Trouble::MissingModel,
         Trouble::MissingUrl,
         Trouble::NoAgent,
@@ -424,8 +557,9 @@ mod tests {
         Trouble::ModelNotFound,
         Trouble::ServerDown,
         Trouble::Unreachable(None),
-        Trouble::Unreachable(Some("Ollama")),
-        Trouble::Unreachable(Some("LM Studio")),
+        Trouble::Unreachable(Some(LocalApp::Ollama)),
+        Trouble::Unreachable(Some(LocalApp::LmStudio)),
+        Trouble::Unreachable(Some(LocalApp::OllamaOrLmStudio)),
         Trouble::NotSetUp,
         Trouble::Other,
     ];
@@ -441,8 +575,8 @@ mod tests {
             keys.insert(t.key());
         }
         assert_eq!(keys.len(), ALL.len());
-        // The three "unreachable" kinds share one title.
-        assert_eq!(titles.len(), ALL.len() - 2);
+        // The four "unreachable" kinds share one title.
+        assert_eq!(titles.len(), ALL.len() - 3);
     }
 
     #[test]
