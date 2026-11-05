@@ -543,6 +543,19 @@ fn collect(
                 app::failed_html(failure, code.lang.as_deref(), &code.value, copy_index(node))
             },
         ),
+        // A Kanso sketch (any other `sketch` block is code, below).
+        Node::Code(code)
+            if fence_is(&code.lang, "sketch")
+                && crate::canvas::sketch::parse(&code.value).is_some() =>
+        {
+            block(
+                draw(Kind::Sketch, &code.value),
+                "kanso-drawing",
+                &|failure| {
+                    app::failed_html(failure, code.lang.as_deref(), &code.value, copy_index(node))
+                },
+            )
+        }
         Node::Code(code)
             if fence_is(&code.lang, "canvas")
                 && notes.is_some()
