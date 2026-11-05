@@ -1,8 +1,9 @@
 //! PDFs for tests, built by hand so no binary fixture lives in the
 //! repository. Behind the `test-support` feature.
 
-/// A PDF of Letter pages, one per content stream, with Helvetica as `/F1` and
-/// Helvetica-Bold as `/F2`.
+/// A PDF of Letter pages, one per content stream, with Helvetica as `/F1`,
+/// Helvetica-Bold as `/F2`, Times-Roman as `/F3` and Courier as `/F4` (the
+/// standard fonts: proportional sans, proportional serif and fixed pitch).
 pub fn pages_pdf(contents: &[String]) -> Vec<u8> {
     pages_pdf_on(contents, "[0 0 612 792]", 0)
 }
@@ -23,24 +24,26 @@ fn build_pdf(
     images: &[(u32, u32, Vec<u8>)],
 ) -> Vec<u8> {
     let pages = contents.len();
-    let image_base = 5 + 2 * pages;
+    let image_base = 7 + 2 * pages;
     let xobjects: String = (0..images.len())
         .map(|i| format!("/Im{} {} 0 R ", i + 1, image_base + i))
         .collect();
     let mut objects: Vec<String> = Vec::new();
-    // 1 catalog, 2 pages, 3 and 4 fonts, then a page and a content stream each.
+    // 1 catalog, 2 pages, 3 to 6 fonts, then a page and a content stream each.
     objects.push("<< /Type /Catalog /Pages 2 0 R >>".into());
-    let kids: Vec<String> = (0..pages).map(|i| format!("{} 0 R", 5 + 2 * i)).collect();
+    let kids: Vec<String> = (0..pages).map(|i| format!("{} 0 R", 7 + 2 * i)).collect();
     objects.push(format!(
         "<< /Type /Pages /Kids [{}] /Count {pages} >>",
         kids.join(" ")
     ));
     objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".into());
     objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>".into());
+    objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>".into());
+    objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>".into());
     for (i, content) in contents.iter().enumerate() {
         objects.push(format!(
-            "<< /Type /Page /Parent 2 0 R /MediaBox {media_box} /Rotate {rotate} /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << {xobjects}>> >> /Contents {} 0 R >>",
-            6 + 2 * i
+            "<< /Type /Page /Parent 2 0 R /MediaBox {media_box} /Rotate {rotate} /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R >> /XObject << {xobjects}>> >> /Contents {} 0 R >>",
+            8 + 2 * i
         ));
         objects.push(format!(
             "<< /Length {} >>\nstream\n{content}\nendstream",

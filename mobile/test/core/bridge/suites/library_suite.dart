@@ -1087,4 +1087,41 @@ void librarySuite(OpenLibrary open) {
       );
     });
   });
+
+  group('update notices', () {
+    test('a card put away stays away, dismissed or marked fixed', () async {
+      final library = await open();
+      for (final signedIn in <bool>[false, true]) {
+        var notices = await library.updateNotices(signedInToSync: signedIn);
+        expect(
+          notices.total,
+          greaterThanOrEqualTo(notices.card == null ? 0 : 1),
+        );
+        // Every card there is goes once it is put away, one way or the
+        // other, and never comes back.
+        final seen = <String>{};
+        var fixed = false;
+        while (notices.card != null) {
+          final id = notices.card!.id;
+          expect(seen.add(id), isTrue, reason: 'card $id came back');
+          if (fixed) {
+            await library.markUpdateNoticeFixed(id: id);
+          } else {
+            await library.dismissUpdateNotice(id: id);
+          }
+          fixed = !fixed;
+          notices = await library.updateNotices(signedInToSync: signedIn);
+        }
+        expect(notices.total, 0);
+      }
+      // Putting away a card that is not there, or one twice, changes
+      // nothing.
+      await library.dismissUpdateNotice(id: 'no-such-notice');
+      await library.markUpdateNoticeFixed(id: 'no-such-notice');
+      expect(
+        (await library.updateNotices(signedInToSync: true)).card,
+        isNull,
+      );
+    });
+  });
 }

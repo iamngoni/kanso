@@ -14,6 +14,7 @@
 //! by a quit leaves a marker the next launch offers to finish.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use gpui_kit::component::WindowExt as _;
@@ -26,10 +27,13 @@ use kanso_audio::{
     Recoverable, ScreenAccess, StopReason, SystemAudioTarget,
 };
 use kanso_engine::recording_flow::{
-    self, Destination, Recorded, SavedRecording, SystemSource, WhatToRecord, save_recording_or_new,
-    save_system_track, system_session_id, system_track_of,
+    self, Destination, FlowError, Recorded, SavedRecording, SystemSource, WhatToRecord,
+    check_destination_with, save_recording_or_new_with, save_system_track_with, system_session_id,
+    system_track_of,
 };
+use kanso_engine::recording_privacy::{self, DropError, KeepAudio};
 use kanso_store::Origin;
+use kanso_sync::lock::LockKey;
 use kanso_voice::audio::meter_level;
 use kanso_voice::permission::{self, Permission};
 
@@ -65,6 +69,10 @@ struct Active {
     /// The system track ended on its own (the app quit, the capture was
     /// stopped); the microphone goes on and the person has been told.
     system_lost: bool,
+    /// The key that opens the note the audio goes into, when that note is
+    /// locked: held for the length of the recording so the audio is sealed
+    /// when it stops, even if the notes lock again meanwhile.
+    lock_key: Option<Arc<LockKey>>,
     _ticker: Task<()>,
     _awake: Awake,
 }
@@ -330,10 +338,14 @@ fn begin(plan: RecordPlan, cx: &mut App) {
     if busy(cx) {
         return;
     }
-    // A note that is gone or locked can't take the audio: say so now, not
-    // after an hour of recording.
+    // A note that is gone, or locked with no key to seal the audio under,
+    // can't take it: say so now, not after an hour of recording.
     let store = cx.global::<AppState>().store.clone();
-    if let Err(err) = recording_flow::check_destination(&store, &plan.destination) {
+    let lock_key = plan
+        .destination
+        .note_id()
+        .and_then(|note| crate::locked::key_for_note(note, cx));
+    if let Err(err) = check_destination_with(&store, &plan.destination, lock_key.as_deref()) {
         notify(Notification::error(err.to_string()), cx);
         return;
     }
@@ -424,6 +436,7 @@ fn begin(plan: RecordPlan, cx: &mut App) {
         beats: 0,
         warned: false,
         system_lost: false,
+        lock_key,
         _ticker: ticker,
         _awake: Awake::hold(),
     });
@@ -587,6 +600,8 @@ pub(crate) struct Done {
     pub(crate) system_file_ids: Vec<String>,
     /// Something that didn't go to plan and the person should know.
     pub(crate) warning: Option<String>,
+    /// What becomes of the audio once it is transcribed.
+    pub(crate) keep: KeepAudio,
 }
 
 impl Done {
@@ -622,14 +637,33 @@ pub fn finish(finish: Finish, cx: &mut App) {
         id,
         plan,
         started_ms,
+        lock_key,
         ..
     } = active;
+    // A key the session holds for the note now (the lock may have been
+    // re-keyed while recording); failing that, the one held since the start
+    // (the notes locked again meanwhile). It lives until the save is done
+    // and is wiped with the last `Arc`; without one, the session stays on
+    // disk and Recover waits for the unlock.
+    let key = plan
+        .destination
+        .note_id()
+        .and_then(|note| crate::locked::key_for_note(note, cx))
+        .or(lock_key);
     let (tx, rx) = async_channel::bounded(1);
     let thread_id = id.clone();
     let spawned = std::thread::Builder::new()
         .name("kanso-recording-stop".into())
         .spawn(move || {
-            let result = stop_and_save(&store, mic, system, &thread_id, &plan, started_ms);
+            let result = stop_and_save(
+                &store,
+                mic,
+                system,
+                &thread_id,
+                &plan,
+                started_ms,
+                key.as_deref(),
+            );
             let _ = tx.try_send(result);
         });
     if spawned.is_err() {
@@ -699,6 +733,7 @@ fn stop_and_save(
     id: &str,
     plan: &RecordPlan,
     started_ms: u64,
+    key: Option<&LockKey>,
 ) -> Result<Done, String> {
     // Both stop before either is saved, so they end together.
     let first = mic.map(stop_one);
@@ -716,10 +751,15 @@ fn stop_and_save(
         plan.destination.clone(),
         plan.what,
         started_ms,
+        key,
     )?;
-    let mut done = Done { reason, ..done };
+    let mut done = Done {
+        reason,
+        keep: plan.keep,
+        ..done
+    };
     if let Some(track) = track {
-        add_system_track(store, &mut done, track, id);
+        add_system_track(store, &mut done, track, id, key);
     }
     Ok(done)
 }
@@ -732,6 +772,7 @@ fn add_system_track(
     done: &mut Done,
     track: Result<(Finished, StopReason), String>,
     id: &str,
+    key: Option<&LockKey>,
 ) {
     let saved = track.and_then(|(finished, _)| {
         let parts: Vec<PathBuf> = finished
@@ -741,12 +782,13 @@ fn add_system_track(
             .collect();
         let secs = finished.parts.iter().map(|(_, p)| p.samples).sum::<u64>()
             / u64::from(kanso_audio::SAMPLE_RATE);
-        let ids = save_system_track(
+        let ids = save_system_track_with(
             store,
             &done.saved.note_id,
             &system_session_id(id),
             &parts,
             secs,
+            key,
             Origin::Ui,
         )
         .map_err(|e| e.to_string())?;
@@ -770,6 +812,7 @@ fn save_finished(
     destination: Destination,
     what: WhatToRecord,
     started_ms: u64,
+    key: Option<&LockKey>,
 ) -> Result<Done, String> {
     let duration_secs = finished.session.samples / u64::from(kanso_audio::SAMPLE_RATE);
     let duration_secs = duration_secs.max(
@@ -787,9 +830,16 @@ fn save_finished(
         mic_only: what.mic_only(),
         when: recording_flow::when_text(started_ms as i64),
     };
-    // A note deleted or locked while recording sends the audio to a new
-    // note rather than leaving it out of the library.
-    let saved = match save_recording_or_new(store, &recorded, &destination, Origin::Ui) {
+    // A note deleted while recording sends the audio to a new note rather
+    // than leaving it out of the library. A note that is locked with no key
+    // to seal under doesn't: its audio never lands in a plain note, so the
+    // session stays on disk and Recover offers it once the note is unlocked.
+    if let Err(err @ (FlowError::Locked | FlowError::NotSealable)) =
+        check_destination_with(store, &destination, key)
+    {
+        return Err(err.to_string());
+    }
+    let saved = match save_recording_or_new_with(store, &recorded, &destination, key, Origin::Ui) {
         Ok(saved) => saved,
         Err(recording_flow::FlowError::Empty) => {
             let _ = remove_session(&finished.dir);
@@ -805,6 +855,7 @@ fn save_finished(
         reason: StopReason::Requested,
         system_file_ids: Vec::new(),
         warning: None,
+        keep: KeepAudio::Keep,
     })
 }
 
@@ -840,6 +891,14 @@ fn saved(done: Done, quitting: bool, cx: &mut App) {
         note_id: done.saved.note_id.clone(),
         file_ids: done.transcribe_ids(),
         duration_secs: done.duration_secs,
+        keep: done.keep,
+        audio_ids: done
+            .saved
+            .file_ids
+            .iter()
+            .chain(&done.system_file_ids)
+            .cloned()
+            .collect(),
     };
     if quitting {
         write_pending(cx, &pending);
@@ -893,6 +952,83 @@ fn start_transcription(
         duration: Duration::from_secs(pending.duration_secs),
     };
     transcribe::start_for(pending.note_id.clone(), editor, source, window, cx);
+}
+
+// MARK: Keep transcript only
+
+/// How often, and how many times, deleting the audio looks again for the
+/// transcript in the stored note: the editor saves a moment after it is
+/// typed, and the audio goes only once the saved note holds it.
+const DROP_TRIES: u32 = 6;
+const DROP_WAIT: Duration = Duration::from_secs(2);
+
+/// The marker of the transcription running into note `note_id`, if any.
+pub fn pending_for(note_id: &str, cx: &App) -> Option<PendingTranscript> {
+    cx.try_global::<Recording>()?
+        .pending
+        .clone()
+        .filter(|pending| pending.note_id == note_id)
+}
+
+/// "Keep transcript only": once the transcript is in the note as stored,
+/// deletes the recording's audio. Nothing is deleted before then: a failed
+/// or cancelled transcription never reaches here, and if the transcript
+/// never shows in the saved note the audio is kept and the person is told.
+// no-prop-test: glue; `delete_audio_after_transcript` has the properties.
+pub fn drop_audio_when_saved(pending: PendingTranscript, cx: &mut App) {
+    if !pending.keep.deletes_audio() {
+        return;
+    }
+    drop_attempt(pending, 0, cx);
+}
+
+fn drop_attempt(pending: PendingTranscript, tries: u32, cx: &mut App) {
+    let Some(first) = pending.file_ids.first().cloned() else {
+        return;
+    };
+    let store = cx.global::<AppState>().store.clone();
+    let key = crate::locked::key_for_note(&pending.note_id, cx);
+    let (tx, rx) = async_channel::bounded(1);
+    let (note_id, audio) = (pending.note_id.clone(), pending.audio_ids.clone());
+    std::thread::spawn(move || {
+        let _ = tx.try_send(recording_privacy::delete_audio_after_transcript(
+            &store,
+            &note_id,
+            &first,
+            &audio,
+            key.as_deref(),
+            Origin::Ui,
+        ));
+    });
+    cx.spawn(async move |cx| {
+        let result = rx
+            .recv()
+            .await
+            .unwrap_or_else(|_| Err(DropError::Store("the delete stopped".into())));
+        match result {
+            Ok(dropped) => cx.update(|cx| {
+                // Audio another note still links stays for that note.
+                let words = match (dropped.files, dropped.kept) {
+                    (0, kept) if kept > 0 => "This note keeps only the transcript. Another note links the same audio, so the audio stays there.".to_owned(),
+                    (_, 0) => format!(
+                        "The audio is deleted and the transcript stays. {}",
+                        recording_privacy::BACKUP_WARNING
+                    ),
+                    _ => format!(
+                        "The audio is deleted and the transcript stays, except the audio another note still links. {}",
+                        recording_privacy::BACKUP_WARNING
+                    ),
+                };
+                notify(Notification::info(words), cx);
+            }),
+            Err(DropError::NoTranscript) if tries + 1 < DROP_TRIES => {
+                cx.background_executor().timer(DROP_WAIT).await;
+                cx.update(|cx| drop_attempt(pending, tries + 1, cx));
+            }
+            Err(err) => cx.update(|cx| notify(Notification::error(err.to_string()), cx)),
+        }
+    })
+    .detach();
 }
 
 // MARK: The pending-transcript marker
@@ -954,6 +1090,11 @@ pub fn scan(cx: &mut App) {
     let active = cx
         .try_global::<Recording>()
         .and_then(|r| r.active.as_ref().map(|a| a.id.clone()));
+    // A session folder left a week with no audio in it goes, quietly; one
+    // with audio to recover never does (it waits for Recover or Discard,
+    // a locked note's for the unlock), nor the one running now.
+    let live: Vec<&str> = active.as_deref().into_iter().collect();
+    kanso_audio::sweep::sweep_in_progress(&root, &live, now_ms(), kanso_audio::sweep::KEEP_MS);
     let mut found = recovery::scan(&root, active.as_deref());
     // The system track of the recording running now is not left behind.
     if let Some(active) = &active {
@@ -990,9 +1131,21 @@ pub fn recover(id: &str, cx: &mut App) {
     cx.default_global::<Recording>().saving = true;
     cx.refresh_windows();
     let store = cx.global::<AppState>().store.clone();
+    // A recording into a locked note is sealed under the key the session
+    // holds for it, if any; without one it waits to be recovered.
+    let key = found
+        .session
+        .as_ref()
+        .and_then(|s| s.note_id.as_deref())
+        .and_then(|note| crate::locked::key_for_note(note, cx));
     let (tx, rx) = async_channel::bounded(1);
     std::thread::spawn(move || {
-        let _ = tx.try_send(recover_with(&store, &found, companion.as_ref()));
+        let _ = tx.try_send(recover_with(
+            &store,
+            &found,
+            companion.as_ref(),
+            key.as_deref(),
+        ));
     });
     cx.spawn(async move |cx| {
         let result = rx
@@ -1030,7 +1183,7 @@ fn take_companion(id: &str, cx: &mut App) -> Option<Recoverable> {
 /// if that is still there, else a new one.
 #[cfg(test)]
 pub(crate) fn recover_now(store: &kanso_store::Store, found: &Recoverable) -> Result<Done, String> {
-    recover_with(store, found, None)
+    recover_with(store, found, None, None)
 }
 
 /// [`recover_now`], with the system audio track a crash left beside the
@@ -1041,6 +1194,7 @@ pub(crate) fn recover_with(
     store: &kanso_store::Store,
     found: &Recoverable,
     companion: Option<&Recoverable>,
+    key: Option<&LockKey>,
 ) -> Result<Done, String> {
     let finished = recovery::recover(found).map_err(|e| e.to_string())?;
     let session = finished.session.clone();
@@ -1048,15 +1202,17 @@ pub(crate) fn recover_with(
     let system_only = session.sources.contains(&RecordSource::SystemAudio)
         && !session.sources.contains(&RecordSource::Microphone);
     if system_only && let Some(base) = system_track_of(&found.id) {
-        // Only a note the track can go into: one that is there and not
-        // locked. Else it is a note of its own below, so Recover never
-        // fails on the same locked note again and again.
+        // Only a note the track can go into: one that is there, and plain
+        // or opened by `key`. Else it goes through `save_finished` below: a
+        // note of its own when the note is gone, and refused (the session
+        // kept for after the unlock) when the note is locked.
         let usable = |note: &String| {
-            recording_flow::check_destination(
+            check_destination_with(
                 store,
                 &Destination::ThisNote {
                     note_id: note.clone(),
                 },
+                key,
             )
             .is_ok()
         };
@@ -1073,9 +1229,16 @@ pub(crate) fn recover_with(
                 .collect();
             let samples: u64 = finished.parts.iter().map(|(_, p)| p.samples).sum();
             let duration_secs = samples / u64::from(kanso_audio::SAMPLE_RATE);
-            let track =
-                save_system_track(store, &note, &found.id, &parts, duration_secs, Origin::Ui)
-                    .map_err(|e| e.to_string())?;
+            let track = save_system_track_with(
+                store,
+                &note,
+                &found.id,
+                &parts,
+                duration_secs,
+                key,
+                Origin::Ui,
+            )
+            .map_err(|e| e.to_string())?;
             let _ = remove_session(&finished.dir);
             return Ok(Done {
                 saved: SavedRecording {
@@ -1087,6 +1250,7 @@ pub(crate) fn recover_with(
                 reason: StopReason::Requested,
                 system_file_ids: track.file_ids,
                 warning: None,
+                keep: KeepAudio::Keep,
             });
         }
     }
@@ -1110,12 +1274,13 @@ pub(crate) fn recover_with(
         destination,
         what,
         session.started_at_ms,
+        key,
     )?;
     if let Some(companion) = companion {
         let track = recovery::recover(companion)
             .map(|finished| (finished, StopReason::Requested))
             .map_err(|e| e.to_string());
-        add_system_track(store, &mut done, track, &found.id);
+        add_system_track(store, &mut done, track, &found.id, key);
     }
     Ok(done)
 }
@@ -1211,11 +1376,21 @@ mod tests {
             note_id: "note:rec-a".into(),
             file_ids: vec!["file:rec-a-1".into(), "file:rec-a-2".into()],
             duration_secs: 4000,
+            keep: kanso_engine::recording_privacy_model::KeepAudio::TranscriptOnly,
+            audio_ids: vec!["file:rec-a-1".into(), "file:rec-a-2".into()],
         };
         let json = serde_json::to_vec(&pending).unwrap();
         assert_eq!(
             serde_json::from_slice::<PendingTranscript>(&json).unwrap(),
             pending
         );
+    }
+
+    #[test]
+    fn a_marker_from_before_keeping_the_transcript_only_keeps_the_audio() {
+        let old = br#"{"note_id":"note:rec-a","file_ids":["file:rec-a-1"],"duration_secs":60}"#;
+        let pending: PendingTranscript = serde_json::from_slice(old).unwrap();
+        assert!(!pending.keep.deletes_audio());
+        assert!(pending.audio_ids.is_empty());
     }
 }

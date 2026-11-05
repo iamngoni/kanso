@@ -13,13 +13,14 @@ use std::sync::Arc;
 
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::{
     ActiveTheme as _, Disableable as _, StyledExt as _, WindowExt as _, h_flex, v_flex,
 };
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_engine::publish::site::{
-    PublishError, SitePlan, contents_line, error_text, locked_line, lowercase_first,
+    PublishError, SitePlan, audio_line, contents_line, error_text, locked_line, lowercase_first,
 };
 use kanso_engine::publish::{Busy, Phase, expiry_choice, needs_update, phase};
 use kanso_store::Store;
@@ -94,6 +95,19 @@ impl PublishSiteView {
         cx.notify();
     }
 
+    /// Chooses whether the audio of the notebook's recordings goes with the
+    /// site. The notebook is read again, so the list of what goes follows.
+    pub(crate) fn set_include_audio(&mut self, include: bool, cx: &mut Context<Self>) {
+        if self.busy.is_some() {
+            return;
+        }
+        match kanso_engine::publish::site::plan_with(&self.store, &self.plan.book_id, include) {
+            Ok(plan) => self.plan = plan,
+            Err(_) => self.error = Some("The notebook is gone. It may have been deleted.".into()),
+        }
+        cx.notify();
+    }
+
     fn copy(&mut self, cx: &mut Context<Self>) {
         if let Some(link) = self.link() {
             cx.write_to_clipboard(ClipboardItem::new_string(link));
@@ -105,7 +119,9 @@ impl PublishSiteView {
     /// Reads the notebook again, with the open note as typed.
     fn reread(&mut self, cx: &mut Context<Self>) -> bool {
         self.editor.update(cx, |editor, cx| editor.flush(cx));
-        match kanso_engine::publish::site::plan(&self.store, &self.plan.book_id) {
+        let include_audio = self.plan.include_audio;
+        match kanso_engine::publish::site::plan_with(&self.store, &self.plan.book_id, include_audio)
+        {
             Ok(plan) => {
                 self.plan = plan;
                 true
@@ -231,7 +247,7 @@ impl PublishSiteView {
     }
 
     /// What the link holds, or will: the notes, then what is left out.
-    fn contents(&self, colors: &Colors) -> Div {
+    fn contents(&self, colors: &Colors, cx: &mut Context<Self>) -> Div {
         let plan = &self.plan;
         let rows = plan.notes.iter().enumerate().map(|(ix, note)| {
             h_flex()
@@ -265,6 +281,9 @@ impl PublishSiteView {
                 })
         });
         let locked = locked_line(plan);
+        let audio = audio_line(plan);
+        let include_audio = plan.include_audio;
+        let busy = self.busy.is_some();
         v_flex()
             .gap(px(8.))
             .child(
@@ -302,6 +321,31 @@ impl PublishSiteView {
                         .children(rows),
                 )
             })
+            // Recordings stay on the device unless the owner says otherwise.
+            .when(!audio.is_empty(), |el| {
+                el.child(
+                    v_flex()
+                        .gap(px(6.))
+                        .debug_selector(|| "publish-site-audio".into())
+                        .child(
+                            Checkbox::new("publish-site-include-audio")
+                                .label("Include the audio of recordings")
+                                .checked(include_audio)
+                                .disabled(busy)
+                                .debug_selector(|| "publish-site-include-audio".into())
+                                .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                                    this.set_include_audio(*checked, cx)
+                                })),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.5))
+                                .line_height(px(18.))
+                                .text_color(colors.text_muted)
+                                .child(audio),
+                        ),
+                )
+            })
             .when(!locked.is_empty(), |el| {
                 el.child(
                     div()
@@ -334,13 +378,13 @@ impl Render for PublishSiteView {
                     "It needs a Kanso account, so the copy has somewhere to live. Sign in, or create an account, then publish.",
                     colors,
                 ))
-                .child(self.contents(colors)),
+                .child(self.contents(colors, cx)),
             Phase::Unpublished => body
                 .child(paragraph(
                     "Anyone with the link can read these notes, as a site with a page for each one and links between them. The key that opens it is in the link itself, so your sync server keeps only an encrypted copy it can't read.",
                     colors,
                 ))
-                .child(self.contents(colors))
+                .child(self.contents(colors, cx))
                 .child(expiry_row(self.expiry, self.busy.is_some(), colors, cx, Self::set_expiry))
                 .child(
                     div()
@@ -418,7 +462,7 @@ impl Render for PublishSiteView {
                             .child("This notebook has changed since you published it. The link still shows the earlier version."),
                     )
                 })
-                .child(self.contents(colors))
+                .child(self.contents(colors, cx))
                 .child(expiry_row(self.expiry, self.busy.is_some(), colors, cx, Self::set_expiry))
                 .when(self.confirm_unpublish, |el| {
                     el.child(

@@ -5,7 +5,10 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/core/bridge/api/player.dart';
+import 'package:kanso/core/bridge/api/player_types.dart';
 import 'package:kanso/core/bridge/api/recording.dart';
+import 'package:kanso/core/bridge/api/recording_types.dart';
 
 import 'open_library.dart';
 
@@ -61,14 +64,71 @@ void recordingSuite(OpenLibrary open) {
       final status = recording.status();
       expect(status.paused, isFalse);
       expect(status.ended, isNull);
+      RecordingSaved saved;
       try {
-        final saved = await recording.stop();
-        expect(saved.created, isTrue);
-        expect(saved.fileIds, isNotEmpty);
+        saved = await recording.stop();
       } on Object {
         // Under a second of silence is no audio: nothing is kept.
         await recording.discard();
+        return;
       }
+      expect(saved.created, isTrue);
+      expect(saved.fileIds, isNotEmpty);
+      await _plays(library.players(), saved);
     });
   });
+
+  group('playing', () {
+    test('a note with no recording has none to play', () async {
+      final library = await open();
+      final id = await makeNote(library, 'Plain', 'no audio here');
+      expect(await library.players().noteRecording(noteId: id), isNull);
+    });
+
+    test('parts that are not there are missing and do not open', () async {
+      final library = await open();
+      final players = library.players();
+      expect(
+        players.partsState(fileIds: <String>['file:nope']),
+        PartsState.missing,
+      );
+      await expectLater(
+        players.open(fileIds: <String>['file:nope']),
+        throwsA(anything),
+      );
+    });
+  });
+}
+
+/// Plays the recording just made: found on its note, its bytes here, and
+/// driven on the speaker. A machine with no speaker stops at the opening.
+Future<void> _plays(KansoPlayers players, RecordingSaved saved) async {
+  final found = await players.noteRecording(noteId: saved.noteId);
+  expect(found?.fileIds, saved.fileIds);
+  expect(players.partsState(fileIds: saved.fileIds), PartsState.ready);
+  KansoPlayer player;
+  try {
+    player = await players.open(fileIds: saved.fileIds);
+  } on Object {
+    return;
+  }
+  expect(player.status().playing, isFalse);
+  player
+    ..setVolume(volume: 0)
+    ..play();
+  expect(player.status().playing, isTrue);
+  player.pause();
+  expect(player.status().playing, isFalse);
+  player.toggle();
+  expect(player.status().playing, isTrue);
+  player
+    ..toggle()
+    ..setSpeed(speed: 1.5);
+  expect(player.status().speed, closeTo(1.5, 0.01));
+  player
+    ..seekMs(ms: 500)
+    ..skipMs(deltaMs: -250);
+  final status = player.status();
+  expect(status.positionMs, lessThanOrEqualTo(status.lengthMs));
+  expect(status.volume, 0);
 }

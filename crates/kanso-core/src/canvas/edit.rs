@@ -32,6 +32,20 @@ pub fn unique_id(prefix: &str, taken: &HashSet<String>) -> String {
 /// Samples closer together than this, in points, are dropped on the way in.
 pub const MIN_SAMPLE_DISTANCE: f64 = 0.4;
 
+/// What [`Canvas::stream_target`] says of a stroke being drawn.
+#[derive(Clone, Debug, PartialEq)]
+pub struct StreamTarget {
+    /// The live ink node the stroke goes in.
+    pub ink: String,
+    /// That node's position: streamed points are relative to it.
+    pub origin: (f64, f64),
+    /// The stroke's stacking order, above everything there.
+    pub z: f64,
+    /// The ink node was made just now: a change to hand over before the
+    /// points, since the others hide ink that has no layer.
+    pub layer_made: bool,
+}
+
 /// A stroke named by its ink node and its own ID.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct StrokeRef {
@@ -140,6 +154,23 @@ impl Canvas {
             now,
         );
         id
+    }
+
+    /// Where the stroke being drawn on a shared canvas streams to: the ink
+    /// layer it goes in (made now when the canvas has none), that layer's
+    /// origin, and the stacking order it is streamed with. The desktop and
+    /// the phones both stream through this, so the others see a stroke where
+    /// its owner sees it.
+    pub fn stream_target(&mut self, now: i64) -> StreamTarget {
+        let layer_made = !self.nodes.iter().any(|n| n.kind == INK && !n.deleted);
+        let ink = self.ink_layer(now);
+        let origin = self.node(&ink).map_or((0.0, 0.0), |n| (n.x, n.y));
+        StreamTarget {
+            ink,
+            origin,
+            z: self.top_z() + 1.0,
+            layer_made,
+        }
     }
 
     /// Draws a finished stroke whose points are in canvas coordinates. It is

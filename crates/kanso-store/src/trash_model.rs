@@ -20,3 +20,14 @@ pub struct Emptied {
     /// Attachments deleted because only trashed notes owned them.
     pub files: u32,
 }
+
+/// What [`crate::Store::delete_file_if_unowned`] did with one attachment.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FileDrop {
+    /// It was deleted: no live note owned it.
+    Deleted,
+    /// It was kept: a live note still owns it.
+    Owned,
+    /// There was no live attachment by that ID.
+    Gone,
+}
