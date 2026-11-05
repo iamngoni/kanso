@@ -506,6 +506,7 @@ pub fn transcript_text(file_id: Option<&str>, pieces: &[file::Timed]) -> String 
         .map(|p| Segment {
             start_secs: p.start.as_secs() as u32,
             text: p.text.clone(),
+            speaker: p.speaker.map(kanso_audio::Speaker::label),
         })
         .collect();
     match file_id.and_then(|id| recording_note::render_transcript(id, &segments)) {
@@ -793,12 +794,36 @@ mod tests {
     }
 
     #[test]
+    fn a_two_track_recording_names_who_spoke() {
+        use super::{file::Timed, transcript_text};
+        use kanso_audio::Speaker;
+        use std::time::Duration;
+        let said = |secs, text: &str, speaker| Timed {
+            start: Duration::from_secs(secs),
+            text: text.into(),
+            speaker,
+        };
+        let text = transcript_text(
+            Some("file:m1"),
+            &[
+                said(0, "Morning.", Some(Speaker::You)),
+                said(20, "Hi, all.", Some(Speaker::Meeting)),
+                said(41, "Quiet.", None),
+            ],
+        );
+        assert!(text.contains("[00:00](kanso-audio://file:m1?t=0) You: Morning."));
+        assert!(text.contains("[00:20](kanso-audio://file:m1?t=20) Meeting: Hi, all."));
+        assert!(text.contains("[00:41](kanso-audio://file:m1?t=41) Quiet."));
+    }
+
+    #[test]
     fn a_marked_transcript_replaces_the_old_one_and_only_it() {
         use super::{file::Timed, transcript_text};
         use std::time::Duration;
         let piece = |secs, text: &str| Timed {
             start: Duration::from_secs(secs),
             text: text.into(),
+            speaker: None,
         };
         let first = transcript_text(Some("file:m1"), &[piece(0, "One."), piece(20, "Two.")]);
         assert!(first.contains("[00:20](kanso-audio://file:m1?t=20) Two."));

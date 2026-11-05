@@ -42,7 +42,7 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
     };
     let config = crate::load_config(&data_dir)?;
     let server = crate::services::server_config(&config.server).map_err(anyhow::Error::msg)?;
-    let store = Arc::new(Store::open(crate::paths::db_path(&data_dir))?);
+    let store = Arc::new(crate::library_open::open_store(&data_dir)?);
     // A daily snapshot of the database, as the app takes, checked every
     // hour: a server runs for months.
     let backup_store = store.clone();
@@ -62,7 +62,8 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
             }
         })?;
     let say: Say = Arc::new(|line| eprintln!("{line}"));
-    let handle = kanso_server::spawn(store.clone(), server);
+    let keys = kanso_server::KeyStore::open(store.clone())?;
+    let handle = kanso_server::spawn(store.clone(), server, keys);
     match handle.bind_result() {
         Ok(addr) => eprintln!("Kanso API on http://{addr} (MCP at /mcp). Ctrl-C stops it."),
         Err(err) => bail!(

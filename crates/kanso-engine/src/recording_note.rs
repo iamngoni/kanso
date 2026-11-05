@@ -57,7 +57,13 @@ pub fn render_transcript(file_id: &str, segments: &[Segment]) -> Option<String> 
     let paragraphs: Vec<String> = segments
         .iter()
         .filter(|s| !s.text.trim().is_empty())
-        .map(|s| format!("{} {}", moment_link(file_id, s.start_secs), clean(&s.text)))
+        .map(|s| {
+            let link = moment_link(file_id, s.start_secs);
+            match s.speaker {
+                Some(who) => format!("{link} {who}: {}", clean(&s.text)),
+                None => format!("{link} {}", clean(&s.text)),
+            }
+        })
         .collect();
     if paragraphs.is_empty() {
         return None;
@@ -148,7 +154,34 @@ mod tests {
         Segment {
             start_secs,
             text: text.into(),
+            speaker: None,
         }
+    }
+
+    #[test]
+    fn labels_come_before_the_words_and_the_block_is_still_found() {
+        let said = |start_secs, who, text: &str| Segment {
+            start_secs,
+            text: text.into(),
+            speaker: who,
+        };
+        let block = render_transcript(
+            "file:abc",
+            &[
+                said(0, Some("You"), "Hello."),
+                said(22, Some("Meeting"), "Hi."),
+                said(40, None, "Unlabelled."),
+            ],
+        )
+        .unwrap();
+        assert!(block.contains("[00:00](kanso-audio://file:abc?t=0) You: Hello."));
+        assert!(block.contains("[00:22](kanso-audio://file:abc?t=22) Meeting: Hi."));
+        assert!(block.contains("?t=40) Unlabelled."));
+        let body = format!("Mine\n\n{block}\n\nTail");
+        assert_eq!(
+            transcript_range(&body, "file:abc").map(|r| &body[r]),
+            Some(block.as_str())
+        );
     }
 
     #[test]

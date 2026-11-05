@@ -135,12 +135,16 @@ pub struct CanvasState {
     pub width: f64,
     /// The selection a lasso made.
     pub selection: Vec<StrokeRef>,
+    /// The card the lasso last pressed, which Delete removes.
+    pub card_selection: Option<String>,
     /// The lasso loop being drawn, in canvas coordinates.
     pub lasso: Vec<(f64, f64)>,
     live: Option<Live>,
     dragging: Option<Drag>,
     undo: Vec<Action>,
     redo: Vec<Action>,
+    /// A card drag's moves so far: one undo step once the drag ends.
+    card_drag: Action,
     /// Finished strokes as painted, by stroke ID: built once per version.
     outlines: HashMap<String, Painted>,
 }
@@ -149,6 +153,8 @@ pub struct CanvasState {
 /// layer's coordinates, for the version it was built from.
 struct Painted {
     version: u64,
+    /// A stroke someone else is still drawing grows without a new version.
+    points: usize,
     bounds: Option<canvas::Bounds>,
     polygon: Arc<Vec<[f64; 2]>>,
 }
@@ -167,6 +173,21 @@ pub struct VisibleInk {
 struct Live {
     points: Vec<Point>,
     tool: Tool,
+    /// The stroke's ID from the first sample: on a shared canvas its points
+    /// stream to the others under it, and the finished stroke keeps it.
+    id: String,
+}
+
+/// The stroke being drawn, as a shared canvas streams it: its head and its
+/// points so far, relative to the ink node.
+pub struct Streaming {
+    pub ink: String,
+    pub id: String,
+    pub tool: String,
+    pub color: String,
+    pub width: f64,
+    pub z: f64,
+    pub points: Vec<Point>,
 }
 
 /// An eraser or a lasso move in progress.
@@ -185,11 +206,13 @@ impl CanvasState {
             color: COLORS[0].into(),
             width: WIDTHS[1],
             selection: Vec::new(),
+            card_selection: None,
             lasso: Vec::new(),
             live: None,
             dragging: None,
             undo: Vec::new(),
             redo: Vec::new(),
+            card_drag: Action::default(),
             outlines: HashMap::new(),
         }
     }
@@ -243,13 +266,21 @@ impl CanvasState {
     /// points (the view divides its screen radius by the zoom).
     pub fn begin(&mut self, sample: PenSample, radius: f64, now: i64) -> Outcome {
         self.finish_gesture();
+        self.card_selection = None;
         let tool = self.tool_for(&sample);
         match tool {
             Tool::Pen | Tool::Pencil | Tool::Marker | Tool::Highlighter => {
                 self.selection.clear();
+                let taken: std::collections::HashSet<String> = self
+                    .canvas
+                    .stroke_ids()
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect();
                 self.live = Some(Live {
                     points: vec![sample.point()],
                     tool,
+                    id: unique_id("s", &taken),
                 });
                 Outcome::Nothing
             }
@@ -371,6 +402,7 @@ impl CanvasState {
     }
 
     fn finish_gesture(&mut self) {
+        self.end_card_drag();
         if let Some(Drag::Erase { action, .. }) | Some(Drag::Move { action, .. }) =
             self.dragging.take()
         {
@@ -384,13 +416,14 @@ impl CanvasState {
             return Outcome::Nothing;
         };
         let stroke = Stroke {
+            id: live.id,
             tool: name.into(),
             color: self.color.clone(),
             width: self.width,
             points: live.points,
             ..Stroke::default()
         };
-        match self.canvas.draw(stroke, now) {
+        match self.canvas.draw_as(stroke, now) {
             Ok((_, action)) => {
                 self.push(action);
                 Outcome::Changed
@@ -424,6 +457,7 @@ impl CanvasState {
     /// Undoes the last step.
     pub fn undo(&mut self, now: i64) -> Outcome {
         self.cancel();
+        self.card_selection = None;
         let Some(action) = self.undo.pop() else {
             return Outcome::Nothing;
         };
@@ -440,6 +474,7 @@ impl CanvasState {
     /// Does the step undo took back.
     pub fn redo(&mut self, now: i64) -> Outcome {
         self.cancel();
+        self.card_selection = None;
         let Some(action) = self.redo.pop() else {
             return Outcome::Nothing;
         };
@@ -453,8 +488,15 @@ impl CanvasState {
         }
     }
 
-    /// Deletes the lasso's selection.
+    /// Deletes the selected card, or the lasso's selected strokes.
     pub fn delete_selection(&mut self, now: i64) -> Outcome {
+        if let Some(id) = self.card_selection.clone() {
+            return if self.delete_card(&id, now) {
+                Outcome::Changed
+            } else {
+                Outcome::Nothing
+            };
+        }
         let refs = std::mem::take(&mut self.selection);
         match self.canvas.delete_strokes(&refs, now) {
             Some(action) => {
@@ -490,11 +532,12 @@ impl CanvasState {
             .reduce(canvas::Bounds::union)
     }
 
-    /// Adds a text card with its top left at `(x, y)`.
+    /// Adds a text card with its top left at `(x, y)`: one undo step.
     pub fn add_text_card(&mut self, x: f64, y: f64, text: &str, now: i64) -> String {
+        self.end_card_drag();
         let taken = self.canvas.nodes.iter().map(|n| n.id.clone()).collect();
         let id = unique_id("t", &taken);
-        self.canvas.put_node(
+        let action = self.canvas.put_card(
             Node {
                 id: id.clone(),
                 kind: "text".into(),
@@ -507,12 +550,13 @@ impl CanvasState {
             },
             now,
         );
+        self.push(action);
         id
     }
 
     /// Adds a card for note `note_id` (its title kept beside the ID, as the
-    /// document defines) with its top left at `(x, y)`. `None` when the ID
-    /// isn't a note's or a card for it is already at that place.
+    /// document defines) with its top left at `(x, y)`: one undo step. `None`
+    /// when the ID isn't a note's.
     pub fn add_note_card(
         &mut self,
         x: f64,
@@ -524,9 +568,10 @@ impl CanvasState {
         if !note_id.starts_with(canvas::NOTE_PREFIX) {
             return None;
         }
+        self.end_card_drag();
         let taken = self.canvas.nodes.iter().map(|n| n.id.clone()).collect();
         let id = unique_id("n", &taken);
-        self.canvas.put_node(
+        let action = self.canvas.put_card(
             Node {
                 id: id.clone(),
                 kind: "file".into(),
@@ -540,10 +585,11 @@ impl CanvasState {
             },
             now,
         );
+        self.push(action);
         Some(id)
     }
 
-    /// Changes a text card's text.
+    /// Changes a text card's text: one undo step.
     pub fn set_card_text(&mut self, id: &str, text: &str, now: i64) -> bool {
         let Some(mut node) = self.canvas.node(id).cloned() else {
             return false;
@@ -551,20 +597,51 @@ impl CanvasState {
         if node.kind != "text" {
             return false;
         }
+        self.end_card_drag();
         node.text = Some(text.to_owned());
-        self.canvas.put_node(node, now);
+        let action = self.canvas.put_card(node, now);
+        self.push(action);
         true
     }
 
-    /// Moves a card or group.
+    /// Moves a card or group. The moves of one drag are one undo step, which
+    /// [`CanvasState::end_card_drag`] closes (anything else that edits or
+    /// undoes closes it too).
     pub fn move_card(&mut self, id: &str, x: f64, y: f64, now: i64) -> bool {
-        self.canvas.move_node(id, x.round(), y.round(), now)
+        match self.canvas.move_card(id, x.round(), y.round(), now) {
+            Some(step) => {
+                self.card_drag = std::mem::take(&mut self.card_drag).then(step);
+                true
+            }
+            None => false,
+        }
     }
 
-    #[cfg(test)]
-    /// Deletes a card, group or ink layer; its arrows stay, hidden.
+    /// Ends a card drag: what it moved is one undo step.
+    pub fn end_card_drag(&mut self) {
+        let drag = std::mem::take(&mut self.card_drag);
+        self.push(drag);
+    }
+
+    /// Marks `id` as the card Delete removes.
+    pub fn select_card(&mut self, id: Option<String>) {
+        self.selection.clear();
+        self.card_selection = id;
+    }
+
+    /// Deletes a card or group; its arrows stay, hidden. One undo step.
     pub fn delete_card(&mut self, id: &str, now: i64) -> bool {
-        self.canvas.remove_node(id, now)
+        self.end_card_drag();
+        match self.canvas.delete_card(id, now) {
+            Some(action) => {
+                if self.card_selection.as_deref() == Some(id) {
+                    self.card_selection = None;
+                }
+                self.push(action);
+                true
+            }
+            None => false,
+        }
     }
 
     /// The topmost card (not ink) under `(x, y)`.
@@ -593,6 +670,20 @@ impl CanvasState {
             [b.right() as f32, b.bottom() as f32],
         ];
         self.view = Viewport::fit(&corners, size, 48., 2.0);
+    }
+
+    /// The viewport showing group `id`, as an embed's "Open at this group"
+    /// does. `false` (and the view as it was) when there is no such group.
+    pub fn fit_group(&mut self, id: &str, size: [f32; 2]) -> bool {
+        let Some(b) = self.canvas.group_bounds(id) else {
+            return false;
+        };
+        let corners = [
+            [b.x as f32, b.y as f32],
+            [b.right() as f32, b.bottom() as f32],
+        ];
+        self.view = Viewport::fit(&corners, size, 48., 2.0);
+        true
     }
 
     #[cfg(test)]
@@ -657,6 +748,70 @@ impl CanvasState {
         out
     }
 
+    /// The stroke being drawn with a pen, for a shared canvas to stream:
+    /// `None` when there is none or it is still a single dot. The ink layer
+    /// the points go in is made now if the canvas has none, which is a change
+    /// to send before the points (`layer_made`).
+    pub fn streaming(&mut self, now: i64) -> Option<(Streaming, bool)> {
+        let live = self.live.as_ref()?;
+        let name = live.tool.pen()?;
+        if live.points.len() < 2 {
+            return None;
+        }
+        let (id, tool, raw) = (live.id.clone(), name.to_owned(), live.points.clone());
+        let had_layer = self
+            .canvas
+            .nodes
+            .iter()
+            .any(|n| n.kind == canvas::INK && !n.deleted);
+        let ink = self.canvas.ink_layer(now);
+        let origin = self.canvas.node(&ink).map_or((0.0, 0.0), |n| (n.x, n.y));
+        let z = self
+            .canvas
+            .nodes
+            .iter()
+            .flat_map(|n| std::iter::once(n.kanso_z).chain(n.strokes.iter().map(|s| s.kanso_z)))
+            .chain(self.canvas.edges.iter().map(|e| e.kanso_z))
+            .fold(0.0, f64::max)
+            + 1.0;
+        Some((
+            Streaming {
+                ink,
+                id,
+                tool,
+                color: self.color.clone(),
+                width: self.width,
+                z,
+                points: canvas::streamed_points(&raw, origin),
+            },
+            !had_layer,
+        ))
+    }
+
+    /// The ID of the stroke being drawn, if a pen is down.
+    pub fn live_id(&self) -> Option<&str> {
+        self.live.as_ref().map(|live| live.id.as_str())
+    }
+
+    /// Takes the canvas a shared canvas's engine gives back, keeping the
+    /// view, the tool and what is still there of the selection.
+    pub fn take_canvas(&mut self, canvas: Canvas) {
+        self.canvas = canvas;
+        let canvas = &self.canvas;
+        self.selection.retain(|r| {
+            canvas
+                .live_strokes()
+                .any(|(node, s)| node.id == r.node && s.id == r.stroke)
+        });
+        if self
+            .card_selection
+            .as_deref()
+            .is_some_and(|id| canvas.node(id).is_none())
+        {
+            self.card_selection = None;
+        }
+    }
+
     /// The outline of the stroke in progress, with `predicted` samples
     /// appended for this frame only. Rebuilt every frame: it is one stroke.
     pub fn live_outline(&self, predicted: &[PenSample]) -> Option<(Stroke, Vec<[f64; 2]>)> {
@@ -680,12 +835,13 @@ impl CanvasState {
 fn painted<'a>(cache: &'a mut HashMap<String, Painted>, stroke: &Stroke) -> &'a Painted {
     let fresh = cache
         .get(stroke.id.as_str())
-        .is_none_or(|p| p.version != stroke.kanso_version);
+        .is_none_or(|p| p.version != stroke.kanso_version || p.points != stroke.points.len());
     if fresh {
         cache.insert(
             stroke.id.clone(),
             Painted {
                 version: stroke.kanso_version,
+                points: stroke.points.len(),
                 bounds: stroke.bounds(),
                 polygon: Arc::new(pen::outline(stroke, true)),
             },

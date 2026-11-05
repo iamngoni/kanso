@@ -310,3 +310,176 @@ proptest! {
         prop_assert!(c.validate().is_ok());
     }
 }
+
+fn text_card(id: &str, x: f64, text: &str) -> Node {
+    Node {
+        id: id.into(),
+        kind: "text".into(),
+        x,
+        y: 0.0,
+        width: 100.0,
+        height: 50.0,
+        text: Some(text.into()),
+        ..Node::default()
+    }
+}
+
+type Cards = Vec<(String, f64, f64, Option<String>)>;
+
+/// The live cards as a person sees them, stamps aside.
+fn cards_of(c: &Canvas) -> Cards {
+    let mut v: Vec<_> = c
+        .live_nodes()
+        .filter(|n| n.kind != INK)
+        .map(|n| (n.id.clone(), n.x, n.y, n.text.clone()))
+        .collect();
+    v.sort_by(|a, b| a.0.cmp(&b.0));
+    v
+}
+
+#[test]
+fn card_edits_undo_and_redo_by_writing_new_versions() {
+    let mut c = Canvas::default();
+    let added = c.put_card(text_card("a", 0.0, "one"), 1);
+    let edited = c.put_card(text_card("a", 0.0, "two"), 2);
+    let moved = c.move_card("a", 50.0, 20.0, 3).unwrap();
+    let deleted = c.delete_card("a", 4).unwrap();
+    assert!(cards_of(&c).is_empty());
+    let version = c.nodes[0].kanso_version;
+    assert!(c.apply(&deleted, false, 5));
+    assert_eq!(
+        cards_of(&c),
+        vec![("a".into(), 50.0, 20.0, Some("two".into()))]
+    );
+    // Undo stamps newer versions: it never restores an old document.
+    assert!(c.nodes[0].kanso_version > version);
+    assert_eq!(c.nodes[0].kanso_updated, 5);
+    assert!(c.apply(&moved, false, 6));
+    assert!(c.apply(&edited, false, 7));
+    assert_eq!(
+        cards_of(&c),
+        vec![("a".into(), 0.0, 0.0, Some("one".into()))]
+    );
+    assert!(c.apply(&added, false, 8));
+    assert!(cards_of(&c).is_empty());
+    for step in [&added, &edited, &moved, &deleted] {
+        assert!(c.apply(step, true, 9));
+    }
+    assert!(cards_of(&c).is_empty());
+    assert!(c.validate().is_ok());
+}
+
+#[test]
+fn a_move_to_where_it_is_and_a_missing_card_are_no_edit() {
+    let mut c = Canvas::default();
+    c.put_card(text_card("a", 5.0, "x"), 1);
+    assert!(c.move_card("a", 5.0, 0.0, 2).is_none());
+    assert!(c.move_card("nope", 1.0, 1.0, 2).is_none());
+    assert!(c.delete_card("nope", 2).is_none());
+    assert!(c.put_card(text_card("a", 5.0, "x"), 3).is_empty());
+    let layer = c.ink_layer(4);
+    assert!(c.delete_card(&layer, 5).is_none());
+}
+
+#[test]
+fn then_folds_card_changes_into_the_first_before_and_the_last_after() {
+    let mut c = Canvas::default();
+    c.put_card(text_card("a", 0.0, "x"), 1);
+    let one = c.move_card("a", 10.0, 0.0, 2).unwrap();
+    let two = c.move_card("a", 30.0, 0.0, 3).unwrap();
+    let both = one.then(two);
+    assert_eq!(both.cards.len(), 1);
+    assert_eq!(both.cards[0].before.as_ref().unwrap().x, 0.0);
+    assert_eq!(both.cards[0].after.as_ref().unwrap().x, 30.0);
+    // Back where it began: nothing to undo.
+    let back = c.move_card("a", 0.0, 0.0, 4).unwrap();
+    assert!(both.then(back).is_empty());
+}
+
+#[derive(Clone, Debug)]
+enum CardOp {
+    Put(u8, u8),
+    Move(u8, u8),
+    Delete(u8),
+}
+
+fn arb_card_op() -> impl Strategy<Value = CardOp> {
+    prop_oneof![
+        (0u8..4, any::<u8>()).prop_map(|(i, t)| CardOp::Put(i, t)),
+        (0u8..4, any::<u8>()).prop_map(|(i, x)| CardOp::Move(i, x)),
+        (0u8..4).prop_map(CardOp::Delete),
+    ]
+}
+
+proptest! {
+    #![proptest_config(config(64))]
+
+    /// Invariant: undoing the actions of any run of card edits, last first,
+    /// walks back through exactly the cards that stood before each, and
+    /// redoing walks forward again.
+    #[test]
+    fn prop_card_actions_undo_and_redo_exactly(ops in prop::collection::vec(arb_card_op(), 1..24)) {
+        let mut c = Canvas::default();
+        let mut now = 1;
+        let mut done: Vec<(Action, Cards)> = Vec::new();
+        for op in ops {
+            now += 1;
+            let before = cards_of(&c);
+            let action = match op {
+                CardOp::Put(i, t) => Some(c.put_card(text_card(&format!("c{i}"), 0.0, &format!("t{t}")), now)),
+                CardOp::Move(i, x) => c.move_card(&format!("c{i}"), f64::from(x), 1.0, now),
+                CardOp::Delete(i) => c.delete_card(&format!("c{i}"), now),
+            };
+            if let Some(action) = action.filter(|a| !a.is_empty()) {
+                done.push((action, before));
+            }
+            prop_assert!(c.validate().is_ok());
+        }
+        let end = cards_of(&c);
+        for (action, before) in done.iter().rev() {
+            now += 1;
+            prop_assert!(c.apply(action, false, now));
+            prop_assert_eq!(&cards_of(&c), before);
+        }
+        for (action, _) in &done {
+            now += 1;
+            prop_assert!(c.apply(action, true, now));
+        }
+        prop_assert_eq!(cards_of(&c), end);
+        prop_assert!(c.validate().is_ok());
+    }
+}
+
+proptest! {
+    #![proptest_config(config(64))]
+
+    /// Invariant: the points streamed while a stroke is drawn are always the
+    /// start of the stroke once it is drawn, and a stroke drawn with the ID
+    /// it was streamed under keeps it.
+    #[test]
+    fn prop_streamed_points_are_the_start_of_the_stroke(
+        raw in prop::collection::vec((-50i32..50, -50i32..50), 2..40),
+        cut in 0usize..40,
+    ) {
+        let samples: Vec<(f64, f64)> =
+            raw.iter().map(|&(x, y)| (f64::from(x) / 3.0, f64::from(y) / 3.0)).collect();
+        let mut c = Canvas::default();
+        let layer = c.ink_layer(1);
+        let origin = c.node(&layer).map_or((0.0, 0.0), |n| (n.x, n.y));
+        let points: Vec<Point> = samples.iter().map(|&(x, y)| Point::new(x, y, 0.5)).collect();
+        let upto = cut.min(points.len());
+        let streamed = streamed_points(&points[..upto], origin);
+        let mut stroke = pen(&samples);
+        stroke.id = "s-streamed".into();
+        let (id, _) = c.draw_as(stroke, 2).unwrap();
+        prop_assert_eq!(&id, "s-streamed");
+        let drawn = c.live_strokes().next().unwrap().1.points.clone();
+        prop_assert!(streamed.len() <= drawn.len());
+        prop_assert_eq!(&drawn[..streamed.len()], &streamed[..]);
+        // A taken ID is not reused.
+        let mut again = pen(&samples);
+        again.id = "s-streamed".into();
+        let (second, _) = c.draw_as(again, 3).unwrap();
+        prop_assert_ne!(second, "s-streamed");
+    }
+}

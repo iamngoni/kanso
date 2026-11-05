@@ -96,6 +96,9 @@ pub struct AppMode<'a> {
     pub query: Option<&'a dyn QueryViews>,
     /// Turns a `kanso-due:` address into a chip; without it the link stays.
     pub due: Option<DueChips<'a>>,
+    /// Finds the canvas note a `canvas` fence names; without it such a fence
+    /// stays code.
+    pub notes: Option<crate::canvas::embed::Notes<'a>>,
 }
 
 /// The address of a task box: this, then its place in the task list.

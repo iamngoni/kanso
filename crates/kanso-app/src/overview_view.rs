@@ -84,6 +84,7 @@ impl OverviewParts {
                 store,
                 files: Default::default(),
                 edits,
+                links: links.clone(),
                 note: Arc::new(Mutex::new(None)),
                 text_scale: Mutex::new(1.),
             }),

@@ -47,6 +47,18 @@ pub fn open(failure: Failure) -> Result<Microphone, AudioError> {
         .default_input_device()
         .ok_or(AudioError::NoMicrophone)?;
     let supported = device.default_input_config().map_err(device_error)?;
+    open_device(&device, supported, failure).map_err(device_error)
+}
+
+/// Opens `device` as one channel of `f32` and starts it. The microphone is
+/// an input device; a system-audio loopback is an output device read as an
+/// input (see `crate::loopback`), which is why the configuration comes in.
+// no-prop-test: needs a device; `for_each_mono` has the properties.
+pub(crate) fn open_device(
+    device: &cpal::Device,
+    supported: cpal::SupportedStreamConfig,
+    failure: Failure,
+) -> Result<Microphone, cpal::Error> {
     let rate = supported.sample_rate();
     let channels = usize::from(supported.channels()).max(1);
     let config = supported.config();
@@ -64,87 +76,31 @@ pub fn open(failure: Failure) -> Result<Microphone, AudioError> {
             slot.get_or_insert_with(|| e.to_string());
         }
     };
-    let stream = match supported.sample_format() {
-        SampleFormat::F32 => build::<f32>(
-            &device,
-            config,
-            channels,
-            producer,
-            dropped.clone(),
-            on_error,
-        ),
-        SampleFormat::F64 => build::<f64>(
-            &device,
-            config,
-            channels,
-            producer,
-            dropped.clone(),
-            on_error,
-        ),
-        SampleFormat::I8 => build::<i8>(
-            &device,
-            config,
-            channels,
-            producer,
-            dropped.clone(),
-            on_error,
-        ),
-        SampleFormat::I16 => build::<i16>(
-            &device,
-            config,
-            channels,
-            producer,
-            dropped.clone(),
-            on_error,
-        ),
-        SampleFormat::I24 => build::<cpal::I24>(
-            &device,
-            config,
-            channels,
-            producer,
-            dropped.clone(),
-            on_error,
-        ),
-        SampleFormat::I32 => build::<i32>(
-            &device,
-            config,
-            channels,
-            producer,
-            dropped.clone(),
-            on_error,
-        ),
-        SampleFormat::U8 => build::<u8>(
-            &device,
-            config,
-            channels,
-            producer,
-            dropped.clone(),
-            on_error,
-        ),
-        SampleFormat::U16 => build::<u16>(
-            &device,
-            config,
-            channels,
-            producer,
-            dropped.clone(),
-            on_error,
-        ),
-        SampleFormat::U32 => build::<u32>(
-            &device,
-            config,
-            channels,
-            producer,
-            dropped.clone(),
-            on_error,
-        ),
-        other => {
-            return Err(AudioError::Device(format!(
-                "the microphone sends {other} samples, which Kanso can't read"
-            )));
-        }
+    macro_rules! build_as {
+        ($($format:ident => $sample:ty),* $(,)?) => {
+            match supported.sample_format() {
+                $(SampleFormat::$format => build::<$sample>(
+                    device, config, channels, producer, dropped.clone(), on_error,
+                ),)*
+                other => Err(cpal::Error::with_message(
+                    cpal::ErrorKind::UnsupportedConfig,
+                    format!("the device sends {other} samples, which Kanso can't read"),
+                )),
+            }
+        };
     }
-    .map_err(device_error)?;
-    stream.play().map_err(device_error)?;
+    let stream = build_as!(
+        F32 => f32,
+        F64 => f64,
+        I8 => i8,
+        I16 => i16,
+        I24 => cpal::I24,
+        I32 => i32,
+        U8 => u8,
+        U16 => u16,
+        U32 => u32,
+    )?;
+    stream.play()?;
     Ok(Microphone {
         stream,
         samples,

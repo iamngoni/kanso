@@ -1,19 +1,18 @@
-//! HTTP Basic authentication. Every route requires it, as the local-server API does.
-//! `/mcp` also takes an agent's `Authorization: Bearer` token, and nothing
-//! else does.
-
-use std::sync::Arc;
+//! Sign-in by API key (issue #243). Every route requires a key, sent as
+//! `Authorization: Bearer kcl_…`, or as the password of HTTP Basic for tools
+//! that only take a login. `/mcp` also takes an agent's session token, and
+//! nothing else does.
 
 use axum::extract::{Request, State};
 use axum::http::header::AUTHORIZATION;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use base64::Engine as _;
+use base64::engine::DecodePaddingMode;
 use base64::engine::general_purpose::{GeneralPurpose, GeneralPurposeConfig};
-use base64::engine::{DecodePaddingMode, general_purpose};
-use subtle::ConstantTimeEq;
 
 use crate::error::ApiError;
+use crate::keys::{KeyStore, key_from_header};
 use crate::scope::Caller;
 use crate::tokens::TokenStore;
 
@@ -26,30 +25,7 @@ const BASIC: GeneralPurpose = GeneralPurpose::new(
     GeneralPurposeConfig::new().with_decode_padding_mode(DecodePaddingMode::Indifferent),
 );
 
-pub(crate) struct Credentials {
-    /// `username:password`, the decoded form of a valid Basic token.
-    expected: Vec<u8>,
-}
-
-impl Credentials {
-    pub fn new(username: &str, password: &str) -> Self {
-        Credentials {
-            expected: format!("{username}:{password}").into_bytes(),
-        }
-    }
-
-    /// Whether an `Authorization` header value carries exactly these
-    /// credentials. The comparison takes the same time for every token of a
-    /// given length.
-    pub fn accepts(&self, header: Option<&[u8]>) -> bool {
-        let Some(given) = header.and_then(decode_basic) else {
-            return false;
-        };
-        bool::from(given.ct_eq(&self.expected))
-    }
-}
-
-fn decode_basic(header: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn decode_basic(header: &[u8]) -> Option<Vec<u8>> {
     let header = std::str::from_utf8(header).ok()?.trim();
     let (scheme, token) = header.split_once(' ')?;
     if !scheme.eq_ignore_ascii_case("basic") {
@@ -58,16 +34,8 @@ fn decode_basic(header: &[u8]) -> Option<Vec<u8>> {
     BASIC.decode(token.trim()).ok()
 }
 
-/// The `Authorization` header value for `username` and `password`.
-pub fn basic_header(username: &str, password: &str) -> String {
-    format!(
-        "Basic {}",
-        general_purpose::STANDARD.encode(format!("{username}:{password}"))
-    )
-}
-
 /// The token of a `Bearer` header value.
-fn bearer(header: &[u8]) -> Option<&str> {
+pub(crate) fn bearer(header: &[u8]) -> Option<&str> {
     let header = std::str::from_utf8(header).ok()?.trim();
     let (scheme, token) = header.split_once(' ')?;
     scheme
@@ -76,28 +44,34 @@ fn bearer(header: &[u8]) -> Option<&str> {
         .filter(|token| !token.is_empty())
 }
 
-/// Who an `Authorization` header on `path` signs in as: the API's
-/// credentials anywhere, an agent's live token on `/mcp` only. `None` is
-/// refused.
+/// Who an `Authorization` header on `path` signs in as: an API key
+/// anywhere (`Bearer kcl_…`, or `Basic` with the key as the password), an
+/// agent's live session token on `/mcp` only. `None` is refused. A key is
+/// accepted only when `keys` is given (the agents' private listener has
+/// none).
 pub(crate) fn caller(
-    credentials: Option<&Credentials>,
+    keys: Option<&KeyStore>,
     tokens: &TokenStore,
     path: &str,
     header: Option<&[u8]>,
 ) -> Option<Caller> {
-    if let Some(token) = header.and_then(bearer) {
-        return (path == MCP_PATH).then(|| tokens.verify(token)).flatten();
+    let header = header?;
+    if path == MCP_PATH
+        && let Some(token) = bearer(header)
+        && let Some(caller) = tokens.verify(token)
+    {
+        return Some(caller);
     }
-    credentials
-        .is_some_and(|credentials| credentials.accepts(header))
-        .then_some(Caller::Full)
+    let key = key_from_header(header)?;
+    keys?.verify(&key)
 }
 
-/// What the sign-in middleware checks against: the API's credentials, when
-/// it has them (the private agents' listener has none), and the tokens.
+/// What the sign-in middleware checks against: the library's API keys, when
+/// they are accepted (the private agents' listener takes none), and the
+/// session tokens.
 #[derive(Clone)]
 pub(crate) struct Gate {
-    pub credentials: Option<Arc<Credentials>>,
+    pub keys: Option<KeyStore>,
     pub tokens: TokenStore,
 }
 
@@ -111,7 +85,7 @@ pub(crate) async fn require_auth(
         .get(AUTHORIZATION)
         .map(|value| value.as_bytes());
     match caller(
-        gate.credentials.as_deref(),
+        gate.keys.as_ref(),
         &gate.tokens,
         request.uri().path(),
         header,
@@ -120,63 +94,88 @@ pub(crate) async fn require_auth(
             request.extensions_mut().insert(caller);
             next.run(request).await
         }
-        None => ApiError::unauthorized().into_response(),
+        None => {
+            if let Some(keys) = &gate.keys {
+                keys.note_refused();
+            }
+            ApiError::unauthorized().into_response()
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::key_model::{KeyId, NewKey};
+    use kanso_store::{KeyAccess, Store};
+    use proptest::prelude::*;
 
-    #[test]
-    fn accepts_only_the_exact_credentials() {
-        let creds = Credentials::new("user", "p:ss");
-        let ok = basic_header("user", "p:ss");
-        assert!(creds.accepts(Some(ok.as_bytes())));
-        let unpadded = ok.trim_end_matches('=').to_owned();
-        assert!(creds.accepts(Some(unpadded.as_bytes())));
-        assert!(creds.accepts(Some(ok.replacen("Basic", "basic", 1).as_bytes())));
-        for bad in [
-            basic_header("user", "p:s"),
-            basic_header("User", "p:ss"),
-            basic_header("user", "p:ss "),
-            "Bearer abc".to_owned(),
-            "Basic !!!".to_owned(),
-            String::new(),
-        ] {
-            assert!(!creds.accepts(Some(bad.as_bytes())), "{bad}");
-        }
-        assert!(!creds.accepts(None));
+    fn fixture() -> (tempfile::TempDir, KeyStore, TokenStore) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = std::sync::Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
+        (dir, KeyStore::open(store).unwrap(), TokenStore::new())
     }
 
+    fn mint(keys: &KeyStore) -> String {
+        keys.mint(NewKey {
+            name: "Test".into(),
+            client: "other".into(),
+            access: KeyAccess::Read,
+            books: None,
+        })
+        .unwrap()
+        .key
+    }
+
+    // no-prop-test: a fixed table of paths and header kinds.
     #[test]
-    fn a_token_opens_mcp_and_nothing_else() {
-        let creds = Credentials::new("user", "pass");
-        let tokens = TokenStore::new();
-        let minted = tokens.mint(crate::scope::AgentScope::ask(None));
-        let bearer = format!("Bearer {}", minted.token);
-        let header = Some(bearer.as_bytes());
-        assert!(matches!(
-            caller(Some(&creds), &tokens, "/mcp", header),
-            Some(Caller::Agent { .. })
-        ));
-        for path in ["/notes", "/", "/mcp/", "/_changes", "/note:abc"] {
+    fn a_key_opens_every_path_and_a_session_token_opens_mcp_alone() {
+        let (_dir, keys, tokens) = fixture();
+        let key = mint(&keys);
+        let bearer_key = format!("Bearer {key}");
+        for path in ["/mcp", "/notes", "/", "/_changes", "/note:abc"] {
             assert!(
-                caller(Some(&creds), &tokens, path, header).is_none(),
+                matches!(
+                    caller(Some(&keys), &tokens, path, Some(bearer_key.as_bytes())),
+                    Some(Caller::Key { .. })
+                ),
                 "{path}"
             );
         }
-        // A wrong token never falls back to the API's sign-in.
-        let wrong = Some("Bearer nope".as_bytes());
-        assert!(caller(Some(&creds), &tokens, "/mcp", wrong).is_none());
-        let basic = basic_header("user", "pass");
+        let minted = tokens.mint(crate::scope::AgentScope::ask(None));
+        let session = format!("Bearer {}", minted.token);
         assert!(matches!(
-            caller(Some(&creds), &tokens, "/notes", Some(basic.as_bytes())),
-            Some(Caller::Full)
+            caller(Some(&keys), &tokens, "/mcp", Some(session.as_bytes())),
+            Some(Caller::Agent { .. })
         ));
-        // Without credentials (the private listener), Basic opens nothing.
-        assert!(caller(None, &tokens, "/mcp", Some(basic.as_bytes())).is_none());
-        tokens.revoke(minted.id);
-        assert!(caller(Some(&creds), &tokens, "/mcp", header).is_none());
+        for path in ["/notes", "/", "/mcp/", "/_changes"] {
+            assert!(
+                caller(Some(&keys), &tokens, path, Some(session.as_bytes())).is_none(),
+                "{path}"
+            );
+        }
+        // The private listener takes no key.
+        assert!(caller(None, &tokens, "/mcp", Some(bearer_key.as_bytes())).is_none());
+        assert!(caller(Some(&keys), &tokens, "/mcp", None).is_none());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(128))]
+
+        /// Whatever the header says, a caller is a key only when it carries
+        /// a key that was minted and not revoked.
+        #[test]
+        fn prop_only_a_live_key_signs_in(header in "[ -~]{0,60}", ours in any::<bool>(), revoke in any::<bool>()) {
+            let (_dir, keys, tokens) = fixture();
+            let key = mint(&keys);
+            let real = format!("Bearer {key}");
+            let sent = if ours { real.clone() } else { header };
+            if revoke {
+                let id = keys.list().unwrap()[0].id.clone();
+                keys.revoke(&KeyId(id)).unwrap();
+            }
+            let got = caller(Some(&keys), &tokens, "/notes", Some(sent.as_bytes()));
+            prop_assert_eq!(got.is_some(), sent.trim() == real && !revoke);
+        }
     }
 }

@@ -5,6 +5,8 @@
 //! `BEGIN IMMEDIATE`; reads use a small pool of connections. Each committed
 //! write is broadcast to subscribers as a [`Change`].
 
+mod api_keys;
+mod api_keys_model;
 mod backup;
 mod cards;
 mod cards_model;
@@ -20,12 +22,17 @@ mod graph;
 mod history;
 mod home;
 mod home_model;
+mod ink_text;
+mod library_key;
+mod library_key_model;
 mod loops;
 mod meaning;
 mod ocr;
 mod overview;
 mod passage_embed;
 mod passages;
+mod pdf_text;
+mod pdf_text_model;
 mod plugin;
 mod query_view;
 mod read;
@@ -35,6 +42,8 @@ mod roles;
 mod schema;
 mod sync;
 mod tasks;
+mod trash;
+mod trash_model;
 mod triage;
 mod validate;
 mod write;
@@ -44,14 +53,15 @@ use std::sync::Mutex;
 
 use rusqlite::Connection;
 
+pub use api_keys_model::{ApiKeyRow, KeyAccess, LiveKey, NewApiKey};
 pub use backup::{BackupName, BackupPolicy, backup_name};
 pub use cards_model::{
     CardCounts, CardScope, CardSettings, CardStats, DueCard, HardCard, NoteCard,
 };
 pub use collab::model::{
-    CommentRecord, Contact, Outgoing, SealedKey, SharedNote, SharedStatus, StoredNotice,
+    CommentRecord, Contact, Outgoing, SealedKey, SharedKind, SharedNote, SharedStatus, StoredNotice,
 };
-pub use collab::{LOCKED_SHARED, SharedText};
+pub use collab::{LOCKED_SHARED, SharedCanvas, SharedText};
 pub use derived::{Backlink, DERIVED_VERSION, DERIVED_VERSION_KEY, HeadingHit};
 pub use doc::{Attachment, Doc};
 pub use embed::{
@@ -67,6 +77,8 @@ pub use graph::{GraphLink, GraphNote};
 pub use home_model::{
     HomeBook, HomeChild, HomeEntity, HomeLinked, HomeNoteMark, HomeNoteRow, HomeScan, HomeStats,
 };
+pub use ink_text::{InkNote, InkScan};
+pub use library_key_model::{KEY_BYTES, LibraryFile, LibraryKey};
 pub use loops::{
     BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
 };
@@ -85,6 +97,7 @@ pub use passage_embed::{
     EmbeddedLines, MAX_PASSAGE_VECTORS, PassageHit, PassageQueue, PendingPassage,
 };
 pub use passages::{MAX_PASSAGES, MAX_WORDS, MIN_WORDS, Passage, passages, plain_text};
+pub use pdf_text_model::{MAX_PAGE_CHARS, MAX_PDF_CHARS, PdfToIndex};
 pub use plugin::{
     BatchWriter, PLUGIN_DATA_FIELD, PluginCreate, PluginEdit, PluginReport, PluginWriter,
     agent_batch_id, plugin_data, set_plugin_data,
@@ -98,6 +111,7 @@ pub use replace::{
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
 pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow};
+pub use trash_model::{Emptied, TrashCounts};
 pub use triage::{INBOX_TRIAGED_FIELD, InboxNote, TriagePool};
 pub use write::{Put, WriteResult};
 
@@ -114,6 +128,13 @@ pub enum StoreError {
     /// See docs/ACCOUNTS.md › Sync with encryption › The guard.
     #[error("the library is no longer bound to the account this sync started with")]
     GuardFailed,
+    /// The file is encrypted and the key is missing or wrong. Nothing was
+    /// written.
+    #[error("Kanso can't open this library with this computer's key.")]
+    WrongKey,
+    /// A key was given on a build whose SQLite has no encryption (the phones').
+    #[error("this build of Kanso can't encrypt a library")]
+    NoEncryption,
     #[error("database error: {0}")]
     Sqlite(#[from] rusqlite::Error),
     #[error("invalid JSON: {0}")]
@@ -176,6 +197,8 @@ const READER_POOL: usize = 4;
 
 pub struct Store {
     path: PathBuf,
+    /// The library's key; `None` for a plain library.
+    key: Option<LibraryKey>,
     writer: Mutex<Connection>,
     readers: Mutex<Vec<Connection>>,
     subscribers: Mutex<Vec<async_channel::Sender<Change>>>,
@@ -193,11 +216,15 @@ pub struct Store {
 impl Store {
     /// Opens (creating if needed) the database at `path` and migrates it.
     pub fn open(path: impl AsRef<Path>) -> Result<Store> {
-        let path = path.as_ref().to_path_buf();
+        Store::open_inner(path.as_ref(), None)
+    }
+
+    pub(crate) fn open_inner(path: &Path, key: Option<&LibraryKey>) -> Result<Store> {
+        let path = path.to_path_buf();
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }
-        let mut writer = schema::connect(&path)?;
+        let mut writer = schema::connect(&path, key)?;
         schema::migrate(&writer)?;
         derived::rebuild_if_stale(&mut writer)?;
         ocr::rebuild_if_stale(&mut writer)?;
@@ -205,6 +232,7 @@ impl Store {
         write::repair_search_if_corrupt(&mut writer)?;
         Ok(Store {
             path,
+            key: key.cloned(),
             writer: Mutex::new(writer),
             readers: Mutex::new(Vec::new()),
             subscribers: Mutex::new(Vec::new()),
@@ -241,7 +269,7 @@ impl Store {
         let conn = self.readers.lock().expect("readers poisoned").pop();
         let conn = match conn {
             Some(conn) => conn,
-            None => schema::connect(&self.path)?,
+            None => schema::connect(&self.path, self.key.as_ref())?,
         };
         let result = f(&conn);
         let mut readers = self.readers.lock().expect("readers poisoned");
@@ -281,6 +309,14 @@ impl Store {
     /// Writes a value to the `meta` table.
     pub fn set_meta(&self, key: &str, value: &str) -> Result<()> {
         self.write(|tx, _| schema::set_meta(tx, key, value))
+    }
+
+    /// Removes a value from the `meta` table. Missing is fine.
+    pub fn remove_meta(&self, key: &str) -> Result<()> {
+        self.write(|tx, _| {
+            tx.execute("DELETE FROM meta WHERE key = ?", [key])?;
+            Ok(())
+        })
     }
 }
 

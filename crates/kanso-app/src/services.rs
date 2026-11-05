@@ -18,7 +18,7 @@ use std::time::Duration;
 use gpui_kit::*;
 use kanso_engine::sync::Request;
 use kanso_engine::sync::driver::{Driver, DriverEvent, DriverSeams, DriverStart, SyncStop};
-use kanso_server::{ServerConfig, ServerHandle, TokenStore};
+use kanso_server::{KeyStore, ServerConfig, ServerHandle, TokenStore};
 use kanso_sync::{
     Backend, Machine, PendingApproval, SecretStore, Session, SignOutReason, SignupState, Step,
     SyncProblem,
@@ -247,6 +247,11 @@ pub struct Services {
     /// right after, and that is no failure.
     expect_problem: Option<SyncProblem>,
     server: Option<ServerHandle>,
+    /// The library's API keys, with the store they were opened on. Each
+    /// `KeyStore::open` keeps its own cache of live keys, so the running
+    /// server and Settings must share this one instance: a revoke from
+    /// Settings then stops the server's next request (see [`key_store`]).
+    keys: Option<(Arc<kanso_store::Store>, KeyStore)>,
     /// The agents' read-only notes tokens (`ai_agent.rs`), accepted on the
     /// local API's `/mcp` while it listens on this computer only, and on
     /// the agents' private listener.
@@ -428,21 +433,60 @@ impl Services {
     }
 }
 
-/// The server's listen address and credentials from the settings.
+/// The server's listen address from the settings. It needs no login: every
+/// caller brings an API key.
 pub fn server_config(settings: &ServerSettings) -> Result<ServerConfig, String> {
     let ip: IpAddr = settings
         .bind_address
         .trim()
         .parse()
         .map_err(|_| format!("“{}” isn't an IP address", settings.bind_address))?;
-    if settings.username.is_empty() || settings.password.is_empty() {
-        return Err("set a username and password first".into());
-    }
     Ok(ServerConfig {
         bind: SocketAddr::new(ip, settings.port),
-        username: settings.username.clone(),
-        password: settings.password.clone(),
     })
+}
+
+/// The library's API keys: opened once, then the same instance (clones
+/// share one cache) for the server that checks keys and for Settings that
+/// makes and revokes them. Opened again only if the library's store is a
+/// different one.
+pub fn key_store(cx: &mut App) -> Result<KeyStore, String> {
+    let store = cx.global::<AppState>().store.clone();
+    let services = cx.global_mut::<Services>();
+    if let Some((opened_on, keys)) = &services.keys
+        && Arc::ptr_eq(opened_on, &store)
+    {
+        return Ok(keys.clone());
+    }
+    let keys = KeyStore::open(store.clone())
+        .map_err(|err| format!("couldn't read the API keys: {err}"))?;
+    services.keys = Some((store, keys.clone()));
+    Ok(keys)
+}
+
+/// Tests and snapshots: the keys to use, with a clock of their own.
+#[cfg(test)]
+pub(crate) fn set_keys_for_test(keys: KeyStore, cx: &mut App) {
+    let store = cx.global::<AppState>().store.clone();
+    cx.global_mut::<Services>().keys = Some((store, keys));
+}
+
+/// Tests: where the local API listens, once it runs.
+#[cfg(test)]
+pub(crate) fn server_addr(cx: &App) -> Option<SocketAddr> {
+    cx.global::<Services>()
+        .server
+        .as_ref()
+        .and_then(ServerHandle::local_addr)
+}
+
+/// Reads the keys from the library again, for after it was replaced.
+pub fn reload_keys(cx: &mut App) {
+    if let Some((_, keys)) = &cx.global::<Services>().keys
+        && let Err(err) = keys.reload()
+    {
+        eprintln!("kanso: couldn't reload the API keys: {err}");
+    }
 }
 
 /// What the status bar says for a server that just tried to start.
@@ -459,6 +503,8 @@ pub fn apply_server_settings(cx: &mut App) {
     let state = cx.global::<AppState>();
     let settings = state.config.server.clone();
     let store = state.store.clone();
+    // The one KeyStore Settings also uses, so a revoke there is a revoke here.
+    let keys = key_store(cx);
     let services = cx.global_mut::<Services>();
     services.port_retry = None;
     if let Some(old) = services.server.take() {
@@ -471,9 +517,9 @@ pub fn apply_server_settings(cx: &mut App) {
     services.api = if !settings.enabled {
         ApiState::Off
     } else {
-        match server_config(&settings) {
-            Err(reason) => ApiState::Failed(reason),
-            Ok(config) => {
+        match (server_config(&settings), keys) {
+            (Err(reason), _) | (_, Err(reason)) => ApiState::Failed(reason),
+            (Ok(config), Ok(keys)) => {
                 // Agents' tokens open `/mcp` only where every client is on
                 // this computer; otherwise agents use their own listener.
                 let tokens = if config.bind.ip().is_loopback() {
@@ -481,7 +527,7 @@ pub fn apply_server_settings(cx: &mut App) {
                 } else {
                     TokenStore::new()
                 };
-                let handle = kanso_server::spawn_with_tokens(store, config, tokens);
+                let handle = kanso_server::spawn_with_tokens(store, config, tokens, keys);
                 let api = api_state(&handle, settings.port);
                 if matches!(api, ApiState::Running(_)) {
                     services.server = Some(handle);
@@ -553,6 +599,8 @@ pub fn hold_writes(cx: &mut App) -> (Option<ServerHandle>, bool) {
 /// (they ask about that themselves).
 pub fn release_writes(restart: bool, cx: &mut App) {
     cx.global_mut::<Services>().writes_held = false;
+    // The Replace may have changed the keys table.
+    reload_keys(cx);
     if restart {
         apply_server_settings(cx);
     }
@@ -1017,8 +1065,6 @@ mod tests {
             let settings = ServerSettings {
                 bind_address: ip.to_string(),
                 port,
-                username: "u".into(),
-                password: "p".into(),
                 ..ServerSettings::default()
             };
             let config = server_config(&settings).unwrap();
@@ -1041,18 +1087,21 @@ mod tests {
         let store = std::sync::Arc::new(kanso_store::Store::open(dir.path().join("k.db")).unwrap());
         let settings = ServerSettings {
             port,
-            username: "u".into(),
-            password: "p".into(),
             ..ServerSettings::default()
         };
-        let handle = kanso_server::spawn(store.clone(), server_config(&settings).unwrap());
+        let keys = kanso_server::KeyStore::open(store.clone()).unwrap();
+        let handle = kanso_server::spawn(
+            store.clone(),
+            server_config(&settings).unwrap(),
+            keys.clone(),
+        );
         assert_eq!(api_state(&handle, port), ApiState::PortInUse(port));
         drop(taken);
         let settings = ServerSettings {
             port: 0,
             ..settings
         };
-        let handle = kanso_server::spawn(store, server_config(&settings).unwrap());
+        let handle = kanso_server::spawn(store, server_config(&settings).unwrap(), keys);
         assert!(matches!(api_state(&handle, 0), ApiState::Running(_)));
         handle.stop().unwrap();
     }

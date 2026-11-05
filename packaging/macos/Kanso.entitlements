@@ -6,6 +6,12 @@
          that doesn't ask for it here, and macOS then never even asks. -->
     <key>com.apple.security.device.audio-input</key>
     <true/>
+    <!-- Recording another app's audio (ScreenCaptureKit) needs no entitlement
+         under the hardened runtime: Screen Recording is a privacy permission
+         the person grants in System Settings, and the question only shows
+         when Info.plist has NSScreenCaptureUsageDescription (scripts/
+         bundle-macos.sh). Adding a screen-capture key here would not change
+         that. The release workflow checks the plist key is in the bundle. -->
     <!-- Native passkeys (docs/ACCOUNTS.md › Where the ceremony runs): the
          relying party AuthenticationServices may use. This is a restricted
          entitlement: it needs Contents/embedded.provisionprofile, so

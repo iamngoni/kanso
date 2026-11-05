@@ -28,6 +28,28 @@ opus = "0.4"
 symphonia = { version = "0.5.5", default-features = false, features = ["aac", "adpcm", "aiff", "alac", "caf", "flac", "isomp4", "mp3", "ogg", "pcm", "vorbis", "wav"] }
 thiserror.workspace = true
 
+# System audio on Linux is a monitor source, which cpal's ALSA host cannot
+# list; its PulseAudio host (a pure-Rust protocol client, no libpulse) can,
+# and PipeWire answers the same protocol through pipewire-pulse. Cargo
+# unifies features, so kanso-voice's microphone prefers this host too when a
+# sound server answers.
+[target.'cfg(target_os = "linux")'.dependencies]
+cpal = { version = "0.18", features = ["pulseaudio"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# System audio on macOS: ScreenCaptureKit (one app's audio, no video) and the
+# workspace's list of running apps. MIT/Apache-2.0/Zlib bindings to Apple's
+# frameworks; GPUI already builds objc2 and block2.
+block2 = "0.6"
+dispatch2 = "0.3"
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSRunningApplication", "NSWorkspace"] }
+objc2-core-audio-types = { version = "0.3", default-features = false, features = ["std", "CoreAudioBaseTypes"] }
+objc2-core-foundation = { version = "0.3", default-features = false, features = ["std"] }
+objc2-core-media = { version = "0.3", default-features = false, features = ["std", "CMBlockBuffer", "CMFormatDescription", "CMSampleBuffer", "CMTime", "objc2-core-audio-types"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSEnumerator", "NSError", "NSObject", "NSString"] }
+objc2-screen-capture-kit = { version = "0.3", default-features = false, features = ["std", "block2", "dispatch2", "objc2-core-media", "SCShareableContent", "SCStream"] }
+
 [dev-dependencies]
 proptest.workspace = true
 tempfile.workspace = true

@@ -177,6 +177,7 @@ impl PeopleView {
         self.reload(cx);
     }
 
+    #[cfg(test)]
     pub fn suggestions(&self) -> &[Suggestion] {
         &self.suggestions
     }

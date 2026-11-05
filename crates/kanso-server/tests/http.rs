@@ -2,7 +2,6 @@
 
 mod common;
 
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::body::Body;
@@ -12,7 +11,7 @@ use base64::engine::general_purpose::STANDARD;
 use common::*;
 use kanso_core::DocType;
 use kanso_core::model::{FILE_LOCK_FIELD, FileLock};
-use kanso_server::{ServerConfig, basic_header};
+use kanso_server::ServerConfig;
 use kanso_store::{Attachment, Origin, Put};
 use serde_json::{Value, json};
 
@@ -35,6 +34,11 @@ async fn note(app: &App, book_id: &str, title: &str, body: &str) -> (String, Str
     .await
 }
 
+/// A document straight from the library, as the app holds it.
+fn raw(app: &App, id: &str) -> Value {
+    app.store.get_api(id, None, false).unwrap()
+}
+
 fn ids(docs: &Value) -> Vec<String> {
     docs.as_array()
         .unwrap()
@@ -54,7 +58,7 @@ async fn root_returns_app_meta() {
 }
 
 #[tokio::test]
-async fn every_route_requires_basic_auth() {
+async fn every_route_requires_a_key() {
     let app = app();
     for (method, uri) in [
         (Method::GET, "/"),
@@ -69,8 +73,13 @@ async fn every_route_requires_basic_auth() {
     ] {
         for auth in [
             None,
-            Some(basic_header(USER, "wrong")),
-            Some(basic_header("x", PASS)),
+            Some(bearer("kcl_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")),
+            Some(bearer("not-a-key")),
+            Some(basic_with(
+                "x",
+                "kcl_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+            )),
+            Some(basic_with("kanso-test", "pa:ss word")),
         ] {
             let mut request = Request::builder().method(method.clone()).uri(uri);
             if let Some(auth) = &auth {
@@ -84,9 +93,34 @@ async fn every_route_requires_basic_auth() {
             );
             assert_eq!(
                 response.json(),
-                json!({ "error": "unauthorized", "reason": "Name or password is incorrect." })
+                json!({
+                    "error": "unauthorized",
+                    "reason": "Kanso needs an API key. Create one in Settings \u{203a} Local API \u{203a} API keys."
+                })
             );
         }
+    }
+}
+
+fn basic_with(user: &str, password: &str) -> String {
+    format!("Basic {}", STANDARD.encode(format!("{user}:{password}")))
+}
+
+#[tokio::test]
+async fn the_key_works_as_a_bearer_token_or_as_a_basic_password() {
+    let app = app();
+    for header_value in [
+        common::auth(),
+        basic_with("anything", KEY),
+        basic_with("", KEY),
+        basic_with("kanso-test", KEY),
+    ] {
+        let request = Request::builder()
+            .uri("/")
+            .header(header::AUTHORIZATION, header_value)
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(send(&app.router, request).await.status, StatusCode::OK);
     }
 }
 
@@ -170,14 +204,19 @@ async fn note_file_ownership_is_hidden_and_preserved_on_api_writes() {
         )
         .unwrap();
 
-    let (status, served) = get(&app.router, "/note:owned").await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(served.get("kansoFiles").is_none(), "{served}");
-    let mut update = served;
-    update["title"] = "Renamed".into();
-    let (status, _) = post(&app.router, "/notes", update).await;
-    assert_eq!(status, StatusCode::OK);
+    // A locked note does not exist for a key: it is not served, and a
+    // write to it is refused as not found.
+    let (status, _) = get(&app.router, "/note:owned").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = post(
+        &app.router,
+        "/notes",
+        json!({ "_id": note_id, "title": "Renamed", "body": "", "bookId": book_id }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
     let stored = app.store.get(note_id).unwrap().unwrap();
+    assert_eq!(stored.fields["title"], "Owner");
     assert_eq!(stored.fields["kansoFiles"][0]["file"], "file:sealed");
 }
 
@@ -310,7 +349,7 @@ async fn malformed_and_oversized_bodies_are_rejected() {
     let bad_json = Request::builder()
         .method(Method::POST)
         .uri("/notes")
-        .header(header::AUTHORIZATION, basic_header(USER, PASS))
+        .header(header::AUTHORIZATION, common::auth())
         .body(Body::from("{not json"))
         .unwrap();
     let response = send(&app.router, bad_json).await;
@@ -334,7 +373,7 @@ async fn malformed_and_oversized_bodies_are_rejected() {
         let request = Request::builder()
             .method(Method::POST)
             .uri(uri)
-            .header(header::AUTHORIZATION, basic_header(USER, PASS))
+            .header(header::AUTHORIZATION, common::auth())
             .body(Body::from(huge.clone()))
             .unwrap();
         let response = send(&app.router, request).await;
@@ -350,7 +389,7 @@ async fn malformed_and_oversized_bodies_are_rejected() {
     let request = Request::builder()
         .method(Method::POST)
         .uri("/notes")
-        .header(header::AUTHORIZATION, basic_header(USER, PASS))
+        .header(header::AUTHORIZATION, common::auth())
         .body(Body::from(fits))
         .unwrap();
     assert_eq!(send(&app.router, request).await.status, StatusCode::OK);
@@ -376,7 +415,7 @@ async fn attachment_uploads_take_a_fifty_mib_pdf() {
         Request::builder()
             .method(Method::POST)
             .uri(uri)
-            .header(header::AUTHORIZATION, basic_header(USER, PASS))
+            .header(header::AUTHORIZATION, common::auth())
             .body(Body::from(body))
             .unwrap()
     };
@@ -459,8 +498,9 @@ async fn note_lists_honour_keyword_limit_skip_and_sort() {
     assert_eq!(ids(&notes), [created[1].clone()]);
     let (_, notes) = get(&app.router, "/notes?keyword=SHARED%20-title%3Aapple").await;
     assert_eq!(ids(&notes), [created[2].clone(), created[0].clone()]);
+    // The trash is not visible to a key.
     let (_, notes) = get(&app.router, "/notes?keyword=bookId%3Atrash").await;
-    assert_eq!(ids(&notes), [trashed]);
+    assert!(ids(&notes).is_empty(), "{trashed}");
 
     for bad in ["limit=-1", "limit=ten", "skip=x", "descending=maybe"] {
         let (status, err) = get(&app.router, &format!("/notes?{bad}")).await;
@@ -472,12 +512,13 @@ async fn note_lists_honour_keyword_limit_skip_and_sort() {
 #[tokio::test]
 async fn note_lists_default_to_fifty() {
     let app = app();
+    let book_id = book(&app, "B").await;
     for i in 0..55 {
-        note(&app, "trash", &format!("n{i}"), "").await;
+        note(&app, &book_id, &format!("n{i}"), "").await;
     }
-    let (_, notes) = get(&app.router, "/notes?keyword=bookId:trash").await;
+    let (_, notes) = get(&app.router, "/notes").await;
     assert_eq!(notes.as_array().unwrap().len(), 50);
-    let (_, notes) = get(&app.router, "/notes?keyword=bookId:trash&limit=100").await;
+    let (_, notes) = get(&app.router, "/notes?limit=100").await;
     assert_eq!(notes.as_array().unwrap().len(), 55);
 }
 
@@ -649,11 +690,14 @@ async fn deletes_follow_the_api_semantics() {
 
     // Deleting a tag removes it from notes; deleting a notebook trashes its notes.
     call(&app.router, Method::DELETE, &format!("/{tag_id}"), None).await;
-    let (_, doc) = get(&app.router, &format!("/{note_id}")).await;
+    let doc = raw(&app, &note_id);
     assert_eq!(doc["tags"], json!([]));
     call(&app.router, Method::DELETE, &format!("/{book_id}"), None).await;
-    let (_, doc) = get(&app.router, &format!("/{note_id}")).await;
+    let doc = raw(&app, &note_id);
     assert_eq!(doc["bookId"], "trash");
+    // A trashed note is not visible to a key.
+    let (status, _) = get(&app.router, &format!("/{note_id}")).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 
     let (status, _) = call(&app.router, Method::DELETE, "/favicon.ico", None).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
@@ -751,18 +795,6 @@ async fn unknown_routes_and_methods_answer_json() {
     assert_eq!(err["error"], "method_not_allowed");
 }
 
-#[test]
-fn config_debug_redacts_the_password() {
-    let config = ServerConfig {
-        bind: SocketAddr::from(([127, 0, 0, 1], 1)),
-        username: "user".into(),
-        password: "hunter2-secret".into(),
-    };
-    let shown = format!("{config:?}");
-    assert!(!shown.contains("hunter2-secret"), "{shown}");
-    assert!(shown.contains("user"));
-}
-
 fn test_store() -> (tempfile::TempDir, Arc<kanso_store::Store>) {
     let dir = tempfile::tempdir().unwrap();
     let store = Arc::new(kanso_store::Store::open(dir.path().join("kanso.db")).unwrap());
@@ -772,13 +804,13 @@ fn test_store() -> (tempfile::TempDir, Arc<kanso_store::Store>) {
 #[test]
 fn spawn_serves_on_its_own_runtime_and_stops() {
     let (_dir, store) = test_store();
-    let handle = kanso_server::spawn(store, config());
+    let handle = kanso_server::spawn(store.clone(), config(), keys_for(&store));
     let addr = handle.local_addr().expect("bound");
     assert_ne!(addr.port(), 0);
     assert!(handle.is_running());
     let response = reqwest::blocking::Client::new()
         .get(format!("http://{addr}/"))
-        .header(header::AUTHORIZATION.as_str(), basic_header(USER, PASS))
+        .header(header::AUTHORIZATION.as_str(), common::auth())
         .send()
         .unwrap();
     assert_eq!(response.status().as_u16(), 200);
@@ -792,14 +824,14 @@ fn spawn_serves_on_its_own_runtime_and_stops() {
 fn a_stalled_client_cannot_block_stop() {
     use std::io::Write as _;
     let (_dir, store) = test_store();
-    let handle = kanso_server::spawn(store, config());
+    let handle = kanso_server::spawn(store.clone(), config(), keys_for(&store));
     let addr = handle.local_addr().unwrap();
     // Half a request: headers never finish, so the request is in flight.
     let mut stalled = std::net::TcpStream::connect(addr).unwrap();
     write!(
         stalled,
         "POST /notes HTTP/1.1\r\nHost: x\r\nAuthorization: {}\r\nContent-Length: 100\r\n\r\n{{",
-        basic_header(USER, PASS)
+        common::auth()
     )
     .unwrap();
     std::thread::sleep(std::time::Duration::from_millis(100));
@@ -818,16 +850,20 @@ fn a_taken_port_is_reported_as_addr_in_use() {
     let taken = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let config = ServerConfig {
         bind: taken.local_addr().unwrap(),
-        ..config()
     };
-    let handle = kanso_server::spawn(store.clone(), config.clone());
+    let handle = kanso_server::spawn(store.clone(), config.clone(), keys_for(&store));
     assert!(handle.is_addr_in_use(), "{handle:?}");
     assert!(handle.local_addr().is_none());
     assert!(!handle.is_running());
     handle.stop().unwrap();
 
     let err = common::runtime()
-        .block_on(kanso_server::serve(store, config, async {}))
+        .block_on(kanso_server::serve(
+            store.clone(),
+            config,
+            keys_for(&store),
+            async {},
+        ))
         .unwrap_err();
     assert!(kanso_server::is_addr_in_use(&err), "{err:?}");
 }
@@ -839,12 +875,11 @@ async fn serve_runs_until_shutdown() {
     let addr = probe.local_addr().unwrap();
     drop(probe);
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    let keys = keys_for(&store);
     let server = tokio::spawn(kanso_server::serve(
         store,
-        ServerConfig {
-            bind: addr,
-            ..config()
-        },
+        ServerConfig { bind: addr },
+        keys,
         async move {
             let _ = rx.await;
         },
@@ -854,7 +889,7 @@ async fn serve_runs_until_shutdown() {
     for _ in 0..50 {
         match client
             .get(format!("http://{addr}/notes"))
-            .header(header::AUTHORIZATION.as_str(), basic_header(USER, PASS))
+            .header(header::AUTHORIZATION.as_str(), common::auth())
             .send()
             .await
         {
@@ -902,7 +937,7 @@ async fn the_local_api_never_sets_a_notes_published_link() {
         json!({ "bookId": "trash", "title": "t", "body": "b", "kansoPublish": planted }),
     )
     .await;
-    let (_, doc) = get(&app.router, &format!("/{fresh}")).await;
+    let doc = raw(&app, &fresh);
     assert!(doc.get("kansoPublish").is_none(), "{doc}");
     write(
         &app.router,
@@ -910,7 +945,7 @@ async fn the_local_api_never_sets_a_notes_published_link() {
         json!({ "kansoPublish": planted }),
     )
     .await;
-    let (_, doc) = get(&app.router, &format!("/{fresh}")).await;
+    let doc = raw(&app, &fresh);
     assert!(doc.get("kansoPublish").is_none(), "{doc}");
 
     // A published note keeps the app's value through replace and merge, whatever is sent.
@@ -918,12 +953,12 @@ async fn the_local_api_never_sets_a_notes_published_link() {
         &app,
         json!({ "bookId": "trash", "title": "t", "body": "b" }),
     );
-    let (_, mut doc) = get(&app.router, &format!("/{id}")).await;
+    let mut doc = raw(&app, &id);
     assert_eq!(doc["_rev"], rev.as_str());
     doc["kansoPublish"] = planted.clone();
     doc["title"] = "replaced".into();
     write(&app.router, "/notes", doc).await;
-    let (_, mut doc) = get(&app.router, &format!("/{id}")).await;
+    let mut doc = raw(&app, &id);
     assert_eq!(doc["title"], "replaced");
     assert_eq!(doc["kansoPublish"], published());
     // Leaving it out of a replace doesn't remove it either.
@@ -935,10 +970,10 @@ async fn the_local_api_never_sets_a_notes_published_link() {
         json!({ "kansoPublish": null, "title": "merged" }),
     ] {
         write(&app.router, &format!("/{id}"), body).await;
-        let (_, doc) = get(&app.router, &format!("/{id}")).await;
+        let doc = raw(&app, &id);
         assert_eq!(doc["kansoPublish"], published(), "{doc}");
     }
-    let (_, doc) = get(&app.router, &format!("/{id}")).await;
+    let doc = raw(&app, &id);
     assert_eq!(doc["title"], "merged");
 }
 
@@ -953,7 +988,7 @@ async fn the_local_api_never_sets_a_notebooks_published_link() {
         json!({ "name": "Site", "kansoPublish": planted }),
     )
     .await;
-    let (_, doc) = get(&app.router, &format!("/{id}")).await;
+    let doc = raw(&app, &id);
     assert!(doc.get("kansoPublish").is_none(), "{doc}");
     write(
         &app.router,
@@ -961,7 +996,7 @@ async fn the_local_api_never_sets_a_notebooks_published_link() {
         json!({ "kansoPublish": planted }),
     )
     .await;
-    let (_, doc) = get(&app.router, &format!("/{id}")).await;
+    let doc = raw(&app, &id);
     assert!(doc.get("kansoPublish").is_none(), "{doc}");
     // Published by the app: renames through the API keep the app's value.
     app.store
@@ -977,25 +1012,23 @@ async fn the_local_api_never_sets_a_notebooks_published_link() {
         json!({ "kansoPublish": null }),
     ] {
         write(&app.router, &format!("/{id}"), body).await;
-        let (_, doc) = get(&app.router, &format!("/{id}")).await;
+        let doc = raw(&app, &id);
         assert_eq!(doc["kansoPublish"], published(), "{doc}");
     }
-    let (_, doc) = get(&app.router, &format!("/{id}")).await;
+    let doc = raw(&app, &id);
     assert_eq!(doc["name"], "Renamed");
 }
 
 #[tokio::test]
-async fn a_locked_note_keeps_its_sealed_text_from_the_local_api() {
+async fn a_locked_note_does_not_exist_for_a_key() {
     let app = app();
     let sealed = json!({ "v": 1, "salt": "c2FsdA", "m": 64, "t": 1, "p": 1, "data": "sealed" });
-    let (id, _) = app_note(&app, json!({ "bookId": "trash", "title": "t", "body": "" }));
+    let book_id = book(&app, "B").await;
+    let (id, _) = app_note(&app, json!({ "bookId": book_id, "title": "t", "body": "" }));
     let note = app.store.get_api(&id, None, false).unwrap();
     let mut locked = note.clone();
     locked["kansoLock"] = sealed.clone();
     app.store.lock_note(locked).unwrap();
-
-    // Read with an empty body and without the sealed text, which would let
-    // a client guess the password offline; a replace keeps the lock.
     let sealed_kept = |store: &kanso_store::Store| {
         store
             .note(&id)
@@ -1005,38 +1038,36 @@ async fn a_locked_note_keeps_its_sealed_text_from_the_local_api() {
             .get("kansoLock")
             .cloned()
     };
-    let (_, mut doc) = get(&app.router, &format!("/{id}")).await;
-    assert_eq!(doc["body"], "");
-    assert!(doc.get("kansoLock").is_none(), "{doc}");
-    doc["title"] = "retitled".into();
-    write(&app.router, "/notes", doc).await;
-    let (_, doc) = get(&app.router, &format!("/{id}")).await;
-    assert_eq!(doc["title"], "retitled");
-    assert!(doc.get("kansoLock").is_none());
-    assert_eq!(sealed_kept(&app.store), Some(sealed.clone()));
 
-    // Text can't go beside the lock, the lock can't be taken off, and the
-    // note can't be deleted outright.
+    // It is not read, listed, replaced, merged into or deleted from here:
+    // every try answers not found, and the note stays as it was.
+    let (status, _) = get(&app.router, &format!("/{id}")).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (_, listed) = get(&app.router, "/notes").await;
+    assert!(!listed.to_string().contains(&id), "{listed}");
+    let mut replacement = raw(&app, &id);
+    replacement["title"] = "retitled".into();
+    let (status, _) = post(&app.router, "/notes", replacement).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
     for body in [
         json!({ "body": "plain" }),
         json!({ "kansoLock": null, "body": "plain" }),
     ] {
         let (status, _) = post(&app.router, &format!("/{id}"), body).await;
-        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(status, StatusCode::NOT_FOUND);
     }
     let (status, _) = call(&app.router, Method::DELETE, &format!("/{id}"), None).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    let (_, doc) = get(&app.router, &format!("/{id}")).await;
-    assert_eq!(doc["body"], "");
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(app.store.note(&id).unwrap().unwrap().title, "t");
     assert_eq!(sealed_kept(&app.store), Some(sealed));
     // Nor does the changes feed carry it.
     let (_, feed) = get(&app.router, "/_changes?include_docs=true").await;
-    assert!(feed.to_string().contains(&id), "{feed}");
+    assert!(!feed.to_string().contains(&id), "{feed}");
     assert!(!feed.to_string().contains("c2FsdA"), "{feed}");
 }
 
 #[tokio::test]
-async fn a_locked_notebook_keeps_its_notes_text_and_its_lock_from_the_local_api_and_mcp() {
+async fn a_locked_notebook_and_its_notes_do_not_exist_for_a_key() {
     let app = app();
     let lock = json!({ "v": 1, "salt": "c2FsdA", "m": 64, "t": 1, "p": 1, "data": "notebook" });
     let (book, _) = write(&app.router, "/books", json!({ "name": "Private" })).await;
@@ -1065,61 +1096,83 @@ async fn a_locked_notebook_keeps_its_notes_text_and_its_lock_from_the_local_api_
         )
         .unwrap();
 
-    // The note reads with an empty body everywhere, MCP included.
-    let (_, doc) = get(&app.router, &format!("/{id}")).await;
-    assert_eq!(doc["body"], "");
-    assert_eq!(doc["title"], "Plans");
+    // The note is nowhere: not read, found, listed or in the feed, over
+    // REST or MCP.
+    let (status, _) = get(&app.router, &format!("/{id}")).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
     for uri in [
         "/notes?keyword=zebracanary4471".to_owned(),
+        "/notes?keyword=Plans".to_owned(),
         "/notes".to_owned(),
         "/_changes?include_docs=true".to_owned(),
+        "/books".to_owned(),
     ] {
         let (_, found) = get(&app.router, &uri).await;
-        assert!(
-            !found.to_string().contains("zebracanary4471"),
-            "{uri}: {found}"
-        );
+        let found = found.to_string();
+        assert!(!found.contains("zebracanary4471"), "{uri}: {found}");
+        assert!(!found.contains("Plans"), "{uri}: {found}");
+        assert!(!found.contains("Private"), "{uri}: {found}");
+        assert!(!found.contains("c2FsdA"), "{uri}: {found}");
     }
     for (name, arguments) in [
         ("read-note", json!({ "noteId": id })),
         ("search-notes", json!({ "keyword": "Plans" })),
         ("list-notes", json!({ "bookId": inner })),
+        ("list-notebooks", json!({})),
     ] {
         let answer = tool(&app.router, name, arguments).await;
-        assert!(answer.to_string().contains("Plans"), "{name}: {answer}");
+        assert!(!answer.to_string().contains("Plans"), "{name}: {answer}");
+        assert!(!answer.to_string().contains("Private"), "{name}: {answer}");
         assert!(
             !answer.to_string().contains("zebracanary4471"),
             "{name}: {answer}"
         );
     }
-    // Nor is its text changed, emptied, moved out or deleted from here.
-    for (uri, body) in [
-        (format!("/{id}"), json!({ "body": "replaced" })),
-        (format!("/{id}"), json!({ "body": "" })),
-        (format!("/{id}"), json!({ "bookId": "trash" })),
+    // Nor is its text changed, emptied, moved out or deleted from here, and
+    // no note is added to the notebook.
+    for (uri, body, expected) in [
+        (
+            format!("/{id}"),
+            json!({ "body": "replaced" }),
+            StatusCode::NOT_FOUND,
+        ),
+        (
+            format!("/{id}"),
+            json!({ "body": "" }),
+            StatusCode::NOT_FOUND,
+        ),
+        (
+            format!("/{id}"),
+            json!({ "bookId": "trash" }),
+            StatusCode::NOT_FOUND,
+        ),
         (
             "/notes".to_owned(),
             json!({ "bookId": book, "title": "New", "body": "plain" }),
+            StatusCode::FORBIDDEN,
         ),
     ] {
         let (status, _) = post(&app.router, &uri, body).await;
-        assert_eq!(status, StatusCode::BAD_REQUEST, "{uri}");
+        assert_eq!(status, expected, "{uri}");
     }
     let (status, _) = call(&app.router, Method::DELETE, &format!("/{id}"), None).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(status, StatusCode::NOT_FOUND);
 
     // The notebook's lock never goes out, can't be taken off or planted,
     // and the notebook can't be deleted from here.
-    for uri in [format!("/{book}"), "/books".to_owned()] {
-        let (_, doc) = get(&app.router, &uri).await;
-        assert!(!doc.to_string().contains("c2FsdA"), "{uri}: {doc}");
+    for target in [&book, &inner] {
+        let (status, _) = get(&app.router, &format!("/{target}")).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        let (status, _) = post(
+            &app.router,
+            &format!("/{target}"),
+            json!({ "kansoLock": null, "name": "Renamed" }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        let (status, _) = call(&app.router, Method::DELETE, &format!("/{target}"), None).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
     }
-    write(
-        &app.router,
-        &format!("/{book}"),
-        json!({ "kansoLock": null, "name": "Renamed" }),
-    )
-    .await;
     assert_eq!(
         app.store
             .get(&book)
@@ -1129,25 +1182,10 @@ async fn a_locked_notebook_keeps_its_notes_text_and_its_lock_from_the_local_api_
             .get("kansoLock"),
         Some(&lock)
     );
-    write(
-        &app.router,
-        &format!("/{inner}"),
-        json!({ "kansoLock": { "v": 1, "salt": "planted", "m": 64, "t": 1, "p": 1, "data": "x" } }),
-    )
-    .await;
-    assert!(
-        app.store
-            .get(&inner)
-            .unwrap()
-            .unwrap()
-            .fields
-            .get("kansoLock")
-            .is_none()
+    assert_eq!(
+        app.store.get(&book).unwrap().unwrap().fields["name"],
+        "Private"
     );
-    for target in [&book, &inner] {
-        let (status, _) = call(&app.router, Method::DELETE, &format!("/{target}"), None).await;
-        assert_eq!(status, StatusCode::BAD_REQUEST);
-    }
     assert!(
         app.store
             .note(&id)

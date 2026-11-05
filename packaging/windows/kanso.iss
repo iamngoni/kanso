@@ -17,6 +17,13 @@
 #ifndef SourceHostExe
   #define SourceHostExe "..\..\target\release\kanso-plugin-host.exe"
 #endif
+#ifndef SourcePdfWorker
+  #define SourcePdfWorker "..\..\target\release\kanso-pdf-worker.exe"
+#endif
+; The folder scripts/fetch-pdfium.sh made for win-x64.
+#ifndef SourcePdfium
+  #define SourcePdfium "..\..\vendor\pdfium\win-x64"
+#endif
 #ifndef OutputDir
   #define OutputDir "..\..\dist"
 #endif
@@ -75,6 +82,12 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "{#SourceExe}"; DestDir: "{app}"; DestName: "kanso.exe"; Flags: ignoreversion
 ; Plugins run in their own process, beside Kanso (docs/PLUGINS.md).
 Source: "{#SourceHostExe}"; DestDir: "{app}"; DestName: "kanso-plugin-host.exe"; Flags: ignoreversion
+; PDFs are drawn in a contained helper (an AppContainer) beside its PDFium
+; library, with PDFium's licences (issue #43).
+Source: "{#SourcePdfWorker}"; DestDir: "{app}"; DestName: "kanso-pdf-worker.exe"; Flags: ignoreversion
+Source: "{#SourcePdfium}\bin\pdfium.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourcePdfium}\LICENSE"; DestDir: "{app}\pdfium-licenses"; Flags: ignoreversion
+Source: "{#SourcePdfium}\licenses\*"; DestDir: "{app}\pdfium-licenses"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{userprograms}\Kanso"; Filename: "{app}\kanso.exe"

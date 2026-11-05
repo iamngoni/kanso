@@ -47,6 +47,9 @@ pub struct PageOptions<'a> {
     /// the app understands and nothing else a page could do (see [`app`]).
     /// `None` is the page that is published and exported, unchanged.
     pub app: Option<&'a AppMode<'a>>,
+    /// Finds the canvas note a `canvas` fence names; without it such a fence
+    /// stays code. (The page in the app takes it from [`AppMode::notes`].)
+    pub notes: Option<crate::canvas::embed::Notes<'a>>,
 }
 
 impl Default for PageOptions<'_> {
@@ -57,6 +60,7 @@ impl Default for PageOptions<'_> {
             size: 16.,
             highlight: None,
             app: None,
+            notes: None,
         }
     }
 }
@@ -384,6 +388,50 @@ fn svg_markup(svg: &Svg, class: &str, scale: f32) -> String {
     format!(r#"<span class="{class}"{style}>{}</span>"#, svg.markup)
 }
 
+/// The lock glyph the placeholders carry, in the text color.
+const LOCK_GLYPH: &str = r#"<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>"#;
+
+/// A `canvas` embed as the page shows it: the drawing, or for a locked,
+/// missing or undrawable canvas a quiet placeholder. A locked canvas is
+/// never read, so nothing of it can reach the page. Blocks while it draws.
+fn canvas_piece(
+    embed: &kanso_core::canvas::Embed,
+    notes: crate::canvas::embed::Notes<'_>,
+    palette: &Palette,
+) -> Piece {
+    use crate::canvas::embed::{Notice, Shown, placeholder_text, show};
+    let shown = show(embed, notes, palette);
+    let html = match &shown {
+        Shown::Drawing(svg) => {
+            let mut html = format!(
+                r#"<div class="kanso-canvas">{}"#,
+                svg_markup(svg, "kanso-drawing", 1.)
+            );
+            if svg.notices.contains(&Notice::GroupMissing) {
+                let _ = write!(
+                    html,
+                    r#"<p class="kanso-canvas-note">{}</p>"#,
+                    Notice::GroupMissing.text()
+                );
+            }
+            html.push_str("</div>");
+            html
+        }
+        other => {
+            let words = placeholder_text(other).unwrap_or_default();
+            let glyph = if *other == Shown::Locked {
+                LOCK_GLYPH
+            } else {
+                ""
+            };
+            format!(
+                r#"<div class="kanso-canvas-placeholder" role="img" aria-label="{words}">{glyph}<span>{words}</span></div>"#
+            )
+        }
+    };
+    Piece::Bare(html)
+}
+
 /// `data:<type>;base64,<bytes>`, as pages carry their images. Pure.
 pub fn data_uri(content_type: &str, bytes: &[u8]) -> String {
     format!(
@@ -430,6 +478,9 @@ fn collect(
         .and_then(|r| source.get(r))
         .unwrap_or_default();
     let in_app = options.app.is_some();
+    let notes = options
+        .notes
+        .or_else(|| options.app.and_then(|mode| mode.notes));
     let draw = |kind: Kind, code: &str| -> Outcome {
         render_blocking(&Job::new(kind, code, *palette))
             .as_ref()
@@ -492,6 +543,15 @@ fn collect(
                 app::failed_html(failure, code.lang.as_deref(), &code.value, copy_index(node))
             },
         ),
+        Node::Code(code)
+            if fence_is(&code.lang, "canvas")
+                && notes.is_some()
+                && kanso_core::canvas::embed::parse(&code.value).is_some() =>
+        {
+            kanso_core::canvas::embed::parse(&code.value)
+                .zip(notes)
+                .map(|(embed, notes)| canvas_piece(&embed, notes, palette))
+        }
         Node::Code(code) if code.lang.as_deref().is_some_and(crate::is_plugin_language) => {
             let language = code.lang.as_deref().unwrap_or_default().trim();
             block(
@@ -925,6 +985,11 @@ figure svg{{max-width:100%;height:auto}}
 .kanso-math svg{{display:inline-block}}
 .kanso-math-display{{display:block;text-align:center;margin:.4em 0}}
 .kanso-diagram,.kanso-drawing{{display:block}}
+.kanso-canvas{{margin:.6em 0}}
+.kanso-canvas svg{{max-width:100%;height:auto}}
+.kanso-canvas-note{{margin:.3em 0 0;font-size:.8667em;color:{muted}}}
+.kanso-canvas-placeholder{{display:flex;align-items:center;justify-content:center;gap:.5em;max-width:380px;height:96px;border:1px dashed {border};border-radius:8px;background:{surface};font-size:.8667em;color:{muted}}}
+.kanso-canvas-placeholder svg{{width:1.1em;height:1.1em}}
 .kanso-missing{{color:{muted};font-style:italic}}
 .kanso-wikilink{{border-bottom:1px dotted {muted}}}
 a.kanso-wikilink{{border-bottom:0}}
@@ -1586,6 +1651,7 @@ mod tests {
             size: 18.,
             highlight: None,
             app: None,
+            notes: None,
         };
         let css = stylesheet(&Palette::LIGHT, &options);
         let width = crate::typography::readable_width(18., false);
@@ -1641,6 +1707,7 @@ mod tests {
                 size,
                 highlight: None,
                 app: None,
+                notes: None,
             };
             let css = stylesheet(&palette, &options);
             prop_assert_eq!(css.matches('{').count(), css.matches('}').count());

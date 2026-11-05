@@ -170,9 +170,6 @@ impl SettingsPage {
 
 // MARK: Plain words for values and states
 
-/// What a saved password shows instead of itself, whatever its length.
-pub const MASK: &str = "••••••••";
-
 pub use kanso_engine::sync::StatusLine;
 pub use kanso_engine::sync::words::{SYNC_INTERVALS, interval_label, problem_help};
 
@@ -568,29 +565,11 @@ fn apply_port(value: String, cx: &mut App) -> Result<(), String> {
     Ok(())
 }
 
-fn apply_username(value: String, cx: &mut App) -> Result<(), String> {
-    let username = parse_username(&value)?;
-    AppState::update_config(cx, |config| config.server.username = username);
-    services::apply_server_settings(cx);
-    Ok(())
-}
-
 /// The API port from what was typed.
 pub fn parse_port(value: &str) -> Result<u16, String> {
     match value.trim().parse::<u16>() {
         Ok(port) if port >= 1024 => Ok(port),
         _ => Err("Use a port from 1024 to 65535.".into()),
-    }
-}
-
-/// The API username from what was typed. Basic authentication can't carry
-/// a colon in the username.
-pub fn parse_username(value: &str) -> Result<String, String> {
-    let value = value.trim();
-    if value.is_empty() || value.contains(':') || value.chars().any(char::is_control) {
-        Err("The username can't be empty or contain a colon.".into())
-    } else {
-        Ok(value.to_owned())
     }
 }
 
@@ -604,27 +583,10 @@ fn copy_to_clipboard(
     window.push_notification(Notification::info(message), cx);
 }
 
-fn change_password(window: &mut Window, cx: &mut App) {
-    dialogs::prompt_secret(
-        "New API Password",
-        "Change",
-        window,
-        cx,
-        |password, _, cx| {
-            AppState::update_config(cx, |config| config.server.password = password);
-            services::apply_server_settings(cx);
-            Ok(())
-        },
-    );
-}
-
 fn copy_local_api_settings(window: &mut Window, cx: &mut App) {
     dialogs::confirm(
-        "Use the other app's API port, username and password?",
-        format!(
-            "That app keeps its password in its encrypted settings, with a key in your Keychain. macOS will ask you to allow Kanso to read “{}”.",
-            kanso_import::safe_storage::SAFE_STORAGE_SERVICE
-        ),
+        "Use the other app's API port?",
+        "Kanso signs in with API keys, so only the port and address are taken.".to_owned(),
         "Continue",
         window,
         cx,
@@ -689,8 +651,8 @@ pub struct SettingsView {
     /// The quick capture shortcut's control.
     shortcut: Entity<crate::settings_capture::ShortcutRecorder>,
     voice_shortcut: Entity<crate::settings_capture::ShortcutRecorder>,
-    /// The AI agent the Local API page has setup for.
-    mcp_agent: crate::mcp_setup::Agent,
+    /// The Local API page's API keys group.
+    pub(crate) api_keys: Entity<crate::settings_api_keys::ApiKeysPage>,
     /// Settings › Editor's font pickers, made the first time it shows.
     fonts: Option<FontPickers>,
     /// The gallery's search field, kept across pages and filters.
@@ -743,7 +705,7 @@ impl SettingsView {
             backing_up: false,
             shortcut: cx.new(|_| crate::settings_capture::ShortcutRecorder::new()),
             voice_shortcut: cx.new(|_| crate::settings_capture::ShortcutRecorder::voice()),
-            mcp_agent: crate::mcp_setup::Agent::ClaudeCode,
+            api_keys: cx.new(|_| crate::settings_api_keys::ApiKeysPage::new()),
             fonts: None,
             gallery_search,
             _gallery_search,
@@ -757,14 +719,15 @@ impl SettingsView {
         self.page
     }
 
-    /// Scrolls the page to its end, where drawing clamps it.
-    #[cfg(test)]
     /// Moves the page up or down by `dy` pixels (test).
+    #[cfg(test)]
     pub(crate) fn scroll_by_for_test(&mut self, dy: f32) {
         let at = self.scroll.offset();
         self.scroll.set_offset(point(at.x, at.y + px(dy)));
     }
 
+    /// Scrolls the page to its end, where drawing clamps it.
+    #[cfg(test)]
     pub(crate) fn scroll_to_end_for_test(&mut self) {
         self.scroll.set_offset(point(px(0.), px(-100_000.)));
     }
@@ -780,6 +743,9 @@ impl SettingsView {
         }
         if page == SettingsPage::Plugins {
             self.plugins.update(cx, |plugins, cx| plugins.shown(cx));
+        }
+        if page == SettingsPage::LocalApi {
+            self.api_keys.update(cx, |keys, cx| keys.shown(cx));
         }
         if self.page != page {
             self.page = page;
@@ -994,7 +960,7 @@ impl SettingsView {
             SettingsPage::Account => vec![self.account.clone().into_any_element()],
             SettingsPage::Ai => vec![self.ai.clone().into_any_element()],
             SettingsPage::Plugins => vec![self.plugins.clone().into_any_element()],
-            SettingsPage::LocalApi => api_page(self.mcp_agent, cx),
+            SettingsPage::LocalApi => api_page(&self.api_keys, cx),
             SettingsPage::Updates => crate::updates::page(cx),
         }
     }
@@ -1393,7 +1359,10 @@ fn set_writing(cx: &mut App, change: impl FnOnce(&mut EditorSettings)) {
     update_editors(cx);
 }
 
-fn api_page(agent: crate::mcp_setup::Agent, cx: &mut Context<SettingsView>) -> Vec<AnyElement> {
+fn api_page(
+    api_keys: &Entity<crate::settings_api_keys::ApiKeysPage>,
+    cx: &mut Context<SettingsView>,
+) -> Vec<AnyElement> {
     let colors = Colors::get(cx);
     let server = config(cx).server.clone();
     let (state, tip) = match cx.try_global::<Services>() {
@@ -1402,32 +1371,6 @@ fn api_page(agent: crate::mcp_setup::Agent, cx: &mut Context<SettingsView>) -> V
     };
     let status = api_status_line(&state);
     let endpoint = mcp_endpoint(&server.bind_address, server.port);
-    let password = server.password.clone();
-    let mut password_controls = vec![
-        // None of the password shows: it may be one used elsewhere too,
-        // and Copy gets it when it's needed.
-        value_text(if password.is_empty() { "Not set" } else { MASK }, colors).into_any_element(),
-    ];
-    if !password.is_empty() {
-        password_controls.push(
-            Button::new("copy-password")
-                .outline()
-                .small()
-                .label("Copy")
-                .on_click(move |_, window, cx| {
-                    copy_to_clipboard(password.clone(), "Password copied.", window, cx)
-                })
-                .into_any_element(),
-        );
-    }
-    password_controls.push(
-        Button::new("change-password")
-            .outline()
-            .small()
-            .label("Change…")
-            .on_click(|_, window, cx| change_password(window, cx))
-            .into_any_element(),
-    );
     vec![
         status_row(&status, tip, None, colors),
         section(
@@ -1469,30 +1412,12 @@ fn api_page(agent: crate::mcp_setup::Agent, cx: &mut Context<SettingsView>) -> V
             ],
             colors,
         ),
+        api_keys.clone().into_any_element(),
         section(
-            "Sign-in",
+            "Other apps",
             vec![
-                Row::new(Lucide::User, "Username").trailing_all(vec![
-                    value_text(
-                        if server.username.is_empty() {
-                            "Not set".to_owned()
-                        } else {
-                            server.username.clone()
-                        },
-                        colors,
-                    )
-                    .into_any_element(),
-                    change_button(
-                        "change-username",
-                        "API Username",
-                        server.username.clone(),
-                        apply_username,
-                    )
-                    .into_any_element(),
-                ]),
-                Row::new(Lucide::KeyRound, "Password").trailing_all(password_controls),
                 Row::new(Lucide::Copy, "Settings from another app")
-                    .detail("Takes the API port, username and password of the notes app found on this computer, so clients already set up for it keep working.")
+                    .detail("Takes the API port of the notes app found on this computer.")
                     .trailing(
                         Button::new("copy-local-api-settings")
                             .outline()
@@ -1522,85 +1447,10 @@ fn api_page(agent: crate::mcp_setup::Agent, cx: &mut Context<SettingsView>) -> V
                                 )
                             }),
                     ),
-                agent_row(agent, &server, cx),
             ],
             colors,
         ),
     ]
-}
-
-/// The row that sets an AI agent up: which agent, where its setup goes, and
-/// a button that copies the setup. A setup with the sign-in in it is copied
-/// as a secret and never shown.
-fn agent_row(
-    agent: crate::mcp_setup::Agent,
-    server: &crate::config::ServerSettings,
-    cx: &mut Context<SettingsView>,
-) -> Row {
-    use crate::mcp_setup::{Agent, Setup};
-    let view = cx.entity();
-    let picker = Button::new("mcp-agent")
-        .debug_selector(|| "mcp-agent".into())
-        .outline()
-        .small()
-        .label(agent.name())
-        .dropdown_caret(true)
-        .dropdown_menu(move |mut menu, _, _| {
-            for option in Agent::ALL {
-                let view = view.clone();
-                menu = menu.item(
-                    PopupMenuItem::new(option.name())
-                        .checked(option == agent)
-                        .on_click(move |_, _, cx| {
-                            view.update(cx, |this, cx| {
-                                this.mcp_agent = option;
-                                cx.notify();
-                            })
-                        }),
-                );
-            }
-            menu
-        });
-    let signed_in = !server.username.is_empty() && !server.password.is_empty();
-    let ready = signed_in || !agent.has_sign_in();
-    let detail = if ready {
-        agent.instructions().to_owned()
-    } else {
-        "Set a username and password above first.".to_owned()
-    };
-    let setup = Setup {
-        endpoint: mcp_endpoint(&server.bind_address, server.port),
-        authorization: kanso_server::basic_header(&server.username, &server.password),
-        program: std::env::current_exe()
-            .map(|path| path.display().to_string())
-            .unwrap_or_else(|_| "kanso".to_owned()),
-    };
-    let copy = Button::new("copy-mcp-setup")
-        .debug_selector(|| "copy-mcp-setup".into())
-        .outline()
-        .small()
-        .label("Copy")
-        .disabled(!ready)
-        .on_click(move |_, window, cx| {
-            let text = agent.snippet(&setup);
-            let message = format!("Setup for {} copied.", agent.name());
-            if agent.has_sign_in() {
-                if crate::clipboard::copy_secret(&text, cx) {
-                    window.push_notification(
-                        Notification::info(format!(
-                            "{message} It holds your sign-in, so it clears in a minute."
-                        )),
-                        cx,
-                    );
-                }
-            } else {
-                copy_to_clipboard(text, message, window, cx);
-            }
-        });
-    Row::new(Lucide::Bot, "Connect an AI agent")
-        .detail(detail)
-        .trailing(picker)
-        .trailing(copy)
 }
 
 impl Render for SettingsView {
@@ -2147,7 +1997,7 @@ mod tests {
 
     use super::{
         FONT_SIZES, SYNC_INTERVALS, SettingsPage, api_status_line, display_path, interval_label,
-        mcp_endpoint, parse_port, parse_username, problem_help, step_font_size, sync_status_line,
+        mcp_endpoint, parse_port, problem_help, step_font_size, sync_status_line,
     };
     use crate::config::{DEFAULT_FONT_SIZE, SyncSettings};
     use crate::grouping::utc_label;
@@ -2199,9 +2049,6 @@ mod tests {
         assert!(parse_port("1023").is_err());
         assert!(parse_port("1984o").is_err());
         assert!(parse_port("65536").is_err());
-        assert_eq!(parse_username(" bob ").as_deref(), Ok("bob"));
-        assert!(parse_username("bob:x").is_err());
-        assert!(parse_username("  ").is_err());
     }
 
     #[test]
@@ -2439,16 +2286,6 @@ mod tests {
             prop_assert_eq!(parsed.is_ok(), port >= 1024);
             if let Ok(parsed) = parsed {
                 prop_assert_eq!(parsed, port);
-            }
-        }
-
-        /// Refinement: an accepted username is trimmed, non-empty and
-        /// usable in Basic authentication.
-        #[test]
-        fn prop_usernames_fit_basic_auth(value in "\\PC{0,12}|[a-z:]{0,6}") {
-            if let Ok(name) = parse_username(&value) {
-                prop_assert!(!name.is_empty() && !name.contains(':'));
-                prop_assert_eq!(name.trim(), name.as_str());
             }
         }
     }

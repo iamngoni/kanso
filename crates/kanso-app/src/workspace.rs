@@ -1073,6 +1073,18 @@ impl Workspace {
             return;
         }
         crate::metrics::record(cx, crate::metrics::Feature::WikilinkFollowed);
+        // `note:<id>#group=<g>` opens a canvas with that group filling the view.
+        if let Some((id, anchor)) = link.split_once('#')
+            && let Some(group) = anchor.strip_prefix(crate::preview_rich::CANVAS_GROUP_ANCHOR)
+        {
+            let (id, group) = (id.to_owned(), group.to_owned());
+            self.editor.update(cx, |editor, cx| {
+                editor.focus_canvas_group(id.clone(), group, cx)
+            });
+            self.library
+                .update(cx, |library, cx| library.select(Some(id), cx));
+            return;
+        }
         // `note:<id>#L12-14` opens the note with those lines marked.
         if let Some((id, anchor)) = link.split_once('#')
             && let Some((first, last)) = kanso_core::links::line_anchor(&format!("#{anchor}"))
@@ -2083,26 +2095,16 @@ impl Workspace {
                 );
             }
             SidebarEvent::EmptyTrash => {
-                let count = self.library.read(cx).counts.trash;
+                let counts = store.trash_counts().unwrap_or_default();
+                let (title, description) = crate::trash_words::empty_trash_question(counts);
                 confirm(
-                    format!("Delete {count} notes in the trash permanently?"),
-                    "They can't be restored afterwards.",
+                    title,
+                    description,
                     "Empty Trash",
                     window,
                     cx,
                     move |window, cx| {
-                        let params = crate::library::search_params(
-                            &Filter::Trash,
-                            "",
-                            Default::default(),
-                            true,
-                        );
-                        let result = store.search_summaries(&params).and_then(|notes| {
-                            notes
-                                .iter()
-                                .try_for_each(|n| store.delete(&n.id, Origin::Ui).map(drop))
-                        });
-                        report(result, window, cx);
+                        report(store.empty_trash(Origin::Ui).map(drop), window, cx);
                     },
                 );
             }
@@ -3323,6 +3325,7 @@ impl Render for Workspace {
             .map(|el| crate::publish_site::on_actions(el, cx))
             .map(|el| crate::replace::on_actions(el, cx))
             .map(|el| crate::updates::on_actions(el, cx))
+            .map(|el| crate::notice_views::on_actions(el, cx))
             .map(|el| crate::feedback_sheet::on_actions(el, cx))
             .map(|el| crate::graph_view::on_actions(el, cx))
             .map(|el| crate::board_view::on_actions(el, cx))
@@ -3337,6 +3340,8 @@ impl Render for Workspace {
             })
             // The recording bar, or a notice about one a crash left.
             .children(crate::recording_bar::strip(cx))
+            // An update notice that applies, until it is dismissed.
+            .children(crate::notice_views::strip(window, cx))
             // The panes run the rest of the height: each has its own top
             // band (on macOS, the title bar's row) and bottom band. The
             // sidebar and the list keep their widths and the editor takes

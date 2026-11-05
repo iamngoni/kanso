@@ -30,7 +30,11 @@ use crate::zoom::px;
 
 /// The custom nodes.
 const MATH: &str = "kanso-math";
-const BLOCK: &str = "kanso-rich-block";
+pub(crate) const BLOCK: &str = "kanso-rich-block";
+
+/// What follows `#` in a link that opens a canvas at one of its groups:
+/// `note:<id>#group=<group>`.
+pub(crate) const CANVAS_GROUP_ANCHOR: &str = "group=";
 
 /// What the renderers need from the preview: who to wake when a drawing is
 /// ready, the store (for attached drawings), and where edits go.
@@ -41,6 +45,8 @@ pub struct Rich {
     /// attached to a locked note.
     pub files: crate::attachments::FileKeys,
     pub edits: ResizeSender,
+    /// Where a click on an embedded canvas goes: a note link, as any.
+    pub links: crate::preview::LinkSender,
     /// The note the preview shows, which a query view leaves out of its rows.
     pub note: Arc<Mutex<Option<String>>>,
     /// How much larger than the setting text is drawn: 1, except on a slide.
@@ -53,7 +59,7 @@ impl Rich {
         self.text_scale.lock().map_or(1., |scale| *scale)
     }
 
-    fn waker(&self) -> impl FnOnce() + Send + 'static {
+    pub(crate) fn waker(&self) -> impl FnOnce() + Send + 'static {
         let wake = self.wake.clone();
         move || {
             wake.try_send(()).ok();
@@ -120,6 +126,13 @@ pub fn block(node: &markdown_ast::Node, markdown: &str) -> Option<Block> {
         }
         Node::Code(code) if fence_is(&code.lang, "excalidraw") => {
             (Kind::Excalidraw, code.value.clone(), None)
+        }
+        // A canvas note's own fence holds JSON and is not an embed.
+        Node::Code(code)
+            if fence_is(&code.lang, "canvas")
+                && kanso_core::canvas::embed::parse(&code.value).is_some() =>
+        {
+            (Kind::Canvas, code.value.clone(), None)
         }
         Node::Code(code)
             if code
@@ -282,7 +295,7 @@ pub fn register(extensions: MarkdownExtensions, rich: Arc<Rich>) -> MarkdownExte
 
 /// The drawing for `job` if it is ready; otherwise asks for it (once) and
 /// says so with `None`.
-fn drawing(job: &Job, rich: &Rich) -> Option<Arc<Outcome>> {
+pub(crate) fn drawing(job: &Job, rich: &Rich) -> Option<Arc<Outcome>> {
     if let Some(outcome) = kanso_render::cached(job) {
         return Some(outcome);
     }
@@ -295,7 +308,7 @@ fn drawing(job: &Job, rich: &Rich) -> Option<Arc<Outcome>> {
 static IMAGES: LazyLock<Mutex<HashMap<Job, Arc<Image>>>> = LazyLock::new(Default::default);
 const IMAGES_KEPT: usize = 512;
 
-fn image(job: &Job, svg: &kanso_render::Svg) -> Arc<Image> {
+pub(crate) fn image(job: &Job, svg: &kanso_render::Svg) -> Arc<Image> {
     let Ok(mut images) = IMAGES.lock() else {
         return Arc::new(Image::from_bytes(
             ImageFormat::Svg,
@@ -378,6 +391,9 @@ fn render_block(
         return div().into_any_element();
     };
     let at = node.source_range().map_or(0, |r| r.start) as u64;
+    if block.kind == Kind::Canvas {
+        return crate::preview_canvas::render(block, rich, at, window, cx);
+    }
     let source = match &block.file {
         Some(id) => match scene_file(id, rich, cx) {
             Some(Some(scene)) => scene,
@@ -496,7 +512,7 @@ fn empty_drawing(at: u64, cx: &App) -> AnyElement {
 }
 
 /// Room held for a drawing being made.
-fn placeholder(kind: Kind, cx: &App) -> AnyElement {
+pub(crate) fn placeholder(kind: Kind, cx: &App) -> AnyElement {
     let colors = Colors::get(cx);
     let height = if kind == Kind::DisplayMath { 32. } else { 96. };
     div()
@@ -861,8 +877,35 @@ mod tests {
         assert!(!super::is_empty_scene("not json"));
     }
 
+    #[test]
+    fn an_embed_is_a_canvas_block_and_a_document_is_not() {
+        let embed = first_block("```canvas\nnote:AbCd1234\ngroup:g1\n```\n").unwrap();
+        assert_eq!(embed.kind, Kind::Canvas);
+        assert!(embed.source.contains("note:AbCd1234"));
+        assert_eq!(first_block("```canvas\n{\"nodes\":[]}\n```\n"), None);
+        assert_eq!(first_block("```canvas\nnothing useful\n```\n"), None);
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(128))]
+
+        /// Round trip: an embed written as a block is found again, and
+        /// reads back as the same embed.
+        #[test]
+        fn prop_embed_blocks_round_trip(
+            note in "[A-Za-z0-9]{1,16}",
+            group in proptest::option::of("[a-z0-9]{1,6}"),
+            width in proptest::option::of(16u32..2000),
+        ) {
+            let embed = kanso_core::canvas::Embed {
+                note: format!("note:{note}"),
+                group,
+                width,
+            };
+            let found = first_block(&format!("{}\n", embed.block())).unwrap();
+            prop_assert_eq!(found.kind, Kind::Canvas);
+            prop_assert_eq!(kanso_core::canvas::embed::parse(&found.source), Some(embed));
+        }
 
         /// Round trip: a scene put into a note as a block is found again as
         /// a drawing with the same elements.

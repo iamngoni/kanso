@@ -458,7 +458,26 @@ pub fn page_with(
     attachments: &dyn Fn(&str) -> Option<Opened>,
 ) -> String {
     let body = with_queries(store, body, self_id);
-    kanso_render::html::page_with(title, &body, palette, attachments, &style.options())
+    render_page(store, title, &body, palette, style, attachments)
+}
+
+/// The page itself, its attachments read by `attachments`.
+fn render_page(
+    store: &Store,
+    title: &str,
+    body: &str,
+    palette: &Palette,
+    style: &PageStyle,
+    attachments: &dyn Fn(&str) -> Option<Opened>,
+) -> String {
+    // A canvas a fence names is drawn into the page; a locked one is a
+    // placeholder, found without reading it.
+    let notes = |id: &str| crate::canvas_embed::embed_note(store, id);
+    let options = kanso_render::html::PageOptions {
+        notes: Some(&notes),
+        ..style.options()
+    };
+    kanso_render::html::page_with(title, body, palette, attachments, &options)
 }
 
 /// A plain file's content type and bytes; a sealed one is `None`.
@@ -478,8 +497,9 @@ pub fn page_without_queries(
     palette: &Palette,
     style: &PageStyle,
 ) -> String {
-    let attachments = |id: &str| plain_attachment(store, id);
-    kanso_render::html::page_with(title, body, palette, &attachments, &style.options())
+    render_page(store, title, body, palette, style, &|id| {
+        plain_attachment(store, id)
+    })
 }
 
 /// `body` with each query fence drawn as the table it makes.

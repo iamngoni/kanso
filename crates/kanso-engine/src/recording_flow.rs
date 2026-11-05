@@ -22,6 +22,9 @@ use serde_json::json;
 pub use crate::recording_flow_model::*;
 use crate::recording_note;
 
+/// What a system audio track's session ID adds to its recording's.
+pub const SYSTEM_SUFFIX: &str = "-sys";
+
 /// What every recording part is stored as.
 pub const AUDIO_TYPE: &str = "audio/ogg";
 
@@ -54,14 +57,25 @@ pub fn length_label(seconds: u64) -> String {
 /// for several parts `[Audio · part 1](…) · [part 2](…)`. The player takes
 /// every link on this line as one recording. Pure.
 pub fn audio_line(file_ids: &[String], duration_secs: u64) -> String {
+    track_line("Audio", file_ids, duration_secs)
+}
+
+/// The line of a system audio track: `[System audio · 52 min](…)`. It is a
+/// line of its own, so the player treats it as a second recording rather
+/// than more of the microphone's. Pure.
+pub fn system_line(file_ids: &[String], duration_secs: u64) -> String {
+    track_line("System audio", file_ids, duration_secs)
+}
+
+fn track_line(label: &str, file_ids: &[String], duration_secs: u64) -> String {
     match file_ids {
         [] => String::new(),
         [only] => format!(
-            "[Audio · {}]({LINK_SCHEME}{only})",
+            "[{label} · {}]({LINK_SCHEME}{only})",
             length_label(duration_secs)
         ),
         [first, rest @ ..] => {
-            let mut line = format!("[Audio · part 1]({LINK_SCHEME}{first})");
+            let mut line = format!("[{label} · part 1]({LINK_SCHEME}{first})");
             for (ix, id) in rest.iter().enumerate() {
                 line.push_str(&format!(" · [part {}]({LINK_SCHEME}{id})", ix + 2));
             }
@@ -116,6 +130,17 @@ pub fn part_file_id(session_id: &str, index: usize) -> String {
     format!("file:rec-{session_id}-{}", index + 1)
 }
 
+/// The session ID of the system audio track recorded beside session `id`.
+pub fn system_session_id(id: &str) -> String {
+    format!("{id}{SYSTEM_SUFFIX}")
+}
+
+/// The session `id` is the system track of, when it is one.
+pub fn system_track_of(id: &str) -> Option<&str> {
+    id.strip_suffix(SYSTEM_SUFFIX)
+        .filter(|base| !base.is_empty())
+}
+
 /// The ID of the note a recording from `session_id` makes.
 pub fn note_id(session_id: &str) -> String {
     format!("note:rec-{session_id}")
@@ -126,6 +151,7 @@ fn attach_part(
     session_id: &str,
     index: usize,
     path: &Path,
+    label: &str,
     origin: Origin,
 ) -> Result<String, FlowError> {
     let id = part_file_id(session_id, index);
@@ -139,7 +165,7 @@ fn attach_part(
         return Err(FlowError::TooLarge);
     }
     let bytes = std::fs::read(path).map_err(|e| FlowError::Read(e.to_string()))?;
-    let name = format!("Recording part {}.opus", index + 1);
+    let name = format!("{label} part {}.opus", index + 1);
     let doc = json!({
         "_id": id,
         "name": name,
@@ -230,6 +256,7 @@ pub fn save_recording(
             &recorded.session_id,
             index,
             path,
+            "Recording",
             origin,
         )?);
     }
@@ -276,6 +303,51 @@ pub fn save_recording(
         file_ids,
         created,
     })
+}
+
+/// Attaches the system audio track of a recording and links it on a line of
+/// its own at the end of the note `note_id`, which the microphone's (or, for
+/// system audio alone, nothing else) saved. `session_id` is the track's own
+/// session ID. Saving twice links it once. Refuses a locked note.
+// no-prop-test: the line has the properties above; the store calls are
+// exercised by the example tests.
+pub fn save_system_track(
+    store: &Store,
+    note_id: &str,
+    session_id: &str,
+    parts: &[std::path::PathBuf],
+    duration_secs: u64,
+    origin: Origin,
+) -> Result<SavedTrack, FlowError> {
+    if parts.is_empty() {
+        return Err(FlowError::Empty);
+    }
+    let note = usable_note(store, note_id)?;
+    let mut file_ids = Vec::new();
+    for (index, path) in parts.iter().enumerate() {
+        file_ids.push(attach_part(
+            store,
+            session_id,
+            index,
+            path,
+            "System audio",
+            origin,
+        )?);
+    }
+    if !note.body.contains(&file_ids[0]) {
+        let line = system_line(&file_ids, duration_secs);
+        store.put(
+            DocType::Note,
+            json!({
+                "_id": note.id,
+                "_rev": note.rev,
+                "body": append_to_body(&note.body, &line),
+            }),
+            Put::Merge,
+            origin,
+        )?;
+    }
+    Ok(SavedTrack { file_ids })
 }
 
 #[cfg(test)]
@@ -473,7 +545,84 @@ mod tests {
         assert_eq!(again.note_id, saved.note_id);
     }
 
+    #[test]
+    fn a_system_track_is_a_line_of_its_own_and_saving_twice_adds_nothing() {
+        let (dir, store) = store();
+        let rec = recorded(dir.path(), 1);
+        let dest = Destination::NewNote { book_id: None };
+        let saved = save_recording(&store, &rec, &dest, Origin::Ui).unwrap();
+        let sys_id = system_session_id("abc-1");
+        assert_eq!(system_track_of(&sys_id), Some("abc-1"));
+        let parts: Vec<_> = (0..2)
+            .map(|i| {
+                let path = dir.path().join(format!("sys-{i}.opus"));
+                std::fs::write(&path, [9u8; 32]).unwrap();
+                path
+            })
+            .collect();
+        let track =
+            save_system_track(&store, &saved.note_id, &sys_id, &parts, 3120, Origin::Ui).unwrap();
+        assert_eq!(
+            track.file_ids,
+            vec!["file:rec-abc-1-sys-1", "file:rec-abc-1-sys-2"]
+        );
+        let body = store.note(&saved.note_id).unwrap().unwrap().body;
+        assert_eq!(
+            body,
+            "[Audio · 52 min](inkdrop://file:rec-abc-1-1)\n\n[System audio · part 1](inkdrop://file:rec-abc-1-sys-1) · [part 2](inkdrop://file:rec-abc-1-sys-2)\n"
+        );
+        // Each line is a recording of its own for the player.
+        let lines = crate::recording_player::link_lines(&body);
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[1].file_ids.len(), 2);
+        save_system_track(&store, &saved.note_id, &sys_id, &parts, 3120, Origin::Ui).unwrap();
+        assert_eq!(store.note(&saved.note_id).unwrap().unwrap().body, body);
+        let file = store.get("file:rec-abc-1-sys-1").unwrap().unwrap();
+        assert_eq!(file.fields["name"], "System audio part 1.opus");
+    }
+
+    #[test]
+    fn a_plan_needs_an_app_before_it_starts() {
+        let mut plan = RecordPlan::new();
+        assert_eq!(plan.problem(), None);
+        plan.what = WhatToRecord::MicrophoneAndSystem;
+        assert!(plan.problem().is_some());
+        plan.system = Some(SystemSource::App {
+            bundle_id: "us.zoom.xos".into(),
+            name: "zoom.us".into(),
+        });
+        assert_eq!(plan.problem(), None);
+        assert_eq!(plan.bar_label(), "Microphone · zoom.us");
+        plan.what = WhatToRecord::SystemOnly;
+        assert_eq!(plan.bar_label(), "zoom.us");
+        plan.system = Some(SystemSource::Everything);
+        assert_eq!(plan.bar_label(), "All system audio");
+    }
+
     proptest! {
+
+        #[test]
+        fn prop_a_system_session_id_names_its_recording(id in "[a-z0-9]{1,8}-[a-z0-9]{1,8}") {
+            let sys = system_session_id(&id);
+            prop_assert_eq!(system_track_of(&sys), Some(id.as_str()));
+            prop_assert_eq!(system_track_of(&id), None);
+            // Valid as a folder name and as part of a file ID the player reads.
+            prop_assert!(sys.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'));
+            let file = part_file_id(&sys, 0);
+            let url = format!("kanso-audio://{file}?t=3");
+            prop_assert!(crate::recording_note::parse_moment(&url).is_some());
+        }
+
+        #[test]
+        fn prop_a_system_line_links_every_part_once_on_one_line(n in 1usize..40, secs in 0u64..100_000) {
+            let ids = ids(n);
+            let line = system_line(&ids, secs);
+            prop_assert!(!line.contains('\n'));
+            prop_assert!(line.starts_with("[System audio"));
+            for id in &ids {
+                prop_assert_eq!(line.matches(&format!("({LINK_SCHEME}{id})")).count(), 1);
+            }
+        }
 
         #[test]
         fn prop_the_clock_is_hh_mm_ss_and_round_trips(secs in 0u64..400_000) {

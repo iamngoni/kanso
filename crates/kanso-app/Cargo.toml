@@ -31,6 +31,14 @@ recommends = "mesa-vulkan-drivers, gnome-keyring | kwalletmanager"
 assets = [
     ["target/release/kanso", "usr/bin/", "755"],
     ["target/release/kanso-plugin-host", "usr/bin/", "755"],
+    # PDFs are drawn in a contained helper beside its PDFium library, where
+    # the app looks for them (kanso_pdf::client::locate); scripts/fetch-pdfium.sh
+    # fetches the library, and scripts/deb-build.sh stages this machine's
+    # (linux-x64 or linux-arm64) in target/deb/pdfium.
+    ["target/release/kanso-pdf-worker", "usr/lib/kanso/", "755"],
+    ["../../target/deb/pdfium/lib/libpdfium.so", "usr/lib/kanso/", "755"],
+    ["../../target/deb/pdfium/LICENSE", "usr/share/doc/kanso/pdfium/LICENSE", "644"],
+    ["../../target/deb/pdfium/licenses/*", "usr/share/doc/kanso/pdfium/licenses/", "644"],
     ["../../assets/linux/kanso.desktop", "usr/share/applications/", "644"],
     ["../../assets/icon/kanso.png", "usr/share/icons/hicolor/512x512/apps/", "644"],
 ]
@@ -74,6 +82,7 @@ kanso-acp.workspace = true
 kanso-collab.workspace = true
 kanso-gallery.workspace = true
 kanso-core.workspace = true
+kanso-pdf.workspace = true
 kanso-import.workspace = true
 # Plugins (docs/PLUGINS.md): manifests, grants, the router and the
 # supervisor of each plugin's sandboxed host process.
@@ -93,7 +102,8 @@ kanso-store.workspace = true
 # Lock sessions, account flows and sync scheduling, without a window (issue #48).
 # `discovery`: the graph, the related-notes model and its download, which the
 # phones share (Model2Vec static embeddings, computed on this device, MIT).
-kanso-engine = { workspace = true, features = ["discovery", "agent-task"] }
+# `pdf-worker`: the text in PDFs, read by the PDF worker's client (no PDFium here).
+kanso-engine = { workspace = true, features = ["discovery", "agent-task", "pdf-worker"] }
 # The types `[[` autocomplete answers the text editor in. Pinned to the
 # version gpui-base uses.
 lsp-types = "=0.97.0"
@@ -126,6 +136,8 @@ tokio = { version = "1", features = ["rt"] }
 kanso-sync = { workspace = true, features = ["test-support"] }
 # The generators of the engine's view-state tests.
 kanso-engine = { workspace = true, features = ["test-support"] }
+# PDFs built in code, for the reader's tests.
+kanso-pdf = { workspace = true, features = ["test-support"] }
 # gpui-kit's own test-support feature also resolves its alternative GPUI
 # backend, whose cocoa pin conflicts; enabling it on each layer is equivalent.
 gpui-pre = { version = "=0.3.9", features = ["test-support"] }
@@ -161,7 +173,8 @@ signal-hook = "0.3"
 # Sticky notes on X11 (`sticky.rs`): the window's ID, and the EWMH request
 # that keeps it on top. The versions GPUI already builds.
 raw-window-handle = "0.6"
-x11rb = "0.13"
+x11rb = { version = "0.13", features = ["xinput"] }
+# (`pen_input_x11.rs` also reads a tablet's pressure through XInput2.)
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 # The same, with the cosmic-text shaping the Linux platform uses.
@@ -194,6 +207,10 @@ windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_System_WinRT",
     "Win32_UI_WindowsAndMessaging",
+    # Pen pressure and tilt (`pen_input_windows.rs`): the message hook and
+    # the pointer API.
+    "Win32_System_Threading",
+    "Win32_UI_Input_Pointer",
 ] }
 windows-future = "0.3"
 # Gives `kanso serve` and the other commands the console they were run from:

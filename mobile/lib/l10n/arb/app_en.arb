@@ -1898,6 +1898,34 @@
   "@previewEmptyDrawing": {
     "description": "Shown in a note's preview for a drawing with nothing in it yet."
   },
+  "previewCanvasLocked": "Locked canvas",
+  "@previewCanvasLocked": {
+    "description": "Shown in a note's preview where it embeds a canvas that is locked. Nothing of the canvas is drawn."
+  },
+  "previewCanvasMissing": "Canvas not found",
+  "@previewCanvasMissing": {
+    "description": "Shown in a note's preview where it embeds a canvas that no longer exists."
+  },
+  "previewCanvasNotCanvas": "This note isn't a canvas",
+  "@previewCanvasNotCanvas": {
+    "description": "Shown in a note's preview where an embedded canvas names a note that is not a canvas."
+  },
+  "previewCanvasInvalid": "Couldn't draw this canvas",
+  "@previewCanvasInvalid": {
+    "description": "Shown in a note's preview where an embedded canvas can't be drawn."
+  },
+  "previewCanvasWholeCanvas": "This embeds the whole canvas. Name a group to embed less.",
+  "@previewCanvasWholeCanvas": {
+    "description": "A quiet banner under an embedded canvas that is very large because the embed names no group."
+  },
+  "previewCanvasGroupMissing": "That group is gone, so this shows the whole canvas.",
+  "@previewCanvasGroupMissing": {
+    "description": "A quiet note under an embedded canvas whose named group no longer exists."
+  },
+  "previewCanvasOpen": "Open canvas",
+  "@previewCanvasOpen": {
+    "description": "Screen-reader label of an embedded canvas in a note's preview; tapping it opens the canvas."
+  },
   "previewQueryEmpty": "No notes match.",
   "@previewQueryEmpty": {
     "description": "Shown under a query view's headings in a note's preview when no note matches it."
@@ -5018,6 +5046,18 @@
   "libraryEmptyTrashTitle": "Delete {count, plural, =1{1 note} other{{count} notes}} in the trash permanently?",
   "@libraryEmptyTrashTitle": {
     "description": "Asks whether to empty the trash, naming how many notes it holds."
+  },
+  "libraryEmptyTrashLockedTitle": "Delete {count, plural, =1{1 note} other{{count} notes}} permanently, including {locked, plural, =1{1 locked note and its sealed attachments} other{{locked} locked notes and their sealed attachments}}?",
+  "@libraryEmptyTrashLockedTitle": {
+    "description": "Asks whether to empty the trash when it holds locked notes: names how many notes it holds and how many of them are locked, and says their sealed attachments are deleted too.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "locked": {
+        "type": "int"
+      }
+    }
   },
   "libraryEmptyTrashMessage": "They can’t be restored afterwards.",
   "@libraryEmptyTrashMessage": {
@@ -8311,5 +8351,58 @@
   "playerTryAgain": "Try Again",
   "@playerTryAgain": {
     "description": "Opens a recording that failed to play once more."
+  },
+  "noticeNeedsAttention": "Needs your attention",
+  "@noticeNeedsAttention": {
+    "description": "The small heading on the card that says an update changed something the person may need to fix."
+  },
+  "noticeHowToFix": "How to fix",
+  "@noticeHowToFix": {
+    "description": "Opens the steps that fix what an update changed."
+  },
+  "noticeDismiss": "Dismiss",
+  "@noticeDismiss": {
+    "description": "Hides an update notice on this phone for good."
+  },
+  "noticeMarkFixed": "Mark as fixed",
+  "@noticeMarkFixed": {
+    "description": "Hides an update notice because the person fixed what it said."
+  },
+  "noticeSheetTitle": "Update notice",
+  "@noticeSheetTitle": {
+    "description": "The title of the sheet that shows an update notice's steps."
+  },
+  "noticeSheetDone": "Done",
+  "@noticeSheetDone": {
+    "description": "Closes the sheet of an update notice's steps."
+  },
+  "noticeCount": "1 of {total}",
+  "@noticeCount": {
+    "description": "On the update notice card when more than one notice is waiting: this card is the first of {total}.",
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "noticeOpenSettings": "Open Settings",
+  "@noticeOpenSettings": {
+    "description": "The update notice's button that opens the page of Settings its steps name."
+  },
+  "noticeLearnMore": "Learn More",
+  "@noticeLearnMore": {
+    "description": "The update notice's button that opens a page about the change in the browser."
+  },
+  "noticeStep": "Step {number}: {step}",
+  "@noticeStep": {
+    "description": "What a screen reader says for one numbered step of an update notice.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "step": {
+        "type": "String"
+      }
+    }
   }
 }

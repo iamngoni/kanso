@@ -395,6 +395,55 @@ fn canvases_have_their_own_place() {
     assert_eq!(hits.len(), 2);
 }
 
+/// Handwriting a Mac read arrives in the canvas's body (`kansoInkOcr`); the
+/// phone, which doesn't read ink itself, searches those words and nothing
+/// of the JSON around them.
+#[test]
+fn handwriting_a_mac_read_is_searchable_on_the_phone() {
+    use kanso_core::DocType;
+    use kanso_core::canvas::{self, INK, InkOcr, Node};
+    use kanso_store::{Origin, Put, Store};
+
+    let phone = library();
+    let id = new_canvas(&phone.library, "Board");
+    let mut doc = canvas::Canvas::default();
+    doc.put_node(
+        Node {
+            id: "i1".into(),
+            kind: INK.into(),
+            width: 100.0,
+            height: 50.0,
+            ..Node::default()
+        },
+        1,
+    );
+    doc.kanso_ink_ocr.push(InkOcr {
+        node: "i1".into(),
+        md5: "abc".into(),
+        engine: "vision".into(),
+        text: "groceries for friday".into(),
+    });
+    let store = Store::open(phone.path()).unwrap();
+    let rev = store.get(&id).unwrap().unwrap().rev;
+    store
+        .put(
+            DocType::Note,
+            serde_json::json!({"_id": id, "_rev": rev, "body": canvas::to_body(&doc)}),
+            Put::Merge,
+            Origin::Sync,
+        )
+        .unwrap();
+    let find = |query: &str| {
+        phone
+            .library
+            .search(query, SearchScope::default(), 0)
+            .unwrap()
+            .len()
+    };
+    assert_eq!(find("groceries"), 1);
+    assert_eq!(find("kansoInkOcr"), 0);
+}
+
 #[test]
 fn exports_and_excalidraw_import() {
     let phone = library();
@@ -568,5 +617,80 @@ proptest! {
         let reopened = phone.library.canvas(&id).unwrap().view(vec![]).unwrap();
         prop_assert_eq!(live_ids(&shown), live_ids(&reopened));
         prop_assert!(!reopened.dirty);
+    }
+}
+
+#[test]
+fn an_erase_that_touches_nothing_does_not_write_the_document_out() {
+    let phone = library();
+    let id = new_canvas(&phone.library, "Board");
+    let session = phone.library.canvas(&id).unwrap();
+    session.draw(pen(), line(0.0), vec![]).unwrap();
+    let opened = session.view(vec![]).unwrap();
+    let before = session.size_measurements();
+    // Views of an unchanged document, and erasers that miss, measure nothing.
+    session.view(vec![]).unwrap();
+    for _ in 0..5 {
+        let v = session
+            .erase_strokes_along(
+                vec![
+                    CanvasPoint { x: 900.0, y: 900.0 },
+                    CanvasPoint { x: 950.0, y: 950.0 },
+                ],
+                4.0,
+                vec![],
+            )
+            .unwrap();
+        assert_eq!(v.bytes, opened.bytes);
+        let v = session
+            .erase_along(vec![CanvasPoint { x: 900.0, y: 900.0 }], 4.0, vec![])
+            .unwrap();
+        assert_eq!(v.bytes, opened.bytes);
+    }
+    assert_eq!(session.size_measurements(), before);
+    // A whole drag that does erase is one measurement, however long.
+    let path: Vec<CanvasPoint> = (0..40)
+        .map(|i| CanvasPoint {
+            x: f64::from(i) * 3.0,
+            y: 1.0,
+        })
+        .collect();
+    let v = session.erase_strokes_along(path, 4.0, vec![]).unwrap();
+    assert!(v.strokes.is_empty());
+    assert_eq!(session.size_measurements(), before + 1);
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(12))]
+
+    /// The size a view reports is always that of the document, though it is
+    /// measured at most once per call, and only when the document changed.
+    #[test]
+    fn prop_the_reported_size_is_the_documents(steps in steps()) {
+        let phone = library();
+        let id = new_canvas(&phone.library, "Board");
+        let session = phone.library.canvas(&id).unwrap();
+        for step in steps {
+            let before = session.size_measurements();
+            let view = match step {
+                Step::Draw(row) => session.draw(pen(), line(f64::from(row) * 30.0), vec![]).unwrap(),
+                Step::Erase(row) => session.erase_strokes_along(
+                    vec![CanvasPoint { x: 40.0, y: f64::from(row) * 30.0 }], 4.0, vec![]).unwrap(),
+                Step::Partial(row) => {
+                    let y = f64::from(row) * 30.0;
+                    session.erase_along(vec![CanvasPoint { x: 50.0, y: y - 6.0 }, CanvasPoint { x: 50.0, y: y + 6.0 }], 4.0, vec![]).unwrap()
+                }
+                Step::Undo => session.undo(vec![]).unwrap(),
+                Step::Redo => session.redo(vec![]).unwrap(),
+                Step::Save => session.view(vec![]).unwrap(),
+            };
+            prop_assert!(session.size_measurements() - before <= 1);
+            let saved = session.save().unwrap();
+            prop_assert_eq!(view.bytes, saved.bytes);
+            // Asking again for an unchanged document measures nothing.
+            let again = session.size_measurements();
+            session.view(vec![]).unwrap();
+            prop_assert_eq!(session.size_measurements(), again);
+        }
     }
 }

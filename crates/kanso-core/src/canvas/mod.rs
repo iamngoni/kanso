@@ -13,17 +13,25 @@
 //!
 //! The data is in [`model`]; the rules are split by job: [`bounds`] (where
 //! things are), [`ink`] (the partial eraser's geometry), [`ops`] (versioned
-//! edits), [`merge`] (private sync), [`text`] (summary and search text) and
+//! edits), [`embed`] (the fence that shows a canvas in a note), [`merge`] (private sync), [`text`] (summary and search text) and
 //! [`sketch`] (inline sketches in a Markdown note).
 
 mod bounds;
 mod edit;
 #[cfg(test)]
 mod edit_tests;
+pub mod embed;
 mod ink;
+mod interop;
+#[cfg(test)]
+mod interop_tests;
 mod merge;
 mod model;
 mod ops;
+mod recognize;
+#[cfg(test)]
+mod recognize_tests;
+mod sanitize;
 pub mod sketch;
 #[cfg(test)]
 mod tests;
@@ -34,10 +42,15 @@ use std::collections::{HashMap, HashSet};
 use serde_json::Value;
 
 pub use bounds::Bounds;
-pub use edit::{Action, MIN_SAMPLE_DISTANCE, Refused, StrokeRef, in_polygon, thin, unique_id};
+pub use edit::{
+    Action, CardChange, MIN_SAMPLE_DISTANCE, Refused, StrokeRef, in_polygon, streamed_points, thin,
+    thin_so_far, unique_id,
+};
 pub use ink::{Eraser, Split, covers, split_stroke};
+pub use interop::{ATTACHMENT_PREFIX, EXTENSION, ExportFiles, Imported, MAX_FILE_BYTES};
 pub use merge::{merge, merge_bodies};
-pub use model::{Canvas, Edge, INK, InkOcr, Node, Point, Sketch, Stroke, TOOLS};
+pub use model::{Canvas, Edge, Embed, INK, InkOcr, Node, Point, Sketch, Stroke, TOOLS};
+pub use recognize::{DEFAULT_ENGINE, InkToRead, ink_text_change};
 pub use text::SUMMARY_CAP;
 
 /// The fence's info string.
@@ -206,13 +219,15 @@ impl Canvas {
     /// path and keep its ID beside it, the arrays follow stacking order and
     /// Kanso's bookkeeping fields are removed. Pure.
     pub fn to_obsidian(&self) -> Canvas {
-        self.to_obsidian_with(&HashMap::new())
+        self.to_obsidian_with(&ExportFiles::default())
     }
 
     /// As [`to_obsidian`](Self::to_obsidian), but an ink node named in
-    /// `ink_files` (node ID to the PNG's file name, rasterized by the
-    /// exporter) becomes a `file` card at its ink bounds. Pure.
-    pub fn to_obsidian_with(&self, ink_files: &HashMap<String, String>) -> Canvas {
+    /// `files.ink` (node ID to the PNG's file name, rasterized by the
+    /// exporter) becomes a `file` card at its ink bounds, and an attachment
+    /// card named in `files.attachments` points at the file the exporter
+    /// wrote. Pure.
+    pub fn to_obsidian_with(&self, files: &ExportFiles) -> Canvas {
         let mut out = Canvas {
             extra: self.extra.clone(),
             ..Canvas::default()
@@ -220,7 +235,7 @@ impl Canvas {
         let mut kept: HashSet<&str> = HashSet::new();
         for node in self.live_nodes() {
             let mut card = if node.kind == INK {
-                let Some(file) = ink_files.get(&node.id) else {
+                let Some(file) = files.ink.get(&node.id) else {
                     continue;
                 };
                 let b = node.bounds();
@@ -245,8 +260,15 @@ impl Canvas {
             card.kanso_z = 0.0;
             if let Some(id) = Canvas::note_id(&card).map(str::to_owned) {
                 let title = card.title.clone().unwrap_or_else(|| "Untitled".into());
-                card.extra.insert("kansoId".into(), Value::String(id));
+                card.extra
+                    .insert(interop::ID_FIELD.into(), Value::String(id));
                 card.file = Some(export_path(&title));
+            } else if let Some(id) = Canvas::attachment_id(&card).map(str::to_owned)
+                && let Some(name) = files.attachments.get(&id)
+            {
+                card.extra
+                    .insert(interop::ID_FIELD.into(), Value::String(id));
+                card.file = Some(name.clone());
             }
             kept.insert(node.id.as_str());
             out.nodes.push(card);
@@ -272,8 +294,8 @@ impl Canvas {
 
     /// An Obsidian `.canvas` file's text: [`to_obsidian_with`](Self::to_obsidian_with)
     /// with whole-number geometry, as Obsidian writes it. Pure.
-    pub fn to_obsidian_json(&self, ink_files: &HashMap<String, String>) -> String {
-        let canvas = self.to_obsidian_with(ink_files);
+    pub fn to_obsidian_json(&self, files: &ExportFiles) -> String {
+        let canvas = self.to_obsidian_with(files);
         let mut value = serde_json::to_value(&canvas).unwrap_or(Value::Null);
         if let Some(nodes) = value.get_mut("nodes").and_then(Value::as_array_mut) {
             for node in nodes {
