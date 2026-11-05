@@ -101,7 +101,11 @@ impl ApiKeysPage {
 
     /// Reads the keys again when something else changed them.
     fn catch_up(&mut self, cx: &mut Context<Self>) {
-        if self.keys.as_ref().is_some_and(|keys| keys.changes() != self.seen) {
+        if self
+            .keys
+            .as_ref()
+            .is_some_and(|keys| keys.changes() != self.seen)
+        {
             self.refresh(cx);
         }
     }

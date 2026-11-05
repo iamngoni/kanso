@@ -71,8 +71,9 @@ impl Request {
                 scopes,
             } => Command::Create {
                 name,
-                access: KeyAccess::parse(access.trim())
-                    .ok_or_else(|| format!("--access is read, suggest or write, not “{access}”."))?,
+                access: KeyAccess::parse(access.trim()).ok_or_else(|| {
+                    format!("--access is read, suggest or write, not “{access}”.")
+                })?,
                 scopes,
             },
         })

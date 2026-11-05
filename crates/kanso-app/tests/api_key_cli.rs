@@ -68,6 +68,17 @@ fn stop(mut child: Child) {
     child.wait().unwrap();
 }
 
+/// Stops `kanso serve` the way a service manager does (SIGTERM), so it
+/// cleans up after itself.
+fn stop_gracefully(mut child: Child) {
+    let asked = Command::new("kill")
+        .args(["-TERM", &child.id().to_string()])
+        .status()
+        .unwrap();
+    assert!(asked.success());
+    assert!(child.wait().unwrap().success());
+}
+
 /// `GET /notes` with `key` (if any): the status code.
 fn rest_status(port: u16, key: Option<&str>) -> u16 {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
@@ -191,9 +202,11 @@ fn a_key_made_on_the_command_line_works_until_it_is_revoked() {
     let server = serve(data, port);
     assert_eq!(rest_status(port, Some(&key)), 401);
     assert_eq!(rest_status(port, Some(&other)), 200);
-    stop(server);
-    // With nothing running the commands work on the library themselves.
+    // A server asked to stop takes its socket with it, and with nothing
+    // running the commands work on the library themselves.
+    stop_gracefully(server);
     assert!(!data.join("control.sock").exists());
+    assert!(text(&kanso(data, &["list"]).stdout).contains("Other script"));
 }
 
 /// A key made with nothing running.

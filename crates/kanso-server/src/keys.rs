@@ -25,8 +25,8 @@ use subtle::{Choice, ConstantTimeEq as _};
 use crate::auth::{bearer, decode_basic};
 #[cfg(test)]
 use crate::key_model::KEY_LEN;
-use crate::lease::{DRAIN, KeyGate, Lease};
 use crate::key_model::{KEY_PREFIX, KeyId, MintedKey, NewKey, is_key_shaped};
+use crate::lease::{DRAIN, KeyGate, Lease};
 use crate::scope::{AgentScope, Caller, READ_TOOLS, SUGGEST_TOOLS};
 
 /// `last_used_at` is written at most this often per key.

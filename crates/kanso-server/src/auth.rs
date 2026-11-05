@@ -272,7 +272,11 @@ mod tests {
             };
             let app = axum::Router::new()
                 .route("/slow", get(handler))
-                .with_state(AppState { store, tokens })
+                .with_state(AppState {
+                    store,
+                    tokens,
+                    canvases: None,
+                })
                 .layer(axum::middleware::from_fn_with_state(gate, require_auth));
             Rig {
                 _dir: dir,
@@ -321,9 +325,18 @@ mod tests {
             let rig = rig(0, 400);
             let key = mint(&rig.keys);
             let other = mint(&rig.keys);
-            let id = rig.keys.list().unwrap().into_iter().find(|row| {
-                rig.keys.verify(&key).is_some_and(|c| matches!(c, Caller::Key { id: ref k, .. } if k.as_str() == row.id))
-            }).unwrap().id;
+            let id = rig
+                .keys
+                .list()
+                .unwrap()
+                .into_iter()
+                .find(|row| {
+                    rig.keys.verify(&key).is_some_and(
+                        |c| matches!(c, Caller::Key { id: ref k, .. } if k.as_str() == row.id),
+                    )
+                })
+                .unwrap()
+                .id;
             let waiting = get_slow(&rig, &key);
             let kept = get_slow(&rig, &other);
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -334,7 +347,10 @@ mod tests {
             assert_eq!(rig.begun.load(Ordering::SeqCst), 1);
             assert_eq!(rig.finished.load(Ordering::SeqCst), 1);
             // And the revoked key is refused from now on.
-            assert_eq!(get_slow(&rig, &key).await.unwrap(), StatusCode::UNAUTHORIZED);
+            assert_eq!(
+                get_slow(&rig, &key).await.unwrap(),
+                StatusCode::UNAUTHORIZED
+            );
         }
     }
 

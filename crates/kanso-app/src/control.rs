@@ -20,10 +20,13 @@ use std::sync::{Arc, Mutex};
 use kanso_server::KeyStore;
 use kanso_store::Store;
 
+/// A library's store and the keys served from it.
+type Library = (Arc<Store>, KeyStore);
+
 /// The library the control socket works on: the one the running process
 /// serves keys from. The app sets it again if the library's store changes.
 #[derive(Clone, Default)]
-pub struct ControlTarget(Arc<Mutex<Option<(Arc<Store>, KeyStore)>>>);
+pub struct ControlTarget(Arc<Mutex<Option<Library>>>);
 
 impl ControlTarget {
     pub fn new(store: Arc<Store>, keys: KeyStore) -> ControlTarget {
@@ -35,7 +38,7 @@ impl ControlTarget {
     }
 
     #[cfg(unix)]
-    fn get(&self) -> Option<(Arc<Store>, KeyStore)> {
+    fn get(&self) -> Option<Library> {
         self.0.lock().unwrap_or_else(|p| p.into_inner()).clone()
     }
 }
