@@ -3,6 +3,8 @@
 
 use std::path::PathBuf;
 
+pub use crate::recording_privacy_model::KeepAudio;
+
 /// What a recording is made from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WhatToRecord {
@@ -142,6 +144,10 @@ impl SavedRecording {
 pub enum FlowError {
     #[error("The note is locked. Unlock it first, then record into it.")]
     Locked,
+    #[error(
+        "This note shows pictures or files that aren't sealed yet, so a recording can't go in it. Record into another note for now."
+    )]
+    NotSealable,
     #[error("The note is gone.")]
     Missing,
     #[error("There was no audio to keep.")]
@@ -163,6 +169,9 @@ pub struct RecordPlan {
     pub system: Option<SystemSource>,
     pub destination: Destination,
     pub transcribe: TranscribeWhen,
+    /// What becomes of the audio once it is transcribed (issue #38, step
+    /// 11): kept by default, or deleted with only the transcript left.
+    pub keep: KeepAudio,
     /// The sound output to record when system audio is on: a device `id`
     /// from the platform's backend, or `None` for the default output.
     pub system_output: Option<String>,
@@ -196,6 +205,7 @@ impl RecordPlan {
             system: None,
             destination: Destination::NewNote { book_id: None },
             transcribe: TranscribeWhen::default_for(what),
+            keep: KeepAudio::Keep,
             system_output: None,
         }
     }

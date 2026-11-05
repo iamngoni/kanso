@@ -24,11 +24,16 @@ impl Drop for KeyItem {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Encryption {
     Encrypted,
-    /// A library from before encryption, left as it was.
-    Plain,
-    /// A new library made plain because the secret store couldn't keep a key;
-    /// holds why.
+    /// A plain library that this open encrypted.
+    Converted,
+    /// A plain library, new or from before encryption, left plain because
+    /// the secret store couldn't keep a key; holds why. The next open tries
+    /// again.
     PlainNoKeychain(String),
+    /// A plain library that could not be encrypted (the disk is too small,
+    /// say), left as it was; holds why in words a person can act on. The next
+    /// open tries again.
+    PlainEncryptFailed(String),
 }
 
 /// An opened library.

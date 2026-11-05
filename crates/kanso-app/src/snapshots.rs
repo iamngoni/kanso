@@ -1048,6 +1048,71 @@ fn publish_site_sheet(
     .unwrap();
 }
 
+/// The notebook's sheet when one of its notes holds a recording: the audio
+/// stays out by default, and with `include` the owner has turned it on.
+fn publish_site_audio_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+    include: bool,
+) {
+    cx.update(|cx| {
+        cx.set_reduce_motion(true);
+        cx.global_mut::<Services>().account = AccountState::SignedIn {
+            username: DEMO_USER.into(),
+        };
+    });
+    let book = cx
+        .update(|cx| workspace.read(cx).notebook_to_publish(cx))
+        .expect("the open note has a notebook");
+    store
+        .put(
+            DocType::File,
+            json!({"_id": "file:rec-demo-1", "name": "Recording part 1.opus", "contentType": "audio/ogg",
+                "_attachments": {"index": {"content_type": "audio/ogg", "data": "T2dnUw=="}}}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    store
+        .put(
+            DocType::Note,
+            json!({"_id": "note:rec-demo", "title": "Standup — 23 Oct", "bookId": book,
+                "body": "[Audio · 12 min](inkdrop://file:rec-demo-1)\n\n<!-- kanso:transcript -->\n[00:00](kanso-audio://file:rec-demo-1?t=0) We shipped the beta.\n<!-- /kanso:transcript -->\n"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap();
+    cx.update_window(window, |_, window, cx| {
+        workspace.update(cx, |workspace, cx| {
+            let view = crate::publish_site::open_publish_site(workspace, &book, window, cx);
+            if let (true, Some(view)) = (include, view) {
+                view.update(cx, |view, cx| view.set_include_audio(true, cx));
+            }
+        });
+    })
+    .unwrap();
+}
+
+fn publish_site_audio_off(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    publish_site_audio_sheet(cx, window, workspace, store, false);
+}
+
+fn publish_site_audio_on(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    publish_site_audio_sheet(cx, window, workspace, store, true);
+}
+
 fn publish_site_unpublished(
     cx: &mut HeadlessAppContext,
     window: AnyWindowHandle,
@@ -4449,6 +4514,83 @@ fn show_api_keys_notice(cx: &mut HeadlessAppContext) {
     });
 }
 
+/// The plain-library notice for a library that could not be encrypted.
+fn library_plain_notices() -> &'static [kanso_core::notices::Notice] {
+    let mut notice = kanso_core::notices::NOTICES
+        .iter()
+        .find(|notice| notice.id == kanso_core::notices::LIBRARY_PLAIN_ID)
+        .expect("the plain-library notice ships")
+        .clone();
+    notice.since = semver::Version::new(0, 9, 0);
+    Box::leak(Box::new([notice]))
+}
+
+fn show_library_plain_notice(cx: &mut HeadlessAppContext) {
+    cx.update(|cx| {
+        cx.set_global(crate::notices::PlainLibrary(
+            "There isn't enough free space to encrypt your library. Kanso needs about 412 MB free on the disk that holds it. Free some space and open Kanso again. Your notes are untouched."
+                .into(),
+        ));
+        cx.set_global(crate::notices::NoticeBoard {
+            list: library_plain_notices(),
+            previous: Some(semver::Version::new(0, 9, 3)),
+        });
+        cx.refresh_windows();
+    });
+}
+
+/// The plain-library notice's banner.
+fn library_plain_banner(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_library_plain_notice(cx);
+}
+
+/// The plain-library notice's How to fix sheet, with what Kanso found.
+fn library_plain_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    show_library_plain_notice(cx);
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        crate::notice_views::open_how_to_fix(&library_plain_notices()[0], window, cx)
+    })
+    .unwrap();
+}
+
+/// "Encrypting your library… 62%", the content of the window that shows
+/// while an existing library is encrypted.
+fn encrypting_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    use gpui_kit::ParentElement as _;
+    cx.update(|cx| cx.set_reduce_motion(true));
+    cx.update_window(window, |_, window, cx| {
+        window.open_alert_dialog(cx, |alert, _, cx| {
+            let colors = Colors::get(cx);
+            alert
+                .width(px(crate::encrypt_progress::WIDTH))
+                .child(crate::encrypt_progress::body(
+                    kanso_store::EncryptStage::Copying,
+                    62,
+                    colors,
+                ))
+                // The real window has no button.
+                .footer(gpui_kit::div())
+        });
+    })
+    .unwrap();
+}
+
 /// The API keys notice's banner.
 fn api_keys_banner(
     cx: &mut HeadlessAppContext,
@@ -5408,6 +5550,26 @@ fn snapshots() {
                 publish_site_published,
             )
         },
+        // Recordings in a published notebook: the audio is left out unless
+        // the owner turns it on.
+        Shot {
+            dialog_width: crate::publish_site::SHEET_WIDTH,
+            ..shot(
+                "light-publish-site-audio-off",
+                Light,
+                Edit,
+                publish_site_audio_off,
+            )
+        },
+        Shot {
+            dialog_width: crate::publish_site::SHEET_WIDTH,
+            ..shot(
+                "dark-publish-site-audio-on",
+                Dark,
+                Edit,
+                publish_site_audio_on,
+            )
+        },
         // Focus mode, at rest and with the pointer near the top.
         Shot {
             left: Left::Nothing,
@@ -5820,6 +5982,24 @@ fn snapshots() {
                 Light,
                 Edit,
                 record_sheet::output_picker,
+            )
+        },
+        Shot {
+            dialog_width: crate::record_sheet::WIDTH,
+            ..shot(
+                "light-record-keep-transcript-only",
+                Light,
+                Edit,
+                record_sheet::keep_transcript_only,
+            )
+        },
+        Shot {
+            dialog_width: crate::record_sheet::WIDTH,
+            ..shot(
+                "dark-record-keep-transcript-only",
+                Dark,
+                Edit,
+                record_sheet::keep_transcript_only,
             )
         },
         Shot {
@@ -6477,6 +6657,45 @@ fn snapshots() {
         Shot {
             dialog_width: crate::notice_views::SHEET_WIDTH,
             ..shot("light-api-keys-notice-sheet", Light, Split, api_keys_sheet)
+        },
+        // The library could not be encrypted (issue #243, step 10).
+        shot(
+            "dark-notice-library-plain-banner",
+            Dark,
+            Split,
+            library_plain_banner,
+        ),
+        shot(
+            "light-notice-library-plain-banner",
+            Light,
+            Split,
+            library_plain_banner,
+        ),
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot(
+                "dark-notice-library-plain-sheet",
+                Dark,
+                Split,
+                library_plain_sheet,
+            )
+        },
+        Shot {
+            dialog_width: crate::notice_views::SHEET_WIDTH,
+            ..shot(
+                "light-notice-library-plain-sheet",
+                Light,
+                Split,
+                library_plain_sheet,
+            )
+        },
+        Shot {
+            dialog_width: crate::encrypt_progress::WIDTH,
+            ..shot("dark-encrypting-library", Dark, Split, encrypting_sheet)
+        },
+        Shot {
+            dialog_width: crate::encrypt_progress::WIDTH,
+            ..shot("light-encrypting-library", Light, Split, encrypting_sheet)
         },
         Shot {
             dialog_width: crate::updates::SHEET_WIDTH,
