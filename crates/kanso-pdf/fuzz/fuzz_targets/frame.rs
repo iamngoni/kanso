@@ -83,7 +83,7 @@ fuzz_target!(|data: &[u8]| {
                     }
                 }
             }
-            Response::Closed | Response::Error { .. } => {}
+            Response::Closed | Response::Exported | Response::Error { .. } => {}
         }
     }
 

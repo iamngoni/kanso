@@ -170,7 +170,7 @@ proptest! {
             Origin::Sync,
         ).unwrap().id;
         let md5 = app.store.get(&pdf_id).unwrap().unwrap().fields["md5digest"].as_str().unwrap().to_owned();
-        prop_assert!(app.store.set_pdf_text(&pdf_id, &md5, &[secret.clone()], "property-test").unwrap());
+        prop_assert!(app.store.set_pdf_text(&pdf_id, &md5, std::slice::from_ref(&secret), "property-test").unwrap());
         app.store.put(
             DocType::Note,
             json!({ "_id": note_id, "kansoLock": { "salt": "test-salt" } }),
