@@ -79,6 +79,42 @@ Notebooks and tags show a count of the notes that key can see, not the library's
 Publish, share and lock fields are left out of every document. A key limited to some
 notebooks writes only into them, and no key renames or deletes `#ai-exclude`.
 
+## Canvases
+
+A canvas is a note of type `canvas`. The general note routes and tools treat it as one,
+with these differences, and four tools and routes are only for canvases.
+
+- **Lists and searches** (`GET /notes`, `search-notes`, `list-notes`) show a short Markdown
+  summary of the canvas (its text cards, card titles, links and recognised handwriting, up
+  to about 4,000 characters) in place of its JSON, and a `size` in bytes. `GET /notes?doctype=canvas`
+  lists canvases only.
+- **`GET /note:<id>`** and `read-note` return the stored note, whose `body` is the `canvas`
+  fence, and add `canvasJson`: the fence's inner JSON. `canvasJson` is read-only; a client that
+  reads a note and writes it back whole does not store it.
+- **Writes** are validated as canvases: a body that is not one canvas, or one over the 1 MB
+  budget, is refused. A shared canvas's body can't be written at all; use `edit-canvas`.
+- **Locked canvases** are not found: not listed, not read, not edited.
+
+| MCP tool | REST | What it does |
+|---|---|---|
+| `list-canvases` | `GET /notes?doctype=canvas` | Canvases only, with title, notebook, tags, size and summary; the same `bookId`, `tagIds`, `keyword`, `sort`, `limit` as `list-notes` |
+| `read-canvas` | `GET /note:<id>/canvas[?group=<id>]` | The canvas as JSON (live items only, each with its `kansoVersion`) and the note's `_rev`; with a group, only what lies inside that group |
+| `edit-canvas` | `PATCH /note:<id>/canvas` | A batch of operations, applied all or none. Answers the new `rev` and the IDs it created |
+| `create-canvas` | `POST /notes` with `doctype: "canvas"` | A new canvas, empty or from a canvas document |
+
+`edit-canvas` takes `{"ifRev": "…", "ops": [ … ]}`. The operations are `addNode`, `updateNode`,
+`moveNode`, `resizeNode`, `removeNode`, `addEdge`, `updateEdge`, `removeEdge`, `addStrokes`,
+`removeStrokes`, `moveStrokes`, `setGroup`, `renameGroup` and `rename`. Stroke points are
+`[x, y, pressure]`, relative to their ink layer. An operation on an existing item may carry
+`ifVersion` (its `kansoVersion` from `read-canvas`), and the batch may carry `ifRev`. If either is
+out of date the batch is refused with `409` and the versions now, so a caller never overwrites
+drawing it has not seen. Each change is stamped as an edit in the app is, and a batch is one
+revision in the note's history, from the API, so one undo in Kanso reverts it.
+
+A **shared** canvas is changed through Kanso's live room, as one change the people on it see
+arrive, so Kanso must be signed in. Pictures (`file:` cards) can't be added to a shared canvas
+yet.
+
 ## Connecting a caller
 
 ### An MCP client

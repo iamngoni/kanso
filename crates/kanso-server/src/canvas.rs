@@ -43,6 +43,10 @@ pub trait SharedCanvases: Send + Sync {
     ) -> Result<bool, String>;
 }
 
+/// What a batch asks the library: whether a note is there, and whether a
+/// file is one of the canvas's attachments.
+type Lookups<'a> = (&'a dyn Fn(&str) -> bool, &'a dyn Fn(&str) -> bool);
+
 /// The host, when the app gave one.
 pub(crate) type Host = Option<Arc<dyn SharedCanvases>>;
 
@@ -261,7 +265,7 @@ fn edit_shared(
     host: &Host,
     note: &Note,
     batch: &Batch,
-    (exists, attached): (&dyn Fn(&str) -> bool, &dyn Fn(&str) -> bool),
+    (exists, attached): Lookups,
     now: i64,
 ) -> ApiResult<Value> {
     let Some(host) = host else {
