@@ -11866,6 +11866,120 @@ abstract class AppLocalizations {
   /// **'Try Again'**
   String get playerTryAgain;
 
+  /// The label of the editor key that puts a drawing box in the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert sketch'**
+  String get sketchInsertKey;
+
+  /// The title of the sheet that asks how big the drawing box is.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert sketch'**
+  String get sketchSizeTitle;
+
+  /// A drawing box size.
+  ///
+  /// In en, this message translates to:
+  /// **'Small, 320 by 240'**
+  String get sketchSizeSmall;
+
+  /// A drawing box size.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium, 480 by 320'**
+  String get sketchSizeMedium;
+
+  /// A drawing box size.
+  ///
+  /// In en, this message translates to:
+  /// **'Large, 640 by 480'**
+  String get sketchSizeLarge;
+
+  /// What a screen reader calls a drawing box in a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Sketch'**
+  String get sketchLabel;
+
+  /// Turns a sketch in a note into a canvas note.
+  ///
+  /// In en, this message translates to:
+  /// **'Open as canvas'**
+  String get sketchOpenAsCanvas;
+
+  /// Makes a private canvas from a sketch in a shared note.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy as canvas'**
+  String get sketchCopyAsCanvas;
+
+  /// Shown under a sketch in a shared note, where it can't be drawn on.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared note: copy it to a canvas to draw together.'**
+  String get sketchShared;
+
+  /// Shown when a sketch is at its size limit and refuses new ink.
+  ///
+  /// In en, this message translates to:
+  /// **'This sketch is full. Open it as a canvas to keep drawing.'**
+  String get sketchFull;
+
+  /// Lets a finger draw on a sketch instead of scrolling the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw with a finger'**
+  String get sketchFingerDraws;
+
+  /// Shown when a sketch could not be opened for drawing.
+  ///
+  /// In en, this message translates to:
+  /// **'This sketch can\'t be drawn on.'**
+  String get sketchFailed;
+
+  /// Shown after a sketch became a canvas note.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened as a canvas'**
+  String get sketchCanvasMade;
+
+  /// Shown after a shared note's sketch was copied to a canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to a new canvas'**
+  String get sketchCanvasCopied;
+
+  /// The title of the canvas made from a sketch: the note's title and the word sketch.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} sketch'**
+  String sketchTitle(String title);
+
+  /// Stands for the title of a note that has none, in the title of a canvas made from its sketch.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled'**
+  String get sketchUntitledNote;
+
+  /// Shown when a note's sketches together are at their limit and no more can be added.
+  ///
+  /// In en, this message translates to:
+  /// **'This note\'s sketches are full. Open one as a canvas.'**
+  String get sketchNoteFull;
+
+  /// Shown under a sketch past three quarters of its size limit.
+  ///
+  /// In en, this message translates to:
+  /// **'This sketch is nearly full. Open it as a canvas to keep drawing without a limit.'**
+  String get sketchNearlyFull;
+
+  /// Shown when Insert sketch is used in a shared note.
+  ///
+  /// In en, this message translates to:
+  /// **'Sketches can\'t be added to a shared note. Add one to a private note, or draw on a canvas.'**
+  String get sketchSharedInsert;
+
   /// The small heading on the card that says an update changed something the person may need to fix.
   ///
   /// In en, this message translates to:

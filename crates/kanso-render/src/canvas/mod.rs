@@ -13,6 +13,7 @@ pub mod geometry;
 pub mod obsidian;
 pub mod pen;
 pub mod recognize;
+pub mod sketch;
 
 use std::collections::HashMap;
 use std::fmt::Write as _;

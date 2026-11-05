@@ -85,6 +85,14 @@ void recordingSuite(OpenLibrary open) {
       expect(await library.players().noteRecording(noteId: id), isNull);
     });
 
+    test('a note with no recording is not offered a summary', () async {
+      final library = await open();
+      final id = await makeNote(library, 'Plain', 'no audio here');
+      final offer = await library.recordingSummary().offer(id: id);
+      expect(offer.available, isFalse);
+      expect(offer.words, 0);
+    });
+
     test('parts that are not there are missing and do not open', () async {
       final library = await open();
       final players = library.players();
