@@ -435,6 +435,71 @@ mod tests {
         );
     }
 
+    /// No action in a document fires, even with no sandbox at all: the
+    /// corpus's JavaScript, launch, URI, submit-form, remote-file, embedded
+    /// file and XFA samples are opened and drawn here, in this unconfined
+    /// test process, through the worker's own `open` and `render` (so with
+    /// the form-fill environment `pdfium-render` makes on every load). A
+    /// live server and a marker file are what the actions name; neither is
+    /// touched. `tests/hostile.rs` checks the same through the contained
+    /// worker, where the sandbox would stop them anyway; this is what shows
+    /// PDFium itself never runs them: no action entry point is called, every
+    /// form-fill callback is null, and the build has no script engine.
+    #[test]
+    fn no_action_fires_even_without_the_sandbox() {
+        use crate::hostile::{Canary, Expect, corpus};
+        use std::net::TcpListener;
+
+        let library =
+            crate::client::dev_library().expect("PDFium is missing: run scripts/fetch-pdfium.sh");
+        let pdfium = Pdfium::new(Pdfium::bind_to_library(library).expect("PDFium loads"));
+        let dir = tempfile::tempdir().unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let canary = Canary {
+            url: format!("http://{}/kanso-canary", listener.local_addr().unwrap()),
+            marker: dir.path().join("launched"),
+        };
+        let names = [
+            "javascript-actions",
+            "javascript-form-fields",
+            "launch-action",
+            "uri-action",
+            "submit-form-action",
+            "remote-file-actions",
+            "embedded-file",
+            "xfa-form",
+        ];
+        let samples: Vec<_> = corpus(&canary)
+            .into_iter()
+            .filter(|s| names.contains(&s.name))
+            .collect();
+        assert_eq!(samples.len(), names.len(), "an action sample went missing");
+        for sample in samples {
+            assert_eq!(sample.expect, Expect::Opens, "{}", sample.name);
+            let Ok((Response::Opened { pages, .. }, doc)) = open(&pdfium, sample.bytes, None)
+            else {
+                panic!("{} did not open, so it tests nothing", sample.name);
+            };
+            for page in 0..pages {
+                let (response, _) = render(&doc, page, 612);
+                assert!(
+                    matches!(response, Response::Page { .. }),
+                    "{}: {response:?}",
+                    sample.name
+                );
+            }
+            drop(doc);
+        }
+        // Anything an action started would have had time to land.
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        assert!(
+            listener.accept().is_err(),
+            "an action reached the canary server"
+        );
+        assert!(!canary.marker.exists(), "an action created the canary file");
+    }
+
     #[test]
     fn options_are_parsed_and_unknown_ones_refused() {
         let args = |v: &[&str]| parse_args(v.iter().map(|s| (*s).to_owned()));

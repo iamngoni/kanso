@@ -666,21 +666,28 @@ pub fn corpus(canary: &Canary) -> Vec<Sample> {
         OpensOrRefused,
     );
 
-    // Actions: valid files that ask the reader to do things ------------------
+    // Actions: valid files that ask the reader to do things. They must open
+    // and draw, or the canary checks would pass without PDFium ever having
+    // read an action. ------------------------------------------------------
     let javascript = format!(
         "<< /S /JavaScript /JS (app.launchURL\\(\"{url}\", true\\); this.submitForm\\(\"{url}\"\\);) >>"
     );
     add(
         "javascript-actions",
-        "JavaScript on open, on the page and on a link",
-        // Also the document-level JavaScript name tree.
-        String::from_utf8_lossy(&actions(&javascript))
-            .replace(
-                "/OpenAction",
-                "/Names << /JavaScript << /Names [(boot) 6 0 R] >> >> /OpenAction",
-            )
-            .into_bytes(),
-        OpensOrRefused,
+        "JavaScript on open, on the page, on a link and in the name tree",
+        {
+            // Object 6 is the link; 7 is the action the document-level
+            // JavaScript name tree runs on open (a name tree's values are
+            // actions, so it must not point at the link).
+            let mut spec = link_page(&javascript);
+            spec.catalog = format!(
+                "/Names << /JavaScript << /Names [(boot) 7 0 R] >> >> /OpenAction {javascript}"
+            );
+            spec.page = format!("/Annots [6 0 R] /AA << /O {javascript} /C {javascript} >>");
+            spec.extra.push(javascript.clone().into_bytes());
+            doc(spec)
+        },
+        Opens,
     );
     add(
         "javascript-form-fields",
@@ -697,7 +704,7 @@ pub fn corpus(canary: &Canary) -> Vec<Sample> {
             ],
             ..Spec::default()
         }),
-        OpensOrRefused,
+        Opens,
     );
     add(
         "launch-action",
@@ -708,13 +715,13 @@ pub fn corpus(canary: &Canary) -> Vec<Sample> {
             );
             actions(&launch)
         },
-        OpensOrRefused,
+        Opens,
     );
     add(
         "uri-action",
         "a URI action, on open and on a link, naming a server",
         actions(&format!("<< /S /URI /URI ({url}) >>")),
-        OpensOrRefused,
+        Opens,
     );
     add(
         "submit-form-action",
@@ -722,7 +729,7 @@ pub fn corpus(canary: &Canary) -> Vec<Sample> {
         actions(&format!(
             "<< /S /SubmitForm /F << /FS /URL /F ({url}) >> /Flags 4 >>"
         )),
-        OpensOrRefused,
+        Opens,
     );
     add(
         "remote-file-actions",
@@ -730,7 +737,7 @@ pub fn corpus(canary: &Canary) -> Vec<Sample> {
         actions(
             "<< /S /GoToR /F << /FS /URL /F (file:///etc/passwd) >> /D [0 /Fit] /NewWindow true /Next << /S /ImportData /F (/etc/passwd) /Next << /S /Named /N /Print >> >> >>",
         ),
-        OpensOrRefused,
+        Opens,
     );
     add(
         "embedded-file",
@@ -751,7 +758,7 @@ pub fn corpus(canary: &Canary) -> Vec<Sample> {
             ],
             ..Spec::default()
         }),
-        OpensOrRefused,
+        Opens,
     );
     add(
         "xfa-form",
@@ -768,7 +775,7 @@ pub fn corpus(canary: &Canary) -> Vec<Sample> {
             )],
             ..Spec::default()
         }),
-        OpensOrRefused,
+        Opens,
     );
 
     // Decompression bombs and junk in every decoder -----------------------------
