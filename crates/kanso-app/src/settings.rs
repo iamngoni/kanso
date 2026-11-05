@@ -1053,7 +1053,10 @@ impl SettingsView {
                                 .debug_selector(|| "backup-now".into())
                                 .on_click(cx.listener(|this, _, window, cx| this.back_up(window, cx))),
                         ),
-                ],
+                ]
+                .into_iter()
+                .chain(crate::library_key_sheet::backup_rows(cx))
+                .collect(),
                 colors,
             ),
             section(

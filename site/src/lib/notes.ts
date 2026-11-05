@@ -168,9 +168,9 @@ Links are short and preview with the note's title. Update the page or take it do
     edited: 240,
     body: `# Agents
 
-Kanso runs a local API and an MCP server on your own computer. Point Claude, Codex, Cursor or any MCP client at it, and they can search, read and write your notes, on 127.0.0.1, with a key you make for each one, never through a cloud.
+Kanso runs a local API and an MCP server on your own computer. Point Claude, Codex, Cursor or any MCP client at it, and they can search, read and, if you allow it, write your notes, on 127.0.0.1, with a key of their own, never through a cloud.
 
-In Settings › Local API, **New key…** makes a key and shows the setup for your agent, key included, to paste into its config file. For Claude Code, that's an entry in ~/.claude.json:
+In Settings › Local API › API keys, **New key…** makes one for each agent. You choose what it can do and which notebooks it sees, and Kanso gives you the setup for yours, key included, to paste into its config file. For Claude Code, that's an entry in ~/.claude.json:
 
 \`\`\`json
 "mcpServers": {
@@ -182,7 +182,7 @@ In Settings › Local API, **New key…** makes a key and shows the setup for yo
 }
 \`\`\`
 
-A key can read, suggest or write, and reach every notebook or a few. On a server with no window, \`kanso api-key create\` makes one.
+On a server with no window, \`kanso api-key create\` makes one.
 
 Claude Code, Claude Desktop, Codex, Cursor, VS Code, Gemini CLI, Windsurf, Zed and OpenCode are covered. Twenty-four tools cover notes, notebooks, tags and files, plus outlines, tasks, templates, daily notes and related notes. #agents`,
   },

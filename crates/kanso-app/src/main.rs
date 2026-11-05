@@ -101,6 +101,10 @@ mod launch;
 mod layout;
 mod library;
 mod library_import;
+mod library_key_model;
+mod library_key_sheet;
+#[cfg(test)]
+mod library_key_tests;
 mod library_open;
 #[cfg(test)]
 mod links_tests;
@@ -175,6 +179,7 @@ mod recording_tests;
 mod related;
 mod reminders;
 mod replace;
+mod restore_sheet;
 mod resurface;
 mod review_queue;
 #[cfg(test)]
@@ -805,6 +810,7 @@ fn open_main_window(cx: &mut App) {
                     offer_first_import(window, cx);
                     updates::announce(window, cx);
                     metrics::show_notice(window, cx);
+                    library_key_sheet::offer_at_launch(window, cx);
                 })
                 .ok();
         }
