@@ -93,7 +93,7 @@ const LIBRARY_PLAIN: Notice = Notice {
     what_changed: "Kanso encrypts your library on this computer, but couldn't this time, so it is still a plain file that any program running as you can read. Your notes are safe and nothing is lost. Kanso tries again each time it opens, and this goes away when it works.",
     steps: &[
         "Check that this computer's keychain is unlocked and lets Kanso keep an item. On Linux, run a Secret Service such as GNOME Keyring or KeePassXC.",
-        "On a server with no keychain, sign in with `kanso account sign-in --secrets file`, which keeps the library key in an owner-only file, and set KANSO_SECRETS_KEY_FILE to a key file kept away from the Kanso folder.",
+        "On a computer with no keychain, keep the library key in an owner-only file instead. If this library isn't signed in to sync, quit Kanso and set \"secretStore\": \"file\" in the \"sync\" section of config.json in the Kanso folder; if it is, sign in again with `kanso account sign-in --secrets file`. Then set KANSO_SECRETS_KEY_FILE to a key file kept away from the Kanso folder.",
         "Make sure the disk that holds the Kanso folder has free space about the size of your library.",
         "Quit Kanso and open it again.",
     ],
@@ -508,6 +508,15 @@ mod tests {
                 .steps
                 .iter()
                 .any(|step| step.contains("KANSO_SECRETS_KEY_FILE"))
+        );
+        // A library not signed in to sync has a way to the file store too:
+        // signing in is not the only one.
+        assert!(
+            notice
+                .steps
+                .iter()
+                .any(|step| step.contains("\"secretStore\": \"file\"")
+                    && step.contains("isn't signed in to sync"))
         );
     }
 

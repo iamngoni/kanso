@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::encrypt::{
-    export, map_full, open_plain, shred, sync_dir, sync_file, verify, with_suffix,
+    export, map_full, open_plain, same_file, shred, sync_dir, sync_file, verify, with_suffix,
 };
 use crate::{
     BackupsReport, EncryptOptions, EncryptStage, LibraryFile, LibraryKey, Result, StoreError,
@@ -35,13 +35,36 @@ fn sweep(dir: &Path) {
             && is_backup(&dir.join(stem))
         {
             let _ = std::fs::remove_file(&path);
+            for side in [with_suffix(&path, "-journal"), with_suffix(&path, "-wal")] {
+                let _ = std::fs::remove_file(side);
+            }
         } else if let Some(stem) = name.strip_suffix(".old")
             && is_backup(&dir.join(stem))
         {
-            if LibraryFile::of(&dir.join(stem)) == LibraryFile::Encrypted {
-                let _ = shred(&path);
-            } else {
-                let _ = std::fs::remove_file(&path);
+            let backup = dir.join(stem);
+            match LibraryFile::of(&backup) {
+                // Swapped: the plaintext's second name is all that is left
+                // of it.
+                LibraryFile::Encrypted => {
+                    // Never through a name of the encrypted backup itself.
+                    if same_file(&path, &backup) == Some(true) {
+                        let _ = std::fs::remove_file(&path);
+                    } else {
+                        let _ = shred(&path);
+                    }
+                }
+                // Not swapped: a second name of the backup itself.
+                LibraryFile::Plain => {
+                    let _ = std::fs::remove_file(&path);
+                }
+                // The backup's own name is gone: this is the only copy, and
+                // it comes back, to be encrypted below.
+                LibraryFile::New => {
+                    if LibraryFile::of(&path) == LibraryFile::Plain {
+                        let _ = std::fs::rename(&path, &backup);
+                        sync_dir(&backup);
+                    }
+                }
             }
         }
     }

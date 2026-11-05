@@ -245,14 +245,8 @@ plutil -lint "$entitlements" >/dev/null
 
 # The library is encrypted with SQLCipher on CommonCrypto (issue #243), which
 # is part of macOS. A build that picked up a Homebrew OpenSSL would only run
-# on a Mac that has it: refuse to bundle one.
-for binary in "$app"/Contents/MacOS/*; do
-    if otool -L "$binary" 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -E '(libcrypto|libssl)' | grep -vE '^/usr/lib/' >/dev/null; then
-        echo "bundle-macos: $binary links a libcrypto/libssl outside /usr/lib (Homebrew OpenSSL?):" >&2
-        otool -L "$binary" | grep -E 'libcrypto|libssl' >&2
-        exit 1
-    fi
-done
+# on a Mac that has it: refuse to bundle one. Every binary and library.
+scripts/check-macos-crypto.sh "$app"/Contents/MacOS/* "$app"/Contents/Frameworks/*.dylib
 
 # The plugin host, the PDF worker and the PDFium library are signed first,
 # with no entitlements: they need none, and the hardened runtime keeps them

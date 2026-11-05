@@ -65,14 +65,20 @@ pub fn open_store_reporting(
     if let Some(why) = &plain {
         eprintln!("kanso: this library is not encrypted. {why}");
     }
-    // Backups made before encryption are plain copies of the library.
+    // Backups made before encryption are plain copies of the library. Any
+    // that can't be encrypted now stay as they are and are tried at the
+    // next open; the library opens either way.
     if let Some(key) = opened.store.library_key() {
-        let backups = kanso_store::encrypt_backups(&paths::backups_dir(data_dir), key, &opts)?;
-        for (path, why) in &backups.failed {
-            eprintln!(
-                "kanso: couldn't encrypt the backup {}: {why}",
-                path.display()
-            );
+        match kanso_store::encrypt_backups(&paths::backups_dir(data_dir), key, &opts) {
+            Ok(backups) => {
+                for (path, why) in &backups.failed {
+                    eprintln!(
+                        "kanso: couldn't encrypt the backup {}: {why}",
+                        path.display()
+                    );
+                }
+            }
+            Err(err) => eprintln!("kanso: couldn't encrypt the backups: {err}"),
         }
     }
     Ok((opened.store, plain))
@@ -258,6 +264,26 @@ mod tests {
             Some(Err(_))
         ));
         assert!(!kanso_store::restore_staged(&db));
+    }
+
+    /// A backups folder that can't be read doesn't keep the library from
+    /// opening (encrypting the backups used to be able to fail the open).
+    #[cfg(unix)]
+    #[test]
+    fn an_unreadable_backups_folder_does_not_keep_the_library_shut() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = tempfile::tempdir().unwrap();
+        let db = paths::db_path(dir.path());
+        Store::open(&db).unwrap().set_meta("a", "b").unwrap();
+        let backups = paths::backups_dir(dir.path());
+        std::fs::create_dir_all(&backups).unwrap();
+        std::fs::set_permissions(&backups, std::fs::Permissions::from_mode(0o000)).unwrap();
+        let secrets = kanso_sync::MemorySecrets::new();
+        let opened = open_store_reporting(dir.path(), &secrets, &|_| {});
+        std::fs::set_permissions(&backups, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let (store, _) = opened.unwrap();
+        assert!(store.is_encrypted());
+        assert_eq!(store.meta("a").unwrap().as_deref(), Some("b"));
     }
 
     /// A key store that refuses leaves the library plain, says why, and the

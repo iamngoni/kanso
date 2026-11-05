@@ -95,7 +95,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: |
-          $candidates = @('C:\Strawberry\perl\bin\perl.exe')
+          # A self-hosted runner may name its own Windows Perl; otherwise
+          # Strawberry's usual place.
+          $candidates = @($env:OPENSSL_SRC_PERL, 'C:\Strawberry\perl\bin\perl.exe') | Where-Object { $_ }
           $perl = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $perl) {
             choco install strawberryperl --no-progress -y

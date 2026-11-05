@@ -159,6 +159,62 @@ fn remove(path: &Path) {
     let _ = std::fs::remove_file(path);
 }
 
+/// Whether `a` and `b` are two names of one file (a hard link). `None`
+/// where that can't be told (not unix); `Some(false)` when either is
+/// missing.
+pub(crate) fn same_file(a: &Path, b: &Path) -> Option<bool> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt as _;
+        let (Ok(a), Ok(b)) = (std::fs::metadata(a), std::fs::metadata(b)) else {
+            return Some(false);
+        };
+        Some(a.dev() == b.dev() && a.ino() == b.ino())
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (a, b);
+        None
+    }
+}
+
+/// Removes `name`, a second name the plain library was kept under. A file
+/// of its own (a copy, on a disk without hard links) is overwritten first;
+/// a name of the library at `db` is only unlinked, since overwriting it
+/// would overwrite the library.
+fn drop_second_name(name: &Path, db: &Path) -> std::io::Result<()> {
+    match same_file(name, db) {
+        Some(false) => shred(name),
+        _ => match std::fs::remove_file(name) {
+            Err(err) if err.kind() != std::io::ErrorKind::NotFound => Err(err),
+            _ => Ok(()),
+        },
+    }
+}
+
+/// What a person can do about a conversion Kanso can't finish or undo by
+/// itself: which files hold the notes, and the marker to remove.
+fn stuck(db: &Path, why: &str) -> StoreError {
+    let marker = marker_path(db);
+    let held: Vec<String> = [db.to_path_buf(), safety_path(db), copy_path(db)]
+        .iter()
+        .filter(|path| LibraryFile::of(path) != LibraryFile::New)
+        .map(|path| path.display().to_string())
+        .collect();
+    let dir = db
+        .parent()
+        .map_or_else(|| ".".to_owned(), |dir| dir.display().to_string());
+    StoreError::EncryptFailed(format!(
+        "Kanso found an encryption of your library that stopped where it can't safely go on ({why}), and changed nothing. Your notes are in {}. Quit Kanso, keep a copy of the folder {dir}, then remove {} and open Kanso again",
+        if held.is_empty() {
+            "none of the library's files".to_owned()
+        } else {
+            held.join(" or ")
+        },
+        marker.display()
+    ))
+}
+
 fn remove_copy(db: &Path) {
     let copy = copy_path(db);
     remove(&copy);
@@ -253,38 +309,58 @@ fn quote(name: &str) -> String {
     format!("\"{}\"", name.replace('"', "\"\""))
 }
 
+/// How a table's rows are read for comparing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TableKind {
+    /// A virtual table (the full-text index): its rows live in its shadow
+    /// tables, which are compared themselves; only the count is read.
+    Virtual,
+    /// An ordinary table: its rowid is part of the row, since the full-text
+    /// index and anything else that names a rowid relies on it.
+    Rowid,
+    /// A `WITHOUT ROWID` table: its columns are the row.
+    WithoutRowid,
+}
+
 /// What a database holds, for comparing a copy with its source.
 struct Shape {
     user_version: i64,
-    /// Every table, view, index and trigger: its kind and name.
-    objects: Vec<(String, String)>,
-    /// Table name -> whether it is virtual.
-    tables: BTreeMap<String, bool>,
+    /// Every table, view, index and trigger: its kind, name and SQL.
+    objects: Vec<(String, String, Option<String>)>,
+    /// Every table with rows, SQLite's own included (`sqlite_sequence`,
+    /// the `sqlite_stat` tables), and how to read it.
+    tables: BTreeMap<String, TableKind>,
 }
 
 fn shape(conn: &Connection) -> Result<Shape> {
     let user_version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
     let mut objects = Vec::new();
-    let mut tables = BTreeMap::new();
     let mut stmt = conn.prepare(
-        "SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite\\_%' ESCAPE '\\'",
+        "SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite\\_autoindex\\_%' ESCAPE '\\'",
     )?;
     let mut rows = stmt.query([])?;
     while let Some(row) = rows.next()? {
-        let kind: String = row.get(0)?;
-        let name: String = row.get(1)?;
-        let sql: Option<String> = row.get(2)?;
-        if kind == "table" {
-            let is_virtual = sql.as_deref().is_some_and(|sql| {
-                sql.trim_start()
-                    .to_ascii_uppercase()
-                    .starts_with("CREATE VIRTUAL")
-            });
-            tables.insert(name.clone(), is_virtual);
-        }
-        objects.push((kind, name));
+        objects.push((row.get(0)?, row.get(1)?, row.get(2)?));
     }
     objects.sort();
+    let mut tables = BTreeMap::new();
+    let mut stmt = conn.prepare(
+        "SELECT name, type, wr FROM pragma_table_list
+         WHERE schema = 'main' AND type IN ('table', 'shadow', 'virtual')
+           AND name NOT IN ('sqlite_schema', 'sqlite_master')",
+    )?;
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+        let name: String = row.get(0)?;
+        let kind: String = row.get(1)?;
+        let without_rowid: bool = row.get(2)?;
+        let kind = match (kind.as_str(), without_rowid) {
+            ("virtual", _) => TableKind::Virtual,
+            (_, true) => TableKind::WithoutRowid,
+            (_, false) => TableKind::Rowid,
+        };
+        tables.insert(name, kind);
+    }
     Ok(Shape {
         user_version,
         objects,
@@ -292,19 +368,24 @@ fn shape(conn: &Connection) -> Result<Shape> {
     })
 }
 
-/// A table's row count and a hash of every value in it, in the order the
-/// table is stored.
-fn digest(conn: &Connection, table: &str, is_virtual: bool) -> Result<(i64, u64)> {
+/// A table's row count and a hash of every value in it (its rowid too, for
+/// a table that has one), in the order the table is stored.
+fn digest(conn: &Connection, table: &str, kind: TableKind) -> Result<(i64, u64)> {
     let count: i64 = conn.query_row(
         &format!("SELECT count(*) FROM {}", quote(table)),
         [],
         |row| row.get(0),
     )?;
-    if is_virtual {
-        return Ok((count, 0));
-    }
+    let columns = match kind {
+        TableKind::Virtual => return Ok((count, 0)),
+        TableKind::Rowid => "rowid, *",
+        TableKind::WithoutRowid => "*",
+    };
     let mut hasher = std::hash::DefaultHasher::new();
-    let mut stmt = conn.prepare(&format!("SELECT * FROM {} NOT INDEXED", quote(table)))?;
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {columns} FROM {} NOT INDEXED",
+        quote(table)
+    ))?;
     let columns = stmt.column_count();
     let mut rows = stmt.query([])?;
     while let Some(row) = rows.next()? {
@@ -361,12 +442,12 @@ pub(crate) fn verify(
     if want.user_version != got.user_version {
         return Err(mismatch("version"));
     }
-    if want.objects != got.objects {
+    if want.objects != got.objects || want.tables != got.tables {
         return Err(mismatch("tables and indexes"));
     }
     let total = want.tables.len().max(1) as f32;
-    for (index, (table, is_virtual)) in want.tables.iter().enumerate() {
-        if digest(src, table, *is_virtual)? != digest(&copy_conn, table, *is_virtual)? {
+    for (index, (table, kind)) in want.tables.iter().enumerate() {
+        if digest(src, table, *kind)? != digest(&copy_conn, table, *kind)? {
             return Err(mismatch(format!("rows of {table}")));
         }
         report(
@@ -425,6 +506,20 @@ pub fn recover_encryption(
 /// The steps from a plain library to an encrypted one.
 fn convert(db: &Path, key: &LibraryKey, opts: &EncryptOptions) -> Result<()> {
     let copy = copy_path(db);
+    // The plain library's second name must be made by this conversion: one
+    // left from before could be another library, and would be compared with
+    // (and on a mismatch put back over) this one.
+    let safety = safety_path(db);
+    if safety.exists() {
+        if same_file(&safety, db) == Some(true) {
+            std::fs::remove_file(&safety)?;
+        } else {
+            return Err(StoreError::EncryptFailed(format!(
+                "{} is in the way. It is an unencrypted copy of a library, left by an earlier attempt. Move it out of the Kanso folder (or delete it if you don't need it) and open Kanso again",
+                safety.display()
+            )));
+        }
+    }
     let src = open_plain(db)?;
     // The write-ahead log goes into the library, so the copy and the
     // library the checks read are one thing.
@@ -489,13 +584,18 @@ fn finish_swap(db: &Path, key: &LibraryKey, opts: &EncryptOptions) -> Result<()>
     sync_dir(db);
     step(opts, EncryptStep::WalRemoved);
 
-    if !safety.exists() {
-        if std::fs::hard_link(db, &safety).is_err() {
-            std::fs::copy(db, &safety)?;
-            sync_file(&safety)?;
-        }
-        sync_dir(&safety);
+    // A second name a crash left is made again: a copy (on a disk without
+    // hard links) may be partial, and a partial one must never be what the
+    // library is compared with or put back from. The library is plain here
+    // and is the truth.
+    if safety.exists() {
+        drop_second_name(&safety, db)?;
     }
+    if std::fs::hard_link(db, &safety).is_err() {
+        std::fs::copy(db, &safety)?;
+        sync_file(&safety)?;
+    }
+    sync_dir(&safety);
     step(opts, EncryptStep::SafetyLinked);
 
     std::fs::rename(&copy, db)?;
@@ -540,7 +640,9 @@ fn confirm_and_clean(db: &Path, key: Option<&LibraryKey>, opts: &EncryptOptions)
 /// is already good.
 fn clean_up(db: &Path, opts: &EncryptOptions) {
     let safety = safety_path(db);
-    let mut clean = shred(&safety).is_ok();
+    // Only ever the plain file: a name that is the library itself is
+    // unlinked, never overwritten.
+    let mut clean = drop_second_name(&safety, db).is_ok();
     for side in sidecars(&safety) {
         clean &= shred(&side).is_ok();
     }
@@ -574,8 +676,9 @@ fn abandon(db: &Path) {
     match (read_phase(db), LibraryFile::of(db)) {
         (Some(Phase::Exporting | Phase::Ready), LibraryFile::Plain) => {
             remove_copy(db);
-            // A hard link to the library itself; the library stays.
-            remove(&safety_path(db));
+            // A hard link to the library itself (the library stays), or a
+            // copy of it, overwritten.
+            let _ = drop_second_name(&safety_path(db), db);
             remove(&marker_path(db));
             remove(&with_suffix(&marker_path(db), ".tmp"));
             sync_dir(db);
@@ -639,13 +742,73 @@ fn recover(db: &Path, key: Option<&LibraryKey>, opts: &EncryptOptions) -> Result
                 }
             }
         }
+        (Phase::Cleanup, LibraryFile::Encrypted) if key.is_none() => {
+            put_plain_back_without_key(db)?;
+            Ok(false)
+        }
         (Phase::Ready | Phase::Cleanup, LibraryFile::Encrypted) => {
             confirm_and_clean(db, key, opts)?;
             Ok(true)
         }
-        (phase, file) => Err(StoreError::EncryptFailed(format!(
-            "an unfinished encryption of {} is in a state Kanso doesn't expect ({phase:?}, {file:?}); nothing was changed",
-            db.display()
-        ))),
+        // The copy replaces the library only after the marker says it is
+        // ready, so this library is not the copy: the marker is stale. Only
+        // the copy and the marker go.
+        (Phase::Exporting, LibraryFile::Encrypted) => {
+            remove_copy(db);
+            remove(&marker_path(db));
+            remove(&with_suffix(&marker_path(db), ".tmp"));
+            sync_dir(db);
+            Ok(false)
+        }
+        // The library's name is gone but its plain copy is whole: it comes
+        // back, and the conversion starts over from it.
+        (Phase::Ready | Phase::Cleanup, LibraryFile::New)
+            if LibraryFile::of(&safety_path(db)) == LibraryFile::Plain =>
+        {
+            std::fs::rename(safety_path(db), db)?;
+            sync_dir(db);
+            remove_copy(db);
+            remove(&marker_path(db));
+            sync_dir(db);
+            Ok(false)
+        }
+        (phase, file) => Err(stuck(
+            db,
+            &format!("the marker says {phase:?} and the library is {file:?}"),
+        )),
     }
+}
+
+/// A confirmed conversion whose key can't be had any more, with the plain
+/// library still whole beside it: without the key nobody can open the
+/// encrypted one, so the plain one comes back rather than leave the library
+/// stranded. The encrypted file is kept aside (it holds no plaintext) in
+/// case the key turns up. With no whole plain library left, this is
+/// [`StoreError::WrongKey`] and nothing changes.
+fn put_plain_back_without_key(db: &Path) -> Result<()> {
+    let safety = safety_path(db);
+    let whole = LibraryFile::of(&safety) == LibraryFile::Plain
+        && open_plain(&safety).is_ok_and(|conn| {
+            conn.query_row("PRAGMA quick_check", [], |row| row.get::<_, String>(0))
+                .is_ok_and(|check| check == "ok")
+        });
+    for side in sidecars(&safety) {
+        shred(&side)?;
+    }
+    if !whole {
+        return Err(StoreError::WrongKey);
+    }
+    let aside = with_suffix(db, ".no-key");
+    std::fs::rename(db, &aside)?;
+    sync_dir(db);
+    std::fs::rename(&safety, db)?;
+    sync_dir(db);
+    remove_copy(db);
+    remove(&marker_path(db));
+    sync_dir(db);
+    eprintln!(
+        "kanso: this computer no longer has the key of the encrypted library, so the unencrypted one it replaced is back; the encrypted file is kept as {}",
+        aside.display()
+    );
+    Ok(())
 }

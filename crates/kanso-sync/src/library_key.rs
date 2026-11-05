@@ -131,8 +131,16 @@ pub fn open_library_with(
                 .map(|id| load_key(secrets, &id))
                 .transpose()
                 .map_err(OpenLibraryError::Keychain)?
-                .flatten()
-                .ok_or(StoreError::WrongKey)?;
+                .flatten();
+            // A conversion that was confirmed but not cleaned up (a crash, or
+            // a file that wouldn't delete) leaves the plain library beside
+            // this one: it goes now. Without the key, the plain one comes
+            // back instead, and is encrypted again with a new key.
+            recover_encryption(db, key.as_ref(), opts)?;
+            if LibraryFile::of(db) != LibraryFile::Encrypted {
+                return open_library_with(db, secrets, opts);
+            }
+            let key = key.ok_or(StoreError::WrongKey)?;
             Ok(OpenedLibrary {
                 store: Store::open_with_key(db, Some(&key))?,
                 encryption: Encryption::Encrypted,
@@ -215,6 +223,9 @@ fn encrypt_existing(
                 Encryption::Encrypted
             },
         }),
+        // Still unfinished: the library can't open, and its open would only
+        // say "open Kanso to let it finish". This error says what is wrong.
+        Err(err) if encryption_unfinished(db) => Err(err.into()),
         Err(err) => plain_after(db, Encryption::PlainEncryptFailed(err.to_string())),
     }
 }
