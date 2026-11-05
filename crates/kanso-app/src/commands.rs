@@ -27,8 +27,8 @@ use crate::workspace::{
     GoNotebookHome, ImportLibrary, NewAgentTask, NewCanvas, NewNote, NewNotebook, NewRecoveryKey,
     NextNote, OpenFile, OpenNotePicker, OpenSettings, PreviousNote, Quit, SaveNote, SearchAllNotes,
     ShowBacklinks, ShowCreateAccount, ShowEditor, ShowHistory, ShowLive, ShowOutline, ShowPreview,
-    ShowSignIn, ShowSplit, SignOut, SummarizeNote, SyncNow, TidyVoiceNote, ToggleFocusMode,
-    ToggleInspector, TogglePinned, ToggleSidebar, TrashNote, UndoLastChange,
+    ShowSignIn, ShowSplit, SignOut, SummarizeNote, SummarizeRecording, SyncNow, TidyVoiceNote,
+    ToggleFocusMode, ToggleInspector, TogglePinned, ToggleSidebar, TrashNote, UndoLastChange,
 };
 
 /// The palette's sections, in the order they appear with nothing typed.
@@ -1018,6 +1018,26 @@ static COMMANDS: &[Command] = &[
         ],
         group: Group::Note,
         run: action!(TidyVoiceNote),
+        needs: Needs::AiNote,
+    },
+    Command {
+        id: "summarize-recording",
+        label: "Summarise Recording…",
+        label_when_pinned: None,
+        description: "Summarises the recording in the open note and lists its action items, using your own AI. A sheet says what is sent, the transcript and not the audio, before anything goes. The summary goes above the transcript, with only the action items you tick, and Undo brings the note back. It works only while AI is on in Settings › AI, and not for a locked note or one tagged #ai-exclude.",
+        icon: IconName::Sparkles,
+        keywords: &[
+            "ai",
+            "recording",
+            "meeting",
+            "summary",
+            "summarise",
+            "action items",
+            "transcript",
+            "minutes",
+        ],
+        group: Group::Note,
+        run: action!(SummarizeRecording),
         needs: Needs::AiNote,
     },
     Command {
@@ -2113,7 +2133,7 @@ static COMMANDS: &[Command] = &[
         id: "settings-api",
         label: "Settings: Local API",
         label_when_pinned: None,
-        description: "Kanso's local API: its address, port, username and password, and the MCP endpoint.",
+        description: "Kanso's local API: its address, port, API keys, and the MCP endpoint.",
         icon: IconName::Plug,
         keywords: &[
             "preferences",
