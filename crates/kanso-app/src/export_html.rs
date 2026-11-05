@@ -14,13 +14,39 @@ use std::sync::Arc;
 use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
-use kanso_engine::export::{file_name, page, print_palette};
+use kanso_engine::export::{file_name, page_with, print_palette};
 use kanso_store::Store;
 
 fn documents() -> PathBuf {
     let home = crate::paths::home();
     let documents = home.join("Documents");
     if documents.is_dir() { documents } else { home }
+}
+
+/// The page for a note, its pictures read through the app's helper: a
+/// locked note that is open shows its sealed ones, a closed one has none to
+/// show.
+fn page(
+    store: &Store,
+    keys: &crate::attachments::FileKeys,
+    title: &str,
+    body: &str,
+    palette: &kanso_render::Palette,
+    self_id: Option<&str>,
+    style: &kanso_engine::export::PageStyle,
+) -> String {
+    page_with(
+        store,
+        title,
+        body,
+        palette,
+        self_id,
+        style,
+        &|id| match crate::attachments::open_with(store, id, keys) {
+            crate::attachments::Opened::Opened(file) => Some((file.content_type, file.bytes)),
+            _ => None,
+        },
+    )
 }
 
 fn tell(window: &mut Window, cx: &mut App, notification: Notification) {
@@ -38,6 +64,7 @@ pub fn export_html(
 ) {
     let palette = crate::preview_rich::palette(cx);
     let style = crate::export_style::for_palette(cx, &palette);
+    let keys = crate::attachments::FileKeys::of(cx);
     let picked = cx.prompt_for_new_path(&documents(), Some(&file_name(&title, "html")));
     window
         .spawn(cx, async move |cx| {
@@ -53,7 +80,15 @@ pub fn export_html(
                     async move {
                         std::fs::write(
                             &path,
-                            page(&store, &title, &body, &palette, self_id.as_deref(), &style),
+                            page(
+                                &store,
+                                &keys,
+                                &title,
+                                &body,
+                                &palette,
+                                self_id.as_deref(),
+                                &style,
+                            ),
                         )
                     }
                 })
@@ -90,6 +125,7 @@ pub fn export_pdf(
 ) {
     let palette = print_palette(crate::preview_rich::palette(cx));
     let style = crate::export_style::for_palette(cx, &palette);
+    let keys = crate::attachments::FileKeys::of(cx);
     #[cfg(target_os = "macos")]
     {
         let picked = cx.prompt_for_new_path(&documents(), Some(&file_name(&title, "pdf")));
@@ -98,16 +134,24 @@ pub fn export_pdf(
                 let Ok(Ok(Some(path))) = picked.await else {
                     return;
                 };
-                let html =
-                    cx.background_executor()
-                        .spawn({
-                            let self_id = self_id.clone();
-                            let style = style.clone();
-                            async move {
-                                page(&store, &title, &body, &palette, self_id.as_deref(), &style)
-                            }
-                        })
-                        .await;
+                let html = cx
+                    .background_executor()
+                    .spawn({
+                        let self_id = self_id.clone();
+                        let style = style.clone();
+                        async move {
+                            page(
+                                &store,
+                                &keys,
+                                &title,
+                                &body,
+                                &palette,
+                                self_id.as_deref(),
+                                &style,
+                            )
+                        }
+                    })
+                    .await;
                 let result = mac_pdf(&html, &path, cx).await;
                 cx.update(|window, cx| match result {
                     Ok(()) => {
@@ -136,7 +180,15 @@ pub fn export_pdf(
                         let path = dir.join(file_name(&title, "html"));
                         std::fs::write(
                             &path,
-                            page(&store, &title, &body, &palette, self_id.as_deref(), &style),
+                            page(
+                                &store,
+                                &keys,
+                                &title,
+                                &body,
+                                &palette,
+                                self_id.as_deref(),
+                                &style,
+                            ),
                         )?;
                         Ok::<_, std::io::Error>(path)
                     })

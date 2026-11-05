@@ -82,6 +82,7 @@ impl OverviewParts {
             rich: Arc::new(Rich {
                 wake,
                 store,
+                files: Default::default(),
                 edits,
                 note: Arc::new(Mutex::new(None)),
                 text_scale: Mutex::new(1.),

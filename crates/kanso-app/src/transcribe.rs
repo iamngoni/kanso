@@ -430,6 +430,7 @@ fn wait_for_model(mut job: Job, cx: &mut App) {
 fn run(mut job: Job, cx: &mut App) {
     let model_dir = voice::MODEL.dir(&cx.global::<AppState>().data_dir);
     let store = cx.global::<AppState>().store.clone();
+    let keys = crate::attachments::FileKeys::of(cx);
     let (progress, cancel) = (job.progress.clone(), job.cancel.clone());
     let source = job.source.clone();
     let (done_tx, done_rx) = async_channel::bounded(1);
@@ -437,8 +438,8 @@ fn run(mut job: Job, cx: &mut App) {
         .name("kanso-transcribe".into())
         .spawn(move || {
             let result = match &source {
-                Source::Recording { file_ids, duration } => {
-                    read_parts(&store, file_ids).and_then(|parts| {
+                Source::Recording { file_ids, duration } => read_parts(&store, &keys, file_ids)
+                    .and_then(|parts| {
                         file::transcribe_parts(
                             parts,
                             Some(*duration),
@@ -446,9 +447,8 @@ fn run(mut job: Job, cx: &mut App) {
                             &cancel,
                             &mut |at| *progress.lock().unwrap() = at,
                         )
-                    })
-                }
-                _ => read_source(&store, &source).and_then(|(media, ext)| {
+                    }),
+                _ => read_source(&store, &keys, &source).and_then(|(media, ext)| {
                     file::transcribe_timed(media, ext.as_deref(), &model_dir, &cancel, &mut |at| {
                         *progress.lock().unwrap() = at;
                     })
@@ -516,17 +516,20 @@ pub fn transcript_text(file_id: Option<&str>, pieces: &[file::Timed]) -> String 
 
 /// The parts of a recording made in Kanso, in order, as the decoder reads
 /// them.
-fn read_parts(store: &Store, file_ids: &[String]) -> Result<Vec<file::Part>, VoiceError> {
+fn read_parts(
+    store: &Store,
+    keys: &crate::attachments::FileKeys,
+    file_ids: &[String],
+) -> Result<Vec<file::Part>, VoiceError> {
+    use crate::attachments::{Opened, open_with};
     file_ids
         .iter()
-        .map(|id| {
-            let data = store
-                .attachment(id)
-                .map_err(|e| VoiceError::Audio(e.to_string()))?
-                .ok_or_else(|| VoiceError::Audio("a part of the recording is gone".into()))?
-                .1
-                .data;
-            Ok((file::from_bytes(data), Some("opus".to_owned())))
+        .map(|id| match open_with(store, id, keys) {
+            Opened::Opened(file) => Ok((file::from_bytes(file.bytes), Some("opus".to_owned()))),
+            Opened::Locked => Err(VoiceError::Audio(
+                "the recording is in a locked note: unlock it first".into(),
+            )),
+            Opened::Missing => Err(VoiceError::Audio("a part of the recording is gone".into())),
         })
         .collect()
 }
@@ -534,6 +537,7 @@ fn read_parts(store: &Store, file_ids: &[String]) -> Result<Vec<file::Part>, Voi
 /// The recording to read, and its extension as a hint.
 fn read_source(
     store: &Store,
+    keys: &crate::attachments::FileKeys,
     source: &Source,
 ) -> Result<(Box<dyn file::MediaSource>, Option<String>), VoiceError> {
     match source {
@@ -545,14 +549,17 @@ fn read_source(
         } => {
             let bytes = match bytes {
                 Some(bytes) => bytes.clone(),
-                None => {
-                    store
-                        .attachment(file_id)
-                        .map_err(|e| VoiceError::Audio(e.to_string()))?
-                        .ok_or_else(|| VoiceError::Audio("the attachment is gone".into()))?
-                        .1
-                        .data
-                }
+                None => match crate::attachments::open_with(store, file_id, keys) {
+                    crate::attachments::Opened::Opened(file) => file.bytes,
+                    crate::attachments::Opened::Locked => {
+                        return Err(VoiceError::Audio(
+                            "the recording is in a locked note: unlock it first".into(),
+                        ));
+                    }
+                    crate::attachments::Opened::Missing => {
+                        return Err(VoiceError::Audio("the attachment is gone".into()));
+                    }
+                },
             };
             let ext = file::extension(content_type).map(str::to_owned);
             Ok((file::from_bytes(bytes), ext))
@@ -774,8 +781,14 @@ mod tests {
             store.note(&note).unwrap().unwrap().body,
             format!("{link}\n\nSpoken words.\n\nafter")
         );
-        let (content_type, _) = store.attachment(&file_id).unwrap().unwrap();
-        assert_eq!(content_type, "audio/wav");
+        let crate::attachments::Opened::Opened(file) = crate::attachments::open_with(
+            &store,
+            &file_id,
+            &crate::attachments::FileKeys::default(),
+        ) else {
+            panic!("the audio opens");
+        };
+        assert_eq!(file.content_type, "audio/wav");
         assert!(is_audio(&wav) && !is_audio(std::path::Path::new("a.png")));
     }
 
