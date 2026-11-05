@@ -20,7 +20,7 @@ pub use crate::notice_model::{
 /// Every notice this version knows about. A change that breaks something
 /// adds one here; it is never reused or removed while a version that shows it
 /// is supported.
-pub const NOTICES: &[Notice] = &[API_KEYS, LIBRARY_PLAIN];
+pub const NOTICES: &[Notice] = &[API_KEYS, LIBRARY_ENCRYPTED, LIBRARY_PLAIN];
 
 /// The ID of the API keys notice. Never reused.
 pub const API_KEYS_ID: &str = "api-keys-0.10";
@@ -46,6 +46,34 @@ const API_KEYS: Notice = Notice {
 
 fn had_login(ctx: &NoticeContext) -> bool {
     ctx.had_login
+}
+
+/// The ID of the notice that the library is now encrypted. Never reused.
+pub const LIBRARY_ENCRYPTED_ID: &str = "library-encrypted-0.10";
+
+/// Kanso encrypted the library and its backups on this computer (issue
+/// #243). A backup opens elsewhere only with the library key, so a library
+/// that isn't signed in to sync, whose key hasn't been saved, has to be told
+/// to write the 24 words down. It goes when the key is saved, or the library
+/// is signed in (signing in on a new computer brings the notes back). A
+/// library that stayed plain has the notice below instead.
+const LIBRARY_ENCRYPTED: Notice = Notice {
+    id: LIBRARY_ENCRYPTED_ID,
+    since: semver::Version::new(0, 10, 0),
+    title: "Your library is now encrypted",
+    what_changed: "Kanso encrypted your library and its backups on this computer. A backup only opens elsewhere with your library key.",
+    steps: &[
+        "Open Settings \u{203a} General \u{203a} Data \u{203a} Backups.",
+        "Choose Show key\u{2026} and write down the 24 words.",
+        "Keep them somewhere safe, away from this computer.",
+    ],
+    action: Some(NoticeAction::OpenSettings(NoticePage::General)),
+    applies: library_encrypted,
+    platforms: Platforms::Desktop,
+};
+
+fn library_encrypted(ctx: &NoticeContext) -> bool {
+    !ctx.signed_in_to_sync && !ctx.library_key_saved && !ctx.library_plain
 }
 
 /// The ID of the notice for a library that could not be encrypted. Never
@@ -431,6 +459,42 @@ mod tests {
             .expect("the plain-library notice ships")
     }
 
+    fn library_encrypted_notice() -> &'static Notice {
+        NOTICES
+            .iter()
+            .find(|notice| notice.id == LIBRARY_ENCRYPTED_ID)
+            .expect("the encrypted-library notice ships")
+    }
+
+    #[test]
+    fn the_encrypted_library_notice_leads_to_show_key() {
+        let notice = library_encrypted_notice();
+        assert_eq!(notice.platforms, Platforms::Desktop);
+        assert_eq!(
+            notice.action,
+            Some(NoticeAction::OpenSettings(NoticePage::General))
+        );
+        let steps = notice.steps.join("\n");
+        assert!(steps.contains("Show key"), "{steps}");
+        assert!(steps.contains("24 words"), "{steps}");
+        assert!(notice.what_changed.contains("backups"));
+    }
+
+    #[test]
+    fn the_encrypted_library_notice_goes_when_the_key_is_saved_or_sync_has_it() {
+        let mut ctx = NoticeContext::new(Version::new(0, 10, 0));
+        assert!(library_encrypted_notice().applies_to(&ctx, Platform::Desktop));
+        ctx.library_key_saved = true;
+        assert!(!library_encrypted_notice().applies_to(&ctx, Platform::Desktop));
+        ctx.library_key_saved = false;
+        ctx.signed_in_to_sync = true;
+        assert!(!library_encrypted_notice().applies_to(&ctx, Platform::Desktop));
+        // A library that stayed plain has no key to save.
+        ctx.signed_in_to_sync = false;
+        ctx.library_plain = true;
+        assert!(!library_encrypted_notice().applies_to(&ctx, Platform::Desktop));
+    }
+
     #[test]
     fn the_plain_library_notice_says_why_and_what_to_do() {
         let notice = library_plain();
@@ -494,6 +558,22 @@ mod tests {
                 && platform == Platform::Desktop
                 && ctx.current >= Version::new(0, 10, 0);
             prop_assert_eq!(api_keys().applies_to(&ctx, platform), expected);
+        }
+
+        /// The encrypted-library notice is for a library not signed in to
+        /// sync, whose key isn't saved and which is not plain, on the
+        /// desktop, once the release has it; the phones never show it.
+        #[test]
+        fn prop_the_encrypted_library_notice_is_for_unsaved_keys_without_sync(
+            ctx in context(),
+            platform in platform(),
+        ) {
+            let expected = !ctx.signed_in_to_sync
+                && !ctx.library_key_saved
+                && !ctx.library_plain
+                && platform == Platform::Desktop
+                && ctx.current >= Version::new(0, 10, 0);
+            prop_assert_eq!(library_encrypted_notice().applies_to(&ctx, platform), expected);
         }
 
         /// The plain-library notice is for a library that is plain, on the

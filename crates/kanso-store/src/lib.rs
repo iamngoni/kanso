@@ -28,6 +28,7 @@ mod home_model;
 mod ink_text;
 mod library_key;
 mod library_key_model;
+mod library_key_words;
 mod loops;
 mod meaning;
 mod ocr;
@@ -41,6 +42,7 @@ mod query_view;
 mod read;
 mod read_only;
 mod replace;
+mod restore;
 mod roles;
 mod schema;
 mod sync;
@@ -87,6 +89,7 @@ pub use home_model::{
 };
 pub use ink_text::{InkNote, InkScan};
 pub use library_key_model::{KEY_BYTES, LibraryFile, LibraryKey};
+pub use library_key_words::{KEY_WORDS, WordsError, is_key_word};
 pub use loops::{
     BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
 };
@@ -115,6 +118,10 @@ pub use read::{AttachmentState, NoteSummary, Revision, SearchParams, Sort, Statu
 pub use read_only::ReadOnlyStore;
 pub use replace::{
     NoteMatches, PREVIEW_MATCHES_PER_NOTE, Planned, ReplaceReport, Skipped, UndoReport,
+};
+pub use restore::{
+    apply_staged_restore, cancel_staged_restore, check_backup, restore_staged, stage_restore,
+    staged_restore_path,
 };
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
