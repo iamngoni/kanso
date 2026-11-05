@@ -564,11 +564,19 @@ mod tests {
     #[test]
     fn list_shows_neither_key_nor_hash_and_keeps_names_on_their_line() {
         let (_dir, store) = fresh();
-        let key = make(&store, "Evil\u{1b}]0;x\u{7}\rname\nnext", KeyAccess::Read, &[]);
+        let key = make(
+            &store,
+            "Evil\u{1b}]0;x\u{7}\rname\nnext",
+            KeyAccess::Read,
+            &[],
+        );
         let (result, out, _) = run(&store, Command::List);
         result.unwrap();
         assert_eq!(out.lines().count(), 1, "{out:?}");
-        assert!(!out.chars().any(|c| c.is_control() && c != '\t' && c != '\n'));
+        assert!(
+            !out.chars()
+                .any(|c| c.is_control() && c != '\t' && c != '\n')
+        );
         assert!(!out.contains(&key));
         let rows = store.api_keys_live().unwrap();
         let hash: String = rows[0]

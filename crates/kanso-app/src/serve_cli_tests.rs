@@ -225,7 +225,16 @@ fn only_loopback_is_quiet() {
     assert_eq!(exposed_warning(" 127.0.0.2 "), None);
     // Every other address warns, a name or one that doesn't parse too, in
     // the design's words.
-    for exposed in ["0.0.0.0", "::", "192.168.1.4", "fe80::1", "localhost", "my-mac.local", "nonsense", ""] {
+    for exposed in [
+        "0.0.0.0",
+        "::",
+        "192.168.1.4",
+        "fe80::1",
+        "localhost",
+        "my-mac.local",
+        "nonsense",
+        "",
+    ] {
         let line = exposed_warning(exposed).unwrap_or_else(|| panic!("{exposed}"));
         assert!(line.contains("sends keys unencrypted"), "{line}");
     }
