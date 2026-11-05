@@ -1390,7 +1390,7 @@ fn http_status(url: &str, key: Option<&str>) -> u16 {
 /// working.
 // no-prop-test: drives one window and a live server through clicks.
 #[gpui_kit::test]
-fn a_key_made_in_settings_opens_the_server_and_revoking_it_closes_it(cx: &mut TestAppContext) {
+fn a_key_made_in_settings_opens_the_server_and_revoking_it_closes_it_even_after_a_replace(cx: &mut TestAppContext) {
     let f = setup(cx);
     cx.update(|cx| {
         AppState::update_config(cx, |config| {
@@ -1431,10 +1431,28 @@ fn a_key_made_in_settings_opens_the_server_and_revoking_it_closes_it(cx: &mut Te
     assert_eq!(http_status(&url, Some(&key)), 200);
     f.click(cx, "copy-key-setup");
     f.click(cx, "key-done");
+    f.draw(cx);
+    // The sheet, and the key and setup it held, are gone once it closes.
+    let sheet = cx
+        .read(|cx| page.read(cx).sheet_for_test.clone())
+        .expect("the sheet was opened");
+    assert!(sheet.upgrade().is_none(), "the closed sheet is dropped");
     let rows = cx.read(|cx| page.read(cx).rows().to_vec());
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].name, "Codex on this Mac");
     assert_eq!(rows[0].access, kanso_server::KeyAccess::Read);
+
+    // A Replace stops the server, reloads the keys and starts it again; the
+    // restarted server still shares the page's KeyStore.
+    let (api, restart) = cx.update(crate::services::hold_writes);
+    assert!(restart);
+    api.expect("the server was running").stop().unwrap();
+    cx.update(|cx| crate::services::release_writes(restart, cx));
+    let addr = cx
+        .read(crate::services::server_addr)
+        .expect("the local API is listening again");
+    let url = format!("http://{addr}/notes");
+    assert_eq!(http_status(&url, Some(&key)), 200);
 
     // Revoke asks first; nothing is revoked until it is answered.
     f.click(cx, "revoke-key-0");

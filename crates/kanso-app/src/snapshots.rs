@@ -6364,7 +6364,7 @@ fn snapshots() {
         // the developer sheet has its warning where the check usually looks.
         if name.ends_with("-remove")
             || name.ends_with("-revoke")
-            || name.contains("-api-key-")
+            || name.ends_with("-api-key-new")
             || name.ends_with("-plugin-developer")
         {
             plugin_shot.dialog_sample_y = Some(30.);

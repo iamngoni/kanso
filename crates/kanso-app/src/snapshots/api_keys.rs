@@ -172,7 +172,7 @@ fn new_key(
     cx.update_window(window, |_, window, cx| {
         let page = workspace.read(cx).settings.read(cx).api_keys.clone();
         let keys = crate::services::key_store(cx).unwrap();
-        crate::settings_api_keys::open_new_key_sheet(page, keys, window, cx);
+        let _ = crate::settings_api_keys::open_new_key_sheet(page, keys, window, cx);
     })
     .unwrap();
 }
@@ -190,7 +190,7 @@ fn shown_once(
         let keys = crate::services::key_store(cx).unwrap();
         let setup = Setup {
             endpoint: "http://127.0.0.1:19840/mcp".into(),
-            key: DEMO_KEY.into(),
+            key: zeroize::Zeroizing::new(DEMO_KEY.into()),
             program: "/Applications/Kanso.app/Contents/MacOS/kanso".into(),
         };
         let client = Client::Agent(Agent::Codex);

@@ -22,6 +22,7 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_server::{KeyAccess, KeyId, KeyStore};
 use kanso_store::ApiKeyRow;
+use zeroize::Zeroizing;
 
 use crate::agent_scope::{ScopeBook, scope_books};
 use crate::api_keys_model::{
@@ -53,6 +54,10 @@ pub struct ApiKeysPage {
     /// The key the sheet last made, so a test can use it as an agent would.
     #[cfg(test)]
     pub(crate) minted_for_test: Option<String>,
+    /// The last New key sheet, held weakly, so a test can see it is gone
+    /// once it closes.
+    #[cfg(test)]
+    pub(crate) sheet_for_test: Option<WeakEntity<NewKeySheet>>,
 }
 
 impl ApiKeysPage {
@@ -64,6 +69,8 @@ impl ApiKeysPage {
             error: None,
             #[cfg(test)]
             minted_for_test: None,
+            #[cfg(test)]
+            sheet_for_test: None,
         }
     }
 
@@ -248,17 +255,23 @@ impl ApiKeysPage {
             return;
         };
         let page = cx.entity();
-        open_new_key_sheet(page, keys, window, cx);
+        let _sheet = open_new_key_sheet(page, keys, window, cx);
+        #[cfg(test)]
+        {
+            self.sheet_for_test = Some(_sheet);
+        }
     }
 }
 
 // MARK: The New key sheet
 
-/// The setup a key just made is shown with.
+/// The setup a key just made is shown with. It lives only in the sheet, and
+/// goes (wiped) when the sheet closes: nothing else keeps the key or its
+/// setup.
 struct Made {
     client: Client,
     /// The snippet for the client, with the key in it.
-    text: String,
+    text: Zeroizing<String>,
     copied: bool,
 }
 
@@ -372,13 +385,13 @@ impl NewKeySheet {
                 }
                 let setup = Setup {
                     endpoint: self.endpoint.clone(),
-                    key: minted.key,
+                    key: Zeroizing::new(minted.key),
                     program: self.program.clone(),
                 };
-                let text = match self.client {
+                let text = Zeroizing::new(match self.client {
                     Client::Agent(agent) => agent.snippet(&setup),
                     Client::Other => setup.rest_snippet(),
-                };
+                });
                 self.made = Some(Made {
                     client: self.client,
                     text,
@@ -412,7 +425,7 @@ impl NewKeySheet {
         self.client = client;
         self.made = Some(Made {
             client,
-            text,
+            text: Zeroizing::new(text),
             copied: false,
         });
     }
@@ -433,7 +446,9 @@ impl Render for NewKeySheet {
         if let Some(made) = &self.made {
             return self.render_made(made, colors, cx).into_any_element();
         }
-        let view = cx.entity();
+        // Weak: the menu outlives this frame, and must not keep the sheet
+        // (and the key in it) alive after it closes.
+        let view = cx.weak_entity();
         let picker = Button::new("key-client")
             .debug_selector(|| "key-client".into())
             .outline()
@@ -450,6 +465,7 @@ impl Render for NewKeySheet {
                                 .checked(option == current)
                                 .on_click(move |_, window, cx| {
                                     view.update(cx, |this, cx| this.set_client(option, window, cx))
+                                        .ok();
                                 }),
                         );
                     }
@@ -705,15 +721,17 @@ impl Render for KeyFooter {
     }
 }
 
-/// Opens the New key sheet.
+/// Opens the New key sheet. Returns it, held weakly: the dialog owns it.
 pub fn open_new_key_sheet(
     page: Entity<ApiKeysPage>,
     keys: KeyStore,
     window: &mut Window,
     cx: &mut App,
-) {
+) -> WeakEntity<NewKeySheet> {
     let sheet = cx.new(|cx| NewKeySheet::new(page, keys, window, cx));
+    let weak = sheet.downgrade();
     open_sheet(sheet, window, cx);
+    weak
 }
 
 fn open_sheet(sheet: Entity<NewKeySheet>, window: &mut Window, cx: &mut App) {
