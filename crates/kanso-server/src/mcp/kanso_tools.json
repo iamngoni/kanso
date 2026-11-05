@@ -1,5 +1,65 @@
 [
   {
+    "name": "kanso-add-pdf-highlight",
+    "description": "Add a PDF highlight by page and exact text quote. The quote is resolved to page quads and saved in one note revision. Its page quote is also added to the note by default; set includeQuote to false to leave it out.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 256,
+          "description": "ID of the visible note that owns this PDF."
+        },
+        "fileId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 256,
+          "description": "ID of the PDF attached to that note."
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000,
+          "description": "One-based PDF page number."
+        },
+        "quote": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "description": "Exact text on the page to highlight."
+        },
+        "color": {
+          "type": "string",
+          "enum": [
+            "yellow",
+            "green",
+            "blue",
+            "pink"
+          ],
+          "default": "yellow",
+          "description": "Highlight color."
+        },
+        "comment": {
+          "type": "string",
+          "maxLength": 10000,
+          "description": "Comment text for the highlight; empty text clears it."
+        },
+        "includeQuote": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to add the page quote to the note body."
+        }
+      },
+      "required": [
+        "noteId",
+        "fileId",
+        "page",
+        "quote"
+      ]
+    }
+  },
+  {
     "name": "kanso-ask-read-lines",
     "description": "Read lines of one note for Ask. Returns the lines written `L12| text`, under the note's number, so you can cite them as `[number:L12-14]`. At most 200 lines. A note that cannot be read is reported as not found.",
     "inputSchema": {
@@ -227,6 +287,38 @@
     }
   },
   {
+    "name": "kanso-delete-pdf-highlight",
+    "description": "Delete a PDF highlight and its comment. The quote already copied into the note stays there.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 256,
+          "description": "ID of the visible note that owns this PDF."
+        },
+        "fileId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 256,
+          "description": "ID of the PDF attached to that note."
+        },
+        "highlightId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "ID of the highlight to change or remove."
+        }
+      },
+      "required": [
+        "noteId",
+        "fileId",
+        "highlightId"
+      ]
+    }
+  },
+  {
     "name": "kanso-edit-canvas",
     "description": "Change a canvas with a batch of operations, applied all or none (a refused batch changes nothing). Each operation has an `op`: addNode {type: text|file|link|group|ink, x, y, width?, height?, text?, file? (a 'note:' ID you can read, or a 'file:' picture already on this canvas), title?, url?, label?, color?, id?}, updateNode {id, text?, title?, color?, label?}, moveNode {id, x, y}, resizeNode {id, width, height}, removeNode {id} (arrows to it go too), addEdge {fromNode, toNode, fromSide?, toSide?, fromEnd?, toEnd?, label?, color?, id?}, updateEdge {id, ...}, removeEdge {id}, addStrokes {node, strokes: [{tool?, color?, width?, points: [[x, y, pressure], ...]}]} (points relative to the ink node; Kanso assigns the IDs), removeStrokes {node, strokes: [id, ...]}, moveStrokes {node, strokes: [id, ...], dx, dy}, setGroup {nodes: [id, ...], group?} (omit group to take them out of theirs), renameGroup {id, label}, rename {title}. Any operation on an existing item may carry `ifVersion` (its `kansoVersion` from `kanso-read-canvas`); the batch may carry `ifRev` (the note's `_rev`). A stale one is refused with the current versions. Works on shared canvases too, as one change the other people see arrive. Answers the new rev and the IDs the batch created.",
     "inputSchema": {
@@ -257,6 +349,91 @@
     },
     "execution": {
       "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-edit-pdf-comment",
+    "description": "Change or clear a highlight comment; an empty string clears it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 256,
+          "description": "ID of the visible note that owns this PDF."
+        },
+        "fileId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 256,
+          "description": "ID of the PDF attached to that note."
+        },
+        "highlightId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "ID of the highlight to change or remove."
+        },
+        "comment": {
+          "type": "string",
+          "maxLength": 10000,
+          "description": "Comment text for the highlight; empty text clears it."
+        }
+      },
+      "required": [
+        "noteId",
+        "fileId",
+        "highlightId",
+        "comment"
+      ]
+    }
+  },
+  {
+    "name": "kanso-edit-pdf-highlight",
+    "description": "Change a PDF highlight color and/or comment. An empty comment clears it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 256,
+          "description": "ID of the visible note that owns this PDF."
+        },
+        "fileId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 256,
+          "description": "ID of the PDF attached to that note."
+        },
+        "highlightId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "ID of the highlight to change or remove."
+        },
+        "color": {
+          "type": "string",
+          "enum": [
+            "yellow",
+            "green",
+            "blue",
+            "pink"
+          ],
+          "description": "Highlight color."
+        },
+        "comment": {
+          "type": "string",
+          "maxLength": 10000,
+          "description": "Comment text for the highlight; empty text clears it."
+        }
+      },
+      "required": [
+        "noteId",
+        "fileId",
+        "highlightId"
+      ]
     }
   },
   {
@@ -494,6 +671,31 @@
     }
   },
   {
+    "name": "kanso-list-pdf-highlights",
+    "description": "List the highlights and comments for a PDF attached to a note you may read.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 256,
+          "description": "ID of the visible note that owns this PDF."
+        },
+        "fileId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 256,
+          "description": "ID of the PDF attached to that note."
+        }
+      },
+      "required": [
+        "noteId",
+        "fileId"
+      ]
+    }
+  },
+  {
     "name": "kanso-list-tags",
     "description": "List tags used by notes available to this caller. Counts include only notes the caller may see.",
     "inputSchema": {
@@ -647,6 +849,38 @@
     }
   },
   {
+    "name": "kanso-read-pdf-page",
+    "description": "Read one PDF page as text from a PDF attached to a note you may read. Page numbers start at 1.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 256,
+          "description": "ID of the visible note that owns this PDF."
+        },
+        "fileId": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 256,
+          "description": "ID of the PDF attached to that note."
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000,
+          "description": "One-based PDF page number."
+        }
+      },
+      "required": [
+        "noteId",
+        "fileId",
+        "page"
+      ]
+    }
+  },
+  {
     "name": "kanso-read-version",
     "description": "Read one saved version of a currently visible note. This does not restore or change the note.",
     "inputSchema": {
@@ -761,6 +995,31 @@
     },
     "execution": {
       "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-search-pdf",
+    "description": "Search extracted PDF text in notes you may read. Locked notes and PDFs in locked notebooks are never returned.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Text to find in indexed PDF pages."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "description": "Maximum number of matching pages to return, from 1 to 100."
+        }
+      },
+      "required": [
+        "query"
+      ]
     }
   },
   {

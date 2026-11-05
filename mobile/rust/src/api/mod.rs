@@ -44,6 +44,8 @@ pub mod player;
 pub mod player_types;
 pub mod publish;
 pub mod recording;
+pub mod recording_speakers;
+pub mod recording_speakers_types;
 pub mod recording_summary;
 pub mod recording_summary_types;
 pub mod recording_types;

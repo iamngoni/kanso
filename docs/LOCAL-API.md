@@ -106,6 +106,27 @@ with the differences below. Four tools and routes are only for canvases.
 A Read or Suggest key can list and read canvases but not change them: a suggestion can't
 edit a canvas. A key limited to some notebooks must pass `bookId` to `kanso-create-canvas`.
 
+## PDFs
+
+PDF text tools read the saved per-page extraction, including OCR text. They do not read a
+locked note, a note in a locked notebook, or a PDF also owned by a note the caller cannot
+see. PDF writes update the note's `kanso-pdf` annotation block; the PDF bytes stay unchanged.
+
+| MCP tool | REST | Access | What it does |
+|---|---|---|---|
+| `kanso-search-pdf` | `GET /pdf/search?query=<text>&limit=<1..100>` | agent token or Read and write key | Finds matching indexed pages in visible notes, with a short excerpt |
+| `kanso-read-pdf-page` | `GET /notes/<noteId>/pdf/<fileId>/pages/<page>` | agent token or Read and write key | Reads one indexed page as text; page numbers start at 1 |
+| `kanso-list-pdf-highlights` | `GET /notes/<noteId>/pdf/<fileId>/highlights` | agent token or Read and write key | Lists the highlights, comments and whether each quote is in the note |
+| `kanso-add-pdf-highlight` | `POST /notes/<noteId>/pdf/<fileId>/highlights` | Read and write key | Takes `{ "page": 4, "quote": "…", "color": "yellow", "comment": "…", "includeQuote": true }`; resolves the quote through PDFium, adds its page link to the note by default, and saves one note revision. Set `includeQuote` to `false` to leave the note text alone. |
+| `kanso-edit-pdf-comment` | `PATCH /notes/<noteId>/pdf/<fileId>/highlights/<highlightId>` | Read and write key | Takes `{ "comment": "…" }`; an empty string clears it |
+| `kanso-edit-pdf-highlight` | same `PATCH` route | Read and write key | Takes `color`, `comment` or both to edit a highlight |
+| `kanso-delete-pdf-highlight` | `DELETE /notes/<noteId>/pdf/<fileId>/highlights/<highlightId>` | Read and write key | Removes the annotation; a quote already copied into the note stays |
+
+Read and Suggest API keys cannot see attachment-derived PDF text, matching their existing
+attachment scope. Agent tokens can use the PDF read tools included in their scope; PDF
+mutations require a Read and write key. When a shared note is edited, the running Kanso app
+sends the body change through the live collaboration engine as one edit.
+
 `kanso-edit-canvas` takes `{"ifRev": "…", "ops": [ … ]}`. The operations are `addNode`,
 `updateNode`, `moveNode`, `resizeNode`, `removeNode`, `addEdge`, `updateEdge`, `removeEdge`,
 `addStrokes`, `removeStrokes`, `moveStrokes`, `setGroup`, `renameGroup` and `rename`. Stroke

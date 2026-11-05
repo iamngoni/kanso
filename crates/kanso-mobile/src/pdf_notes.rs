@@ -94,6 +94,7 @@ fn notes_of(annots: &Annotations, body: &str, file: &str, name: &str) -> PdfNote
         editable,
         why,
         highlights,
+        scanned_pages: 0,
         ink: annots
             .ink_rows()
             .into_iter()
@@ -203,7 +204,9 @@ impl Library {
                     // Ink that outgrew the note is read from its attachment.
                     // One that has not arrived yet is listed when it does.
                     let _ = pdf_ink::load_ink_with(&self.inner.store, &mut annots, &files);
-                    notes_of(&annots, &body, &file, &name)
+                    let mut notes = notes_of(&annots, &body, &file, &name);
+                    notes.scanned_pages = self.scanned_pages(&file);
+                    notes
                 })
                 .collect())
         })
@@ -235,6 +238,20 @@ impl Library {
                 }),
             }
         })
+    }
+
+    /// The pages of PDF `file` whose words a computer read from their
+    /// pictures (step 8); the store hands them over only while the bytes are
+    /// the ones they were read from.
+    pub(crate) fn scanned_pages(&self, file: &str) -> u32 {
+        self.inner
+            .store
+            .pdf_ocr(file)
+            .ok()
+            .flatten()
+            .map_or(0, |ocr| {
+                ocr.pages.iter().filter(|p| !p.words.is_empty()).count() as u32
+            })
     }
 
     /// Clears all the pencil marks on `page` of `file` in note `note_id`,

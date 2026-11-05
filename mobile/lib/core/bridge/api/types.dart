@@ -2860,6 +2860,27 @@ class LocalTime {
           second == other.second;
 }
 
+class LockCopyNotice {
+  final bool removed;
+  final int copied;
+
+  const LockCopyNotice({
+    required this.removed,
+    required this.copied,
+  });
+
+  @override
+  int get hashCode => removed.hashCode ^ copied.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LockCopyNotice &&
+          runtimeType == other.runtimeType &&
+          removed == other.removed &&
+          copied == other.copied;
+}
+
 @freezed
 sealed class LockEvent with _$LockEvent {
   const LockEvent._();
@@ -3970,6 +3991,7 @@ class PdfNotes {
   final bool editable;
   final String? why;
   final List<PdfHighlightRow> highlights;
+  final int scannedPages;
   final List<PdfInkRow> ink;
 
   const PdfNotes({
@@ -3979,6 +4001,7 @@ class PdfNotes {
     required this.editable,
     this.why,
     required this.highlights,
+    required this.scannedPages,
     required this.ink,
   });
 
@@ -3990,6 +4013,7 @@ class PdfNotes {
       editable.hashCode ^
       why.hashCode ^
       highlights.hashCode ^
+      scannedPages.hashCode ^
       ink.hashCode;
 
   @override
@@ -4003,6 +4027,7 @@ class PdfNotes {
           editable == other.editable &&
           why == other.why &&
           highlights == other.highlights &&
+          scannedPages == other.scannedPages &&
           ink == other.ink;
 }
 

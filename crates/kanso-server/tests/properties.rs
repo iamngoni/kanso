@@ -156,12 +156,21 @@ proptest! {
     ) {
         let app = app();
         let templates = app.store.role_book(kanso_core::roles::Role::Templates, Origin::Sync).unwrap();
-        let note_id = app.store.put(
-            DocType::Note,
-            json!({ "title": title, "body": format!("---\\nsecret: {secret}\\n---\\n{secret}"), "bookId": templates }),
+        let pdf_id = app.store.put(
+            DocType::File,
+            json!({ "_id": "file:locked-pdf", "name": "locked.pdf", "contentType": "application/pdf",
+                "_attachments": { "index": { "content_type": "application/pdf", "data": STANDARD.encode(b"%PDF-1.4 test") } } }),
             Put::Upsert,
             Origin::Sync,
         ).unwrap().id;
+        let note_id = app.store.put(
+            DocType::Note,
+            json!({ "title": title, "body": format!("![PDF](inkdrop://{pdf_id})\n\n{secret}"), "bookId": templates }),
+            Put::Upsert,
+            Origin::Sync,
+        ).unwrap().id;
+        let md5 = app.store.get(&pdf_id).unwrap().unwrap().fields["md5digest"].as_str().unwrap().to_owned();
+        prop_assert!(app.store.set_pdf_text(&pdf_id, &md5, &[secret.clone()], "property-test").unwrap());
         app.store.put(
             DocType::Note,
             json!({ "_id": note_id, "kansoLock": { "salt": "test-salt" } }),
@@ -184,6 +193,9 @@ proptest! {
                 ("kanso-run-query-view", json!({ "noteId": note_id })),
                 ("kanso-list-versions", json!({ "noteId": note_id })),
                 ("kanso-read-version", json!({ "noteId": note_id, "rev": "missing" })),
+                ("kanso-search-pdf", json!({ "query": secret })),
+                ("kanso-read-pdf-page", json!({ "noteId": note_id, "fileId": "file:locked-pdf", "page": 4 })),
+                ("kanso-list-pdf-highlights", json!({ "noteId": note_id, "fileId": "file:locked-pdf" })),
             ];
             for (name, arguments) in calls {
                 let request = Request::builder()

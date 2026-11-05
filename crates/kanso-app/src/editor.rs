@@ -3548,6 +3548,27 @@ impl NoteEditor {
         true
     }
 
+    /// [`Self::insert_transcript_below`] for a fresh transcription: a new
+    /// transcript of a recording keeps the names the person gave the
+    /// voices of the one it replaces (`recording_speakers::carry_names`).
+    // no-prop-test: glue over `transcribe::fresh_transcript_edit`, which has the properties.
+    pub fn insert_new_transcript_below(
+        &mut self,
+        file_id: Option<&str>,
+        transcript: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        if self.note.is_none() || matches!(self.lock, LockView::Closed(_)) {
+            return false;
+        }
+        self.smart_edit(window, cx, |_, text, selection| {
+            crate::transcribe::fresh_transcript_edit(text, file_id, transcript, selection)
+        });
+        self.schedule_autosave(cx);
+        true
+    }
+
     /// The audio attachment linked on the caret's line: its file ID and
     /// name.
     pub fn audio_on_caret_line(&self, cx: &App) -> Option<(String, String)> {
@@ -3649,11 +3670,10 @@ impl NoteEditor {
     ) {
         let store = self.store.clone();
         let length = self.body.read(cx).text().len();
-        let locked = self.note_is_locked();
         let work = cx.background_executor().spawn(async move {
             images
                 .into_iter()
-                .map(|image| attach_to(&store, locked, image))
+                .map(|image| attach(&store, image))
                 .collect::<Vec<_>>()
         });
         cx.spawn_in(window, async move |this, cx| {
@@ -5166,6 +5186,14 @@ impl NoteEditor {
         let shown = crate::transcribe::shown_for(self.note_id()?, cx)?;
         let colors = Colors::get(cx);
         let words = match (shown.waiting, shown.share) {
+            _ if shown.telling => match shown.share {
+                Some(share) => format!(
+                    "Telling the speakers apart in “{}”… {}%",
+                    shown.name,
+                    (share * 100.).floor() as u32
+                ),
+                None => format!("Telling the speakers apart in “{}”…", shown.name),
+            },
             (true, _) => format!(
                 "“{}” is transcribed once the speech model has downloaded",
                 shown.name
@@ -5411,37 +5439,13 @@ fn is_pdf_path(path: &std::path::Path) -> bool {
         .is_some_and(|e| e.eq_ignore_ascii_case("pdf"))
 }
 
-/// What a PDF too large to seal gets in a locked note: a sealed attachment
-/// holds at most as many bytes as any other (`MAX_ATTACHMENT_SIZE`), and a
-/// contract or a medical record is exactly what people lock, so a larger one
-/// is refused rather than left unsealed.
-const PDF_TOO_LARGE_TO_LOCK: &str = "A PDF larger than 10 MB can't be attached to a locked note, because it can't be sealed with the lock. Attach it to a note that isn't locked.";
-
 /// What a highlight made while the note can't be edited says.
 const PDF_NOTE_READ_ONLY: &str =
     "This note can't be edited right now, so the highlight wasn't saved to it.";
 
-/// What opening a PDF in a locked note says: the PDF viewer does not read
-/// sealed files yet.
-const PDF_IN_LOCKED_NOTE_OPEN: &str = "PDFs in locked notes can't be opened yet, because attachments aren't sealed with the lock. Unlock the note's notebook, or move the PDF to a note that isn't locked.";
-
-/// [`attach`] for a note that is `locked` or not: a PDF too large to seal is
-/// refused for a locked one. Whatever is attached to a locked note is
-/// sealed with its next save (`attachments::seal`).
-fn attach_to(store: &Store, locked: bool, image: Pasted) -> Result<String, String> {
-    match image {
-        Pasted::File(path)
-            if locked
-                && is_pdf_path(&path)
-                && std::fs::metadata(&path).is_ok_and(|meta| {
-                    meta.len() > kanso_core::model::MAX_ATTACHMENT_SIZE as u64
-                }) =>
-        {
-            Err(PDF_TOO_LARGE_TO_LOCK.to_owned())
-        }
-        image => attach(store, image),
-    }
-}
+/// What opening a PDF in a locked note says: the PDF reader still reads the
+/// store directly and cannot open the attachment through the lock session.
+const PDF_IN_LOCKED_NOTE_OPEN: &str = "PDFs in locked notes can't be opened yet. Unlock the note first, or move the PDF to a note that isn't locked.";
 
 /// What a pasted or dropped file becomes in the note: an attached image's
 /// Markdown, or a drawing's fenced block (kept in the note itself, so it
@@ -7357,7 +7361,7 @@ mod tests {
 /// The writing aids through the real text editor: keys, paste and undo.
 #[cfg(test)]
 mod writing_tests {
-    use super::{NoteEditor, PDF_TOO_LARGE_TO_LOCK, Pasted, TEST_HTML, attach_to};
+    use super::{NoteEditor, Pasted, TEST_HTML, attach};
     use crate::config::{Appearance, EditorSettings};
     use crate::library::Library;
     use crate::preview::ImageResize;
@@ -7614,18 +7618,18 @@ mod writing_tests {
     }
 
     /// A PDF dropped, pasted or picked becomes a `file:` attachment and a
-    /// link; a locked note refuses it in words; a file merely named `.pdf`
+    /// link up to 50 MB, locked note or not; a file merely named `.pdf`
     /// is refused as not a PDF.
     // no-prop-test: file glue over `kanso_engine::attach::attach_pdf`,
     // which has the tests with a store.
     #[test]
-    fn a_pdf_becomes_an_attachment_unless_it_is_too_large_to_seal_in_a_locked_note() {
+    fn a_pdf_becomes_an_attachment_up_to_the_pdf_limit_locked_note_or_not() {
         let tmp = tempfile::tempdir().unwrap();
         let store = Store::open(tmp.path().join("k.db")).unwrap();
         let dir = tmp.path().to_path_buf();
         let pdf = dir.join("quarterly report.pdf");
         std::fs::write(&pdf, b"%PDF-1.7\n%fake body").unwrap();
-        let link = attach_to(&store, false, Pasted::File(pdf.clone())).unwrap();
+        let link = attach(&store, Pasted::File(pdf.clone())).unwrap();
         let id = link
             .strip_prefix("[quarterly report.pdf](inkdrop://")
             .and_then(|rest| rest.strip_suffix(')'))
@@ -7638,19 +7642,28 @@ mod writing_tests {
         assert_eq!(file.content_type, "application/pdf");
         assert_eq!(file.bytes, b"%PDF-1.7\n%fake body");
 
-        // A small one can be sealed, so a locked note takes it.
-        assert!(attach_to(&store, true, Pasted::File(pdf)).is_ok());
-        let huge = dir.join("huge.pdf");
+        // A PDF between the image limit and the PDF limit is attached (a
+        // locked note seals it with its save); one over the PDF limit says
+        // the real limit.
+        let mid = dir.join("mid.pdf");
         let mut big = b"%PDF-1.7\n".to_vec();
         big.resize(kanso_core::model::MAX_ATTACHMENT_SIZE + 1, b'x');
+        std::fs::write(&mid, big).unwrap();
+        assert!(attach(&store, Pasted::File(mid)).is_ok());
+        let huge = dir.join("huge.pdf");
+        let mut big = b"%PDF-1.7\n".to_vec();
+        big.resize(kanso_core::model::MAX_PDF_SIZE + 1, b'x');
         std::fs::write(&huge, big).unwrap();
-        let refused = attach_to(&store, true, Pasted::File(huge)).unwrap_err();
-        assert_eq!(refused, PDF_TOO_LARGE_TO_LOCK);
+        let refused = attach(&store, Pasted::File(huge)).unwrap_err();
+        assert!(
+            refused.contains("Attachments can be up to 50 MB"),
+            "{refused}"
+        );
 
         let fake = dir.join("fake.pdf");
         std::fs::write(&fake, b"hello").unwrap();
         assert!(
-            attach_to(&store, false, Pasted::File(fake))
+            attach(&store, Pasted::File(fake))
                 .unwrap_err()
                 .contains("isn't a PDF")
         );

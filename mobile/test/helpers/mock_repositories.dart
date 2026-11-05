@@ -25,6 +25,7 @@ import 'package:kanso/discovery/models/repos/abs/discovery_repository.dart';
 import 'package:kanso/editor/models/repos/abs/web_link_repository.dart';
 import 'package:kanso/lock/models/repos/abs/device_lock_repository.dart';
 import 'package:kanso/push/models/repos/abs/push_repository.dart';
+import 'package:kanso/recording_speakers/models/repos/abs/recording_speakers_repository.dart';
 import 'package:kanso/recording_summary/models/repos/abs/recording_summary_repository.dart';
 import 'package:kanso/voice_capture/models/repos/abs/voice_capture_repository.dart';
 import 'package:mocktail/mocktail.dart';
@@ -79,5 +80,7 @@ class MockPushRepository extends Mock implements PushRepository {}
 class MockVoiceCaptureRepository extends Mock
     implements VoiceCaptureRepository {}
 
+class MockRecordingSpeakersRepository extends Mock
+    implements RecordingSpeakersRepository {}
 class MockRecordingSummaryRepository extends Mock
     implements RecordingSummaryRepository {}

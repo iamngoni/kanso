@@ -28,6 +28,7 @@ pub mod index;
 pub(crate) mod ink_file;
 mod layout;
 mod model;
+pub mod ocr;
 mod pencil;
 mod prefetch;
 mod session;

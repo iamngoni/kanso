@@ -7,9 +7,10 @@ pub struct Segment {
     pub start_secs: u32,
     /// The words, already tidied.
     pub text: String,
-    /// Who said them (`You` for the microphone, `Meeting` for system
-    /// audio), when the recording kept the two apart.
-    pub speaker: Option<&'static str>,
+    /// Who said them: `You` for the microphone, `Meeting` for system
+    /// audio, or a name such as `Speaker 2` once the voices are told
+    /// apart (and whatever the person renamed that to).
+    pub speaker: Option<String>,
 }
 
 /// Where a `kanso-audio:` link points.

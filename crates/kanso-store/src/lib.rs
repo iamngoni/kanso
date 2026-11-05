@@ -36,6 +36,7 @@ mod overview;
 mod passage_embed;
 mod passages;
 pub mod pdf_ink;
+mod pdf_ocr;
 mod pdf_text;
 mod pdf_text_model;
 mod plugin;
@@ -51,6 +52,7 @@ mod tasks;
 mod trash;
 mod trash_model;
 mod triage;
+mod unseal_model;
 mod validate;
 mod write;
 
@@ -109,6 +111,7 @@ pub use passage_embed::{
     EmbeddedLines, MAX_PASSAGE_VECTORS, PassageHit, PassageQueue, PendingPassage,
 };
 pub use passages::{MAX_PASSAGES, MAX_WORDS, MIN_WORDS, Passage, passages, plain_text};
+pub use pdf_ocr::{OcrProgress, PdfToOcr};
 pub use pdf_text_model::{MAX_PAGE_CHARS, MAX_PDF_CHARS, PdfToIndex};
 pub use plugin::{
     BatchWriter, PLUGIN_DATA_FIELD, PluginCreate, PluginEdit, PluginReport, PluginWriter,
@@ -129,6 +132,7 @@ pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
 pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow};
 pub use trash_model::{Emptied, FileDrop, TrashCounts};
 pub use triage::{INBOX_TRIAGED_FIELD, InboxNote, TriagePool};
+pub use unseal_model::Unsealing;
 pub use write::{Put, WriteResult};
 
 #[derive(Debug, thiserror::Error)]

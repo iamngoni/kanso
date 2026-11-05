@@ -41,6 +41,19 @@ pub fn system_reader() -> Option<Arc<dyn TextReader>> {
     }
 }
 
+/// The system's reader of words with their places, where there is one: what
+/// scanned PDF pages are read with (`pdf/ocr.rs`).
+pub fn word_reader() -> Option<Arc<dyn kanso_engine::discovery::pdf_ocr::WordReader>> {
+    #[cfg(target_os = "macos")]
+    {
+        Some(Arc::new(vision::VisionReader))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
 /// Whether this device can read images at all.
 pub fn supported() -> bool {
     cfg!(target_os = "macos")
@@ -74,6 +87,7 @@ pub fn init(cx: &mut App) {
 /// Turns reading on or off, from Settings.
 pub fn set_enabled(on: bool, cx: &mut App) {
     AppState::update_config(cx, |config| config.discovery.image_text = on);
+    crate::pdf::ocr::refresh(cx);
     if on {
         start(cx);
     } else {
@@ -151,9 +165,10 @@ mod vision {
     //! Apple's Vision framework: `VNRecognizeTextRequest` on the image's
     //! bytes, accurate, with language correction.
 
+    use kanso_pdf::ocr::{quad_from_bottom_left, turns_from_corners, word_ranges};
     use objc2::AnyThread as _;
     use objc2::rc::{Retained, autoreleasepool};
-    use objc2_foundation::{NSArray, NSData, NSDictionary};
+    use objc2_foundation::{NSArray, NSData, NSDictionary, NSRange};
     use objc2_vision::{
         VNImageRequestHandler, VNRecognizeTextRequest, VNRequest, VNRequestTextRecognitionLevel,
     };
@@ -191,6 +206,72 @@ mod vision {
                     }
                 }
                 Ok(lines.join("\n"))
+            })
+        }
+    }
+
+    impl kanso_engine::discovery::pdf_ocr::WordReader for VisionReader {
+        fn engine(&self) -> &'static str {
+            "vision"
+        }
+
+        /// Each recognised line's words, with the box Vision gives the
+        /// range of the word in the line (`boundingBox(for:)`), flipped to
+        /// the top-left origin.
+        fn read_words(&self, image: &[u8]) -> Result<Vec<kanso_pdf::ReadWord>, String> {
+            autoreleasepool(|_| {
+                let data = NSData::with_bytes(image);
+                let handler = VNImageRequestHandler::initWithData_options(
+                    VNImageRequestHandler::alloc(),
+                    &data,
+                    &NSDictionary::new(),
+                );
+                let request = VNRecognizeTextRequest::new();
+                request.setRecognitionLevel(VNRequestTextRecognitionLevel::Accurate);
+                request.setUsesLanguageCorrection(true);
+                let as_request: Retained<VNRequest> =
+                    Retained::into_super(Retained::into_super(request.clone()));
+                let requests = NSArray::from_retained_slice(&[as_request]);
+                handler
+                    .performRequests_error(&requests)
+                    .map_err(|err| err.localizedDescription().to_string())?;
+                let mut words = Vec::new();
+                if let Some(results) = request.results() {
+                    for observation in results.iter() {
+                        let Some(best) = observation.topCandidates(1).firstObject() else {
+                            continue;
+                        };
+                        let line = best.string().to_string();
+                        for (word, start, len) in word_ranges(&line) {
+                            // SAFETY: the range lies inside the candidate's
+                            // own string, in the UTF-16 units Vision counts.
+                            let Ok(found) = (unsafe {
+                                best.boundingBoxForRange_error(NSRange::new(start, len))
+                            }) else {
+                                continue;
+                            };
+                            // SAFETY: plain getters on an observation Vision made.
+                            let (b, top_left, top_right) =
+                                unsafe { (found.boundingBox(), found.topLeft(), found.topRight()) };
+                            words.push(kanso_pdf::ReadWord {
+                                text: word.to_owned(),
+                                quad: quad_from_bottom_left(
+                                    b.origin.x,
+                                    b.origin.y,
+                                    b.size.width,
+                                    b.size.height,
+                                ),
+                                // A word on a turned line reads along the
+                                // top edge of its own rectangle.
+                                turns: turns_from_corners(
+                                    (top_left.x, top_left.y),
+                                    (top_right.x, top_right.y),
+                                ),
+                            });
+                        }
+                    }
+                }
+                Ok(words)
             })
         }
     }
@@ -249,5 +330,22 @@ mod tests {
     fn vision_reads_words() {
         let text = vision::VisionReader.read(&kanso_png()).unwrap();
         assert!(text.to_lowercase().contains("kanso"), "read {text:?}");
+    }
+
+    /// Reads a real picture's word with its box, which lies where the
+    /// letters are: the middle band of the picture, from the left edge.
+    #[test]
+    #[ignore = "uses the system's Vision framework; run on demand"]
+    fn vision_reads_word_boxes() {
+        use kanso_engine::discovery::pdf_ocr::WordReader as _;
+        let words = vision::VisionReader.read_words(&kanso_png()).unwrap();
+        let kanso_pdf::ReadWord { text, quad, turns } = words
+            .iter()
+            .find(|w| w.text.to_lowercase().contains("kanso"))
+            .unwrap_or_else(|| panic!("read {words:?}"));
+        assert_eq!(*turns, 0, "{text} reads left to right");
+        let [x0, y0, x1, y1] = quad.0;
+        assert!(x0 < 0.2 && x1 > 0.7, "{text} at {quad:?}");
+        assert!(y0 > 0.1 && y1 < 0.9 && y0 < y1, "{text} at {quad:?}");
     }
 }

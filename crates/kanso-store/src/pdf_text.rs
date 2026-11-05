@@ -16,10 +16,11 @@
 //! reads a note's body as empty when it is locked, so a locked note is
 //! never returned in the meantime.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
-use kanso_core::model::FILE_LOCK_FIELD;
+use kanso_core::model::{FILE_LOCK_FIELD, PDF_OCR_FIELD};
 use kanso_core::now_ms;
+use kanso_pdf::PdfOcr;
 use rusqlite::{Connection, params};
 use serde_json::{Map, Value};
 
@@ -31,7 +32,7 @@ pub(crate) const TABLES: [&str; 2] = ["pdf_page_text", "pdf_state"];
 
 /// Whether a file document is a PDF whose text may be kept: it says it is
 /// one and isn't sealed.
-fn is_plain_pdf(fields: &Map<String, Value>) -> bool {
+pub(crate) fn is_plain_pdf(fields: &Map<String, Value>) -> bool {
     !fields.contains_key(FILE_LOCK_FIELD)
         && fields
             .get("contentType")
@@ -39,9 +40,11 @@ fn is_plain_pdf(fields: &Map<String, Value>) -> bool {
             .is_some_and(|t| t.eq_ignore_ascii_case("application/pdf"))
 }
 
-fn forget(conn: &Connection, id: &str) -> Result<()> {
+pub(crate) fn forget(conn: &Connection, id: &str) -> Result<()> {
     conn.execute("DELETE FROM pdf_page_text WHERE file_id = ?", [id])?;
     conn.execute("DELETE FROM pdf_state WHERE file_id = ?", [id])?;
+    // Scans read so far were read from the bytes these pages were.
+    conn.execute("DELETE FROM pdf_ocr_pending WHERE file_id = ?", [id])?;
     Ok(())
 }
 
@@ -59,29 +62,53 @@ pub(crate) fn sync_file(
         forget(conn, id)?;
         return Ok(None);
     };
+    let now = fields.get("md5digest").and_then(Value::as_str);
+    // The words of scanned pages, read here or by another device, for the
+    // bytes the file has now.
+    let ocr = fields
+        .get(PDF_OCR_FIELD)
+        .and_then(PdfOcr::from_value)
+        .filter(|ocr| Some(ocr.md5.as_str()) == now);
     let read: Option<String> = conn
         .query_row("SELECT md5 FROM pdf_state WHERE file_id = ?", [id], |row| {
             row.get(0)
         })
         .ok();
-    let now = fields.get("md5digest").and_then(Value::as_str);
-    let Some(md5) = read.filter(|read| Some(read.as_str()) == now) else {
+    let read = read.filter(|read| Some(read.as_str()) == now);
+    if read.is_none() {
         forget(conn, id)?;
-        return Ok(None);
-    };
-    let mut stmt =
-        conn.prepare_cached("SELECT text FROM pdf_page_text WHERE file_id = ? ORDER BY page")?;
-    let pages = stmt
-        .query_map([id], |row| row.get::<_, String>(0))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    let joined = pages.join("\n");
-    Ok((!joined.trim().is_empty()).then_some((joined, md5)))
+    }
+    let mut pages: BTreeMap<i64, String> = BTreeMap::new();
+    if read.is_some() {
+        let mut stmt =
+            conn.prepare_cached("SELECT page, text FROM pdf_page_text WHERE file_id = ?")?;
+        for row in stmt.query_map([id], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })? {
+            let (page, text) = row?;
+            pages.insert(page, text);
+        }
+    }
+    // A page PDFium found no text on takes the words read from its picture.
+    if let Some(ocr) = &ocr {
+        for page in &ocr.pages {
+            let slot = pages.entry(i64::from(page.page)).or_default();
+            if slot.trim().is_empty() {
+                *slot = page.text();
+            }
+        }
+    }
+    let joined = pages.into_values().collect::<Vec<_>>().join("\n");
+    let md5 = read.or_else(|| ocr.map(|ocr| ocr.md5));
+    Ok(md5
+        .filter(|_| !joined.trim().is_empty())
+        .map(|md5| (joined, md5)))
 }
 
 /// Of `wanted` file ids, the ones a note that may be read links. Reads the
 /// `note_files` index (the files each note's body links, kept with every
 /// write), so it costs a lookup per file, not a pass over every note.
-fn shown_among(conn: &Connection, wanted: HashSet<String>) -> Result<HashSet<String>> {
+pub(crate) fn shown_among(conn: &Connection, wanted: HashSet<String>) -> Result<HashSet<String>> {
     if wanted.is_empty() {
         return Ok(HashSet::new());
     }

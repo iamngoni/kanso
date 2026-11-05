@@ -366,6 +366,22 @@ fn write_calls(ids: &[String], books: &[String]) -> Vec<(&'static str, Value)> {
             "kanso-set-task-done",
             json!({ "noteId": note, "line": 0, "text": "task", "done": true }),
         ),
+        (
+            "kanso-add-pdf-highlight",
+            json!({ "noteId": note, "fileId": "file:pdf", "page": 1, "quote": "quoted text" }),
+        ),
+        (
+            "kanso-edit-pdf-highlight",
+            json!({ "noteId": note, "fileId": "file:pdf", "highlightId": "highlight-1", "color": "pink" }),
+        ),
+        (
+            "kanso-edit-pdf-comment",
+            json!({ "noteId": note, "fileId": "file:pdf", "highlightId": "highlight-1", "comment": "updated" }),
+        ),
+        (
+            "kanso-delete-pdf-highlight",
+            json!({ "noteId": note, "fileId": "file:pdf", "highlightId": "highlight-1" }),
+        ),
         ("kanso-create-daily-note", json!({})),
         (
             "kanso-create-from-template",

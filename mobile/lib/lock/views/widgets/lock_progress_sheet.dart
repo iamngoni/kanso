@@ -8,8 +8,8 @@ import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_button.dart';
-import '../../../note/views/widgets/attachment_sheet.dart' show byteSize;
 import '../../utils/seal_progress_rules.dart';
+import '../../utils/seal_size.dart';
 
 /// The sheet a long lock shows: what it seals, a bar that counts the files
 /// and, with [onCancel], a Cancel that stops it between two files.
@@ -45,9 +45,12 @@ class LockProgressSheet extends StatelessWidget {
     final typography = context.typography;
     final shown = progress;
     final total = shown?.total ?? files;
-    final size = byteSize(shown?.bytesTotal ?? bytes);
+    final size = sealSize(
+      shown?.bytesTotal ?? bytes,
+      underOneKb: l10n.lockSizeUnderOneKb,
+    );
     final line = unsealing
-        ? l10n.lockProgressUnsealingLine(total, size)
+        ? l10n.lockProgressUnsealingLine(total)
         : l10n.lockProgressLine(total, size);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
@@ -78,9 +81,17 @@ class LockProgressSheet extends StatelessWidget {
           ),
           const SizedBox(height: KansoSpacing.xs),
           Text(
-            shown == null
-                ? ''
-                : l10n.lockProgressCount(shown.done, shown.total),
+            // As the desktop's sheet: what the lock does while it isn't
+            // sealing a file, else how many are done.
+            switch (shown?.phase) {
+              null => '',
+              SealPhase.preparing => l10n.lockProgressPreparing,
+              SealPhase.locking => l10n.lockProgressLocking,
+              SealPhase.sealing => l10n.lockProgressCount(
+                shown!.done,
+                shown.total,
+              ),
+            },
             style: typography.secondary.copyWith(color: colors.textMuted),
           ),
           if (cancelling) ...<Widget>[

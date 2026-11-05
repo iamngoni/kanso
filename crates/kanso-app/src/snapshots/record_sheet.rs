@@ -57,6 +57,16 @@ pub(super) fn output_picker(
     );
 }
 
+/// Same available output choices in the dark theme.
+pub(super) fn output_picker_dark(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    output_picker(cx, window, workspace, store);
+}
+
 /// "Keep transcript only" chosen: the audio goes once the words are in the
 /// note, and the sheet says backups still hold it.
 pub(super) fn keep_transcript_only(
