@@ -12,7 +12,9 @@
 //!    (wrong words, a file that isn't a backup, a full disk) leaves nothing
 //!    behind.
 //! 2. [`apply_staged_restore`], at the next launch before the library opens,
-//!    checks the staged copy, keeps the library as a backup of its own (a
+//!    checks the staged copy, gives it the library's API keys in place of
+//!    the backup's (keys never travel with a backup, so a revoked key stays
+//!    revoked), keeps the library as a backup of its own (a
 //!    second name for the same file, or a finished copy), then renames the
 //!    staged copy over `<db>`. The rename is atomic, so `<db>` is always the
 //!    old library or the restored one, never missing and never half of
@@ -201,6 +203,7 @@ pub fn apply_staged_restore(
         }
         return Err(err);
     }
+    keep_api_keys(&staged, db, library_key)?;
     if LibraryFile::of(db) != LibraryFile::New {
         keep_library(db, library_key, keep_dir, now_ms)?;
     }
@@ -208,6 +211,63 @@ pub fn apply_staged_restore(
     sync_dir(db);
     remove_with_sidecars(&staged);
     Ok(true)
+}
+
+/// The columns of `api_keys`, the same in every library that has it.
+const API_KEY_COLUMNS: &str =
+    "id, name, client, token_hash, access, books, created_at, last_used_at, revoked_at";
+
+/// API keys never travel with a backup (issue #243: a key works on one
+/// computer only, and a revoked key stays revoked). The staged copy's
+/// `api_keys` are replaced by the library's as they are now; with no
+/// library, it has none. Run again after a crash, it gives the same table.
+fn keep_api_keys(staged: &Path, db: &Path, key: &LibraryKey) -> Result<()> {
+    let conn = open_encrypted(staged, key)?;
+    // A backup from before API keys has no table yet; the open that
+    // migrates it would make one, empty. Made now, so it can be filled.
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS api_keys (
+            id TEXT PRIMARY KEY NOT NULL,
+            name TEXT NOT NULL,
+            client TEXT NOT NULL,
+            token_hash BLOB NOT NULL UNIQUE,
+            access TEXT NOT NULL CHECK (access IN ('read', 'suggest', 'write')),
+            books TEXT,
+            created_at INTEGER NOT NULL,
+            last_used_at INTEGER,
+            revoked_at INTEGER
+        ) WITHOUT ROWID;
+        DELETE FROM api_keys;",
+    )?;
+    let kind = LibraryFile::of(db);
+    if kind == LibraryFile::New {
+        return Ok(());
+    }
+    let attach_key = zeroize::Zeroizing::new(if kind == LibraryFile::Encrypted {
+        format!("x'{}'", key.to_hex().as_str())
+    } else {
+        String::new()
+    });
+    conn.execute(
+        "ATTACH DATABASE ?1 AS current KEY ?2",
+        rusqlite::params![db.to_string_lossy(), attach_key.as_str()],
+    )?;
+    let has_keys: i64 = conn.query_row(
+        "SELECT count(*) FROM current.sqlite_master WHERE type = 'table' AND name = 'api_keys'",
+        [],
+        |row| row.get(0),
+    )?;
+    if has_keys > 0 {
+        conn.execute_batch(&format!(
+            "BEGIN;
+             DELETE FROM main.api_keys;
+             INSERT INTO main.api_keys ({API_KEY_COLUMNS})
+                 SELECT {API_KEY_COLUMNS} FROM current.api_keys;
+             COMMIT;"
+        ))?;
+    }
+    conn.execute_batch("DETACH DATABASE current")?;
+    Ok(())
 }
 
 /// The staged copy is the one thing that must be sound.

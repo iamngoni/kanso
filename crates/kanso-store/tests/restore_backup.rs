@@ -365,6 +365,79 @@ fn a_crash_after_keeping_the_library_is_finished_at_the_next_launch() {
     );
 }
 
+fn api_key(store: &Store, id: &str, hash: u8) {
+    store
+        .api_key_insert(&kanso_store::NewApiKey {
+            id: id.to_owned(),
+            name: id.to_owned(),
+            client: "other".to_owned(),
+            token_hash: [hash; 32],
+            access: kanso_store::KeyAccess::Write,
+            books: None,
+            created_at: 1,
+        })
+        .unwrap();
+}
+
+fn live_keys(db: &Path, key: &LibraryKey) -> Vec<String> {
+    let mut ids: Vec<String> = Store::open_with_key(db, Some(key))
+        .unwrap()
+        .api_keys_live()
+        .unwrap()
+        .into_iter()
+        .map(|live| live.row.id)
+        .collect();
+    ids.sort();
+    ids
+}
+
+/// Regression: restoring a backup brought back the API keys it held, so a
+/// key revoked after the backup was made worked again. Keys never travel
+/// with a restore: the library keeps its own, revoked ones revoked and new
+/// ones live.
+#[test]
+fn a_revoked_api_key_stays_revoked_after_a_restore() {
+    let dir = tempfile::tempdir().unwrap();
+    let key = key_from(28);
+    let db = db_path(dir.path());
+    library(dir.path(), &key, &["a"]);
+    let backups = dir.path().join("backups");
+    let backup = {
+        let store = Store::open_with_key(&db, Some(&key)).unwrap();
+        api_key(&store, "leaked", 1);
+        let backup = store.backup_now(&backups, 1_000).unwrap();
+        assert!(store.api_key_revoke("leaked", 2_000).unwrap());
+        api_key(&store, "made-later", 2);
+        backup
+    };
+    stage_restore(&db, &backup, Some(&key), &key).unwrap();
+    assert!(apply_staged_restore(&db, &key, &backups, 3_000).unwrap());
+    assert_eq!(marks(&db, &key), ["a"]);
+    assert_eq!(live_keys(&db, &key), ["made-later"]);
+}
+
+/// A backup from another computer brings none of that computer's API keys.
+#[test]
+fn a_backup_from_another_computer_brings_no_api_keys() {
+    let there = tempfile::tempdir().unwrap();
+    let here = tempfile::tempdir().unwrap();
+    let theirs = key_from(29);
+    let ours = key_from(30);
+    library(there.path(), &theirs, &["a"]);
+    let backup = {
+        let store = Store::open_with_key(db_path(there.path()), Some(&theirs)).unwrap();
+        api_key(&store, "theirs", 3);
+        store.backup_now(&there.path().join("backups"), 1).unwrap()
+    };
+    library(here.path(), &ours, &["f"]);
+    let db = db_path(here.path());
+    api_key(&Store::open_with_key(&db, Some(&ours)).unwrap(), "ours", 4);
+    stage_restore(&db, &backup, Some(&theirs), &ours).unwrap();
+    assert!(apply_staged_restore(&db, &ours, &here.path().join("backups"), 2).unwrap());
+    assert_eq!(marks(&db, &ours), ["a"]);
+    assert_eq!(live_keys(&db, &ours), ["ours"]);
+}
+
 /// A library that is missing when a restore is applied (deleted by hand,
 /// say) takes the staged copy.
 #[test]
