@@ -231,6 +231,7 @@ mod themes;
 mod title_bar;
 mod touch_id;
 mod transcribe;
+mod trash_words;
 mod triage_view;
 #[cfg(test)]
 mod ui_tests;
@@ -516,14 +517,13 @@ fn forced_x11(config: &AppConfig) -> Option<WindowingRequest> {
     }))
 }
 
-/// Loads the settings, bringing an older file up to date and filling in API
-/// credentials on first run.
+/// Loads the settings, bringing an older file up to date.
 fn load_config(data_dir: &std::path::Path) -> Result<AppConfig> {
     let path = paths::config_path(data_dir);
     let mut config =
         AppConfig::load(&path).with_context(|| format!("reading {}", path.display()))?;
     let migrated = config.migrate();
-    if config.ensure_credentials() || migrated {
+    if migrated {
         config.save(&path)?;
     }
     Ok(config)

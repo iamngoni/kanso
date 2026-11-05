@@ -46,11 +46,31 @@ pub struct Action {
     pub removed: Vec<(String, Stroke)>,
     /// Strokes the edit put in.
     pub added: Vec<(String, Stroke)>,
+    /// Cards and groups the edit added, changed or deleted, one entry per
+    /// node, as it was before the edit and as it is after.
+    pub cards: Vec<CardChange>,
+}
+
+/// What an edit did to one card or group. `None` is "not there": a card an
+/// edit added has no `before`, one it deleted has no `after`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CardChange {
+    pub before: Option<Node>,
+    pub after: Option<Node>,
+}
+
+impl CardChange {
+    fn id(&self) -> &str {
+        self.before
+            .as_ref()
+            .or(self.after.as_ref())
+            .map_or("", |n| n.id.as_str())
+    }
 }
 
 impl Action {
     pub fn is_empty(&self) -> bool {
-        self.removed.is_empty() && self.added.is_empty()
+        self.removed.is_empty() && self.added.is_empty() && self.cards.is_empty()
     }
 
     /// The one action that does what `self` did and then `next`: a drag of
@@ -66,6 +86,21 @@ impl Action {
             }
         }
         self.added.extend(next.added);
+        for change in next.cards {
+            match self.cards.iter_mut().find(|c| c.id() == change.id()) {
+                // The same card changed again: from where the first change
+                // began to where the last one ended.
+                Some(first) => first.after = change.after,
+                None => self.cards.push(change),
+            }
+        }
+        // A card added and deleted within one step, or changed and changed
+        // back, leaves nothing to undo.
+        self.cards.retain(|c| match (&c.before, &c.after) {
+            (None, None) => false,
+            (Some(a), Some(b)) => !same_card(a, b),
+            _ => true,
+        });
         self
     }
 }
@@ -166,6 +201,7 @@ impl Canvas {
             Action {
                 removed: Vec::new(),
                 added,
+                cards: Vec::new(),
             },
         ))
     }
@@ -326,6 +362,44 @@ impl Canvas {
         Some(action)
     }
 
+    /// Adds `card`, or replaces the card with its ID, as one undoable edit.
+    pub fn put_card(&mut self, mut card: Node, now: i64) -> Action {
+        let before = self.node(&card.id).cloned();
+        // No stacking order given: it keeps its place, as `put_node` does.
+        if let (Some(old), true) = (&before, card.kanso_z == 0.0) {
+            card.kanso_z = old.kanso_z;
+        }
+        if before.as_ref().is_some_and(|b| same_card(b, &card)) {
+            return Action::default();
+        }
+        let id = card.id.clone();
+        self.put_node(card, now);
+        let after = self.node(&id).cloned();
+        card_action(before, after)
+    }
+
+    /// Moves a card or group as one undoable edit. `None` when it isn't
+    /// there or is already at `(x, y)`.
+    pub fn move_card(&mut self, id: &str, x: f64, y: f64, now: i64) -> Option<Action> {
+        let before = self.node(id).cloned()?;
+        if before.kind == INK || (before.x == x && before.y == y) {
+            return None;
+        }
+        self.move_node(id, x, y, now);
+        Some(card_action(Some(before), self.node(id).cloned()))
+    }
+
+    /// Deletes a card or group as one undoable edit; its arrows stay,
+    /// hidden. `None` when it isn't there. Ink layers aren't cards.
+    pub fn delete_card(&mut self, id: &str, now: i64) -> Option<Action> {
+        let before = self.node(id).cloned()?;
+        if before.kind == INK {
+            return None;
+        }
+        self.remove_node(id, now);
+        Some(card_action(Some(before), None))
+    }
+
     /// Undoes `action` (or redoes it, with `forward`), by writing new
     /// versions. Returns whether anything changed.
     pub fn apply(&mut self, action: &Action, forward: bool, now: i64) -> bool {
@@ -335,6 +409,20 @@ impl Canvas {
             (&action.added, &action.removed)
         };
         let mut changed = false;
+        for change in &action.cards {
+            let target = if forward {
+                &change.after
+            } else {
+                &change.before
+            };
+            match target {
+                Some(node) => {
+                    self.put_node(node.clone(), now);
+                    changed = true;
+                }
+                None => changed |= self.remove_node(change.id(), now),
+            }
+        }
         for (node, stroke) in kill {
             changed |= self.remove_stroke(node, &stroke.id, now);
         }
@@ -402,6 +490,23 @@ impl Canvas {
             .filter(|n| n.kind == INK && !n.deleted)
             .flat_map(|n| n.strokes.iter().filter(|s| !s.deleted).map(move |s| (n, s)))
     }
+}
+
+fn card_action(before: Option<Node>, after: Option<Node>) -> Action {
+    Action {
+        cards: vec![CardChange { before, after }],
+        ..Action::default()
+    }
+}
+
+/// Whether two states of a card hold the same content (stamps aside).
+fn same_card(a: &Node, b: &Node) -> bool {
+    let stamp = |n: &Node| Node {
+        kanso_version: 0,
+        kanso_updated: 0,
+        ..n.clone()
+    };
+    stamp(a) == stamp(b)
 }
 
 /// Whether the disc of `radius` swept along `path` touches `stroke`: its

@@ -306,6 +306,8 @@ fn locked_notes_can_be_deleted_for_good() {
             .unwrap()
             .is_none()
     );
+    // The confirmation counts the locked note still in the trash.
+    assert_eq!(library.locked_in_trash(), Ok(1));
     assert_eq!(library.empty_trash(), Ok(2));
     assert_eq!(library.note(&second), Err(KansoError::NotFound));
     assert_eq!(library.overview().unwrap().trash, 0);

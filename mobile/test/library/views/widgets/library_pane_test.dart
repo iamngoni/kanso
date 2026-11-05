@@ -15,11 +15,13 @@ import 'package:kanso/core/models/data/browse_location.dart';
 import 'package:kanso/core/models/data/library_index_status.dart';
 import 'package:kanso/core/models/data/load_status.dart';
 import 'package:kanso/core/models/data/note_drag_data.dart';
+import 'package:kanso/core/models/repos/abs/library_repository.dart';
 import 'package:kanso/core/state/library_index/library_index_bloc.dart';
 import 'package:kanso/core/views/widgets/kanso_badge.dart';
 import 'package:kanso/core/views/widgets/kanso_drawer.dart';
 import 'package:kanso/core/views/widgets/kanso_icon_button.dart';
 import 'package:kanso/core/views/widgets/kanso_sidebar_row.dart';
+import 'package:kanso/injection.dart';
 import 'package:kanso/library/views/widgets/library_pane.dart';
 import 'package:kanso/sharing/state/invitations/invitations_bloc.dart';
 
@@ -118,6 +120,11 @@ void main() {
     library = FixtureLibraryRepository();
     addTearDown(() => unawaited(library.close()));
     registerPageBlocs(library);
+    // Empty Trash asks the repository how many locked notes it will delete.
+    if (!getIt.isRegistered<LibraryRepository>()) {
+      getIt.registerSingleton<LibraryRepository>(library);
+      addTearDown(() => getIt.unregister<LibraryRepository>());
+    }
   });
 
   group('LibraryPane', () {
@@ -347,6 +354,32 @@ void main() {
       expect(_selection(tester)['Trash'], isTrue);
     });
 
+    testWidgets('Empty Trash counts the locked notes it deletes, when there '
+        'are some', (tester) async {
+      final bloc = await _readyIndex(tester, library);
+      await pumpRouted(tester, _pane(bloc));
+      await tester.scrollUntilVisible(find.text('Trash'), 120);
+      await tester.longPress(find.text('Trash'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('in the trash permanently?'), findsOneWidget);
+      expect(find.textContaining('locked'), findsNothing);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      library.lockedInTrashCount = 2;
+      await tester.longPress(find.text('Trash'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining(
+          'permanently, including 2 locked notes and their sealed attachments',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Empty Trash'));
+      await tester.pumpAndSettle();
+      expect(library.adminActions.last.$1, 'emptyTrash');
+    });
+
     testWidgets('a row opens its place', (tester) async {
       final bloc = await _readyIndex(tester, library);
       final router = await pumpRouted(
@@ -564,6 +597,33 @@ void main() {
           name: 'phone_library_templates_${brightness.name}',
           size: phoneSize,
           brightness: brightness,
+        );
+      });
+
+      testWidgets('Empty Trash with locked notes, ${brightness.name}', (
+        tester,
+      ) async {
+        library.lockedInTrashCount = 2;
+        final bloc = await _readyIndex(tester, library);
+        await expectGoldenOnBothPlatforms(
+          tester,
+          Scaffold(
+            body: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: SizedBox(
+                width: phoneSize.width * 0.85,
+                child: _pane(bloc),
+              ),
+            ),
+          ),
+          name: 'phone_library_empty_trash_locked_${brightness.name}',
+          size: phoneSize,
+          brightness: brightness,
+          interact: (tester) async {
+            await tester.scrollUntilVisible(find.text('Trash'), 120);
+            await tester.longPress(find.text('Trash'));
+            await tester.pumpAndSettle();
+          },
         );
       });
 

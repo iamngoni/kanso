@@ -13,6 +13,9 @@ kanso-core.workspace = true
 # first use. flate2 is already in the app for the updater.
 flate2 = "1.1"
 markdown.workspace = true
+# Draws a canvas's ink as the PNGs of an export (Apache-2.0 or MIT), at the
+# version GPUI already draws SVG with. Its tiny-skia is BSD-3-Clause.
+resvg = { version = "0.46", default-features = false, features = ["text"] }
 # Mermaid to SVG in pure Rust, with no dependencies of its own (MIT). Chosen
 # over mermaid-rs-renderer and merman in a spike: closest to Mermaid's own
 # layout, and draws its labels as SVG text that resvg can show.

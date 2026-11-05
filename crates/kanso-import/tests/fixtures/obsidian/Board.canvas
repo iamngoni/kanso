@@ -1,1 +1,19 @@
-{"nodes":[],"edges":[]}
+{
+	"nodes":[
+		{"id":"3c9d1e7a5b2f4a01","type":"group","x":-440,"y":-320,"width":960,"height":600,"label":"Launch","color":"4"},
+		{"id":"3c9d1e7a5b2f4a02","type":"text","text":"# Launch plan\n\n- Ship the beta\n- Write the post","x":-400,"y":-260,"width":320,"height":180,"color":"2"},
+		{"id":"3c9d1e7a5b2f4a03","type":"file","file":"Projects/Plan.md","subpath":"#Milestones","x":40,"y":-260,"width":380,"height":220},
+		{"id":"3c9d1e7a5b2f4a04","type":"file","file":"Attachments/diagram.png","x":-400,"y":-20,"width":320,"height":220},
+		{"id":"3c9d1e7a5b2f4a05","type":"file","file":"Welcome","x":40,"y":20,"width":380,"height":160},
+		{"id":"3c9d1e7a5b2f4a06","type":"file","file":"People/Ada Lovelace.md","x":600,"y":-120,"width":260,"height":120,"color":"#3a86ff"},
+		{"id":"3c9d1e7a5b2f4a07","type":"file","file":"Projects/spec.pdf","x":600,"y":60,"width":260,"height":140},
+		{"id":"3c9d1e7a5b2f4a08","type":"file","file":"Missing/Gone.md","x":600,"y":240,"width":260,"height":100},
+		{"id":"3c9d1e7a5b2f4a09","type":"link","url":"https://jsoncanvas.org/spec/1.0/","x":-400,"y":320,"width":320,"height":120}
+	],
+	"edges":[
+		{"id":"3c9d1e7a5b2f4b01","fromNode":"3c9d1e7a5b2f4a02","fromSide":"right","toNode":"3c9d1e7a5b2f4a03","toSide":"left"},
+		{"id":"3c9d1e7a5b2f4b02","fromNode":"3c9d1e7a5b2f4a02","fromSide":"bottom","fromEnd":"none","toNode":"3c9d1e7a5b2f4a04","toSide":"top","toEnd":"none","label":"see the diagram"},
+		{"id":"3c9d1e7a5b2f4b03","fromNode":"3c9d1e7a5b2f4a03","fromSide":"right","toNode":"3c9d1e7a5b2f4a06","toSide":"left","color":"1"}
+	],
+	"metadata":{"version":"1.0-1.0","frontmatter":{}}
+}

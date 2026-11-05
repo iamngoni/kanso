@@ -428,20 +428,16 @@ impl Services {
     }
 }
 
-/// The server's listen address and credentials from the settings.
+/// The server's listen address from the settings. It needs no login: every
+/// caller brings an API key.
 pub fn server_config(settings: &ServerSettings) -> Result<ServerConfig, String> {
     let ip: IpAddr = settings
         .bind_address
         .trim()
         .parse()
         .map_err(|_| format!("“{}” isn't an IP address", settings.bind_address))?;
-    if settings.username.is_empty() || settings.password.is_empty() {
-        return Err("set a username and password first".into());
-    }
     Ok(ServerConfig {
         bind: SocketAddr::new(ip, settings.port),
-        username: settings.username.clone(),
-        password: settings.password.clone(),
     })
 }
 
@@ -481,7 +477,16 @@ pub fn apply_server_settings(cx: &mut App) {
                 } else {
                     TokenStore::new()
                 };
-                let handle = kanso_server::spawn_with_tokens(store, config, tokens);
+                let keys = match kanso_server::KeyStore::open(store.clone()) {
+                    Ok(keys) => keys,
+                    Err(err) => {
+                        services.api =
+                            ApiState::Failed(format!("couldn't read the API keys: {err}"));
+                        cx.refresh_windows();
+                        return;
+                    }
+                };
+                let handle = kanso_server::spawn_with_tokens(store, config, tokens, keys);
                 let api = api_state(&handle, settings.port);
                 if matches!(api, ApiState::Running(_)) {
                     services.server = Some(handle);
@@ -1017,8 +1022,6 @@ mod tests {
             let settings = ServerSettings {
                 bind_address: ip.to_string(),
                 port,
-                username: "u".into(),
-                password: "p".into(),
                 ..ServerSettings::default()
             };
             let config = server_config(&settings).unwrap();
@@ -1041,18 +1044,21 @@ mod tests {
         let store = std::sync::Arc::new(kanso_store::Store::open(dir.path().join("k.db")).unwrap());
         let settings = ServerSettings {
             port,
-            username: "u".into(),
-            password: "p".into(),
             ..ServerSettings::default()
         };
-        let handle = kanso_server::spawn(store.clone(), server_config(&settings).unwrap());
+        let keys = kanso_server::KeyStore::open(store.clone()).unwrap();
+        let handle = kanso_server::spawn(
+            store.clone(),
+            server_config(&settings).unwrap(),
+            keys.clone(),
+        );
         assert_eq!(api_state(&handle, port), ApiState::PortInUse(port));
         drop(taken);
         let settings = ServerSettings {
             port: 0,
             ..settings
         };
-        let handle = kanso_server::spawn(store, server_config(&settings).unwrap());
+        let handle = kanso_server::spawn(store, server_config(&settings).unwrap(), keys);
         assert!(matches!(api_state(&handle, 0), ApiState::Running(_)));
         handle.stop().unwrap();
     }

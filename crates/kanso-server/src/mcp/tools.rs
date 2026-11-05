@@ -10,8 +10,6 @@
 //! may not see is answered exactly as a missing one, results are filtered
 //! before they are cut to their limit, and every note shown is noted.
 
-use std::path::Path;
-
 use base64::Engine as _;
 use base64::engine::DecodePaddingMode;
 use base64::engine::general_purpose::{GeneralPurpose, GeneralPurposeConfig, STANDARD};
@@ -27,7 +25,8 @@ use super::schema;
 use crate::AppState;
 use crate::api::{self, NoteQuery};
 use crate::error::ApiError;
-use crate::scope::{self, Visibility};
+use crate::keyed::{self, Key};
+use crate::scope::{self, READ_TOOLS, Visibility};
 
 type Args = Map<String, Value>;
 
@@ -36,6 +35,10 @@ struct ToolError(String);
 
 impl From<ApiError> for ToolError {
     fn from(err: ApiError) -> Self {
+        // A key told it may not do this is told how to fix it.
+        if err.status == axum::http::StatusCode::FORBIDDEN {
+            return ToolError(err.reason);
+        }
         ToolError(err.fetch_error_text())
     }
 }
@@ -91,37 +94,161 @@ pub(crate) fn call(
         ("kanso-ask-read-lines", Some(vis)) => ask_read_lines(vis, &args),
         ("kanso-ask-when", Some(vis)) => ask_when(store, vis, &args),
         // Nothing else is ever an agent's; the scope is checked before this.
-        (_, Some(_)) => Err(ToolError(super::READ_ONLY.to_owned())),
-        (name, None) => call_full(state, name, args),
+        // Every caller is checked through a `Visibility`.
+        (_, _) => Err(ToolError(super::READ_ONLY.to_owned())),
     };
     result.unwrap_or_else(|ToolError(message)| error_result(message))
 }
 
-/// The tools only the local API's own sign-in reaches.
-fn call_full(state: &AppState, name: &str, args: Args) -> ToolResult {
-    let store = &*state.store;
+/// Runs `tools/call` for a key that can read and write: the reads of
+/// [`READ_TOOLS`] through its visibility, every other tool after its target
+/// is checked against the same visibility. A key is never given local file
+/// paths (`create-file` with `filePath`, `read-file` with `outputPath`).
+pub(crate) fn call_write(
+    state: &AppState,
+    key: &Key,
+    vis: &Visibility,
+    name: &str,
+    arguments: Option<&Value>,
+) -> Value {
+    if READ_TOOLS.contains(&name) {
+        return call(state, Some(vis), name, arguments);
+    }
+    let Some(tool) = schema::tool(name) else {
+        return error_result(format!("MCP error -32602: Tool {name} not found"));
+    };
+    let args = match tool.validate(arguments) {
+        Ok(args) => args,
+        Err(issues) => {
+            return error_result(format!(
+                "MCP error -32602: Input validation error: Invalid arguments for tool {name}: {issues}"
+            ));
+        }
+    };
+    let result = guard_write(&state.store, key, vis, name, &args)
+        .and_then(|()| call_full(state, key, vis, name, args));
+    result.unwrap_or_else(|ToolError(message)| error_result(message))
+}
+
+/// Checks the notes and notebooks a writing tool names against what the
+/// key sees.
+fn guard_write(
+    store: &Store,
+    key: &Key,
+    vis: &Visibility,
+    name: &str,
+    args: &Args,
+) -> Result<(), ToolError> {
+    let note = |field: &str| with_prefix(DocType::Note, str_arg(args, field));
+    // A note the key must see to read or change it.
+    let sees = |id: &str| {
+        if vis.note(id).is_some() {
+            Ok(())
+        } else {
+            Err(ToolError::from(ApiError::not_found()))
+        }
+    };
+    let dest = |book: &str| {
+        if keyed::dest_ok(vis, key.scope, book) {
+            Ok(())
+        } else {
+            Err(ToolError(format!(
+                "This key is limited to some notebooks, and {book} is not one of them. In Kanso, open Settings \u{203a} Local API \u{203a} API keys and create a key for the notebooks you need."
+            )))
+        }
+    };
     match name {
-        "read-backlinks" => read_backlinks(store, &args),
+        "create-note" => keyed::check_write(store, key, vis, DocType::Note, None, args)?,
+        "update-note" | "patch-note" => {
+            let id = str_arg(args, "_id");
+            keyed::check_write(store, key, vis, DocType::Note, Some(id), args)?;
+        }
+        "create-book" => keyed::check_write(store, key, vis, DocType::Book, None, args)?,
+        "update-book" => {
+            let id = str_arg(args, "_id");
+            keyed::check_write(store, key, vis, DocType::Book, Some(id), args)?;
+        }
+        "read-book" => {
+            if !vis.book_visible(&with_prefix(DocType::Book, str_arg(args, "bookId"))) {
+                return Err(ApiError::not_found().into());
+            }
+        }
+        "update-tag" => {
+            let id = str_arg(args, "_id");
+            keyed::check_write(store, key, vis, DocType::Tag, Some(id), args)?;
+        }
+        "read-file" => {
+            let file = with_prefix(DocType::File, str_arg(args, "fileId"));
+            if !keyed::file_visible(key.scope, vis, &file) {
+                return Err(ApiError::not_found().into());
+            }
+        }
+        "kanso-read-attachment" => {
+            sees(&note("noteId"))?;
+            let file = with_prefix(DocType::File, str_arg(args, "fileId"));
+            if !keyed::file_visible(key.scope, vis, &file) {
+                return Err(ApiError::not_found().into());
+            }
+        }
+        "kanso-set-task-done"
+        | "kanso-attach-file"
+        | "kanso-list-attachments"
+        | "kanso-export-html" => sees(&note("noteId"))?,
+        "kanso-move-note" => {
+            sees(&note("noteId"))?;
+            dest(&keyed::book_arg(str_arg(args, "bookId")))?;
+        }
+        "kanso-create-from-template" => {
+            sees(&note("templateId"))?;
+            match opt_str(args, "bookId") {
+                Some(book) => dest(&keyed::book_arg(book))?,
+                // Without one the note goes to the Inbox, which may not be
+                // one of the key's notebooks.
+                None if key.scope.notebooks.is_some() => {
+                    return Err(ToolError(
+                        "This key is limited to some notebooks: pass `bookId`, one of them, to say where the note goes.".into(),
+                    ));
+                }
+                None => {}
+            }
+        }
+        "kanso-create-daily-note" if key.scope.notebooks.is_some() => {
+            return Err(ToolError(
+                "This key is limited to some notebooks, so it can't create daily notes. In Kanso, open Settings \u{203a} Local API \u{203a} API keys and create a key for all notebooks."
+                    .into(),
+            ));
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+/// The tools only a key that can write reaches. `vis` is the key's.
+fn call_full(state: &AppState, key: &Key, vis: &Visibility, name: &str, args: Args) -> ToolResult {
+    let store = &*state.store;
+    let file_shown = |id: &str| keyed::file_visible(key.scope, vis, id);
+    match name {
+        "read-backlinks" => read_backlinks(store, vis, &args),
         "create-note" => upsert(store, DocType::Note, args),
         "update-note" => update_note(store, args),
         "patch-note" => patch_note(store, &args),
-        "list-tags" => list(store, DocType::Tag),
-        "read-tag" => read(store, DocType::Tag, &args, "tagId"),
+        "list-tags" => list(keyed::list_docs(store, key, DocType::Tag, None, 0)?),
+        "read-tag" => read(store, key, DocType::Tag, &args, "tagId"),
         "create-tag" => upsert(store, DocType::Tag, args),
         "update-tag" => merge(store, args, false),
-        "list-notebooks" => list(store, DocType::Book),
-        "read-book" => read(store, DocType::Book, &args, "bookId"),
+        "list-notebooks" => list(keyed::list_docs(store, key, DocType::Book, None, 0)?),
+        "read-book" => read(store, key, DocType::Book, &args, "bookId"),
         "create-book" => upsert(store, DocType::Book, args),
         "update-book" => merge(store, args, true),
-        "create-file" => create_file(store, state.local_files, &args),
-        "read-file" => read_file(store, state.local_files, &args),
+        "create-file" => create_file(store, &args),
+        "read-file" => read_file(store, &args),
         "kanso-create-daily-note" => create_daily_note(store, &args),
         "kanso-create-from-template" => create_from_template(store, &args),
-        "kanso-export-html" => export_html(store, &args),
+        "kanso-export-html" => export_html(store, &args, &file_shown),
         "kanso-set-task-done" => set_task_done(store, &args),
         "kanso-move-note" => move_note(store, &args),
         "kanso-attach-file" => attach_file(store, &args),
-        "kanso-list-attachments" => list_attachments(store, &args),
+        "kanso-list-attachments" => list_attachments(store, &args, &file_shown),
         "kanso-read-attachment" => read_attachment(store, &args),
         _ => Err(ToolError(format!(
             "MCP error -32602: Tool {name} not found"
@@ -185,10 +312,24 @@ fn list_visible_books(store: &Store, vis: &Visibility) -> ToolResult {
                 .and_then(Value::as_str)
                 .is_some_and(|id| vis.book_visible(id))
         })
-        .map(|book| {
-            let mut book = scope::strip(book);
-            if let Some(fields) = book.as_object_mut() {
-                fields.remove("count");
+        .map(scope::strip)
+        .collect();
+    // Agents get no count; a key the count of the notes it sees.
+    let counts = if vis.keeps_counts() {
+        Some(keyed::Counts::of(store, vis)?)
+    } else {
+        None
+    };
+    let books: Vec<Value> = books
+        .into_iter()
+        .map(|mut book| {
+            match &counts {
+                Some(counts) => counts.apply(&mut book),
+                None => {
+                    if let Some(fields) = book.as_object_mut() {
+                        fields.remove("count");
+                    }
+                }
             }
             book
         })
@@ -281,7 +422,7 @@ fn create_from_template(store: &Store, args: &Args) -> ToolResult {
 
 /// `kanso-export-html`: the note as a standalone page, in Kanso's light or
 /// dark theme.
-fn export_html(store: &Store, args: &Args) -> ToolResult {
+fn export_html(store: &Store, args: &Args, file_shown: &dyn Fn(&str) -> bool) -> ToolResult {
     let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
     let note = api::get_doc(store, &id, None, false)?;
     let palette = match opt_str(args, "theme") {
@@ -289,7 +430,7 @@ fn export_html(store: &Store, args: &Args) -> ToolResult {
         _ => kanso_render::Palette::LIGHT,
     };
     let attachments = |id: &str| {
-        if store.attachment_state(id).ok() == Some(AttachmentState::Sealed) {
+        if !file_shown(id) || store.attachment_state(id).ok() == Some(AttachmentState::Sealed) {
             return None;
         }
         store
@@ -604,12 +745,13 @@ fn attach_file(store: &Store, args: &Args) -> ToolResult {
 }
 
 /// Lists attachment metadata for files embedded in a visible note.
-fn list_attachments(store: &Store, args: &Args) -> ToolResult {
+fn list_attachments(store: &Store, args: &Args, file_shown: &dyn Fn(&str) -> bool) -> ToolResult {
     let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
     let note = native_visible_note(store, None, &id)?;
     let body = note.get("body").and_then(Value::as_str).unwrap_or_default();
     let files: Vec<Value> = kanso_core::tasks::linked_file_ids(body)
         .into_iter()
+        .filter(|file_id| file_shown(file_id))
         .filter_map(|file_id| {
             api::get_doc(store, &file_id, None, false).ok().map(|file| {
                 json!({
@@ -800,14 +942,21 @@ fn read_note(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResult
     result(blocks)
 }
 
-fn read_backlinks(store: &Store, args: &Args) -> ToolResult {
+fn read_backlinks(store: &Store, vis: &Visibility, args: &Args) -> ToolResult {
     let link = note_uri(&with_prefix(DocType::Note, str_arg(args, "noteId")));
     let query = NoteQuery {
         keyword: link.clone(),
         limit: Some(100),
         ..NoteQuery::default()
     };
-    let notes = api::list_notes(store, &query)?;
+    let notes: Vec<Value> = api::list_notes(store, &query)?
+        .into_iter()
+        .filter(|note| {
+            note.get("_id")
+                .and_then(Value::as_str)
+                .is_some_and(|id| vis.allows(id))
+        })
+        .collect();
     if notes.is_empty() {
         return result(vec![text(format!("No backlinks found for {link}."))]);
     }
@@ -1327,14 +1476,17 @@ fn patch_note(store: &Store, args: &Args) -> ToolResult {
     upsert_note(store, note)
 }
 
-fn list(store: &Store, doc_type: DocType) -> ToolResult {
-    let docs = Value::Array(api::list_docs(store, doc_type, None, 0)?);
-    result(vec![text(pretty(&docs))])
+/// `list-tags` and `list-notebooks` for a key: what it sees, counted as
+/// it sees them.
+fn list(docs: Vec<Value>) -> ToolResult {
+    result(vec![text(pretty(&Value::Array(docs)))])
 }
 
-fn read(store: &Store, doc_type: DocType, args: &Args, key: &str) -> ToolResult {
-    let id = with_prefix(doc_type, str_arg(args, key));
-    let doc = api::get_doc(store, &id, None, false)?;
+/// `read-tag` and `read-book` for a key: "not found" for one it doesn't
+/// see, and the count of the notes it sees.
+fn read(store: &Store, key: &Key, doc_type: DocType, args: &Args, field: &str) -> ToolResult {
+    let id = with_prefix(doc_type, str_arg(args, field));
+    let doc = keyed::get_doc(store, key, &id, None, false)?;
     result(vec![text(pretty(&doc))])
 }
 
@@ -1365,26 +1517,9 @@ fn decode_base64_leniently(data: &str) -> Vec<u8> {
     LENIENT.decode(clean).unwrap_or_default()
 }
 
-/// The image type for a path's extension, as `inferImageContentType` does,
-/// and `application/pdf` for a `.pdf` (the store checks it starts like one).
-fn infer_image_type(path: &str) -> Option<&'static str> {
-    let ext = Path::new(path).extension()?.to_str()?.to_lowercase();
-    match ext.as_str() {
-        "pdf" => Some("application/pdf"),
-        "png" => Some("image/png"),
-        "jpeg" | "jpg" => Some("image/jpeg"),
-        "svg" | "svg+xml" => Some("image/svg+xml"),
-        "gif" => Some("image/gif"),
-        "heic" => Some("image/heic"),
-        "heif" => Some("image/heif"),
-        _ => None,
-    }
-}
+const NO_LOCAL_FILES: &str = "API keys are not given local file paths. Send the file's bytes in `data` instead (a large PDF can be sent to POST /files), and leave out `outputPath` to get the bytes in the answer.";
 
-const NO_LOCAL_FILES: &str =
-    "local file access is only available when the server is bound to a loopback address";
-
-fn create_file(store: &Store, local_files: bool, args: &Args) -> ToolResult {
+fn create_file(store: &Store, args: &Args) -> ToolResult {
     let file_path = opt_str(args, "filePath");
     let data = opt_str(args, "data");
     if file_path.is_some() == data.is_some() {
@@ -1392,24 +1527,13 @@ fn create_file(store: &Store, local_files: bool, args: &Args) -> ToolResult {
             "Failed to create the attachment: provide exactly one of `filePath` or `data`.".into(),
         ));
     }
-    let mut name = opt_str(args, "name").map(str::to_owned);
-    let mut content_type = opt_str(args, "contentType").map(str::to_owned);
+    let name = opt_str(args, "name").map(str::to_owned);
+    let content_type = opt_str(args, "contentType").map(str::to_owned);
     let bytes = match (file_path, data) {
         (Some(path), _) => {
-            if !local_files {
-                return Err(ToolError(format!(
-                    "Failed to read the file at {path}: {NO_LOCAL_FILES}"
-                )));
-            }
-            let bytes = std::fs::read(path)
-                .map_err(|err| ToolError(format!("Failed to read the file at {path}: {err}")))?;
-            content_type = content_type.or_else(|| infer_image_type(path).map(str::to_owned));
-            name = name.or_else(|| {
-                Path::new(path)
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-            });
-            bytes
+            return Err(ToolError(format!(
+                "Failed to read the file at {path}: {NO_LOCAL_FILES}"
+            )));
         }
         (None, Some(data)) => decode_base64_leniently(data),
         (None, None) => unreachable!("checked above"),
@@ -1482,7 +1606,7 @@ fn ensure_plain_attachment(store: &Store, id: &str) -> Result<(), ToolError> {
     }
 }
 
-fn read_file(store: &Store, local_files: bool, args: &Args) -> ToolResult {
+fn read_file(store: &Store, args: &Args) -> ToolResult {
     let id = with_prefix(DocType::File, str_arg(args, "fileId"));
     ensure_plain_attachment(store, &id)?;
     let output_path = opt_str(args, "outputPath");
@@ -1511,16 +1635,10 @@ fn read_file(store: &Store, local_files: bool, args: &Args) -> ToolResult {
         let content_type = js_string(file.get("contentType"));
         blocks.push(match (data, output_path) {
             (None, _) => text("The attachment data could not be read from the document."),
-            (Some(data), Some(path)) => {
-                if !local_files {
-                    return Err(ToolError(format!(
-                        "Failed to write the attachment to {path}: {NO_LOCAL_FILES}"
-                    )));
-                }
-                std::fs::write(path, decode_base64_leniently(data)).map_err(|err| {
-                    ToolError(format!("Failed to write the attachment to {path}: {err}"))
-                })?;
-                text(format!("Attachment written to {path}"))
+            (Some(_), Some(path)) => {
+                return Err(ToolError(format!(
+                    "Failed to write the attachment to {path}: {NO_LOCAL_FILES}"
+                )));
             }
             (Some(_), None) if !is_viewable_image(&content_type) => text(format!(
                 "The attachment is a {content_type} file, which cannot be displayed inline. Pass `outputPath` to write it to disk."
@@ -1803,14 +1921,5 @@ mod tests {
         assert_eq!(decode_base64_leniently("aGVsbG8"), b"hello");
         assert_eq!(decode_base64_leniently("aGVs\nbG8="), b"hello");
         assert_eq!(decode_base64_leniently("-_8="), [0xfb, 0xff]);
-    }
-
-    #[test]
-    fn image_types_are_inferred_from_extensions() {
-        assert_eq!(infer_image_type("/a/b.PNG"), Some("image/png"));
-        assert_eq!(infer_image_type("x.jpg"), Some("image/jpeg"));
-        assert_eq!(infer_image_type("x.svg"), Some("image/svg+xml"));
-        assert_eq!(infer_image_type(".png"), None);
-        assert_eq!(infer_image_type("x.bmp"), None);
     }
 }

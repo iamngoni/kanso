@@ -37,6 +37,18 @@ pub const MAX_CALLS_PER_TURN: usize = 40;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TokenId(u64);
 
+impl TokenId {
+    /// The ID a suggestion from API key `key` is kept under in the review
+    /// queue. The top bit is set, so it never equals a session token's ID,
+    /// which count up from 1.
+    pub(crate) fn for_key(key: &crate::key_model::KeyId) -> TokenId {
+        let digest = Sha256::digest(key.as_str().as_bytes());
+        let mut bytes = [0u8; 8];
+        bytes.copy_from_slice(&digest[..8]);
+        TokenId(u64::from_be_bytes(bytes) | (1 << 63))
+    }
+}
+
 /// A token just minted. The text is what the agent sends; it is never
 /// printed.
 pub struct Minted {

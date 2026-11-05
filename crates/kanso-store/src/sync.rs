@@ -432,6 +432,7 @@ impl Store {
             .chain(crate::derived::TABLES)
             .chain(crate::embed::TABLES)
             .chain(crate::ocr::TABLES)
+            .chain(crate::pdf_text::TABLES)
             .chain(crate::triage::TABLES)
             .chain(crate::entities::TABLES)
             .chain(crate::overview::TABLES)

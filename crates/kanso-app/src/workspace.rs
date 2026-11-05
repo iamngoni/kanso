@@ -2077,26 +2077,16 @@ impl Workspace {
                 );
             }
             SidebarEvent::EmptyTrash => {
-                let count = self.library.read(cx).counts.trash;
+                let counts = store.trash_counts().unwrap_or_default();
+                let (title, description) = crate::trash_words::empty_trash_question(counts);
                 confirm(
-                    format!("Delete {count} notes in the trash permanently?"),
-                    "They can't be restored afterwards.",
+                    title,
+                    description,
                     "Empty Trash",
                     window,
                     cx,
                     move |window, cx| {
-                        let params = crate::library::search_params(
-                            &Filter::Trash,
-                            "",
-                            Default::default(),
-                            true,
-                        );
-                        let result = store.search_summaries(&params).and_then(|notes| {
-                            notes
-                                .iter()
-                                .try_for_each(|n| store.delete(&n.id, Origin::Ui).map(drop))
-                        });
-                        report(result, window, cx);
+                        report(store.empty_trash(Origin::Ui).map(drop), window, cx);
                     },
                 );
             }

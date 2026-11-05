@@ -140,7 +140,11 @@ abstract interface class LibraryRepository {
   /// The statuses a note can have, and what the desktop calls them.
   Future<Either<ApplicationError, List<StatusChoice>>> statuses();
 
-  /// Deletes every note in the trash for good; how many.
+  /// How many notes in the trash are locked.
+  Future<Either<ApplicationError, int>> lockedInTrash();
+
+  /// Deletes every note in the trash for good, locked ones and their sealed
+  /// attachments too; how many notes.
   Future<Either<ApplicationError, int>> emptyTrash();
 
   /// Copies note [id] as the desktop does: its text, notebook, tags and

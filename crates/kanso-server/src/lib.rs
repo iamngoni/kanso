@@ -3,7 +3,9 @@
 //! The REST endpoints speak a widely used local-server REST API, wire for
 //! wire, so the MCP server `@inkdropapp/mcp-server` and scripts written for
 //! that API work against Kanso unchanged. `/mcp` serves the same 17 MCP tools natively
-//! on the same port. Every route requires HTTP Basic authentication.
+//! on the same port. Every route requires an API key ([`KeyStore`]), sent as
+//! a bearer token or as the password of HTTP Basic. What a key may do is its
+//! access level: read, suggest edits, or read and write.
 //!
 //! Agents on this computer reach `/mcp` with a short-lived bearer token
 //! instead ([`TokenStore`]): read only, and only the notes in the token's
@@ -21,6 +23,9 @@ mod api;
 mod auth;
 mod changeset;
 mod error;
+mod key_model;
+mod keyed;
+mod keys;
 mod mcp;
 mod proposal;
 mod rest;
@@ -42,11 +47,13 @@ use axum::middleware;
 use axum::routing::post;
 use kanso_store::Store;
 
-pub use auth::basic_header;
 pub use changeset::{
     AppliedSet, ApplyFailure, ChangeSet, ChangeSets, Counts, MergeTarget, OpKind, OpState,
     ProposedOp, Selection, TaskId, undo as undo_changes,
 };
+pub use kanso_store::KeyAccess;
+pub use key_model::{KEY_LEN, KEY_PREFIX, KeyId, MintedKey, NewKey};
+pub use keys::{KeyStore, key_from_header};
 pub use proposal::{Applied, ApplyError, ChangeId, NewChange, ProposedChange};
 pub use review::{EXPIRY as REVIEW_EXPIRY, ReviewEvent, ReviewQueue};
 pub use scope::{
@@ -95,52 +102,38 @@ async fn body_limit(
         .await
 }
 
-/// Where the server listens and the credentials it requires.
-#[derive(Clone, PartialEq, Eq)]
+/// Where the server listens. Callers sign in with API keys ([`KeyStore`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ServerConfig {
     pub bind: SocketAddr,
-    pub username: String,
-    pub password: String,
-}
-
-impl fmt::Debug for ServerConfig {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ServerConfig")
-            .field("bind", &self.bind)
-            .field("username", &self.username)
-            .field("password", &"<redacted>")
-            .finish()
-    }
 }
 
 #[derive(Clone)]
 pub(crate) struct AppState {
     pub store: Arc<Store>,
-    /// Whether MCP tools may read and write local files (`create-file` with
-    /// `filePath`, `read-file` with `outputPath`). Only when the server is
-    /// bound to a loopback address, so every client is on this machine.
-    pub local_files: bool,
     /// The agents' tokens, to count and record what each one reads.
     pub tokens: TokenStore,
 }
 
-/// The full API: REST endpoints, `/mcp`, Basic auth and the body limit.
-pub fn router(store: Arc<Store>, config: &ServerConfig) -> Router {
-    router_with_tokens(store, config, TokenStore::new())
+/// The full API: REST endpoints, `/mcp`, sign-in by API key and the body
+/// limit.
+pub fn router(store: Arc<Store>, config: &ServerConfig, keys: KeyStore) -> Router {
+    router_with_tokens(store, config, TokenStore::new(), keys)
 }
 
 /// [`router`], where `/mcp` also takes the agents' tokens in `tokens`.
-pub fn router_with_tokens(store: Arc<Store>, config: &ServerConfig, tokens: TokenStore) -> Router {
+pub fn router_with_tokens(
+    store: Arc<Store>,
+    _config: &ServerConfig,
+    tokens: TokenStore,
+    keys: KeyStore,
+) -> Router {
     let state = AppState {
         store,
-        local_files: config.bind.ip().is_loopback(),
         tokens: tokens.clone(),
     };
     let gate = auth::Gate {
-        credentials: Some(Arc::new(auth::Credentials::new(
-            &config.username,
-            &config.password,
-        ))),
+        keys: Some(keys),
         tokens,
     };
     rest::routes()
@@ -153,21 +146,18 @@ pub fn router_with_tokens(store: Arc<Store>, config: &ServerConfig, tokens: Toke
         .with_state(state)
         .layer(DefaultBodyLimit::max(MAX_ATTACHMENT_BODY_BYTES))
         .layer(middleware::from_fn(body_limit))
+        .layer(middleware::from_fn(rest::write_gate))
         .layer(middleware::from_fn_with_state(gate, auth::require_auth))
 }
 
 /// The agents' private listener: `/mcp` alone, opened by a token in
-/// `tokens` alone. No REST routes, no Basic sign-in, no local files.
+/// `tokens` alone. No REST routes, no API keys, no local files.
 pub fn agents_router(store: Arc<Store>, tokens: TokenStore) -> Router {
     let state = AppState {
         store,
-        local_files: false,
         tokens: tokens.clone(),
     };
-    let gate = auth::Gate {
-        credentials: None,
-        tokens,
-    };
+    let gate = auth::Gate { keys: None, tokens };
     Router::new()
         .route(
             auth::MCP_PATH,
@@ -191,10 +181,11 @@ const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
 pub async fn serve(
     store: Arc<Store>,
     config: ServerConfig,
+    keys: KeyStore,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind(config.bind).await?;
-    serve_on(listener, router(store, &config), shutdown).await
+    serve_on(listener, router(store, &config, keys), shutdown).await
 }
 
 async fn serve_on(
@@ -244,8 +235,8 @@ pub struct ServerHandle {
 /// Binds `config.bind` right away, then serves on a dedicated thread with
 /// its own tokio runtime. The bind result is available immediately from the
 /// handle, so the caller can show "API off: port in use".
-pub fn spawn(store: Arc<Store>, config: ServerConfig) -> ServerHandle {
-    spawn_with_tokens(store, config, TokenStore::new())
+pub fn spawn(store: Arc<Store>, config: ServerConfig, keys: KeyStore) -> ServerHandle {
+    spawn_with_tokens(store, config, TokenStore::new(), keys)
 }
 
 /// [`spawn`], where `/mcp` also takes the agents' tokens in `tokens`.
@@ -253,8 +244,9 @@ pub fn spawn_with_tokens(
     store: Arc<Store>,
     config: ServerConfig,
     tokens: TokenStore,
+    keys: KeyStore,
 ) -> ServerHandle {
-    let app = router_with_tokens(store, &config, tokens.clone());
+    let app = router_with_tokens(store, &config, tokens.clone(), keys);
     spawn_router(config.bind, app, tokens)
 }
 
