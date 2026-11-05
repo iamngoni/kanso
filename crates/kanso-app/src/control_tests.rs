@@ -91,6 +91,31 @@ fn dropping_the_control_server_waits_for_an_accepted_client() {
     assert!(lock_data_dir(dir.path()).unwrap().is_some());
 }
 
+// no-prop-test: a byte trickle must not reset the protocol's total deadline.
+#[test]
+fn a_trickled_control_line_has_one_total_deadline() {
+    let (server, mut client) = UnixStream::pair().unwrap();
+    let sender = std::thread::spawn(move || {
+        for _ in 0..10 {
+            std::thread::sleep(std::time::Duration::from_millis(40));
+            if client.write_all(b"x").is_err() {
+                break;
+            }
+        }
+    });
+
+    let started = std::time::Instant::now();
+    let error = super::unix::read_line(&server, std::time::Duration::from_millis(120))
+        .expect_err("a slow byte trickle cannot keep a line open forever");
+    assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(1),
+        "the deadline applies to the whole line"
+    );
+    drop(server);
+    sender.join().unwrap();
+}
+
 // no-prop-test: verifies every concurrent bind produces an owner-only socket.
 #[test]
 fn concurrent_server_starts_each_create_a_private_socket() {

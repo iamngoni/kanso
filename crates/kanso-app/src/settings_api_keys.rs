@@ -110,6 +110,14 @@ impl ApiKeysPage {
         }
     }
 
+    /// Reads a snapshot against the generation that was current when the
+    /// read began. A concurrent CLI change then remains visible to the next
+    /// poll, even if it happens between reading rows and finishing refresh.
+    fn read_at_generation<T>(keys: &KeyStore, read: impl FnOnce() -> T) -> (u64, T) {
+        let generation = keys.changes();
+        (generation, read())
+    }
+
     /// Reads the live keys and the notebook names again.
     fn refresh(&mut self, cx: &mut Context<Self>) {
         self.error = None;
@@ -119,7 +127,8 @@ impl ApiKeysPage {
         }
         match services::key_store(cx) {
             Ok(keys) => {
-                match keys.list() {
+                let (generation, rows) = Self::read_at_generation(&keys, || keys.list());
+                match rows {
                     Ok(rows) => {
                         self.rows = rows
                             .into_iter()
@@ -128,7 +137,7 @@ impl ApiKeysPage {
                     }
                     Err(err) => self.error = Some(format!("Couldn't list the API keys: {err}")),
                 }
-                self.seen = keys.changes();
+                self.seen = generation;
                 self.keys = Some(keys);
             }
             Err(reason) => self.error = Some(reason),
@@ -796,4 +805,32 @@ pub(crate) fn open_made_sheet_for_test(
         sheet
     });
     open_sheet(sheet, window, cx);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ApiKeysPage;
+    use kanso_server::{KeyAccess, KeyStore};
+
+    #[test]
+    fn a_key_change_during_a_refresh_remains_visible_to_the_next_poll() {
+        let dir = tempfile::tempdir().unwrap();
+        let store =
+            std::sync::Arc::new(kanso_store::Store::open(dir.path().join("kanso.db")).unwrap());
+        let keys = KeyStore::open(store).unwrap();
+
+        let (seen, rows) = ApiKeysPage::read_at_generation(&keys, || {
+            keys.mint(kanso_server::NewKey {
+                name: "Command line".into(),
+                client: "other".into(),
+                access: KeyAccess::Read,
+                books: None,
+            })
+            .unwrap();
+            keys.list()
+        });
+
+        assert_eq!(rows.unwrap().len(), 1);
+        assert_ne!(keys.changes(), seen);
+    }
 }

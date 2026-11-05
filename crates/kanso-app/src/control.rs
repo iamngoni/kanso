@@ -148,7 +148,7 @@ fn answer(
 
 #[cfg(unix)]
 mod unix {
-    use std::io::{BufRead as _, BufReader, Write as _};
+    use std::io::{BufRead as _, BufReader, Read as _, Write as _};
     use std::os::fd::{AsRawFd as _, FromRawFd as _, IntoRawFd as _, OwnedFd};
     use std::os::unix::ffi::OsStrExt as _;
     use std::os::unix::fs::{FileTypeExt as _, MetadataExt as _, PermissionsExt as _};
@@ -416,9 +416,61 @@ mod unix {
         false
     }
 
-    /// One line from `reader`, at most [`MAX_LINE`] long.
-    fn read_line(reader: impl std::io::Read) -> std::io::Result<String> {
+    /// A reader that applies one deadline to every read, so a client cannot
+    /// keep a protocol line alive by sending one byte before each socket
+    /// timeout expires.
+    struct DeadlineReader<'a> {
+        stream: &'a UnixStream,
+        deadline: std::time::Instant,
+    }
+
+    impl std::io::Read for DeadlineReader<'_> {
+        fn read(&mut self, bytes: &mut [u8]) -> std::io::Result<usize> {
+            loop {
+                let remaining = self
+                    .deadline
+                    .saturating_duration_since(std::time::Instant::now());
+                if remaining.is_zero() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::TimedOut,
+                        "timed out reading the control line",
+                    ));
+                }
+                self.stream.set_read_timeout(Some(remaining))?;
+                match self.stream.read(bytes) {
+                    Err(error)
+                        if matches!(
+                            error.kind(),
+                            std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                        ) && std::time::Instant::now() >= self.deadline =>
+                    {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::TimedOut,
+                            "timed out reading the control line",
+                        ));
+                    }
+                    Err(error)
+                        if matches!(
+                            error.kind(),
+                            std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                        ) =>
+                    {
+                        continue;
+                    }
+                    result => return result,
+                }
+            }
+        }
+    }
+
+    /// One line from `stream`, at most [`MAX_LINE`] long and within one
+    /// deadline, including clients that trickle bytes slowly.
+    pub(super) fn read_line(stream: &UnixStream, timeout: Duration) -> std::io::Result<String> {
         let mut line = Vec::new();
+        let reader = DeadlineReader {
+            stream,
+            deadline: std::time::Instant::now() + timeout,
+        };
         BufReader::new(reader.take(MAX_LINE as u64 + 1)).read_until(b'\n', &mut line)?;
         if line.len() > MAX_LINE {
             return Err(std::io::Error::other("the line is too long"));
@@ -443,7 +495,7 @@ mod unix {
             // Nothing is said to a stranger.
             return Ok(());
         }
-        let reply = match serde_json::from_str::<Request>(&read_line(&stream)?) {
+        let reply = match serde_json::from_str::<Request>(&read_line(&stream, CLIENT_WAIT)?) {
             Err(_) => crate::control_model::Reply::Failed {
                 error: "Kanso didn't understand the command. Run the same version of `kanso api-key` as the Kanso that is running.".into(),
             },
@@ -603,7 +655,7 @@ mod unix {
         stream.set_write_timeout(Some(CLIENT_WAIT))?;
         stream.set_read_timeout(Some(ANSWER_WAIT))?;
         (&stream).write_all(&line)?;
-        let reply = read_line(&stream)?;
+        let reply = read_line(&stream, ANSWER_WAIT)?;
         match serde_json::from_str::<Reply>(&reply) {
             Ok(Reply::Done { out, err }) => Ok(Sent::Done(out, err)),
             Ok(Reply::Failed { error }) => Ok(Sent::Failed(error)),
