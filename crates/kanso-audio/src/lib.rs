@@ -15,7 +15,9 @@
 //!
 //! [`system_audio`] is the platform-neutral way to record what the computer
 //! is playing: WASAPI loopback on Windows, a PulseAudio or PipeWire monitor
-//! source on Linux (macOS plugs in the same traits).
+//! source on Linux, and ScreenCaptureKit on macOS (one app's audio, with
+//! the Screen Recording permission asked for only by [`system_apps`]'s
+//! callers, in the Record sheet).
 //!
 //! Nothing here knows about speech models, so playback does not pull in
 //! ONNX Runtime; `kanso-voice` depends on this crate, not the other way
@@ -37,9 +39,12 @@ pub mod recovery;
 pub mod resample;
 pub mod session;
 pub mod source;
+pub mod system_apps;
 pub mod system_audio;
 #[cfg(target_os = "linux")]
 mod system_audio_linux;
+#[cfg(target_os = "macos")]
+mod system_audio_mac;
 #[cfg(windows)]
 mod system_audio_windows;
 
@@ -53,6 +58,33 @@ pub use play::{Player, Status as PlayStatus};
 pub use record_model::*;
 pub use session::{Recorder, RecorderOptions};
 pub use source::{PcmSource, open, open_bytes};
+pub use system_apps::{
+    CaptureApp, GapFiller, MEETING_APPS, PcmBuffer, ScreenAccess, access_words, append_mono,
+    denied_words, picker_order,
+};
+#[cfg(target_os = "macos")]
+pub use system_audio_mac::{
+    access as screen_access, request_access as request_screen_access, running_apps,
+};
+/// Whether Kanso may record other apps' audio. Only macOS asks, so
+/// elsewhere nothing is ever allowed.
+#[cfg(not(target_os = "macos"))]
+pub fn screen_access() -> ScreenAccess {
+    ScreenAccess::NotAllowed
+}
+
+/// Asks for Screen Recording; only macOS has such a permission.
+#[cfg(not(target_os = "macos"))]
+pub fn request_screen_access() -> ScreenAccess {
+    ScreenAccess::NotAllowed
+}
+
+/// The apps that can be picked; only macOS records one app.
+#[cfg(not(target_os = "macos"))]
+pub fn running_apps() -> Vec<CaptureApp> {
+    Vec::new()
+}
+
 pub use system_audio::{
     Availability, SystemAudioBackend, SystemAudioDevice, SystemAudioSource, SystemAudioTarget,
     Unavailable, platform_backend,

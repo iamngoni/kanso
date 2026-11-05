@@ -98,6 +98,7 @@ mod launch;
 mod layout;
 mod library;
 mod library_import;
+mod library_open;
 #[cfg(test)]
 mod links_tests;
 mod live_marks;
@@ -259,7 +260,7 @@ use std::sync::Arc;
 
 use anyhow::{Context as _, Result, bail};
 use gpui_kit::*;
-use kanso_store::{Store, lock_data_dir};
+use kanso_store::lock_data_dir;
 
 use crate::config::AppConfig;
 use crate::services::Services;
@@ -524,13 +525,7 @@ fn forced_x11(config: &AppConfig) -> Option<WindowingRequest> {
 /// Loads the settings, bringing an older file up to date.
 fn load_config(data_dir: &std::path::Path) -> Result<AppConfig> {
     let path = paths::config_path(data_dir);
-    let mut config =
-        AppConfig::load(&path).with_context(|| format!("reading {}", path.display()))?;
-    let migrated = config.migrate();
-    if migrated {
-        config.save(&path)?;
-    }
-    Ok(config)
+    AppConfig::load_migrated(&path).with_context(|| format!("reading {}", path.display()))
 }
 
 /// How long a Kanso opened by an update waits for the one that installed
@@ -558,7 +553,7 @@ fn run_app(
         );
     };
     let config = load_config(&data_dir)?;
-    let store = Arc::new(Store::open(paths::db_path(&data_dir))?);
+    let store = Arc::new(library_open::open_store(&data_dir)?);
     // Files to open: from the command line now, from the system's open
     // events (Finder) and from a second `kanso file.md` later. They wait
     // here until the main window exists.

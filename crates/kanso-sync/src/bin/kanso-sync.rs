@@ -218,7 +218,7 @@ fn open(data_dir: &Path) -> Result<(kanso_store::DataDirLock, Store)> {
     }
     let lock = kanso_store::lock_data_dir(data_dir)?
         .ok_or_else(|| anyhow!("{} is in use by Kanso; quit it first", data_dir.display()))?;
-    let store = Store::open(data_dir.join("kanso.db"))?;
+    let store = kanso_sync::open_library(&data_dir.join("kanso.db"), &*secrets(data_dir)?)?.store;
     Ok((lock, store))
 }
 
