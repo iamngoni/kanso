@@ -1,0 +1,1 @@
+This embeds the whole canvas. Name a group to embed less.

@@ -145,6 +145,49 @@ fn a_crash_with_system_audio_is_one_recording_with_two_lines(cx: &mut TestAppCon
 }
 
 #[gpui_kit::test]
+fn a_mixed_recording_a_crash_left_is_one_meeting_with_both_voices(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let root = in_progress_dir(f.dir.path());
+    let mut options = RecorderOptions::new(
+        Channels::Stereo,
+        vec![RecordSource::Microphone, RecordSource::SystemAudio],
+    );
+    options.id = Some("call-9".into());
+    let recorder = Recorder::create(&root, options).unwrap();
+    let mut pipeline = kanso_audio::MixPipeline::new(recorder, 48_000, 48_000).unwrap();
+    let tone = |hz: f32| -> Vec<f32> {
+        (0..48_000 * 5)
+            .map(|i| 0.4 * (std::f32::consts::TAU * hz * i as f32 / 48_000.0).sin())
+            .collect()
+    };
+    pipeline.feed_you(&tone(300.0));
+    pipeline.feed_meeting(&tone(500.0));
+    pipeline.flush().unwrap();
+    std::mem::forget(pipeline);
+    // One banner, and Recover makes one meeting note with one audio line.
+    cx.update(recording::scan);
+    match notice(cx) {
+        Some(Notice::Crash(banner)) => assert_eq!(banner.id, "call-9"),
+        other => panic!("expected the crash banner, got {other:?}"),
+    }
+    let found = kanso_audio::recovery::scan(&root, None).remove(0);
+    let done = recording::recover_now(&f.store, &found).unwrap();
+    let note = f.store.note(&done.saved.note_id).unwrap().unwrap();
+    assert!(note.title.starts_with("Meeting — "), "{}", note.title);
+    assert_eq!(
+        kanso_engine::recording_player::link_lines(&note.body).len(),
+        1,
+        "{}",
+        note.body
+    );
+    // The stereo recording itself is what is transcribed, so your voice
+    // (the left channel) is in the transcript with the meeting's.
+    assert!(done.system_file_ids.is_empty());
+    assert_eq!(done.saved.file_ids, vec!["file:rec-call-9-1"]);
+    assert!(!root.join("call-9").exists());
+}
+
+#[gpui_kit::test]
 fn a_system_track_left_alone_joins_its_recordings_note(cx: &mut TestAppContext) {
     let f = setup(cx);
     let root = in_progress_dir(f.dir.path());
