@@ -23,6 +23,8 @@ import 'notebook_home.dart';
 import 'notices_types.dart';
 import 'overview_types.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'pdf.dart';
+import 'pdf_types.dart';
 import 'people.dart';
 import 'player.dart';
 import 'publish.dart';
@@ -329,8 +331,12 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   static String? parseColor({required String text}) =>
       KansoCore.instance.api.crateApiLibraryKansoLibraryParseColor(text: text);
 
-  /// Changes one highlight of a PDF in a note drawn at `base_rev`.
-  Future<Saved> pdfHighlightChange({
+  /// Reading a note's PDFs: pages, text and highlights.
+  KansoPdf pdf();
+
+  /// Changes one highlight of a PDF in a note drawn at `base_rev`. A note
+  /// that moved is not refused: the change is made again on its newer text.
+  Future<PdfEdited> pdfHighlightChange({
     required String noteId,
     required String baseRev,
     required String file,

@@ -1800,6 +1800,15 @@ pub enum PreviewLink {
         content_type: String,
         size: u64,
     },
+    /// A PDF attachment, to read: the phone's reader opens it at `page`
+    /// (1-based; the link's `#page=`) and flashes the highlight `highlight`
+    /// (a hint: `#h=`) when the link names them.
+    Pdf {
+        id: String,
+        name: String,
+        page: Option<u32>,
+        highlight: Option<String>,
+    },
     /// A task box: its place in the note's task list.
     Task { index: u32 },
     /// A code block's copy button: its place among the note's code blocks.

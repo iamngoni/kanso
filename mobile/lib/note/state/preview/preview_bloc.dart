@@ -220,6 +220,23 @@ class PreviewBloc extends Bloc<PreviewEvent, PreviewState> {
       case PreviewLink_Web(:final url):
         final opened = await _links.open(url);
         opened.fold((error) => emit(state.copyWith(notice: error)), (_) {});
+      case PreviewLink_Pdf(
+        :final id,
+        :final name,
+        :final page,
+        :final highlight,
+      ):
+        emit(
+          state.copyWith(
+            action: PreviewAction.openPdf(
+              noteId: noteId,
+              file: id,
+              name: name,
+              page: page,
+              highlight: highlight,
+            ),
+          ),
+        );
       case PreviewLink_Attachment(:final id):
         final file = await _library.attachment(id);
         file.fold(

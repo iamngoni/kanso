@@ -219,6 +219,9 @@ import 'notices/state/notices_cubit.dart' as _i919;
 import 'palette/models/repos/abs/palette_repository.dart' as _i704;
 import 'palette/models/repos/impl/rust_palette_repository.dart' as _i97;
 import 'palette/state/palette/palette_bloc.dart' as _i204;
+import 'pdf_reader/models/repos/abs/pdf_reader_repository.dart' as _i367;
+import 'pdf_reader/models/repos/impl/rust_pdf_reader_repository.dart' as _i758;
+import 'pdf_reader/state/pdf_reader/pdf_reader_bloc.dart' as _i818;
 import 'people/models/repos/abs/people_repository.dart' as _i755;
 import 'people/models/repos/impl/rust_people_repository.dart' as _i1053;
 import 'publish/models/repos/abs/publish_repository.dart' as _i1047;
@@ -669,6 +672,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1056.HapticsRepository>(),
       ),
     );
+    gh.lazySingleton<_i367.PdfReaderRepository>(
+      () => _i758.RustPdfReaderRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.factory<_i182.AiSettingsBloc>(
       () => _i182.AiSettingsBloc(gh<_i84.AiRepository>()),
     );
@@ -843,6 +849,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i601.SyncRepository>(
       () => _i564.RustSyncRepository(gh<_i591.KansoSync>()),
+    );
+    gh.factory<_i818.PdfReaderBloc>(
+      () => _i818.PdfReaderBloc(
+        gh<_i367.PdfReaderRepository>(),
+        gh<_i384.PreferencesRepository>(),
+      ),
     );
     gh.factory<_i284.VoiceNoteBloc>(
       () => _i284.VoiceNoteBloc(gh<_i525.VoiceCaptureRepository>()),

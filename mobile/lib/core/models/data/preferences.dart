@@ -125,6 +125,10 @@ abstract class Preferences with _$Preferences {
     /// What decides whether to ask for a review of the app: when it was
     /// first opened, how often it is used, and when it last asked.
     @Default(ReviewPromptRecord()) ReviewPromptRecord reviewPrompt,
+
+    /// The PDFs whose pages are shown as printed rather than smart-inverted
+    /// in a dark theme, keyed by attachment ID.
+    @Default(<String, bool>{}) Map<String, bool> pdfOriginalPages,
   }) = _Preferences;
 
   factory Preferences.fromJson(Map<String, dynamic> json) =>

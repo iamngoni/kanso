@@ -243,21 +243,46 @@ void librarySuite(OpenLibrary open) {
         final after = await library.pdfHighlights(noteId: saved.id);
         expect(after.single.highlights.single.comment, 'Check it');
 
-        // Drawn at an older revision, nothing is written.
-        await expectLater(
-          library.pdfHighlightChange(
-            noteId: saved.id,
-            baseRev: saved.rev,
-            file: 'file:abc123',
-            id: 'h1',
-            change: const PdfHighlightChange.delete(),
-          ),
-          throwsA(isA<KansoError_Conflict>()),
+        // Drawn at an older revision, the delete is replayed on the newer
+        // note text and removes the highlight.
+        final deleted = await library.pdfHighlightChange(
+          noteId: saved.id,
+          baseRev: saved.rev,
+          file: 'file:abc123',
+          id: 'h1',
+          change: const PdfHighlightChange.delete(),
         );
+        expect(deleted.merged, isTrue);
+        expect(deleted.gone, isFalse);
         expect(
           (await library.pdfHighlights(noteId: saved.id)).single.highlights,
-          hasLength(1),
+          isEmpty,
         );
+
+        // If another edit removes it first, replaying the stale delete reports
+        // that the target is gone.
+        final another = await library.create(
+          note: const NewNote(
+            title: 'Report',
+            body: 'Notes\n\n$block\n',
+          ),
+        );
+        await library.pdfHighlightChange(
+          noteId: another.id,
+          baseRev: another.rev,
+          file: 'file:abc123',
+          id: 'h1',
+          change: const PdfHighlightChange.delete(),
+        );
+        final alreadyGone = await library.pdfHighlightChange(
+          noteId: another.id,
+          baseRev: another.rev,
+          file: 'file:abc123',
+          id: 'h1',
+          change: const PdfHighlightChange.delete(),
+        );
+        expect(alreadyGone.gone, isTrue);
+        expect(alreadyGone.merged, isTrue);
       },
     );
 

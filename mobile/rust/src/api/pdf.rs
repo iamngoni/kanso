@@ -27,11 +27,16 @@ impl KansoPdf {
     ) -> Result<PdfOpenResult, KansoError> {
         Ok(
             match self.0.pdf_open(&note_id, &file, password.as_deref())? {
-                PdfOpening::Opened(reader, info) => PdfOpenResult::Opened {
-                    reader: KansoPdfReader(reader),
-                    info,
+                PdfOpening::Opened(reader, info) => PdfOpenResult {
+                    reader: Some(KansoPdfReader(reader)),
+                    info: Some(info),
+                    declined: None,
                 },
-                PdfOpening::Declined(reason) => PdfOpenResult::Declined { reason },
+                PdfOpening::Declined(reason) => PdfOpenResult {
+                    reader: None,
+                    info: None,
+                    declined: Some(reason),
+                },
             },
         )
     }
@@ -42,15 +47,16 @@ impl KansoPdf {
     }
 }
 
-/// What opening a PDF came to.
-pub enum PdfOpenResult {
-    Opened {
-        reader: KansoPdfReader,
-        info: PdfInfo,
-    },
-    Declined {
-        reason: PdfDeclined,
-    },
+/// What opening a PDF came to. Exactly one of `reader` and `declined` is
+/// set: an opened PDF has its [PdfInfo], and one that was not opened says
+/// why.
+pub struct PdfOpenResult {
+    /// The document, when it opened.
+    pub reader: Option<KansoPdfReader>,
+    /// What the document holds, when it opened.
+    pub info: Option<PdfInfo>,
+    /// Why it was not opened, when it was not.
+    pub declined: Option<PdfDeclined>,
 }
 
 /// A PDF open for reading. Dropping it ends the reader.

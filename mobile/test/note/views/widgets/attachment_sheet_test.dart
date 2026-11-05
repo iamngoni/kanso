@@ -9,10 +9,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glados/glados.dart' as glados;
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/views/widgets/kanso_page.dart';
+import 'package:kanso/injection.dart';
 import 'package:kanso/note/views/widgets/attachment_sheet.dart';
+import 'package:kanso/pdf_reader/state/pdf_reader/pdf_reader_bloc.dart';
+import 'package:kanso/pdf_reader/views/pages/pdf_reader_page.dart';
 
 import '../../../helpers/golden.dart';
 import '../../../helpers/pump.dart';
+import '../../../pdf_reader/fakes.dart';
 
 final AttachmentFile _pdf = AttachmentFile(
   id: 'file:plan',
@@ -167,5 +171,49 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.byType(AttachmentImagePage), findsNothing);
+  });
+
+  testWidgets('a PDF with its note opens in the reader', (tester) async {
+    getIt.registerFactory<PdfReaderBloc>(
+      () => PdfReaderBloc(
+        FakePdfReaderRepository(),
+        FakePdfPreferencesRepository(),
+      ),
+    );
+    addTearDown(() async => getIt.reset());
+    await pumpKanso(
+      tester,
+      Builder(
+        builder: (context) => TextButton(
+          onPressed: () => showAttachment(context, _pdf, noteId: 'note-one'),
+          child: const Text('Open PDF'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open PDF'));
+    await tester.pump();
+
+    expect(find.byType(PdfReaderPage), findsOneWidget);
+  });
+
+  testWidgets('a PDF without its note keeps the attachment sheet', (
+    tester,
+  ) async {
+    await pumpKanso(
+      tester,
+      Builder(
+        builder: (context) => TextButton(
+          onPressed: () => showAttachment(context, _pdf),
+          child: const Text('Open PDF'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open PDF'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AttachmentSheet), findsOneWidget);
+    expect(find.text('Garden plan 2026.pdf'), findsOneWidget);
   });
 }

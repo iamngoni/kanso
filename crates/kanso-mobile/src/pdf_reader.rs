@@ -18,10 +18,9 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use kanso_core::links::FILE_LINK_PREFIX;
-use kanso_engine::lock::LockView;
 use kanso_pdf::client::{Deadlines, Worker, WorkerError};
 use kanso_pdf::highlights::{Annotations, Status};
-use kanso_pdf::model::{Color, Quad};
+use kanso_pdf::model::Quad;
 use kanso_pdf::protocol::{ErrorKind, MAX_PAGE_CHARS};
 use kanso_pdf::text::{CharPos, FindIndex, PageText, Point, Selection, TextDoc};
 
@@ -34,11 +33,10 @@ use crate::pdf_reader_model::{
     PdfPageImage, PdfPageMarks, PdfPageSize, PdfRect, PdfSelection,
 };
 
-/// What the desktop says when a PDF in a locked note is opened
-/// (`PDF_IN_LOCKED_NOTE_OPEN` in the desktop editor), word for word: the
-/// attachment isn't sealed with the lock yet there, and the reader would
-/// show its pixels in the clear.
-pub const PDF_IN_LOCKED_NOTE_OPEN: &str = "PDFs in locked notes can't be opened yet, because attachments aren't sealed with the lock. Unlock the note's notebook, or move the PDF to a note that isn't locked.";
+/// What a PDF in a locked note answers while the note is closed: unlocking
+/// opens it (its bytes are sealed with the lock, and are opened with the file
+/// keys of this session; nothing derived from it is ever written unsealed).
+pub const PDF_IN_LOCKED_NOTE_OPEN: &str = "Unlock this note to open its PDF.";
 
 /// The most hits of a search handed to the app at once.
 pub const FIND_HITS_SHOWN: usize = 500;
@@ -53,6 +51,18 @@ pub enum PdfOpening {
 
 /// A PDF open on the phone. Dropping it frees the page cache and ends the
 /// reader's thread.
+///
+/// HOOK for ink on pages (issue #43, step 10, PR #307, not merged). The
+/// phone's reader can show, select and highlight; it can't draw yet. Ink is
+/// the shared stroke code of `kanso-core` and `kanso-render` (the canvas's),
+/// kept in the PDF's block next to its highlights. When #307 lands, the
+/// calls that belong here are: `ink(page)` (a page's strokes, normalised like
+/// a highlight's quads, to lay over the page picture), `add_ink_stroke`,
+/// `erase_ink_stroke` and `erase_ink_partial`, each written with
+/// [`write_with_retry`] on the block so a phone's strokes unite with the
+/// desktop's the way highlights do. The app's page view takes overlay layers
+/// (`PdfPageOverlay` in `mobile/lib/pdf_reader`) so the pen layer is one more
+/// overlay, with the pen tools and both erasers of the canvas's toolbar.
 pub struct PdfReader {
     library: Library,
     note_id: String,
@@ -89,15 +99,27 @@ impl Library {
         password: Option<&str>,
     ) -> Result<PdfOpening, KansoError> {
         guard(|| {
-            let mut note = self.stored(note_id)?;
-            if note.is_locked() || self.reveal(&mut note) != LockView::Plain {
+            // A locked note's text, and the PDF sealed with it, open once the
+            // session holds the lock's keys (as the recording player's parts
+            // do): `readable_text` is that check, and `attachment` opens the
+            // sealed bytes with the file keys the session cached.
+            let Some((_, body)) = self.readable_text(note_id)? else {
                 return Ok(PdfOpening::Declined(PdfDeclined::LockedNote {
                     message: PDF_IN_LOCKED_NOTE_OPEN.to_owned(),
                 }));
+            };
+            if !kanso_core::tasks::linked_file_ids(&body).contains(&file.to_owned()) {
+                return Ok(PdfOpening::Declined(PdfDeclined::NotAPdf));
             }
             let attachment = match self.attachment(file) {
                 Ok(attachment) => attachment,
                 Err(KansoError::NotFound) => return Ok(PdfOpening::Declined(PdfDeclined::NotAPdf)),
+                // Sealed, and this session has not got the key.
+                Err(KansoError::Locked) => {
+                    return Ok(PdfOpening::Declined(PdfDeclined::LockedNote {
+                        message: PDF_IN_LOCKED_NOTE_OPEN.to_owned(),
+                    }));
+                }
                 Err(error) => return Err(error),
             };
             if attachment.content_type != "application/pdf" || !attachment.bytes.starts_with(b"%PDF-")
@@ -138,7 +160,6 @@ impl Library {
                     }));
                 }
             };
-            let body = note.body.clone();
             let editable = Annotations::from_body(&body, file, &md5).is_editable();
             let info = PdfInfo {
                 file: file.to_owned(),

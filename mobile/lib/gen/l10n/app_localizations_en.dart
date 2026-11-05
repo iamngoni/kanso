@@ -1506,6 +1506,157 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get pdfReaderClose => 'Close';
+
+  @override
+  String pdfReaderPageOf(int page, int pages) {
+    return 'Page $page of $pages';
+  }
+
+  @override
+  String pdfReaderPageChip(int page, int pages) {
+    return 'Page $page of $pages. Go to a page.';
+  }
+
+  @override
+  String get pdfReaderLoading => 'Opening the PDF…';
+
+  @override
+  String get pdfReaderOpenFailed => 'The PDF couldn\'t be opened.';
+
+  @override
+  String get pdfReaderTryAgain => 'Try again';
+
+  @override
+  String get pdfReaderUnavailableTitle => 'This PDF can\'t be opened';
+
+  @override
+  String get pdfReaderLockedTitle => 'Locked';
+
+  @override
+  String get pdfReaderRefusedTitle => 'This PDF was refused';
+
+  @override
+  String get pdfReaderNotPdfTitle => 'This file isn\'t a PDF';
+
+  @override
+  String get pdfReaderNotPdfMessage =>
+      'The attachment isn\'t a PDF, or its bytes can\'t be read as one.';
+
+  @override
+  String get pdfReaderPasswordTitle => 'This PDF is password-protected';
+
+  @override
+  String get pdfReaderPasswordMessage => 'Enter its password to read it.';
+
+  @override
+  String get pdfReaderPasswordHint => 'Password';
+
+  @override
+  String get pdfReaderWrongPassword => 'That password doesn\'t open this PDF.';
+
+  @override
+  String get pdfReaderUnlock => 'Open';
+
+  @override
+  String get pdfReaderSearch => 'Search';
+
+  @override
+  String get pdfReaderSearchHint => 'Search this PDF';
+
+  @override
+  String get pdfReaderSearchClear => 'Clear search';
+
+  @override
+  String get pdfReaderSearchSearching => 'Searching…';
+
+  @override
+  String get pdfReaderSearchNone => 'No matches';
+
+  @override
+  String pdfReaderSearchCount(int index, int total) {
+    return '$index of $total';
+  }
+
+  @override
+  String pdfReaderSearchNoText(int pages) {
+    String _temp0 = intl.Intl.pluralLogic(
+      pages,
+      locale: localeName,
+      other: '$pages pages have no text',
+      one: '1 page has no text',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get pdfReaderPreviousMatch => 'Previous match';
+
+  @override
+  String get pdfReaderNextMatch => 'Next match';
+
+  @override
+  String get pdfReaderZoom => 'Zoom';
+
+  @override
+  String get pdfReaderOriginalPage => 'Show the page as printed';
+
+  @override
+  String get pdfReaderInvertPage => 'Invert for dark mode';
+
+  @override
+  String get pdfReaderZoomFitWidth => 'Fit width';
+
+  @override
+  String pdfReaderZoomPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get pdfReaderHighlights => 'Highlights';
+
+  @override
+  String pdfReaderHighlightPage(int page) {
+    return 'Page $page';
+  }
+
+  @override
+  String get pdfReaderNotEditable =>
+      'This note\'s highlights can\'t be changed here.';
+
+  @override
+  String get pdfReaderAddQuote => 'Add quote to note';
+
+  @override
+  String get pdfReaderSelectionCopy => 'Copy';
+
+  @override
+  String get pdfReaderCopied => 'Copied';
+
+  @override
+  String get pdfReaderHighlighting => 'Highlighting…';
+
+  @override
+  String get pdfReaderHighlightAction => 'Highlight';
+
+  @override
+  String get pdfReaderPageFailed => 'This page couldn\'t be drawn.';
+
+  @override
+  String get pdfReaderJumpToPage => 'Go to page';
+
+  @override
+  String get pdfReaderPageNumber => 'Page number';
+
+  @override
+  String pdfReaderInvalidPage(int pages) {
+    return 'Enter a page from 1 to $pages.';
+  }
+
+  @override
+  String get pdfReaderGo => 'Go';
+
+  @override
   String get previewEmptyDrawing => 'An empty drawing';
 
   @override
@@ -3358,16 +3509,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(origin, {
-      'ui': 'Edited in Kanso',
-      'api': 'Replaced through the API',
-      'sync': 'Replaced by sync',
-      'import': 'Replaced by an import',
-      'collab': 'Edited in a shared note',
-      'agent': 'Suggested by an agent, applied by you',
-      'plugin': 'Changed by a plugin',
-      'other': 'Saved version',
-    });
+    String _temp0 = intl.Intl.selectLogic(
+      origin,
+      {
+        'ui': 'Edited in Kanso',
+        'api': 'Replaced through the API',
+        'sync': 'Replaced by sync',
+        'import': 'Replaced by an import',
+        'collab': 'Edited in a shared note',
+        'agent': 'Suggested by an agent, applied by you',
+        'plugin': 'Changed by a plugin',
+        'other': 'Saved version',
+      },
+    );
     return '$_temp0';
   }
 

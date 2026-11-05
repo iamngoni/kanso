@@ -10349,7 +10349,7 @@ extension PreviewLinkPatterns on PreviewLink {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PreviewLink_Note value)?  note,TResult Function( PreviewLink_NewNote value)?  newNote,TResult Function( PreviewLink_Tag value)?  tag,TResult Function( PreviewLink_Heading value)?  heading,TResult Function( PreviewLink_Web value)?  web,TResult Function( PreviewLink_Attachment value)?  attachment,TResult Function( PreviewLink_Task value)?  task,TResult Function( PreviewLink_CopyCode value)?  copyCode,TResult Function( PreviewLink_Due value)?  due,TResult Function( PreviewLink_Audio value)?  audio,TResult Function( PreviewLink_Nothing value)?  nothing,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PreviewLink_Note value)?  note,TResult Function( PreviewLink_NewNote value)?  newNote,TResult Function( PreviewLink_Tag value)?  tag,TResult Function( PreviewLink_Heading value)?  heading,TResult Function( PreviewLink_Web value)?  web,TResult Function( PreviewLink_Attachment value)?  attachment,TResult Function( PreviewLink_Pdf value)?  pdf,TResult Function( PreviewLink_Task value)?  task,TResult Function( PreviewLink_CopyCode value)?  copyCode,TResult Function( PreviewLink_Due value)?  due,TResult Function( PreviewLink_Audio value)?  audio,TResult Function( PreviewLink_Nothing value)?  nothing,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case PreviewLink_Note() when note != null:
@@ -10358,7 +10358,8 @@ return newNote(_that);case PreviewLink_Tag() when tag != null:
 return tag(_that);case PreviewLink_Heading() when heading != null:
 return heading(_that);case PreviewLink_Web() when web != null:
 return web(_that);case PreviewLink_Attachment() when attachment != null:
-return attachment(_that);case PreviewLink_Task() when task != null:
+return attachment(_that);case PreviewLink_Pdf() when pdf != null:
+return pdf(_that);case PreviewLink_Task() when task != null:
 return task(_that);case PreviewLink_CopyCode() when copyCode != null:
 return copyCode(_that);case PreviewLink_Due() when due != null:
 return due(_that);case PreviewLink_Audio() when audio != null:
@@ -10381,7 +10382,7 @@ return nothing(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PreviewLink_Note value)  note,required TResult Function( PreviewLink_NewNote value)  newNote,required TResult Function( PreviewLink_Tag value)  tag,required TResult Function( PreviewLink_Heading value)  heading,required TResult Function( PreviewLink_Web value)  web,required TResult Function( PreviewLink_Attachment value)  attachment,required TResult Function( PreviewLink_Task value)  task,required TResult Function( PreviewLink_CopyCode value)  copyCode,required TResult Function( PreviewLink_Due value)  due,required TResult Function( PreviewLink_Audio value)  audio,required TResult Function( PreviewLink_Nothing value)  nothing,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PreviewLink_Note value)  note,required TResult Function( PreviewLink_NewNote value)  newNote,required TResult Function( PreviewLink_Tag value)  tag,required TResult Function( PreviewLink_Heading value)  heading,required TResult Function( PreviewLink_Web value)  web,required TResult Function( PreviewLink_Attachment value)  attachment,required TResult Function( PreviewLink_Pdf value)  pdf,required TResult Function( PreviewLink_Task value)  task,required TResult Function( PreviewLink_CopyCode value)  copyCode,required TResult Function( PreviewLink_Due value)  due,required TResult Function( PreviewLink_Audio value)  audio,required TResult Function( PreviewLink_Nothing value)  nothing,}){
 final _that = this;
 switch (_that) {
 case PreviewLink_Note():
@@ -10390,7 +10391,8 @@ return newNote(_that);case PreviewLink_Tag():
 return tag(_that);case PreviewLink_Heading():
 return heading(_that);case PreviewLink_Web():
 return web(_that);case PreviewLink_Attachment():
-return attachment(_that);case PreviewLink_Task():
+return attachment(_that);case PreviewLink_Pdf():
+return pdf(_that);case PreviewLink_Task():
 return task(_that);case PreviewLink_CopyCode():
 return copyCode(_that);case PreviewLink_Due():
 return due(_that);case PreviewLink_Audio():
@@ -10409,7 +10411,7 @@ return nothing(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PreviewLink_Note value)?  note,TResult? Function( PreviewLink_NewNote value)?  newNote,TResult? Function( PreviewLink_Tag value)?  tag,TResult? Function( PreviewLink_Heading value)?  heading,TResult? Function( PreviewLink_Web value)?  web,TResult? Function( PreviewLink_Attachment value)?  attachment,TResult? Function( PreviewLink_Task value)?  task,TResult? Function( PreviewLink_CopyCode value)?  copyCode,TResult? Function( PreviewLink_Due value)?  due,TResult? Function( PreviewLink_Audio value)?  audio,TResult? Function( PreviewLink_Nothing value)?  nothing,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PreviewLink_Note value)?  note,TResult? Function( PreviewLink_NewNote value)?  newNote,TResult? Function( PreviewLink_Tag value)?  tag,TResult? Function( PreviewLink_Heading value)?  heading,TResult? Function( PreviewLink_Web value)?  web,TResult? Function( PreviewLink_Attachment value)?  attachment,TResult? Function( PreviewLink_Pdf value)?  pdf,TResult? Function( PreviewLink_Task value)?  task,TResult? Function( PreviewLink_CopyCode value)?  copyCode,TResult? Function( PreviewLink_Due value)?  due,TResult? Function( PreviewLink_Audio value)?  audio,TResult? Function( PreviewLink_Nothing value)?  nothing,}){
 final _that = this;
 switch (_that) {
 case PreviewLink_Note() when note != null:
@@ -10418,7 +10420,8 @@ return newNote(_that);case PreviewLink_Tag() when tag != null:
 return tag(_that);case PreviewLink_Heading() when heading != null:
 return heading(_that);case PreviewLink_Web() when web != null:
 return web(_that);case PreviewLink_Attachment() when attachment != null:
-return attachment(_that);case PreviewLink_Task() when task != null:
+return attachment(_that);case PreviewLink_Pdf() when pdf != null:
+return pdf(_that);case PreviewLink_Task() when task != null:
 return task(_that);case PreviewLink_CopyCode() when copyCode != null:
 return copyCode(_that);case PreviewLink_Due() when due != null:
 return due(_that);case PreviewLink_Audio() when audio != null:
@@ -10440,7 +10443,7 @@ return nothing(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String id,  String? heading,  String? anchor)?  note,TResult Function( String title)?  newNote,TResult Function( String name)?  tag,TResult Function( String id)?  heading,TResult Function( String url)?  web,TResult Function( String id,  String name,  String contentType,  int size)?  attachment,TResult Function( int index)?  task,TResult Function( int index)?  copyCode,TResult Function()?  due,TResult Function( String fileId,  int seconds)?  audio,TResult Function()?  nothing,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String id,  String? heading,  String? anchor)?  note,TResult Function( String title)?  newNote,TResult Function( String name)?  tag,TResult Function( String id)?  heading,TResult Function( String url)?  web,TResult Function( String id,  String name,  String contentType,  int size)?  attachment,TResult Function( String id,  String name,  int? page,  String? highlight)?  pdf,TResult Function( int index)?  task,TResult Function( int index)?  copyCode,TResult Function()?  due,TResult Function( String fileId,  int seconds)?  audio,TResult Function()?  nothing,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PreviewLink_Note() when note != null:
 return note(_that.id,_that.heading,_that.anchor);case PreviewLink_NewNote() when newNote != null:
@@ -10448,7 +10451,8 @@ return newNote(_that.title);case PreviewLink_Tag() when tag != null:
 return tag(_that.name);case PreviewLink_Heading() when heading != null:
 return heading(_that.id);case PreviewLink_Web() when web != null:
 return web(_that.url);case PreviewLink_Attachment() when attachment != null:
-return attachment(_that.id,_that.name,_that.contentType,_that.size);case PreviewLink_Task() when task != null:
+return attachment(_that.id,_that.name,_that.contentType,_that.size);case PreviewLink_Pdf() when pdf != null:
+return pdf(_that.id,_that.name,_that.page,_that.highlight);case PreviewLink_Task() when task != null:
 return task(_that.index);case PreviewLink_CopyCode() when copyCode != null:
 return copyCode(_that.index);case PreviewLink_Due() when due != null:
 return due();case PreviewLink_Audio() when audio != null:
@@ -10471,7 +10475,7 @@ return nothing();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String id,  String? heading,  String? anchor)  note,required TResult Function( String title)  newNote,required TResult Function( String name)  tag,required TResult Function( String id)  heading,required TResult Function( String url)  web,required TResult Function( String id,  String name,  String contentType,  int size)  attachment,required TResult Function( int index)  task,required TResult Function( int index)  copyCode,required TResult Function()  due,required TResult Function( String fileId,  int seconds)  audio,required TResult Function()  nothing,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String id,  String? heading,  String? anchor)  note,required TResult Function( String title)  newNote,required TResult Function( String name)  tag,required TResult Function( String id)  heading,required TResult Function( String url)  web,required TResult Function( String id,  String name,  String contentType,  int size)  attachment,required TResult Function( String id,  String name,  int? page,  String? highlight)  pdf,required TResult Function( int index)  task,required TResult Function( int index)  copyCode,required TResult Function()  due,required TResult Function( String fileId,  int seconds)  audio,required TResult Function()  nothing,}) {final _that = this;
 switch (_that) {
 case PreviewLink_Note():
 return note(_that.id,_that.heading,_that.anchor);case PreviewLink_NewNote():
@@ -10479,7 +10483,8 @@ return newNote(_that.title);case PreviewLink_Tag():
 return tag(_that.name);case PreviewLink_Heading():
 return heading(_that.id);case PreviewLink_Web():
 return web(_that.url);case PreviewLink_Attachment():
-return attachment(_that.id,_that.name,_that.contentType,_that.size);case PreviewLink_Task():
+return attachment(_that.id,_that.name,_that.contentType,_that.size);case PreviewLink_Pdf():
+return pdf(_that.id,_that.name,_that.page,_that.highlight);case PreviewLink_Task():
 return task(_that.index);case PreviewLink_CopyCode():
 return copyCode(_that.index);case PreviewLink_Due():
 return due();case PreviewLink_Audio():
@@ -10498,7 +10503,7 @@ return nothing();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String id,  String? heading,  String? anchor)?  note,TResult? Function( String title)?  newNote,TResult? Function( String name)?  tag,TResult? Function( String id)?  heading,TResult? Function( String url)?  web,TResult? Function( String id,  String name,  String contentType,  int size)?  attachment,TResult? Function( int index)?  task,TResult? Function( int index)?  copyCode,TResult? Function()?  due,TResult? Function( String fileId,  int seconds)?  audio,TResult? Function()?  nothing,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String id,  String? heading,  String? anchor)?  note,TResult? Function( String title)?  newNote,TResult? Function( String name)?  tag,TResult? Function( String id)?  heading,TResult? Function( String url)?  web,TResult? Function( String id,  String name,  String contentType,  int size)?  attachment,TResult? Function( String id,  String name,  int? page,  String? highlight)?  pdf,TResult? Function( int index)?  task,TResult? Function( int index)?  copyCode,TResult? Function()?  due,TResult? Function( String fileId,  int seconds)?  audio,TResult? Function()?  nothing,}) {final _that = this;
 switch (_that) {
 case PreviewLink_Note() when note != null:
 return note(_that.id,_that.heading,_that.anchor);case PreviewLink_NewNote() when newNote != null:
@@ -10506,7 +10511,8 @@ return newNote(_that.title);case PreviewLink_Tag() when tag != null:
 return tag(_that.name);case PreviewLink_Heading() when heading != null:
 return heading(_that.id);case PreviewLink_Web() when web != null:
 return web(_that.url);case PreviewLink_Attachment() when attachment != null:
-return attachment(_that.id,_that.name,_that.contentType,_that.size);case PreviewLink_Task() when task != null:
+return attachment(_that.id,_that.name,_that.contentType,_that.size);case PreviewLink_Pdf() when pdf != null:
+return pdf(_that.id,_that.name,_that.page,_that.highlight);case PreviewLink_Task() when task != null:
 return task(_that.index);case PreviewLink_CopyCode() when copyCode != null:
 return copyCode(_that.index);case PreviewLink_Due() when due != null:
 return due();case PreviewLink_Audio() when audio != null:
@@ -10919,6 +10925,78 @@ as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non
 as String,contentType: null == contentType ? _self.contentType : contentType // ignore: cast_nullable_to_non_nullable
 as String,size: null == size ? _self.size : size // ignore: cast_nullable_to_non_nullable
 as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PreviewLink_Pdf extends PreviewLink {
+  const PreviewLink_Pdf({required this.id, required this.name, this.page, this.highlight}): super._();
+
+
+ final  String id;
+ final  String name;
+ final  int? page;
+ final  String? highlight;
+
+/// Create a copy of PreviewLink
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PreviewLink_PdfCopyWith<PreviewLink_Pdf> get copyWith => _$PreviewLink_PdfCopyWithImpl<PreviewLink_Pdf>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreviewLink_Pdf&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.page, page) || other.page == page)&&(identical(other.highlight, highlight) || other.highlight == highlight));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,id,name,page,highlight);
+
+@override
+String toString() {
+  return 'PreviewLink.pdf(id: $id, name: $name, page: $page, highlight: $highlight)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PreviewLink_PdfCopyWith<$Res> implements $PreviewLinkCopyWith<$Res> {
+  factory $PreviewLink_PdfCopyWith(PreviewLink_Pdf value, $Res Function(PreviewLink_Pdf) _then) = _$PreviewLink_PdfCopyWithImpl;
+@useResult
+$Res call({
+ String id, String name, int? page, String? highlight
+});
+
+
+
+
+}
+/// @nodoc
+class _$PreviewLink_PdfCopyWithImpl<$Res>
+    implements $PreviewLink_PdfCopyWith<$Res> {
+  _$PreviewLink_PdfCopyWithImpl(this._self, this._then);
+
+  final PreviewLink_Pdf _self;
+  final $Res Function(PreviewLink_Pdf) _then;
+
+/// Create a copy of PreviewLink
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? page = freezed,Object? highlight = freezed,}) {
+  return _then(PreviewLink_Pdf(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,page: freezed == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
+as int?,highlight: freezed == highlight ? _self.highlight : highlight // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

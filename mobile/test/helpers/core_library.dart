@@ -58,14 +58,18 @@ File _builtLibrary() {
       : 'so';
   final prefix = Platform.isWindows ? '' : 'lib';
   final name = '${prefix}kanso_mobile_bridge.$extension';
-  final hooks = Directory('.dart_tool/hooks_runner/shared/kanso/build');
+  final folders = <Directory>[
+    Directory('build/native_assets'),
+    Directory('.dart_tool/hooks_runner/shared/kanso/build'),
+  ];
   final found = <File>[
-    if (hooks.existsSync())
-      for (final entity in hooks.listSync(recursive: true))
-        if (entity is File &&
-            entity.uri.pathSegments.last == name &&
-            !_isPhoneBuild(entity))
-          entity,
+    for (final folder in folders)
+      if (folder.existsSync())
+        for (final entity in folder.listSync(recursive: true))
+          if (entity is File &&
+              entity.uri.pathSegments.last == name &&
+              !_isPhoneBuild(entity))
+            entity,
   ]..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
   if (found.isEmpty) {
     throw StateError(
