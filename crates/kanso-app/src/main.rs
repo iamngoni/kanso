@@ -87,6 +87,7 @@ mod icon_theme_file;
 mod icon_theme_import;
 mod icon_themes;
 mod image_size;
+mod ink_ocr;
 mod inspector;
 mod journal;
 mod keys;
@@ -694,6 +695,7 @@ fn run_app(
         related::init(cx);
         voice::init(cx);
         ocr::init(cx);
+        ink_ocr::init(cx);
         open_main_window(cx);
         note_window::restore(cx);
         open_documents::serve(opened, open_main_window, cx);

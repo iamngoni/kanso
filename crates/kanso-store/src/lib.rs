@@ -22,6 +22,7 @@ mod graph;
 mod history;
 mod home;
 mod home_model;
+mod ink_text;
 mod loops;
 mod meaning;
 mod ocr;
@@ -72,6 +73,7 @@ pub use graph::{GraphLink, GraphNote};
 pub use home_model::{
     HomeBook, HomeChild, HomeEntity, HomeLinked, HomeNoteMark, HomeNoteRow, HomeScan, HomeStats,
 };
+pub use ink_text::InkNote;
 pub use loops::{
     BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,
 };

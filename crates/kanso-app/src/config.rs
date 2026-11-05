@@ -559,6 +559,9 @@ pub struct DiscoverySettings {
     /// Reading the words in image attachments, where the system can
     /// (macOS): on by default there.
     pub image_text: bool,
+    /// Reading handwriting on canvases and sketches (`ink_ocr.rs`), where
+    /// the system can (macOS): on by default there.
+    pub ink_text: bool,
     /// How many links out the inspector's graph reaches: 1 or 2.
     pub graph_hops: u8,
     /// Past notes about the paragraph being written (`resurface.rs`): on
@@ -578,6 +581,7 @@ impl Default for DiscoverySettings {
         DiscoverySettings {
             related_notes: false,
             image_text: cfg!(target_os = "macos"),
+            ink_text: cfg!(target_os = "macos"),
             graph_hops: 1,
             resurface: true,
             resurface_margin: true,
@@ -988,6 +992,7 @@ mod tests {
             (
                 any::<bool>(),
                 any::<bool>(),
+                any::<bool>(),
                 1u8..=2,
                 any::<bool>(),
                 any::<bool>(),
@@ -1018,6 +1023,7 @@ mod tests {
                     (
                         related_notes,
                         image_text,
+                        ink_text,
                         graph_hops,
                         resurface,
                         resurface_margin,
@@ -1045,6 +1051,7 @@ mod tests {
                     discovery: DiscoverySettings {
                         related_notes,
                         image_text,
+                        ink_text,
                         graph_hops,
                         resurface,
                         resurface_margin,
