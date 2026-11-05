@@ -1157,7 +1157,14 @@ impl PdfReader {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.on_event(Event::Opened { sizes }, window, cx);
+        self.on_event(
+            Event::Opened {
+                name: "Report.pdf".to_owned(),
+                sizes,
+            },
+            window,
+            cx,
+        );
     }
 
     /// The worker delivered a page's characters.

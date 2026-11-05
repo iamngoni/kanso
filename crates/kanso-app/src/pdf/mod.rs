@@ -348,7 +348,8 @@ impl PdfReader {
 
     fn on_event(&mut self, event: Event, window: &mut Window, cx: &mut Context<Self>) {
         match event {
-            Event::Opened { sizes } => {
+            Event::Opened { name, sizes } => {
+                self.name = name;
                 self.thumb_layout =
                     Layout::uniform_width(&sizes, THUMB_WIDTH, THUMB_GAP, THUMB_PAD);
                 self.sizes = sizes;

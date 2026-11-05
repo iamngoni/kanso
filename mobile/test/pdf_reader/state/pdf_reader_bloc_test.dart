@@ -127,7 +127,9 @@ void main() {
       build: () => _bloc(
         FakePdfReaderRepository(
           opening: const PdfOpening.declined(
-            reason: PdfDeclined.lockedNote(message: 'Unlock this note.'),
+            reason: PdfDeclined.lockedNote(
+              message: 'Unlock the note to open its PDF.',
+            ),
           ),
         ),
       ),
@@ -136,6 +138,10 @@ void main() {
       verify: (bloc) {
         expect(bloc.state.status, PdfReaderStatus.declined);
         expect(bloc.state.declined, isA<PdfDeclined_LockedNote>());
+        expect(
+          (bloc.state.declined! as PdfDeclined_LockedNote).message,
+          'Unlock the note to open its PDF.',
+        );
       },
     );
 

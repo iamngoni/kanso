@@ -38,7 +38,7 @@ pub enum PdfDeclined {
     NeedsPassword,
     /// The password given is not right.
     WrongPassword,
-    /// The note is locked, and PDFs in locked notes can't be opened yet
+    /// The note is closed, and its session has no key for the sealed PDF
     /// (the desktop's `PDF_IN_LOCKED_NOTE_OPEN`, word for word).
     LockedNote { message: String },
     /// The reader isn't in this build, or PDFium did not load.
