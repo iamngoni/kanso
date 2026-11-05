@@ -15,42 +15,9 @@ use kanso_pdf::client::{Deadlines, Worker, WorkerError, WorkerPaths};
 use kanso_pdf::fixtures::{REPORT_BARS, encrypted_pdf, report_pdf, sample_pdf as pdf};
 use kanso_pdf::protocol::{ErrorKind, MAX_LONG_EDGE_PX, MAX_PAGE_BYTES, MAX_PAGES};
 
-const WORKER: &str = env!("CARGO_BIN_EXE_kanso-pdf-worker");
+mod common;
 
-fn library() -> PathBuf {
-    let platform = match (std::env::consts::OS, std::env::consts::ARCH) {
-        ("macos", "aarch64") => "mac-arm64",
-        ("macos", _) => "mac-x64",
-        ("linux", "aarch64") => "linux-arm64",
-        ("linux", _) => "linux-x64",
-        ("windows", "aarch64") => "win-arm64",
-        _ => "win-x64",
-    };
-    let (sub, name) = if cfg!(target_os = "macos") {
-        ("lib", "libpdfium.dylib")
-    } else if cfg!(windows) {
-        ("bin", "pdfium.dll")
-    } else {
-        ("lib", "libpdfium.so")
-    };
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../vendor/pdfium")
-        .join(platform)
-        .join(sub)
-        .join(name);
-    assert!(
-        path.is_file(),
-        "PDFium is missing: run scripts/fetch-pdfium.sh ({path:?})"
-    );
-    path.canonicalize().unwrap()
-}
-
-fn paths() -> WorkerPaths {
-    WorkerPaths {
-        exe: WORKER.into(),
-        library: Some(library()),
-    }
-}
+use common::{WORKER, library, paths};
 
 fn opened(pages: usize) -> Worker {
     let mut worker = Worker::start(&paths()).expect("the worker starts");
