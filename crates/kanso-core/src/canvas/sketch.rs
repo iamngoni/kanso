@@ -3,9 +3,12 @@
 //! plus `kansoSketch` (the box) and `kansoSketchId` (its identity in the note,
 //! because a note can hold several and the text around them moves).
 
+use std::collections::HashSet;
 use std::ops::Range;
 
+use super::edit::unique_id;
 use super::model::{Canvas, INK, Node, Sketch};
+use super::{FENCE as CANVAS_FENCE, NOTE_PREFIX};
 
 /// The fence's info string.
 pub const FENCE: &str = "sketch";
@@ -199,4 +202,155 @@ pub fn index_text(body: &str) -> String {
     }
     out.push_str(&body[from..]);
     out
+}
+
+/// Why a sketch edit wasn't made.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Refusal {
+    /// No fence in the note has that ID: the note changed underneath.
+    Missing,
+    /// The edit would pass a size cap; the words to show.
+    Full(String),
+}
+
+impl Refusal {
+    /// The words to show.
+    pub fn words(&self) -> &str {
+        match self {
+            Refusal::Missing => "This sketch is gone from the note, so nothing was changed.",
+            Refusal::Full(words) => words,
+        }
+    }
+}
+
+/// What "this sketch is full" says.
+pub const SKETCH_FULL: &str = "This sketch is full. Open it as a canvas to keep drawing.";
+
+/// What a note at its sketch cap says to "Insert sketch".
+pub const NOTE_FULL: &str = "This note's sketches are full. Open one as a canvas.";
+
+/// The sketch's JSON as the fence holds it. Pure.
+pub fn to_json(sketch: &Canvas) -> String {
+    serde_json::to_string(sketch).unwrap_or_else(|_| "{}".into())
+}
+
+/// The whole fence for `sketch`. Pure.
+pub fn to_fence(sketch: &Canvas) -> String {
+    format!("```{FENCE}\n{}\n```\n", to_json(sketch))
+}
+
+/// Whether `sketch` is within its own cap. Pure.
+pub fn fits(sketch: &Canvas) -> bool {
+    to_json(sketch).len() <= MAX_SKETCH_BYTES
+}
+
+impl Sketch {
+    /// Whether the point is inside the box. Anything outside is ignored,
+    /// which also keeps a stray pen from growing the note. Pure.
+    pub fn contains(&self, x: f64, y: f64) -> bool {
+        x.is_finite()
+            && y.is_finite()
+            && x >= 0.0
+            && y >= 0.0
+            && x <= f64::from(self.w)
+            && y <= f64::from(self.h)
+    }
+}
+
+/// An ID for a new sketch that no sketch in `body` has. Random.
+pub fn fresh_id(body: &str) -> String {
+    let taken: HashSet<String> = find(body)
+        .iter()
+        .filter_map(|f| serde_json::from_str::<Canvas>(&body[f.json.clone()]).ok())
+        .filter_map(|c| c.kanso_sketch_id)
+        .collect();
+    unique_id("sk-", &taken)
+}
+
+/// The bytes of Kanso sketch JSON `body` holds, all its sketches together.
+/// Pure.
+pub fn used_bytes(body: &str) -> usize {
+    find(body)
+        .into_iter()
+        .filter(|f| read(&body[f.json.clone()]).is_some())
+        .map(|f| f.json.len())
+        .sum()
+}
+
+/// `body` with a new empty `w` by `h` sketch inserted at byte `at` on lines
+/// of its own, and its ID; or why not. A note at its sketch cap refuses (the
+/// app offers to open a sketch as a canvas). Random in the ID.
+pub fn insert(body: &str, at: usize, w: u32, h: u32) -> Result<(String, String), Refusal> {
+    let id = fresh_id(body);
+    let fence = to_fence(&new_sketch(&id, w, h));
+    if used_bytes(body) + fence.len() > MAX_NOTE_SKETCH_BYTES {
+        return Err(Refusal::Full(NOTE_FULL.into()));
+    }
+    let mut at = at.min(body.len());
+    while !body.is_char_boundary(at) {
+        at -= 1;
+    }
+    let (before, after) = body.split_at(at);
+    let mut out = String::with_capacity(body.len() + fence.len() + 4);
+    out.push_str(before);
+    if !before.is_empty() && !before.ends_with("\n\n") {
+        out.push_str(if before.ends_with('\n') { "\n" } else { "\n\n" });
+    }
+    out.push_str(&fence);
+    if !after.is_empty() && !after.starts_with('\n') {
+        out.push('\n');
+    }
+    out.push_str(after);
+    Ok((id, out))
+}
+
+/// [`replace`], refusing before the write when the sketch or the note would
+/// pass its cap, so a sketch can never push the note past its own hard cap.
+/// Pure.
+pub fn replace_checked(body: &str, id: &str, sketch: &Canvas) -> Result<String, Refusal> {
+    if !fits(sketch) {
+        return Err(Refusal::Full(SKETCH_FULL.into()));
+    }
+    let out = replace(body, id, sketch).ok_or(Refusal::Missing)?;
+    // Only a note that grows can be refused: shrinking is always allowed.
+    let after = used_bytes(&out);
+    if after > MAX_NOTE_SKETCH_BYTES && after > used_bytes(body) {
+        return Err(Refusal::Full(NOTE_FULL.into()));
+    }
+    Ok(out)
+}
+
+/// The `canvas` embed that takes a promoted sketch's place. Pure.
+pub fn embed(note_id: &str, width: u32) -> String {
+    format!("```{CANVAS_FENCE}\n{NOTE_PREFIX}{note_id}\nw:{width}\n```\n")
+}
+
+impl Canvas {
+    /// The canvas document a sketch becomes when opened as a canvas: the same
+    /// ink, the same recognized handwriting, no sketch box or ID, now free to
+    /// grow and take cards. Pure.
+    pub fn promoted(&self) -> Canvas {
+        let mut canvas = self.clone();
+        canvas.kanso_sketch = None;
+        canvas.kanso_sketch_id = None;
+        canvas
+    }
+}
+
+/// What promoting sketch `id` yields: the new canvas's document and the
+/// note's body with the fence replaced by an embed of `note_id`, one edit. A
+/// missing ID is `None`, and nothing is promoted. Pure.
+pub fn promote(body: &str, id: &str, note_id: &str) -> Option<(Canvas, String)> {
+    let (_, sketch) = find_by_id(body, id)?;
+    let width = sketch.kanso_sketch.map_or(480, |s| s.w);
+    let next = replace_with_text(body, id, &embed(note_id, width))?;
+    Some((sketch.promoted(), next))
+}
+
+/// The sketches in `body` that are Kanso's, with where each is. Pure.
+pub fn sketches(body: &str) -> Vec<(Found, Canvas)> {
+    find(body)
+        .into_iter()
+        .filter_map(|f| read(&body[f.json.clone()]).map(|c| (f, c)))
+        .collect()
 }
