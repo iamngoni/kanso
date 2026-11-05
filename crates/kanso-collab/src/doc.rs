@@ -56,7 +56,7 @@ impl std::fmt::Debug for CollabDoc {
 
 /// A random 53-bit Yrs client ID: a fresh one every time a document is
 /// loaded, as Yjs does, so two loads never write under one ID.
-fn client_id() -> ClientID {
+pub(crate) fn client_id() -> ClientID {
     let raw = u64::from_be_bytes(random::<8>()) & ((1 << 53) - 1);
     ClientID::new(raw.max(1))
 }
@@ -238,7 +238,7 @@ impl CollabDoc {
 }
 
 /// How many UTF-16 units `text` is: the unit the CRDT counts positions in.
-fn units(text: &str) -> u32 {
+pub(crate) fn units(text: &str) -> u32 {
     u32::try_from(text.encode_utf16().count()).unwrap_or(u32::MAX)
 }
 
@@ -274,7 +274,7 @@ impl Merged {
 
 /// The edits that turn `old` into `new`, in order, each with its offset in
 /// `old`. Adjacent deletes and inserts are joined into one replacement.
-fn edits(old: &str, new: &str) -> Vec<Splice> {
+pub(crate) fn edits(old: &str, new: &str) -> Vec<Splice> {
     // Common prefix and suffix first, on character boundaries: typing is
     // one small change in a long text.
     let prefix = old

@@ -495,3 +495,49 @@ proptest! {
         prop_assert!(s.canvas.validate().is_ok());
     }
 }
+
+#[test]
+fn a_streamed_stroke_keeps_its_id_when_it_ends() {
+    let mut s = state();
+    s.begin(PenSample::mouse(0., 0.), 6.0, 1);
+    for i in 1..12 {
+        s.extend(PenSample::mouse(f64::from(i) * 5., 3.), 6.0, 1);
+    }
+    let (stream, made_layer) = s.streaming(2).expect("a stroke is being drawn");
+    assert!(made_layer);
+    assert!(stream.points.len() >= 2);
+    // The layer is there now, so asking again makes none.
+    assert!(!s.streaming(3).unwrap().1);
+    s.end(4);
+    let (_, stroke) = s.canvas.live_strokes().next().unwrap();
+    assert_eq!(stroke.id, stream.id);
+    // What was streamed is the start of the stroke.
+    assert_eq!(&stroke.points[..stream.points.len()], &stream.points[..]);
+}
+
+#[test]
+fn nothing_streams_without_a_pen_stroke() {
+    let mut s = state();
+    assert!(s.streaming(1).is_none());
+    s.begin(PenSample::mouse(0., 0.), 6.0, 1);
+    assert!(s.streaming(1).is_none(), "a single dot is not streamed");
+}
+
+#[test]
+fn taking_the_engines_canvas_drops_a_selection_that_is_gone() {
+    let mut s = state();
+    drag(&mut s, (0., 0.), (80., 0.), 10, 1);
+    s.tool = Tool::Lasso;
+    s.selection = s
+        .canvas
+        .live_strokes()
+        .map(|(n, st)| canvas::StrokeRef {
+            node: n.id.clone(),
+            stroke: st.id.clone(),
+        })
+        .collect();
+    assert!(!s.selection.is_empty());
+    s.take_canvas(Canvas::default());
+    assert!(s.selection.is_empty());
+    assert_eq!(s.tool, Tool::Lasso);
+}

@@ -54,6 +54,9 @@ pub struct OpenShare {
     pub share_id: String,
     pub note_id: String,
     pub role: Role,
+    /// The shared note is a canvas, drawn on rather than typed in: its
+    /// document goes through the canvas view.
+    pub canvas: bool,
     pub engine: Arc<Engine>,
     /// Keeps the room open; dropped when the note closes.
     pub live: Option<LiveHandle>,

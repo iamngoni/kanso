@@ -90,6 +90,11 @@ pub struct MemberList {
     /// demoted editor's writes can't be slipped in after.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub from_seq: Option<u64>,
+    /// `canvas` for a shared canvas; absent for a text note. The owner signs
+    /// it with the list, so no member can turn a canvas into a text note (or
+    /// back) for the others, whatever the note's body later says.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
     pub members: Vec<Member>,
 }
 
@@ -214,13 +219,58 @@ pub enum Placement {
 }
 
 /// Someone else's cursor in an open shared note, as presence carries it.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PresenceMessage {
     /// Sticky positions (base64url): where the selection started and where
-    /// the caret is. Equal for a plain caret.
+    /// the caret is. Equal for a plain caret. Empty on a canvas.
     pub cursor: String,
     pub head: String,
     pub name: String,
+    /// On a canvas: where the person's pointer is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canvas: Option<CanvasPointer>,
+}
+
+/// Where someone's pen or pointer is on a shared canvas, in canvas
+/// coordinates: the only thing sent while the pen hovers. A stroke being
+/// drawn is not here: it streams as points, so viewers see the real ink.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CanvasPointer {
+    pub x: f64,
+    pub y: f64,
+    /// The tool in hand (`pen`, `eraser`, `lasso`, ...).
+    pub tool: String,
+    /// Counts up with every move this device sends, so a late arrival can
+    /// be told from a newer one.
+    #[serde(default)]
+    pub seq: u64,
+}
+
+/// Someone else's pointer on the open shared canvas.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RemotePointer {
+    pub account: String,
+    pub device: String,
+    pub name: String,
+    pub x: f64,
+    pub y: f64,
+    pub tool: String,
+    /// Which of [`CURSOR_COLOURS`] this author gets.
+    pub colour: usize,
+    pub seen_at: i64,
+}
+
+/// What [`Engine::sync_canvas`](crate::Engine::sync_canvas) gives back.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CanvasMerge {
+    /// The canvas as it is now, tombstones included: the view takes it.
+    pub canvas: kanso_core::canvas::Canvas,
+    /// It differs from the canvas the view sent: others' edits came in, or
+    /// an edit was refused.
+    pub changed: bool,
+    /// The canvas is past what a note can hold: the library keeps the last
+    /// canvas that fit, and the view should say so and refuse new ink.
+    pub full: bool,
 }
 
 /// A remote caret placed in the current text.
