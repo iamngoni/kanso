@@ -15,6 +15,9 @@
 //! 3. **Lock the note**, by the caller (`Store::lock_note` or
 //!    `Store::lock_book`), which checks that every listed file is sealed.
 //!
+//! Files sealed by lock steps for notes locked before sealing existed are in
+//! [`migrate`].
+//!
 //! The functions take what they need (the store, a [`KeyBook`] of file keys)
 //! and no window, so the desktop and the phones share them.
 
@@ -773,6 +776,7 @@ fn seal_file(store: &Store, plan: &Planned) -> Result<(), FilesError> {
     }
     .to_canonical_json()
     .map_err(|_| failed("The attachment's name and type can't be sealed."))?;
+    let plain = blob.data.clone();
     let container = seal_container(
         &plan.target,
         &plan.seal,
@@ -788,11 +792,41 @@ fn seal_file(store: &Store, plan: &Planned) -> Result<(), FilesError> {
             },
         ],
     );
+    // The plain bytes are only replaced by a container that opens to them.
+    if !opens_to(plan, &container, &plain) {
+        return Err(failed("The attachment couldn't be sealed safely."));
+    }
+    let restore = meta.clone();
     let mut marker = FileLock::sealed(plan.seal.encode());
     marker.meta = true;
     FileLock::store(Some(&marker), &mut meta.extra);
     store.put_sealed_file(meta, Attachment::new(container))?;
+    // And what was stored is read back and opened before the plain bytes
+    // are let go: a write that didn't take puts them back.
+    let stored = store.stored_attachment(&plan.target)?;
+    if !stored.is_some_and(|stored| opens_to(plan, &stored.data, &plain)) {
+        let mut back = store
+            .file_meta(&plan.target)?
+            .ok_or_else(|| failed("The attachment is gone."))?;
+        back.name = restore.name;
+        back.content_type = restore.content_type;
+        back.public_in = restore.public_in;
+        store.put_unsealed_file(back, Attachment::new(plain))?;
+        return Err(failed("The attachment couldn't be sealed safely."));
+    }
     Ok(())
+}
+
+/// Whether `container` opens, with the plan's key, to content `plain`.
+fn opens_to(plan: &Planned, container: &[u8], plain: &[u8]) -> bool {
+    open_container(&plan.target, &plan.seal, &plan.key, container)
+        .ok()
+        .and_then(|segments| {
+            segments
+                .into_iter()
+                .find(|segment| segment.kind == SEGMENT_CONTENT)
+        })
+        .is_some_and(|content| content.bytes == plain)
 }
 
 // MARK: Crash recovery
@@ -1022,6 +1056,8 @@ fn unseal_in_place(
     store.put_unsealed_file(meta, Attachment::new(opened.bytes))?;
     Ok(())
 }
+
+pub mod migrate;
 
 #[cfg(test)]
 #[path = "files_tests.rs"]
