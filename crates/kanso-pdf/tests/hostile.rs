@@ -90,6 +90,21 @@ fn run(bytes: &[u8], deadlines: Deadlines) -> Outcome {
             Err(other) => return Outcome::of(other),
         }
     }
+    // The text of a hostile file is asked for too: a page's characters
+    // (the client checks each reply against the request and the caps), a
+    // page that isn't there, and the whole document's words.
+    for page in [0, last, opened.pages] {
+        match worker.text(page) {
+            Ok(_) => {}
+            Err(WorkerError::Refused { .. }) => refused += 1,
+            Err(other) => return Outcome::of(other),
+        }
+    }
+    match worker.document_text(Duration::from_secs(60), &|| false) {
+        Ok(text) => assert_eq!(text.pages.len(), opened.pages as usize),
+        Err(WorkerError::Refused { .. }) => refused += 1,
+        Err(other) => return Outcome::of(other),
+    }
     worker.close();
     Outcome::Opened {
         pages: opened.pages,
