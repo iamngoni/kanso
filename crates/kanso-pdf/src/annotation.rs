@@ -18,7 +18,7 @@ use crate::quote::Edit;
 
 const ID_ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyz234567";
 /// Pages a document may have (the worker refuses more).
-const MAX_PAGE: u32 = 100_000;
+pub(crate) const MAX_PAGE: u32 = 100_000;
 
 /// A fresh highlight id: eight base32 characters.
 pub fn new_highlight_id() -> String {
@@ -92,6 +92,12 @@ impl PdfBlock {
             if !seen.insert(h.id.as_str()) {
                 return Err(PdfError::Malformed("two highlights share an id".into()));
             }
+        }
+        crate::ink::validate_pages(&block.ink)?;
+        if let Some(f) = &block.ink_file
+            && crate::ink::file_id(f).is_none()
+        {
+            return Err(PdfError::Malformed("its ink file is not valid".into()));
         }
         Ok(block)
     }
@@ -180,7 +186,7 @@ fn write_block(b: &PdfBlock) -> String {
         o.push_str("\n  ],\n");
     }
     let mut tail: Vec<String> = Vec::new();
-    if b.ink.is_empty() {
+    if b.ink.is_empty() || b.ink_file.is_some() {
         tail.push("  \"ink\": []".into());
     } else {
         let items: Vec<String> = b.ink.iter().map(|v| format!("    {}", json(v))).collect();

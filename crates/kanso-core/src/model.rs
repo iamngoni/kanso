@@ -20,6 +20,14 @@ pub const PUBLISH_FIELD: &str = "kansoPublish";
 /// device that can't read images still finds them by their words.
 pub const OCR_FIELD: &str = "kansoOcr";
 
+/// The file field (in `extra`) holding the words read from the scanned
+/// pages of a PDF attachment, with their boxes
+/// (`kanso_pdf::ocr::PdfOcr`): `{"md5", "engine", "at", "pages": [...]}`,
+/// where `md5` is the PDF's `md5digest` it was read from. Like [`OCR_FIELD`]
+/// it syncs inside the sealed document, so a device that can't read scans
+/// still finds, selects and highlights the words a Mac read.
+pub const PDF_OCR_FIELD: &str = "kansoPdfOcr";
+
 /// The notebook field (in `extra`) naming the icon it shows in the sidebar
 /// and lists: one of the app's choices, by its Lucide name (`"rocket"`).
 /// It syncs with the notebook; a name the app doesn't know shows the
@@ -428,9 +436,14 @@ pub const SUPPORTED_AUDIO_TYPES: [&str; 7] = [
     "audio/ogg",
 ];
 
+/// The type of the companion attachment that holds a PDF's pencil ink once
+/// it outgrows the note (the app writes it; nothing else attaches it).
+pub const INK_DOCUMENT_TYPE: &str = "application/vnd.kanso.ink+json";
+
 /// Document types the app attaches, so a PDF shared from another app can
-/// sit in a note. The local API's MCP tools keep to images.
-pub const SUPPORTED_DOCUMENT_TYPES: [&str; 1] = ["application/pdf"];
+/// sit in a note, and the pencil ink that goes with one. The local API's MCP
+/// tools keep to images.
+pub const SUPPORTED_DOCUMENT_TYPES: [&str; 2] = ["application/pdf", INK_DOCUMENT_TYPE];
 
 /// Largest attachment the API accepts, in bytes.
 pub const MAX_ATTACHMENT_SIZE: usize = 10 * 1024 * 1024;

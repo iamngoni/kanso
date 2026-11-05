@@ -5,6 +5,8 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use crate::ink::PageInk;
+
 /// The info string of the fence that holds the block.
 pub const BLOCK_FENCE: &str = "kanso-pdf";
 /// The block's text is capped well under the body limit (1,048,576).
@@ -133,10 +135,14 @@ pub struct PdfBlock {
     pub version: u32,
     #[serde(default)]
     pub highlights: Vec<Highlight>,
-    /// Ink strokes by page, in the shared ink format (step 10 defines them).
+    /// Pencil ink by page, in the canvas's stroke format ([`crate::ink`]).
+    /// While `ink_file` is set the strokes are in that attachment and are
+    /// written there, not here: what is here is what was read from it.
     #[serde(default)]
-    pub ink: Vec<Value>,
-    /// The companion ink attachment, when the strokes outgrew the block.
+    pub ink: Vec<PageInk>,
+    /// The companion ink attachment (`inkdrop://file:<id>`), when the strokes
+    /// outgrew the block. The link form is what ties the attachment to the
+    /// note: the store counts a note's linked files from its text.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ink_file: Option<String>,
     /// The ids of deleted highlights, sorted: a merge with a version that

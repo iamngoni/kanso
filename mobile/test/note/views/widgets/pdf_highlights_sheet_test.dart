@@ -9,6 +9,7 @@ import 'package:glados/glados.dart' as glados;
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/utils/context_extensions.dart';
+import 'package:kanso/gen/l10n/app_localizations_en.dart';
 import 'package:kanso/note/views/widgets/pdf_highlights_sheet.dart';
 
 import '../../../helpers/fixture_library_repository.dart';
@@ -21,6 +22,7 @@ const PdfNotes _report = PdfNotes(
   name: 'Quarterly report.pdf',
   url: 'inkdrop://file:abc123',
   editable: true,
+  scannedPages: 0,
   highlights: <PdfHighlightRow>[
     PdfHighlightRow(
       id: 'h7k2m9ab',
@@ -45,6 +47,29 @@ const PdfNotes _report = PdfNotes(
       inNote: true,
     ),
   ],
+  ink: <PdfInkRow>[
+    PdfInkRow(page: 4, strokes: 12),
+    PdfInkRow(page: 7, strokes: 1),
+  ],
+);
+
+/// The report scanned: twelve of its pages were read on a computer.
+const PdfNotes _scanned = PdfNotes(
+  file: 'file:scan42',
+  name: 'Signed contract (scan).pdf',
+  url: 'inkdrop://file:scan42',
+  editable: true,
+  scannedPages: 12,
+  highlights: <PdfHighlightRow>[
+    PdfHighlightRow(
+      id: 's1t2u3vw',
+      page: 2,
+      color: 'green',
+      text: 'The term is twenty-four months from the signing date.',
+      inNote: true,
+    ),
+  ],
+  ink: <PdfInkRow>[],
 );
 
 FixtureLibraryRepository _library(List<PdfNotes> notes) {
@@ -114,6 +139,74 @@ void main() {
       );
     });
   }
+
+  for (final brightness in Brightness.values) {
+    testWidgets('a scanned PDF says its pages are searchable, '
+        '${brightness.name}', (tester) async {
+      final library = _library(<PdfNotes>[_scanned]);
+      await expectGoldenOnBothPlatforms(
+        tester,
+        _sheet(library),
+        name: 'phone_pdf_scanned_${brightness.name}',
+        size: phoneSize,
+        brightness: brightness,
+      );
+    });
+  }
+
+  glados.Glados<int>(glados.any.intInRange(1, 5000), kansoExploreConfig()).test(
+    'the scanned-pages line names the count, in the singular for one',
+    (count) {
+      final said = AppLocalizationsEn().pdfNotesScanned(count);
+      expect(said.endsWith('searchable'), isTrue);
+      expect(
+        said.startsWith(
+          count == 1 ? '1 scanned page ' : '$count scanned pages ',
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets('one scanned page is said in the singular', (tester) async {
+    final library = _library(<PdfNotes>[
+      const PdfNotes(
+        file: 'file:scan42',
+        name: 'Scan.pdf',
+        url: 'inkdrop://file:scan42',
+        editable: true,
+        scannedPages: 1,
+        highlights: <PdfHighlightRow>[
+          PdfHighlightRow(
+            id: 's1t2u3vw',
+            page: 1,
+            color: 'blue',
+            text: 'Words.',
+            inNote: true,
+          ),
+        ],
+        ink: <PdfInkRow>[],
+      ),
+    ]);
+    await pumpKanso(tester, _sheet(library));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('1 scanned page was read on a computer and is searchable'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a PDF with nothing read says nothing about scans', (
+    tester,
+  ) async {
+    final library = _library(<PdfNotes>[_report]);
+    await pumpKanso(tester, _sheet(library));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('pdf-notes-scanned')),
+      findsNothing,
+    );
+  });
 
   testWidgets('rows show the page, the comment and what is not in the note', (
     tester,
@@ -186,6 +279,7 @@ void main() {
         name: 'Quarterly report.pdf',
         url: 'inkdrop://file:abc123',
         editable: false,
+        scannedPages: 0,
         why: 'broken',
         highlights: <PdfHighlightRow>[
           PdfHighlightRow(
@@ -196,6 +290,7 @@ void main() {
             inNote: true,
           ),
         ],
+        ink: <PdfInkRow>[PdfInkRow(page: 4, strokes: 3)],
       ),
     ]);
     await pumpKanso(tester, _sheet(library));
@@ -207,6 +302,75 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('pdf-row-h7k2m9ab')));
     await tester.pumpAndSettle();
     expect(find.text('Delete highlight'), findsNothing);
+  });
+
+  testWidgets('pencil pages are listed and one can be cleared', (tester) async {
+    tester.view.physicalSize = const Size(800, 3000);
+    addTearDown(tester.view.reset);
+    final library = _library(<PdfNotes>[_report]);
+    await pumpKanso(tester, _sheet(library));
+    await tester.pumpAndSettle();
+    expect(find.text('Pencil marks'), findsOneWidget);
+    expect(find.text('Page 4 · 12 strokes'), findsOneWidget);
+    expect(find.text('Page 7 · 1 stroke'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('pdf-ink-clear-file:abc123-7')),
+    );
+    await tester.pumpAndSettle();
+    expect(library.pdfInkCleared.map((c) => (c.$3, c.$4)).toList(), <
+      (
+        String,
+        int,
+      )
+    >[
+      ('file:abc123', 7),
+    ]);
+    expect(library.pdfInkCleared.single.$2, isNotEmpty);
+  });
+
+  testWidgets('pencil marks that cannot be edited have no clear button', (
+    tester,
+  ) async {
+    final library = _library(<PdfNotes>[
+      const PdfNotes(
+        file: 'file:abc123',
+        name: 'Quarterly report.pdf',
+        url: 'inkdrop://file:abc123',
+        editable: false,
+        scannedPages: 0,
+        why: 'broken',
+        highlights: <PdfHighlightRow>[],
+        ink: <PdfInkRow>[PdfInkRow(page: 2, strokes: 5)],
+      ),
+    ]);
+    await pumpKanso(tester, _sheet(library));
+    await tester.pumpAndSettle();
+    expect(find.text('Page 2 · 5 strokes'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('pdf-ink-clear-file:abc123-2')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('a note with only pencil marks does not say it is empty', (
+    tester,
+  ) async {
+    final library = _library(<PdfNotes>[
+      const PdfNotes(
+        file: 'file:abc123',
+        name: 'Quarterly report.pdf',
+        url: 'inkdrop://file:abc123',
+        editable: true,
+        scannedPages: 0,
+        highlights: <PdfHighlightRow>[],
+        ink: <PdfInkRow>[PdfInkRow(page: 1, strokes: 2)],
+      ),
+    ]);
+    await pumpKanso(tester, _sheet(library));
+    await tester.pumpAndSettle();
+    expect(find.text('This note has no highlights.'), findsNothing);
+    expect(find.text('Page 1 · 2 strokes'), findsOneWidget);
   });
 
   testWidgets('a note with no highlights says so', (tester) async {

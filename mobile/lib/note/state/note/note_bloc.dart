@@ -13,6 +13,7 @@ import '../../../core/bridge/api/types.dart';
 import '../../../core/models/data/application_error.dart';
 import '../../../core/models/repos/abs/library_repository.dart';
 import '../../../core/models/repos/abs/renderer_repository.dart';
+import '../../../core/models/repos/abs/session_repository.dart';
 import '../../../core/utils/debounce.dart';
 import '../../../core/utils/source_lines.dart';
 import '../../models/data/new_note_start.dart';
@@ -42,7 +43,7 @@ const Duration noteDebounce = Duration(milliseconds: 100);
 /// again until the note is read again, in Preview.
 @injectable
 class NoteBloc extends Bloc<NoteEvent, NoteState> {
-  NoteBloc(this._library, this._renderer, this._places)
+  NoteBloc(this._library, this._renderer, this._places, [this._session])
     : super(const NoteState()) {
     on<NoteStartedEvent>(_onStarted, transformer: restartable());
     on<NoteChangesReceivedEvent>(
@@ -64,6 +65,7 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
   final LibraryRepository _library;
   final RendererRepository _renderer;
   final NotePlaceRepository _places;
+  final SessionRepository? _session;
   StreamSubscription<List<String>>? _changes;
   int _reading = 0;
 
@@ -191,12 +193,15 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
             : state.copyWith(status: NoteScreenStatus.failed, error: error),
       ),
       (note) async {
+        final failure = await _session?.takeSealFailureNotice();
+        final notice = failure?.fold((_) => null, (words) => words);
         final body = note.body;
         if (note.lock is LockState_Closed || body == null) {
           emit(
             state.copyWith(
               status: NoteScreenStatus.locked,
               note: note,
+              openNotice: notice,
               lines: const <SourceLine>[],
               error: null,
             ),
@@ -235,6 +240,7 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
               caretInBody: true,
               note: note,
               lines: lines,
+              openNotice: notice,
               error: null,
             ),
           );
@@ -244,6 +250,7 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
               status: NoteScreenStatus.ready,
               note: note,
               lines: lines,
+              openNotice: notice,
               error: null,
             ),
           );

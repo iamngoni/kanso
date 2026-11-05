@@ -313,6 +313,7 @@ fn check(schema: &Value, value: &Value, path: &mut Vec<Segment>, issues: &mut Ve
     }
     match value {
         Value::String(s) => check_string(schema, s, path, issues),
+        Value::Number(number) => check_number(schema, number, path, issues),
         Value::Array(items) => {
             if let Some(item_schema) = schema.get("items") {
                 for (i, item) in items.iter().enumerate() {
@@ -323,6 +324,33 @@ fn check(schema: &Value, value: &Value, path: &mut Vec<Segment>, issues: &mut Ve
             }
         }
         _ => {}
+    }
+}
+
+fn check_number(
+    schema: &Value,
+    number: &serde_json::Number,
+    path: &[Segment],
+    issues: &mut Vec<Issue>,
+) {
+    let Some(value) = number.as_f64() else {
+        return;
+    };
+    if let Some(minimum) = schema.get("minimum").and_then(Value::as_f64)
+        && value < minimum
+    {
+        issues.push(issue(
+            path,
+            format!("Too small: expected number to be >={minimum}"),
+        ));
+    }
+    if let Some(maximum) = schema.get("maximum").and_then(Value::as_f64)
+        && value > maximum
+    {
+        issues.push(issue(
+            path,
+            format!("Too big: expected number to be <={maximum}"),
+        ));
     }
 }
 
@@ -386,6 +414,7 @@ mod tests {
         assert_eq!(
             &names[18..],
             [
+                "kanso-add-pdf-highlight",
                 "kanso-ask-read-lines",
                 "kanso-ask-search",
                 "kanso-ask-when",
@@ -393,7 +422,10 @@ mod tests {
                 "kanso-create-canvas",
                 "kanso-create-daily-note",
                 "kanso-create-from-template",
+                "kanso-delete-pdf-highlight",
                 "kanso-edit-canvas",
+                "kanso-edit-pdf-comment",
+                "kanso-edit-pdf-highlight",
                 "kanso-export-html",
                 "kanso-get-outline",
                 "kanso-get-properties",
@@ -403,17 +435,20 @@ mod tests {
                 "kanso-list-mentions",
                 "kanso-list-note-links",
                 "kanso-list-open-loops",
+                "kanso-list-pdf-highlights",
                 "kanso-list-tags",
                 "kanso-list-tasks",
                 "kanso-list-versions",
                 "kanso-move-note",
                 "kanso-read-attachment",
                 "kanso-read-canvas",
+                "kanso-read-pdf-page",
                 "kanso-read-version",
                 "kanso-related-notes",
                 "kanso-resolve-wikilink",
                 "kanso-run-query-view",
                 "kanso-search-by-meaning",
+                "kanso-search-pdf",
                 "kanso-set-task-done"
             ]
         );
@@ -449,6 +484,45 @@ mod tests {
         assert!(validate("kanso-resolve-wikilink", json!({"link": "[[A]]"})).is_ok());
         assert!(validate("kanso-search-by-meaning", json!({"query": "fruit"})).is_ok());
         assert!(validate("kanso-search-by-meaning", json!({"limit": 3})).is_err());
+        assert!(validate("kanso-search-pdf", json!({"query": "revenue", "limit": 10})).is_ok());
+        assert!(validate("kanso-search-pdf", json!({"query": ""})).is_err());
+        assert!(
+            validate(
+                "kanso-read-pdf-page",
+                json!({"noteId": "note:n", "fileId": "file:p", "page": 4})
+            )
+            .is_ok()
+        );
+        assert!(
+            validate(
+                "kanso-read-pdf-page",
+                json!({"noteId": "note:n", "fileId": "file:p", "page": 0})
+            )
+            .is_err()
+        );
+        assert!(
+            validate(
+                "kanso-read-pdf-page",
+                json!({"noteId": "note:n", "fileId": "file:p", "page": 20001})
+            )
+            .is_err()
+        );
+        assert!(validate("kanso-search-pdf", json!({"query":"a", "limit":101})).is_err());
+        assert!(
+            validate(
+                "kanso-add-pdf-highlight",
+                json!({"noteId": "note:n", "fileId": "file:p", "page": 4, "quote": "Revenue rose"})
+            )
+            .is_ok()
+        );
+        assert!(validate("kanso-edit-pdf-highlight", json!({"noteId": "note:n", "fileId": "file:p", "highlightId": "h1", "color": "pink"})).is_ok());
+        assert!(
+            validate(
+                "kanso-delete-pdf-highlight",
+                json!({"noteId": "note:n", "fileId": "file:p", "highlightId": "h1"})
+            )
+            .is_ok()
+        );
     }
 
     #[test]

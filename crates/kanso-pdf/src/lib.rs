@@ -16,10 +16,12 @@ pub mod fixtures;
 pub mod highlights;
 #[cfg(feature = "test-support")]
 pub mod hostile;
+pub mod ink;
 pub mod invert;
 pub mod link;
 pub mod merge;
 pub mod model;
+pub mod ocr;
 pub mod protocol;
 pub mod quote;
 pub mod text;
@@ -27,12 +29,14 @@ pub mod text;
 pub mod worker;
 
 pub use annotation::{BlockSpan, find_blocks, new_highlight_id, upsert_block};
-pub use highlights::{Annotations, Row, Status};
+pub use highlights::{Annotations, InkRow, Row, Status};
+pub use ink::{InkFile, PageInk};
 pub use link::PdfLink;
 pub use model::{
     BLOCK_FENCE, Color, Highlight, MAX_BLOCK_CHARS, MAX_COMMENT_CHARS, MAX_QUADS, MAX_QUOTE_CHARS,
     MAX_REMOVED, PdfBlock, Quad,
 };
+pub use ocr::{OcrPage, OcrWord, PdfOcr, ReadWord};
 pub use quote::{Edit, append_quote, render_quote};
 pub use text::{
     CharPos, FindIndex, Glyph, HighlightParts, PageLayout, PageText, Point, Selection, TextChar,

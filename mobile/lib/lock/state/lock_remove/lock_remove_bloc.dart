@@ -30,6 +30,18 @@ class LockRemoveBloc extends Bloc<LockRemoveEvent, LockRemoveState> {
         state.copyWith(progress: event.progress),
       ),
     );
+    on<LockRemoveCancelledEvent>(_onCancelled, transformer: droppable());
+  }
+
+  Future<void> _onCancelled(
+    LockRemoveCancelledEvent event,
+    Emitter<LockRemoveState> emit,
+  ) async {
+    if (state.status != RemoveStatus.working || state.cancelling) {
+      return;
+    }
+    emit(state.copyWith(cancelling: true));
+    await _session.cancelLock();
   }
 
   final SessionRepository _session;
@@ -59,11 +71,20 @@ class LockRemoveBloc extends Bloc<LockRemoveEvent, LockRemoveState> {
     } finally {
       unawaited(listening.cancel());
     }
+    // Nothing was changed when Cancel stopped it: the note is still locked.
+    if (result.isLeft() && state.cancelling) {
+      emit(const LockRemoveState(status: RemoveStatus.stopped));
+      return;
+    }
+    // The files copied for the note, said once after it.
+    final copied = result.isRight()
+        ? (await _session.takeCopyNotice()).toOption().toNullable()
+        : null;
     emit(
       result.fold(
         (ApplicationError error) =>
             LockRemoveState(status: RemoveStatus.failed, error: error),
-        (_) => const LockRemoveState(status: RemoveStatus.done),
+        (_) => LockRemoveState(status: RemoveStatus.done, copyNotice: copied),
       ),
     );
   }

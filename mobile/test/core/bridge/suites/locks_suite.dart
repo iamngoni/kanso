@@ -51,6 +51,8 @@ void locksSuite(OpenLibrary open, {BiometricAnswer? answer}) {
 
         // A fresh library has no notes locked before sealing existed.
         expect(await locks.takeSealedFilesNotice(), isFalse);
+        expect(await locks.takeSealFailureNotice(), isNull);
+        expect(await locks.takeSealFailureNotice(), isNull);
       },
     );
 
@@ -250,6 +252,83 @@ void locksSuite(OpenLibrary open, {BiometricAnswer? answer}) {
     );
 
     test(
+      'the lock sheet: what it seals, its progress, Cancel, the copies it '
+      'made and a lock that stopped',
+      () async {
+        final library = await open();
+        final locks = library.locks();
+
+        // A photo in a note that another, unlocked, note also shows.
+        final first = await makeNote(library, 'First', 'hello');
+        final editor = await library.edit(id: first);
+        editor.select(selection: _caret(5), composing: false);
+        await editor.attach(
+          file: ShareFile(
+            name: 'photo.png',
+            contentType: 'image/png',
+            bytes: Uint8List.fromList(_pngSignature),
+          ),
+        );
+        final text = (await editor.snapshot()).text;
+        await editor.flush();
+        final second = await makeNote(library, 'Second', text);
+
+        // What locking would seal, for the dialog's line.
+        final summary = await locks.noteLockSummary(id: first);
+        expect(summary.files, 1);
+        expect(summary.shared, 1);
+        final vault = (await library.createNotebook(name: 'Vault')).id;
+        await library.create(
+          note: NewNote(notebookId: vault, title: 'In', body: 'IN-TEXT'),
+        );
+        expect((await locks.notebookLockSummary(bookId: vault)).files, 0);
+        expect(await locks.takeSealedFilesNotice(), isFalse);
+        expect(await locks.takeCopyNotice(), isNull);
+        expect(await locks.interruptedLock(id: first), isNull);
+
+        // Sealing is followed on the progress stream; a Cancel with nothing
+        // running does not carry over to the next lock.
+        final progress = <SealProgress>[];
+        final subscription = locks.lockProgress().listen(progress.add);
+        addTearDown(() => unawaited(subscription.cancel()));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await locks.cancelLock();
+        await locks.lockNote(id: first, password: lockPassword);
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        expect(progress, isNotEmpty);
+        expect(progress.last.total, 1);
+
+        // The copy made for the locked note is said once.
+        expect(
+          await locks.takeCopyNotice(),
+          const LockCopyNotice(removed: false, copied: 1),
+        );
+        expect(await locks.takeCopyNotice(), isNull);
+
+        // The other note still shows its photo; the locked one has its own.
+        expect(
+          (await library.note(id: second)).lock,
+          isA<LockState_Plain>(),
+        );
+
+        // Nothing stopped: there is no lock to finish or to undo.
+        await expectLater(
+          locks.finishLocking(id: second),
+          throwsA(isA<KansoError_Invalid>()),
+        );
+        await expectLater(
+          locks.undoLocking(id: second),
+          throwsA(isA<KansoError_Invalid>()),
+        );
+
+        // Removing the lock, whose files are all its own, copies nothing.
+        await locks.removeNoteLock(id: first);
+        expect(await locks.takeCopyNotice(), isNull);
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
+
+    test(
       'biometrics keep the keys, open them after a check, and forget them',
       () async {
         final library = await open();
@@ -364,6 +443,20 @@ void locksSuite(OpenLibrary open, {BiometricAnswer? answer}) {
     );
   });
 }
+
+/// The first bytes of a PNG, which is how the library tells one.
+const List<int> _pngSignature = <int>[
+  0x89,
+  0x50,
+  0x4E,
+  0x47,
+  0x0D,
+  0x0A,
+  0x1A,
+  0x0A,
+];
+
+Range16 _caret(int at) => Range16(start: at, end: at);
 
 const PaletteDto _palette = PaletteDto(
   dark: false,

@@ -46,6 +46,13 @@ pub trait SharedCanvases: Send + Sync {
     /// `Ok(false)` when this device cannot reach that canvas's room (signed
     /// out), and nothing was changed.
     fn edit(&self, note_id: &str, change: &mut CanvasChange<'_>) -> Result<bool, String>;
+
+    /// Applies a complete Markdown body through the collaboration engine for
+    /// shared PDF annotation updates. Implementations must merge and publish
+    /// this body as one editor transaction.
+    fn edit_note_body(&self, _note_id: &str, _title: &str, _body: &str) -> Result<bool, String> {
+        Ok(false)
+    }
 }
 
 /// What a caller's cards may point at, looked up before any edit: the notes

@@ -27,6 +27,7 @@ import 'people.dart';
 import 'player.dart';
 import 'publish.dart';
 import 'recording.dart';
+import 'recording_speakers.dart';
 import 'recording_summary.dart';
 import 'renderer.dart';
 import 'shared.dart';
@@ -342,6 +343,15 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// highlights" line opens.
   Future<List<PdfNotes>> pdfHighlights({required String noteId});
 
+  /// Clears the pencil marks on one page of a PDF in a note drawn at
+  /// `base_rev` (the phone cannot draw on a page, but it can rub one out).
+  Future<Saved> pdfInkClear({
+    required String noteId,
+    required String baseRev,
+    required String file,
+    required int page,
+  });
+
   KansoPeople people();
 
   /// Playing a note's recording.
@@ -356,6 +366,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   /// Recording a note from the microphone, and what a crash left.
   KansoRecorder recorder();
+
+  /// Rename Speakers: the names before the paragraphs of a recording's
+  /// transcript, listed and changed.
+  KansoRecordingSpeakers recordingSpeakers();
 
   /// Summarise Recording: a summary and action items for a recording's
   /// transcript, written only once the person has looked them over.

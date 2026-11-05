@@ -20,6 +20,7 @@ getrandom.workspace = true
 http-body-util = "0.1"
 futures-util = "0.3"
 kanso-core.workspace = true
+kanso-pdf.workspace = true
 kanso-render.workspace = true
 kanso-store.workspace = true
 regex-lite = "0.1"

@@ -38,6 +38,7 @@ use super::people::KansoPeople;
 use super::player::KansoPlayers;
 use super::publish::KansoPublisher;
 use super::recording::KansoRecorder;
+use super::recording_speakers::KansoRecordingSpeakers;
 use super::recording_summary::KansoRecordingSummary;
 use super::renderer::KansoRenderer;
 use super::shared::KansoShared;
@@ -217,6 +218,18 @@ impl KansoLibrary {
     ) -> Result<Saved, KansoError> {
         self.0
             .pdf_highlight_change(&note_id, &base_rev, &file, &id, change)
+    }
+
+    /// Clears the pencil marks on one page of a PDF in a note drawn at
+    /// `base_rev` (the phone cannot draw on a page, but it can rub one out).
+    pub fn pdf_ink_clear(
+        &self,
+        note_id: String,
+        base_rev: String,
+        file: String,
+        page: u32,
+    ) -> Result<Saved, KansoError> {
+        self.0.pdf_ink_clear(&note_id, &base_rev, &file, page)
     }
 
     pub fn create_linked_note(
@@ -531,6 +544,13 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn voice_capture(&self) -> KansoVoiceCapture {
         KansoVoiceCapture::new(self.0.clone())
+    }
+
+    /// Rename Speakers: the names before the paragraphs of a recording's
+    /// transcript, listed and changed.
+    #[frb(sync)]
+    pub fn recording_speakers(&self) -> KansoRecordingSpeakers {
+        KansoRecordingSpeakers::new(self.0.clone())
     }
 
     /// Summarise Recording: a summary and action items for a recording's

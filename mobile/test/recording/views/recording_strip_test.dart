@@ -13,6 +13,7 @@ import 'package:kanso/recording/views/pages/recording_page.dart';
 import 'package:kanso/recording/views/widgets/recording_strip.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../helpers/golden.dart';
 import '../../helpers/pump_routed.dart';
 import '../recording_test_support.dart';
 
@@ -147,4 +148,34 @@ void main() {
       findsOneWidget,
     );
   });
+
+  for (final brightness in Brightness.values) {
+    testWidgets('the recording bar, ${brightness.name}', (tester) async {
+      await send(tester, const RecordingEvent.started());
+      session.current = const RecordingStatus(
+        seconds: 42 * 60 + 17,
+        level: 0.4,
+        paused: false,
+        warned: false,
+      );
+      await send(tester, const RecordingEvent.ticked());
+      await expectGoldenOnBothPlatforms(
+        tester,
+        Scaffold(body: RecordingStrip(bloc: bloc)),
+        name: 'phone_recording_bar_${brightness.name}',
+        size: phoneSize,
+        brightness: brightness,
+      );
+    });
+
+    testWidgets('the Record sheet, ${brightness.name}', (tester) async {
+      await expectGoldenOnBothPlatforms(
+        tester,
+        RecordingPage(noteId: 'note:a', bloc: bloc),
+        name: 'phone_record_page_${brightness.name}',
+        size: phoneSize,
+        brightness: brightness,
+      );
+    });
+  }
 }

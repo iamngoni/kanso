@@ -78,6 +78,8 @@ test-support = []
 # so the phones' test build (`--no-default-features`) doesn't turn the desktop
 # Keychain, and the binary that needs it, back on.
 kanso-sync = { path = ".", default-features = false, features = ["test-support"] }
+# A synced recording must be playable, so the two-device test exercises the real Ogg Opus reader.
+kanso-audio = { path = "../kanso-audio" }
 async-channel.workspace = true
 # The rollback test replays the old app's store rules (tests/common/legacy.rs).
 kanso-store = { workspace = true, features = ["legacy-v1-rules"] }

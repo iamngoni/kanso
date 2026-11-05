@@ -29,6 +29,7 @@ import '../../../journal/views/widgets/note_journal_actions.dart';
 import '../../../lock/models/data/note_menu_action.dart';
 import '../../../lock/views/widgets/interrupted_lock_host.dart';
 import '../../../lock/views/widgets/privacy_cover_sync.dart';
+import '../../../recording_speakers/views/widgets/rename_speakers_sheet.dart';
 import '../../../recording_summary/views/widgets/recording_summary_sheet.dart';
 import '../../../sharing/state/comments/comments_bloc.dart';
 import '../../../sharing/state/shared_note_status/shared_note_status_bloc.dart';
@@ -234,6 +235,15 @@ class NotePane extends StatelessWidget {
                                       ).toString(),
                                     ),
                                   ),
+                                if (readable)
+                                  NoteMenuAction.renameSpeakers: () =>
+                                      unawaited(
+                                        showRenameSpeakersSheet(
+                                          context,
+                                          noteId: shown.noteId,
+                                          undoNotice: undoNoticeOf(context),
+                                        ),
+                                      ),
                                 // As on the desktop: only while AI is on, and
                                 // never for a locked or trashed note, which
                                 // is kept out of AI.

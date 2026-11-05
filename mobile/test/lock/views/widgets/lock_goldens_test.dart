@@ -87,6 +87,17 @@ FixtureSessionRepository _sealingFiles() {
   return session;
 }
 
+/// The session of the Remove Lock that is opening its files: it waits at the
+/// sixth, and Cancel is offered.
+late FixtureSessionRepository _removing;
+
+FixtureSessionRepository _removingFiles() {
+  final session = FixtureSessionRepository(unlocked: true)
+    ..gate = Completer<void>();
+  _removing = session;
+  return session;
+}
+
 /// A lock that stopped with three of five files sealed, on an open note.
 FixtureSessionRepository _stoppedLock() =>
     FixtureSessionRepository(unlocked: true)
@@ -202,6 +213,30 @@ final List<_Screen> _screens = <_Screen>[
     interact: (tester, app) async {
       await _openMore(tester, app);
       await _tapText(tester, 'Remove lock…');
+    },
+  ),
+  _Screen(
+    'remove_lock_progress',
+    _removingFiles,
+    at: _locked,
+    library: _openJournal,
+    interact: (tester, app) async {
+      await _openMore(tester, app);
+      await _tapText(tester, 'Remove lock…');
+      // The sheet counts files without settling: its bar is moving.
+      await tester.tap(find.text('Remove Lock').last);
+      await tester.pump(const Duration(milliseconds: 50));
+      _removing.progress.add(
+        const SealProgress(
+          phase: SealPhase.sealing,
+          done: 5,
+          total: 12,
+          bytesDone: 31000000,
+          bytesTotal: 84000000,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
     },
   ),
   _Screen(

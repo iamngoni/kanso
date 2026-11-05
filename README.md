@@ -510,6 +510,14 @@ nothing shows an error. If it is that agent, Ask and the other AI features say i
 and point you to Settings › AI; choose another agent or a provider there. Switching to a provider
 stops every agent at once.
 
+### Recordings
+
+Record a voice memo or a meeting from the Record button, **Record…** in the Note menu, or Quick
+Capture. Kanso writes the audio as it arrives, and puts the recording and its transcript in a note.
+System audio is optional; your microphone keeps working if system audio is unavailable. Recordings
+stay on this computer until sync is turned on. Read [Recordings](docs/RECORDINGS.md) for permissions,
+privacy, locked notes, summaries and deletion.
+
 ### Shortcuts
 
 On Windows and Linux, Ctrl takes the place of ⌘ (Ctrl+K, Ctrl+Shift+F and so on), and Alt the place

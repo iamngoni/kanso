@@ -66,6 +66,7 @@ mod plugins_sheets;
 mod record_sheet;
 mod recording_sheet;
 mod recording_summary;
+mod rename_speakers;
 mod voice;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead
@@ -2155,6 +2156,43 @@ fn settings_general(
     _: &Store,
 ) {
     show_settings(cx, window, workspace, SettingsPage::General);
+}
+
+/// Settings › General while scanned PDF pages are being read: page 40 of 300
+/// of the first PDF, two PDFs waiting (issue #43, step 8).
+fn settings_scans_reading(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    crate::pdf::ocr::SHOWN_AS_SUPPORTED.store(true, std::sync::atomic::Ordering::Relaxed);
+    cx.update(|cx| {
+        crate::pdf::ocr::set_paused(false, cx);
+        cx.default_global::<crate::pdf::ocr::ScannedPages>().status =
+            crate::pdf::ocr::Status::Reading {
+                read: 39,
+                scanned: 300,
+                waiting: 2,
+            };
+    });
+    settings_general(cx, window, workspace, store);
+}
+
+/// The same, paused by the person.
+fn settings_scans_paused(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    crate::pdf::ocr::SHOWN_AS_SUPPORTED.store(true, std::sync::atomic::Ordering::Relaxed);
+    cx.update(|cx| {
+        crate::pdf::ocr::set_paused(true, cx);
+        cx.default_global::<crate::pdf::ocr::ScannedPages>().status =
+            crate::pdf::ocr::Status::Paused { waiting: 2 };
+    });
+    settings_general(cx, window, workspace, store);
 }
 
 /// Zooms the whole app to `percent`, as the View menu does, after the
@@ -6194,6 +6232,43 @@ fn snapshots() {
         ),
         shot("dark-settings-general", Dark, Edit, settings_general),
         shot("light-settings-general", Light, Edit, settings_general),
+        // Scanned PDF pages being read, and paused (tall, so Discovery shows).
+        Shot {
+            size: size(px(1440.), px(4000.)),
+            ..shot(
+                "dark-settings-scans-reading",
+                Dark,
+                Edit,
+                settings_scans_reading,
+            )
+        },
+        Shot {
+            size: size(px(1440.), px(4000.)),
+            ..shot(
+                "light-settings-scans-reading",
+                Light,
+                Edit,
+                settings_scans_reading,
+            )
+        },
+        Shot {
+            size: size(px(1440.), px(4000.)),
+            ..shot(
+                "dark-settings-scans-paused",
+                Dark,
+                Edit,
+                settings_scans_paused,
+            )
+        },
+        Shot {
+            size: size(px(1440.), px(4000.)),
+            ..shot(
+                "light-settings-scans-paused",
+                Light,
+                Edit,
+                settings_scans_paused,
+            )
+        },
         shot("dark-settings-editor", Dark, Edit, settings_editor),
         // The Record sheet's system audio choices.
         Shot {
@@ -6203,6 +6278,15 @@ fn snapshots() {
                 Light,
                 Edit,
                 record_sheet::output_picker,
+            )
+        },
+        Shot {
+            dialog_width: crate::record_sheet::WIDTH,
+            ..shot(
+                "dark-record-output-picker",
+                Dark,
+                Edit,
+                record_sheet::output_picker_dark,
             )
         },
         Shot {
@@ -6363,6 +6447,14 @@ fn snapshots() {
         },
         Shot {
             size: size(px(1900.), px(900.)),
+            ..shot("dark-pdf-ink", Dark, Split, pdf::reader_ink)
+        },
+        Shot {
+            size: size(px(1900.), px(900.)),
+            ..shot("light-pdf-ink", Light, Split, pdf::reader_ink)
+        },
+        Shot {
+            size: size(px(1900.), px(900.)),
             ..shot(
                 "dark-pdf-highlights-restore",
                 Dark,
@@ -6426,6 +6518,19 @@ fn snapshots() {
             voice::editor_transcribing,
         ),
         shot("dark-recording-bar", Dark, Edit, voice::recording_bar),
+        shot("light-recording-bar", Light, Edit, voice::recording_bar),
+        shot(
+            "dark-recording-player",
+            Dark,
+            Preview,
+            voice::recording_player,
+        ),
+        shot(
+            "light-recording-player",
+            Light,
+            Preview,
+            voice::recording_player,
+        ),
         shot(
             "light-recording-paused",
             Light,
@@ -6461,6 +6566,54 @@ fn snapshots() {
             Dark,
             Edit,
             voice::settings_voice_failed,
+        ),
+        shot(
+            "light-settings-speakers-missing",
+            Light,
+            Edit,
+            voice::settings_speakers_missing,
+        ),
+        shot(
+            "dark-settings-speakers-missing",
+            Dark,
+            Edit,
+            voice::settings_speakers_missing,
+        ),
+        shot(
+            "light-settings-speakers-downloading",
+            Light,
+            Edit,
+            voice::settings_speakers_downloading,
+        ),
+        shot(
+            "dark-settings-speakers-downloading",
+            Dark,
+            Edit,
+            voice::settings_speakers_downloading,
+        ),
+        shot(
+            "light-settings-speakers-ready",
+            Light,
+            Edit,
+            voice::settings_speakers_ready,
+        ),
+        shot(
+            "dark-settings-speakers-ready",
+            Dark,
+            Edit,
+            voice::settings_speakers_ready,
+        ),
+        shot(
+            "dark-editor-telling-speakers",
+            Dark,
+            Edit,
+            rename_speakers::editor_telling,
+        ),
+        shot(
+            "light-editor-telling-speakers",
+            Light,
+            Edit,
+            rename_speakers::editor_telling,
         ),
         shot("light-ask-receipts", Light, Edit, ask::answer_with_receipts),
         shot("dark-ask-receipts", Dark, Edit, ask::answer_with_receipts),
@@ -7205,6 +7358,7 @@ fn snapshots() {
         .chain(library_key::SHOTS)
         .chain(plugins_sheets::SHOTS)
         .chain(recording_sheet::SHOTS)
+        .chain(rename_speakers::SHOTS)
         .chain(recording_summary::SHOTS)
         .chain(plugins_panel::SHOTS)
     {

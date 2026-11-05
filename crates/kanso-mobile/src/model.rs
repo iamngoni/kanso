@@ -584,6 +584,17 @@ pub struct LockSummary {
     pub shared: u32,
 }
 
+/// What a lock the person ran did about files another note also shows, for
+/// the sentence the phone says after it (the desktop's `copied_words` and
+/// `unsealed_words`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LockCopyNotice {
+    /// Remove Lock gave the note plain copies; otherwise Lock sealed copies.
+    pub removed: bool,
+    /// How many files were copied.
+    pub copied: u32,
+}
+
 impl From<kanso_engine::lock::files::Summary> for LockSummary {
     fn from(summary: kanso_engine::lock::files::Summary) -> LockSummary {
         LockSummary {
@@ -2645,6 +2656,22 @@ pub struct PdfNotes {
     pub why: Option<String>,
     /// By page, then in the order they were made.
     pub highlights: Vec<PdfHighlightRow>,
+    /// How many scanned pages of the PDF have words that were read on a
+    /// computer (issue #43, step 8): they are searchable here, and the
+    /// highlights on them are made of them. 0 when none were read.
+    pub scanned_pages: u32,
+    /// The pages with pencil marks (step 10), in page order.
+    pub ink: Vec<PdfInkRow>,
+}
+
+/// One page's pencil marks in a list. The phone cannot draw on a page, so it
+/// names them and can clear a page's.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PdfInkRow {
+    /// The page, 1-based.
+    pub page: u32,
+    /// Strokes drawn on it.
+    pub strokes: u32,
 }
 
 /// One highlight in a list.

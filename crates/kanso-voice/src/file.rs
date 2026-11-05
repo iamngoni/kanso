@@ -98,9 +98,14 @@ pub fn decode_pieces(
     cancel: &AtomicBool,
     piece: &mut PieceSink<'_>,
 ) -> Result<(), VoiceError> {
-    decode(source, extension, cancel, false, &mut |samples, at, _| {
-        piece(samples, at)
-    })
+    decode(
+        source,
+        extension,
+        cancel,
+        false,
+        Pick::Mix,
+        &mut |samples, at, _| piece(samples, at),
+    )
 }
 
 /// [`decode_pieces`] for a recording made in Kanso. When it has two channels
@@ -113,12 +118,42 @@ pub fn decode_labelled(
     cancel: &AtomicBool,
     piece: &mut LabelledSink<'_>,
 ) -> Result<(), VoiceError> {
-    decode(source, extension, cancel, true, piece)
+    decode(source, extension, cancel, true, Pick::Mix, piece)
+}
+
+/// [`decode_pieces`] for telling speakers apart: a recording with the
+/// microphone on the left and system audio on the right gives only the
+/// system audio (the microphone is already known to be you); any other
+/// recording gives its mix.
+pub fn decode_meeting(
+    source: Box<dyn MediaSource>,
+    extension: Option<&str>,
+    cancel: &AtomicBool,
+    piece: &mut PieceSink<'_>,
+) -> Result<(), VoiceError> {
+    decode(
+        source,
+        extension,
+        cancel,
+        true,
+        Pick::Meeting,
+        &mut |samples, at, _| piece(samples, at),
+    )
+}
+
+/// Which of a two-channel recording's sound [`decode`] hands on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Pick {
+    /// Both channels, mixed.
+    Mix,
+    /// The right channel: system audio, the other people.
+    Meeting,
 }
 
 /// Each channel of a two-channel file at 16 kHz, kept beside the mix so a
 /// piece can be attributed.
 struct Stereo {
+    pick: Pick,
     left: Option<Resampler16k>,
     right: Option<Resampler16k>,
     pending_left: Vec<f32>,
@@ -126,8 +161,9 @@ struct Stereo {
 }
 
 impl Stereo {
-    fn new(rate: u32) -> Result<Self, VoiceError> {
+    fn new(rate: u32, pick: Pick) -> Result<Self, VoiceError> {
         Ok(Stereo {
+            pick,
             left: Some(Resampler16k::new(rate).map_err(VoiceError::Audio)?),
             right: Some(Resampler16k::new(rate).map_err(VoiceError::Audio)?),
             pending_left: Vec::new(),
@@ -149,7 +185,8 @@ impl Stereo {
             l.push(&left, &mut self.pending_left);
             r.push(&right, &mut self.pending_right);
         }
-        mix_into(
+        pick_into(
+            self.pick,
             &self.pending_left[start..],
             &self.pending_right[start..],
             mono,
@@ -164,7 +201,8 @@ impl Stereo {
         if let Some(r) = self.right.take() {
             r.finish(&mut self.pending_right);
         }
-        mix_into(
+        pick_into(
+            self.pick,
             &self.pending_left[start..],
             &self.pending_right[start..],
             mono,
@@ -186,9 +224,13 @@ impl Stereo {
     }
 }
 
-/// Appends the mean of `left` and `right` (the shorter's length) to `out`.
-fn mix_into(left: &[f32], right: &[f32], out: &mut Vec<f32>) {
-    out.extend(left.iter().zip(right).map(|(l, r)| (l + r) * 0.5));
+/// Appends what `pick` takes of `left` and `right` (the shorter's length)
+/// to `out`.
+fn pick_into(pick: Pick, left: &[f32], right: &[f32], out: &mut Vec<f32>) {
+    match pick {
+        Pick::Mix => out.extend(left.iter().zip(right).map(|(l, r)| (l + r) * 0.5)),
+        Pick::Meeting => out.extend(left.iter().zip(right).map(|(_, r)| *r)),
+    }
 }
 
 fn decode(
@@ -196,6 +238,7 @@ fn decode(
     extension: Option<&str>,
     cancel: &AtomicBool,
     labelled: bool,
+    pick: Pick,
     piece: &mut LabelledSink<'_>,
 ) -> Result<(), VoiceError> {
     let unreadable = |e: kanso_audio::AudioError| VoiceError::Audio(e.to_string());
@@ -224,7 +267,7 @@ fn decode(
         };
         if labelled && channels == 2 {
             if stereo.is_none() {
-                stereo = Some(Stereo::new(rate)?);
+                stereo = Some(Stereo::new(rate, pick)?);
             }
             frames_read += (samples.len() / 2) as u64;
             if let Some(both) = stereo.as_mut() {
@@ -369,6 +412,46 @@ pub fn transcribe_parts(
     Ok(pieces)
 }
 
+/// Works out who spoke when in a recording made of several `parts`, read
+/// as one timeline like [`transcribe_parts`]. The speaker models are in the
+/// folders `segmentation` and `embedding`. With `two_tracks` (a recording
+/// made in Kanso, microphone left and system audio right) a two-channel
+/// recording is listened to on its system-audio track only; any other file
+/// is listened to as its mix, every channel, as it was transcribed.
+/// `progress` hears how far it has got.
+// no-prop-test: runs the real models; `diarize::timeline`, `cluster` and
+// `assign` have the properties.
+pub fn diarize_parts(
+    parts: Vec<Part>,
+    two_tracks: bool,
+    total: Option<Duration>,
+    segmentation: &std::path::Path,
+    embedding: &std::path::Path,
+    cancel: &AtomicBool,
+    progress: &mut dyn FnMut(Progress),
+) -> Result<crate::diarize::Diarization, VoiceError> {
+    let mut diarizer = crate::diarize::Diarizer::load(segmentation, embedding)?;
+    let mut samples_before = 0usize;
+    for (source, extension) in parts {
+        let base = time_at(samples_before);
+        let mut sink = |samples: &[f32], at: Progress| {
+            samples_before += samples.len();
+            diarizer.push(samples, cancel)?;
+            progress(Progress {
+                done: base + at.done,
+                total,
+            });
+            Ok(())
+        };
+        if two_tracks {
+            decode_meeting(source, extension.as_deref(), cancel, &mut sink)?;
+        } else {
+            decode_pieces(source, extension.as_deref(), cancel, &mut sink)?;
+        }
+    }
+    diarizer.finish(cancel)
+}
+
 /// Transcribes the audio in `source` with the model in `model_dir`,
 /// telling `progress` how far it has got after each piece. Nothing heard
 /// is [`VoiceError::NothingHeard`].
@@ -511,6 +594,47 @@ mod tests {
         .unwrap();
         let (total, _) = labels(wav_lr(16_000, 16_000 * 40, 0.8, 0.1));
         assert_eq!(lengths.iter().sum::<usize>(), total);
+    }
+
+    /// The loudness of what the meeting decoder hands on, and of what the
+    /// plain one does.
+    fn heard(bytes: Vec<u8>) -> (f32, f32) {
+        let energy = |samples: &[f32]| samples.iter().map(|s| s * s).sum::<f32>();
+        let mut meeting = 0.;
+        decode_meeting(
+            from_bytes(bytes.clone()),
+            Some("wav"),
+            &AtomicBool::new(false),
+            &mut |samples, _| {
+                meeting += energy(samples);
+                Ok(())
+            },
+        )
+        .unwrap();
+        let mut mix = 0.;
+        decode_pieces(
+            from_bytes(bytes),
+            Some("wav"),
+            &AtomicBool::new(false),
+            &mut |samples, _| {
+                mix += energy(samples);
+                Ok(())
+            },
+        )
+        .unwrap();
+        (meeting, mix)
+    }
+
+    #[test]
+    fn telling_speakers_apart_hears_the_right_track_of_a_recording_and_all_of_a_file() {
+        // Speech only on the left (the microphone): the meeting track is
+        // silent, the mix is not. A dropped stereo file is diarized on the
+        // mix, so a voice on its left channel is never lost.
+        let (meeting, mix) = heard(wav_lr(16_000, 16_000 * 12, 0.8, 0.));
+        assert!(meeting < 1e-3, "{meeting}");
+        assert!(mix > 100., "{mix}");
+        let (meeting, _) = heard(wav_lr(16_000, 16_000 * 12, 0., 0.8));
+        assert!(meeting > 100., "{meeting}");
     }
 
     #[test]

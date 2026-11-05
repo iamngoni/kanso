@@ -10,6 +10,7 @@ use axum::routing::get;
 use axum::{Extension, Json, Router};
 use kanso_core::DocType;
 use kanso_core::id::with_prefix;
+use kanso_store::Store;
 use serde_json::{Value, json};
 
 use crate::AppState;
@@ -27,6 +28,19 @@ pub(crate) fn routes() -> Router<AppState> {
         .route("/", get(meta))
         .route("/_changes", get(changes))
         .route("/loops", get(list_loops))
+        .route("/pdf/search", get(search_pdf))
+        .route(
+            "/notes/{note_id}/pdf/{file_id}/pages/{page}",
+            get(read_pdf_page),
+        )
+        .route(
+            "/notes/{note_id}/pdf/{file_id}/highlights",
+            get(list_pdf_highlights).post(add_pdf_highlight),
+        )
+        .route(
+            "/notes/{note_id}/pdf/{file_id}/highlights/{highlight_id}",
+            axum::routing::patch(edit_pdf_comment).delete(delete_pdf_highlight),
+        )
         .route(
             "/notes",
             get(list_notes).post(
@@ -63,6 +77,200 @@ pub(crate) fn routes() -> Router<AppState> {
             "/{kind}/{id}",
             get(get_alias).post(post_alias).delete(delete_alias),
         )
+}
+
+type PdfPath = Path<(String, String)>;
+type PdfPagePath = Path<(String, String, u32)>;
+
+fn pdf_visibility<'a>(
+    store: &'a Store,
+    caller: &Caller,
+) -> ApiResult<crate::scope::Visibility<'a>> {
+    let scope = match caller {
+        Caller::Key { access, scope, .. } if *access == kanso_store::KeyAccess::Write => scope,
+        Caller::Agent { scope, .. } => scope,
+        Caller::Key { access, .. } => {
+            return Err(ApiError::forbidden(crate::keyed::cannot_attach(*access)));
+        }
+    };
+    crate::scope::Visibility::new(store, scope)
+        .ok_or_else(|| ApiError::internal("Couldn't read the notes."))
+}
+
+async fn search_pdf(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    params: Params,
+) -> JsonResult {
+    let params = params.map_err(|err| ApiError::bad_request(err.body_text()))?;
+    if params
+        .keys()
+        .any(|key| !matches!(key.as_str(), "query" | "limit"))
+    {
+        return Err(ApiError::bad_request(
+            "Only `query` and `limit` are accepted.",
+        ));
+    }
+    let query = params.get("query").map(String::as_str).unwrap_or_default();
+    let limit = params
+        .get("limit")
+        .map(|value| value.parse::<usize>())
+        .transpose()
+        .map_err(|_| ApiError::bad_request("The limit must be a number."))?
+        .unwrap_or(20);
+    let visibility = pdf_visibility(&state.store, &caller)?;
+    Ok(Json(crate::pdf_tools::search(
+        &state.store,
+        &visibility,
+        query,
+        limit,
+    )?))
+}
+
+async fn read_pdf_page(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    Path((note_id, file_id, page)): PdfPagePath,
+) -> JsonResult {
+    let visibility = pdf_visibility(&state.store, &caller)?;
+    Ok(Json(crate::pdf_tools::read_page(
+        &state.store,
+        &visibility,
+        &note_id,
+        &file_id,
+        page,
+    )?))
+}
+
+async fn list_pdf_highlights(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    Path((note_id, file_id)): PdfPath,
+) -> JsonResult {
+    let visibility = pdf_visibility(&state.store, &caller)?;
+    Ok(Json(crate::pdf_tools::list(
+        &state.store,
+        &visibility,
+        &note_id,
+        &file_id,
+    )?))
+}
+
+fn only_fields(value: &Value, allowed: &[&str]) -> bool {
+    value
+        .as_object()
+        .is_some_and(|fields| fields.keys().all(|name| allowed.contains(&name.as_str())))
+}
+
+async fn add_pdf_highlight(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    Path((note_id, file_id)): PdfPath,
+    Json(body): Json<Value>,
+) -> JsonResult {
+    let visibility = pdf_visibility(&state.store, &caller)?;
+    if !only_fields(
+        &body,
+        &["page", "quote", "color", "comment", "includeQuote"],
+    ) {
+        return Err(ApiError::bad_request(
+            "The highlight contains an unknown field.",
+        ));
+    }
+    let page = body
+        .get("page")
+        .and_then(Value::as_u64)
+        .and_then(|n| u32::try_from(n).ok())
+        .ok_or_else(|| ApiError::bad_request("The page must be a positive number."))?;
+    let quote = body
+        .get("quote")
+        .and_then(Value::as_str)
+        .ok_or_else(|| ApiError::bad_request("The quote must be text."))?;
+    let color = body
+        .get("color")
+        .and_then(Value::as_str)
+        .unwrap_or("yellow");
+    if body.get("color").is_some_and(|value| !value.is_string()) {
+        return Err(ApiError::bad_request("The color must be text."));
+    }
+    let comment = body.get("comment").and_then(Value::as_str);
+    let include_quote = body
+        .get("includeQuote")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    if body
+        .get("comment")
+        .is_some_and(|value| !value.is_null() && !value.is_string())
+        || body
+            .get("includeQuote")
+            .is_some_and(|value| !value.is_boolean())
+    {
+        return Err(ApiError::bad_request("The comment must be text."));
+    }
+    Ok(Json(crate::pdf_tools::add(
+        &state.store,
+        &state.canvases,
+        &visibility,
+        crate::pdf_tools::AddHighlight {
+            note_id: &note_id,
+            file_id: &file_id,
+            page,
+            quote,
+            color,
+            comment,
+            include_quote,
+        },
+    )?))
+}
+
+async fn edit_pdf_comment(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    Path((note_id, file_id, highlight_id)): Path<(String, String, String)>,
+    Json(body): Json<Value>,
+) -> JsonResult {
+    let visibility = pdf_visibility(&state.store, &caller)?;
+    if !only_fields(&body, &["comment", "color"]) {
+        return Err(ApiError::bad_request("The edit contains an unknown field."));
+    }
+    let comment = body.get("comment").map(Value::as_str);
+    let color = body.get("color").and_then(Value::as_str);
+    if body
+        .get("comment")
+        .is_some_and(|value| !value.is_null() && !value.is_string())
+        || body.get("color").is_some_and(|value| !value.is_string())
+        || (comment.is_none() && color.is_none())
+    {
+        return Err(ApiError::bad_request("The comment must be text or null."));
+    }
+    Ok(Json(crate::pdf_tools::edit(
+        &state.store,
+        &state.canvases,
+        &visibility,
+        crate::pdf_tools::EditHighlight {
+            note_id: &note_id,
+            file_id: &file_id,
+            highlight_id: &highlight_id,
+            color,
+            comment,
+        },
+    )?))
+}
+
+async fn delete_pdf_highlight(
+    State(state): State<AppState>,
+    Extension(caller): Extension<Caller>,
+    Path((note_id, file_id, highlight_id)): Path<(String, String, String)>,
+) -> JsonResult {
+    let visibility = pdf_visibility(&state.store, &caller)?;
+    Ok(Json(crate::pdf_tools::delete(
+        &state.store,
+        &state.canvases,
+        &visibility,
+        &note_id,
+        &file_id,
+        &highlight_id,
+    )?))
 }
 
 /// Refuses a write by a key that may not write, before the route runs, so

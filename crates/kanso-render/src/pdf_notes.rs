@@ -4,7 +4,7 @@
 //! A note keeps the highlights of each PDF it reads in a `kanso-pdf` fence
 //! (see `kanso_pdf::annotation`). It is data for the reader, not text: a page
 //! (the preview on a phone, an export, a published note) shows
-//! "4 highlights · 1 comment" instead of the JSON. Only what the line needs is
+//! "4 highlights · 1 comment · pencil on 2 pages" instead of the JSON. Only what the line needs is
 //! read here, so this crate does not depend on the PDF crate; the app's tests
 //! check the two agree.
 
@@ -23,20 +23,33 @@ pub struct Notes {
     pub file: String,
     pub highlights: usize,
     pub comments: usize,
+    /// Pages with pencil marks in the block itself.
+    pub ink_pages: usize,
+    /// The marks outgrew the block and live in an attachment it names.
+    pub ink_attached: bool,
 }
 
 impl Notes {
-    /// "4 highlights · 1 comment"; `None` when there are no highlights.
+    /// "4 highlights · 1 comment · pencil on 2 pages"; `None` when there is
+    /// nothing to count.
     pub fn summary(&self) -> Option<String> {
-        let (h, c) = (self.highlights, self.comments);
-        if h == 0 {
-            return None;
+        let (h, c, p) = (self.highlights, self.comments, self.ink_pages);
+        let mut parts: Vec<String> = Vec::new();
+        if h > 0 {
+            parts.push(format!("{h} highlight{}", if h == 1 { "" } else { "s" }));
         }
-        let mut s = format!("{h} highlight{}", if h == 1 { "" } else { "s" });
-        if c > 0 {
-            s.push_str(&format!(" · {c} comment{}", if c == 1 { "" } else { "s" }));
+        if h > 0 && c > 0 {
+            parts.push(format!("{c} comment{}", if c == 1 { "" } else { "s" }));
         }
-        Some(s)
+        if p > 0 {
+            parts.push(format!(
+                "pencil on {p} page{}",
+                if p == 1 { "" } else { "s" }
+            ));
+        } else if self.ink_attached {
+            parts.push("pencil marks".to_owned());
+        }
+        (!parts.is_empty()).then(|| parts.join(" · "))
     }
 
     /// The link that opens the PDF, `inkdrop://file:…`.
@@ -59,10 +72,32 @@ pub fn parse(json: &str) -> Option<Notes> {
         .iter()
         .filter(|h| h.get("comment").is_some_and(|c| !c.is_null()))
         .count();
+    // Pages with a stroke that is drawn (a rubbed-out one stays as a
+    // tombstone, `deleted`, so a sync cannot bring it back).
+    let ink_pages = value
+        .get("ink")
+        .and_then(Value::as_array)
+        .map_or(0, |pages| {
+            pages
+                .iter()
+                .filter(|page| {
+                    page.get("strokes")
+                        .and_then(Value::as_array)
+                        .is_some_and(|strokes| {
+                            strokes
+                                .iter()
+                                .any(|s| s.get("deleted").and_then(Value::as_bool) != Some(true))
+                        })
+                })
+                .count()
+        });
+    let ink_attached = value.get("inkFile").is_some_and(|f| f.is_string());
     Some(Notes {
         file,
         highlights: highlights.len(),
         comments,
+        ink_pages,
+        ink_attached,
     })
 }
 
@@ -70,7 +105,7 @@ pub fn parse(json: &str) -> Option<Notes> {
 pub const UNREADABLE: &str = "PDF highlights that can't be read";
 
 /// The line for a page. `link` makes it a link to the PDF (the app's pages);
-/// a block with no highlights draws nothing.
+/// a block with no highlights and no pencil marks draws nothing.
 pub fn html(json: &str, link: bool) -> String {
     let (words, url) = match parse(json) {
         Some(notes) => match notes.summary() {
@@ -168,6 +203,62 @@ mod tests {
             let line = html(&junk, true);
             prop_assert!(!line.contains("<script") && !line.contains("<img"));
         }
+    }
+
+    fn inked(live: usize, erased: usize, attached: bool) -> String {
+        let page = |n: usize, alive: bool| {
+            let stroke = if alive {
+                "{\"id\":\"s\",\"points\":[[1,2,0.5]]}"
+            } else {
+                "{\"id\":\"s\",\"deleted\":true}"
+            };
+            format!("{{\"page\":{},\"strokes\":[{stroke}]}}", n + 1)
+        };
+        let pages: Vec<String> = (0..live)
+            .map(|n| page(n, true))
+            .chain((live..live + erased).map(|n| page(n, false)))
+            .collect();
+        let file = if attached {
+            ",\"inkFile\":\"inkdrop://file:ink1\""
+        } else {
+            ""
+        };
+        format!(
+            "{{\"file\":\"file:abc\",\"md5\":\"\",\"version\":1,\"highlights\":[],\"ink\":[{}]{file}}}",
+            pages.join(",")
+        )
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 64, ..ProptestConfig::default() })]
+
+        /// The line counts the pages with a stroke still drawn, never the
+        /// rubbed-out ones, and shows nothing of the strokes.
+        #[test]
+        fn the_line_counts_pages_with_pencil_on_them(live in 0usize..6, erased in 0usize..6, attached in any::<bool>()) {
+            let json = inked(live, erased, attached);
+            let notes = parse(&json).unwrap();
+            prop_assert_eq!(notes.ink_pages, live);
+            let line = html(&json, true);
+            match (live, attached) {
+                (0, false) => prop_assert_eq!(&line, ""),
+                (0, true) => prop_assert!(line.contains("pencil marks")),
+                (n, _) => {
+                    let counted = format!("pencil on {n} page");
+                    prop_assert!(line.contains(&counted));
+                }
+            }
+            prop_assert!(!line.contains("points") && !line.contains('['));
+        }
+    }
+
+    #[test]
+    fn highlights_and_pencil_share_a_line() {
+        let json = "{\"file\":\"file:abc\",\"highlights\":[{\"id\":\"a\",\"comment\":\"c\"}],\"ink\":[{\"page\":2,\"strokes\":[{\"id\":\"s\"}]}]}";
+        assert_eq!(
+            parse(json).unwrap().summary().as_deref(),
+            Some("1 highlight · 1 comment · pencil on 1 page")
+        );
     }
 
     #[test]

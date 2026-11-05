@@ -2860,6 +2860,27 @@ class LocalTime {
           second == other.second;
 }
 
+class LockCopyNotice {
+  final bool removed;
+  final int copied;
+
+  const LockCopyNotice({
+    required this.removed,
+    required this.copied,
+  });
+
+  @override
+  int get hashCode => removed.hashCode ^ copied.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LockCopyNotice &&
+          runtimeType == other.runtimeType &&
+          removed == other.removed &&
+          copied == other.copied;
+}
+
 @freezed
 sealed class LockEvent with _$LockEvent {
   const LockEvent._();
@@ -3942,6 +3963,27 @@ class PdfHighlightRow {
           inNote == other.inNote;
 }
 
+class PdfInkRow {
+  final int page;
+  final int strokes;
+
+  const PdfInkRow({
+    required this.page,
+    required this.strokes,
+  });
+
+  @override
+  int get hashCode => page.hashCode ^ strokes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PdfInkRow &&
+          runtimeType == other.runtimeType &&
+          page == other.page &&
+          strokes == other.strokes;
+}
+
 class PdfNotes {
   final String file;
   final String name;
@@ -3949,6 +3991,8 @@ class PdfNotes {
   final bool editable;
   final String? why;
   final List<PdfHighlightRow> highlights;
+  final int scannedPages;
+  final List<PdfInkRow> ink;
 
   const PdfNotes({
     required this.file,
@@ -3957,6 +4001,8 @@ class PdfNotes {
     required this.editable,
     this.why,
     required this.highlights,
+    required this.scannedPages,
+    required this.ink,
   });
 
   @override
@@ -3966,7 +4012,9 @@ class PdfNotes {
       url.hashCode ^
       editable.hashCode ^
       why.hashCode ^
-      highlights.hashCode;
+      highlights.hashCode ^
+      scannedPages.hashCode ^
+      ink.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -3978,7 +4026,9 @@ class PdfNotes {
           url == other.url &&
           editable == other.editable &&
           why == other.why &&
-          highlights == other.highlights;
+          highlights == other.highlights &&
+          scannedPages == other.scannedPages &&
+          ink == other.ink;
 }
 
 @freezed
