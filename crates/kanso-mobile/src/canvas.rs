@@ -22,7 +22,9 @@ use std::time::Instant;
 
 use kanso_core::canvas::{
     self, Action, Bounds, Budget, Canvas, Edge, INK, Node, Point, Refused, Stroke, StrokeRef,
+    sketch,
 };
+use kanso_core::model::SHARE_FIELD;
 use kanso_core::{DocType, Note, new_id, now_ms};
 use kanso_render::Palette;
 use kanso_render::canvas::{self as draw, geometry, pen};
@@ -32,7 +34,7 @@ use serde_json::json;
 use crate::boundary::{guard, held};
 use crate::canvas_model::{
     CanvasArrow, CanvasBudget, CanvasCard, CanvasGroup, CanvasPoint, CanvasRect, CanvasSaved,
-    CanvasStroke, CanvasView, InkStyle, PenSample, StrokeKey,
+    CanvasStroke, CanvasView, InkStyle, PenSample, SketchInfo, SketchInserted, StrokeKey,
 };
 use crate::errors::KansoError;
 use crate::library::Library;
@@ -63,7 +65,21 @@ enum Entry {
     },
 }
 
+/// What a session open on an inline sketch (a `sketch` fence in a Markdown
+/// note) is: the sketch's ID in the note, and whether it can't be drawn on
+/// (the note is shared or in the trash).
+struct SketchTarget {
+    id: String,
+    read_only: bool,
+    /// The sketch as the note held it when the session read or last wrote
+    /// it. A save that finds the fence changed since (another device drew in
+    /// it, or the handwriting reader kept its words) merges the two instead
+    /// of writing over them.
+    base: Canvas,
+}
+
 struct State {
+    sketch: Option<SketchTarget>,
     id: String,
     rev: String,
     title: String,
@@ -94,6 +110,29 @@ struct State {
 pub struct CanvasSession {
     lib: Library,
     state: Arc<Mutex<State>>,
+}
+
+/// `body` with an empty `width` by `height` sketch put in at `at` (UTF-16
+/// units, where the cursor is), on lines of its own, with the new sketch's ID
+/// and the cursor after it. [`KansoError::Invalid`] with the words to show
+/// when the note's sketches are full. Random in the ID.
+pub fn sketch_insert(
+    body: String,
+    at: u32,
+    width: u32,
+    height: u32,
+) -> Result<SketchInserted, KansoError> {
+    guard(|| {
+        let at = kanso_engine::text::utf16_to_byte(&body, at as usize);
+        let (id, next) = sketch::insert(&body, at, width, height)
+            .map_err(|why| KansoError::invalid(why.words()))?;
+        let end = sketch::find_by_id(&next, &id).map_or(next.len(), |(f, _)| f.range.end);
+        Ok(SketchInserted {
+            cursor: kanso_engine::text::byte_to_utf16(&next, end) as u32,
+            body: next,
+            id,
+        })
+    })
 }
 
 /// The outline of a stroke still being drawn, as `x0, y0, x1, y1, ...`: what
@@ -130,6 +169,7 @@ impl Library {
             Ok(CanvasSession {
                 lib: self.clone(),
                 state: Arc::new(Mutex::new(State {
+                    sketch: None,
                     id: note.id,
                     rev: note.rev.unwrap_or_default(),
                     title: note.title,
@@ -145,6 +185,87 @@ impl Library {
                     read_only,
                 })),
             })
+        })
+    }
+
+    /// Opens sketch `sketch_id` of Markdown note `note_id` for drawing: the
+    /// same session as a canvas, over the sketch's document, saved back into
+    /// the note's fence. [`KansoError::Locked`] while the note is locked and
+    /// closed, [`KansoError::NotFound`] when the note has no such sketch. In
+    /// a shared note (or one in the trash) the session is read only.
+    pub fn sketch(&self, note_id: &str, sketch_id: &str) -> Result<CanvasSession, KansoError> {
+        guard(|| {
+            let mut note = self.stored(note_id)?;
+            if note.doctype == "canvas" {
+                return Err(KansoError::invalid("A canvas has no sketches."));
+            }
+            let read_only = note.is_trashed() || note.extra.contains_key(SHARE_FIELD);
+            if self.reveal(&mut note).is_closed() {
+                return Err(KansoError::Locked);
+            }
+            let (_, canvas) =
+                sketch::find_by_id(&note.body, sketch_id).ok_or(KansoError::NotFound)?;
+            Ok(CanvasSession {
+                lib: self.clone(),
+                state: Arc::new(Mutex::new(State {
+                    sketch: Some(SketchTarget {
+                        id: sketch_id.to_owned(),
+                        read_only,
+                        base: canvas.clone(),
+                    }),
+                    id: note.id,
+                    rev: note.rev.unwrap_or_default(),
+                    title: note.title,
+                    canvas,
+                    undo: Vec::new(),
+                    redo: Vec::new(),
+                    dirty: false,
+                    edits: 0,
+                    measured: Cell::new(None),
+                    measurements: Cell::new(0),
+                    // A sketch is never drawn on live with others: its
+                    // shared note's sketches are read only instead.
+                    link: None,
+                    shared: false,
+                    read_only,
+                })),
+            })
+        })
+    }
+
+    /// "Insert sketch" in note `note_id`: [`sketch_insert`] on the editor's
+    /// `body`, refused for a shared note (two people replacing one sketch's
+    /// JSON would be merged into a broken fence), one in the trash and a
+    /// canvas.
+    pub fn sketch_insert(
+        &self,
+        note_id: &str,
+        body: String,
+        at: u32,
+        width: u32,
+        height: u32,
+    ) -> Result<SketchInserted, KansoError> {
+        guard(|| {
+            let note = self.stored(note_id)?;
+            if note.doctype == "canvas" {
+                return Err(KansoError::invalid("A canvas has no sketches."));
+            }
+            if note.extra.contains_key(SHARE_FIELD) {
+                return Err(KansoError::invalid(SHARED_INSERT_WORDS));
+            }
+            if note.is_trashed() {
+                return Err(KansoError::invalid("A note in the trash takes no sketch."));
+            }
+            sketch_insert(body, at, width, height)
+        })
+    }
+
+    /// Whether "Insert sketch" may put a sketch in note `id`: a Markdown
+    /// note that isn't shared or in the trash. The shell asks before it
+    /// offers the sizes; [`Library::sketch_insert`] refuses the same notes.
+    pub fn takes_sketches(&self, id: &str) -> bool {
+        self.stored(id).is_ok_and(|note| {
+            note.doctype != "canvas" && !note.is_trashed() && !note.extra.contains_key(SHARE_FIELD)
         })
     }
 
@@ -257,6 +378,51 @@ impl Library {
         })
     }
 
+    /// Changes the text of Markdown note `id` as it is now with `change`
+    /// (which may refuse), and writes it, sealing a note whose lock is open.
+    /// A write that loses a race is made again on the winner's version, so
+    /// only what `change` touches (one sketch's fence) is the writer's.
+    fn write_text(
+        &self,
+        id: &str,
+        change: impl Fn(&str) -> Result<String, KansoError>,
+    ) -> Result<(String, usize), KansoError> {
+        for _ in 0..3 {
+            let mut note = self.stored(id)?;
+            let mut shown = note.clone();
+            let state = self.reveal(&mut shown);
+            if state.is_closed() {
+                return Err(KansoError::Locked);
+            }
+            let text = change(&shown.body)?;
+            if shown.rev != note.rev {
+                note = self.stored(id)?;
+            }
+            let bytes = text.len();
+            note.body = text;
+            note.updated_at = now_ms();
+            if state == kanso_engine::lock::LockView::Open {
+                held(&self.inner.keys)
+                    .seal(&mut note, Instant::now())
+                    .map_err(|_| KansoError::Locked)?;
+            }
+            let value =
+                serde_json::to_value(&note).map_err(|err| KansoError::storage(err.to_string()))?;
+            match self
+                .inner
+                .store
+                .put(DocType::Note, value, Put::Upsert, Origin::Ui)
+            {
+                Ok(written) => return Ok((written.rev, bytes)),
+                Err(kanso_store::StoreError::Conflict) => {}
+                Err(err) => return Err(err.into()),
+            }
+        }
+        Err(KansoError::Conflict {
+            current_rev: self.stored(id).ok().and_then(|n| n.rev).unwrap_or_default(),
+        })
+    }
+
     /// Writes `canvas` into note `id` if it is still at `base_rev`. A locked
     /// note that is open is sealed again.
     fn write_canvas(
@@ -339,6 +505,8 @@ impl CanvasSession {
             state.writable()?;
             // `draw` may add the ink layer even when it then refuses.
             state.edits += 1;
+            // Ink outside a sketch's box is ignored.
+            let inside = state.canvas.kanso_sketch;
             // A stroke whose points streamed to the others keeps the ID
             // they were streamed under.
             let streamed = state.link.as_mut().and_then(|link| link.stroke.take());
@@ -347,14 +515,28 @@ impl CanvasSession {
                 tool: style.tool,
                 color: style.color,
                 width: style.width,
-                points: samples.iter().map(point).collect(),
+                points: samples
+                    .iter()
+                    .filter(|s| inside.is_none_or(|b| b.contains(s.x, s.y)))
+                    .map(point)
+                    .collect(),
                 ..Stroke::default()
             };
+            // A sketch (never shared live) takes back a stroke that passed
+            // its cap, whole.
+            let before = state.sketch.is_some().then(|| state.canvas.clone());
             let drawn = if streamed.is_some() {
                 state.canvas.draw_as(stroke, now_ms())
             } else {
                 state.canvas.draw(stroke, now_ms())
             };
+            if drawn.is_ok()
+                && let Some(before) = before
+                && !sketch::fits(&state.canvas)
+            {
+                state.canvas = before;
+                return Err(KansoError::invalid(sketch::SKETCH_FULL));
+            }
             let refused = match drawn {
                 Ok((_, action)) => {
                     state.push(Entry::Strokes(action));
@@ -670,6 +852,48 @@ impl CanvasSession {
                     merged: false,
                 });
             }
+            if let Some(target) = &state.sketch {
+                if target.read_only {
+                    return Err(KansoError::invalid(SHARED_WORDS));
+                }
+                // Only the sketch's fence is replaced, in the note as it is
+                // now: text another device wrote meanwhile stays. A fence
+                // changed since the session read it (another device's ink,
+                // the handwriting reader's words) is merged, not written over.
+                let (id, sketch_id, canvas, base) = (
+                    state.id.clone(),
+                    target.id.clone(),
+                    state.canvas.clone(),
+                    target.base.clone(),
+                );
+                let written = std::cell::RefCell::new(None);
+                let (rev, bytes) = self.lib.write_text(&id, |text| {
+                    let (next, sketch) = sketch::replace_merged(text, &sketch_id, &canvas, &base)
+                        .map_err(|why| KansoError::invalid(why.words()))?;
+                    *written.borrow_mut() = Some(sketch);
+                    Ok(next)
+                })?;
+                let merged = written
+                    .into_inner()
+                    .filter(|sketch| *sketch != state.canvas);
+                let was_merged = merged.is_some();
+                if let Some(sketch) = merged {
+                    // The session now shows what the note holds.
+                    state.canvas = sketch;
+                    state.edits += 1;
+                }
+                let now = state.canvas.clone();
+                if let Some(target) = state.sketch.as_mut() {
+                    target.base = now;
+                }
+                state.rev = rev.clone();
+                state.dirty = false;
+                return Ok(CanvasSaved {
+                    rev,
+                    bytes: bytes as u32,
+                    merged: was_merged,
+                });
+            }
             let mut merged = false;
             for _ in 0..3 {
                 match self.lib.write_canvas(&state.id, &state.rev, &state.canvas) {
@@ -746,6 +970,77 @@ impl CanvasSession {
         })
     }
 
+    /// What the session is, when it is an inline sketch: its ID, its box in
+    /// points and whether it can't be drawn on.
+    pub fn sketch_info(&self) -> Option<SketchInfo> {
+        let state = self.lock();
+        let target = state.sketch.as_ref()?;
+        let sk = state.canvas.kanso_sketch?;
+        Some(SketchInfo {
+            id: target.id.clone(),
+            width: sk.w,
+            height: sk.h,
+            read_only: target.read_only,
+        })
+    }
+
+    /// "Open as canvas" on an inline sketch: a new canvas note in the same
+    /// notebook, with the same tags, holds its ink; the sketch's fence in the
+    /// note becomes a `canvas` embed of it in one edit. When the sketch is
+    /// read only (a shared note) it is "Copy as canvas": a private canvas,
+    /// with no tags, and the note is not touched. A locked note refuses. If
+    /// the sketch is gone from the note nothing is made.
+    pub fn open_as_canvas(&self, title: String) -> Result<Saved, KansoError> {
+        guard(|| {
+            let (note_id, sketch_id, read_only) = {
+                let state = self.lock();
+                let target = state.sketch.as_ref().ok_or_else(|| {
+                    KansoError::invalid("Only a sketch can be opened as a canvas.")
+                })?;
+                (state.id.clone(), target.id.clone(), target.read_only)
+            };
+            if !read_only {
+                self.save()?;
+            }
+            let mut note = self.lib.stored(&note_id)?;
+            let state = self.lib.reveal(&mut note);
+            if state.is_closed() || state != kanso_engine::lock::LockView::Plain {
+                return Err(KansoError::invalid(
+                    "A locked note's sketch can't be opened as a canvas.",
+                ));
+            }
+            let (_, current) = sketch::find_by_id(&note.body, &sketch_id).ok_or_else(|| {
+                KansoError::invalid("This sketch is gone from the note, so nothing was changed.")
+            })?;
+            let canvas = current.promoted();
+            let width = canvas.kanso_sketch.map_or(480, |s| s.w);
+            let tags = if read_only {
+                Vec::new()
+            } else {
+                note.tags.clone()
+            };
+            let saved = self.lib.write_new_canvas(
+                Some(note.book_id.clone()),
+                None,
+                title,
+                &canvas,
+                tags,
+            )?;
+            if !read_only {
+                let embed = sketch::embed(&saved.id, width);
+                let (rev, _) = self.lib.write_text(&note_id, |text| {
+                    sketch::replace_with_text(text, &sketch_id, &embed).ok_or_else(|| {
+                        KansoError::invalid(
+                            "This sketch is gone from the note, so nothing was changed.",
+                        )
+                    })
+                })?;
+                self.lock().rev = rev;
+            }
+            Ok(saved)
+        })
+    }
+
     /// The canvas as an SVG (the whole content), on a light or dark page.
     pub fn export_svg(&self, dark: bool) -> Result<String, KansoError> {
         guard(|| {
@@ -784,7 +1079,16 @@ impl CanvasSession {
         guard(|| {
             let mut state = self.lock();
             state.writable()?;
+            let before = state.sketch.is_some().then(|| state.canvas.clone());
             if let Some(step) = edit(&mut state.canvas) {
+                // A sketch holds ink only and stays within its cap: an edit
+                // that leaves it otherwise is taken back whole.
+                if let Some(before) = before
+                    && (!sketch::fits(&state.canvas) || state.canvas.validate_sketch().is_err())
+                {
+                    state.canvas = before;
+                    return Err(KansoError::invalid(sketch::SKETCH_FULL));
+                }
                 state.push(step);
             }
             Ok(view(&state, &self.titles(), &known.into_iter().collect()))
@@ -864,6 +1168,13 @@ impl CanvasSession {
     }
 }
 
+/// What a read only sketch says.
+const SHARED_WORDS: &str = "Shared note: copy it to a canvas to draw together.";
+
+/// What "Insert sketch" in a shared note says.
+pub const SHARED_INSERT_WORDS: &str =
+    "Sketches can't be added to a shared note. Add one to a private note, or draw on a canvas.";
+
 impl State {
     fn push(&mut self, entry: Entry) {
         self.undo.push(entry);
@@ -883,7 +1194,11 @@ impl State {
         {
             return bytes;
         }
-        let bytes = canvas::to_body(&self.canvas).len();
+        let bytes = if self.sketch.is_some() {
+            sketch::to_json(&self.canvas).len()
+        } else {
+            canvas::to_body(&self.canvas).len()
+        };
         self.measured.set(Some((self.edits, bytes)));
         self.measurements.set(self.measurements.get() + 1);
         bytes
@@ -1013,9 +1328,14 @@ fn view(state: &State, titles: &HashMap<String, String>, known: &HashSet<String>
         arrows,
         bounds: canvas.content_bounds().as_ref().map(rect),
         bytes: bytes as u32,
-        // A shared canvas past what a note holds takes no more ink, though
-        // its own bytes are measured as the note's.
-        budget: match canvas::budget(bytes) {
+        // A sketch's cap is its own (256 KB, a warning from 75%), not a
+        // canvas's. A shared canvas past what a note holds takes no more
+        // ink, though its own bytes are measured as the note's.
+        budget: match if state.sketch.is_some() {
+            sketch::budget(bytes)
+        } else {
+            canvas::budget(bytes)
+        } {
             _ if state.full() => CanvasBudget::Full,
             Budget::Ok => CanvasBudget::Ok,
             Budget::Warn => CanvasBudget::Warn,
