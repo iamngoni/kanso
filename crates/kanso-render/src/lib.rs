@@ -20,6 +20,7 @@ mod js;
 pub mod markdown_safe;
 mod math;
 mod mermaid;
+pub mod pdf_notes;
 mod pele;
 pub mod plugin;
 mod rough;

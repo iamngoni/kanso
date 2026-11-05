@@ -10,6 +10,7 @@ import '../../../../core/bridge/api/types.dart';
 import 'preview_code.dart';
 import 'preview_figure.dart';
 import 'preview_list.dart';
+import 'preview_pdf_notes.dart';
 import 'preview_style.dart';
 import 'preview_table.dart';
 import 'preview_text.dart';
@@ -166,6 +167,9 @@ class PreviewBlockView extends StatelessWidget {
         svg: svg,
       ),
       PreviewBlock_EmptyDrawing() => const PreviewEmptyDrawing(),
+      PreviewBlock_PdfNotes(:final summary) => PreviewPdfNotes(
+        summary: summary,
+      ),
       PreviewBlock_Failed(
         :final badge,
         :final detail,

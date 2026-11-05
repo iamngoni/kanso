@@ -146,6 +146,7 @@ mod overview;
 mod overview_model;
 pub mod passkey_bridge;
 mod passkey_flow;
+mod pdf_notes;
 mod people;
 mod people_model;
 mod player;

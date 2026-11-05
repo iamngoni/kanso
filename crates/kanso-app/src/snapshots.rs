@@ -5711,6 +5711,32 @@ fn snapshots() {
             Split,
             pdf::reader_original_page,
         ),
+        Shot {
+            size: size(px(1900.), px(900.)),
+            ..shot("dark-pdf-highlights", Dark, Split, pdf::reader_highlights)
+        },
+        Shot {
+            size: size(px(1900.), px(900.)),
+            ..shot("light-pdf-highlights", Light, Split, pdf::reader_highlights)
+        },
+        Shot {
+            size: size(px(1900.), px(900.)),
+            ..shot(
+                "dark-pdf-highlights-restore",
+                Dark,
+                Split,
+                pdf::reader_highlights_restore,
+            )
+        },
+        Shot {
+            size: size(px(1900.), px(900.)),
+            ..shot(
+                "light-pdf-highlights-restore",
+                Light,
+                Split,
+                pdf::reader_highlights_restore,
+            )
+        },
         shot("dark-pdf-password", Dark, Split, pdf::reader_password),
         shot("light-pdf-password", Light, Split, pdf::reader_password),
         shot(

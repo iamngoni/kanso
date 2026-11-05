@@ -583,6 +583,12 @@ impl NoteEditor {
                     }
                     this.text_version += 1;
                     this.source_lines = None;
+                    // The reader follows the note's text: its highlights are
+                    // in a block there.
+                    if let Some((reader, _)) = &this.pdf {
+                        let text = this.body.read(cx).value().to_string();
+                        reader.update(cx, |reader, cx| reader.note_changed(text, cx));
+                    }
                     // Text from another editor of the note is saved there.
                     if !this.peer_change(cx) {
                         this.schedule_autosave(cx);
@@ -1155,6 +1161,8 @@ impl NoteEditor {
         if writes_held(cx) && self.has_unsaved_edits(cx) {
             return;
         }
+        // Highlights made a moment ago belong to the note being left.
+        self.write_pending_pdf(window, cx);
         self.flush(cx);
         self.left_place = self.place(cx);
         let note = match id.map(|id| self.store.note(id)) {
@@ -2503,14 +2511,27 @@ impl NoteEditor {
         let (store, name) = (self.store.clone(), meta.name);
         let page = link.page.unwrap_or(1);
         let reader = cx.new(|cx| crate::pdf::PdfReader::new(store, id, name, page, window, cx));
-        self.show_pdf(reader, window, cx);
+        self.show_pdf_at(reader, link.highlight, window, cx);
     }
 
     /// Puts `reader` in the preview's place: Edit and Live give way to Split,
     /// as for the recording player.
+    #[cfg(test)]
     pub(crate) fn show_pdf(
         &mut self,
         reader: Entity<crate::pdf::PdfReader>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.show_pdf_at(reader, None, window, cx);
+    }
+
+    /// As [`NoteEditor::show_pdf`], showing the highlight `reveal` names
+    /// (a quote's link carries its id) once the pages are up.
+    pub(crate) fn show_pdf_at(
+        &mut self,
+        reader: Entity<crate::pdf::PdfReader>,
+        reveal: Option<String>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -2519,8 +2540,11 @@ impl NoteEditor {
             window,
             |this, _, event: &crate::pdf::PdfEvent, window, cx| match event {
                 crate::pdf::PdfEvent::Close => this.close_pdf(window, cx),
+                crate::pdf::PdfEvent::Write(write) => this.apply_pdf_write(write, window, cx),
             },
         );
+        let body = self.body.read(cx).value().to_string();
+        reader.update(cx, |reader, cx| reader.set_note(body, reveal, cx));
         let focus = reader.read(cx).focus_handle().clone();
         window.focus(&focus, cx);
         self.pdf = Some((reader, subscription));
@@ -2528,6 +2552,77 @@ impl NoteEditor {
             self.set_view_mode(ViewMode::Split, cx);
         }
         cx.notify();
+    }
+
+    /// Writes into the note what the reader asked: its highlights' block, or
+    /// a quote. It is an edit of the text like typing, so it is one undo
+    /// step, reaches a shared note's other editors, and is saved with the
+    /// note.
+    // no-prop-test: glue over `Annotations::{save_edit, quote_edit, restore_edit}`,
+    // which have the properties; the editor tests drive it.
+    pub(crate) fn apply_pdf_write(
+        &mut self,
+        write: &crate::pdf::Write,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        use crate::pdf::Write;
+        if self.note.is_none() || self.body_read_only || self.lock != LockView::Plain {
+            cx.emit(EditorEvent::Notice(PDF_NOTE_READ_ONLY.to_owned()));
+            return;
+        }
+        let body = self.body.read(cx).value().to_string();
+        let edit = match write {
+            Write::Save(annotations) => annotations.save_edit(&body),
+            Write::Quote {
+                annotations,
+                id,
+                name,
+            } => Ok(annotations.quote_edit(&body, id, name)),
+            Write::Restore(annotations) => annotations.restore_edit(&body).map(Some),
+        };
+        match edit {
+            Ok(Some(edit)) => self.apply_body_edit(&edit, window, cx),
+            Ok(None) => {}
+            Err(error) => cx.emit(EditorEvent::Notice(error.to_string())),
+        }
+    }
+
+    /// One undoable replacement in the body that leaves the person's own
+    /// selection where it was in the text.
+    fn apply_body_edit(
+        &mut self,
+        edit: &kanso_pdf::Edit,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let shift = |at: usize| {
+            if at >= edit.range.end {
+                at - edit.range.len() + edit.insert.len()
+            } else if at > edit.range.start {
+                edit.range.start + edit.insert.len()
+            } else {
+                at
+            }
+        };
+        self.body.update(cx, |state, cx| {
+            let selected = state.selected_range();
+            state.set_selected_range(edit.range.clone(), cx);
+            state.replace(edit.insert.clone(), window, cx);
+            state.set_selected_range(shift(selected.start)..shift(selected.end), cx);
+        });
+    }
+
+    /// Highlights the reader has not handed over yet, written now: the
+    /// reader is about to go with its note.
+    fn write_pending_pdf(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some((reader, _)) = &self.pdf else {
+            return;
+        };
+        let pending = reader.update(cx, |reader, _| reader.take_pending());
+        if let Some(write) = pending {
+            self.apply_pdf_write(&write, window, cx);
+        }
     }
 
     /// Back to the note: the reader goes, and the text has the cursor again.
@@ -4702,6 +4797,10 @@ fn is_pdf_path(path: &std::path::Path) -> bool {
 /// exactly what people lock, so it is refused rather than allowed with a
 /// warning.
 const PDF_IN_LOCKED_NOTE: &str = "PDFs can't be attached to a locked note yet, because attachments aren't sealed with the lock. Attach it to a note that isn't locked.";
+
+/// What a highlight made while the note can't be edited says.
+const PDF_NOTE_READ_ONLY: &str =
+    "This note can't be edited right now, so the highlight wasn't saved to it.";
 
 /// What opening a PDF in a locked note says, for the same reason.
 const PDF_IN_LOCKED_NOTE_OPEN: &str = "PDFs in locked notes can't be opened yet, because attachments aren't sealed with the lock. Unlock the note's notebook, or move the PDF to a note that isn't locked.";
@@ -7047,6 +7146,161 @@ mod writing_tests {
         draw_window(&open, cx);
         let mut vcx = gpui_kit::VisualTestContext::from_window(open.window, cx);
         assert!(vcx.debug_bounds("pdf-reader").is_none());
+    }
+
+    /// What the reader asks of the note reaches its text as ordinary edits:
+    /// each quote at once (one undo step each), a burst of highlights as one
+    /// write of the block after a pause, the caret where it was. A quote is
+    /// written once; the block is read back by the reader.
+    // no-prop-test: drives one window; `Annotations` has the properties.
+    #[gpui_kit::test]
+    fn highlights_reach_the_note_as_edits_of_its_text(cx: &mut TestAppContext) {
+        use kanso_pdf::model::{Color, Quad};
+        let open = Open::new(cx, "My notes\n");
+        let pdf =
+            kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
+                .unwrap();
+        let url = format!("inkdrop://{pdf}#page=1");
+        open.with(cx, move |editor, window, cx| {
+            editor.open_file_link(&url, window, cx)
+        });
+        let reader = open.with(cx, |editor, _, _| editor.pdf.as_ref().unwrap().0.clone());
+        let page = {
+            let chars = "Revenue"
+                .chars()
+                .enumerate()
+                .map(|(i, ch)| kanso_pdf::TextChar {
+                    ch,
+                    quad: Quad::new(0.1 + i as f64 * 0.02, 0.1, 0.12 + i as f64 * 0.02, 0.125),
+                    turns: 0,
+                });
+            kanso_pdf::PageText {
+                page: 1,
+                width: 612.,
+                height: 792.,
+                rotation: 0,
+                chars: chars.collect(),
+            }
+        };
+        open.select(cx, 0..2);
+        let versions = open.with(cx, |editor, _, _| editor.text_version);
+        let window = open.window;
+        let r = reader.clone();
+        cx.update_window(window, move |_, window, cx| {
+            r.update(cx, |reader, cx| {
+                reader.test_open(vec![[612., 792.]], window, cx);
+                reader.test_text(page, cx);
+                for color in [Color::Yellow, Color::Green, Color::Blue] {
+                    reader.test_highlight_all(color, window, cx);
+                }
+            })
+        })
+        .unwrap();
+        cx.run_until_parked();
+
+        // Three quotes went in at once, each its own edit; the block waits.
+        let (text, caret) = open.text(cx);
+        assert!(text.starts_with("My notes\n"), "{text}");
+        assert_eq!(text.matches("> Revenue").count(), 3, "{text}");
+        assert!(
+            text.contains("## Highlights\n\n### Report.pdf\n\n> Revenue"),
+            "{text}"
+        );
+        assert!(
+            !text.contains("```kanso-pdf"),
+            "the block went in early: {text}"
+        );
+        assert_eq!(caret, 0..2, "the person's selection moved");
+        let after_quotes = open.with(cx, |editor, _, _| editor.text_version);
+        assert_eq!(after_quotes - versions, 3, "one edit per quote");
+
+        // After the pause the block is written: one edit for the burst.
+        cx.executor()
+            .advance_clock(crate::pdf::SAVE_DELAY + std::time::Duration::from_millis(1));
+        cx.run_until_parked();
+        let (text, caret) = open.text(cx);
+        assert_eq!(text.matches("```kanso-pdf").count(), 1, "{text}");
+        assert_eq!(caret, 0..2);
+        let saved = open.with(cx, |editor, _, _| editor.text_version);
+        assert_eq!(saved - after_quotes, 1, "a burst is one write of the block");
+
+        // The reader read its own block back; the quotes are all "in note".
+        let file = pdf.to_string();
+        let annots = kanso_pdf::Annotations::from_body(&text, &file, "");
+        assert_eq!(annots.block.highlights.len(), 3);
+        assert_eq!(
+            kanso_pdf::highlights::quote_ids(&text, &file).len(),
+            3,
+            "every highlight's quote is in the note"
+        );
+        let held = cx.read(|cx| reader.read(cx).test_notes().block.highlights.len());
+        assert_eq!(held, 3);
+
+        // One undo takes the block back out, the next takes a quote.
+        open.with(cx, |editor, window, cx| editor.focus_body(window, cx));
+        open.keys(cx, "cmd-z");
+        let (undone, _) = open.text(cx);
+        assert!(!undone.contains("```kanso-pdf"), "{undone}");
+        assert_eq!(undone.matches("> Revenue").count(), 3);
+        open.keys(cx, "cmd-z");
+        let (undone, _) = open.text(cx);
+        assert_eq!(undone.matches("> Revenue").count(), 2, "{undone}");
+    }
+
+    /// Highlights the reader had not handed over when the person went to
+    /// another note are written into the note they belong to.
+    // no-prop-test: drives one window; `Annotations` has the properties.
+    #[gpui_kit::test]
+    fn highlights_made_a_moment_ago_are_written_before_the_note_changes(cx: &mut TestAppContext) {
+        use kanso_pdf::model::{Color, Quad};
+        let open = Open::new(cx, "Notes\n");
+        let other = open
+            .store
+            .put(
+                DocType::Note,
+                json!({"title": "other", "body": "x", "bookId": open.store.books().unwrap()[0].id}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id;
+        let pdf =
+            kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
+                .unwrap();
+        let url = format!("inkdrop://{pdf}");
+        open.with(cx, move |editor, window, cx| {
+            editor.open_file_link(&url, window, cx)
+        });
+        let reader = open.with(cx, |editor, _, _| editor.pdf.as_ref().unwrap().0.clone());
+        let page = kanso_pdf::PageText {
+            page: 1,
+            width: 612.,
+            height: 792.,
+            rotation: 0,
+            chars: vec![kanso_pdf::TextChar {
+                ch: 'A',
+                quad: Quad::new(0.1, 0.1, 0.12, 0.125),
+                turns: 0,
+            }],
+        };
+        cx.update_window(open.window, move |_, window, cx| {
+            reader.update(cx, |reader, cx| {
+                reader.test_open(vec![[612., 792.]], window, cx);
+                reader.test_text(page, cx);
+                reader.test_highlight_all(Color::Pink, window, cx);
+            })
+        })
+        .unwrap();
+        // Within the pause: leave.
+        open.with(cx, move |editor, window, cx| {
+            editor.open(Some(&other), window, cx)
+        });
+        assert!(open.with(cx, |editor, _, _| editor.pdf.is_none()));
+        let saved = open.store.note(&open.id).unwrap().unwrap().body;
+        assert!(
+            saved.contains("```kanso-pdf"),
+            "the highlight was lost: {saved}"
+        );
     }
 
     /// A locked note refuses to open its PDF in the reader, in words, and

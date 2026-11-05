@@ -3763,6 +3763,96 @@ class PasskeyRow {
 }
 
 @freezed
+sealed class PdfHighlightChange with _$PdfHighlightChange {
+  const PdfHighlightChange._();
+
+  const factory PdfHighlightChange.comment({required String comment}) =
+      PdfHighlightChange_Comment;
+  const factory PdfHighlightChange.color({required String color}) =
+      PdfHighlightChange_Color;
+  const factory PdfHighlightChange.addQuote() = PdfHighlightChange_AddQuote;
+  const factory PdfHighlightChange.delete() = PdfHighlightChange_Delete;
+}
+
+class PdfHighlightRow {
+  final String id;
+  final int page;
+  final String color;
+  final String text;
+  final String? comment;
+  final bool inNote;
+
+  const PdfHighlightRow({
+    required this.id,
+    required this.page,
+    required this.color,
+    required this.text,
+    this.comment,
+    required this.inNote,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      page.hashCode ^
+      color.hashCode ^
+      text.hashCode ^
+      comment.hashCode ^
+      inNote.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PdfHighlightRow &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          page == other.page &&
+          color == other.color &&
+          text == other.text &&
+          comment == other.comment &&
+          inNote == other.inNote;
+}
+
+class PdfNotes {
+  final String file;
+  final String name;
+  final String url;
+  final bool editable;
+  final String? why;
+  final List<PdfHighlightRow> highlights;
+
+  const PdfNotes({
+    required this.file,
+    required this.name,
+    required this.url,
+    required this.editable,
+    this.why,
+    required this.highlights,
+  });
+
+  @override
+  int get hashCode =>
+      file.hashCode ^
+      name.hashCode ^
+      url.hashCode ^
+      editable.hashCode ^
+      why.hashCode ^
+      highlights.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PdfNotes &&
+          runtimeType == other.runtimeType &&
+          file == other.file &&
+          name == other.name &&
+          url == other.url &&
+          editable == other.editable &&
+          why == other.why &&
+          highlights == other.highlights;
+}
+
+@freezed
 sealed class PersonLookup with _$PersonLookup {
   const PersonLookup._();
 
@@ -3922,6 +4012,10 @@ sealed class PreviewBlock with _$PreviewBlock {
     required PreviewSvg svg,
   }) = PreviewBlock_Figure;
   const factory PreviewBlock.emptyDrawing() = PreviewBlock_EmptyDrawing;
+  const factory PreviewBlock.pdfNotes({
+    String? url,
+    required String summary,
+  }) = PreviewBlock_PdfNotes;
   const factory PreviewBlock.failed({
     required String badge,
     required String detail,

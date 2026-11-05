@@ -22,6 +22,7 @@
 //! Page textures live in memory only, never on disk: a page image of a
 //! locked PDF would be a plaintext leak.
 
+mod annotate;
 mod budget;
 pub mod index;
 mod layout;
@@ -43,6 +44,9 @@ use gpui_kit::*;
 use kanso_pdf::client::WorkerPaths;
 use kanso_store::Store;
 
+#[cfg(test)]
+pub(crate) use annotate::SAVE_DELAY;
+pub use annotate::Write;
 use budget::{PAGE_BUDGET_BYTES, PixelBudget, THUMB_BUDGET_BYTES};
 use layout::{Layout, MARGIN, PAGE_GAP, Zoom};
 pub use model::ReaderState;
@@ -70,6 +74,9 @@ const DARK_PAGE: u32 = 0x1b1b1b;
 pub enum PdfEvent {
     /// Back to the note: the button, or Escape.
     Close,
+    /// Change the note's text (highlights, their quotes): the editor applies
+    /// it as an edit of the text, the way typing is.
+    Write(Write),
 }
 
 /// A page picture, and what it was drawn for.
@@ -134,6 +141,12 @@ pub struct PdfReader {
     original: bool,
     rail_open: bool,
 
+    /// The highlights and the selection (`annotate.rs`).
+    notes: annotate::Notes,
+    save_task: Option<Task<()>>,
+    flash_task: Option<Task<()>>,
+    comment: Entity<InputState>,
+
     scroll: ScrollHandle,
     rail_scroll: ScrollHandle,
     password: Entity<InputState>,
@@ -182,7 +195,15 @@ impl PdfReader {
                 .placeholder("Password")
         });
         let page_field = cx.new(|cx| InputState::new(window, cx));
+        let comment = cx.new(|cx| InputState::new(window, cx).placeholder("Add a note"));
         let subscriptions = vec![
+            cx.subscribe_in(
+                &comment,
+                window,
+                |this: &mut PdfReader, _, event: &InputEvent, window, cx| {
+                    this.on_comment_event(event, window, cx)
+                },
+            ),
             cx.subscribe_in(
                 &password,
                 window,
@@ -236,6 +257,10 @@ impl PdfReader {
             dark: cx.theme().is_dark(),
             original,
             rail_open: true,
+            notes: annotate::Notes::default(),
+            save_task: None,
+            flash_task: None,
+            comment,
             scroll: ScrollHandle::new(),
             rail_scroll: ScrollHandle::new(),
             password,
@@ -272,6 +297,7 @@ impl PdfReader {
     fn start(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.state = ReaderState::Loading;
         self.forget_pages();
+        self.notes.asked.clear();
         let (session, events) =
             Session::start(self.store.clone(), self.file_id.clone(), self.paths.clone());
         self.session = Some(session);
@@ -312,6 +338,7 @@ impl PdfReader {
                 }
                 self.sync(window, cx);
                 self.show_page_number(window, cx);
+                self.reveal_pending(window, cx);
             }
             Event::NeedsPassword { wrong } => {
                 self.state = ReaderState::NeedsPassword { wrong };
@@ -344,6 +371,7 @@ impl PdfReader {
             Event::RenderFailed { job } => {
                 self.failed.insert(job);
             }
+            Event::Text(text) => self.on_text(*text, cx),
             Event::Failed(words) => self.fail(words),
         }
         cx.notify();
@@ -378,6 +406,7 @@ impl PdfReader {
     }
 
     fn close(&mut self, cx: &mut Context<Self>) {
+        self.flush(cx);
         cx.emit(PdfEvent::Close);
     }
 
@@ -610,8 +639,12 @@ impl PdfReader {
                     .filter(|job| !self.failed.contains(job)),
             );
         }
+        let text = self.text_wanted();
         if let Some(session) = &self.session {
             session.set_jobs(jobs);
+            if !text.is_empty() {
+                session.want_text(text);
+            }
         }
 
         let gone = self.pages.evict(visible, current);
@@ -816,6 +849,18 @@ impl PdfReader {
             )
             .when(showing, |bar| {
                 bar.child(
+                    self.button(
+                        "pdf-highlights",
+                        Lucide::Highlighter,
+                        "Highlights",
+                        self.notes.panel,
+                    )
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.notes.panel = !this.notes.panel;
+                        cx.notify();
+                    })),
+                )
+                .child(
                     self.button("pdf-rail", Lucide::PanelLeft, "Thumbnails", self.rail_open)
                         .on_click(cx.listener(|this, _, window, cx| this.toggle_rail(window, cx))),
                 )
@@ -1043,6 +1088,7 @@ impl PdfReader {
             self.pages.touch(page);
             let [w, h] = self.layout.size(page);
             let image = self.pages.get(page).map(|tex| tex.image.clone());
+            let marks = self.page_marks(page, w, h, colors);
             column = column.child(
                 div()
                     .absolute()
@@ -1061,8 +1107,13 @@ impl PdfReader {
                                 .object_fit(ObjectFit::Fill)
                                 .size_full(),
                         )
-                    }),
+                    })
+                    .children(marks),
             );
+        }
+        // The selection's toolbar floats over the column.
+        if let Some(bar) = self.toolbar(colors, content_w, cx) {
+            column = column.child(bar);
         }
 
         let pages = div()
@@ -1079,20 +1130,53 @@ impl PdfReader {
                     .overflow_scroll()
                     .track_scroll(&self.scroll)
                     .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
+                    .cursor_text()
                     .on_mouse_down(
                         MouseButton::Left,
-                        cx.listener(|this, _, window, cx| window.focus(&this.focus, cx)),
+                        cx.listener(|this, event: &MouseDownEvent, window, cx| {
+                            this.mouse_down(event, window, cx)
+                        }),
+                    )
+                    .on_mouse_move(
+                        cx.listener(|this, event: &MouseMoveEvent, _, cx| {
+                            this.mouse_move(event, cx)
+                        }),
+                    )
+                    .on_mouse_up(
+                        MouseButton::Left,
+                        cx.listener(|this, _: &MouseUpEvent, window, cx| this.mouse_up(window, cx)),
+                    )
+                    .on_mouse_up_out(
+                        MouseButton::Left,
+                        cx.listener(|this, _: &MouseUpEvent, window, cx| this.mouse_up(window, cx)),
                     )
                     .child(column),
             )
             .child(Scrollbar::vertical(&self.scroll));
 
+        // The highlights panel floats over the pages' right edge: it must not
+        // squeeze the pages out of a narrow pane.
+        let panel =
+            (self.notes.panel && self.notes.annots.is_some()).then(|| self.panel(colors, cx));
         h_flex()
             .flex_1()
             .min_h_0()
             .w_full()
+            .relative()
             .when(self.rail_open, |row| row.child(self.rail(colors, cx)))
             .child(pages)
+            .when_some(panel, |row, panel| {
+                row.child(
+                    div()
+                        .absolute()
+                        .top_0()
+                        .right_0()
+                        .bottom_0()
+                        .max_w(relative(0.8))
+                        .shadow_md()
+                        .child(panel),
+                )
+            })
             .into_any_element()
     }
 
@@ -1262,7 +1346,16 @@ impl PdfReader {
         let keys = &event.keystroke;
         let command = keys.modifiers.secondary();
         let showing = matches!(self.state, ReaderState::Showing { .. });
+        if showing && command && keys.key == "c" && self.copy_selection(cx) {
+            return true;
+        }
+        if showing && command && keys.key == "a" && self.notes.editing.is_none() {
+            self.select_all(cx);
+            return true;
+        }
         match keys.key.as_str() {
+            "escape" if self.notes.editing.is_some() => self.cancel_comment(window, cx),
+            "escape" if self.has_transient() => self.clear_selection(cx),
             "escape" => self.close(cx),
             "pagedown" if showing => {
                 let (_, height) = self.viewport();

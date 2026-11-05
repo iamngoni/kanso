@@ -70,6 +70,12 @@ pub enum Block {
     },
     /// An Excalidraw scene with nothing in it yet.
     EmptyDrawing,
+    /// The line that stands for a PDF's highlights ("4 highlights · 1
+    /// comment"; see [`crate::pdf_notes`]). `url` opens the PDF.
+    PdfNotes {
+        url: Option<String>,
+        summary: String,
+    },
     /// A source that couldn't be drawn: its code, with a badge saying why
     /// and the details. `copy` is its `kanso-copy:` number when it is a fence.
     Failed {
@@ -509,6 +515,23 @@ impl<'a> Walk<'a> {
             Node::Math(math) => {
                 let outcome = self.draw(Kind::DisplayMath, &math.value);
                 out.push(self.figure(outcome, FigureKind::Math, None, written, None));
+            }
+            // A PDF's highlights are data for the reader: a line, or nothing.
+            Node::Code(code) if html::fence_is(&code.lang, crate::pdf_notes::FENCE) => {
+                match crate::pdf_notes::parse(&code.value) {
+                    Some(notes) => {
+                        if let Some(summary) = notes.summary() {
+                            out.push(Block::PdfNotes {
+                                url: notes.url(),
+                                summary,
+                            });
+                        }
+                    }
+                    None => out.push(Block::PdfNotes {
+                        url: None,
+                        summary: crate::pdf_notes::UNREADABLE.to_owned(),
+                    }),
+                }
             }
             Node::Code(code) => out.push(self.code(node, code)),
             Node::List(list) => {

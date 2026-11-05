@@ -327,6 +327,19 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   static String? parseColor({required String text}) =>
       KansoCore.instance.api.crateApiLibraryKansoLibraryParseColor(text: text);
 
+  /// Changes one highlight of a PDF in a note drawn at `base_rev`.
+  Future<Saved> pdfHighlightChange({
+    required String noteId,
+    required String baseRev,
+    required String file,
+    required String id,
+    required PdfHighlightChange change,
+  });
+
+  /// The highlights each PDF has in a note: what the preview's "4
+  /// highlights" line opens.
+  Future<List<PdfNotes>> pdfHighlights({required String noteId});
+
   KansoPeople people();
 
   /// Playing a note's recording.

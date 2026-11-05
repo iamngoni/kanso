@@ -125,6 +125,7 @@ fn setup_with(
     cx.update(|cx| {
         cx.subscribe(&reader, move |_, event: &PdfEvent, _| match event {
             PdfEvent::Close => flag.store(true, std::sync::atomic::Ordering::SeqCst),
+            PdfEvent::Write(_) => {}
         })
         .detach();
     });

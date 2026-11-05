@@ -330,6 +330,28 @@ class RustLibraryRepository implements LibraryRepository {
   );
 
   @override
+  Future<Either<ApplicationError, List<PdfNotes>>> pdfHighlights(
+    String noteId,
+  ) => attempt(() => _library.pdfHighlights(noteId: noteId));
+
+  @override
+  Future<Either<ApplicationError, Saved>> pdfHighlightChange({
+    required String noteId,
+    required String baseRev,
+    required String file,
+    required String id,
+    required PdfHighlightChange change,
+  }) => attempt(
+    () => _library.pdfHighlightChange(
+      noteId: noteId,
+      baseRev: baseRev,
+      file: file,
+      id: id,
+      change: change,
+    ),
+  );
+
+  @override
   Future<Either<ApplicationError, Saved>> createLinkedNote({
     required String title,
     required String fromNote,

@@ -4785,6 +4785,7 @@ dependencies = [
  "kanso-import",
  "kanso-metrics",
  "kanso-mobile",
+ "kanso-pdf",
  "kanso-render",
  "kanso-server",
  "kanso-store",

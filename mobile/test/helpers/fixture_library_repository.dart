@@ -247,6 +247,31 @@ class FixtureLibraryRepository implements LibraryRepository {
     return setTaskResult;
   }
 
+  /// What `pdfHighlights` answers.
+  Either<ApplicationError, List<PdfNotes>> pdfHighlightsResult =
+      const Right<ApplicationError, List<PdfNotes>>(<PdfNotes>[]);
+
+  /// The changes `pdfHighlightChange` was asked for: note, rev, file, id.
+  final List<(String, String, String, String, PdfHighlightChange)> pdfChanges =
+      <(String, String, String, String, PdfHighlightChange)>[];
+
+  @override
+  Future<Either<ApplicationError, List<PdfNotes>>> pdfHighlights(
+    String noteId,
+  ) async => pdfHighlightsResult;
+
+  @override
+  Future<Either<ApplicationError, Saved>> pdfHighlightChange({
+    required String noteId,
+    required String baseRev,
+    required String file,
+    required String id,
+    required PdfHighlightChange change,
+  }) async {
+    pdfChanges.add((noteId, baseRev, file, id, change));
+    return Right<ApplicationError, Saved>(Saved(id: noteId, rev: '$baseRev+'));
+  }
+
   @override
   Future<Either<ApplicationError, Saved>> createLinkedNote({
     required String title,

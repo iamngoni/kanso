@@ -556,6 +556,9 @@ pub struct DiscoverySettings {
     /// Reading the words in PDF attachments (`pdf/index.rs`), through the
     /// PDF worker: on by default.
     pub pdf_text: bool,
+    /// A highlight in the PDF reader also writes its quote into the note
+    /// (`pdf/annotate.rs`): on by default.
+    pub pdf_quote: bool,
     /// How many links out the inspector's graph reaches: 1 or 2.
     pub graph_hops: u8,
     /// Past notes about the paragraph being written (`resurface.rs`): on
@@ -576,6 +579,7 @@ impl Default for DiscoverySettings {
             related_notes: false,
             image_text: cfg!(target_os = "macos"),
             pdf_text: true,
+            pdf_quote: true,
             graph_hops: 1,
             resurface: true,
             resurface_margin: true,
@@ -978,6 +982,7 @@ mod tests {
                 any::<bool>(),
                 any::<bool>(),
                 any::<bool>(),
+                any::<bool>(),
                 1u8..=2,
                 any::<bool>(),
                 any::<bool>(),
@@ -1009,6 +1014,7 @@ mod tests {
                         related_notes,
                         image_text,
                         pdf_text,
+                        pdf_quote,
                         graph_hops,
                         resurface,
                         resurface_margin,
@@ -1037,6 +1043,7 @@ mod tests {
                         related_notes,
                         image_text,
                         pdf_text,
+                        pdf_quote,
                         graph_hops,
                         resurface,
                         resurface_margin,

@@ -18,7 +18,7 @@ use gpui_kit::base::text::{
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::tooltip::Tooltip;
-use gpui_kit::component::{ActiveTheme as _, Sizable as _, WindowExt as _, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme as _, Icon, Sizable as _, WindowExt as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_render::{Failure, Job, Kind, Outcome, Palette, Rgb};
@@ -94,6 +94,18 @@ pub struct Block {
     /// The block's Markdown as written: shown when it can't be drawn, and
     /// what an edit replaces.
     pub markdown: SharedString,
+    /// For a PDF's highlights block: the quiet line standing for it.
+    pub pdf: Option<PdfLine>,
+}
+
+/// The line that stands for a `kanso-pdf` block in the preview: "4
+/// highlights · 1 comment", which opens the PDF's reader. Empty (nothing is
+/// drawn) for a block with no highlights.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PdfLine {
+    /// `inkdrop://file:…`, when the block names a PDF that can be linked.
+    pub url: Option<String>,
+    pub summary: String,
 }
 
 /// Whether a fence's info string names `want`.
@@ -106,6 +118,28 @@ fn fence_is(lang: &Option<String>, want: &str) -> bool {
 /// The block `node` draws as, if any. Pure.
 pub fn block(node: &markdown_ast::Node, markdown: &str) -> Option<Block> {
     use markdown_ast::Node;
+    if let Node::Code(code) = node
+        && fence_is(&code.lang, kanso_render::pdf_notes::FENCE)
+    {
+        let pdf = match kanso_render::pdf_notes::parse(&code.value) {
+            Some(notes) => PdfLine {
+                url: notes.url(),
+                summary: notes.summary().unwrap_or_default(),
+            },
+            None => PdfLine {
+                url: None,
+                summary: kanso_render::pdf_notes::UNREADABLE.to_owned(),
+            },
+        };
+        return Some(Block {
+            kind: Kind::Mermaid,
+            source: Arc::from(""),
+            file: None,
+            language: None,
+            markdown: markdown.trim_end().to_owned().into(),
+            pdf: Some(pdf),
+        });
+    }
     let mut language = None;
     let (kind, source, file) = match node {
         Node::Math(math) => (Kind::DisplayMath, math.value.clone(), None),
@@ -151,6 +185,7 @@ pub fn block(node: &markdown_ast::Node, markdown: &str) -> Option<Block> {
         file,
         language,
         markdown: markdown.trim_end().to_owned().into(),
+        pdf: None,
     })
 }
 
@@ -358,6 +393,9 @@ fn render_block(
         return div().into_any_element();
     };
     let at = node.source_range().map_or(0, |r| r.start) as u64;
+    if let Some(line) = &block.pdf {
+        return pdf_line(line, rich, at, cx);
+    }
     let source = match &block.file {
         Some(id) => match scene_file(id, rich, cx) {
             Some(Some(scene)) => scene,
@@ -476,6 +514,39 @@ fn empty_drawing(at: u64, cx: &App) -> AnyElement {
 }
 
 /// Room held for a drawing being made.
+/// The quiet line that stands for a PDF's highlights; a click opens the
+/// PDF in the reader. Nothing at all when there are no highlights.
+fn pdf_line(line: &PdfLine, rich: &Arc<Rich>, at: u64, cx: &App) -> AnyElement {
+    if line.summary.is_empty() {
+        return div().into_any_element();
+    }
+    let colors = Colors::get(cx);
+    let url = line.url.clone();
+    let edits = rich.edits.clone();
+    h_flex()
+        .id(ElementId::NamedInteger("pdf-notes".into(), at))
+        .debug_selector(|| "pdf-notes-line".into())
+        .gap(px(6.))
+        .items_center()
+        .py(px(2.))
+        .text_size(px(13.))
+        .text_color(colors.text_secondary)
+        .child(
+            Icon::new(gpui_kit::assets::IconName::Highlighter)
+                .size(px(13.))
+                .text_color(colors.text_secondary),
+        )
+        .child(line.summary.clone())
+        .when_some(url, |row, url| {
+            row.cursor_pointer()
+                .hover(|row| row.text_color(colors.text))
+                .on_click(move |_, _, _| {
+                    edits.try_send(PreviewEdit::OpenFile(url.clone())).ok();
+                })
+        })
+        .into_any_element()
+}
+
 fn placeholder(kind: Kind, cx: &App) -> AnyElement {
     let colors = Colors::get(cx);
     let height = if kind == Kind::DisplayMath { 32. } else { 96. };
@@ -802,6 +873,40 @@ mod tests {
         let node = root.children().unwrap()[0].clone();
         let at = node.position().unwrap();
         block(&node, &text[at.start.offset..at.end.offset])
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 96, ..ProptestConfig::default() })]
+
+        /// The preview's quiet line says what the PDF crate says of the same
+        /// block, and the fence is never shown as code.
+        #[test]
+        fn a_pdf_block_is_a_line_that_agrees_with_the_pdf_crate(
+            count in 0usize..12,
+            commented in 0usize..12,
+        ) {
+            use kanso_pdf::model::{Color, Quad};
+            let mut block = kanso_pdf::PdfBlock::new("file:abc123", "m");
+            for i in 0..count {
+                block
+                    .add_highlight(kanso_pdf::model::Highlight {
+                        id: format!("h{i}"),
+                        page: 1,
+                        quads: std::iter::once((1, vec![Quad::new(0.1, 0.1, 0.5, 0.2)])).collect(),
+                        text: "words".into(),
+                        color: Color::Yellow,
+                        comment: (i < commented).then(|| "c".to_owned()),
+                        created_at: 0,
+                        extra: Default::default(),
+                    })
+                    .unwrap();
+            }
+            let found = first_block(&block.to_fence().unwrap() ).unwrap();
+            let line = found.pdf.expect("the fence is a PDF line, not code");
+            let theirs = block.summary().unwrap_or_default();
+            prop_assert_eq!(line.summary, theirs);
+            prop_assert_eq!(line.url, Some("inkdrop://file:abc123".to_owned()));
+        }
     }
 
     #[test]

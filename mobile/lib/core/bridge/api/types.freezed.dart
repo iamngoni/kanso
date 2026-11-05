@@ -7237,6 +7237,374 @@ String toString() {
 
 
 /// @nodoc
+mixin _$PdfHighlightChange {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PdfHighlightChange);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PdfHighlightChange()';
+}
+
+
+}
+
+/// @nodoc
+class $PdfHighlightChangeCopyWith<$Res>  {
+$PdfHighlightChangeCopyWith(PdfHighlightChange _, $Res Function(PdfHighlightChange) __);
+}
+
+
+/// Adds pattern-matching-related methods to [PdfHighlightChange].
+extension PdfHighlightChangePatterns on PdfHighlightChange {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PdfHighlightChange_Comment value)?  comment,TResult Function( PdfHighlightChange_Color value)?  color,TResult Function( PdfHighlightChange_AddQuote value)?  addQuote,TResult Function( PdfHighlightChange_Delete value)?  delete,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case PdfHighlightChange_Comment() when comment != null:
+return comment(_that);case PdfHighlightChange_Color() when color != null:
+return color(_that);case PdfHighlightChange_AddQuote() when addQuote != null:
+return addQuote(_that);case PdfHighlightChange_Delete() when delete != null:
+return delete(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PdfHighlightChange_Comment value)  comment,required TResult Function( PdfHighlightChange_Color value)  color,required TResult Function( PdfHighlightChange_AddQuote value)  addQuote,required TResult Function( PdfHighlightChange_Delete value)  delete,}){
+final _that = this;
+switch (_that) {
+case PdfHighlightChange_Comment():
+return comment(_that);case PdfHighlightChange_Color():
+return color(_that);case PdfHighlightChange_AddQuote():
+return addQuote(_that);case PdfHighlightChange_Delete():
+return delete(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PdfHighlightChange_Comment value)?  comment,TResult? Function( PdfHighlightChange_Color value)?  color,TResult? Function( PdfHighlightChange_AddQuote value)?  addQuote,TResult? Function( PdfHighlightChange_Delete value)?  delete,}){
+final _that = this;
+switch (_that) {
+case PdfHighlightChange_Comment() when comment != null:
+return comment(_that);case PdfHighlightChange_Color() when color != null:
+return color(_that);case PdfHighlightChange_AddQuote() when addQuote != null:
+return addQuote(_that);case PdfHighlightChange_Delete() when delete != null:
+return delete(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String comment)?  comment,TResult Function( String color)?  color,TResult Function()?  addQuote,TResult Function()?  delete,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case PdfHighlightChange_Comment() when comment != null:
+return comment(_that.comment);case PdfHighlightChange_Color() when color != null:
+return color(_that.color);case PdfHighlightChange_AddQuote() when addQuote != null:
+return addQuote();case PdfHighlightChange_Delete() when delete != null:
+return delete();case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String comment)  comment,required TResult Function( String color)  color,required TResult Function()  addQuote,required TResult Function()  delete,}) {final _that = this;
+switch (_that) {
+case PdfHighlightChange_Comment():
+return comment(_that.comment);case PdfHighlightChange_Color():
+return color(_that.color);case PdfHighlightChange_AddQuote():
+return addQuote();case PdfHighlightChange_Delete():
+return delete();}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String comment)?  comment,TResult? Function( String color)?  color,TResult? Function()?  addQuote,TResult? Function()?  delete,}) {final _that = this;
+switch (_that) {
+case PdfHighlightChange_Comment() when comment != null:
+return comment(_that.comment);case PdfHighlightChange_Color() when color != null:
+return color(_that.color);case PdfHighlightChange_AddQuote() when addQuote != null:
+return addQuote();case PdfHighlightChange_Delete() when delete != null:
+return delete();case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class PdfHighlightChange_Comment extends PdfHighlightChange {
+  const PdfHighlightChange_Comment({required this.comment}): super._();
+  
+
+ final  String comment;
+
+/// Create a copy of PdfHighlightChange
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PdfHighlightChange_CommentCopyWith<PdfHighlightChange_Comment> get copyWith => _$PdfHighlightChange_CommentCopyWithImpl<PdfHighlightChange_Comment>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PdfHighlightChange_Comment&&(identical(other.comment, comment) || other.comment == comment));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,comment);
+
+@override
+String toString() {
+  return 'PdfHighlightChange.comment(comment: $comment)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PdfHighlightChange_CommentCopyWith<$Res> implements $PdfHighlightChangeCopyWith<$Res> {
+  factory $PdfHighlightChange_CommentCopyWith(PdfHighlightChange_Comment value, $Res Function(PdfHighlightChange_Comment) _then) = _$PdfHighlightChange_CommentCopyWithImpl;
+@useResult
+$Res call({
+ String comment
+});
+
+
+
+
+}
+/// @nodoc
+class _$PdfHighlightChange_CommentCopyWithImpl<$Res>
+    implements $PdfHighlightChange_CommentCopyWith<$Res> {
+  _$PdfHighlightChange_CommentCopyWithImpl(this._self, this._then);
+
+  final PdfHighlightChange_Comment _self;
+  final $Res Function(PdfHighlightChange_Comment) _then;
+
+/// Create a copy of PdfHighlightChange
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? comment = null,}) {
+  return _then(PdfHighlightChange_Comment(
+comment: null == comment ? _self.comment : comment // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PdfHighlightChange_Color extends PdfHighlightChange {
+  const PdfHighlightChange_Color({required this.color}): super._();
+  
+
+ final  String color;
+
+/// Create a copy of PdfHighlightChange
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PdfHighlightChange_ColorCopyWith<PdfHighlightChange_Color> get copyWith => _$PdfHighlightChange_ColorCopyWithImpl<PdfHighlightChange_Color>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PdfHighlightChange_Color&&(identical(other.color, color) || other.color == color));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,color);
+
+@override
+String toString() {
+  return 'PdfHighlightChange.color(color: $color)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PdfHighlightChange_ColorCopyWith<$Res> implements $PdfHighlightChangeCopyWith<$Res> {
+  factory $PdfHighlightChange_ColorCopyWith(PdfHighlightChange_Color value, $Res Function(PdfHighlightChange_Color) _then) = _$PdfHighlightChange_ColorCopyWithImpl;
+@useResult
+$Res call({
+ String color
+});
+
+
+
+
+}
+/// @nodoc
+class _$PdfHighlightChange_ColorCopyWithImpl<$Res>
+    implements $PdfHighlightChange_ColorCopyWith<$Res> {
+  _$PdfHighlightChange_ColorCopyWithImpl(this._self, this._then);
+
+  final PdfHighlightChange_Color _self;
+  final $Res Function(PdfHighlightChange_Color) _then;
+
+/// Create a copy of PdfHighlightChange
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? color = null,}) {
+  return _then(PdfHighlightChange_Color(
+color: null == color ? _self.color : color // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PdfHighlightChange_AddQuote extends PdfHighlightChange {
+  const PdfHighlightChange_AddQuote(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PdfHighlightChange_AddQuote);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PdfHighlightChange.addQuote()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PdfHighlightChange_Delete extends PdfHighlightChange {
+  const PdfHighlightChange_Delete(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PdfHighlightChange_Delete);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PdfHighlightChange.delete()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$PersonLookup {
 
 
@@ -7574,7 +7942,7 @@ extension PreviewBlockPatterns on PreviewBlock {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PreviewBlock_Heading value)?  heading,TResult Function( PreviewBlock_Paragraph value)?  paragraph,TResult Function( PreviewBlock_List value)?  list,TResult Function( PreviewBlock_Quote value)?  quote,TResult Function( PreviewBlock_Code value)?  code,TResult Function( PreviewBlock_Rule value)?  rule,TResult Function( PreviewBlock_Table value)?  table,TResult Function( PreviewBlock_Figure value)?  figure,TResult Function( PreviewBlock_EmptyDrawing value)?  emptyDrawing,TResult Function( PreviewBlock_Failed value)?  failed,TResult Function( PreviewBlock_Query value)?  query,TResult Function( PreviewBlock_QueryInvalid value)?  queryInvalid,TResult Function( PreviewBlock_Html value)?  html,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PreviewBlock_Heading value)?  heading,TResult Function( PreviewBlock_Paragraph value)?  paragraph,TResult Function( PreviewBlock_List value)?  list,TResult Function( PreviewBlock_Quote value)?  quote,TResult Function( PreviewBlock_Code value)?  code,TResult Function( PreviewBlock_Rule value)?  rule,TResult Function( PreviewBlock_Table value)?  table,TResult Function( PreviewBlock_Figure value)?  figure,TResult Function( PreviewBlock_EmptyDrawing value)?  emptyDrawing,TResult Function( PreviewBlock_PdfNotes value)?  pdfNotes,TResult Function( PreviewBlock_Failed value)?  failed,TResult Function( PreviewBlock_Query value)?  query,TResult Function( PreviewBlock_QueryInvalid value)?  queryInvalid,TResult Function( PreviewBlock_Html value)?  html,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case PreviewBlock_Heading() when heading != null:
@@ -7586,7 +7954,8 @@ return code(_that);case PreviewBlock_Rule() when rule != null:
 return rule(_that);case PreviewBlock_Table() when table != null:
 return table(_that);case PreviewBlock_Figure() when figure != null:
 return figure(_that);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
-return emptyDrawing(_that);case PreviewBlock_Failed() when failed != null:
+return emptyDrawing(_that);case PreviewBlock_PdfNotes() when pdfNotes != null:
+return pdfNotes(_that);case PreviewBlock_Failed() when failed != null:
 return failed(_that);case PreviewBlock_Query() when query != null:
 return query(_that);case PreviewBlock_QueryInvalid() when queryInvalid != null:
 return queryInvalid(_that);case PreviewBlock_Html() when html != null:
@@ -7608,7 +7977,7 @@ return html(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PreviewBlock_Heading value)  heading,required TResult Function( PreviewBlock_Paragraph value)  paragraph,required TResult Function( PreviewBlock_List value)  list,required TResult Function( PreviewBlock_Quote value)  quote,required TResult Function( PreviewBlock_Code value)  code,required TResult Function( PreviewBlock_Rule value)  rule,required TResult Function( PreviewBlock_Table value)  table,required TResult Function( PreviewBlock_Figure value)  figure,required TResult Function( PreviewBlock_EmptyDrawing value)  emptyDrawing,required TResult Function( PreviewBlock_Failed value)  failed,required TResult Function( PreviewBlock_Query value)  query,required TResult Function( PreviewBlock_QueryInvalid value)  queryInvalid,required TResult Function( PreviewBlock_Html value)  html,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PreviewBlock_Heading value)  heading,required TResult Function( PreviewBlock_Paragraph value)  paragraph,required TResult Function( PreviewBlock_List value)  list,required TResult Function( PreviewBlock_Quote value)  quote,required TResult Function( PreviewBlock_Code value)  code,required TResult Function( PreviewBlock_Rule value)  rule,required TResult Function( PreviewBlock_Table value)  table,required TResult Function( PreviewBlock_Figure value)  figure,required TResult Function( PreviewBlock_EmptyDrawing value)  emptyDrawing,required TResult Function( PreviewBlock_PdfNotes value)  pdfNotes,required TResult Function( PreviewBlock_Failed value)  failed,required TResult Function( PreviewBlock_Query value)  query,required TResult Function( PreviewBlock_QueryInvalid value)  queryInvalid,required TResult Function( PreviewBlock_Html value)  html,}){
 final _that = this;
 switch (_that) {
 case PreviewBlock_Heading():
@@ -7620,7 +7989,8 @@ return code(_that);case PreviewBlock_Rule():
 return rule(_that);case PreviewBlock_Table():
 return table(_that);case PreviewBlock_Figure():
 return figure(_that);case PreviewBlock_EmptyDrawing():
-return emptyDrawing(_that);case PreviewBlock_Failed():
+return emptyDrawing(_that);case PreviewBlock_PdfNotes():
+return pdfNotes(_that);case PreviewBlock_Failed():
 return failed(_that);case PreviewBlock_Query():
 return query(_that);case PreviewBlock_QueryInvalid():
 return queryInvalid(_that);case PreviewBlock_Html():
@@ -7638,7 +8008,7 @@ return html(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PreviewBlock_Heading value)?  heading,TResult? Function( PreviewBlock_Paragraph value)?  paragraph,TResult? Function( PreviewBlock_List value)?  list,TResult? Function( PreviewBlock_Quote value)?  quote,TResult? Function( PreviewBlock_Code value)?  code,TResult? Function( PreviewBlock_Rule value)?  rule,TResult? Function( PreviewBlock_Table value)?  table,TResult? Function( PreviewBlock_Figure value)?  figure,TResult? Function( PreviewBlock_EmptyDrawing value)?  emptyDrawing,TResult? Function( PreviewBlock_Failed value)?  failed,TResult? Function( PreviewBlock_Query value)?  query,TResult? Function( PreviewBlock_QueryInvalid value)?  queryInvalid,TResult? Function( PreviewBlock_Html value)?  html,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PreviewBlock_Heading value)?  heading,TResult? Function( PreviewBlock_Paragraph value)?  paragraph,TResult? Function( PreviewBlock_List value)?  list,TResult? Function( PreviewBlock_Quote value)?  quote,TResult? Function( PreviewBlock_Code value)?  code,TResult? Function( PreviewBlock_Rule value)?  rule,TResult? Function( PreviewBlock_Table value)?  table,TResult? Function( PreviewBlock_Figure value)?  figure,TResult? Function( PreviewBlock_EmptyDrawing value)?  emptyDrawing,TResult? Function( PreviewBlock_PdfNotes value)?  pdfNotes,TResult? Function( PreviewBlock_Failed value)?  failed,TResult? Function( PreviewBlock_Query value)?  query,TResult? Function( PreviewBlock_QueryInvalid value)?  queryInvalid,TResult? Function( PreviewBlock_Html value)?  html,}){
 final _that = this;
 switch (_that) {
 case PreviewBlock_Heading() when heading != null:
@@ -7650,7 +8020,8 @@ return code(_that);case PreviewBlock_Rule() when rule != null:
 return rule(_that);case PreviewBlock_Table() when table != null:
 return table(_that);case PreviewBlock_Figure() when figure != null:
 return figure(_that);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
-return emptyDrawing(_that);case PreviewBlock_Failed() when failed != null:
+return emptyDrawing(_that);case PreviewBlock_PdfNotes() when pdfNotes != null:
+return pdfNotes(_that);case PreviewBlock_Failed() when failed != null:
 return failed(_that);case PreviewBlock_Query() when query != null:
 return query(_that);case PreviewBlock_QueryInvalid() when queryInvalid != null:
 return queryInvalid(_that);case PreviewBlock_Html() when html != null:
@@ -7671,7 +8042,7 @@ return html(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( int level,  String id,  List<PreviewInline> inlines)?  heading,TResult Function( List<PreviewInline> inlines)?  paragraph,TResult Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)?  list,TResult Function( List<PreviewBlock> blocks)?  quote,TResult Function( String? language,  List<PreviewCodeRun> runs,  int copy)?  code,TResult Function()?  rule,TResult Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)?  table,TResult Function( PreviewFigureKind kind,  PreviewSvg svg)?  figure,TResult Function()?  emptyDrawing,TResult Function( String badge,  String detail,  String? language,  String code,  int? copy)?  failed,TResult Function( List<String> columns,  List<PreviewQueryRow> rows)?  query,TResult Function( String code,  String message)?  queryInvalid,TResult Function( String text)?  html,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( int level,  String id,  List<PreviewInline> inlines)?  heading,TResult Function( List<PreviewInline> inlines)?  paragraph,TResult Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)?  list,TResult Function( List<PreviewBlock> blocks)?  quote,TResult Function( String? language,  List<PreviewCodeRun> runs,  int copy)?  code,TResult Function()?  rule,TResult Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)?  table,TResult Function( PreviewFigureKind kind,  PreviewSvg svg)?  figure,TResult Function()?  emptyDrawing,TResult Function( String? url,  String summary)?  pdfNotes,TResult Function( String badge,  String detail,  String? language,  String code,  int? copy)?  failed,TResult Function( List<String> columns,  List<PreviewQueryRow> rows)?  query,TResult Function( String code,  String message)?  queryInvalid,TResult Function( String text)?  html,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PreviewBlock_Heading() when heading != null:
 return heading(_that.level,_that.id,_that.inlines);case PreviewBlock_Paragraph() when paragraph != null:
@@ -7682,7 +8053,8 @@ return code(_that.language,_that.runs,_that.copy);case PreviewBlock_Rule() when 
 return rule();case PreviewBlock_Table() when table != null:
 return table(_that.aligns,_that.head,_that.rows);case PreviewBlock_Figure() when figure != null:
 return figure(_that.kind,_that.svg);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
-return emptyDrawing();case PreviewBlock_Failed() when failed != null:
+return emptyDrawing();case PreviewBlock_PdfNotes() when pdfNotes != null:
+return pdfNotes(_that.url,_that.summary);case PreviewBlock_Failed() when failed != null:
 return failed(_that.badge,_that.detail,_that.language,_that.code,_that.copy);case PreviewBlock_Query() when query != null:
 return query(_that.columns,_that.rows);case PreviewBlock_QueryInvalid() when queryInvalid != null:
 return queryInvalid(_that.code,_that.message);case PreviewBlock_Html() when html != null:
@@ -7704,7 +8076,7 @@ return html(_that.text);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( int level,  String id,  List<PreviewInline> inlines)  heading,required TResult Function( List<PreviewInline> inlines)  paragraph,required TResult Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)  list,required TResult Function( List<PreviewBlock> blocks)  quote,required TResult Function( String? language,  List<PreviewCodeRun> runs,  int copy)  code,required TResult Function()  rule,required TResult Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)  table,required TResult Function( PreviewFigureKind kind,  PreviewSvg svg)  figure,required TResult Function()  emptyDrawing,required TResult Function( String badge,  String detail,  String? language,  String code,  int? copy)  failed,required TResult Function( List<String> columns,  List<PreviewQueryRow> rows)  query,required TResult Function( String code,  String message)  queryInvalid,required TResult Function( String text)  html,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( int level,  String id,  List<PreviewInline> inlines)  heading,required TResult Function( List<PreviewInline> inlines)  paragraph,required TResult Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)  list,required TResult Function( List<PreviewBlock> blocks)  quote,required TResult Function( String? language,  List<PreviewCodeRun> runs,  int copy)  code,required TResult Function()  rule,required TResult Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)  table,required TResult Function( PreviewFigureKind kind,  PreviewSvg svg)  figure,required TResult Function()  emptyDrawing,required TResult Function( String? url,  String summary)  pdfNotes,required TResult Function( String badge,  String detail,  String? language,  String code,  int? copy)  failed,required TResult Function( List<String> columns,  List<PreviewQueryRow> rows)  query,required TResult Function( String code,  String message)  queryInvalid,required TResult Function( String text)  html,}) {final _that = this;
 switch (_that) {
 case PreviewBlock_Heading():
 return heading(_that.level,_that.id,_that.inlines);case PreviewBlock_Paragraph():
@@ -7715,7 +8087,8 @@ return code(_that.language,_that.runs,_that.copy);case PreviewBlock_Rule():
 return rule();case PreviewBlock_Table():
 return table(_that.aligns,_that.head,_that.rows);case PreviewBlock_Figure():
 return figure(_that.kind,_that.svg);case PreviewBlock_EmptyDrawing():
-return emptyDrawing();case PreviewBlock_Failed():
+return emptyDrawing();case PreviewBlock_PdfNotes():
+return pdfNotes(_that.url,_that.summary);case PreviewBlock_Failed():
 return failed(_that.badge,_that.detail,_that.language,_that.code,_that.copy);case PreviewBlock_Query():
 return query(_that.columns,_that.rows);case PreviewBlock_QueryInvalid():
 return queryInvalid(_that.code,_that.message);case PreviewBlock_Html():
@@ -7733,7 +8106,7 @@ return html(_that.text);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( int level,  String id,  List<PreviewInline> inlines)?  heading,TResult? Function( List<PreviewInline> inlines)?  paragraph,TResult? Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)?  list,TResult? Function( List<PreviewBlock> blocks)?  quote,TResult? Function( String? language,  List<PreviewCodeRun> runs,  int copy)?  code,TResult? Function()?  rule,TResult? Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)?  table,TResult? Function( PreviewFigureKind kind,  PreviewSvg svg)?  figure,TResult? Function()?  emptyDrawing,TResult? Function( String badge,  String detail,  String? language,  String code,  int? copy)?  failed,TResult? Function( List<String> columns,  List<PreviewQueryRow> rows)?  query,TResult? Function( String code,  String message)?  queryInvalid,TResult? Function( String text)?  html,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( int level,  String id,  List<PreviewInline> inlines)?  heading,TResult? Function( List<PreviewInline> inlines)?  paragraph,TResult? Function( bool ordered,  int start,  bool tight,  List<PreviewListItem> items)?  list,TResult? Function( List<PreviewBlock> blocks)?  quote,TResult? Function( String? language,  List<PreviewCodeRun> runs,  int copy)?  code,TResult? Function()?  rule,TResult? Function( List<PreviewAlign> aligns,  List<PreviewCell> head,  List<PreviewRow> rows)?  table,TResult? Function( PreviewFigureKind kind,  PreviewSvg svg)?  figure,TResult? Function()?  emptyDrawing,TResult? Function( String? url,  String summary)?  pdfNotes,TResult? Function( String badge,  String detail,  String? language,  String code,  int? copy)?  failed,TResult? Function( List<String> columns,  List<PreviewQueryRow> rows)?  query,TResult? Function( String code,  String message)?  queryInvalid,TResult? Function( String text)?  html,}) {final _that = this;
 switch (_that) {
 case PreviewBlock_Heading() when heading != null:
 return heading(_that.level,_that.id,_that.inlines);case PreviewBlock_Paragraph() when paragraph != null:
@@ -7744,7 +8117,8 @@ return code(_that.language,_that.runs,_that.copy);case PreviewBlock_Rule() when 
 return rule();case PreviewBlock_Table() when table != null:
 return table(_that.aligns,_that.head,_that.rows);case PreviewBlock_Figure() when figure != null:
 return figure(_that.kind,_that.svg);case PreviewBlock_EmptyDrawing() when emptyDrawing != null:
-return emptyDrawing();case PreviewBlock_Failed() when failed != null:
+return emptyDrawing();case PreviewBlock_PdfNotes() when pdfNotes != null:
+return pdfNotes(_that.url,_that.summary);case PreviewBlock_Failed() when failed != null:
 return failed(_that.badge,_that.detail,_that.language,_that.code,_that.copy);case PreviewBlock_Query() when query != null:
 return query(_that.columns,_that.rows);case PreviewBlock_QueryInvalid() when queryInvalid != null:
 return queryInvalid(_that.code,_that.message);case PreviewBlock_Html() when html != null:
@@ -8349,6 +8723,74 @@ String toString() {
 
 
 
+
+/// @nodoc
+
+
+class PreviewBlock_PdfNotes extends PreviewBlock {
+  const PreviewBlock_PdfNotes({this.url, required this.summary}): super._();
+  
+
+ final  String? url;
+ final  String summary;
+
+/// Create a copy of PreviewBlock
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PreviewBlock_PdfNotesCopyWith<PreviewBlock_PdfNotes> get copyWith => _$PreviewBlock_PdfNotesCopyWithImpl<PreviewBlock_PdfNotes>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PreviewBlock_PdfNotes&&(identical(other.url, url) || other.url == url)&&(identical(other.summary, summary) || other.summary == summary));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,url,summary);
+
+@override
+String toString() {
+  return 'PreviewBlock.pdfNotes(url: $url, summary: $summary)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PreviewBlock_PdfNotesCopyWith<$Res> implements $PreviewBlockCopyWith<$Res> {
+  factory $PreviewBlock_PdfNotesCopyWith(PreviewBlock_PdfNotes value, $Res Function(PreviewBlock_PdfNotes) _then) = _$PreviewBlock_PdfNotesCopyWithImpl;
+@useResult
+$Res call({
+ String? url, String summary
+});
+
+
+
+
+}
+/// @nodoc
+class _$PreviewBlock_PdfNotesCopyWithImpl<$Res>
+    implements $PreviewBlock_PdfNotesCopyWith<$Res> {
+  _$PreviewBlock_PdfNotesCopyWithImpl(this._self, this._then);
+
+  final PreviewBlock_PdfNotes _self;
+  final $Res Function(PreviewBlock_PdfNotes) _then;
+
+/// Create a copy of PreviewBlock
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? url = freezed,Object? summary = null,}) {
+  return _then(PreviewBlock_PdfNotes(
+url: freezed == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
+as String?,summary: null == summary ? _self.summary : summary // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
 
 /// @nodoc
 

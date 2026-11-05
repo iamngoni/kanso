@@ -1456,6 +1456,56 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previewTask => 'Task';
 
   @override
+  String get pdfNotesTitle => 'Highlights';
+
+  @override
+  String get pdfNotesEmpty => 'This note has no highlights.';
+
+  @override
+  String pdfNotesPage(int page) {
+    return 'Page $page';
+  }
+
+  @override
+  String get pdfNotesNotInNote => 'Not in the note';
+
+  @override
+  String get pdfNotesReadOnly =>
+      'These highlights can\'t be changed here: the note\'s highlight data can\'t be read.';
+
+  @override
+  String get pdfNotesCommentHint => 'Add a note';
+
+  @override
+  String get pdfNotesSaveNote => 'Save note';
+
+  @override
+  String get pdfNotesAddToNote => 'Add quote to the note';
+
+  @override
+  String get pdfNotesDelete => 'Delete highlight';
+
+  @override
+  String pdfNotesColor(String color) {
+    String _temp0 = intl.Intl.selectLogic(
+      color,
+      {
+        'yellow': 'Yellow',
+        'green': 'Green',
+        'blue': 'Blue',
+        'pink': 'Pink',
+        'other': 'Colour',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String pdfNotesOpen(String summary) {
+    return '$summary. Show the highlights.';
+  }
+
+  @override
   String get previewEmptyDrawing => 'An empty drawing';
 
   @override
@@ -3285,16 +3335,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(origin, {
-      'ui': 'Edited in Kanso',
-      'api': 'Replaced through the API',
-      'sync': 'Replaced by sync',
-      'import': 'Replaced by an import',
-      'collab': 'Edited in a shared note',
-      'agent': 'Suggested by an agent, applied by you',
-      'plugin': 'Changed by a plugin',
-      'other': 'Saved version',
-    });
+    String _temp0 = intl.Intl.selectLogic(
+      origin,
+      {
+        'ui': 'Edited in Kanso',
+        'api': 'Replaced through the API',
+        'sync': 'Replaced by sync',
+        'import': 'Replaced by an import',
+        'collab': 'Edited in a shared note',
+        'agent': 'Suggested by an agent, applied by you',
+        'plugin': 'Changed by a plugin',
+        'other': 'Saved version',
+      },
+    );
     return '$_temp0';
   }
 
