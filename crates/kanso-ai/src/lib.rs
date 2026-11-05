@@ -20,6 +20,7 @@ pub mod features;
 pub mod prices;
 pub mod prompt;
 pub mod raw_tool;
+pub mod recording_summary;
 pub mod tidy;
 mod tidy_model;
 pub mod triage;

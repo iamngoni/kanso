@@ -6767,6 +6767,117 @@
       }
     }
   },
+  "recordingSummaryMenu": "Summarise recording",
+  "@recordingSummaryMenu": {
+    "description": "The note menu's action that summarises a recording with the person's own AI."
+  },
+  "recordingSummaryTitle": "Summarise recording",
+  "@recordingSummaryTitle": {
+    "description": "Title of the sheet that summarises a recording."
+  },
+  "recordingSummaryClose": "Close",
+  "@recordingSummaryClose": {
+    "description": "Closes the summarise recording sheet."
+  },
+  "recordingSummaryUnavailable": "To summarise a recording, turn on AI in Settings and open a note that holds the transcript of a recording. Locked notes, notes in the trash and notes tagged #ai-exclude are never sent.",
+  "@recordingSummaryUnavailable": {
+    "description": "Said when Summarise recording can't be used on this note."
+  },
+  "recordingSummaryNothingYet": "Nothing is sent until you choose Send. You will see the summary and the action items before anything is written.",
+  "@recordingSummaryNothingYet": {
+    "description": "Under the question that asks where the transcript goes."
+  },
+  "recordingSummaryReplacesNote": "This note already has a summary. A new one replaces it.",
+  "@recordingSummaryReplacesNote": {
+    "description": "Said when the note already holds a summary."
+  },
+  "recordingSummaryWorking": "Summarising the transcript…",
+  "@recordingSummaryWorking": {
+    "description": "Shown while the AI summarises a recording."
+  },
+  "recordingSummaryCancelHint": "Cancel stops the request. The note is not changed.",
+  "@recordingSummaryCancelHint": {
+    "description": "Under the working line."
+  },
+  "recordingSummaryUnchanged": "The note is not changed.",
+  "@recordingSummaryUnchanged": {
+    "description": "Said after a summary failed."
+  },
+  "recordingSummarySend": "Send",
+  "@recordingSummarySend": {
+    "description": "Sends the transcript to the person's AI."
+  },
+  "recordingSummaryCancel": "Cancel",
+  "@recordingSummaryCancel": {
+    "description": "Stops summarising."
+  },
+  "recordingSummaryDiscard": "Discard",
+  "@recordingSummaryDiscard": {
+    "description": "Throws the summary away without writing it."
+  },
+  "recordingSummaryApply": "Apply",
+  "@recordingSummaryApply": {
+    "description": "Writes the summary and the ticked action items into the note."
+  },
+  "recordingSummaryTryAgain": "Try again",
+  "@recordingSummaryTryAgain": {
+    "description": "Asks the AI for the summary again."
+  },
+  "recordingSummarySectionSummary": "Summary",
+  "@recordingSummarySectionSummary": {
+    "description": "Heading of the summary points."
+  },
+  "recordingSummarySectionDecisions": "Decisions",
+  "@recordingSummarySectionDecisions": {
+    "description": "Heading of the decisions."
+  },
+  "recordingSummarySectionActions": "Action items",
+  "@recordingSummarySectionActions": {
+    "description": "Heading of the action items."
+  },
+  "recordingSummaryActionsHint": "Only the ticked ones are written into the note.",
+  "@recordingSummaryActionsHint": {
+    "description": "Under the Action items heading."
+  },
+  "recordingSummaryCut": "The transcript was long, so only its first part was summarised.",
+  "@recordingSummaryCut": {
+    "description": "Said when a very long transcript was cut."
+  },
+  "recordingSummaryAdded": "Summary added above the transcript.",
+  "@recordingSummaryAdded": {
+    "description": "Notice after a summary was written, with Undo."
+  },
+  "recordingSummaryReplaced": "Summary replaced.",
+  "@recordingSummaryReplaced": {
+    "description": "Notice after a summary replaced an earlier one, with Undo."
+  },
+  "recordingSummaryFailed": "Couldn't summarise this recording. {reason}",
+  "@recordingSummaryFailed": {
+    "description": "Said when asking the AI for a summary failed.",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingSummaryApplyFailed": "Nothing was written. {reason}",
+  "@recordingSummaryApplyFailed": {
+    "description": "Said under the review when Apply could not write the summary (the note was locked, changed or lost its transcript meanwhile).",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingSummaryDropped":"{count, plural, =1{One item was left out for want of a quote from the recording.} other{{count} items were left out for want of a quote from the recording.}}",
+  "@recordingSummaryDropped": {
+    "description": "Said when the AI gave items the transcript does not back.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "voiceTidyTryAgain": "Try again",
   "@voiceTidyTryAgain": {
     "description": "Button that tries tidying a voice note again."

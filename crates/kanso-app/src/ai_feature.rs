@@ -155,6 +155,30 @@ pub fn tidy(
     kanso_ai::tidy::tidy(provider.as_ref(), kind, title_hint, transcript, cancel)
 }
 
+/// Summarises a recording's transcript (issue #38): an overview, and the
+/// decisions and action items the transcript backs with quotes. It sends the
+/// recording's title, its date and the timestamped transcript, nothing else.
+/// The error is a plain reason.
+pub fn summarize_recording(
+    maker: &Maker,
+    title: &str,
+    date: Option<&str>,
+    transcript: &str,
+    cancel: &Arc<AtomicBool>,
+) -> Result<kanso_ai::tidy::Tidy, String> {
+    let shared = maker()?;
+    let provider = shared
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    kanso_ai::recording_summary::summarize_recording(
+        provider.as_ref(),
+        title,
+        date,
+        transcript,
+        cancel,
+    )
+}
+
 /// Fakes for the tests of the features: a provider that records what it was
 /// sent, an agent in process, and the hook that hands either to a feature.
 #[cfg(test)]

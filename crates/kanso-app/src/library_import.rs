@@ -700,7 +700,7 @@ Kinds:
   tomboy          Tomboy/Gnote .note files or folder
   pouchdb         The PouchDB notes library found on this computer, read in
                   place [--library-dir DIR] [--credentials]; --credentials
-                  also copies its local API port, username and password";
+                  also copies its local API port and address";
 
 /// The `kanso import` kind for the PouchDB notes library found on this
 /// computer.

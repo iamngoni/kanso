@@ -19,6 +19,42 @@ import 'open_library.dart';
 void locksSuite(OpenLibrary open, {BiometricAnswer? answer}) {
   group('KansoLocks', () {
     test(
+      'a plain note has nothing to seal, and no lock stopped on it',
+      () async {
+        final library = await open();
+        final locks = library.locks();
+        final id = await makeNote(library, 'Plain', 'no files here');
+        final book = (await library.createNotebook(name: 'Shelf')).id;
+
+        final note = await locks.noteLockSummary(id: id);
+        expect(note.files, 0);
+        expect(note.bytes, 0);
+        final notebook = await locks.notebookLockSummary(bookId: book);
+        expect(notebook.files, 0);
+
+        // No lock ever stopped here, so there is nothing to finish or undo.
+        expect(await locks.interruptedLock(id: id), isNull);
+        await expectLater(
+          locks.finishLocking(id: id, password: lockPassword),
+          throwsA(anything),
+        );
+        await expectLater(
+          locks.undoLocking(id: id, password: lockPassword),
+          throwsA(anything),
+        );
+
+        // Cancelling with no lock running is harmless; progress can be
+        // listened to and dropped.
+        await locks.cancelLock();
+        final progress = locks.lockProgress().listen((_) {});
+        addTearDown(() => unawaited(progress.cancel()));
+
+        // A fresh library has no notes locked before sealing existed.
+        expect(await locks.takeSealedFilesNotice(), isFalse);
+      },
+    );
+
+    test(
       'a locked note closes to its title, and opens with the password',
       () async {
         final library = await open();
