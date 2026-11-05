@@ -126,9 +126,12 @@ cut() {
 	fi
 	kanso_release notes --changelog CHANGELOG.md --version "$version" --out /dev/null >/dev/null ||
 		die "CHANGELOG.md has no section for $version"
-	# Every breaking change needs an update notice (docs/RELEASING.md).
-	kanso_release check-notices --changelog CHANGELOG.md --version "$version" ||
-		die "a breaking change in $version has no update notice; fix it, then undo this run (git checkout CHANGELOG.md Cargo.toml Cargo.lock) and run it again"
+	# Every breaking change needs an update notice (docs/RELEASING.md). The
+	# tree was clean, so a refused release puts back what this run changed.
+	if ! kanso_release check-notices --changelog CHANGELOG.md --version "$version"; then
+		git checkout -q -- CHANGELOG.md Cargo.toml Cargo.lock
+		die "$version isn't released: fix the notices above (docs/RELEASING.md › Breaking changes), then run this again. CHANGELOG.md, Cargo.toml and Cargo.lock are as they were."
+	fi
 
 	git add Cargo.toml Cargo.lock CHANGELOG.md
 	# The first release may change nothing (0.1.0 is already the version and
