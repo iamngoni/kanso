@@ -11631,6 +11631,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done'**
   String get noticeSheetDone;
+
+  /// On the update notice card when more than one notice is waiting: this card is the first of {total}.
+  ///
+  /// In en, this message translates to:
+  /// **'1 of {total}'**
+  String noticeCount(int total);
+
+  /// The update notice's button that opens the page of Settings its steps name.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get noticeOpenSettings;
+
+  /// The update notice's button that opens a page about the change in the browser.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn More'**
+  String get noticeLearnMore;
+
+  /// What a screen reader says for one numbered step of an update notice.
+  ///
+  /// In en, this message translates to:
+  /// **'Step {number}: {step}'**
+  String noticeStep(int number, String step);
 }
 
 class _AppLocalizationsDelegate

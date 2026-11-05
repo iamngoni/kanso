@@ -40,9 +40,10 @@ class NoticeCard extends StatelessWidget {
     final l10n = context.l10n;
     final colors = context.colors;
     final typography = context.typography;
+    // One container, read in order: the heading, the count, the title and
+    // what changed, then the two buttons.
     return Semantics(
       container: true,
-      label: notice.title,
       child: Padding(
         padding: const EdgeInsetsDirectional.fromSTEB(
           KansoSpacing.md,
@@ -95,7 +96,10 @@ class NoticeCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: KansoSpacing.sm),
-              Text(notice.title, style: typography.heading2),
+              Semantics(
+                header: true,
+                child: Text(notice.title, style: typography.heading2),
+              ),
               const SizedBox(height: KansoSpacing.xxs),
               Text(
                 notice.whatChanged,

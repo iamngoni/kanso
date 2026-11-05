@@ -33,6 +33,33 @@ impl SharedStatus {
     }
 }
 
+/// What a shared note is: the kind of CRDT its text lives in.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SharedKind {
+    /// Markdown: a title and a body, each a text.
+    #[default]
+    Text,
+    /// A canvas (`doctype: "canvas"`): cards, arrows and ink, each an item.
+    Canvas,
+}
+
+impl SharedKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SharedKind::Text => "text",
+            SharedKind::Canvas => "canvas",
+        }
+    }
+
+    pub fn parse(text: &str) -> SharedKind {
+        if text == "canvas" {
+            SharedKind::Canvas
+        } else {
+            SharedKind::Text
+        }
+    }
+}
+
 /// One shared note in this library (`collab_notes`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SharedNote {
@@ -43,6 +70,8 @@ pub struct SharedNote {
     /// This account's role: `owner`, `edit`, `comment` or `view`.
     pub role: String,
     pub status: SharedStatus,
+    /// Text or canvas, decided when the note is shared and never changed.
+    pub kind: SharedKind,
     /// The newest epoch this device has a key for.
     pub epoch: u32,
     /// That epoch's member list and its signature, as received (base64url).

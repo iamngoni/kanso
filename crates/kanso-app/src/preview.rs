@@ -69,6 +69,9 @@ pub enum PreviewEdit {
     Replace { source: String, replacement: String },
     /// A task box ticked or cleared.
     Task(TaskTick),
+    /// A link to an attachment followed (`inkdrop://file:…`, with its
+    /// fragment): the editor opens it if it is a PDF.
+    OpenFile(String),
 }
 
 /// Where the preview's edits go.
@@ -160,7 +163,11 @@ impl Preview {
         });
         let edits = resizes.clone();
         let extensions = quote_extensions(
-            Arc::new(Links::new(links.clone(), Some(player.downgrade()))),
+            Arc::new(Links::new(
+                links.clone(),
+                Some(player.downgrade()),
+                resizes.clone(),
+            )),
             resolver,
             resizes,
             rich.clone(),
@@ -503,6 +510,7 @@ impl Preview {
         let links = Arc::new(Links::new(
             self.links.clone(),
             Some(self.player.downgrade()),
+            self.edits.clone(),
         ));
         std::rc::Rc::new(move |state, _window, cx| {
             let ty = preview_type(cx);
@@ -625,11 +633,22 @@ struct Links {
     /// Where a timestamp link (`kanso-audio://file:…?t=12`) goes: the
     /// preview's own player.
     player: Option<WeakEntity<RecordingPlayer>>,
+    /// Where a link to an attachment goes: the editor, which opens a PDF in
+    /// its reader.
+    edits: ResizeSender,
 }
 
 impl Links {
-    fn new(sender: LinkSender, player: Option<WeakEntity<RecordingPlayer>>) -> Self {
-        Links { sender, player }
+    fn new(
+        sender: LinkSender,
+        player: Option<WeakEntity<RecordingPlayer>>,
+        edits: ResizeSender,
+    ) -> Self {
+        Links {
+            sender,
+            player,
+            edits,
+        }
     }
 
     fn open(&self, url: &str, cx: &mut App) {
@@ -642,6 +661,14 @@ impl Links {
                     .ok();
             }
             // Never handed to the system.
+            return;
+        }
+        // An attachment: the editor opens it when it is a PDF; anything else
+        // does nothing, as before.
+        if url.starts_with(FILE_LINK_PREFIX) {
+            self.edits
+                .try_send(PreviewEdit::OpenFile(url.to_owned()))
+                .ok();
             return;
         }
         let sender = &self.sender;
@@ -1328,6 +1355,7 @@ impl Render for Preview {
         let links = Arc::new(Links::new(
             self.links.clone(),
             Some(self.player.downgrade()),
+            self.edits.clone(),
         ));
         let extensions = self.extensions.clone();
         div()
@@ -1397,7 +1425,7 @@ impl Render for Preview {
 
 #[cfg(test)]
 mod resolver_tests {
-    use super::{ImageSource, image_resolver, is_drawable_image};
+    use super::{ImageSource, Links, PreviewEdit, image_resolver, is_drawable_image};
     use gpui_kit::SharedUri;
     use kanso_core::links::FILE_LINK_PREFIX;
     use kanso_store::Store;
@@ -1413,6 +1441,26 @@ mod resolver_tests {
         0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
         0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
     ];
+
+    /// A followed link to an attachment goes to the editor, whole, with its
+    /// page; a note link still goes where it did.
+    // no-prop-test: routing glue; `PdfLink::parse` has the properties.
+    #[gpui_kit::test]
+    fn a_followed_attachment_link_goes_to_the_editor(cx: &mut gpui_kit::TestAppContext) {
+        let (to_notes, notes) = async_channel::unbounded();
+        let (to_editor, edits) = async_channel::unbounded();
+        let links = Links::new(to_notes, None, to_editor);
+        cx.update(|cx| {
+            links.open("inkdrop://file:abc123#page=2", cx);
+            links.open("inkdrop://note:xyz", cx);
+        });
+        assert_eq!(
+            edits.try_recv().ok(),
+            Some(PreviewEdit::OpenFile("inkdrop://file:abc123#page=2".into()))
+        );
+        assert!(edits.try_recv().is_err());
+        assert_eq!(notes.try_recv().ok().as_deref(), Some("note:xyz"));
+    }
 
     proptest! {
         /// Only an image type within the image limit is drawn; a PDF never

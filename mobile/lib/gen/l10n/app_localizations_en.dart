@@ -6851,4 +6851,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noticeSheetDone => 'Done';
+
+  @override
+  String noticeCount(int total) {
+    return '1 of $total';
+  }
+
+  @override
+  String get noticeOpenSettings => 'Open Settings';
+
+  @override
+  String get noticeLearnMore => 'Learn More';
+
+  @override
+  String noticeStep(int number, String step) {
+    return 'Step $number: $step';
+  }
 }

@@ -449,3 +449,37 @@ proptest! {
         prop_assert!(c.validate().is_ok());
     }
 }
+
+proptest! {
+    #![proptest_config(config(64))]
+
+    /// Invariant: the points streamed while a stroke is drawn are always the
+    /// start of the stroke once it is drawn, and a stroke drawn with the ID
+    /// it was streamed under keeps it.
+    #[test]
+    fn prop_streamed_points_are_the_start_of_the_stroke(
+        raw in prop::collection::vec((-50i32..50, -50i32..50), 2..40),
+        cut in 0usize..40,
+    ) {
+        let samples: Vec<(f64, f64)> =
+            raw.iter().map(|&(x, y)| (f64::from(x) / 3.0, f64::from(y) / 3.0)).collect();
+        let mut c = Canvas::default();
+        let layer = c.ink_layer(1);
+        let origin = c.node(&layer).map_or((0.0, 0.0), |n| (n.x, n.y));
+        let points: Vec<Point> = samples.iter().map(|&(x, y)| Point::new(x, y, 0.5)).collect();
+        let upto = cut.min(points.len());
+        let streamed = streamed_points(&points[..upto], origin);
+        let mut stroke = pen(&samples);
+        stroke.id = "s-streamed".into();
+        let (id, _) = c.draw_as(stroke, 2).unwrap();
+        prop_assert_eq!(&id, "s-streamed");
+        let drawn = c.live_strokes().next().unwrap().1.points.clone();
+        prop_assert!(streamed.len() <= drawn.len());
+        prop_assert_eq!(&drawn[..streamed.len()], &streamed[..]);
+        // A taken ID is not reused.
+        let mut again = pen(&samples);
+        again.id = "s-streamed".into();
+        let (second, _) = c.draw_as(again, 3).unwrap();
+        prop_assert_ne!(second, "s-streamed");
+    }
+}

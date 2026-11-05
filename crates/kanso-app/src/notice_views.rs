@@ -27,6 +27,10 @@ actions!(kanso, [ShowUpdateNotices]);
 /// The sheet's width.
 pub const SHEET_WIDTH: f32 = 560.;
 
+/// The banner's height. It holds the traffic lights on macOS, which sit at
+/// `layout::TRAFFIC_LIGHTS` and are about 14 points tall.
+pub const BANNER_HEIGHT: f32 = 36.;
+
 fn state(cx: &App) -> NoticeState {
     cx.try_global::<AppState>()
         .map(|state| state.config.notices.clone())
@@ -36,11 +40,17 @@ fn state(cx: &App) -> NoticeState {
 /// The banner across the top of the main window, or nothing.
 // no-prop-test: drawing and clicks; `kanso_core::notices::banner` decides
 // what shows, and the snapshots show the banner.
-pub fn strip(cx: &App) -> Option<AnyElement> {
+pub fn strip(window: &Window, cx: &App) -> Option<AnyElement> {
     let pick = notices::banner(cx)?;
     let notice = pick.notice;
     let colors = Colors::get(cx);
-    let under_traffic_lights = cfg!(target_os = "macos") && crate::recording::notice(cx).is_none();
+    // The recording strip, when it shows, is the top row and takes the
+    // traffic lights; otherwise this banner does.
+    let lights = if crate::recording::notice(cx).is_none() {
+        crate::layout::leading_inset(true, window.is_fullscreen())
+    } else {
+        0.
+    };
     let id = notice.id;
     Some(
         h_flex()
@@ -48,8 +58,11 @@ pub fn strip(cx: &App) -> Option<AnyElement> {
             .debug_selector(|| "notice-banner".into())
             .flex_none()
             .w_full()
-            .h(px(36.))
-            .pl(px(if under_traffic_lights { 84. } else { 12. }))
+            .h(px(BANNER_HEIGHT))
+            // The system draws the traffic lights at the same size at any
+            // zoom, so zoomed out the row stays tall enough to hold them.
+            .when(lights > 0., |el| el.min_h(gpui_kit::px(BANNER_HEIGHT)))
+            .pl(px(lights + 12.))
             .pr(px(12.))
             .gap(px(10.))
             .items_center()
@@ -185,9 +198,23 @@ pub fn open_how_to_fix(notice: &'static Notice, window: &mut Window, cx: &mut Ap
             .w_full()
             .justify_end()
             .gap(px(8.))
+            // Put away already, so Dismiss is gone: Done is the way out
+            // besides Escape, and the only button when nothing is left to do.
+            .when(hidden, |el| {
+                let done = Button::new("notice-sheet-done")
+                    .debug_selector(|| "notice-sheet-done".into())
+                    .label("Done")
+                    .on_click(|_, window, cx| window.close_dialog(cx));
+                el.child(if notice.action.is_none() && fixed {
+                    done.primary()
+                } else {
+                    done.ghost()
+                })
+            })
             .when(!hidden, |el| {
                 el.child(
                     Button::new("notice-sheet-dismiss")
+                        .debug_selector(|| "notice-sheet-dismiss".into())
                         .label("Dismiss")
                         .ghost()
                         .on_click(move |_, window, cx| {
@@ -199,6 +226,7 @@ pub fn open_how_to_fix(notice: &'static Notice, window: &mut Window, cx: &mut Ap
             .when(!fixed, |el| {
                 el.child(
                     Button::new("notice-sheet-fixed")
+                        .debug_selector(|| "notice-sheet-fixed".into())
                         .label("Mark as fixed")
                         .on_click(move |_, window, cx| {
                             window.close_dialog(cx);
@@ -208,21 +236,14 @@ pub fn open_how_to_fix(notice: &'static Notice, window: &mut Window, cx: &mut Ap
             })
             .children(notice.action.map(|action| {
                 let primary = Button::new("notice-sheet-action")
+                    .debug_selector(|| "notice-sheet-action".into())
                     .label(notices::action_label(action))
                     .primary();
                 primary.on_click(move |_, window, cx| {
                     window.close_dialog(cx);
                     notices::run_action(action, window, cx);
                 })
-            }))
-            .when(notice.action.is_none() && fixed, |el| {
-                el.child(
-                    Button::new("notice-sheet-done")
-                        .label("Done")
-                        .primary()
-                        .on_click(|_, window, cx| window.close_dialog(cx)),
-                )
-            });
+            }));
         alert
             .title(notice.title)
             .width(px(SHEET_WIDTH))

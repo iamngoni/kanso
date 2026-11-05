@@ -18,7 +18,6 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_large_title.dart';
 import '../../../journal/views/widgets/journal_opener.dart';
 import '../../../journal/views/widgets/journal_strip.dart';
-import '../../../notices/views/widgets/notice_card_host.dart';
 import '../../../shell/models/data/note_creation_failure.dart';
 import '../../../shell/state/note_creation/note_creation_bloc.dart';
 import '../../../triage/views/widgets/triage_bar.dart';
@@ -90,10 +89,9 @@ class NoteListPane extends StatelessWidget {
                           label: l10n.noteListNewNote,
                           onTap: newNote,
                         ),
-                        onSource: (source) =>
-                            context.read<NoteCreationBloc>().add(
-                              NoteCreationEvent.captured(source),
-                            ),
+                        onSource: (source) => context
+                            .read<NoteCreationBloc>()
+                            .add(NoteCreationEvent.captured(source)),
                       );
                       // The button is afloat over a phone's list, except while
                       // notes are being chosen.
@@ -158,8 +156,6 @@ class NoteListPane extends StatelessWidget {
                                         ? collapsed
                                         : null,
                                   ),
-                                  // An update that changed something to fix.
-                                  const NoticeCardHost(),
                                   if (_isJournal(state.place, index))
                                     const JournalStrip(),
                                   if (_isInbox(state.place, index))
