@@ -8036,6 +8036,34 @@
   "canvasExported": "Copied to the clipboard.",
   "canvasExportFailed": "Couldn't export this canvas.",
   "canvasBack": "Back",
+  "canvasSharedLabel": "Shared",
+  "@canvasSharedLabel": {
+    "description": "The strip under a shared canvas's bar: the canvas is shared with others."
+  },
+  "canvasViewOnlyLabel": "View only",
+  "@canvasViewOnlyLabel": {
+    "description": "The strip under a shared canvas's bar, and the bar that takes the toolbar's place, when the person may look at the canvas but not draw on it."
+  },
+  "canvasViewOnlyMessage": "You can look around and zoom, but you can't draw on this canvas.",
+  "canvasOthersHere": "{count, plural, =1{1 other here} other{{count} others here}}",
+  "@canvasOthersHere": {
+    "description": "On a shared canvas: how many other people have a pointer on it now.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "canvasPointerLabel": "{name}'s pointer",
+  "@canvasPointerLabel": {
+    "description": "The screen reader's name for another person's pointer on a shared canvas.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "canvasShareAction": "Share this canvas",
   "overviewTitle": "Overview",
   "@overviewTitle": {
     "description": "The title of Kanso's home page."

@@ -186,8 +186,9 @@ fn save_finished(
         mic_only: WhatToRecord::Microphone.mic_only(),
         when: recording_flow::when_text(started_ms as i64),
     };
-    // A note deleted or locked while recording sends the audio to a new
-    // note rather than leaving it out of the library.
+    // A note deleted while recording sends the audio to a new note rather
+    // than leaving it out of the library. One locked meanwhile doesn't: its
+    // audio never lands plain, so the session stays for Recover.
     match save_recording_or_new(&library.inner.store, &recorded, &destination, Origin::Ui) {
         Ok(saved) => {
             let _ = remove_session(&finished.dir);
@@ -238,9 +239,15 @@ impl Library {
         })
     }
 
-    /// The recordings a crash left in `data_dir`.
+    /// The recordings a crash left in `data_dir`. First it deletes the ones
+    /// nobody recovered or discarded for a week (issue #38, step 11); a
+    /// recording running now, or touched since, is never among them.
     pub fn recording_found(&self, data_dir: &Path) -> Vec<RecordingFound> {
-        recovery::scan(&in_progress_dir(data_dir), None)
+        let root = in_progress_dir(data_dir);
+        let live: Vec<String> = ACTIVE.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let live: Vec<&str> = live.iter().map(String::as_str).collect();
+        kanso_audio::sweep::sweep_in_progress(&root, &live, now_ms(), kanso_audio::sweep::KEEP_MS);
+        recovery::scan(&root, None)
             .into_iter()
             .filter(|r| !is_active(&r.id))
             .map(|r| {

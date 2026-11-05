@@ -4,7 +4,7 @@
 
 use gpui_kit::{AnyWindowHandle, Entity, HeadlessAppContext};
 use kanso_audio::system_audio::{Availability, SystemAudioDevice, Unavailable};
-use kanso_engine::recording_flow::WhatToRecord;
+use kanso_engine::recording_flow::{KeepAudio, WhatToRecord};
 use kanso_store::Store;
 
 use crate::workspace::Workspace;
@@ -15,10 +15,11 @@ fn open(
     system: Availability,
     outputs: Vec<SystemAudioDevice>,
     what: WhatToRecord,
+    keep: KeepAudio,
 ) {
     cx.update(|cx| cx.set_reduce_motion(true));
     cx.update_window(window, |_, window, cx| {
-        crate::record_sheet::open_for_snapshot(system, outputs, what, window, cx);
+        crate::record_sheet::open_for_snapshot(system, outputs, what, keep, window, cx);
     })
     .unwrap();
 }
@@ -52,6 +53,25 @@ pub(super) fn output_picker(
             output("wasapi:{0.0.0.3}.monitor", "DELL U2723QE (HDMI)", false),
         ],
         WhatToRecord::MicrophoneAndSystem,
+        KeepAudio::Keep,
+    );
+}
+
+/// "Keep transcript only" chosen: the audio goes once the words are in the
+/// note, and the sheet says backups still hold it.
+pub(super) fn keep_transcript_only(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    _: &Entity<Workspace>,
+    _: &Store,
+) {
+    open(
+        cx,
+        window,
+        Availability::Available,
+        Vec::new(),
+        WhatToRecord::Microphone,
+        KeepAudio::TranscriptOnly,
     );
 }
 
@@ -68,5 +88,6 @@ pub(super) fn no_monitor(
         Availability::Unavailable(Unavailable::NoMonitorSource),
         Vec::new(),
         WhatToRecord::Microphone,
+        KeepAudio::Keep,
     );
 }

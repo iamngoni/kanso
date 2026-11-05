@@ -11308,6 +11308,42 @@ abstract class AppLocalizations {
   /// **'Back'**
   String get canvasBack;
 
+  /// The strip under a shared canvas's bar: the canvas is shared with others.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared'**
+  String get canvasSharedLabel;
+
+  /// The strip under a shared canvas's bar, and the bar that takes the toolbar's place, when the person may look at the canvas but not draw on it.
+  ///
+  /// In en, this message translates to:
+  /// **'View only'**
+  String get canvasViewOnlyLabel;
+
+  /// No description provided for @canvasViewOnlyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You can look around and zoom, but you can\'t draw on this canvas.'**
+  String get canvasViewOnlyMessage;
+
+  /// On a shared canvas: how many other people have a pointer on it now.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 other here} other{{count} others here}}'**
+  String canvasOthersHere(int count);
+
+  /// The screen reader's name for another person's pointer on a shared canvas.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}\'s pointer'**
+  String canvasPointerLabel(String name);
+
+  /// No description provided for @canvasShareAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share this canvas'**
+  String get canvasShareAction;
+
   /// The title of Kanso's home page.
   ///
   /// In en, this message translates to:

@@ -19,9 +19,10 @@ use std::time::Duration;
 use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::*;
+use kanso_core::DocType;
 use kanso_core::links::{FILE_LINK_PREFIX, LINK_SCHEME};
 use kanso_core::model::MAX_ATTACHMENT_SIZE;
-use kanso_core::{DocType, Note};
+use kanso_engine::recording_flow::FlowError;
 use kanso_engine::recording_note::{self, Segment};
 use kanso_store::{Origin, Put, Store};
 use kanso_voice::VoiceError;
@@ -432,13 +433,29 @@ fn run(mut job: Job, cx: &mut App) {
     let store = cx.global::<AppState>().store.clone();
     let (progress, cancel) = (job.progress.clone(), job.cancel.clone());
     let source = job.source.clone();
+    // A recording in a locked note is sealed in the library: open its parts
+    // here, where the session's keys are, and hand the thread the bytes.
+    let sealed = match &source {
+        Source::Recording { file_ids, .. } => {
+            match crate::locked::opened_parts(&job.note_id, file_ids, cx) {
+                Ok(parts) => parts,
+                Err(why) => {
+                    // The marker stays, so "Finish transcribing" works once
+                    // the note is unlocked.
+                    notify(&job, Notification::error(why), cx);
+                    return;
+                }
+            }
+        }
+        _ => None,
+    };
     let (done_tx, done_rx) = async_channel::bounded(1);
     let spawned = std::thread::Builder::new()
         .name("kanso-transcribe".into())
         .spawn(move || {
             let result = match &source {
-                Source::Recording { file_ids, duration } => {
-                    read_parts(&store, file_ids).and_then(|parts| {
+                Source::Recording { file_ids, duration } => read_parts(&store, file_ids, sealed)
+                    .and_then(|parts| {
                         file::transcribe_parts(
                             parts,
                             Some(*duration),
@@ -446,8 +463,7 @@ fn run(mut job: Job, cx: &mut App) {
                             &cancel,
                             &mut |at| *progress.lock().unwrap() = at,
                         )
-                    })
-                }
+                    }),
                 _ => read_source(&store, &source).and_then(|(media, ext)| {
                     file::transcribe_timed(media, ext.as_deref(), &model_dir, &cancel, &mut |at| {
                         *progress.lock().unwrap() = at;
@@ -481,9 +497,22 @@ fn run(mut job: Job, cx: &mut App) {
             let Some(job) = cx.default_global::<Transcription>().job.take() else {
                 return;
             };
+            // Read before the marker goes: it says what to do with the audio.
+            let pending = crate::recording::pending_for(&job.note_id, cx)
+                .filter(|_| matches!(job.source, Source::Recording { .. }));
             forget_if_recording(&job, cx);
             match result {
-                Ok(pieces) => insert(&job, &transcript_text(job.source.file_id(), &pieces), cx),
+                Ok(pieces) => {
+                    insert(&job, &transcript_text(job.source.file_id(), &pieces), cx);
+                    if let Some(pending) = pending {
+                        // "Keep transcript only": save what the editor holds,
+                        // then delete the audio once the stored note has it.
+                        if let Some(editor) = job.editor.upgrade() {
+                            editor.update(cx, |editor, cx| editor.flush(cx));
+                        }
+                        crate::recording::drop_audio_when_saved(pending, cx);
+                    }
+                }
                 Err(err) => {
                     if let Some(words) = voice::error_words(&err) {
                         notify(&job, Notification::error(words), cx);
@@ -517,7 +546,17 @@ pub fn transcript_text(file_id: Option<&str>, pieces: &[file::Timed]) -> String 
 
 /// The parts of a recording made in Kanso, in order, as the decoder reads
 /// them.
-fn read_parts(store: &Store, file_ids: &[String]) -> Result<Vec<file::Part>, VoiceError> {
+fn read_parts(
+    store: &Store,
+    file_ids: &[String],
+    sealed: Option<Vec<Vec<u8>>>,
+) -> Result<Vec<file::Part>, VoiceError> {
+    if let Some(parts) = sealed {
+        return Ok(parts
+            .into_iter()
+            .map(|data| (file::from_bytes(data), Some("opus".to_owned())))
+            .collect());
+    }
     file_ids
         .iter()
         .map(|id| {
@@ -592,46 +631,64 @@ fn insert(job: &Job, text: &str, cx: &mut App) {
         }
     }
     let store = cx.global::<AppState>().store.clone();
-    if let Err(err) = insert_into_store(&store, &job.note_id, file_id.as_deref(), &text) {
+    // A locked note takes the transcript sealed, with the key this session
+    // holds for it.
+    let key = crate::locked::key_for_note(&job.note_id, cx);
+    let inserted = insert_into_store(
+        &store,
+        &job.note_id,
+        file_id.as_deref(),
+        &text,
+        key.as_deref(),
+    );
+    drop(key);
+    let Err(err) = inserted else {
+        return;
+    };
+    // A locked note's words never go to clipboard history: marked concealed
+    // and transient (on macOS), and cleared in a minute.
+    let locked = store.note_is_locked(&job.note_id).unwrap_or(true);
+    let words = if !locked {
         cx.write_to_clipboard(ClipboardItem::new_string(text));
-        notify(
-            job,
-            Notification::error(format!(
-                "Couldn't put the transcript in the note ({err}), so it's on the clipboard."
-            )),
-            cx,
-        );
-    }
+        format!("Couldn't put the transcript in the note ({err}), so it's on the clipboard.")
+    } else if crate::clipboard::copy_secret(&text, cx) {
+        format!(
+            "Couldn't put the transcript in the locked note ({err}). It's on the clipboard for a minute, kept out of clipboard history. The audio is kept: unlock the note to transcribe it again."
+        )
+    } else {
+        format!(
+            "Couldn't put the transcript in the locked note ({err}). The audio is kept: unlock the note to transcribe it again."
+        )
+    };
+    notify(job, Notification::error(words), cx);
 }
 
-/// [`transcript_edit`] on the note as stored.
+/// [`transcript_edit`] on the note as stored. A locked note is opened with
+/// `key` and sealed again (`recording_privacy::edit_text`); without a key
+/// that opens it, it is refused and nothing is written.
 fn insert_into_store(
     store: &Store,
     note_id: &str,
     file_id: Option<&str>,
     text: &str,
+    key: Option<&kanso_sync::lock::LockKey>,
 ) -> Result<(), String> {
-    let note: Note = store
-        .note(note_id)
-        .map_err(|e| e.to_string())?
-        .ok_or("the note is gone")?;
-    if note.is_locked() {
-        return Err("the note is locked".into());
-    }
-    let Some(edit) = transcript_edit(&note.body, file_id, text, 0..0) else {
-        return Ok(());
+    let edit = |body: &str| {
+        let edit = transcript_edit(body, file_id, text, 0..0)?;
+        let mut body = body.to_owned();
+        body.replace_range(edit.range, &edit.text);
+        Some(body)
     };
-    let mut body = note.body.clone();
-    body.replace_range(edit.range, &edit.text);
-    store
-        .put(
-            DocType::Note,
-            serde_json::json!({"_id": note.id, "_rev": note.rev, "body": body}),
-            Put::Merge,
-            Origin::Ui,
-        )
+    kanso_engine::recording_privacy::edit_text(store, note_id, key, edit, Origin::Ui)
         .map(|_| ())
-        .map_err(|e| e.to_string())
+        .map_err(|err| match err {
+            FlowError::Missing => "the note is gone".to_owned(),
+            FlowError::Locked => "the note is locked".to_owned(),
+            FlowError::NotSealable => {
+                "the note shows pictures or files that aren't sealed yet".to_owned()
+            }
+            other => other.to_string(),
+        })
 }
 
 /// Attaches the audio file at `path` when it is small enough: its file ID
@@ -770,7 +827,7 @@ mod tests {
             )
             .unwrap()
             .id;
-        insert_into_store(&store, &note, Some(&file_id), "Spoken words.").unwrap();
+        insert_into_store(&store, &note, Some(&file_id), "Spoken words.", None).unwrap();
         assert_eq!(
             store.note(&note).unwrap().unwrap().body,
             format!("{link}\n\nSpoken words.\n\nafter")
@@ -778,6 +835,45 @@ mod tests {
         let (content_type, _) = store.attachment(&file_id).unwrap().unwrap();
         assert_eq!(content_type, "audio/wav");
         assert!(is_audio(&wav) && !is_audio(std::path::Path::new("a.png")));
+    }
+
+    /// A transcript for a locked note that isn't open goes in sealed with
+    /// the session's key, and is refused (nothing written) without it.
+    #[test]
+    fn a_transcript_reaches_a_locked_note_sealed() {
+        use kanso_sync::lock::{Envelope, LockKey, LockPassword};
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path().join("k.db")).unwrap();
+        let book = store
+            .role_book(kanso_core::roles::Role::Inbox, Origin::Ui)
+            .unwrap();
+        let made = store
+            .put(
+                DocType::Note,
+                serde_json::json!({"title": "t", "body": "", "bookId": book}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+        let key = LockKey::create(
+            &LockPassword::new("correct horse").unwrap(),
+            kanso_sync::KdfParams::TEST,
+        )
+        .unwrap();
+        let mut note = store.note(&made.id).unwrap().unwrap();
+        Envelope::store(Some(&key.seal(&note.id, "Private prose")), &mut note.extra);
+        kanso_core::model::store_note_files(Some(&[]), &mut note.extra);
+        store
+            .lock_note(serde_json::to_value(&note).unwrap())
+            .unwrap();
+        let err = insert_into_store(&store, &made.id, None, "Spoken secret.", None).unwrap_err();
+        assert_eq!(err, "the note is locked");
+        insert_into_store(&store, &made.id, None, "Spoken secret.", Some(&key)).unwrap();
+        let stored = store.note(&made.id).unwrap().unwrap();
+        assert!(stored.body.is_empty());
+        let envelope = Envelope::from_extra(&stored.extra).unwrap().unwrap();
+        let text = key.open(&stored.id, &envelope).unwrap();
+        assert!(text.contains("Private prose") && text.contains("Spoken secret."));
     }
 
     #[test]

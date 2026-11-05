@@ -6645,6 +6645,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get canvasBack => 'Back';
 
   @override
+  String get canvasSharedLabel => 'Shared';
+
+  @override
+  String get canvasViewOnlyLabel => 'View only';
+
+  @override
+  String get canvasViewOnlyMessage =>
+      'You can look around and zoom, but you can\'t draw on this canvas.';
+
+  @override
+  String canvasOthersHere(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count others here',
+      one: '1 other here',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String canvasPointerLabel(String name) {
+    return '$name\'s pointer';
+  }
+
+  @override
+  String get canvasShareAction => 'Share this canvas';
+
+  @override
   String get overviewTitle => 'Overview';
 
   @override
