@@ -522,3 +522,88 @@ fn a_link_to_a_highlight_scrolls_to_it_and_flashes(cx: &mut TestAppContext) {
     cx.run_until_parked();
     assert_eq!(cx.read(|cx| reader.read(cx).notes.flash.clone()), None);
 }
+
+/// With "Quote highlights into the note" off, a colour only highlights;
+/// Add quote still writes the quote, once.
+// no-prop-test: drives one window; `quote_edit` has the properties.
+#[gpui_kit::test]
+fn the_quote_setting_off_highlights_without_quoting(cx: &mut TestAppContext) {
+    let f = open(cx, "", 2);
+    cx.update(|cx| {
+        let mut config = crate::config::AppConfig::default();
+        config.discovery.pdf_quote = false;
+        let dir = f._dir.path().to_path_buf();
+        cx.set_global(crate::workspace::AppState {
+            store: Arc::new(Store::open(dir.join("app.db")).unwrap()),
+            data_dir: dir,
+            config,
+        });
+    });
+    let quotes = |f: &Fixture| {
+        f.writes
+            .borrow()
+            .iter()
+            .filter(|w| matches!(w, Write::Quote { .. }))
+            .count()
+    };
+    drag(cx, &f, (0.105, 0.112), (0.335, 0.112));
+    click_selector(cx, &f, "pdf-color-green");
+    assert_eq!(on_reader(cx, &f, |r, _, _| r.highlight_ids().len()), 1);
+    assert_eq!(quotes(&f), 0, "the setting is off, yet a quote was written");
+    // The toolbar on the highlight still offers it.
+    click_selector(cx, &f, "pdf-add-quote");
+    assert_eq!(quotes(&f), 1);
+}
+
+/// The marks, the selection and the pointer share one frame with the page
+/// picture at every zoom: a highlight's mark covers exactly the part of the
+/// page its quad names, and a click inside the mark picks it.
+// no-prop-test: drives one window; `page_point` has the properties.
+#[gpui_kit::test]
+fn marks_sit_where_their_quads_say_at_every_zoom(cx: &mut TestAppContext) {
+    use super::super::layout::Zoom;
+    let f = open(cx, "", 2);
+    drag(cx, &f, (0.105, 0.112), (0.335, 0.112));
+    click_selector(cx, &f, "pdf-color-yellow");
+    let id = on_reader(cx, &f, |r, _, _| r.highlight_ids().remove(0));
+    let quad = on_reader(cx, &f, |r, _, _| {
+        r.test_notes().get(&id).unwrap().quads[&1][0]
+    });
+    let selector: &'static str = Box::leak(format!("pdf-mark-{id}").into_boxed_str());
+    for zoom in [
+        Zoom::FitWidth,
+        Zoom::Percent(50),
+        Zoom::ACTUAL,
+        Zoom::Percent(250),
+        Zoom::Percent(400),
+    ] {
+        on_reader(cx, &f, |reader, window, cx| {
+            reader.clear_selection(cx);
+            reader.zoom_to(zoom, window, cx)
+        });
+        let mut vcx = VisualTestContext::from_window(f.window, cx);
+        let page = vcx.debug_bounds("pdf-page-0").expect("page 1 is drawn");
+        let mark = vcx.debug_bounds(selector).expect("the mark is drawn");
+        let (pw, ph) = (f32::from(page.size.width), f32::from(page.size.height));
+        let [x0, y0, x1, y1] = quad.0.map(|v| v as f32);
+        // Bounds are snapped to whole pixels.
+        let near = |a: gpui_kit::Pixels, b: f32| (f32::from(a) - b).abs() <= 0.5;
+        assert!(
+            near(mark.origin.x, f32::from(page.origin.x) + x0 * pw)
+                && near(mark.origin.y, f32::from(page.origin.y) + y0 * ph)
+                && near(mark.size.width, (x1 - x0) * pw)
+                && near(mark.size.height, (y1 - y0) * ph),
+            "{zoom:?}: the mark {mark:?} isn't where its quad is on the page {page:?}"
+        );
+        // A click in the middle of the mark picks this highlight.
+        let center = mark.center();
+        let mut vcx = VisualTestContext::from_window(f.window, cx);
+        vcx.simulate_click(center, Modifiers::default());
+        draw(cx, &f);
+        assert_eq!(
+            on_reader(cx, &f, |r, _, _| r.notes.focus.clone()).as_deref(),
+            Some(id.as_str()),
+            "{zoom:?}"
+        );
+    }
+}

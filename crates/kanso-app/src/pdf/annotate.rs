@@ -176,8 +176,9 @@ impl PdfReader {
     /// The note's text changed (typing, another editor, a restored version).
     pub fn note_changed(&mut self, body: String, cx: &mut Context<Self>) {
         self.notes.body = body;
-        // Changes of mine that are not yet written win over what the block
-        // says: they are written next and replace it.
+        // Changes of mine not yet written stay on screen; the save that
+        // follows unites them with whatever the block says by then, so
+        // highlights another editor added meanwhile are kept.
         if self.notes.dirty {
             cx.notify();
             return;
@@ -521,8 +522,9 @@ impl PdfReader {
         if !annots.is_editable() {
             return;
         }
-        // The quote carries a link to a highlight the note has to hold: the
-        // block goes first.
+        // The quote goes in now, its own undo step; the block that holds the
+        // highlight its link names follows after the pause (and is written
+        // at once when the reader or the note goes, see `take_pending`).
         let annotations = Box::new(annots.clone());
         cx.emit(PdfEvent::Write(Write::Quote {
             annotations,

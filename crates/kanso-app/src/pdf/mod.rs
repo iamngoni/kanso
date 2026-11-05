@@ -1097,18 +1097,37 @@ impl PdfReader {
                     .w(gpui_kit::px(w))
                     .h(gpui_kit::px(h))
                     .bg(blank)
-                    .border_1()
-                    .border_color(colors.divider)
                     .shadow_md()
                     .debug_selector(move || format!("pdf-page-{page}"))
                     .when_some(image, |frame, image| {
                         frame.child(
-                            img(ImageSource::Render(image))
-                                .object_fit(ObjectFit::Fill)
-                                .size_full(),
+                            div()
+                                .debug_selector(move || format!("pdf-page-image-{page}"))
+                                .absolute()
+                                .top_0()
+                                .left_0()
+                                .size_full()
+                                .child(
+                                    img(ImageSource::Render(image))
+                                        .object_fit(ObjectFit::Fill)
+                                        .size_full(),
+                                ),
                         )
                     })
-                    .children(marks),
+                    .children(marks)
+                    // The edge is drawn over the page, not around it: a
+                    // border on the page itself would move the picture
+                    // inside it by a pixel and shrink it by two, while the
+                    // marks and the pointer use the page's whole box.
+                    .child(
+                        div()
+                            .absolute()
+                            .top_0()
+                            .left_0()
+                            .size_full()
+                            .border_1()
+                            .border_color(colors.divider),
+                    ),
             );
         }
         // The selection's toolbar floats over the column.

@@ -1378,7 +1378,15 @@ impl NoteEditor {
 
     /// Locks the open note with `key`: saves it sealed and forgets its
     /// earlier versions. It stays open.
-    pub fn lock_with(&mut self, key: &kanso_sync::lock::LockKey, cx: &mut Context<Self>) {
+    pub fn lock_with(
+        &mut self,
+        key: &kanso_sync::lock::LockKey,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        // Highlights made a moment ago go into the text that is sealed, not
+        // after it (the reader closes with the lock).
+        self.write_pending_pdf(window, cx);
         self.flush(cx);
         if self.incoming.is_some() {
             self.notice("Choose which version to keep before locking the note.", cx);
@@ -2612,7 +2620,7 @@ impl NoteEditor {
                 id,
                 name,
             } => Ok(annotations.quote_edit(&body, id, name)),
-            Write::Restore(annotations) => annotations.restore_edit(&body).map(Some),
+            Write::Restore(annotations) => annotations.restore_edit(&body),
         };
         match edit {
             Ok(Some(edit)) => self.apply_body_edit(&edit, window, cx),
@@ -7380,7 +7388,7 @@ mod writing_tests {
             // Open on the plain note, then lock it: the reader goes too.
             editor.open_file_link(&url, window, cx);
             assert!(editor.pdf.is_some());
-            editor.lock_with(&key, cx);
+            editor.lock_with(&key, window, cx);
             assert!(
                 editor.pdf.is_none(),
                 "the reader stayed open on a locked note"
@@ -7390,6 +7398,87 @@ mod writing_tests {
         });
         cx.run_until_parked();
         assert_eq!(*notices.borrow(), [super::PDF_IN_LOCKED_NOTE_OPEN]);
+    }
+
+    /// Highlights and a comment made a moment before the note is locked are
+    /// sealed with its text: the stored note holds none of them in the
+    /// clear, and the open note has them.
+    // no-prop-test: drives one window.
+    #[gpui_kit::test]
+    fn highlights_made_just_before_a_lock_are_sealed_with_the_note(cx: &mut TestAppContext) {
+        use kanso_pdf::model::{Color, Quad};
+        let open = Open::new(cx, "Notes\n");
+        let pdf =
+            kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
+                .unwrap();
+        let url = format!("inkdrop://{pdf}");
+        open.with(cx, move |editor, window, cx| {
+            editor.open_file_link(&url, window, cx)
+        });
+        let reader = open.with(cx, |editor, _, _| editor.pdf.as_ref().unwrap().0.clone());
+        let page = kanso_pdf::PageText {
+            page: 1,
+            width: 612.,
+            height: 792.,
+            rotation: 0,
+            chars: "Zebra"
+                .chars()
+                .enumerate()
+                .map(|(i, ch)| kanso_pdf::TextChar {
+                    ch,
+                    quad: Quad::new(0.1 + i as f64 * 0.02, 0.1, 0.12 + i as f64 * 0.02, 0.125),
+                    turns: 0,
+                    space_before: false,
+                })
+                .collect(),
+        };
+        cx.update_window(open.window, move |_, window, cx| {
+            reader.update(cx, |reader, cx| {
+                reader.test_open(vec![[612., 792.]], window, cx);
+                reader.test_text(page, cx);
+                let id = reader.test_highlight_all(Color::Pink, window, cx).unwrap();
+                reader.test_comment(&id, "Quokka secret", window, cx);
+            })
+        })
+        .unwrap();
+        cx.run_until_parked();
+        // Within the pause: lock.
+        open.with(cx, |editor, window, cx| {
+            let key = kanso_sync::lock::LockKey::create(
+                &kanso_sync::lock::LockPassword::new("long enough").unwrap(),
+                kanso_sync::KdfParams::TEST,
+            )
+            .unwrap();
+            editor.lock_with(&key, window, cx);
+            assert!(editor.pdf.is_none());
+            let shown = &editor.note.as_ref().unwrap().body;
+            assert!(shown.contains("```kanso-pdf"), "lost: {shown}");
+            assert!(shown.contains("Quokka secret"), "lost: {shown}");
+        });
+        cx.run_until_parked();
+        let raw = open.store.get(&open.id).unwrap().unwrap();
+        let stored = serde_json::to_string(&raw.fields).unwrap();
+        assert!(
+            raw.fields.contains_key(kanso_core::model::LOCK_FIELD),
+            "not locked"
+        );
+        let history = serde_json::to_string(
+            &open
+                .store
+                .revisions(&open.id)
+                .unwrap()
+                .into_iter()
+                .map(|r| r.fields)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        for clear in ["Quokka", "Zebra", "kanso-pdf"] {
+            assert!(!stored.contains(clear), "{clear} is stored in the clear");
+            assert!(
+                !history.contains(clear),
+                "{clear} is in the history in the clear"
+            );
+        }
     }
 
     /// A note for ticking tasks in the preview. The task list counts the
