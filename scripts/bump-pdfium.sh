@@ -32,7 +32,7 @@ cd "$(dirname "$0")/.."
 
 REPO=bblanchon/pdfium-binaries
 CRATE=pdfium-render
-PLATFORMS="mac-arm64 mac-x64 linux-x64 linux-arm64 win-x64 win-arm64"
+PLATFORMS="mac-arm64 mac-x64 linux-x64 linux-arm64 win-x64 win-arm64 ios-device-arm64 ios-simulator-arm64 ios-simulator-x64 android-arm64 android-arm android-x64"
 FETCH=scripts/fetch-pdfium.sh
 MANIFEST=crates/kanso-pdf/Cargo.toml
 

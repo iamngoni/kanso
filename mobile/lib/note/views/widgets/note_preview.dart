@@ -17,7 +17,9 @@ import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/state/sync_status/sync_status_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_feedback.dart';
+import '../../../core/views/widgets/kanso_page_route.dart';
 import '../../../injection.dart';
+import '../../../pdf_reader/views/pages/pdf_reader_page.dart';
 import '../../../recording/models/repos/abs/player_repository.dart';
 import '../../../recording/state/player/player_bloc.dart';
 import '../../../recording/views/widgets/recording_player_card.dart';
@@ -241,7 +243,33 @@ class _PreviewPageState extends State<PreviewPage> {
       case PreviewScrollTo(:final anchor):
         unawaited(scrollTo(anchor));
       case PreviewShowAttachment(:final file):
-        unawaited(showAttachment(context, file));
+        unawaited(
+          showAttachment(
+            context,
+            file,
+            noteId: context.read<PreviewBloc>().state.noteId,
+          ),
+        );
+      case PreviewOpenPdf(
+        :final noteId,
+        :final file,
+        :final name,
+        :final page,
+        :final highlight,
+      ):
+        unawaited(
+          Navigator.of(context, rootNavigator: true).push<void>(
+            KansoPageRoute<void>(
+              builder: (_) => PdfReaderPage(
+                noteId: noteId,
+                file: file,
+                name: name,
+                page: page,
+                highlight: highlight,
+              ),
+            ),
+          ),
+        );
       case PreviewCopyCode(:final code):
         unawaited(Clipboard.setData(ClipboardData(text: code)));
       case PreviewPlayMoment(:final fileId, :final seconds):

@@ -1962,22 +1962,221 @@
       }
     }
   },
-  "pdfNotesInkTitle": "Pencil marks",
-  "@pdfNotesInkTitle": {
-    "description": "Heading, in the sheet that lists a note's PDF highlights, over the pages that have pencil marks drawn on them."
+  "pdfReaderClose": "Close",
+  "@pdfReaderClose": {
+    "description": "Button that closes the PDF reader."
   },
-  "pdfNotesInkStrokes": "{strokes, plural, =1{1 stroke} other{{strokes} strokes}}",
-  "@pdfNotesInkStrokes": {
-    "description": "How many pencil strokes are drawn on one page of a PDF.",
+  "pdfReaderPageOf": "Page {page} of {pages}",
+  "@pdfReaderPageOf": {
+    "description": "The page in view of a PDF's pages, under the title.",
     "placeholders": {
-      "strokes": {
+      "page": {
+        "type": "int"
+      },
+      "pages": {
         "type": "int"
       }
     }
   },
-  "pdfNotesInkClear": "Clear page",
-  "@pdfNotesInkClear": {
-    "description": "Button that rubs out all the pencil marks on one page of a PDF."
+  "pdfReaderPageChip": "Page {page} of {pages}. Go to a page.",
+  "@pdfReaderPageChip": {
+    "description": "Read by a screen reader for the page chip at the foot of the PDF reader.",
+    "placeholders": {
+      "page": {
+        "type": "int"
+      },
+      "pages": {
+        "type": "int"
+      }
+    }
+  },
+  "pdfReaderLoading": "Opening the PDF…",
+  "@pdfReaderLoading": {
+    "description": "Shown while a PDF is being read."
+  },
+  "pdfReaderOpenFailed": "The PDF couldn't be opened.",
+  "@pdfReaderOpenFailed": {
+    "description": "Shown when a PDF fails to open for a reason the app has no words for."
+  },
+  "pdfReaderTryAgain": "Try again",
+  "@pdfReaderTryAgain": {
+    "description": "Button that opens the PDF again after a failure."
+  },
+  "pdfReaderUnavailableTitle": "This PDF can't be opened",
+  "@pdfReaderUnavailableTitle": {
+    "description": "Title of the message shown when a PDF is unavailable."
+  },
+  "pdfReaderLockedTitle": "Locked",
+  "@pdfReaderLockedTitle": {
+    "description": "Title of the message shown for a PDF in a locked note."
+  },
+  "pdfReaderRefusedTitle": "This PDF was refused",
+  "@pdfReaderRefusedTitle": {
+    "description": "Title of the message shown when the reader refuses a PDF."
+  },
+  "pdfReaderNotPdfTitle": "This file isn't a PDF",
+  "@pdfReaderNotPdfTitle": {
+    "description": "Title of the message shown when an attachment is not a PDF."
+  },
+  "pdfReaderNotPdfMessage": "The attachment isn't a PDF, or its bytes can't be read as one.",
+  "@pdfReaderNotPdfMessage": {
+    "description": "Message shown when an attachment is not a PDF."
+  },
+  "pdfReaderPasswordTitle": "This PDF is password-protected",
+  "@pdfReaderPasswordTitle": {
+    "description": "Title of the panel asking for an encrypted PDF's password."
+  },
+  "pdfReaderPasswordMessage": "Enter its password to read it.",
+  "@pdfReaderPasswordMessage": {
+    "description": "Message under the password panel's title."
+  },
+  "pdfReaderPasswordHint": "Password",
+  "@pdfReaderPasswordHint": {
+    "description": "Label of the password field of an encrypted PDF."
+  },
+  "pdfReaderWrongPassword": "That password doesn't open this PDF.",
+  "@pdfReaderWrongPassword": {
+    "description": "Shown under the password field when the password was wrong."
+  },
+  "pdfReaderUnlock": "Open",
+  "@pdfReaderUnlock": {
+    "description": "Button that opens an encrypted PDF with the typed password."
+  },
+  "pdfReaderSearch": "Search",
+  "@pdfReaderSearch": {
+    "description": "Button that opens the PDF's search bar."
+  },
+  "pdfReaderSearchHint": "Search this PDF",
+  "@pdfReaderSearchHint": {
+    "description": "Placeholder of the PDF's search field."
+  },
+  "pdfReaderSearchClear": "Clear search",
+  "@pdfReaderSearchClear": {
+    "description": "Read by a screen reader for the button that empties the PDF's search field."
+  },
+  "pdfReaderSearchSearching": "Searching…",
+  "@pdfReaderSearchSearching": {
+    "description": "Shown while the PDF's text is searched."
+  },
+  "pdfReaderSearchNone": "No matches",
+  "@pdfReaderSearchNone": {
+    "description": "Shown when the PDF's search finds nothing."
+  },
+  "pdfReaderSearchCount": "{index} of {total}",
+  "@pdfReaderSearchCount": {
+    "description": "The hit of a PDF search shown, of the hits found.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "pdfReaderSearchNoText": "{pages, plural, =1{1 page has no text} other{{pages} pages have no text}}",
+  "@pdfReaderSearchNoText": {
+    "description": "Said of pages the PDF search could not read, such as scanned pages.",
+    "placeholders": {
+      "pages": {
+        "type": "int"
+      }
+    }
+  },
+  "pdfReaderPreviousMatch": "Previous match",
+  "@pdfReaderPreviousMatch": {
+    "description": "Read by a screen reader for the button that shows the hit before this one."
+  },
+  "pdfReaderNextMatch": "Next match",
+  "@pdfReaderNextMatch": {
+    "description": "Read by a screen reader for the button that shows the next hit."
+  },
+  "pdfReaderZoom": "Zoom",
+  "@pdfReaderZoom": {
+    "description": "Title of the PDF reader's zoom sheet."
+  },
+  "pdfReaderOriginalPage": "Show the page as printed",
+  "@pdfReaderOriginalPage": {
+    "description": "Shows the PDF page with its original colours instead of the dark rendering."
+  },
+  "pdfReaderInvertPage": "Invert for dark mode",
+  "@pdfReaderInvertPage": {
+    "description": "Draws the PDF page light on dark for the current dark theme."
+  },
+  "pdfReaderZoomFitWidth": "Fit width",
+  "@pdfReaderZoomFitWidth": {
+    "description": "The zoom that makes a page as wide as the screen."
+  },
+  "pdfReaderZoomPercent": "{percent}%",
+  "@pdfReaderZoomPercent": {
+    "description": "A page width as a percentage of the screen's.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "pdfReaderHighlights": "Highlights",
+  "@pdfReaderHighlights": {
+    "description": "Title of the sheet that lists a PDF's highlights, and the button that opens it."
+  },
+  "pdfReaderHighlightPage": "Page {page}",
+  "@pdfReaderHighlightPage": {
+    "description": "A highlight's page in the PDF reader's highlights sheet.",
+    "placeholders": {
+      "page": {
+        "type": "int"
+      }
+    }
+  },
+  "pdfReaderNotEditable": "This note's highlights can't be changed here.",
+  "@pdfReaderNotEditable": {
+    "description": "Shown when the note the PDF belongs to cannot take a new highlight."
+  },
+  "pdfReaderAddQuote": "Add quote to note",
+  "@pdfReaderAddQuote": {
+    "description": "Choice that puts the selected words into the note with the highlight."
+  },
+  "pdfReaderSelectionCopy": "Copy",
+  "@pdfReaderSelectionCopy": {
+    "description": "Button that copies the selected words."
+  },
+  "pdfReaderCopied": "Copied",
+  "@pdfReaderCopied": {
+    "description": "Shown after the selected words are copied."
+  },
+  "pdfReaderHighlighting": "Highlighting…",
+  "@pdfReaderHighlighting": {
+    "description": "The highlight button while the highlight is being saved."
+  },
+  "pdfReaderHighlightAction": "Highlight",
+  "@pdfReaderHighlightAction": {
+    "description": "Button that highlights the selected words."
+  },
+  "pdfReaderPageFailed": "This page couldn't be drawn.",
+  "@pdfReaderPageFailed": {
+    "description": "Shown in a PDF page's place when its picture cannot be drawn."
+  },
+  "pdfReaderJumpToPage": "Go to page",
+  "@pdfReaderJumpToPage": {
+    "description": "Title of the sheet that asks for a page number."
+  },
+  "pdfReaderPageNumber": "Page number",
+  "@pdfReaderPageNumber": {
+    "description": "Label of the field for a page number."
+  },
+  "pdfReaderInvalidPage": "Enter a page from 1 to {pages}.",
+  "@pdfReaderInvalidPage": {
+    "description": "Shown when the typed page number is not in the document.",
+    "placeholders": {
+      "pages": {
+        "type": "int"
+      }
+    }
+  },
+  "pdfReaderGo": "Go",
+  "@pdfReaderGo": {
+    "description": "Button that goes to the typed page."
   },
   "previewEmptyDrawing": "An empty drawing",
   "@previewEmptyDrawing": {
@@ -6565,18 +6764,6 @@
   "@aiTroubleAgentNeedsNode": {
     "description": "The chosen agent needs a newer Node."
   },
-  "aiTroubleAgentSignIn": "Your agent needs you to sign in. Sign in to your agent, then try again.",
-  "@aiTroubleAgentSignIn": {
-    "description": "The selected agent needs the person to sign in."
-  },
-  "aiTroubleBilling": "Your provider needs a billing change. Check your billing or plan with your AI provider, then try again.",
-  "@aiTroubleBilling": {
-    "description": "The provider account has run out of credits or needs a plan change."
-  },
-  "aiTroubleWrongAddress": "Your model server address looks wrong. Check the address in Settings › AI, then try again.",
-  "@aiTroubleWrongAddress": {
-    "description": "The configured server address does not point to its API."
-  },
   "aiTroubleNoTools": "This model can't use tools. Pick a model that supports tools in Settings › AI.",
   "@aiTroubleNoTools": {
     "description": "A task needs a model that can use tools."
@@ -7006,7 +7193,7 @@
       }
     }
   },
-  "recordingSummaryDropped":"{count, plural, =1{One item was left out for want of a quote from the recording.} other{{count} items were left out for want of a quote from the recording.}}",
+  "recordingSummaryDropped": "{count, plural, =1{One item was left out for want of a quote from the recording.} other{{count} items were left out for want of a quote from the recording.}}",
   "@recordingSummaryDropped": {
     "description": "Said when the AI gave items the transcript does not back.",
     "placeholders": {
@@ -9096,6 +9283,35 @@
   "lockFilesNotice": "Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can't re-seal the files, and they would stop opening.",
   "@lockFilesNotice": {
     "description": "The one-time notice about notes locked before attachments were sealed, with what to do on other devices."
+  },
+  "pdfNotesInkTitle": "Pencil marks",
+  "@pdfNotesInkTitle": {
+    "description": "Heading, in the sheet that lists a note's PDF highlights, over the pages that have pencil marks drawn on them."
+  },
+  "pdfNotesInkStrokes": "{strokes, plural, =1{1 stroke} other{{strokes} strokes}}",
+  "@pdfNotesInkStrokes": {
+    "description": "How many pencil strokes are drawn on one page of a PDF.",
+    "placeholders": {
+      "strokes": {
+        "type": "int"
+      }
+    }
+  },
+  "pdfNotesInkClear": "Clear page",
+  "@pdfNotesInkClear": {
+    "description": "Button that rubs out all the pencil marks on one page of a PDF."
+  },
+  "aiTroubleAgentSignIn": "Your agent needs you to sign in. Sign in to your agent, then try again.",
+  "@aiTroubleAgentSignIn": {
+    "description": "The selected agent needs the person to sign in."
+  },
+  "aiTroubleBilling": "Your provider needs a billing change. Check your billing or plan with your AI provider, then try again.",
+  "@aiTroubleBilling": {
+    "description": "The provider account has run out of credits or needs a plan change."
+  },
+  "aiTroubleWrongAddress": "Your model server address looks wrong. Check the address in Settings › AI, then try again.",
+  "@aiTroubleWrongAddress": {
+    "description": "The configured server address does not point to its API."
   },
   "recordingSpeakersMenu": "Rename speakers",
   "@recordingSpeakersMenu": {

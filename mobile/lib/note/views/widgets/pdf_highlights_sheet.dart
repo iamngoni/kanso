@@ -51,8 +51,8 @@ class PdfNotesScope extends InheritedWidget {
 /// The highlights a note holds for its PDFs, as the desktop reader's panel
 /// has them: each with its page, its words, its comment and whether its quote
 /// is in the note. A tap opens a highlight to write a comment, change its
-/// colour, put its quote back into the note or delete it. The phone has no PDF
-/// reader, so the page is named, not shown.
+/// colour, put its quote back into the note or delete it. A tap can open the
+/// PDF reader at the highlight or pencil-marked page.
 class PdfHighlightsSheet extends StatefulWidget {
   const PdfHighlightsSheet({required this.noteId, this.repository, super.key});
 
@@ -270,8 +270,8 @@ class _PdfHighlightsSheetState extends State<PdfHighlightsSheet> {
     ];
   }
 
-  /// One page with pencil marks. The phone can't draw on a page, but it can
-  /// rub a page's marks out.
+  /// One page with pencil marks. Drawing happens in the PDF reader; the sheet
+  /// can also clear all marks from this page.
   Widget _inkRow(BuildContext context, PdfNotes pdf, PdfInkRow row) {
     final l10n = context.l10n;
     return Container(

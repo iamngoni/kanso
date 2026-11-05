@@ -59,7 +59,101 @@ Future<void> main(List<String> args) async {
       extraCargoBuildArgs: const <String>['--locked'],
       extraCargoEnvironmentVariables: environment,
     ).run(input: input, output: output);
+    await _bundlePdfium(input, output);
   });
+}
+
+/// The PDFium build for the platform being built, as `scripts/fetch-pdfium.sh`
+/// names it (the script pins its version and checksum, and refuses a build
+/// with V8 in it). `null` where the app has no PDF reader (Windows).
+String? _pdfiumPlatform(CodeConfig code) {
+  final arch = code.targetArchitecture;
+  switch (code.targetOS) {
+    case OS.iOS:
+      final simulator = code.iOS.targetSdk == IOSSdk.iPhoneSimulator;
+      return switch (arch) {
+        Architecture.arm64 =>
+          simulator ? 'ios-simulator-arm64' : 'ios-device-arm64',
+        Architecture.x64 when simulator => 'ios-simulator-x64',
+        _ => null,
+      };
+    case OS.android:
+      return switch (arch) {
+        Architecture.arm64 => 'android-arm64',
+        Architecture.arm => 'android-arm',
+        Architecture.x64 => 'android-x64',
+        _ => null,
+      };
+    case OS.macOS:
+      // The computer `flutter test` runs on: the bridge's tests read real
+      // PDFs.
+      return switch (arch) {
+        Architecture.arm64 => 'mac-arm64',
+        Architecture.x64 => 'mac-x64',
+        _ => null,
+      };
+    case OS.linux:
+      return switch (arch) {
+        Architecture.arm64 => 'linux-arm64',
+        Architecture.x64 => 'linux-x64',
+        _ => null,
+      };
+    default:
+      return null;
+  }
+}
+
+/// Bundles the PDFium library the PDF reader binds at run time
+/// (`kanso_pdf::local`), next to the bridge's own library, as a second native
+/// asset. It is fetched by `scripts/fetch-pdfium.sh` (the one place that pins
+/// its version, checksum and the no-V8 check) into the repository's
+/// `vendor/pdfium`, which is not committed. `KANSO_PDFIUM_DIR` names another
+/// folder (CI caches one).
+Future<void> _bundlePdfium(BuildInput input, BuildOutputBuilder output) async {
+  final code = input.config.code;
+  final platform = _pdfiumPlatform(code);
+  if (platform == null) {
+    return;
+  }
+  final root = input.packageRoot.resolve('../');
+  final script = File.fromUri(root.resolve('scripts/fetch-pdfium.sh'));
+  final into =
+      Platform.environment['KANSO_PDFIUM_DIR'] ??
+      root.resolve('vendor/pdfium').toFilePath();
+  final result = await Process.run(
+    'bash',
+    <String>[script.path, platform],
+    workingDirectory: root.toFilePath(),
+    environment: <String, String>{'PDFIUM_DIR': into},
+  );
+  if (result.exitCode != 0) {
+    throw ProcessException(
+      'bash',
+      <String>[script.path, platform],
+      '${result.stdout}${result.stderr}',
+      result.exitCode,
+    );
+  }
+  final library = File(
+    p.join(
+      into,
+      platform,
+      'lib',
+      switch (code.targetOS) {
+        OS.android || OS.linux => 'libpdfium.so',
+        _ => 'libpdfium.dylib',
+      },
+    ),
+  );
+  output.dependencies.add(script.uri);
+  output.assets.code.add(
+    CodeAsset(
+      package: input.packageName,
+      name: 'pdfium',
+      linkMode: DynamicLoadingBundled(),
+      file: library.uri,
+    ),
+  );
 }
 
 /// `[profile.mobile]` of the root `Cargo.toml`, as the release profile.

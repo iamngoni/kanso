@@ -13,11 +13,27 @@ import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_page.dart';
 import '../../../core/views/widgets/kanso_page_route.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
+import '../../../pdf_reader/views/pages/pdf_reader_page.dart';
 
 /// An attachment tapped in a preview: an image full screen, where it can be
 /// pinched and moved; anything else (a PDF, a file) in a sheet with its name
 /// and size, to share it with the app that opens it.
-Future<void> showAttachment(BuildContext context, AttachmentFile file) {
+Future<void> showAttachment(
+  BuildContext context,
+  AttachmentFile file, {
+  String? noteId,
+}) {
+  if (file.contentType == 'application/pdf' && noteId != null) {
+    return Navigator.of(context, rootNavigator: true).push<void>(
+      KansoPageRoute<void>(
+        builder: (_) => PdfReaderPage(
+          noteId: noteId,
+          file: file.id,
+          name: file.name,
+        ),
+      ),
+    );
+  }
   if (file.contentType.startsWith('image/')) {
     return Navigator.of(context, rootNavigator: true).push<void>(
       KansoPageRoute<void>(

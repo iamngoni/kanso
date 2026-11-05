@@ -33,6 +33,7 @@ import '../test/core/bridge/suites/linking_suite.dart';
 import '../test/core/bridge/suites/locks_suite.dart';
 import '../test/core/bridge/suites/metrics_suite.dart';
 import '../test/core/bridge/suites/notebook_home_suite.dart';
+import '../test/core/bridge/suites/pdf_suite.dart';
 import '../test/core/bridge/suites/people_suite.dart';
 import '../test/core/bridge/suites/publish_suite.dart';
 import '../test/core/bridge/suites/recording_speakers_suite.dart';
@@ -72,6 +73,7 @@ void main() {
   linkingSuite(openDeviceLibrary);
   cardsSuite(openDeviceLibrary);
   peopleSuite(openDeviceLibrary);
+  pdfSuite(openDeviceLibrary);
   notebookHomeSuite(openDeviceLibrary);
   triageSuite(openDeviceLibrary);
   metricsSuite(openDeviceLibrary);

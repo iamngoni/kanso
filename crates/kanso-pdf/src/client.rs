@@ -282,7 +282,7 @@ pub(crate) fn dev_library() -> Option<PathBuf> {
 }
 
 fn libloading_name() -> &'static str {
-    if cfg!(target_os = "macos") {
+    if cfg!(target_vendor = "apple") {
         "libpdfium.dylib"
     } else if cfg!(windows) {
         "pdfium.dll"
@@ -297,6 +297,9 @@ enum Process {
     Std(Child),
     #[cfg(windows)]
     Windows(launch_windows::Launched),
+    /// A phone's reader: the worker's loop on a thread of the app.
+    #[cfg(feature = "render")]
+    Local(crate::local::Local),
 }
 
 impl Process {
@@ -308,6 +311,8 @@ impl Process {
             }
             #[cfg(windows)]
             Process::Windows(launched) => launched.kill(),
+            #[cfg(feature = "render")]
+            Process::Local(local) => local.kill(),
         }
     }
 
@@ -317,6 +322,8 @@ impl Process {
             Process::Std(child) => Some(child.id()),
             #[cfg(windows)]
             Process::Windows(_) => None,
+            #[cfg(feature = "render")]
+            Process::Local(_) => None,
         }
     }
 
@@ -328,6 +335,8 @@ impl Process {
             }
             #[cfg(windows)]
             Process::Windows(launched) => launched.wait(),
+            #[cfg(feature = "render")]
+            Process::Local(local) => local.wait(),
         }
     }
 }
@@ -364,7 +373,20 @@ impl Worker {
 
     /// As [`Worker::start`], with other deadlines (tests).
     pub fn start_with(paths: &WorkerPaths, deadlines: Deadlines) -> Result<Worker, WorkerError> {
-        let (process, input, output) = spawn(paths)?;
+        Worker::from_pipes(spawn(paths)?, deadlines)
+    }
+
+    /// Starts the worker's loop inside this process, on a thread: how a
+    /// phone reads a PDF, where no process can be started (see
+    /// [`crate::local`] for what that keeps and what it gives up).
+    #[cfg(feature = "render")]
+    pub fn start_local(deadlines: Deadlines) -> Result<Worker, WorkerError> {
+        let (local, input, output) = crate::local::start().map_err(WorkerError::Unavailable)?;
+        Worker::from_pipes((Process::Local(local), input, output), deadlines)
+    }
+
+    fn from_pipes(pipes: Pipes, deadlines: Deadlines) -> Result<Worker, WorkerError> {
+        let (process, input, output) = pipes;
         let process = Arc::new(Mutex::new(process));
         let watch: Shared = Arc::default();
         let watcher = (process.clone(), watch.clone());

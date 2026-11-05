@@ -243,21 +243,46 @@ void librarySuite(OpenLibrary open) {
         final after = await library.pdfHighlights(noteId: saved.id);
         expect(after.single.highlights.single.comment, 'Check it');
 
-        // Drawn at an older revision, nothing is written.
-        await expectLater(
-          library.pdfHighlightChange(
-            noteId: saved.id,
-            baseRev: saved.rev,
-            file: 'file:abc123',
-            id: 'h1',
-            change: const PdfHighlightChange.delete(),
-          ),
-          throwsA(isA<KansoError_Conflict>()),
+        // Drawn at an older revision, the delete is replayed on the newer
+        // note text and removes the highlight.
+        final deleted = await library.pdfHighlightChange(
+          noteId: saved.id,
+          baseRev: saved.rev,
+          file: 'file:abc123',
+          id: 'h1',
+          change: const PdfHighlightChange.delete(),
         );
+        expect(deleted.merged, isTrue);
+        expect(deleted.gone, isFalse);
         expect(
           (await library.pdfHighlights(noteId: saved.id)).single.highlights,
-          hasLength(1),
+          isEmpty,
         );
+
+        // If another edit removes it first, replaying the stale delete reports
+        // that the target is gone.
+        final another = await library.create(
+          note: const NewNote(
+            title: 'Report',
+            body: 'Notes\n\n$block\n',
+          ),
+        );
+        await library.pdfHighlightChange(
+          noteId: another.id,
+          baseRev: another.rev,
+          file: 'file:abc123',
+          id: 'h1',
+          change: const PdfHighlightChange.delete(),
+        );
+        final alreadyGone = await library.pdfHighlightChange(
+          noteId: another.id,
+          baseRev: another.rev,
+          file: 'file:abc123',
+          id: 'h1',
+          change: const PdfHighlightChange.delete(),
+        );
+        expect(alreadyGone.gone, isTrue);
+        expect(alreadyGone.merged, isTrue);
       },
     );
 
@@ -844,17 +869,19 @@ void librarySuite(OpenLibrary open) {
         expect(notes.single.ink.map((row) => row.page), <int>[5]);
         expect(notes.single.highlights, hasLength(1));
 
-        // A change on an old revision writes nothing.
+        // A clear on an old revision is applied to the newest annotation
+        // block instead of losing the requested change.
         rev = commented.rev;
-        await expectLater(
-          library.pdfInkClear(
-            noteId: id,
-            baseRev: rev,
-            file: 'file:abc123',
-            page: 5,
-          ),
-          throwsA(isA<KansoError_Conflict>()),
+        final staleClear = await library.pdfInkClear(
+          noteId: id,
+          baseRev: rev,
+          file: 'file:abc123',
+          page: 5,
         );
+        expect(staleClear.rev, isNot(rev));
+        notes = await library.pdfHighlights(noteId: id);
+        expect(notes.single.ink, isEmpty);
+        expect(notes.single.highlights, hasLength(1));
         expect(cleared.rev, isNot(rev));
       },
     );

@@ -19,6 +19,8 @@ pub mod hostile;
 pub mod ink;
 pub mod invert;
 pub mod link;
+#[cfg(feature = "render")]
+pub mod local;
 pub mod merge;
 pub mod model;
 pub mod ocr;

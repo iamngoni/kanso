@@ -31,6 +31,7 @@ void main() {
       expect(preferences.fonts, const KansoFonts());
       expect(preferences.focusMode, isFalse);
       expect(preferences.livePreviewInFocus, isFalse);
+      expect(preferences.pdfOriginalPages, isEmpty);
     });
 
     Glados<Preferences>(any.preferences, kansoExploreConfig()).test(
@@ -75,6 +76,15 @@ void main() {
         Preferences.fromJson(json),
         const Preferences(iconTheme: 'phosphor'),
       );
+    });
+
+    test('keeps the PDFs shown as printed by attachment ID', () {
+      const preferences = Preferences(
+        pdfOriginalPages: <String, bool>{'file:a': true},
+      );
+      final json = preferences.toJson();
+      expect(json['pdfOriginalPages'], <String, dynamic>{'file:a': true});
+      expect(Preferences.fromJson(json), preferences);
     });
 
     test('writes note scales as numbers', () {
