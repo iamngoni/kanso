@@ -16,6 +16,7 @@ use base64::engine::general_purpose::STANDARD;
 use kanso_core::model::{note_files_from_extra, store_note_files};
 use kanso_core::{Note, now_ms};
 use kanso_engine::links::tags::apply_inline_tags;
+use kanso_engine::lock::files::migrate;
 use kanso_engine::lock::files::{self, Job, Progress};
 use kanso_engine::lock::{self, LockView, Target};
 use kanso_sync::lock::{Envelope, LockError, LockKey, LockPassword, SealId};
@@ -24,12 +25,17 @@ use kanso_sync::lock::{Envelope, LockError, LockKey, LockPassword, SealId};
 /// waiting (`pending`) or was said (`said`) on this phone.
 const FILES_NOTICE_META: &str = "locks.files_notice";
 
+/// `later` once the first-launch prompt to seal the attachments of notes
+/// locked before was answered with "Later".
+const MIGRATION_META: &str = "locks.files_migration";
+
 use crate::boundary::{guard, held};
 use crate::editing::Editors;
 use crate::errors::KansoError;
 use crate::library::{Inner, Library};
 use crate::model::{
-    InterruptedLock, LockEvent, LockReason, LockStatus, LockSummary, Saved, SealProgress,
+    FilesMigration, InterruptedLock, LockEvent, LockReason, LockStatus, LockSummary,
+    MigrationOutcome, Saved, SealProgress,
 };
 
 /// One lock that exists: a note's or notebook's envelope, and how many
@@ -795,6 +801,110 @@ impl LockSession {
             }
             Ok(pending)
         })
+    }
+
+    /// The notes locked before attachments were sealed, for the first-launch
+    /// prompt, the Settings row and the quiet reminder.
+    pub fn files_migration(&self) -> Result<FilesMigration, KansoError> {
+        guard(|| {
+            let store = &self.inner.store;
+            let pending = migrate::pending(store);
+            let keys = held(&self.inner.keys).keys().to_vec();
+            let scan =
+                (!pending.is_done() && !keys.is_empty()).then(|| migrate::scan(store, &keys));
+            let count = |n: usize| u32::try_from(n).unwrap_or(u32::MAX);
+            let mut state = FilesMigration {
+                notes: count(pending.notes()),
+                stopped: count(pending.stopped),
+                postponed: store.meta(MIGRATION_META)?.as_deref() == Some("later"),
+                ..FilesMigration::default()
+            };
+            if let Some(scan) = scan.filter(|scan| scan.notes > 0 && scan.unopened == 0) {
+                state.counted = true;
+                state.files = count(scan.summary.files);
+                state.bytes = scan.summary.bytes;
+                state.shared = count(scan.summary.shared);
+            }
+            Ok(state)
+        })
+    }
+
+    /// "Later" at the first-launch prompt: it isn't asked again, and the
+    /// reminder stays until the attachments are sealed.
+    pub fn postpone_files_migration(&self) -> Result<(), KansoError> {
+        guard(|| {
+            self.inner.store.set_meta(MIGRATION_META, "later")?;
+            Ok(())
+        })
+    }
+
+    /// Seals the attachments of every locked note a held key, or `password`,
+    /// opens: a file an unlocked note also shows is copied first. Progress
+    /// goes to [`LockSession::lock_progress`]; [`LockSession::cancel_lock`]
+    /// stops it between two files and running it again finishes. Without a
+    /// `password` a key must be held ([`KansoError::Locked`] otherwise); a
+    /// password that opens no waiting note is [`KansoError::Auth`].
+    pub fn seal_locked_attachments(
+        &self,
+        password: Option<String>,
+    ) -> Result<MigrationOutcome, KansoError> {
+        guard(|| {
+            self.inner.lock_cancelled.store(false, Ordering::SeqCst);
+            let since = self.generation();
+            self.add_password_keys(password, since)?;
+            let keys = held(&self.inner.keys).keys().to_vec();
+            if keys.is_empty() {
+                return Err(KansoError::Locked);
+            }
+            let book = held(&self.inner.keys).file_keys();
+            let events = &self.inner.seal_progress;
+            let cancelled = &self.inner.lock_cancelled;
+            let mut watch = |progress: &Progress| {
+                events.send(SealProgress::from(*progress));
+                if cancelled.load(Ordering::SeqCst) {
+                    return Err("Sealing was cancelled.".to_owned());
+                }
+                Ok(())
+            };
+            let outcome = migrate::migrate(&self.inner.store, &book, &keys, &mut watch);
+            held(&self.inner.keys).touch(Instant::now());
+            // The notes now list their files: their keys are held for reading.
+            self.cache_note_file_keys(since);
+            Ok(MigrationOutcome::from(&outcome))
+        })
+    }
+
+    /// Undoes a stopped sealing pass: the files it sealed are readable files
+    /// again. The held keys, or `password`, must open the notes. Returns how
+    /// many files it undid.
+    pub fn undo_files_migration(&self, password: Option<String>) -> Result<u32, KansoError> {
+        guard(|| {
+            let since = self.generation();
+            self.add_password_keys(password, since)?;
+            let keys = held(&self.inner.keys).keys().to_vec();
+            if keys.is_empty() {
+                return Err(KansoError::Locked);
+            }
+            let (undone, unopened) =
+                migrate::undo_all(&self.inner.store, &keys).map_err(files_error)?;
+            if undone == 0 && unopened > 0 {
+                return Err(KansoError::auth(lock::sentence(&LockError::WrongPassword)));
+            }
+            Ok(u32::try_from(undone).unwrap_or(u32::MAX))
+        })
+    }
+
+    /// Keeps the keys `password` gives for the waiting notes' locks.
+    fn add_password_keys(&self, password: Option<String>, since: u64) -> Result<(), KansoError> {
+        let Some(text) = password else {
+            return Ok(());
+        };
+        let password = lock::password(&text).map_err(KansoError::invalid)?;
+        let keys = migrate::keys_for(&self.inner.store, &password).map_err(KansoError::auth)?;
+        for key in keys {
+            self.add_key(key, since);
+        }
+        Ok(())
     }
 
     /// Whether note `id` carries a lock that stopped between its files (a

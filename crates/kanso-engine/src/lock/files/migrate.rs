@@ -29,7 +29,7 @@ use kanso_core::DocType;
 use kanso_core::Note;
 use kanso_core::model::{KANSO_FILES_FIELD, NoteFile, note_files_from_extra, store_note_files};
 use kanso_store::{AttachmentState, Origin, Put, Store};
-use kanso_sync::lock::{Envelope, LockKey};
+use kanso_sync::lock::{Envelope, LockKey, LockPassword};
 
 use super::{
     FilesError, JOURNAL_FROM, JOURNAL_LOCK, JOURNAL_NEW, Job, KeyBook, Progress, Summary, failed,
@@ -139,6 +139,58 @@ fn gather(store: &Store, keys: &[Arc<LockKey>]) -> Gathered {
         }
     }
     gathered
+}
+
+/// The locks the waiting notes are sealed with, one for each salt: what a
+/// typed password is tried on.
+fn targets(store: &Store) -> Vec<Target> {
+    let mut found: Vec<Target> = Vec::new();
+    let mut add = |id: &str, envelope: Envelope| {
+        if !found.iter().any(|target| {
+            target.envelope.as_ref().is_ok_and(|kept| {
+                kept.salt == envelope.salt
+                    && (kept.m, kept.t, kept.p) == (envelope.m, envelope.t, envelope.p)
+            })
+        }) {
+            found.push(Target {
+                id: id.to_owned(),
+                envelope: Ok(envelope),
+            });
+        }
+    };
+    for note in store.locked_notes().unwrap_or_default() {
+        if (is_legacy(&note) || is_stopped(&note))
+            && let Some(Ok(envelope)) = Envelope::from_extra(&note.extra)
+        {
+            add(&note.id, envelope);
+        }
+    }
+    for note in store.unsealed_in_locked_books().unwrap_or_default() {
+        if let Some(target) = Target::of_book(&note.book_id, store)
+            && let Ok(envelope) = target.envelope
+        {
+            add(&target.id, envelope);
+        }
+    }
+    found
+}
+
+/// The keys `password` gives for the waiting notes' locks, each seen to open
+/// its lock. An error in words when it opens none of them.
+pub fn keys_for(store: &Store, password: &LockPassword) -> Result<Vec<LockKey>, String> {
+    let mut keys = Vec::new();
+    for target in targets(store) {
+        if let Ok(key) = crate::lock::key_for(&target, password) {
+            keys.push(key);
+        }
+    }
+    if keys.is_empty() {
+        Err(crate::lock::sentence(
+            &kanso_sync::lock::LockError::WrongPassword,
+        ))
+    } else {
+        Ok(keys)
+    }
 }
 
 /// What a migration would do with the keys held.

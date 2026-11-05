@@ -77,6 +77,13 @@ impl LockKeys {
         Self::get(cx).is_some_and(|keys| keys.0.is_unlocked())
     }
 
+    /// Every key this session holds.
+    pub(crate) fn all(cx: &App) -> Vec<Arc<LockKey>> {
+        Self::get(cx)
+            .map(|keys| keys.0.keys().to_vec())
+            .unwrap_or_default()
+    }
+
     pub(crate) fn fitting(cx: &App, envelope: &Envelope) -> Option<Arc<LockKey>> {
         Self::get(cx)?.0.fitting(envelope)
     }

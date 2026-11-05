@@ -297,7 +297,30 @@ pub fn run<T: Send + 'static>(
     + 'static,
     done: impl FnOnce(Result<T, String>, &mut Window, &mut App) + 'static,
 ) {
-    if !wants_sheet(&summary) {
+    let sheet = wants_sheet(&summary);
+    run_with(sheet, title, line, summary, window, cx, work, done);
+}
+
+/// [`run`], with the choice of the sheet made by the caller: sealing the
+/// attachments of every locked note always runs on a thread of its own with
+/// the sheet, however few files it finds.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "run's, and whether to show the sheet"
+)]
+pub fn run_with<T: Send + 'static>(
+    sheet: bool,
+    title: &'static str,
+    line: String,
+    summary: Summary,
+    window: &mut Window,
+    cx: &mut App,
+    work: impl FnOnce(&mut dyn FnMut(&Progress) -> Result<(), String>) -> Result<T, String>
+    + Send
+    + 'static,
+    done: impl FnOnce(Result<T, String>, &mut Window, &mut App) + 'static,
+) {
+    if !sheet {
         let result = work(&mut |_| Ok(()));
         // After the update that asked, which `done` often updates again.
         window.defer(cx, move |window, cx| done(result, window, cx));

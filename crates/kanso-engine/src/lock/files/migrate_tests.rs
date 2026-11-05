@@ -621,3 +621,30 @@ fn the_scan_counts_what_the_keys_open_and_what_they_do_not() {
     assert_eq!(scan.summary.bytes, 1500);
     assert_eq!(scan.summary.shared, 1);
 }
+
+#[test]
+fn a_password_gives_the_key_of_each_lock_it_opens_and_only_those() {
+    let world = world();
+    let a = world.file("a.png", b"a");
+    let b = world.file("b.png", b"b");
+    let mut one = world.note(std::slice::from_ref(&a));
+    let mut two = world.note(std::slice::from_ref(&b));
+    world.legacy_lock(&mut one, &key());
+    world.legacy_lock(&mut two, &other());
+
+    let keys: Vec<Arc<LockKey>> =
+        keys_for(&world.store, &LockPassword::new("first password").unwrap())
+            .unwrap()
+            .into_iter()
+            .map(Arc::new)
+            .collect();
+    assert_eq!(keys.len(), 1);
+    assert_eq!(run(&world, &keys).notes, 1);
+    let wrong = keys_for(
+        &world.store,
+        &LockPassword::new("not the password").unwrap(),
+    );
+    assert!(wrong.is_err());
+    // The other password's note still waits.
+    assert_eq!(pending(&world.store).legacy, 1);
+}
