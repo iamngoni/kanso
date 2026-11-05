@@ -147,7 +147,7 @@ fn color_name(color: Color) -> &'static str {
     }
 }
 
-fn now_ms() -> i64 {
+pub(super) fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_millis() as i64)
@@ -170,6 +170,9 @@ impl PdfReader {
         self.notes.md5 = md5;
         self.notes.body = body;
         self.notes.reveal = reveal;
+        self.pencil.forget();
+        self.ink_rev = None;
+        self.load_ink_file();
         cx.notify();
     }
 
@@ -199,6 +202,8 @@ impl PdfReader {
                 n.editing = None;
             }
         }
+        self.load_ink_file();
+        self.pencil_follow_note();
         cx.notify();
     }
 
@@ -223,7 +228,7 @@ impl PdfReader {
     }
 
     /// Something in the highlights changed: write it after a pause.
-    fn changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.notes.dirty = true;
         self.save_task = Some(cx.spawn_in(window, async move |this, cx| {
             cx.background_executor().timer(SAVE_DELAY).await;
@@ -232,7 +237,7 @@ impl PdfReader {
         cx.notify();
     }
 
-    fn say(&mut self, words: impl Into<String>, cx: &mut Context<Self>) {
+    pub(super) fn say(&mut self, words: impl Into<String>, cx: &mut Context<Self>) {
         self.notes.notice = Some(words.into());
         cx.notify();
     }
@@ -261,13 +266,17 @@ impl PdfReader {
 
     // ---- the pointer -----------------------------------------------------------------
 
-    fn content_width(&self) -> f32 {
+    pub(super) fn content_width(&self) -> f32 {
         let (viewport_w, _) = self.viewport();
         (self.layout.max_width() + 2. * MARGIN).max(viewport_w)
     }
 
     /// Where a window position is on a page.
-    fn locate(&self, position: gpui_kit::Point<Pixels>, clamp: bool) -> Option<kanso_pdf::Point> {
+    pub(super) fn locate(
+        &self,
+        position: gpui_kit::Point<Pixels>,
+        clamp: bool,
+    ) -> Option<kanso_pdf::Point> {
         let bounds = self.scroll.bounds();
         let offset = self.scroll.offset();
         let x = f32::from(position.x - bounds.origin.x - offset.x);
@@ -286,6 +295,10 @@ impl PdfReader {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.pencil.on {
+            self.ink_down(event, window, cx);
+            return;
+        }
         window.focus(&self.focus, cx);
         self.notes.notice = None;
         let Some(at) = self.locate(event.position, false) else {
@@ -320,7 +333,16 @@ impl PdfReader {
         cx.notify();
     }
 
-    pub(super) fn mouse_move(&mut self, event: &MouseMoveEvent, cx: &mut Context<Self>) {
+    pub(super) fn mouse_move(
+        &mut self,
+        event: &MouseMoveEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.pencil.on {
+            self.ink_move(event, window, cx);
+            return;
+        }
         let Some(anchor) = self.notes.anchor else {
             return;
         };
@@ -347,6 +369,10 @@ impl PdfReader {
     }
 
     pub(super) fn mouse_up(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.pencil.on || self.pencil.drawing() {
+            self.ink_up(window, cx);
+            return;
+        }
         self.notes.anchor = None;
         let down = self.notes.down.take();
         if self.notes.moved {
@@ -826,8 +852,9 @@ impl PdfReader {
         let annots = self.notes.annots().clone();
         let rows = annots.rows(&self.notes.body);
         let changed = annots.block.pdf_changed(&self.notes.md5);
+        let ink_rows = annots.ink_rows();
         let mut list = v_flex().gap(px(2.)).p(px(8.));
-        if rows.is_empty() {
+        if rows.is_empty() && ink_rows.is_empty() {
             list = list.child(
                 div()
                     .debug_selector(|| "pdf-panel-empty".into())
@@ -839,6 +866,20 @@ impl PdfReader {
         }
         for (index, row) in rows.iter().enumerate() {
             list = list.child(self.panel_row(index, row, &annots, colors, cx));
+        }
+        if !ink_rows.is_empty() {
+            list = list.child(
+                div()
+                    .px(px(8.))
+                    .pt(px(10.))
+                    .pb(px(2.))
+                    .text_size(px(11.))
+                    .text_color(colors.text_secondary)
+                    .child("Pencil"),
+            );
+            for row in &ink_rows {
+                list = list.child(self.ink_row(row, annots.is_editable(), colors, cx));
+            }
         }
         let banner = |id: &'static str, words: String, action: Option<AnyElement>| {
             h_flex()
@@ -1193,4 +1234,4 @@ impl PdfReader {
 }
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

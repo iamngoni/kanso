@@ -216,11 +216,13 @@ impl Library {
                 apply_inline_tags(&self.inner.store, &mut note, None);
             }
             if state == LockView::Open {
-                // What the text shows that isn't sealed yet (a legacy
-                // note's files, a pasted link) is sealed with the save; the
-                // sealed text links any copy made.
-                if let Some(text) = self.locks().seal_open_files(&mut note)? {
-                    note.body = text;
+                // A locked note's linked files are sealed with its text, as
+                // the editor's save does; this also lists a newly sealed ink
+                // attachment.
+                if note.is_locked()
+                    && let Some(sealed_body) = self.locks().seal_open_files(&mut note)?
+                {
+                    note.body = sealed_body;
                 }
                 held(&self.inner.keys)
                     .seal(&mut note, Instant::now())

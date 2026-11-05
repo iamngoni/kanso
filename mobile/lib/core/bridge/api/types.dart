@@ -3963,6 +3963,27 @@ class PdfHighlightRow {
           inNote == other.inNote;
 }
 
+class PdfInkRow {
+  final int page;
+  final int strokes;
+
+  const PdfInkRow({
+    required this.page,
+    required this.strokes,
+  });
+
+  @override
+  int get hashCode => page.hashCode ^ strokes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PdfInkRow &&
+          runtimeType == other.runtimeType &&
+          page == other.page &&
+          strokes == other.strokes;
+}
+
 class PdfNotes {
   final String file;
   final String name;
@@ -3970,6 +3991,7 @@ class PdfNotes {
   final bool editable;
   final String? why;
   final List<PdfHighlightRow> highlights;
+  final List<PdfInkRow> ink;
 
   const PdfNotes({
     required this.file,
@@ -3978,6 +4000,7 @@ class PdfNotes {
     required this.editable,
     this.why,
     required this.highlights,
+    required this.ink,
   });
 
   @override
@@ -3987,7 +4010,8 @@ class PdfNotes {
       url.hashCode ^
       editable.hashCode ^
       why.hashCode ^
-      highlights.hashCode;
+      highlights.hashCode ^
+      ink.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -3999,7 +4023,8 @@ class PdfNotes {
           url == other.url &&
           editable == other.editable &&
           why == other.why &&
-          highlights == other.highlights;
+          highlights == other.highlights &&
+          ink == other.ink;
 }
 
 @freezed
