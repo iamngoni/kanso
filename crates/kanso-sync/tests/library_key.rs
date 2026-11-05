@@ -1,9 +1,11 @@
 //! Opening a library with the key the secret store keeps (issue #243 step 9).
 
-use kanso_store::{LibraryFile, Store, StoreError};
+use kanso_store::{EncryptOptions, LibraryFile, Store, StoreError};
 use kanso_sync::keychain::library_key_item;
 use kanso_sync::library_key::{is_key_id, key_id_path, load_key};
-use kanso_sync::{Encryption, MemorySecrets, OpenLibraryError, SecretStore, open_library};
+use kanso_sync::{
+    Encryption, MemorySecrets, OpenLibraryError, SecretStore, open_library, open_library_with,
+};
 use proptest::prelude::*;
 
 fn db(dir: &tempfile::TempDir) -> std::path::PathBuf {
@@ -35,18 +37,158 @@ fn a_new_library_is_encrypted_and_reopens_with_the_saved_key() {
 }
 
 #[test]
-fn an_existing_plain_library_opens_as_it_always_did() {
+fn an_existing_plain_library_is_encrypted_at_the_next_open() {
     let dir = tempfile::tempdir().unwrap();
     Store::open(db(&dir)).unwrap().set_meta("a", "b").unwrap();
     let secrets = MemorySecrets::new();
     let opened = open_library(&db(&dir), &secrets).unwrap();
-    assert_eq!(opened.encryption, Encryption::Plain);
+    assert_eq!(opened.encryption, Encryption::Converted);
     assert_eq!(opened.store.meta("a").unwrap().as_deref(), Some("b"));
-    // Nothing was made: no key, no item, still plain.
     drop(opened);
-    assert!(secrets.items().is_empty());
-    assert!(!key_id_path(&db(&dir)).exists());
+    assert_eq!(LibraryFile::of(&db(&dir)), LibraryFile::Encrypted);
+    let id = key_id(&dir);
+    assert_eq!(secrets.items(), vec![library_key_item(&id)]);
+    // And an ordinary open after.
+    let again = open_library(&db(&dir), &secrets).unwrap();
+    assert_eq!(again.encryption, Encryption::Encrypted);
+    assert_eq!(again.store.meta("a").unwrap().as_deref(), Some("b"));
+}
+
+/// A library that stayed plain because no key could be kept is encrypted by
+/// the first open that can keep one, not only on the "first launch after the
+/// update".
+#[test]
+fn a_library_left_plain_is_encrypted_once_a_key_can_be_kept() {
+    let dir = tempfile::tempdir().unwrap();
+    Store::open(db(&dir)).unwrap().set_meta("a", "b").unwrap();
+    let secrets = MemorySecrets::new();
+    secrets.fail_writes_to(Some("library-key:"));
+    for _ in 0..3 {
+        let opened = open_library(&db(&dir), &secrets).unwrap();
+        assert!(matches!(opened.encryption, Encryption::PlainNoKeychain(_)));
+        assert_eq!(opened.store.meta("a").unwrap().as_deref(), Some("b"));
+        drop(opened);
+        assert_eq!(LibraryFile::of(&db(&dir)), LibraryFile::Plain);
+        assert!(secrets.items().is_empty());
+        assert!(!key_id_path(&db(&dir)).exists());
+    }
+    secrets.heal();
+    let opened = open_library(&db(&dir), &secrets).unwrap();
+    assert_eq!(opened.encryption, Encryption::Converted);
+    assert_eq!(opened.store.meta("a").unwrap().as_deref(), Some("b"));
+}
+
+/// A disk too small is said plainly, the library opens plain with nothing
+/// lost, and a later open with room encrypts it.
+#[test]
+fn a_disk_too_small_leaves_the_library_plain_and_is_tried_again() {
+    let dir = tempfile::tempdir().unwrap();
+    {
+        let store = Store::open(db(&dir)).unwrap();
+        for i in 0..300 {
+            store
+                .set_meta(&format!("k{i}"), &"filler text ".repeat(100))
+                .unwrap();
+        }
+    }
+    let secrets = MemorySecrets::new();
+    let small = EncryptOptions {
+        max_copy_bytes: Some(16 * 1024),
+        ..EncryptOptions::default()
+    };
+    let opened = open_library_with(&db(&dir), &secrets, &small).unwrap();
+    match &opened.encryption {
+        Encryption::PlainEncryptFailed(why) => {
+            assert!(why.contains("free space"), "{why}");
+            assert!(why.contains("untouched"), "{why}");
+        }
+        other => panic!("{other:?}"),
+    }
+    assert!(opened.store.meta("k299").unwrap().is_some());
+    drop(opened);
     assert_eq!(LibraryFile::of(&db(&dir)), LibraryFile::Plain);
+    let roomy = open_library(&db(&dir), &secrets).unwrap();
+    assert_eq!(roomy.encryption, Encryption::Converted);
+    assert!(roomy.store.meta("k299").unwrap().is_some());
+}
+
+/// A conversion a crash stopped is finished by the next open, at every step.
+#[test]
+fn a_crashed_conversion_is_finished_by_the_next_open() {
+    use std::panic::{AssertUnwindSafe, catch_unwind};
+    for at in kanso_store::EncryptStep::ALL {
+        let dir = tempfile::tempdir().unwrap();
+        Store::open(db(&dir)).unwrap().set_meta("a", "b").unwrap();
+        let secrets = MemorySecrets::new();
+        let hook = move |step: kanso_store::EncryptStep| {
+            if step == at {
+                panic!("killed");
+            }
+        };
+        let opts = EncryptOptions {
+            after_step: Some(&hook),
+            ..EncryptOptions::default()
+        };
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| open_library_with(
+                &db(&dir),
+                &secrets,
+                &opts
+            )))
+            .is_err()
+        );
+        let opened = open_library(&db(&dir), &secrets).unwrap();
+        assert!(
+            matches!(
+                opened.encryption,
+                Encryption::Converted | Encryption::Encrypted
+            ),
+            "{at:?}: {:?}",
+            opened.encryption
+        );
+        assert_eq!(
+            opened.store.meta("a").unwrap().as_deref(),
+            Some("b"),
+            "{at:?}"
+        );
+        drop(opened);
+        assert_eq!(LibraryFile::of(&db(&dir)), LibraryFile::Encrypted, "{at:?}");
+        assert_eq!(secrets.items().len(), 1, "{at:?}");
+    }
+}
+
+/// The key lost while a conversion was unfinished: the plain library comes
+/// back and the next conversion makes a new key.
+#[test]
+fn a_crashed_conversion_whose_key_is_gone_is_undone_then_redone() {
+    use std::panic::{AssertUnwindSafe, catch_unwind};
+    let dir = tempfile::tempdir().unwrap();
+    Store::open(db(&dir)).unwrap().set_meta("a", "b").unwrap();
+    let secrets = MemorySecrets::new();
+    let hook = |step: kanso_store::EncryptStep| {
+        if step == kanso_store::EncryptStep::Swapped {
+            panic!("killed");
+        }
+    };
+    let opts = EncryptOptions {
+        after_step: Some(&hook),
+        ..EncryptOptions::default()
+    };
+    assert!(
+        catch_unwind(AssertUnwindSafe(|| open_library_with(
+            &db(&dir),
+            &secrets,
+            &opts
+        )))
+        .is_err()
+    );
+    let old = key_id(&dir);
+    secrets.delete(&library_key_item(&old)).unwrap();
+    let opened = open_library(&db(&dir), &secrets).unwrap();
+    assert_eq!(opened.encryption, Encryption::Converted);
+    assert_eq!(opened.store.meta("a").unwrap().as_deref(), Some("b"));
+    drop(opened);
+    assert_ne!(key_id(&dir), old);
 }
 
 #[test]

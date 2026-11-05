@@ -47,6 +47,25 @@ pub fn key_file() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+/// The warning for a library whose key sits in the clear: with the file
+/// secret store and no `KANSO_SECRETS_KEY_FILE`, `secrets.json` holds the
+/// library's key in plain text beside `kanso.db`, so encryption stops only a
+/// copy of `kanso.db` on its own, not anyone who can read the folder. `None`
+/// when the system's store or a key file protects it. Pure.
+pub fn file_store_warning(
+    kind: SecretStoreKind,
+    key_file: Option<&Path>,
+    data_dir: &Path,
+) -> Option<String> {
+    if kind != SecretStoreKind::File || key_file.is_some() {
+        return None;
+    }
+    Some(format!(
+        "kanso: the library's key is in {} in plain text, next to the library, because {SECRETS_KEY_FILE_ENV} is not set. Anyone who can read this folder can read your notes. Set {SECRETS_KEY_FILE_ENV} to a key file kept elsewhere to encrypt that file.",
+        secrets_path(data_dir).display()
+    ))
+}
+
 /// The secret store of `kind` for this flavour and data folder.
 pub fn open_kind(kind: SecretStoreKind, data_dir: &Path) -> Result<Arc<dyn SecretStore>> {
     Ok(match kind {
@@ -134,6 +153,31 @@ mod tests {
     use super::*;
     use kanso_sync::MemorySecrets;
     use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+            ..ProptestConfig::with_cases(64)
+        })]
+
+        /// Invariant: the plain-file warning shows exactly when the file
+        /// store has no key file, and then names the file and the variable.
+        #[test]
+        fn prop_the_file_store_warns_only_without_a_key_file(
+            file in any::<bool>(),
+            has_key_file in any::<bool>(),
+            dir in "[a-z]{1,8}",
+        ) {
+            let kind = if file { SecretStoreKind::File } else { SecretStoreKind::System };
+            let key_file = has_key_file.then(|| Path::new("/keys/k"));
+            let warning = file_store_warning(kind, key_file, Path::new(&dir));
+            prop_assert_eq!(warning.is_some(), file && !has_key_file);
+            if let Some(warning) = warning {
+                prop_assert!(warning.contains(SECRETS_FILE));
+                prop_assert!(warning.contains(SECRETS_KEY_FILE_ENV));
+            }
+        }
+    }
 
     #[test]
     fn a_working_store_passes_the_probe_and_keeps_nothing() {
