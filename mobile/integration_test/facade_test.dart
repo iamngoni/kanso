@@ -36,6 +36,7 @@ import '../test/core/bridge/suites/notebook_home_suite.dart';
 import '../test/core/bridge/suites/pdf_suite.dart';
 import '../test/core/bridge/suites/people_suite.dart';
 import '../test/core/bridge/suites/publish_suite.dart';
+import '../test/core/bridge/suites/recording_speakers_suite.dart';
 import '../test/core/bridge/suites/recording_suite.dart';
 import '../test/core/bridge/suites/reminders_suite.dart';
 import '../test/core/bridge/suites/renderer_suite.dart';
@@ -108,6 +109,7 @@ void main() {
   templatesSuite(openDeviceLibrary);
   voiceSuite(openDeviceLibrary);
   recordingSuite(openDeviceLibrary);
+  recordingSpeakersSuite(openDeviceLibrary);
   publishSuite(openDeviceLibrary);
   remindersSuite(openDeviceLibrary);
   shortcutsSuite(openDeviceLibrary);

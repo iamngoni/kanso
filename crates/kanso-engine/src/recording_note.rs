@@ -59,7 +59,7 @@ pub fn render_transcript(file_id: &str, segments: &[Segment]) -> Option<String> 
         .filter(|s| !s.text.trim().is_empty())
         .map(|s| {
             let link = moment_link(file_id, s.start_secs);
-            match s.speaker {
+            match &s.speaker {
                 Some(who) => format!("{link} {who}: {}", clean(&s.text)),
                 None => format!("{link} {}", clean(&s.text)),
             }
@@ -168,8 +168,8 @@ mod tests {
         let block = render_transcript(
             "file:abc",
             &[
-                said(0, Some("You"), "Hello."),
-                said(22, Some("Meeting"), "Hi."),
+                said(0, Some("You".into()), "Hello."),
+                said(22, Some("Meeting".into()), "Hi."),
                 said(40, None, "Unlabelled."),
             ],
         )
