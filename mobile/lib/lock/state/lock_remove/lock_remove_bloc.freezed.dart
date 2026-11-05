@@ -55,11 +55,12 @@ extension LockRemoveEventPatterns on LockRemoveEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( LockRemoveConfirmedEvent value)?  confirmed,TResult Function( LockRemoveProgressedEvent value)?  progressed,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( LockRemoveConfirmedEvent value)?  confirmed,TResult Function( LockRemoveCancelledEvent value)?  cancelled,TResult Function( LockRemoveProgressedEvent value)?  progressed,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case LockRemoveConfirmedEvent() when confirmed != null:
-return confirmed(_that);case LockRemoveProgressedEvent() when progressed != null:
+return confirmed(_that);case LockRemoveCancelledEvent() when cancelled != null:
+return cancelled(_that);case LockRemoveProgressedEvent() when progressed != null:
 return progressed(_that);case _:
   return orElse();
 
@@ -78,11 +79,12 @@ return progressed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( LockRemoveConfirmedEvent value)  confirmed,required TResult Function( LockRemoveProgressedEvent value)  progressed,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( LockRemoveConfirmedEvent value)  confirmed,required TResult Function( LockRemoveCancelledEvent value)  cancelled,required TResult Function( LockRemoveProgressedEvent value)  progressed,}){
 final _that = this;
 switch (_that) {
 case LockRemoveConfirmedEvent():
-return confirmed(_that);case LockRemoveProgressedEvent():
+return confirmed(_that);case LockRemoveCancelledEvent():
+return cancelled(_that);case LockRemoveProgressedEvent():
 return progressed(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -97,11 +99,12 @@ return progressed(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( LockRemoveConfirmedEvent value)?  confirmed,TResult? Function( LockRemoveProgressedEvent value)?  progressed,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( LockRemoveConfirmedEvent value)?  confirmed,TResult? Function( LockRemoveCancelledEvent value)?  cancelled,TResult? Function( LockRemoveProgressedEvent value)?  progressed,}){
 final _that = this;
 switch (_that) {
 case LockRemoveConfirmedEvent() when confirmed != null:
-return confirmed(_that);case LockRemoveProgressedEvent() when progressed != null:
+return confirmed(_that);case LockRemoveCancelledEvent() when cancelled != null:
+return cancelled(_that);case LockRemoveProgressedEvent() when progressed != null:
 return progressed(_that);case _:
   return null;
 
@@ -119,10 +122,11 @@ return progressed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( LockTarget target)?  confirmed,TResult Function( SealProgress progress)?  progressed,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( LockTarget target)?  confirmed,TResult Function()?  cancelled,TResult Function( SealProgress progress)?  progressed,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case LockRemoveConfirmedEvent() when confirmed != null:
-return confirmed(_that.target);case LockRemoveProgressedEvent() when progressed != null:
+return confirmed(_that.target);case LockRemoveCancelledEvent() when cancelled != null:
+return cancelled();case LockRemoveProgressedEvent() when progressed != null:
 return progressed(_that.progress);case _:
   return orElse();
 
@@ -141,10 +145,11 @@ return progressed(_that.progress);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( LockTarget target)  confirmed,required TResult Function( SealProgress progress)  progressed,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( LockTarget target)  confirmed,required TResult Function()  cancelled,required TResult Function( SealProgress progress)  progressed,}) {final _that = this;
 switch (_that) {
 case LockRemoveConfirmedEvent():
-return confirmed(_that.target);case LockRemoveProgressedEvent():
+return confirmed(_that.target);case LockRemoveCancelledEvent():
+return cancelled();case LockRemoveProgressedEvent():
 return progressed(_that.progress);}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -159,10 +164,11 @@ return progressed(_that.progress);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( LockTarget target)?  confirmed,TResult? Function( SealProgress progress)?  progressed,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( LockTarget target)?  confirmed,TResult? Function()?  cancelled,TResult? Function( SealProgress progress)?  progressed,}) {final _that = this;
 switch (_that) {
 case LockRemoveConfirmedEvent() when confirmed != null:
-return confirmed(_that.target);case LockRemoveProgressedEvent() when progressed != null:
+return confirmed(_that.target);case LockRemoveCancelledEvent() when cancelled != null:
+return cancelled();case LockRemoveProgressedEvent() when progressed != null:
 return progressed(_that.progress);case _:
   return null;
 
@@ -249,6 +255,38 @@ $LockTargetCopyWith<$Res> get target {
 /// @nodoc
 
 
+class LockRemoveCancelledEvent implements LockRemoveEvent {
+  const LockRemoveCancelledEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LockRemoveCancelledEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'LockRemoveEvent.cancelled()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
 class LockRemoveProgressedEvent implements LockRemoveEvent {
   const LockRemoveProgressedEvent(this.progress);
   
@@ -318,7 +356,10 @@ mixin _$LockRemoveState {
  RemoveStatus get status;/// Why it failed, with [RemoveStatus.failed]. An invalid request carries
 /// the library's own sentence, which the sheet shows as it is.
  ApplicationError? get error;/// How far unsealing the files has come, while removing.
- SealProgress? get progress;
+ SealProgress? get progress;/// Whether Cancel was pressed: it stops after the file being opened.
+ bool get cancelling;/// The files copied for the note because another locked note still shows
+/// the sealed ones, once [status] is done.
+ LockCopyNotice? get copyNotice;
 /// Create a copy of LockRemoveState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -329,16 +370,16 @@ $LockRemoveStateCopyWith<LockRemoveState> get copyWith => _$LockRemoveStateCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LockRemoveState&&(identical(other.status, status) || other.status == status)&&(identical(other.error, error) || other.error == error)&&(identical(other.progress, progress) || other.progress == progress));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LockRemoveState&&(identical(other.status, status) || other.status == status)&&(identical(other.error, error) || other.error == error)&&(identical(other.progress, progress) || other.progress == progress)&&(identical(other.cancelling, cancelling) || other.cancelling == cancelling)&&(identical(other.copyNotice, copyNotice) || other.copyNotice == copyNotice));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,error,progress);
+int get hashCode => Object.hash(runtimeType,status,error,progress,cancelling,copyNotice);
 
 @override
 String toString() {
-  return 'LockRemoveState(status: $status, error: $error, progress: $progress)';
+  return 'LockRemoveState(status: $status, error: $error, progress: $progress, cancelling: $cancelling, copyNotice: $copyNotice)';
 }
 
 
@@ -349,7 +390,7 @@ abstract mixin class $LockRemoveStateCopyWith<$Res>  {
   factory $LockRemoveStateCopyWith(LockRemoveState value, $Res Function(LockRemoveState) _then) = _$LockRemoveStateCopyWithImpl;
 @useResult
 $Res call({
- RemoveStatus status, ApplicationError? error, SealProgress? progress
+ RemoveStatus status, ApplicationError? error, SealProgress? progress, bool cancelling, LockCopyNotice? copyNotice
 });
 
 
@@ -366,12 +407,14 @@ class _$LockRemoveStateCopyWithImpl<$Res>
 
 /// Create a copy of LockRemoveState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? error = freezed,Object? progress = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? error = freezed,Object? progress = freezed,Object? cancelling = null,Object? copyNotice = freezed,}) {
   return _then(_self.copyWith(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as RemoveStatus,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ApplicationError?,progress: freezed == progress ? _self.progress : progress // ignore: cast_nullable_to_non_nullable
-as SealProgress?,
+as SealProgress?,cancelling: null == cancelling ? _self.cancelling : cancelling // ignore: cast_nullable_to_non_nullable
+as bool,copyNotice: freezed == copyNotice ? _self.copyNotice : copyNotice // ignore: cast_nullable_to_non_nullable
+as LockCopyNotice?,
   ));
 }
 /// Create a copy of LockRemoveState
@@ -468,10 +511,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( RemoveStatus status,  ApplicationError? error,  SealProgress? progress)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( RemoveStatus status,  ApplicationError? error,  SealProgress? progress,  bool cancelling,  LockCopyNotice? copyNotice)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LockRemoveState() when $default != null:
-return $default(_that.status,_that.error,_that.progress);case _:
+return $default(_that.status,_that.error,_that.progress,_that.cancelling,_that.copyNotice);case _:
   return orElse();
 
 }
@@ -489,10 +532,10 @@ return $default(_that.status,_that.error,_that.progress);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( RemoveStatus status,  ApplicationError? error,  SealProgress? progress)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( RemoveStatus status,  ApplicationError? error,  SealProgress? progress,  bool cancelling,  LockCopyNotice? copyNotice)  $default,) {final _that = this;
 switch (_that) {
 case _LockRemoveState():
-return $default(_that.status,_that.error,_that.progress);case _:
+return $default(_that.status,_that.error,_that.progress,_that.cancelling,_that.copyNotice);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -509,10 +552,10 @@ return $default(_that.status,_that.error,_that.progress);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( RemoveStatus status,  ApplicationError? error,  SealProgress? progress)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( RemoveStatus status,  ApplicationError? error,  SealProgress? progress,  bool cancelling,  LockCopyNotice? copyNotice)?  $default,) {final _that = this;
 switch (_that) {
 case _LockRemoveState() when $default != null:
-return $default(_that.status,_that.error,_that.progress);case _:
+return $default(_that.status,_that.error,_that.progress,_that.cancelling,_that.copyNotice);case _:
   return null;
 
 }
@@ -524,7 +567,7 @@ return $default(_that.status,_that.error,_that.progress);case _:
 
 
 class _LockRemoveState implements LockRemoveState {
-  const _LockRemoveState({this.status = RemoveStatus.idle, this.error, this.progress});
+  const _LockRemoveState({this.status = RemoveStatus.idle, this.error, this.progress, this.cancelling = false, this.copyNotice});
   
 
 @override@JsonKey() final  RemoveStatus status;
@@ -533,6 +576,11 @@ class _LockRemoveState implements LockRemoveState {
 @override final  ApplicationError? error;
 /// How far unsealing the files has come, while removing.
 @override final  SealProgress? progress;
+/// Whether Cancel was pressed: it stops after the file being opened.
+@override@JsonKey() final  bool cancelling;
+/// The files copied for the note because another locked note still shows
+/// the sealed ones, once [status] is done.
+@override final  LockCopyNotice? copyNotice;
 
 /// Create a copy of LockRemoveState
 /// with the given fields replaced by the non-null parameter values.
@@ -544,16 +592,16 @@ _$LockRemoveStateCopyWith<_LockRemoveState> get copyWith => __$LockRemoveStateCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LockRemoveState&&(identical(other.status, status) || other.status == status)&&(identical(other.error, error) || other.error == error)&&(identical(other.progress, progress) || other.progress == progress));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LockRemoveState&&(identical(other.status, status) || other.status == status)&&(identical(other.error, error) || other.error == error)&&(identical(other.progress, progress) || other.progress == progress)&&(identical(other.cancelling, cancelling) || other.cancelling == cancelling)&&(identical(other.copyNotice, copyNotice) || other.copyNotice == copyNotice));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,error,progress);
+int get hashCode => Object.hash(runtimeType,status,error,progress,cancelling,copyNotice);
 
 @override
 String toString() {
-  return 'LockRemoveState(status: $status, error: $error, progress: $progress)';
+  return 'LockRemoveState(status: $status, error: $error, progress: $progress, cancelling: $cancelling, copyNotice: $copyNotice)';
 }
 
 
@@ -564,7 +612,7 @@ abstract mixin class _$LockRemoveStateCopyWith<$Res> implements $LockRemoveState
   factory _$LockRemoveStateCopyWith(_LockRemoveState value, $Res Function(_LockRemoveState) _then) = __$LockRemoveStateCopyWithImpl;
 @override @useResult
 $Res call({
- RemoveStatus status, ApplicationError? error, SealProgress? progress
+ RemoveStatus status, ApplicationError? error, SealProgress? progress, bool cancelling, LockCopyNotice? copyNotice
 });
 
 
@@ -581,12 +629,14 @@ class __$LockRemoveStateCopyWithImpl<$Res>
 
 /// Create a copy of LockRemoveState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? error = freezed,Object? progress = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? error = freezed,Object? progress = freezed,Object? cancelling = null,Object? copyNotice = freezed,}) {
   return _then(_LockRemoveState(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as RemoveStatus,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ApplicationError?,progress: freezed == progress ? _self.progress : progress // ignore: cast_nullable_to_non_nullable
-as SealProgress?,
+as SealProgress?,cancelling: null == cancelling ? _self.cancelling : cancelling // ignore: cast_nullable_to_non_nullable
+as bool,copyNotice: freezed == copyNotice ? _self.copyNotice : copyNotice // ignore: cast_nullable_to_non_nullable
+as LockCopyNotice?,
   ));
 }
 

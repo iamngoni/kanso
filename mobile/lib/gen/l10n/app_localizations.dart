@@ -2656,6 +2656,12 @@ abstract class AppLocalizations {
   /// **'Page {page}'**
   String pdfNotesPage(int page);
 
+  /// Said under a PDF's name in the highlights sheet: how many of its scanned pages have words that a computer read, so search finds them on the phone too.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 scanned page was read on a computer and is searchable} other{{count} scanned pages were read on a computer and are searchable}}'**
+  String pdfNotesScanned(int count);
+
   /// Said of a highlight whose quote is no longer in the note's text.
   ///
   /// In en, this message translates to:
@@ -5413,7 +5419,7 @@ abstract class AppLocalizations {
   /// Explains what removing a note's lock does.
   ///
   /// In en, this message translates to:
-  /// **'The note\'s text is kept as plain text again: search, backlinks, tasks and the local API can read it.'**
+  /// **'The note\'s text is kept as plain text again: search, backlinks, tasks and the local API can read it. Its pictures and files are decrypted again too; one that another locked note also shows is copied, so that note keeps its sealed copy.'**
   String get lockRemoveNoteMessage;
 
   /// The title of the sheet that confirms removing a notebook's lock.
@@ -5425,8 +5431,8 @@ abstract class AppLocalizations {
   /// Explains what removing a notebook's lock does.
   ///
   /// In en, this message translates to:
-  /// **'The notes in it are kept as plain text again: search, backlinks, tasks and the local API can read them.'**
-  String get lockRemoveNotebookMessage;
+  /// **'Notes put in “{name}” from now on aren\'t locked. The notes in it now stay locked: remove a note\'s lock to keep its text as plain text again.'**
+  String lockRemoveNotebookMessage(String name);
 
   /// Removes the lock.
   ///
@@ -12379,13 +12385,13 @@ abstract class AppLocalizations {
   /// The lock dialog's line about the pictures and files that are sealed with a note or notebook.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 picture or file ({size}) is} other{{count} pictures and files ({size}) are}} sealed with it.'**
+  /// **'{count, plural, =1{Its picture or file ({size}) is} other{Its pictures and files ({size}) are}} sealed too.'**
   String lockFilesSealed(int count, String size);
 
   /// The lock dialog's line saying that a file shown by a note that stays unlocked is copied.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{1 attachment is} other{{count} attachments are}} also used by other notes: locking seals a copy of {count, plural, =1{it} other{them}}, and the other notes keep theirs.'**
+  /// **'{count, plural, =1{1 attachment is} other{{count} attachments are}} also used by other notes: the locked note keeps its own sealed {count, plural, =1{copy} other{copies}}, and the other notes keep theirs.'**
   String lockFilesShared(int count);
 
   /// The title of the progress sheet while a note locks.
@@ -12403,7 +12409,7 @@ abstract class AppLocalizations {
   /// The title of the progress sheet while a lock is taken off.
   ///
   /// In en, this message translates to:
-  /// **'Removing the lock'**
+  /// **'Removing lock'**
   String get lockProgressTitleRemove;
 
   /// The progress sheet's line: how many files and how much it seals.
@@ -12415,14 +12421,32 @@ abstract class AppLocalizations {
   /// The progress sheet's line while a lock is taken off.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =1{Unsealing 1 attachment, {size}} other{Unsealing {count} attachments, {size}}}'**
-  String lockProgressUnsealingLine(int count, String size);
+  /// **'{count, plural, =1{Unsealing 1 attachment} other{Unsealing {count} attachments}}'**
+  String lockProgressUnsealingLine(int count);
 
   /// How many files are done, of how many.
   ///
   /// In en, this message translates to:
   /// **'{done} of {total}'**
   String lockProgressCount(int done, int total);
+
+  /// A size smaller than a kilobyte, in the lock dialogs and progress sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'under 1 KB'**
+  String get lockSizeUnderOneKb;
+
+  /// The progress sheet's count while a lock is deciding what to seal.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting ready'**
+  String get lockProgressPreparing;
+
+  /// The progress sheet's count while the locked note itself is being written.
+  ///
+  /// In en, this message translates to:
+  /// **'Locking the note'**
+  String get lockProgressLocking;
 
   /// Stops locking between two files.
   ///
@@ -12433,8 +12457,26 @@ abstract class AppLocalizations {
   /// Said once Cancel was pressed while a lock is sealing a file.
   ///
   /// In en, this message translates to:
-  /// **'Stopping after this file…'**
+  /// **'Stopping after this file'**
   String get lockProgressStopping;
+
+  /// Said after a lock sealed copies of files that notes staying unlocked also show.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Locked. 1 attachment is also used by other notes, so this note has its own sealed copy.} other{Locked. {count} attachments are also used by other notes, so this note has its own sealed copies.}}'**
+  String lockCopiedMessage(int count);
+
+  /// Said after Remove Lock gave the note plain copies of files another locked note still shows.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Lock removed. 1 attachment was copied for this note, because another locked note still shows the sealed one.} other{Lock removed. {count} attachments were copied for this note, because another locked note still shows the sealed ones.}}'**
+  String lockUnsealedMessage(int count);
+
+  /// Said after Cancel stopped Remove Lock before it changed anything.
+  ///
+  /// In en, this message translates to:
+  /// **'Removing the lock stopped. The note is still locked, and its pictures and files are still sealed.'**
+  String get lockRemoveStoppedMessage;
 
   /// Said after Cancel stopped a lock.
   ///

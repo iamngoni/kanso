@@ -11,6 +11,7 @@ import '../../../assist/views/widgets/summarize_note_action.dart';
 import '../../../core/state/navigation_history/navigation_history_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/syntax_theme_id.dart';
+import '../../../core/views/widgets/kanso_feedback.dart';
 import '../../../core/views/widgets/kanso_page.dart';
 import '../../../injection.dart';
 import '../../../lock/state/unlock/unlock_bloc.dart';
@@ -118,6 +119,18 @@ class NotePage extends StatelessWidget {
               backgroundColor: context.colors.editor,
               body: MultiBlocListener(
                 listeners: <BlocListener<dynamic, dynamic>>[
+                  BlocListener<NoteBloc, NoteState>(
+                    listenWhen: (previous, current) =>
+                        current.openNotice != null &&
+                        previous.openNotice != current.openNotice,
+                    listener: (context, state) {
+                      KansoFeedback.show(
+                        context,
+                        state.openNotice!,
+                        tone: KansoFeedbackTone.info,
+                      );
+                    },
+                  ),
                   BlocListener<NoteAssistIntentBloc, NoteAssistIntentState>(
                     listenWhen: (previous, current) =>
                         current.pending &&

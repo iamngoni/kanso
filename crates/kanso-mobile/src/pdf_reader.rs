@@ -21,6 +21,7 @@ use kanso_core::links::FILE_LINK_PREFIX;
 use kanso_pdf::client::{Deadlines, Worker, WorkerError};
 use kanso_pdf::highlights::{Annotations, Status};
 use kanso_pdf::model::Quad;
+use kanso_pdf::ocr::PdfOcr;
 use kanso_pdf::protocol::{ErrorKind, MAX_PAGE_CHARS};
 use kanso_pdf::text::{CharPos, FindIndex, PageText, Point, Selection, TextDoc};
 
@@ -64,6 +65,8 @@ pub struct PdfReader {
 
 struct Inner {
     worker: Worker,
+    /// OCR for the current PDF bytes, available only for unlocked plain files.
+    ocr: Option<PdfOcr>,
     /// A closed or newly locked reader is terminal; its bytes and text are
     /// dropped before any later request can read from the caches.
     closed: bool,
@@ -126,6 +129,14 @@ impl Library {
                 .file_meta(file)?
                 .and_then(|meta| meta.md5digest)
                 .unwrap_or_default();
+            // The store validates OCR against the file's current digest and
+            // excludes sealed files. Keep only a result for the exact bytes
+            // being opened; closing a reader drops this derived text too.
+            let ocr = self
+                .inner
+                .store
+                .pdf_ocr(file)?
+                .filter(|ocr| !md5.is_empty() && ocr.md5 == md5);
             let mut worker = match Worker::start_local(Deadlines::default()) {
                 Ok(worker) => worker,
                 Err(error) => {
@@ -182,6 +193,7 @@ impl Library {
                     closed: false,
                     sizes: opened.sizes,
                     worker,
+                    ocr,
                     text: TextDoc::default(),
                     find: None,
                 })),
@@ -257,6 +269,7 @@ impl PdfReader {
         inner.find = None;
         inner.read.clear();
         inner.sizes.clear();
+        inner.ocr = None;
     }
 
     /// Draws page `page` (0-based), `width_px` wide (the worker caps it), for
@@ -299,7 +312,7 @@ impl PdfReader {
             Err(other) => return Err(words(&other)),
         };
         if text.chars.is_empty()
-            && let Some(scanned) = ocr_words(page)
+            && let Some(scanned) = ocr_words(inner.ocr.as_ref(), page)
         {
             text = scanned;
         }
@@ -527,16 +540,9 @@ impl PdfReader {
     }
 }
 
-/// The words of a scanned page, when they have been read.
-///
-/// HOOK for scanned pages (issue #43, step 8, PR #304, not merged). Once it
-/// lands, a page PDFium gave no characters for gets its words from the file's
-/// `kansoPdfOcr` field (`kanso_pdf::ocr::PdfOcr::from_value`, then
-/// `.page(n).to_page_text()`), which makes them selectable, searchable and
-/// highlightable here exactly as typed text is: `PageText` is the same type.
-/// Until then there are none, and a scanned page is shown but not selectable.
-fn ocr_words(_page: u32) -> Option<PageText> {
-    None
+/// The words of a scanned page, when they have been read for these PDF bytes.
+fn ocr_words(ocr: Option<&PdfOcr>, page: u32) -> Option<PageText> {
+    ocr.and_then(|ocr| ocr.page(page).map(kanso_pdf::ocr::OcrPage::to_page_text))
 }
 
 fn empty_page(page: u32, size: [f32; 2]) -> PageText {
@@ -589,5 +595,40 @@ fn view(text: &TextDoc, sel: Selection) -> PdfSelection {
         end: to_pos(sel.end),
         text: text.text(&sel).chars().take(MAX_PAGE_CHARS).collect(),
         marks: marks_of(quads.iter().map(|(page, q)| (*page, q.as_slice()))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use kanso_pdf::model::Quad;
+    use kanso_pdf::ocr::{OcrPage, PdfOcr};
+
+    use super::ocr_words;
+
+    #[test]
+    fn scanned_words_use_the_shared_selectable_text_layout() {
+        let ocr = PdfOcr {
+            md5: "0123456789abcdef0123456789abcdef".to_owned(),
+            engine: "vision".to_owned(),
+            at: 0,
+            pages: vec![OcrPage::new(
+                2,
+                612.0,
+                792.0,
+                [("scanned".to_owned(), Quad::new(0.1, 0.2, 0.5, 0.3))],
+            )],
+        };
+
+        assert!(ocr_words(None, 2).is_none());
+        assert!(ocr_words(Some(&ocr), 1).is_none());
+        let page = ocr_words(Some(&ocr), 2).expect("the scanned page has OCR words");
+        assert_eq!(page.page, 2);
+        assert_eq!(page.width, 612.0);
+        assert_eq!(page.height, 792.0);
+        assert_eq!(
+            page.chars.iter().map(|c| c.ch).collect::<String>(),
+            "scanned"
+        );
+        assert!(page.chars[0].space_before);
     }
 }

@@ -800,6 +800,7 @@ fn run_app(
         voice::init(cx);
         ocr::init(cx);
         pdf::index::init(cx);
+        pdf::ocr::init(cx);
         ink_ocr::init(cx);
         open_main_window(cx);
         note_window::restore(cx);

@@ -467,6 +467,31 @@ CREATE TABLE IF NOT EXISTS api_keys (
     r#"
 ALTER TABLE collab_notes ADD COLUMN kind TEXT NOT NULL DEFAULT 'text';
 "#,
+    // Scanned PDF pages (issue #43 step 8): the words read from the pages
+    // of a PDF so far, kept on this device until every scanned page is
+    // read, so reading can be paused or interrupted and go on where it
+    // stopped. The finished set goes into the file's `kansoPdfOcr` once.
+    r#"
+CREATE TABLE IF NOT EXISTS pdf_ocr_pending (
+    file_id TEXT NOT NULL,
+    -- The MD5 of the PDF the page was read from.
+    md5 TEXT NOT NULL,
+    -- From 1.
+    page INTEGER NOT NULL,
+    -- The page's `OcrPage` as JSON.
+    json TEXT NOT NULL,
+    PRIMARY KEY (file_id, page)
+) WITHOUT ROWID;
+"#,
+    // PDFs a note linked when it was locked (issue #43 step 8), on this
+    // device: the words read from their scans are dropped once no note
+    // outside a lock links them, and never taken again while that holds.
+    // File ids only; a locked note's own list of links is sealed with it.
+    r#"
+CREATE TABLE IF NOT EXISTS pdf_locked_files (
+    file_id TEXT PRIMARY KEY
+) WITHOUT ROWID;
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked

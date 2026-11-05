@@ -79,6 +79,14 @@ abstract class KansoLocks implements RustOpaqueInterface {
   /// `password`, open. Progress comes on `lock_progress`.
   Future<MigrationOutcome> sealLockedAttachments({String? password});
 
+  /// The files Lock Note or Remove Lock copied because another note also
+  /// shows them, once, for the phone to say so. `None` when none were.
+  Future<LockCopyNotice?> takeCopyNotice();
+
+  /// The named file that could not be sealed when an older locked note
+  /// opened, for the phone to tell once.
+  Future<String?> takeSealFailureNotice();
+
   /// Whether the phone should say, once, that notes locked before this
   /// update sealed their attachments.
   Future<bool> takeSealedFilesNotice();

@@ -1520,3 +1520,268 @@ fn a_file_linked_in_an_open_locked_note_is_sealed_by_the_save() {
     assert!(listed.iter().any(|entry| entry.file == file));
     assert_eq!(phone.library.attachment(&file).unwrap().bytes, vec![7; 300]);
 }
+
+/// Presses Cancel, once, when the next lock reports that `files` files are
+/// open.
+fn cancel_after(locks: &kanso_mobile::LockSession, files: u32) {
+    let pressed = locks.clone();
+    let fired = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    locks.lock_progress(move |progress| {
+        if progress.phase == kanso_mobile::SealPhase::Sealing
+            && progress.done == files
+            && !fired.swap(true, std::sync::atomic::Ordering::SeqCst)
+        {
+            pressed.cancel_lock();
+        }
+        true
+    });
+}
+
+/// Cancel on Remove Lock, at any file, changes nothing: the note is locked,
+/// every file sealed and unreadable through the library, and a later Remove
+/// Lock without a Cancel finishes it. Before, files opened before the Cancel
+/// stayed decrypted beside a note that still listed them as sealed.
+#[test]
+fn a_cancelled_remove_lock_changes_nothing_and_a_second_one_finishes() {
+    for stop in 0..3 {
+        let phone = lone_phone();
+        let store = phone.library.store();
+        let files: Vec<String> = (0..3)
+            .map(|i| {
+                plain_file(
+                    store,
+                    &format!("m{i}.wav"),
+                    format!("CANARY-{i}").as_bytes(),
+                )
+            })
+            .collect();
+        let id = note_with(&phone, &files);
+        let locks = phone.library.locks();
+        locks.lock_note(&id, LOCK_PASSWORD.into()).unwrap();
+        let documents = store.counts().unwrap()[&DocType::File];
+
+        cancel_after(&locks, stop);
+        let err = phone.library.locks().remove_note_lock(&id).unwrap_err();
+        assert!(matches!(err, KansoError::Invalid { .. }), "{err:?}");
+
+        let stored = store.note(&id).unwrap().unwrap();
+        assert!(stored.is_locked(), "stopped at {stop}: still locked");
+        for file in &files {
+            assert_eq!(
+                store.attachment_state(file).unwrap(),
+                kanso_store::AttachmentState::Sealed,
+                "stopped at {stop}: {file} is still sealed"
+            );
+            assert!(store.attachment(file).unwrap().is_none());
+        }
+        assert_eq!(store.counts().unwrap()[&DocType::File], documents);
+
+        // The next Remove Lock starts clean: the old Cancel doesn't carry
+        // over, and it finishes.
+        locks.remove_note_lock(&id).unwrap();
+        assert!(!store.note(&id).unwrap().unwrap().is_locked());
+        for file in &files {
+            assert_eq!(
+                store.attachment_state(file).unwrap(),
+                kanso_store::AttachmentState::Plain
+            );
+        }
+    }
+}
+
+/// The copies a lock or Remove Lock made are said once, as the desktop says
+/// them: Lock Note sealed a copy of a file an unlocked note shows, and Remove
+/// Lock copied a file another locked note still shows.
+#[test]
+fn the_copies_a_lock_and_a_remove_lock_make_are_said_once() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let shared = plain_file(store, "both.wav", &[3; 300]);
+    let locked = note_with(&phone, std::slice::from_ref(&shared));
+    let _unlocked = note_with(&phone, std::slice::from_ref(&shared));
+    let locks = phone.library.locks();
+
+    assert_eq!(locks.take_copy_notice(), Ok(None), "nothing yet");
+    locks.lock_note(&locked, LOCK_PASSWORD.into()).unwrap();
+    assert_eq!(
+        locks.take_copy_notice(),
+        Ok(Some(kanso_mobile::LockCopyNotice {
+            removed: false,
+            copied: 1
+        }))
+    );
+    assert_eq!(locks.take_copy_notice(), Ok(None), "said once");
+
+    // A lock that copies nothing leaves nothing to say.
+    let alone = plain_file(store, "alone.wav", &[4; 300]);
+    let other = note_with(&phone, std::slice::from_ref(&alone));
+    locks.lock_note_with_session(&other).unwrap();
+    assert_eq!(locks.take_copy_notice(), Ok(None));
+    locks.remove_note_lock(&other).unwrap();
+    assert_eq!(locks.take_copy_notice(), Ok(None));
+}
+
+/// Remove Lock copies a file that another locked note still shows, and says
+/// so.
+#[test]
+fn remove_lock_copies_a_file_another_locked_note_still_shows() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let file = plain_file(store, "both.wav", &[5; 300]);
+    let first = note_with(&phone, std::slice::from_ref(&file));
+    let second = note_with(&phone, &[]);
+    let locks = phone.library.locks();
+    locks.lock_note(&first, LOCK_PASSWORD.into()).unwrap();
+    locks.lock_note_with_session(&second).unwrap();
+
+    // The second note's save links the first's sealed file.
+    let session = phone.library.edit(&second).unwrap();
+    let snapshot = session.snapshot().unwrap();
+    let end = snapshot.text.encode_utf16().count() as u32;
+    let link = format!("[memo](inkdrop://{file})\n");
+    let after = end + link.encode_utf16().count() as u32;
+    session
+        .apply(kanso_mobile::TextChange {
+            base_version: snapshot.version,
+            start: end,
+            end,
+            text: link,
+            selection: kanso_mobile::Range16 {
+                start: after,
+                end: after,
+            },
+            composing: None,
+        })
+        .unwrap();
+    session.flush().unwrap();
+    let listed = note_files_from_extra(&store.note(&second).unwrap().unwrap().extra).unwrap();
+    assert!(listed.iter().any(|entry| entry.file == file));
+    locks.take_copy_notice().unwrap();
+
+    locks.remove_note_lock(&first).unwrap();
+    assert_eq!(
+        locks.take_copy_notice(),
+        Ok(Some(kanso_mobile::LockCopyNotice {
+            removed: true,
+            copied: 1
+        }))
+    );
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Sealed,
+        "the other note keeps the sealed original"
+    );
+    let plain = store.note(&first).unwrap().unwrap();
+    assert!(!plain.is_locked());
+    assert!(!plain.body.contains(&file), "its link moved to the copy");
+}
+
+/// While a lock the person started runs, the editors' saves wait: a save
+/// landing between two steps would write over the note being sealed. The
+/// typing is not lost; it is saved once the lock is on. Before, an autosave
+/// during the lock wrote the plain note mid-lock.
+// no-prop-test: ordering of two threads' writes; the property is that no
+// save lands inside the lock, which one deterministic run shows.
+#[test]
+fn a_running_lock_holds_the_editors_saves_and_they_go_after_it() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let files: Vec<String> = (0..3)
+        .map(|i| plain_file(store, &format!("m{i}.wav"), &[i as u8; 400]))
+        .collect();
+    let id = note_with(&phone, &files);
+    let session = phone.library.edit(&id).unwrap();
+    let snapshot = session.snapshot().unwrap();
+    let end = u32::try_from(snapshot.text.encode_utf16().count()).unwrap();
+    session
+        .apply(kanso_mobile::TextChange {
+            base_version: snapshot.version,
+            start: end,
+            end,
+            text: "typed during the lock".into(),
+            selection: kanso_mobile::Range16 {
+                start: end + 21,
+                end: end + 21,
+            },
+            composing: None,
+        })
+        .unwrap();
+
+    // At every step the lock reports, the autosave is due and gets its turn.
+    // The typing must not be written then.
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let (library, typing, log) = (phone.library.clone(), session.clone(), seen.clone());
+    let note_id = id.clone();
+    phone.library.locks().lock_progress(move |_| {
+        // The first report comes before the lock writes anything, when a
+        // save would still succeed and then be written over.
+        typing.tick(Instant::now() + Duration::from_secs(3600));
+        let body = library.store().note(&note_id).unwrap().unwrap().body;
+        log.lock()
+            .unwrap()
+            .push(body.contains("typed during the lock"));
+        true
+    });
+    phone
+        .library
+        .locks()
+        .lock_note(&id, LOCK_PASSWORD.into())
+        .unwrap();
+
+    let seen = seen.lock().unwrap();
+    assert!(!seen.is_empty(), "the lock reported its files");
+    assert!(
+        seen.iter().all(|saved| !saved),
+        "a save landed inside the lock: {seen:?}"
+    );
+    drop(seen);
+    assert!(store.note(&id).unwrap().unwrap().is_locked());
+
+    // The typing waits in the session, not lost.
+    assert!(
+        session
+            .snapshot()
+            .unwrap()
+            .text
+            .contains("typed during the lock")
+    );
+}
+
+/// A lock that fails lets the held saves go: typing in an open note is saved
+/// after a Lock Note that was refused.
+// no-prop-test: one refused lock then one save; no input to vary.
+#[test]
+fn a_refused_lock_lets_the_editors_saves_go() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let first = note_with(&phone, &[]);
+    phone
+        .library
+        .locks()
+        .lock_note(&first, LOCK_PASSWORD.into())
+        .unwrap();
+    let id = note(&phone.library, "Second", "base");
+    let session = phone.library.edit(&id).unwrap();
+    let snapshot = session.snapshot().unwrap();
+    session
+        .apply(kanso_mobile::TextChange {
+            base_version: snapshot.version,
+            start: 4,
+            end: 4,
+            text: "!".into(),
+            selection: kanso_mobile::Range16 { start: 5, end: 5 },
+            composing: None,
+        })
+        .unwrap();
+    let refused = phone
+        .library
+        .locks()
+        .lock_note(&id, "not the lock password".into());
+    assert!(
+        matches!(refused, Err(KansoError::Auth { .. })),
+        "{refused:?}"
+    );
+
+    session.tick(Instant::now() + Duration::from_secs(3600));
+    assert_eq!(store.note(&id).unwrap().unwrap().body, "base!");
+}

@@ -128,6 +128,7 @@ impl Doc {
                 // Sealed attachments never expose their OCR text, even if an
                 // older writer left a copy in the document.
                 fields.remove(kanso_core::model::OCR_FIELD);
+                fields.remove(kanso_core::model::PDF_OCR_FIELD);
             }
             // Both are app-only sync/lock bookkeeping, never API fields.
             fields.remove(kanso_core::model::FILE_LOCK_FIELD);

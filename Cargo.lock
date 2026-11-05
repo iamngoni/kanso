@@ -4940,6 +4940,7 @@ dependencies = [
  "getrandom 0.4.3",
  "http-body-util",
  "kanso-core",
+ "kanso-pdf",
  "kanso-render",
  "kanso-store",
  "proptest",
@@ -4992,6 +4993,7 @@ dependencies = [
  "getrandom 0.4.3",
  "hkdf 0.13.0",
  "hmac 0.13.0",
+ "kanso-audio",
  "kanso-core",
  "kanso-store",
  "kanso-sync",
@@ -6469,6 +6471,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfc194758a2d5d7540b1ad283bfb9ca318ec608991892326e95b428230b2689b"
 dependencies = [
  "objc2 0.6.5",
+ "objc2-core-foundation",
  "objc2-foundation 0.3.2",
 ]
 

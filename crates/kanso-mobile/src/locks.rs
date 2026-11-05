@@ -71,7 +71,7 @@ impl LockSession {
         let body = note.body.clone();
         let locking = HashSet::from([note.id.clone()]);
         let mut copies = HashMap::new();
-        let (body, envelope) =
+        let (body, envelope, _) =
             self.seal_note_files(note, &body, &key, &locking, &mut copies, Watch::Save)?;
         // A file shared with an unlocked note is copied: the editor must
         // take the rewritten links, not the ones it started with.
@@ -295,6 +295,8 @@ impl LockSession {
     /// same one ([`KansoError::Auth`] when it isn't).
     pub fn lock_note(&self, id: &str, password: String) -> Result<Saved, KansoError> {
         guard(|| {
+            // The editors' saves wait until the lock is on (or has failed).
+            let _hold = self.inner.editors.hold_saves();
             let password = lock::password(&password).map_err(KansoError::invalid)?;
             let note = self.lockable(id)?;
             let since = self.generation();
@@ -313,6 +315,7 @@ impl LockSession {
     /// lock (none held, or only keys of locks that are gone).
     pub fn lock_note_with_session(&self, id: &str) -> Result<Saved, KansoError> {
         guard(|| {
+            let _hold = self.inner.editors.hold_saves();
             let note = self.lockable(id)?;
             let key = self.session_lock_key().ok_or(KansoError::Locked)?;
             let saved = self.seal_note(note, &key)?;
@@ -326,6 +329,9 @@ impl LockSession {
     /// notebook, where it stays locked.
     pub fn remove_note_lock(&self, id: &str) -> Result<Saved, KansoError> {
         guard(|| {
+            // The editors' saves wait until the lock is off (or has failed).
+            let _hold = self.inner.editors.hold_saves();
+            self.inner.lock_cancelled.store(false, Ordering::SeqCst);
             let library = self.library();
             let stored = library.stored(id)?;
             // Reading a note in a locked notebook seals it, which moves its
@@ -350,13 +356,12 @@ impl LockSession {
                 .ok_or(KansoError::Locked)?;
             // Each file is decrypted back, or copied when another locked note
             // still shows it, so that note keeps its sealed copy.
-            let events = &self.inner.seal_progress;
-            let mut watch = |progress: &Progress| {
-                events.send(SealProgress::from(*progress));
-                Ok(())
-            };
-            let (body, _) = files::unseal_or_copy(&self.inner.store, &mut note, &key, &mut watch)
-                .map_err(files_error)?;
+            // Cancel is heard between two files; nothing is written until
+            // they are all open, so a stopped Remove Lock changes nothing.
+            let mut watch = self.lock_watch();
+            let (body, done, unsealing) =
+                files::unseal_or_copy(&self.inner.store, &mut note, &key, &mut watch)
+                    .map_err(files_error)?;
             note.body = body;
             store_note_files(None, &mut note.extra);
             // The text as it is stays, now plain; its `#tags` count again.
@@ -365,11 +370,14 @@ impl LockSession {
             apply_inline_tags(&self.inner.store, &mut note, None);
             let value =
                 serde_json::to_value(&note).map_err(|err| KansoError::storage(err.to_string()))?;
-            match self.inner.store.unlock_note(value) {
-                Ok(written) => Ok(Saved {
-                    id: written.id,
-                    rev: written.rev,
-                }),
+            match self.inner.store.unlock_note_unsealing(value, unsealing) {
+                Ok(written) => {
+                    self.tell_copies(true, done.copied);
+                    Ok(Saved {
+                        id: written.id,
+                        rev: written.rev,
+                    })
+                }
                 Err(kanso_store::StoreError::Conflict) => Err(KansoError::Conflict {
                     current_rev: library
                         .stored(id)
@@ -398,6 +406,7 @@ impl LockSession {
     ) -> Result<u32, KansoError> {
         guard(|| {
             self.require_book(book_id)?;
+            let _hold = self.inner.editors.hold_saves();
             self.inner.lock_cancelled.store(false, Ordering::SeqCst);
             if Target::of_book(book_id, &self.inner.store).is_some() {
                 return Err(KansoError::invalid("That notebook is locked already."));
@@ -659,12 +668,13 @@ impl LockSession {
         let body = std::mem::take(&mut note.body);
         let locking = HashSet::from([note.id.clone()]);
         let mut copies = HashMap::new();
-        let (_, envelope) =
+        let (_, envelope, counts) =
             self.seal_note_files(&mut note, &body, key, &locking, &mut copies, Watch::Lock)?;
         Envelope::store(Some(&envelope), &mut note.extra);
         let value =
             serde_json::to_value(&note).map_err(|err| KansoError::storage(err.to_string()))?;
         let written = self.inner.store.lock_note(value)?;
+        self.tell_copies(false, counts.copied);
         held(&self.inner.keys).touch(Instant::now());
         Ok(Saved {
             id: written.id,
@@ -687,17 +697,19 @@ impl LockSession {
         let Some(Ok(envelope)) = Envelope::from_extra(&note.extra) else {
             return Ok(0);
         };
-        let (key, book) = {
-            let keys = held(&self.inner.keys);
-            let key = keys.fitting(&envelope).ok_or(KansoError::Locked)?;
-            (key, keys.file_keys())
-        };
+        // Keep the session lock through the pass: once the session closes,
+        // no open-time migration may continue sealing under a key it just
+        // forgot.
+        let keys = held(&self.inner.keys);
+        let key = keys.fitting(&envelope).ok_or(KansoError::Locked)?;
+        let book = keys.file_keys();
         // The desktop seals such a note on open with the same call.
         let Some(_) =
             migrate::seal_on_open(&self.inner.store, &book, note, &key).map_err(files_error)?
         else {
             return Ok(0);
         };
+        drop(keys);
         // The first time, the phone says it once (`take_sealed_files_notice`).
         if self.inner.store.meta(FILES_NOTICE_META)?.is_none() {
             self.inner.store.set_meta(FILES_NOTICE_META, "pending")?;
@@ -722,7 +734,7 @@ impl LockSession {
         locking: &HashSet<String>,
         copies: &mut HashMap<String, String>,
         watch: Watch,
-    ) -> Result<(String, Envelope), KansoError> {
+    ) -> Result<(String, Envelope, files::Counts), KansoError> {
         let keys = held(&self.inner.keys).file_keys();
         // Only a lock the person started reports to the sheet and hears its
         // Cancel: a save or a background seal must neither move the sheet
@@ -737,11 +749,12 @@ impl LockSession {
                 job
             }
         };
-        let (body, _) = files::seal_note_files(&mut job, note, body, key).map_err(files_error)?;
+        let (body, counts) =
+            files::seal_note_files(&mut job, note, body, key).map_err(files_error)?;
         let envelope = Envelope::from_extra(&note.extra)
             .and_then(Result::ok)
             .ok_or_else(|| KansoError::invalid("The note's lock is damaged."))?;
-        Ok((body, envelope))
+        Ok((body, envelope, counts))
     }
 
     /// What a lock the person started tells: its progress, to the sheet,
@@ -773,11 +786,20 @@ impl LockSession {
         let key = held(&self.inner.keys)
             .fitting(&envelope)
             .ok_or(KansoError::Locked)?;
+        // A note locked before attachments were sealed has no list yet: its
+        // first edit-save seals its files, and the phone says so once
+        // (`take_sealed_files_notice`).
+        let legacy = !note
+            .extra
+            .contains_key(kanso_core::model::KANSO_FILES_FIELD);
         let body = note.body.clone();
         let locking = HashSet::from([note.id.clone()]);
         let mut copies = HashMap::new();
-        let (body, _) =
+        let (body, _, _) =
             self.seal_note_files(note, &body, &key, &locking, &mut copies, Watch::Save)?;
+        if legacy && self.inner.store.meta(FILES_NOTICE_META)?.is_none() {
+            self.inner.store.set_meta(FILES_NOTICE_META, "pending")?;
+        }
         Ok(Some(body))
     }
 
@@ -805,8 +827,35 @@ impl LockSession {
         self.inner.lock_cancelled.store(true, Ordering::SeqCst);
     }
 
-    /// Whether the first open of a note locked by an older Kanso sealed its
-    /// attachments since this was last asked: the phone says so once.
+    /// Remembers the copies a lock the person ran made, for
+    /// [`LockSession::take_copy_notice`]. Nothing copied clears it.
+    fn tell_copies(&self, removed: bool, copied: usize) {
+        *held(&self.inner.copy_notice) = (copied > 0).then(|| crate::model::LockCopyNotice {
+            removed,
+            copied: u32::try_from(copied).unwrap_or(u32::MAX),
+        });
+    }
+
+    /// The copies the last Lock Note or Remove Lock made of files other
+    /// notes also show, once: the phone then says so, as the desktop does.
+    /// `None` when it made none, or it was already said.
+    pub fn take_copy_notice(&self) -> Result<Option<crate::model::LockCopyNotice>, KansoError> {
+        guard(|| Ok(held(&self.inner.copy_notice).take()))
+    }
+
+    /// The named file that could not be sealed when an older locked note
+    /// opened, for the phone to tell once. `None` when no file failed.
+    pub fn take_seal_failure_notice(&self) -> Result<Option<String>, KansoError> {
+        guard(|| Ok(held(&self.inner.seal_failure_notice).pop_front()))
+    }
+
+    /// Remembers the already named failure for the note screen to tell.
+    pub(crate) fn remember_seal_failure(&self, words: String) {
+        held(&self.inner.seal_failure_notice).push_back(words);
+    }
+
+    /// Whether the first edit-save of a note locked by an older Kanso sealed
+    /// its attachments since this was last asked: the phone says so once.
     pub fn take_sealed_files_notice(&self) -> Result<bool, KansoError> {
         guard(|| {
             let pending = self.inner.store.meta(FILES_NOTICE_META)?.as_deref() == Some("pending");
@@ -941,6 +990,7 @@ impl LockSession {
     /// used) opens it ([`KansoError::Auth`] when it isn't).
     pub fn finish_locking(&self, id: &str, password: Option<String>) -> Result<Saved, KansoError> {
         guard(|| {
+            let _hold = self.inner.editors.hold_saves();
             let note = self.lockable(id)?;
             let key = self.key_for_interrupted(&note, password)?;
             self.seal_note(note, &key)

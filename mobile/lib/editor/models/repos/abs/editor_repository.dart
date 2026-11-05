@@ -66,8 +66,9 @@ abstract interface class EditorDocument {
   Either<ApplicationError, EditOutcome?> redo();
 
   /// Stores [file], an image or a PDF, and puts it in the text over the
-  /// selection as a paragraph of its own. An [InvalidError] that says why
-  /// for a locked note or a file that is neither.
+  /// selection as a paragraph of its own. An open locked note takes it too,
+  /// and its save seals it. An [InvalidError] that says why for a note that
+  /// is still closed or a file that is neither.
   Future<Either<ApplicationError, EditOutcome>> attach(ShareFile file);
 
   /// The title changed.

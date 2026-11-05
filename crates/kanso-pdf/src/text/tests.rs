@@ -61,6 +61,43 @@ fn two_column_page_reads_left_column_then_right() {
 }
 
 #[test]
+fn a_quote_uses_the_readers_page_layout_and_selection_quads() {
+    let doc = doc_of(&[page(4, &[vec![vec![words("Revenue rose")]]], 0)]);
+    let parts = doc.find_quote(4, "REVENUE   rose").expect("phrase on page");
+    assert_eq!(parts.text, "Revenue rose");
+    assert_eq!(parts.quads.len(), 1);
+    assert!(!parts.quads[&4].is_empty());
+    assert!(doc.find_quote(4, "absent phrase").is_none());
+    assert!(doc.find_quote(5, "Revenue rose").is_none());
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(48))]
+
+    /// Quote lookup stays on the addressed page and returns the reader's
+    /// bounded quads for every generated phrase.
+    #[test]
+    fn every_generated_page_phrase_resolves_to_normalized_quads(
+        terms in prop::collection::vec("[A-Za-z0-9]{1,8}", 1..6),
+        query_uppercase in any::<bool>(),
+    ) {
+        let phrase = terms.join(" ");
+        let doc = doc_of(&[page(4, &[vec![vec![words(&phrase)]]], 0)]);
+        let query = if query_uppercase { phrase.to_uppercase() } else { phrase.clone() };
+        let parts = doc.find_quote(4, &query).expect("the phrase is on page four");
+        prop_assert_eq!(parts.text, phrase);
+        prop_assert_eq!(parts.quads.keys().copied().collect::<Vec<_>>(), vec![4]);
+        for quad in &parts.quads[&4] {
+            let [x0, y0, x1, y1] = quad.0;
+            prop_assert!(x0.is_finite() && y0.is_finite() && x1.is_finite() && y1.is_finite());
+            prop_assert!(0.0 <= x0 && x0 < x1 && x1 <= 1.0);
+            prop_assert!(0.0 <= y0 && y0 < y1 && y1 <= 1.0);
+        }
+        prop_assert!(doc.find_quote(5, &query).is_none());
+    }
+}
+
+#[test]
 fn a_full_width_title_reads_before_both_columns() {
     let cols = vec![
         column_of(&["Left one", "left two"]),

@@ -1911,6 +1911,15 @@
       }
     }
   },
+  "pdfNotesScanned": "{count, plural, =1{1 scanned page was read on a computer and is searchable} other{{count} scanned pages were read on a computer and are searchable}}",
+  "@pdfNotesScanned": {
+    "description": "Said under a PDF's name in the highlights sheet: how many of its scanned pages have words that a computer read, so search finds them on the phone too.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "pdfNotesNotInNote": "Not in the note",
   "@pdfNotesNotInNote": {
     "description": "Said of a highlight whose quote is no longer in the note's text."
@@ -4063,7 +4072,7 @@
   "@lockRemoveNoteTitle": {
     "description": "The title of the sheet that confirms removing a note's lock."
   },
-  "lockRemoveNoteMessage": "The note's text is kept as plain text again: search, backlinks, tasks and the local API can read it.",
+  "lockRemoveNoteMessage": "The note's text is kept as plain text again: search, backlinks, tasks and the local API can read it. Its pictures and files are decrypted again too; one that another locked note also shows is copied, so that note keeps its sealed copy.",
   "@lockRemoveNoteMessage": {
     "description": "Explains what removing a note's lock does."
   },
@@ -4071,9 +4080,14 @@
   "@lockRemoveNotebookTitle": {
     "description": "The title of the sheet that confirms removing a notebook's lock."
   },
-  "lockRemoveNotebookMessage": "The notes in it are kept as plain text again: search, backlinks, tasks and the local API can read them.",
+  "lockRemoveNotebookMessage": "Notes put in \u201c{name}\u201d from now on aren't locked. The notes in it now stay locked: remove a note's lock to keep its text as plain text again.",
   "@lockRemoveNotebookMessage": {
-    "description": "Explains what removing a notebook's lock does."
+    "description": "Explains what removing a notebook's lock does.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "lockRemoveButton": "Remove Lock",
   "@lockRemoveButton": {
@@ -8940,7 +8954,7 @@
       }
     }
   },
-  "lockFilesSealed": "{count, plural, =1{1 picture or file ({size}) is} other{{count} pictures and files ({size}) are}} sealed with it.",
+  "lockFilesSealed": "{count, plural, =1{Its picture or file ({size}) is} other{Its pictures and files ({size}) are}} sealed too.",
   "@lockFilesSealed": {
     "description": "The lock dialog's line about the pictures and files that are sealed with a note or notebook.",
     "placeholders": {
@@ -8952,7 +8966,7 @@
       }
     }
   },
-  "lockFilesShared": "{count, plural, =1{1 attachment is} other{{count} attachments are}} also used by other notes: locking seals a copy of {count, plural, =1{it} other{them}}, and the other notes keep theirs.",
+  "lockFilesShared": "{count, plural, =1{1 attachment is} other{{count} attachments are}} also used by other notes: the locked note keeps its own sealed {count, plural, =1{copy} other{copies}}, and the other notes keep theirs.",
   "@lockFilesShared": {
     "description": "The lock dialog's line saying that a file shown by a note that stays unlocked is copied.",
     "placeholders": {
@@ -8969,7 +8983,7 @@
   "@lockProgressTitleNotebook": {
     "description": "The title of the progress sheet while a notebook locks."
   },
-  "lockProgressTitleRemove": "Removing the lock",
+  "lockProgressTitleRemove": "Removing lock",
   "@lockProgressTitleRemove": {
     "description": "The title of the progress sheet while a lock is taken off."
   },
@@ -8985,15 +8999,12 @@
       }
     }
   },
-  "lockProgressUnsealingLine": "{count, plural, =1{Unsealing 1 attachment, {size}} other{Unsealing {count} attachments, {size}}}",
+  "lockProgressUnsealingLine": "{count, plural, =1{Unsealing 1 attachment} other{Unsealing {count} attachments}}",
   "@lockProgressUnsealingLine": {
     "description": "The progress sheet's line while a lock is taken off.",
     "placeholders": {
       "count": {
         "type": "int"
-      },
-      "size": {
-        "type": "String"
       }
     }
   },
@@ -9009,13 +9020,47 @@
       }
     }
   },
+  "lockSizeUnderOneKb": "under 1 KB",
+  "@lockSizeUnderOneKb": {
+    "description": "A size smaller than a kilobyte, in the lock dialogs and progress sheet."
+  },
+  "lockProgressPreparing": "Getting ready",
+  "@lockProgressPreparing": {
+    "description": "The progress sheet's count while a lock is deciding what to seal."
+  },
+  "lockProgressLocking": "Locking the note",
+  "@lockProgressLocking": {
+    "description": "The progress sheet's count while the locked note itself is being written."
+  },
   "lockProgressCancel": "Cancel",
   "@lockProgressCancel": {
     "description": "Stops locking between two files."
   },
-  "lockProgressStopping": "Stopping after this file…",
+  "lockProgressStopping": "Stopping after this file",
   "@lockProgressStopping": {
     "description": "Said once Cancel was pressed while a lock is sealing a file."
+  },
+  "lockCopiedMessage": "{count, plural, =1{Locked. 1 attachment is also used by other notes, so this note has its own sealed copy.} other{Locked. {count} attachments are also used by other notes, so this note has its own sealed copies.}}",
+  "@lockCopiedMessage": {
+    "description": "Said after a lock sealed copies of files that notes staying unlocked also show.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockUnsealedMessage": "{count, plural, =1{Lock removed. 1 attachment was copied for this note, because another locked note still shows the sealed one.} other{Lock removed. {count} attachments were copied for this note, because another locked note still shows the sealed ones.}}",
+  "@lockUnsealedMessage": {
+    "description": "Said after Remove Lock gave the note plain copies of files another locked note still shows.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockRemoveStoppedMessage": "Removing the lock stopped. The note is still locked, and its pictures and files are still sealed.",
+  "@lockRemoveStoppedMessage": {
+    "description": "Said after Cancel stopped Remove Lock before it changed anything."
   },
   "lockStoppedMessage": "Locking stopped. The note isn't locked yet: finish locking it or undo it from the bar above the note.",
   "@lockStoppedMessage": {

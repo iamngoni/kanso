@@ -95,6 +95,7 @@ fn notes_of(annots: &Annotations, body: &str, file: &str, name: &str) -> PdfNote
         editable,
         why,
         highlights,
+        scanned_pages: 0,
         ink: annots
             .ink_rows()
             .into_iter()
@@ -222,7 +223,9 @@ impl Library {
                     // Ink that outgrew the note is read from its attachment.
                     // One that has not arrived yet is listed when it does.
                     let _ = pdf_ink::load_ink_with(&self.inner.store, &mut annots, &files);
-                    notes_of(&annots, &body, &file, &name)
+                    let mut notes = notes_of(&annots, &body, &file, &name);
+                    notes.scanned_pages = self.scanned_pages(&file);
+                    notes
                 })
                 .collect())
         })
@@ -289,25 +292,24 @@ impl Library {
             if input.points.len() > kanso_core::canvas::MAX_STROKE_POINTS {
                 return Err(KansoError::invalid("That stroke has too many points."));
             }
-            if !matches!(input.tool.as_str(), "pen" | "pencil" | "marker" | "highlighter") {
+            if !matches!(
+                input.tool.as_str(),
+                "pen" | "pencil" | "marker" | "highlighter"
+            ) {
                 return Err(KansoError::invalid("That isn't a pencil tool."));
             }
             if ![
-                "#1e1e1e",
-                "#e03131",
-                "#e8590c",
-                "#f08c00",
-                "#2f9e44",
-                "#1971c2",
-                "#9c36b5",
+                "#1e1e1e", "#e03131", "#e8590c", "#f08c00", "#2f9e44", "#1971c2", "#9c36b5",
             ]
             .contains(&input.color.as_str())
             {
                 return Err(KansoError::invalid("That isn't a pencil colour."));
             }
-            if input.points.iter().any(|point| {
-                !point.pressure.is_finite() || !(0.0..=1.0).contains(&point.pressure)
-            }) {
+            if input
+                .points
+                .iter()
+                .any(|point| !point.pressure.is_finite() || !(0.0..=1.0).contains(&point.pressure))
+            {
                 return Err(KansoError::invalid("That stroke has invalid pressure."));
             }
             let now = kanso_core::now_ms();
@@ -393,6 +395,20 @@ impl Library {
                 Err(error) => Err(error),
             }
         })
+    }
+
+    /// The pages of PDF `file` whose words a computer read from their
+    /// pictures (step 8); the store hands them over only while the bytes are
+    /// the ones they were read from.
+    pub(crate) fn scanned_pages(&self, file: &str) -> u32 {
+        self.inner
+            .store
+            .pdf_ocr(file)
+            .ok()
+            .flatten()
+            .map_or(0, |ocr| {
+                ocr.pages.iter().filter(|p| !p.words.is_empty()).count() as u32
+            })
     }
 
     /// Clears all the pencil marks on `page` of `file` in note `note_id`,

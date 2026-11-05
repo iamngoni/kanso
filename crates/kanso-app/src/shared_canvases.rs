@@ -38,4 +38,23 @@ impl SharedCanvases for EngineHost {
             .map(|()| true)
             .map_err(|err| err.to_string())
     }
+
+    fn edit_note_body(&self, note_id: &str, title: &str, body: &str) -> Result<bool, String> {
+        let Some(engine) = self.engine.read().ok().and_then(|slot| slot.clone()) else {
+            return Ok(false);
+        };
+        let Some(share_id) = engine.share_of(note_id) else {
+            return Ok(false);
+        };
+        if !engine
+            .role(&share_id)
+            .is_some_and(kanso_collab::Role::may_edit)
+        {
+            return Ok(false);
+        }
+        engine
+            .sync_editor(&share_id, title, body)
+            .map(|_| true)
+            .map_err(|err| err.to_string())
+    }
 }
