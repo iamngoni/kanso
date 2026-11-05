@@ -86,6 +86,8 @@ pub(crate) mod format_keys;
 #[cfg(test)]
 #[path = "editor_format_tests.rs"]
 mod format_tests;
+#[path = "editor_ink.rs"]
+pub(crate) mod ink_glue;
 #[path = "ai_inline.rs"]
 pub(crate) mod inline_glue;
 #[cfg(test)]
@@ -305,6 +307,9 @@ pub struct NoteEditor {
     /// Lines (first, last, 0-based) of note `.0` to mark for a few seconds
     /// once it opens: where a receipt in an Ask answer points.
     pending_highlight: Option<(String, u32, u32)>,
+    /// A group (`.1`) of canvas note `.0` to show filling the view once it
+    /// opens: where an embed's "Open at this group" points.
+    pending_canvas_group: Option<(String, String)>,
     /// The timer that lets go of a marked range.
     highlight_task: Option<Task<()>>,
     /// A byte offset of note `.0`'s text to put the caret at once it
@@ -681,6 +686,7 @@ impl NoteEditor {
             wiki_task: None,
             pending_reveal: None,
             pending_highlight: None,
+            pending_canvas_group: None,
             highlight_task: None,
             pending_caret: None,
             pending_place: None,
@@ -1222,6 +1228,10 @@ impl NoteEditor {
             let (id, canvas_body) = (n.id.clone(), n.body.clone());
             self.canvas
                 .update(cx, |view, cx| view.open(&id, &canvas_body, read_only, cx));
+            if let Some((_, group)) = self.pending_canvas_group.take_if(|(note, _)| *note == id) {
+                self.canvas
+                    .update(cx, |view, cx| view.focus_group(&group, cx));
+            }
         } else {
             self.canvas.update(cx, |view, cx| view.clear(cx));
         }
@@ -1684,6 +1694,17 @@ impl NoteEditor {
         }));
     }
 
+    /// Shows group `group` of canvas note `id` filling the view: now when
+    /// that canvas is open, else once it opens.
+    pub fn focus_canvas_group(&mut self, id: String, group: String, cx: &mut Context<Self>) {
+        if self.note_id() == Some(id.as_str()) && self.canvas_body.is_some() {
+            self.canvas
+                .update(cx, |view, cx| view.focus_group(&group, cx));
+        } else {
+            self.pending_canvas_group = Some((id, group));
+        }
+    }
+
     /// Shows lines `first` to `last` of note `id` marked, once it opens.
     pub fn highlight_after_open(&mut self, id: String, first: u32, last: u32) {
         self.pending_reveal = Some((id.clone(), first));
@@ -2104,6 +2125,11 @@ impl NoteEditor {
                         cx.notify();
                         return true;
                     }
+                    // Only a background read's handwriting words came in.
+                    if !retried && self.save_over_ink_text(&base, &latest, &mut note, cx) {
+                        retried = true;
+                        continue;
+                    }
                     if !retried
                         && (same_content(&base, &latest)
                             || peers::text_caught_up(&base, &latest, &note))
@@ -2132,6 +2158,9 @@ impl NoteEditor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // A canvas this note embeds may have changed, or been locked.
+        self.preview
+            .update(cx, |preview, cx| preview.canvas_changed(&change.id, cx));
         let Some(note) = &self.note else {
             return;
         };
@@ -2159,6 +2188,10 @@ impl NoteEditor {
             }
             // Another editor of the note saved what this one shows.
             if self.adopt_if_same_text(&latest, cx) {
+                return;
+            }
+            // A background read kept the handwriting's words, nothing else.
+            if self.adopt_ink_text(&latest, cx) {
                 return;
             }
             Incoming::Changed(Box::new(latest))
@@ -2501,9 +2534,8 @@ impl NoteEditor {
             return;
         }
         let (store, name) = (self.store.clone(), meta.name);
-        let scale = window.scale_factor();
         let page = link.page.unwrap_or(1);
-        let reader = cx.new(|cx| crate::pdf::PdfReader::new(store, id, name, page, scale, cx));
+        let reader = cx.new(|cx| crate::pdf::PdfReader::new(store, id, name, page, window, cx));
         self.show_pdf(reader, window, cx);
     }
 

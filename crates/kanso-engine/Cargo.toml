@@ -30,6 +30,9 @@ kanso-gallery.workspace = true
 # keeps them, and image widths (edit/image.rs).
 kanso-render.workspace = true
 kanso-store.workspace = true
+# The PDF worker's client, for reading the text in PDFs (discovery/pdf_worker.rs).
+# The client only: PDFium lives in the helper process, never in this one.
+kanso-pdf = { workspace = true, optional = true }
 # Without the desktop Keychain: secrets go through the `Secrets` trait.
 kanso-sync = { path = "../kanso-sync", default-features = false }
 # The editor's settings, as the config file writes them (editor_settings.rs).
@@ -137,6 +140,10 @@ code-grammars = [
 ]
 # `strategies`: generators for kanso-app's view tests.
 test-support = ["dep:proptest"]
+# `pdf-worker`: text in PDFs, read through the contained PDF worker (it is
+# part of discovery, whose queue it feeds). Desktop only; the phones have no
+# worker.
+pdf-worker = ["discovery", "dep:kanso-pdf"]
 # Model-backed discovery on mobile and desktop.
 discovery = ["dep:model2vec-rs", "dep:tokenizers", "dep:kanso-tls", "dep:ureq"]
 # Ask, inline assistance and summaries.

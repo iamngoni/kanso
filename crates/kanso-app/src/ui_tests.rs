@@ -4212,6 +4212,75 @@ fn a_canvas_is_drawn_on_and_saves_its_strokes(cx: &mut TestAppContext) {
     assert_eq!(live_strokes(&f.store, &id), 1);
 }
 
+/// Handwriting read in the background (`ink_ocr.rs`) lands in the canvas
+/// that is open: the canvas takes the words in place, so its undo steps
+/// stay, nothing asks which version to keep, and the next edit is saved on
+/// top of the words rather than over them, whichever reaches the editor
+/// first, the words or the edit.
+// no-prop-test: drives one window; `editor_ink` and the engine have the
+// properties.
+#[gpui_kit::test]
+fn handwriting_read_in_the_background_keeps_the_open_canvas(cx: &mut TestAppContext) {
+    use kanso_engine::discovery::ink_ocr::{self, Pass};
+    use kanso_engine::discovery::ocr::TextReader;
+    struct Words;
+    impl TextReader for Words {
+        fn engine(&self) -> &'static str {
+            "fake"
+        }
+        fn read(&self, _: &[u8]) -> Result<String, String> {
+            Ok("groceries".into())
+        }
+    }
+    let f = setup(cx);
+    let id = make_canvas(&f, "Board");
+    f.select(cx, &id);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    settle(&f, &mut vcx);
+    stroke_across(&f, &mut vcx, (120., 140.), (360., 200.));
+    settle(&f, &mut vcx);
+    let canvas = f.editor(&mut vcx, |e, _| e.canvas_view().clone());
+    let words = |store: &Store| {
+        kanso_core::canvas::parse(&store.note(&id).unwrap().unwrap().body)
+            .unwrap()
+            .kanso_ink_ocr
+            .len()
+    };
+
+    let mut pass = Pass::new(std::time::Duration::ZERO);
+    assert_eq!(ink_ocr::read_next(&f.store, &Words, &mut pass).unwrap(), 1);
+    assert_eq!(words(&f.store), 1);
+    settle(&f, &mut vcx);
+    assert!(!f.editor(&mut vcx, |e, _| e.has_incoming()));
+    assert!(
+        canvas.update(&mut vcx, |view, _| view
+            .state_for_test()
+            .unwrap()
+            .can_undo()),
+        "the drawing's undo steps stay"
+    );
+    assert_eq!(
+        canvas.update(&mut vcx, |view, _| view
+            .state_for_test()
+            .unwrap()
+            .canvas
+            .kanso_ink_ocr
+            .len()),
+        1
+    );
+
+    // An edit right behind the words: saved on top of them.
+    stroke_across(&f, &mut vcx, (100., 300.), (300., 320.));
+    settle(&f, &mut vcx);
+    let mut again = Pass::new(std::time::Duration::ZERO);
+    assert!(ink_ocr::read_next(&f.store, &Words, &mut again).unwrap() > 0);
+    canvas.update(&mut vcx, |view, cx| view.undo(cx));
+    settle(&f, &mut vcx);
+    assert!(!f.editor(&mut vcx, |e, _| e.has_incoming()));
+    assert_eq!(live_strokes(&f.store, &id), 1, "the undo was saved");
+    assert!(words(&f.store) >= 1, "and the words with it");
+}
+
 /// A card dragged slowly at a high zoom follows the pointer (each step is a
 /// fraction of a canvas point, which rounding step by step used to drop),
 /// and is saved once, when it is let go; a lasso that only selects saves

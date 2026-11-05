@@ -25,6 +25,7 @@ mod graph;
 mod history;
 mod home;
 mod home_model;
+mod ink_text;
 mod library_key;
 mod library_key_model;
 mod loops;
@@ -84,6 +85,7 @@ pub use graph::{GraphLink, GraphNote};
 pub use home_model::{
     HomeBook, HomeChild, HomeEntity, HomeLinked, HomeNoteMark, HomeNoteRow, HomeScan, HomeStats,
 };
+pub use ink_text::{InkNote, InkScan};
 pub use library_key_model::{KEY_BYTES, LibraryFile, LibraryKey};
 pub use loops::{
     BriefNote, ChangedNote, FinishedRow, LoopClose, LoopQuery, LoopRow, LoopSource, ThemeNote,

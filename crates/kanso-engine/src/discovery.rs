@@ -8,8 +8,10 @@
 //! [`meaning`] is what the embeddings say about the open note (tags to
 //! suggest, a near twin) and the rule for which searches go by meaning;
 //! [`ocr`] is reading the words in pictures through the platform's reader.
+//! [`ink_ocr`] does the same for handwriting on canvases and sketches.
 //! [`pdf_text`] is the queue that reads the words in PDFs through the PDF
-//! worker, behind a trait.
+//! worker, behind a trait; [`pdf_worker`] (the `pdf-worker` feature) is that
+//! trait over the worker's client.
 //! [`measure`] says what the model costs on a device.
 //!
 //! The store keeps the vectors and decides who may be read (`kanso-store`'s
@@ -18,10 +20,13 @@
 
 pub mod graph;
 pub mod indexer;
+pub mod ink_ocr;
 pub mod meaning;
 pub mod measure;
 pub mod model_fetch;
 pub mod ocr;
 pub mod pdf_text;
+#[cfg(feature = "pdf-worker")]
+pub mod pdf_worker;
 pub mod related;
 pub mod resurface;

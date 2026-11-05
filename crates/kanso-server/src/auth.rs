@@ -94,7 +94,12 @@ pub(crate) async fn require_auth(
             request.extensions_mut().insert(caller);
             next.run(request).await
         }
-        None => ApiError::unauthorized().into_response(),
+        None => {
+            if let Some(keys) = &gate.keys {
+                keys.note_refused();
+            }
+            ApiError::unauthorized().into_response()
+        }
     }
 }
 
