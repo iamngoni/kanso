@@ -24,6 +24,8 @@ pub type Column = Vec<Para>;
 pub struct Placed {
     pub ch: char,
     pub rect: [f64; 4],
+    /// A space comes before this character, as PDFium reports it.
+    pub space_before: bool,
 }
 
 /// Lays out columns of paragraphs of lines of words on an unrotated page and
@@ -44,10 +46,11 @@ pub fn place(columns: &[Column]) -> (Vec<Placed>, f64, f64) {
                     if wi > 0 {
                         x += WORD_GAP;
                     }
-                    for ch in word.chars() {
+                    for (ci, ch) in word.chars().enumerate() {
                         out.push(Placed {
                             ch,
                             rect: [x, y, x + CHAR_W, y + CHAR_H],
+                            space_before: wi > 0 && ci == 0,
                         });
                         x += CHAR_W;
                     }
@@ -108,6 +111,7 @@ pub fn page_from(page: u32, placed: &[Placed], w0: f64, h0: f64, rotation: u16) 
                     ay.max(by) / h,
                 ),
                 turns: 0,
+                space_before: p.space_before,
             }
         })
         .collect();

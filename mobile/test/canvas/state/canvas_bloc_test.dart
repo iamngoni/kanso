@@ -36,6 +36,18 @@ void main() {
     await bloc.stream.firstWhere(test).timeout(const Duration(seconds: 5));
   }
 
+  /// Waits until the document has been asked for something: a call that
+  /// changes no state is seen only there.
+  Future<void> asked(bool Function() test) async {
+    final until = DateTime.now().add(const Duration(seconds: 5));
+    while (!test()) {
+      if (DateTime.now().isAfter(until)) {
+        fail('never asked');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+  }
+
   Future<void> open() async {
     bloc.add(const CanvasEvent.started('canvas-1'));
     await until((s) => s.ready);
@@ -268,5 +280,212 @@ void main() {
     await until((s) => s.view?.dirty ?? false);
     await bloc.close();
     expect(document.saves, 1);
+  });
+
+  group('a shared canvas', () {
+    CanvasStroke remote() => fakeStroke('theirs', x: 200, y: 200);
+
+    Future<void> openShared({bool readOnly = false}) async {
+      document
+        ..shared = true
+        ..readOnly = readOnly;
+      await open();
+    }
+
+    test('takes in what the others drew at its next tick', () async {
+      await openShared();
+      document
+        ..remote = remote()
+        ..remoteChanged = true;
+      await until((s) => (s.view?.strokes.length ?? 0) == 1);
+      expect(bloc.state.view?.strokes.single.id, 'theirs');
+    });
+
+    test('holds their edits back while a hand is down, then applies them '
+        'when it lifts, though it only panned', () async {
+      await openShared();
+      bloc.add(const CanvasEvent.gestureChanged(active: true));
+      document
+        ..remote = remote()
+        ..remoteChanged = true;
+      bloc.add(const CanvasEvent.pulsed());
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      expect(bloc.state.view?.strokes, isEmpty);
+      expect(document.calls, isNot(contains('pulse')));
+      // The hand lifts: no stroke, no edit, only the end of a pan.
+      bloc.add(const CanvasEvent.gestureChanged(active: false));
+      await until((s) => (s.view?.strokes.length ?? 0) == 1);
+    });
+
+    test(
+      'holds their edits back through a tap, and a stroke, the same',
+      () async {
+        await openShared();
+        bloc.add(const CanvasEvent.gestureChanged(active: true));
+        document
+          ..remote = remote()
+          ..remoteChanged = true;
+        bloc
+          ..add(const CanvasEvent.strokeCommitted(_samples))
+          ..add(const CanvasEvent.pulsed());
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        // The stroke is the bloc's; the others' stays out of sight.
+        expect(document.calls, contains('draw'));
+        expect(document.calls, isNot(contains('pulse')));
+        expect(
+          bloc.state.view?.strokes.map((s) => s.id),
+          isNot(contains('theirs')),
+        );
+        bloc.add(const CanvasEvent.gestureChanged(active: false));
+        await until(
+          (s) =>
+              s.view?.strokes.any((stroke) => stroke.id == 'theirs') ?? false,
+        );
+        expect(bloc.state.view?.strokes, hasLength(2));
+      },
+    );
+
+    test('hands the room an edit at once, not two seconds on', () async {
+      await openShared();
+      bloc.add(const CanvasEvent.textCardAdded(0, 0, 'Hello'));
+      await asked(() => document.calls.contains('pulse'));
+      expect(document.saves, 0, reason: 'the room writes it');
+      await until((s) => !(s.view?.dirty ?? true));
+    });
+
+    test(
+      'streams the stroke being drawn and takes it back when asked',
+      () async {
+        await openShared();
+        bloc
+          ..add(const CanvasEvent.strokeStreamed(_samples))
+          ..add(const CanvasEvent.strokeCancelled());
+        await asked(() => document.cancelled == 1);
+        expect(document.streamed, hasLength(1));
+        expect(document.streamed.single, _samples);
+      },
+    );
+
+    test('a stroke someone erased under the pen is dropped, and their erase '
+        'comes in when the hand lifts', () async {
+      await openShared();
+      bloc.add(const CanvasEvent.gestureChanged(active: true));
+      document.erasedUnderPen = true;
+      bloc.add(const CanvasEvent.strokeStreamed(_samples));
+      await until((s) => s.erasedUnderPen == 1);
+      document
+        ..remote = remote()
+        ..remoteChanged = true;
+      bloc.add(const CanvasEvent.gestureChanged(active: false));
+      await until((s) => (s.view?.strokes.length ?? 0) == 1);
+    });
+
+    test("shows the others' pointers, and keeps them moving through a "
+        'gesture', () async {
+      await openShared();
+      const ada = CanvasPointerRow(
+        accountId: 'a',
+        name: 'Ada',
+        x: 10,
+        y: 20,
+        tool: 'pen',
+        colour: 0,
+        colourLight: '#2F6AAE',
+        colourDark: '#7FB0EC',
+      );
+      document.others = <CanvasPointerRow>[ada];
+      await until((s) => s.pointers.length == 1);
+      expect(bloc.state.pointers.single.name, 'Ada');
+      bloc.add(const CanvasEvent.gestureChanged(active: true));
+      document.others = <CanvasPointerRow>[];
+      bloc.add(const CanvasEvent.pulsed());
+      await until((s) => s.pointers.isEmpty);
+      bloc.add(const CanvasEvent.gestureChanged(active: false));
+    });
+
+    test('tells the room where the pointer is, and when it leaves', () async {
+      await openShared();
+      bloc
+        ..add(const CanvasEvent.toolChanged(CanvasTool.lasso))
+        ..add(const CanvasEvent.pointerMoved(12, 34))
+        ..add(const CanvasEvent.pointerLeft());
+      await asked(() => document.clearedPointer == 1);
+      expect(document.told, <(double, double, String)>[(12, 34, 'lasso')]);
+    });
+
+    test('a viewer draws, streams and edits nothing', () async {
+      await openShared(readOnly: true);
+      bloc
+        ..add(const CanvasEvent.strokeCommitted(_samples))
+        ..add(const CanvasEvent.strokeStreamed(_samples))
+        ..add(const CanvasEvent.textCardAdded(0, 0, 'x'))
+        ..add(const CanvasEvent.undone())
+        ..add(
+          const CanvasEvent.erased(
+            path: <CanvasPoint>[CanvasPoint(x: 0, y: 0)],
+            radius: 5,
+            partial: false,
+          ),
+        );
+      await _settle();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(document.streamed, isEmpty);
+      expect(
+        document.calls.where((c) => c != 'view' && c != 'pulse'),
+        isEmpty,
+      );
+      expect(bloc.state.view?.readOnly, isTrue);
+      // It still takes in what the others draw.
+      document
+        ..remote = remote()
+        ..remoteChanged = true;
+      await until((s) => (s.view?.strokes.length ?? 0) == 1);
+    });
+
+    test('joins the room again when the app comes back to the front', () async {
+      await openShared();
+      bloc.add(const CanvasEvent.resumed());
+      await asked(() => document.reconnected == 1);
+    });
+
+    test('behind, the tick stops; back in front, it starts again', () async {
+      await openShared();
+      await asked(() => document.pulses > 0);
+      bloc.add(const CanvasEvent.paused());
+      await _settle();
+      final paused = document.pulses;
+      await Future<void>.delayed(canvasPulseEvery * 4);
+      expect(document.pulses, paused, reason: 'no tick in the background');
+      bloc.add(const CanvasEvent.resumed());
+      await asked(() => document.reconnected == 1);
+      await asked(() => document.pulses > paused + 1);
+    });
+
+    test('closing takes back, writes and leaves in one call', () async {
+      await openShared();
+      bloc.add(const CanvasEvent.textCardAdded(0, 0, 'Hello'));
+      await asked(() => document.calls.contains('addTextCard'));
+      await bloc.close();
+      expect(document.closed, 1);
+    });
+  });
+
+  group('a private canvas', () {
+    test('has no tick and tells no room anything', () async {
+      await open();
+      bloc
+        ..add(const CanvasEvent.pointerMoved(1, 2))
+        ..add(const CanvasEvent.strokeStreamed(_samples))
+        ..add(const CanvasEvent.strokeCancelled())
+        ..add(const CanvasEvent.resumed());
+      await Future<void>.delayed(canvasPulseEvery * 3);
+      expect(document.pulses, 0);
+      expect(document.told, isEmpty);
+      expect(document.streamed, isEmpty);
+      expect(document.cancelled, 0);
+      expect(document.reconnected, 0);
+      await bloc.close();
+      expect(document.closed, 0);
+    });
   });
 }

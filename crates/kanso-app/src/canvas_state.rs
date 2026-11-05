@@ -759,32 +759,18 @@ impl CanvasState {
             return None;
         }
         let (id, tool, raw) = (live.id.clone(), name.to_owned(), live.points.clone());
-        let had_layer = self
-            .canvas
-            .nodes
-            .iter()
-            .any(|n| n.kind == canvas::INK && !n.deleted);
-        let ink = self.canvas.ink_layer(now);
-        let origin = self.canvas.node(&ink).map_or((0.0, 0.0), |n| (n.x, n.y));
-        let z = self
-            .canvas
-            .nodes
-            .iter()
-            .flat_map(|n| std::iter::once(n.kanso_z).chain(n.strokes.iter().map(|s| s.kanso_z)))
-            .chain(self.canvas.edges.iter().map(|e| e.kanso_z))
-            .fold(0.0, f64::max)
-            + 1.0;
+        let target = self.canvas.stream_target(now);
         Some((
             Streaming {
-                ink,
+                ink: target.ink,
                 id,
                 tool,
                 color: self.color.clone(),
                 width: self.width,
-                z,
-                points: canvas::streamed_points(&raw, origin),
+                z: target.z,
+                points: canvas::streamed_points(&raw, target.origin),
             },
-            !had_layer,
+            target.layer_made,
         ))
     }
 
