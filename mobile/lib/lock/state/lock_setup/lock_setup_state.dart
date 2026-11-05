@@ -16,5 +16,14 @@ abstract class LockSetupState with _$LockSetupState {
 
     /// Why it failed, with [LockFormStatus.failed].
     ApplicationError? error,
+
+    /// The pictures and files locking would seal, once known.
+    LockSummary? summary,
+
+    /// How far sealing them has come, while locking.
+    SealProgress? progress,
+
+    /// Whether Cancel was pressed: it stops after the file being sealed.
+    @Default(false) bool cancelling,
   }) = _LockSetupState;
 }

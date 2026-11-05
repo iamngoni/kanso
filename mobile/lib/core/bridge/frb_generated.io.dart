@@ -842,6 +842,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  RustStreamSink<SealProgress> dco_decode_StreamSink_seal_progress_Sse(
+    dynamic raw,
+  );
+
+  @protected
   RustStreamSink<SharedEvent> dco_decode_StreamSink_shared_event_Sse(
     dynamic raw,
   );
@@ -1078,6 +1083,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   InkStyle dco_decode_box_autoadd_ink_style(dynamic raw);
+
+  @protected
+  InterruptedLock dco_decode_box_autoadd_interrupted_lock(dynamic raw);
 
   @protected
   LinkTarget dco_decode_box_autoadd_link_target(dynamic raw);
@@ -1585,6 +1593,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   InstalledIconThemeRow dco_decode_installed_icon_theme_row(dynamic raw);
+
+  @protected
+  InterruptedLock dco_decode_interrupted_lock(dynamic raw);
 
   @protected
   InvitationRow dco_decode_invitation_row(dynamic raw);
@@ -2149,6 +2160,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   LockStatus dco_decode_lock_status(dynamic raw);
 
   @protected
+  LockSummary dco_decode_lock_summary(dynamic raw);
+
+  @protected
   LockedInfo dco_decode_locked_info(dynamic raw);
 
   @protected
@@ -2297,6 +2311,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ImportPhase? dco_decode_opt_box_autoadd_import_phase(dynamic raw);
+
+  @protected
+  InterruptedLock? dco_decode_opt_box_autoadd_interrupted_lock(dynamic raw);
 
   @protected
   LinkTarget? dco_decode_opt_box_autoadd_link_target(dynamic raw);
@@ -2767,6 +2784,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Saved dco_decode_saved(dynamic raw);
+
+  @protected
+  SealPhase dco_decode_seal_phase(dynamic raw);
+
+  @protected
+  SealProgress dco_decode_seal_progress(dynamic raw);
 
   @protected
   SearchScope dco_decode_search_scope(dynamic raw);
@@ -3689,6 +3712,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  RustStreamSink<SealProgress> sse_decode_StreamSink_seal_progress_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<SharedEvent> sse_decode_StreamSink_shared_event_Sse(
     SseDeserializer deserializer,
   );
@@ -3961,6 +3989,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   InkStyle sse_decode_box_autoadd_ink_style(SseDeserializer deserializer);
+
+  @protected
+  InterruptedLock sse_decode_box_autoadd_interrupted_lock(
+    SseDeserializer deserializer,
+  );
 
   @protected
   LinkTarget sse_decode_box_autoadd_link_target(SseDeserializer deserializer);
@@ -4518,6 +4551,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   InstalledIconThemeRow sse_decode_installed_icon_theme_row(
     SseDeserializer deserializer,
   );
+
+  @protected
+  InterruptedLock sse_decode_interrupted_lock(SseDeserializer deserializer);
 
   @protected
   InvitationRow sse_decode_invitation_row(SseDeserializer deserializer);
@@ -5230,6 +5266,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   LockStatus sse_decode_lock_status(SseDeserializer deserializer);
 
   @protected
+  LockSummary sse_decode_lock_summary(SseDeserializer deserializer);
+
+  @protected
   LockedInfo sse_decode_locked_info(SseDeserializer deserializer);
 
   @protected
@@ -5400,6 +5439,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ImportPhase? sse_decode_opt_box_autoadd_import_phase(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  InterruptedLock? sse_decode_opt_box_autoadd_interrupted_lock(
     SseDeserializer deserializer,
   );
 
@@ -5948,6 +5992,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Saved sse_decode_saved(SseDeserializer deserializer);
+
+  @protected
+  SealPhase sse_decode_seal_phase(SseDeserializer deserializer);
+
+  @protected
+  SealProgress sse_decode_seal_progress(SseDeserializer deserializer);
 
   @protected
   SearchScope sse_decode_search_scope(SseDeserializer deserializer);
@@ -6993,6 +7043,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_seal_progress_Sse(
+    RustStreamSink<SealProgress> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_shared_event_Sse(
     RustStreamSink<SharedEvent> self,
     SseSerializer serializer,
@@ -7361,6 +7417,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_ink_style(
     InkStyle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_interrupted_lock(
+    InterruptedLock self,
     SseSerializer serializer,
   );
 
@@ -8081,6 +8143,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_installed_icon_theme_row(
     InstalledIconThemeRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_interrupted_lock(
+    InterruptedLock self,
     SseSerializer serializer,
   );
 
@@ -9057,6 +9125,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_lock_status(LockStatus self, SseSerializer serializer);
 
   @protected
+  void sse_encode_lock_summary(LockSummary self, SseSerializer serializer);
+
+  @protected
   void sse_encode_locked_info(LockedInfo self, SseSerializer serializer);
 
   @protected
@@ -9260,6 +9331,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_import_phase(
     ImportPhase? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_interrupted_lock(
+    InterruptedLock? self,
     SseSerializer serializer,
   );
 
@@ -9961,6 +10038,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_saved(Saved self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_seal_phase(SealPhase self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_seal_progress(SealProgress self, SseSerializer serializer);
 
   @protected
   void sse_encode_search_scope(SearchScope self, SseSerializer serializer);

@@ -34,6 +34,16 @@ pub fn pick_book<'a>(
     books: &'a [(String, String)],
     wanted: &str,
 ) -> Result<&'a (String, String), String> {
+    pick_book_for(books, wanted, "--book")
+}
+
+/// [`pick_book`] for a command whose option is `option`, which the
+/// refusal names.
+pub fn pick_book_for<'a>(
+    books: &'a [(String, String)],
+    wanted: &str,
+    option: &str,
+) -> Result<&'a (String, String), String> {
     let wanted = wanted.trim();
     if let Some(book) = books.iter().find(|(id, _)| id == wanted) {
         return Ok(book);
@@ -45,7 +55,7 @@ pub fn pick_book<'a>(
     match named.as_slice() {
         [book] => Ok(book),
         [] => Err(format!(
-            "there's no notebook named “{wanted}”. Check its spelling, or leave --book off"
+            "there's no notebook named “{wanted}”. Check its spelling, or leave {option} off"
         )),
         several => Err(format!(
             "{} notebooks are named “{wanted}”; use the ID of one: {}",

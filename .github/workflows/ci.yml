@@ -76,6 +76,20 @@ jobs:
       # worker (kanso-pdf/tests/hostile.rs).
       - run: cargo test --workspace --locked --features kanso-pdf/render
 
+  # Encrypting the library costs little (issue #243, step 14): a 150 MB
+  # library opens, searches, saves and backs up within five times a plain
+  # one's time (crates/kanso-store/tests/encryption_speed.rs). Slow, so it
+  # has its own job and a release build.
+  encryption-speed:
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, macOS]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: true
+      - run: scripts/ci-rust.sh
+      - run: cargo test -p kanso-store --release --locked --test encryption_speed -- --include-ignored --nocapture
+
   # The app and the command-line tools build for Windows and Linux too (the
   # release workflow ships them). The tests stay on the job above: several
   # need macOS's fonts and text system.

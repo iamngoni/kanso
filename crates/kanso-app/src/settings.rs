@@ -1378,7 +1378,8 @@ fn api_page(
         status_row(&status, tip, None, colors),
         section(
             "Server",
-            vec![
+            {
+                let mut rows = vec![
                 Row::new(Lucide::Plug, "Enable the local API")
                     .detail("REST and MCP for local agents. It speaks a widely used local-server REST API, so clients written for that API work too.")
                     .trailing(Switch::new("api-enabled").checked(server.enabled).on_click(
@@ -1412,7 +1413,20 @@ fn api_page(
                         )
                         .into_any_element(),
                     ]),
-            ],
+                ];
+                // Right under the address that causes it.
+                if crate::api_keys_model::is_lan_address(&server.bind_address) {
+                    rows.insert(
+                        2,
+                        Row::new(
+                            Lucide::TriangleAlert,
+                            crate::api_keys_model::LAN_WARNING_TITLE,
+                        )
+                        .detail(crate::api_keys_model::LAN_WARNING),
+                    );
+                }
+                rows
+            },
             colors,
         ),
         api_keys.clone().into_any_element(),
@@ -1420,7 +1434,9 @@ fn api_page(
             "Other apps",
             vec![
                 Row::new(Lucide::Copy, "Settings from another app")
-                    .detail("Takes the API port of the notes app found on this computer.")
+                    .detail(
+                        "Takes the API port and address of the notes app found on this computer.",
+                    )
                     .trailing(
                         Button::new("copy-local-api-settings")
                             .outline()

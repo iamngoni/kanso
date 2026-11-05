@@ -1,9 +1,11 @@
-//! How to add Kanso's MCP server to each AI agent, as text to paste: a
-//! command for agents that have one, otherwise the entry for their config
-//! file. Agents that reach a local HTTP server get the endpoint and the
-//! API key as a header; the rest start `kanso mcp` (see `mcp_cli`), which
-//! takes the key from `KANSO_MCP_TOKEN` and passes their requests to the
-//! running app. Every snippet carries the key, so every one is a secret.
+//! How to add Kanso's MCP server to each AI agent, as the entry to paste
+//! into the agent's config file. Never a command: a key in a command's
+//! arguments is in the process list and the shell's history. Agents that
+//! reach a local HTTP server get the endpoint and the API key as a header;
+//! the rest start `kanso mcp` (see `mcp_cli`), which takes the key from
+//! `KANSO_MCP_TOKEN` in the entry's environment and passes their requests
+//! to the running app. Every snippet carries the key, so every one is a
+//! secret.
 
 use serde_json::{Value, json};
 use zeroize::Zeroizing;
@@ -111,26 +113,34 @@ impl Agent {
         Agent::ALL.into_iter().find(|agent| agent.id() == id)
     }
 
-    /// Where the snippet goes, said to the user.
-    pub fn instructions(self) -> &'static str {
+    /// Where the snippet goes, said to the user. Every agent's key goes in
+    /// a config file the agent reads, never in a command's arguments, where
+    /// the process list and the shell's history would keep it.
+    pub fn instructions(self) -> String {
         match self {
-            Agent::ClaudeCode => TERMINAL,
-            Agent::ClaudeDesktop => {
-                "Add this to claude_desktop_config.json (Settings › Developer › Edit Config), then restart Claude."
-            }
-            Agent::Codex => TERMINAL,
+            Agent::ClaudeCode => format!(
+                "Quit Claude Code, add the \"kanso\" entry to the mcpServers object in {CLAUDE_CODE_CONFIG} (your user settings, not a project's .mcp.json, which may be shared), then start it again. Claude Code rewrites that file while it runs, so an edit made meanwhile can be lost."
+            ),
+            Agent::ClaudeDesktop => format!(
+                "Add this to {CLAUDE_DESKTOP_CONFIG} (Settings › Developer › Edit Config), then restart Claude."
+            ),
+            Agent::Codex => format!(
+                "Add this to {CODEX_CONFIG}, then restart Codex. It starts Kanso with the key in its environment, so the key is not in a command."
+            ),
             Agent::Cursor => {
-                "Add this to ~/.cursor/mcp.json (Settings › MCP › Add new MCP server)."
+                format!("Add this to {CURSOR_CONFIG} (Settings › MCP › Add new MCP server).")
             }
-            Agent::VsCode => {
-                "Add this to your mcp.json (command palette › MCP: Open User Configuration)."
-            }
-            Agent::GeminiCli => TERMINAL,
-            Agent::Windsurf => {
-                "Add this to mcp_config.json (Settings › Cascade › MCP servers › View raw config)."
-            }
-            Agent::Zed => "Add this to Zed's settings.json.",
-            Agent::OpenCode => "Add this to ~/.config/opencode/opencode.json.",
+            Agent::VsCode => format!(
+                "Add this to your {VS_CODE_CONFIG} (command palette › MCP: Open User Configuration)."
+            ),
+            Agent::GeminiCli => format!(
+                "Add the \"kanso\" entry to the mcpServers object in {GEMINI_CLI_CONFIG}, then restart Gemini CLI."
+            ),
+            Agent::Windsurf => format!(
+                "Add this to {WINDSURF_CONFIG} (Settings › Cascade › MCP servers › View raw config)."
+            ),
+            Agent::Zed => format!("Add this to Zed's {ZED_CONFIG}."),
+            Agent::OpenCode => format!("Add this to {OPENCODE_CONFIG}."),
         }
     }
 
@@ -147,15 +157,17 @@ impl Agent {
         let config =
             |value: Value| serde_json::to_string_pretty(&value).expect("JSON values print");
         match self {
-            Agent::ClaudeCode => format!(
-                "{HISTORY_SKIP}claude mcp add --transport http --scope user kanso {endpoint} --header \"Authorization: {authorization}\""
-            ),
-            Agent::GeminiCli => format!(
-                "{HISTORY_SKIP}gemini mcp add --transport http --scope user --header \"Authorization: {authorization}\" kanso {endpoint}"
-            ),
+            Agent::ClaudeCode => config(json!({
+                "mcpServers": { "kanso": { "type": "http", "url": endpoint, "headers": header } }
+            })),
+            Agent::GeminiCli => config(json!({
+                "mcpServers": { "kanso": { "httpUrl": endpoint, "headers": header } }
+            })),
+            // TOML basic strings take the same escapes as JSON strings.
             Agent::Codex => format!(
-                "{HISTORY_SKIP}codex mcp add kanso --env {TOKEN_VAR}={key} -- {} mcp",
-                quoted(program)
+                "[mcp_servers.kanso]\ncommand = {}\nargs = [\"mcp\"]\n\n[mcp_servers.kanso.env]\n{TOKEN_VAR} = {}",
+                toml_string(program),
+                toml_string(key)
             ),
             Agent::ClaudeDesktop => config(json!({
                 "mcpServers": { "kanso": {
@@ -186,25 +198,35 @@ impl Agent {
     }
 }
 
-/// Where a terminal command goes, said to the user.
-const TERMINAL: &str = "Run this in a terminal. It starts with a space, so a shell set to skip such lines (fish, or bash and zsh with ignorespace) keeps the key out of its history.";
+// The agents' config files. Kanso only shows the entry for the user to
+// paste; it never writes another program's config. Each agent's own docs
+// say how it takes an MCP server and its key in a file: Claude Code's
+// `mcpServers` entry with `type` and `headers`; Gemini CLI's `mcpServers`
+// entry with `httpUrl` and `headers`; Codex's `[mcp_servers.<name>]` table
+// with `command`, `args` and an `env` table.
+/// Claude Code's user settings, where its user-scope servers are kept.
+const CLAUDE_CODE_CONFIG: &str = "~/.claude.json";
+/// Claude Desktop's config file.
+const CLAUDE_DESKTOP_CONFIG: &str = "claude_desktop_config.json";
+/// Codex's settings file.
+const CODEX_CONFIG: &str = "~/.codex/config.toml";
+/// Cursor's global MCP file.
+const CURSOR_CONFIG: &str = "~/.cursor/mcp.json";
+/// VS Code's user MCP file.
+const VS_CODE_CONFIG: &str = "mcp.json";
+/// Gemini CLI's user settings file.
+const GEMINI_CLI_CONFIG: &str = "~/.gemini/settings.json";
+/// Windsurf's MCP file.
+const WINDSURF_CONFIG: &str = "mcp_config.json";
+/// Zed's settings file.
+const ZED_CONFIG: &str = "settings.json";
+/// OpenCode's global config file.
+const OPENCODE_CONFIG: &str = "~/.config/opencode/opencode.json";
 
-/// What a terminal command starts with: a space. bash with `ignorespace`,
-/// zsh with `HIST_IGNORE_SPACE`, and fish leave such a line out of their
-/// history, so the key in it isn't saved there. The design's commands put
-/// the key in the command's arguments (the agents' CLIs take it no other
-/// way); this keeps it out of the history file where the shell allows.
-const HISTORY_SKIP: &str = " ";
-
-/// A program path as one word for the shell, in double quotes when it has a
-/// space (as `C:\Program Files\…` does), which sh, PowerShell and cmd read
-/// alike.
-fn quoted(path: &str) -> String {
-    if path.contains(' ') {
-        format!("\"{path}\"")
-    } else {
-        path.to_owned()
-    }
+/// `text` as a TOML string, escaped by TOML's own rules. A JSON string is
+/// not always a TOML one: TOML refuses a bare U+007F, which JSON allows.
+fn toml_string(text: &str) -> String {
+    toml::Value::String(text.to_owned()).to_string()
 }
 
 #[cfg(test)]
@@ -215,6 +237,7 @@ mod tests {
     fn config() -> ProptestConfig {
         ProptestConfig {
             cases: 256,
+            rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
             ..ProptestConfig::default()
         }
     }
@@ -230,21 +253,35 @@ mod tests {
     #[test]
     fn snippet_examples() {
         let setup = setup();
+        let claude: Value = serde_json::from_str(&Agent::ClaudeCode.snippet(&setup)).unwrap();
         assert_eq!(
-            Agent::ClaudeCode.snippet(&setup),
-            " claude mcp add --transport http --scope user kanso http://127.0.0.1:19840/mcp --header \"Authorization: Bearer kcl_example\""
+            claude["mcpServers"]["kanso"],
+            json!({
+                "type": "http",
+                "url": "http://127.0.0.1:19840/mcp",
+                "headers": { "Authorization": "Bearer kcl_example" },
+            })
+        );
+        let gemini: Value = serde_json::from_str(&Agent::GeminiCli.snippet(&setup)).unwrap();
+        assert_eq!(
+            gemini["mcpServers"]["kanso"],
+            json!({
+                "httpUrl": "http://127.0.0.1:19840/mcp",
+                "headers": { "Authorization": "Bearer kcl_example" },
+            })
         );
         assert_eq!(
             Agent::Codex.snippet(&setup),
-            " codex mcp add kanso --env KANSO_MCP_TOKEN=kcl_example -- /Applications/Kanso.app/Contents/MacOS/kanso mcp"
+            "[mcp_servers.kanso]\ncommand = \"/Applications/Kanso.app/Contents/MacOS/kanso\"\nargs = [\"mcp\"]\n\n[mcp_servers.kanso.env]\nKANSO_MCP_TOKEN = \"kcl_example\""
         );
         let windows = Setup {
             program: r"C:\Program Files\Kanso\kanso.exe".into(),
             ..setup.clone()
         };
+        let codex: toml::Table = Agent::Codex.snippet(&windows).parse().unwrap();
         assert_eq!(
-            Agent::Codex.snippet(&windows),
-            r#" codex mcp add kanso --env KANSO_MCP_TOKEN=kcl_example -- "C:\Program Files\Kanso\kanso.exe" mcp"#
+            codex["mcp_servers"]["kanso"]["command"].as_str(),
+            Some(r"C:\Program Files\Kanso\kanso.exe")
         );
         let desktop: Value = serde_json::from_str(&Agent::ClaudeDesktop.snippet(&windows)).unwrap();
         assert_eq!(
@@ -257,6 +294,20 @@ mod tests {
         );
         let vscode: Value = serde_json::from_str(&Agent::VsCode.snippet(&setup)).unwrap();
         assert_eq!(vscode["servers"]["kanso"]["type"], "http");
+    }
+
+    #[test]
+    fn the_codex_entry_is_toml_whatever_the_path_holds() {
+        // serde_json leaves U+007F bare, and TOML refuses it there.
+        let odd = Setup {
+            program: "/opt/k\u{7f}an\"so\\x\u{1}/kanso".into(),
+            ..setup()
+        };
+        let table: toml::Table = Agent::Codex.snippet(&odd).parse().unwrap();
+        assert_eq!(
+            table["mcp_servers"]["kanso"]["command"].as_str(),
+            Some(odd.program.as_str())
+        );
     }
 
     #[test]
@@ -280,31 +331,42 @@ mod tests {
         assert_eq!(Agent::from_id("other"), None);
     }
 
-    /// Every snippet carries the key. Where an agent reaches the server over
-    /// HTTP it names the endpoint; otherwise it starts this program. Config
-    /// snippets are JSON that reads back.
+    /// Every snippet carries the key, and none is a command: the key is
+    /// never in a command's arguments, where the process list and the
+    /// shell's history would keep it. Where an agent reaches the server over
+    /// HTTP it names the endpoint; otherwise it starts this program. The
+    /// snippet is a config file's text that reads back (TOML for Codex,
+    /// JSON for the rest).
     fn check(agent: Agent, setup: &Setup) -> Result<(), TestCaseError> {
         let text = agent.snippet(setup);
         prop_assert!(text.contains(setup.key.as_str()));
-        let starts_program = matches!(agent, Agent::ClaudeDesktop | Agent::Codex);
-        let is_command = matches!(agent, Agent::ClaudeCode | Agent::GeminiCli | Agent::Codex);
-        // A command starts with a space, so shells that skip such lines
-        // keep the key out of their history.
-        prop_assert_eq!(text.starts_with(HISTORY_SKIP), is_command);
-        prop_assert!(agent.instructions().contains("space") == is_command);
-        if !is_command {
-            let value: Value =
-                serde_json::from_str(&text).map_err(|e| TestCaseError::fail(e.to_string()))?;
-            let found = value.to_string();
-            let needle = if starts_program {
-                &setup.program
-            } else {
-                &setup.endpoint
-            };
-            prop_assert!(found.contains(&serde_json::to_string(needle).unwrap()));
-        } else if !starts_program {
-            prop_assert!(text.contains(&setup.endpoint));
+        prop_assert!(!text.contains(" mcp add "), "{text}");
+        for line in text.lines() {
+            for cli in ["claude ", "codex ", "gemini "] {
+                prop_assert!(!line.trim_start().starts_with(cli), "{line}");
+            }
         }
+        // The words say where the file is, and that is not a terminal.
+        let words = agent.instructions();
+        prop_assert!(!words.contains("terminal"), "{words}");
+        if agent == Agent::Codex {
+            let table: toml::Table = text
+                .parse()
+                .map_err(|e: toml::de::Error| TestCaseError::fail(e.to_string()))?;
+            let server = &table["mcp_servers"]["kanso"];
+            prop_assert_eq!(server["command"].as_str(), Some(setup.program.as_str()));
+            prop_assert_eq!(server["env"][TOKEN_VAR].as_str(), Some(setup.key.as_str()));
+            return Ok(());
+        }
+        let value: Value =
+            serde_json::from_str(&text).map_err(|e| TestCaseError::fail(e.to_string()))?;
+        let found = value.to_string();
+        let needle = if agent == Agent::ClaudeDesktop {
+            &setup.program
+        } else {
+            &setup.endpoint
+        };
+        prop_assert!(found.contains(&serde_json::to_string(needle).unwrap()));
         Ok(())
     }
 
@@ -325,6 +387,14 @@ mod tests {
             for agent in Agent::ALL {
                 check(agent, &setup)?;
             }
+        }
+
+        /// Whatever the program's path holds, the Codex entry reads back as
+        /// TOML with that path and the key.
+        #[test]
+        fn prop_codex_entry_escapes_any_path(program in any::<String>()) {
+            let setup = Setup { program, ..setup() };
+            check(Agent::Codex, &setup)?;
         }
     }
 }

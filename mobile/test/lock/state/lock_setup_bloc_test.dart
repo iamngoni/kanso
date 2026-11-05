@@ -2,6 +2,8 @@
 // Created 2026-10-27.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,6 +53,20 @@ void main() {
     );
     when(() => session.lockStatus()).thenAnswer(
       (_) async => Right<ApplicationError, LockStatus>(status),
+    );
+    // What it would seal could not be counted: the dialog has no line about
+    // it, which is how the tests of the way through the sheet read.
+    when(() => session.noteLockSummary(any())).thenAnswer(
+      (_) async => const Left<ApplicationError, LockSummary>(_failure),
+    );
+    when(() => session.notebookLockSummary(any())).thenAnswer(
+      (_) async => const Left<ApplicationError, LockSummary>(_failure),
+    );
+    when(
+      () => session.lockProgress(),
+    ).thenAnswer((_) => const Stream<SealProgress>.empty());
+    when(() => session.cancelLock()).thenAnswer(
+      (_) async => const Right<ApplicationError, Unit>(unit),
     );
   });
 
@@ -365,5 +381,119 @@ void main() {
         ),
       ],
     );
+  });
+
+  group('LockSetupBloc counts and follows the files', () {
+    const summary = LockSummary(files: 12, bytes: 84000000, shared: 3);
+    const first = SealProgress(
+      phase: SealPhase.sealing,
+      done: 5,
+      total: 12,
+      bytesDone: 31000000,
+      bytesTotal: 84000000,
+    );
+
+    blocTest<LockSetupBloc, LockSetupState>(
+      'the dialog is told what a note would seal',
+      setUp: () {
+        when(() => session.noteLockSummary('note:1')).thenAnswer(
+          (_) async => const Right<ApplicationError, LockSummary>(summary),
+        );
+      },
+      build: build,
+      act: (bloc) => bloc.add(const LockSetupEvent.started(_note)),
+      expect: () => <LockSetupState>[
+        const LockSetupState(target: _note),
+        _state(_note, LockMode.setPassword, LockFormStatus.ready),
+        _state(
+          _note,
+          LockMode.setPassword,
+          LockFormStatus.ready,
+        ).copyWith(summary: summary),
+      ],
+    );
+
+    blocTest<LockSetupBloc, LockSetupState>(
+      'the dialog is told what a notebook would seal',
+      setUp: () {
+        when(() => session.notebookLockSummary('book:1')).thenAnswer(
+          (_) async => const Right<ApplicationError, LockSummary>(summary),
+        );
+      },
+      build: build,
+      act: (bloc) => bloc.add(const LockSetupEvent.started(_book)),
+      verify: (bloc) => expect(bloc.state.summary, summary),
+    );
+
+    test('progress reaches the state while the lock runs', () async {
+      status = const LockStatus(
+        hasLockPassword: true,
+        unlocked: true,
+        biometricsOn: false,
+      );
+      final progress = StreamController<SealProgress>();
+      final finish = Completer<Either<ApplicationError, Saved>>();
+      when(
+        () => session.lockProgress(),
+      ).thenAnswer((_) => progress.stream);
+      when(
+        () => session.lockNoteWithSession('note:1'),
+      ).thenAnswer((_) => finish.future);
+      final bloc = build();
+      addTearDown(bloc.close);
+      bloc.add(const LockSetupEvent.started(_note));
+      await bloc.stream.firstWhere((s) => s.status == LockFormStatus.ready);
+      bloc.add(const LockSetupEvent.confirmed());
+      await bloc.stream.firstWhere((s) => s.status == LockFormStatus.working);
+      progress.add(first);
+      final seen = await bloc.stream.firstWhere((s) => s.progress != null);
+      expect(seen.progress, first);
+      finish.complete(const Right<ApplicationError, Saved>(_saved));
+      final done = await bloc.stream.firstWhere(
+        (s) => s.status == LockFormStatus.done,
+      );
+      expect(done.count, 1);
+      await progress.close();
+    });
+
+    test('Cancel stops the lock and the sheet reports it stopped', () async {
+      status = const LockStatus(
+        hasLockPassword: true,
+        unlocked: true,
+        biometricsOn: false,
+      );
+      final finish = Completer<Either<ApplicationError, Saved>>();
+      when(
+        () => session.lockNoteWithSession('note:1'),
+      ).thenAnswer((_) => finish.future);
+      final bloc = build();
+      addTearDown(bloc.close);
+      bloc.add(const LockSetupEvent.started(_note));
+      await bloc.stream.firstWhere((s) => s.status == LockFormStatus.ready);
+      bloc.add(const LockSetupEvent.confirmed());
+      await bloc.stream.firstWhere((s) => s.status == LockFormStatus.working);
+
+      bloc.add(const LockSetupEvent.cancelled());
+      await bloc.stream.firstWhere((s) => s.cancelling);
+      verify(() => session.cancelLock()).called(1);
+      // The library stops between two files and says so as an error.
+      finish.complete(
+        const Left<ApplicationError, Saved>(
+          ApplicationError.invalid(message: 'Locking was cancelled.'),
+        ),
+      );
+      final stopped = await bloc.stream.firstWhere(
+        (s) => s.status == LockFormStatus.stopped,
+      );
+      expect(stopped.cancelling, isTrue);
+    });
+
+    test('Cancel with nothing running does nothing', () async {
+      final bloc = build();
+      addTearDown(bloc.close);
+      bloc.add(const LockSetupEvent.cancelled());
+      await Future<void>.delayed(Duration.zero);
+      verifyNever(() => session.cancelLock());
+    });
   });
 }

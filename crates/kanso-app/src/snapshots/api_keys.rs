@@ -22,6 +22,8 @@ pub const SHOTS: &[(&str, super::Prepare, Option<f32>)] = &[
     ("light-settings-api-keys", with_keys, None),
     ("dark-settings-api-keys-refused", refused, None),
     ("light-settings-api-keys-refused", refused, None),
+    ("dark-settings-api-lan-warning", lan_warning, None),
+    ("light-settings-api-lan-warning", lan_warning, None),
     ("dark-api-key-new", new_key, Some(WIDTH)),
     ("light-api-key-new", new_key, Some(WIDTH)),
     ("dark-api-key-shown", shown_once, Some(WIDTH)),
@@ -148,6 +150,20 @@ fn with_keys(
     workspace: &Entity<Workspace>,
     store: &Store,
 ) {
+    open(cx, window, workspace, store, &demo_keys(), None);
+}
+
+/// The API listens on a LAN address, so Settings warns that keys travel
+/// unencrypted.
+fn lan_warning(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    cx.update(|cx| {
+        AppState::update_config(cx, |config| config.server.bind_address = "0.0.0.0".into());
+    });
     open(cx, window, workspace, store, &demo_keys(), None);
 }
 
