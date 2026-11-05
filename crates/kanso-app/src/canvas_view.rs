@@ -227,6 +227,21 @@ impl CanvasView {
         cx.notify();
     }
 
+    /// Takes in the handwriting words a background read kept for this
+    /// canvas (`ink_ocr.rs`), in place: the drawing, its undo steps and a
+    /// stroke in progress stay as they are, where `open` would start over.
+    pub fn take_ink_text(&mut self, words: Vec<kanso_core::canvas::InkOcr>) {
+        if let Some(state) = &mut self.state {
+            state.canvas.kanso_ink_ocr = words;
+        }
+    }
+
+    /// Whether a gesture is under way or a drag's change isn't saved yet:
+    /// the note is being edited right now.
+    pub fn is_drawing(&self) -> bool {
+        self.gesture.is_some() || self.grab.is_some() || self.unsaved
+    }
+
     /// Shows nothing: no canvas note is open.
     pub fn clear(&mut self, cx: &mut Context<Self>) {
         self.unshare(cx);

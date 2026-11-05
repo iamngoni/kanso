@@ -5680,6 +5680,24 @@ fn snapshots() {
             Edit,
             discovery::settings_related_failed,
         ),
+        shot(
+            "dark-settings-ink-reading",
+            Dark,
+            Edit,
+            discovery::settings_ink_reading,
+        ),
+        shot(
+            "light-settings-ink-reading",
+            Light,
+            Edit,
+            discovery::settings_ink_reading,
+        ),
+        shot(
+            "light-settings-ink-off",
+            Light,
+            Edit,
+            discovery::settings_ink_off,
+        ),
         // Settings, in the main window.
         // Zoom: the whole app, at either end and in Settings.
         shot("light-zoom-150-split", Light, Split, zoom_largest),
