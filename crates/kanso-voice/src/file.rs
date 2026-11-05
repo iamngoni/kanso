@@ -10,6 +10,8 @@ use std::time::Duration;
 
 pub use symphonia::core::io::MediaSource;
 
+use kanso_audio::{Speaker, energy, speaker_of};
+
 use crate::VoiceError;
 use crate::audio::{MODEL_RATE, Resampler16k, downmix};
 use crate::chunk::{plan_cut, split};
@@ -82,6 +84,11 @@ impl Progress {
 /// What [`decode_pieces`] hands each piece to.
 pub type PieceSink<'a> = dyn FnMut(&[f32], Progress) -> Result<(), VoiceError> + 'a;
 
+/// What [`decode_labelled`] hands each piece to: the piece, how far the file
+/// has been read, and who the two channels say is speaking.
+pub type LabelledSink<'a> =
+    dyn FnMut(&[f32], Progress, Option<Speaker>) -> Result<(), VoiceError> + 'a;
+
 /// Decodes `source` (its extension, when known, as a hint) to 16 kHz mono
 /// and hands it to `piece` cut at pauses, in order, with how far the file
 /// has been read. Stops with [`VoiceError::Cancelled`] once `cancel` is set.
@@ -90,6 +97,106 @@ pub fn decode_pieces(
     extension: Option<&str>,
     cancel: &AtomicBool,
     piece: &mut PieceSink<'_>,
+) -> Result<(), VoiceError> {
+    decode(source, extension, cancel, false, &mut |samples, at, _| {
+        piece(samples, at)
+    })
+}
+
+/// [`decode_pieces`] for a recording made in Kanso. When it has two channels
+/// (the microphone on the left, system audio on the right), each piece also
+/// says who is speaking: the channel with more energy over that piece.
+/// Mono recordings give `None`.
+pub fn decode_labelled(
+    source: Box<dyn MediaSource>,
+    extension: Option<&str>,
+    cancel: &AtomicBool,
+    piece: &mut LabelledSink<'_>,
+) -> Result<(), VoiceError> {
+    decode(source, extension, cancel, true, piece)
+}
+
+/// Each channel of a two-channel file at 16 kHz, kept beside the mix so a
+/// piece can be attributed.
+struct Stereo {
+    left: Option<Resampler16k>,
+    right: Option<Resampler16k>,
+    pending_left: Vec<f32>,
+    pending_right: Vec<f32>,
+}
+
+impl Stereo {
+    fn new(rate: u32) -> Result<Self, VoiceError> {
+        Ok(Stereo {
+            left: Some(Resampler16k::new(rate).map_err(VoiceError::Audio)?),
+            right: Some(Resampler16k::new(rate).map_err(VoiceError::Audio)?),
+            pending_left: Vec::new(),
+            pending_right: Vec::new(),
+        })
+    }
+
+    /// Resamples `samples` (interleaved pairs) and appends the mix of the
+    /// two channels to `mono`.
+    fn push(&mut self, samples: &[f32], mono: &mut Vec<f32>) {
+        let (left, right): (Vec<f32>, Vec<f32>) = samples
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|f| (f[0], f[1]))
+            .unzip();
+        let start = self.pending_left.len();
+        if let (Some(l), Some(r)) = (self.left.as_mut(), self.right.as_mut()) {
+            l.push(&left, &mut self.pending_left);
+            r.push(&right, &mut self.pending_right);
+        }
+        mix_into(
+            &self.pending_left[start..],
+            &self.pending_right[start..],
+            mono,
+        );
+    }
+
+    fn finish(&mut self, mono: &mut Vec<f32>) {
+        let start = self.pending_left.len();
+        if let Some(l) = self.left.take() {
+            l.finish(&mut self.pending_left);
+        }
+        if let Some(r) = self.right.take() {
+            r.finish(&mut self.pending_right);
+        }
+        mix_into(
+            &self.pending_left[start..],
+            &self.pending_right[start..],
+            mono,
+        );
+    }
+
+    /// Who speaks in the first `len` samples, which are then dropped.
+    fn take(&mut self, len: usize) -> Option<Speaker> {
+        let len = len
+            .min(self.pending_left.len())
+            .min(self.pending_right.len());
+        let speaker = speaker_of(
+            energy(&self.pending_left[..len]),
+            energy(&self.pending_right[..len]),
+        );
+        self.pending_left.drain(..len);
+        self.pending_right.drain(..len);
+        speaker
+    }
+}
+
+/// Appends the mean of `left` and `right` (the shorter's length) to `out`.
+fn mix_into(left: &[f32], right: &[f32], out: &mut Vec<f32>) {
+    out.extend(left.iter().zip(right).map(|(l, r)| (l + r) * 0.5));
+}
+
+fn decode(
+    source: Box<dyn MediaSource>,
+    extension: Option<&str>,
+    cancel: &AtomicBool,
+    labelled: bool,
+    piece: &mut LabelledSink<'_>,
 ) -> Result<(), VoiceError> {
     let unreadable = |e: kanso_audio::AudioError| VoiceError::Audio(e.to_string());
     // Ogg Opus (told by its OpusHead, whatever the extension) goes through
@@ -100,6 +207,7 @@ pub fn decode_pieces(
         .total_frames()
         .map(|frames| Duration::from_secs_f64(frames as f64 / f64::from(rate)));
     let mut resampler = Resampler16k::new(rate).map_err(VoiceError::Audio)?;
+    let mut stereo: Option<Stereo> = None;
     let mut pending: Vec<f32> = Vec::new();
     let mut samples: Vec<f32> = Vec::new();
     let mut frames_read = 0u64;
@@ -114,20 +222,46 @@ pub fn decode_pieces(
         let Some(channels) = audio.read(&mut samples).map_err(unreadable)? else {
             break;
         };
-        let mono = downmix(&samples, channels);
-        frames_read += mono.len() as u64;
-        resampler.push(&mono, &mut pending);
+        if labelled && channels == 2 {
+            if stereo.is_none() {
+                stereo = Some(Stereo::new(rate)?);
+            }
+            frames_read += (samples.len() / 2) as u64;
+            if let Some(both) = stereo.as_mut() {
+                both.push(&samples, &mut pending);
+            }
+        } else {
+            let mono = downmix(&samples, channels);
+            frames_read += mono.len() as u64;
+            resampler.push(&mono, &mut pending);
+        }
         while let Some(cut) = plan_cut(&pending, MODEL_RATE) {
-            piece(&pending[..cut], progress(frames_read))?;
+            let speaker = stereo.as_mut().and_then(|both| both.take(cut));
+            piece(&pending[..cut], progress(frames_read), speaker)?;
             pending.drain(..cut);
         }
     }
-    resampler.finish(&mut pending);
+    if let Some(both) = stereo.as_mut() {
+        both.finish(&mut pending);
+    } else {
+        resampler.finish(&mut pending);
+    }
     for range in split(&pending, MODEL_RATE) {
         if cancel.load(Ordering::Relaxed) {
             return Err(VoiceError::Cancelled);
         }
-        piece(&pending[range], progress(frames_read))?;
+        let speaker = stereo.as_ref().map(|both| {
+            let end = range
+                .end
+                .min(both.pending_left.len())
+                .min(both.pending_right.len());
+            let start = range.start.min(end);
+            speaker_of(
+                energy(&both.pending_left[start..end]),
+                energy(&both.pending_right[start..end]),
+            )
+        });
+        piece(&pending[range], progress(frames_read), speaker.flatten())?;
     }
     Ok(())
 }
@@ -138,6 +272,9 @@ pub struct Timed {
     /// Time from the start of the recording.
     pub start: Duration,
     pub text: String,
+    /// Who spoke, when the recording keeps the microphone and system audio
+    /// on separate channels.
+    pub speaker: Option<Speaker>,
 }
 
 /// The time `samples` 16 kHz samples into a recording. Pure.
@@ -166,7 +303,11 @@ pub fn transcribe_timed(
         samples_before += samples.len();
         let text = model.transcribe(samples, cancel)?;
         if !text.trim().is_empty() {
-            pieces.push(Timed { start, text });
+            pieces.push(Timed {
+                start,
+                text,
+                speaker: None,
+            });
         }
         progress(at);
         Ok(())
@@ -199,19 +340,28 @@ pub fn transcribe_parts(
     let mut samples_before = 0usize;
     for (source, extension) in parts {
         let base = time_at(samples_before);
-        decode_pieces(source, extension.as_deref(), cancel, &mut |samples, at| {
-            let start = time_at(samples_before);
-            samples_before += samples.len();
-            let text = model.transcribe(samples, cancel)?;
-            if !text.trim().is_empty() {
-                pieces.push(Timed { start, text });
-            }
-            progress(Progress {
-                done: base + at.done,
-                total,
-            });
-            Ok(())
-        })?;
+        decode_labelled(
+            source,
+            extension.as_deref(),
+            cancel,
+            &mut |samples, at, speaker| {
+                let start = time_at(samples_before);
+                samples_before += samples.len();
+                let text = model.transcribe(samples, cancel)?;
+                if !text.trim().is_empty() {
+                    pieces.push(Timed {
+                        start,
+                        text,
+                        speaker,
+                    });
+                }
+                progress(Progress {
+                    done: base + at.done,
+                    total,
+                });
+                Ok(())
+            },
+        )?;
     }
     if pieces.is_empty() {
         return Err(VoiceError::NothingHeard);
@@ -299,6 +449,68 @@ mod tests {
             },
         )?;
         Ok((lengths, seen))
+    }
+
+    /// A stereo WAV of tone and pauses, the left channel at `left` gain and
+    /// the right at `right`.
+    fn wav_lr(rate: u32, frames: usize, left: f32, right: f32) -> Vec<u8> {
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: rate,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut writer = hound::WavWriter::new(&mut bytes, spec).unwrap();
+        for i in 0..frames {
+            let t = i as f32 / rate as f32;
+            let s = if t.fract() < 0.66 {
+                (t * 440. * std::f32::consts::TAU).sin() * 0.3
+            } else {
+                0.
+            };
+            writer.write_sample((s * left * 32_767.) as i16).unwrap();
+            writer.write_sample((s * right * 32_767.) as i16).unwrap();
+        }
+        writer.finalize().unwrap();
+        bytes.into_inner()
+    }
+
+    fn labels(bytes: Vec<u8>) -> (usize, Vec<Option<Speaker>>) {
+        let mut total = 0;
+        let mut speakers = Vec::new();
+        decode_labelled(
+            from_bytes(bytes),
+            Some("wav"),
+            &AtomicBool::new(false),
+            &mut |samples, _, speaker| {
+                total += samples.len();
+                speakers.push(speaker);
+                Ok(())
+            },
+        )
+        .unwrap();
+        (total, speakers)
+    }
+
+    #[test]
+    fn a_stereo_recording_labels_the_louder_channel_and_a_mono_one_nobody() {
+        let (_, you) = labels(wav_lr(16_000, 16_000 * 40, 0.8, 0.1));
+        assert!(you.len() >= 2 && you.iter().all(|s| *s == Some(Speaker::You)));
+        let (_, meeting) = labels(wav_lr(16_000, 16_000 * 40, 0.1, 0.8));
+        assert!(meeting.iter().all(|s| *s == Some(Speaker::Meeting)));
+        let (_, even) = labels(wav_lr(16_000, 16_000 * 10, 0.5, 0.5));
+        assert!(even.iter().all(Option::is_none));
+        let (_, mono) = labels(wav(16_000, 1, 16_000 * 10));
+        assert!(mono.iter().all(Option::is_none));
+        // The plain decoder never labels, and hears the same pieces.
+        let (lengths, _) = decode(
+            wav_lr(16_000, 16_000 * 40, 0.8, 0.1),
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        let (total, _) = labels(wav_lr(16_000, 16_000 * 40, 0.8, 0.1));
+        assert_eq!(lengths.iter().sum::<usize>(), total);
     }
 
     #[test]
@@ -431,6 +643,27 @@ mod tests {
             }
             let last = progress.last().unwrap();
             prop_assert_eq!(last.share(), Some(1.));
+        }
+
+        /// Each piece of a stereo recording is labelled by the louder
+        /// channel, whatever the rate, and the pieces still add up to the
+        /// file's length.
+        #[test]
+        fn prop_pieces_follow_the_louder_channel(
+            rate in prop::sample::select(vec![16_000u32, 44_100, 48_000]),
+            seconds in 3.0f32..45.,
+            left in 0.05f32..1.0,
+            right in 0.05f32..1.0,
+        ) {
+            prop_assume!((left - right).abs() > 0.05);
+            let frames = (seconds * rate as f32) as usize;
+            let (total, speakers) = labels(wav_lr(rate, frames, left, right));
+            let expected = (frames as f64 * 16_000. / f64::from(rate)).round() as usize;
+            prop_assert!(total.abs_diff(expected) <= 1);
+            let want = if left > right { Speaker::You } else { Speaker::Meeting };
+            for speaker in speakers {
+                prop_assert_eq!(speaker, Some(want));
+            }
         }
 
         /// Time is samples over 16 kHz, in step as pieces add up.
