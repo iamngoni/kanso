@@ -318,6 +318,43 @@ impl CanvasDoc {
     /// written live again, with its points.
     pub fn edit(&self, base: &Canvas, local: &Canvas, part: usize) -> Vec<Vec<u8>> {
         let mut batch = Batch::new(&self.doc, part);
+        self.write_changes(&mut batch, base, local);
+        batch.finish()
+    }
+
+    /// [`edit`](Self::edit) as one transaction, with the title set to
+    /// `title` in it too: one update, or none when nothing changed. This is
+    /// how a batch from the local API reaches the room as one change: the
+    /// others take all of it or none of it.
+    pub fn edit_as_one(
+        &self,
+        base: &Canvas,
+        local: &Canvas,
+        title: Option<&str>,
+    ) -> Option<Vec<u8>> {
+        let old_title = self.title();
+        let mut batch = Batch::new(&self.doc, usize::MAX);
+        if let Some(new) = title
+            && new != old_title
+        {
+            rewrite(batch.txn(), &self.title, &old_title, new);
+        }
+        self.write_changes(&mut batch, base, local);
+        let mut updates = batch.finish();
+        debug_assert!(updates.len() <= 1);
+        updates.pop()
+    }
+
+    /// The size of the one update [`edit_as_one`](Self::edit_as_one) would
+    /// make, worked out on a copy: this document is left as it is.
+    pub fn one_edit_size(&self, base: &Canvas, local: &Canvas, title: Option<&str>) -> usize {
+        match CanvasDoc::load(&self.encode_state()) {
+            Ok(copy) => copy.edit_as_one(base, local, title).map_or(0, |u| u.len()),
+            Err(_) => usize::MAX,
+        }
+    }
+
+    fn write_changes(&self, batch: &mut Batch<'_>, base: &Canvas, local: &Canvas) {
         let (old_top, new_top) = (top_of(base), top_of(local));
         if !same(&old_top, &new_top) {
             let json = new_top.to_string();
@@ -329,21 +366,20 @@ impl CanvasDoc {
             base.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
         for node in &local.nodes {
             let old = old_nodes.get(node.id.as_str()).copied();
-            self.edit_node(&mut batch, old, node);
+            self.edit_node(batch, old, node);
             let old_strokes: HashMap<&str, &Stroke> = old
                 .map(|n| n.strokes.iter().map(|s| (s.id.as_str(), s)).collect())
                 .unwrap_or_default();
             for stroke in &node.strokes {
                 let old = old_strokes.get(stroke.id.as_str()).copied();
-                self.edit_stroke(&mut batch, &node.id, old, stroke);
+                self.edit_stroke(batch, &node.id, old, stroke);
             }
         }
         let old_edges: HashMap<&str, &Edge> =
             base.edges.iter().map(|e| (e.id.as_str(), e)).collect();
         for edge in &local.edges {
-            self.edit_edge(&mut batch, old_edges.get(edge.id.as_str()).copied(), edge);
+            self.edit_edge(batch, old_edges.get(edge.id.as_str()).copied(), edge);
         }
-        batch.finish()
     }
 
     fn edit_node(&self, batch: &mut Batch<'_>, old: Option<&Node>, new: &Node) {

@@ -1,79 +1,5 @@
 [
   {
-    "name": "create-canvas",
-    "description": "Create a new canvas note, empty or from a canvas document (JSON Canvas with Kanso's ink nodes), validated like any canvas.",
-    "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "type": "object",
-      "properties": {
-        "title": {
-          "type": "string",
-          "maxLength": 128,
-          "description": "The canvas title"
-        },
-        "bookId": {
-          "type": "string",
-          "minLength": 5,
-          "maxLength": 128,
-          "pattern": "^(book:|trash$|template$)",
-          "description": "The notebook ID. Without one the canvas goes to the Inbox."
-        },
-        "canvas": {
-          "type": "object",
-          "description": "A canvas document: {nodes: [...], edges: [...]}. Leave out for an empty canvas."
-        },
-        "tags": {
-          "description": "An array of tag IDs to assign.",
-          "type": "array",
-          "items": {
-            "type": "string",
-            "format": "starts_with",
-            "pattern": "^tag:.*"
-          }
-        }
-      },
-      "required": [
-        "title"
-      ]
-    },
-    "execution": {
-      "taskSupport": "forbidden"
-    }
-  },
-  {
-    "name": "edit-canvas",
-    "description": "Change a canvas with a batch of operations, applied all or none (a refused batch changes nothing). Each operation has an `op`: addNode {type: text|file|link|group|ink, x, y, width?, height?, text?, file? (a 'note:' ID or one of the canvas's 'file:' attachments), title?, url?, label?, color?, id?}, updateNode {id, text?, title?, color?, label?}, moveNode {id, x, y}, resizeNode {id, width, height}, removeNode {id} (arrows to it go too), addEdge {fromNode, toNode, fromSide?, toSide?, fromEnd?, toEnd?, label?, color?, id?}, updateEdge {id, ...}, removeEdge {id}, addStrokes {node, strokes: [{tool?, color?, width?, points: [[x, y, pressure], ...]}]} (points relative to the ink node; Kanso assigns the IDs), removeStrokes {node, strokes: [id, ...]}, moveStrokes {node, strokes: [id, ...], dx, dy}, setGroup {nodes: [id, ...], group?} (omit group to take them out of theirs), renameGroup {id, label}, rename {title}. Any operation on an existing item may carry `ifVersion` (its `kansoVersion` from `read-canvas`); the batch may carry `ifRev` (the note's `_rev`). A stale one is refused with the current versions. Works on shared canvases too, as one change the other people see arrive. Answers the new rev and the IDs the batch created.",
-    "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "type": "object",
-      "properties": {
-        "noteId": {
-          "type": "string",
-          "description": "The canvas note's ID, starting with 'note:'."
-        },
-        "ifRev": {
-          "type": "string",
-          "description": "The `_rev` you read; the batch is refused if the canvas has changed since."
-        },
-        "ops": {
-          "type": "array",
-          "maxItems": 500,
-          "items": {
-            "type": "object"
-          },
-          "description": "The operations, in order."
-        }
-      },
-      "required": [
-        "noteId",
-        "ops"
-      ]
-    },
-    "execution": {
-      "taskSupport": "forbidden"
-    }
-  },
-  {
     "name": "kanso-ask-read-lines",
     "description": "Read lines of one note for Ask. Returns the lines written `L12| text`, under the note's number, so you can cite them as `[number:L12-14]`. At most 200 lines. A note that cannot be read is reported as not found.",
     "inputSchema": {
@@ -214,6 +140,47 @@
     }
   },
   {
+    "name": "kanso-create-canvas",
+    "description": "Create a new canvas note, empty or from a canvas document (JSON Canvas with Kanso's ink nodes), validated like any canvas. Picture (file:) cards are refused: a new canvas has no pictures of its own. A key limited to some notebooks must pass bookId.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "The canvas title"
+        },
+        "bookId": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 128,
+          "pattern": "^(book:|trash$|template$)",
+          "description": "The notebook ID. Without one the canvas goes to the Inbox."
+        },
+        "canvas": {
+          "type": "object",
+          "description": "A canvas document: {nodes: [...], edges: [...]}. Leave out for an empty canvas."
+        },
+        "tags": {
+          "description": "An array of tag IDs to assign.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "starts_with",
+            "pattern": "^tag:.*"
+          }
+        }
+      },
+      "required": [
+        "title"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
     "name": "kanso-create-daily-note",
     "description": "Open the daily note for a day, creating it when there is none, as Kanso's Today command does. Daily notes have fixed IDs (`note:daily-YYYY-MM-DD`) and titles (`YYYY-MM-DD`) and live in the Journal notebook (`book:journal`), which is created on first use. A new daily note is filled in from the Journal's daily template, if one is set. Returns the note's ID, title, notebook and link, and whether it was created now.",
     "inputSchema": {
@@ -253,6 +220,39 @@
       "required": [
         "templateId",
         "title"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-edit-canvas",
+    "description": "Change a canvas with a batch of operations, applied all or none (a refused batch changes nothing). Each operation has an `op`: addNode {type: text|file|link|group|ink, x, y, width?, height?, text?, file? (a 'note:' ID you can read, or a 'file:' picture already on this canvas), title?, url?, label?, color?, id?}, updateNode {id, text?, title?, color?, label?}, moveNode {id, x, y}, resizeNode {id, width, height}, removeNode {id} (arrows to it go too), addEdge {fromNode, toNode, fromSide?, toSide?, fromEnd?, toEnd?, label?, color?, id?}, updateEdge {id, ...}, removeEdge {id}, addStrokes {node, strokes: [{tool?, color?, width?, points: [[x, y, pressure], ...]}]} (points relative to the ink node; Kanso assigns the IDs), removeStrokes {node, strokes: [id, ...]}, moveStrokes {node, strokes: [id, ...], dx, dy}, setGroup {nodes: [id, ...], group?} (omit group to take them out of theirs), renameGroup {id, label}, rename {title}. Any operation on an existing item may carry `ifVersion` (its `kansoVersion` from `kanso-read-canvas`); the batch may carry `ifRev` (the note's `_rev`). A stale one is refused with the current versions. Works on shared canvases too, as one change the other people see arrive. Answers the new rev and the IDs the batch created.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "The canvas note's ID, starting with 'note:'."
+        },
+        "ifRev": {
+          "type": "string",
+          "description": "The `_rev` you read; the batch is refused if the canvas has changed since."
+        },
+        "ops": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "type": "object"
+          },
+          "description": "The operations, in order."
+        }
+      },
+      "required": [
+        "noteId",
+        "ops"
       ]
     },
     "execution": {
@@ -366,6 +366,55 @@
         "noteId"
       ],
       "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-list-canvases",
+    "description": "List canvases (notes of type canvas) only, never Markdown notes. Each has its title, notebook, tags, size in bytes and a short Markdown summary of the text cards, card titles, links and recognized handwriting on it. Read the whole document with `kanso-read-canvas`. Locked canvases are not listed.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "bookId": {
+          "description": "ID of the notebook. It always starts with 'book:'.",
+          "type": "string"
+        },
+        "tagIds": {
+          "default": [],
+          "description": "An array of tag IDs to filter. It always starts with 'tag:'.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "keyword": {
+          "description": "Keyword to filter canvases",
+          "type": "string"
+        },
+        "sort": {
+          "default": "updatedAt",
+          "description": "Sort the canvases by the specified field",
+          "type": "string",
+          "enum": [
+            "updatedAt",
+            "createdAt",
+            "title"
+          ]
+        },
+        "descending": {
+          "default": true,
+          "description": "Reverse the order of the output",
+          "type": "boolean"
+        },
+        "limit": {
+          "default": 100,
+          "description": "Limit the number of results returned",
+          "type": "number"
+        }
+      }
     },
     "execution": {
       "taskSupport": "forbidden"
@@ -574,6 +623,30 @@
     }
   },
   {
+    "name": "kanso-read-canvas",
+    "description": "Read a canvas as JSON: its cards (nodes), arrows (edges) and ink strokes, each with its `kansoVersion`, and the note's `_rev`. Pass `groupId` to get only what lies inside one group. Stroke points are [x, y, pressure] relative to their ink node. Use the versions as `ifVersion` and `_rev` as `ifRev` in `kanso-edit-canvas` so you never overwrite drawing you have not seen.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "noteId": {
+          "type": "string",
+          "description": "The canvas note's ID, starting with 'note:'."
+        },
+        "groupId": {
+          "type": "string",
+          "description": "The ID of a group node on the canvas: return only the cards, strokes and arrows inside its rectangle."
+        }
+      },
+      "required": [
+        "noteId"
+      ]
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
     "name": "kanso-read-version",
     "description": "Read one saved version of a currently visible note. This does not restore or change the note.",
     "inputSchema": {
@@ -721,79 +794,6 @@
         "done"
       ],
       "additionalProperties": false
-    },
-    "execution": {
-      "taskSupport": "forbidden"
-    }
-  },
-  {
-    "name": "list-canvases",
-    "description": "List canvases (notes of type canvas) only, never Markdown notes. Each has its title, notebook, tags, size in bytes and a short Markdown summary of the text cards, card titles, links and recognized handwriting on it. Read the whole document with `read-canvas`. Locked canvases are not listed.",
-    "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "type": "object",
-      "properties": {
-        "bookId": {
-          "description": "ID of the notebook. It always starts with 'book:'.",
-          "type": "string"
-        },
-        "tagIds": {
-          "default": [],
-          "description": "An array of tag IDs to filter. It always starts with 'tag:'.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "keyword": {
-          "description": "Keyword to filter canvases",
-          "type": "string"
-        },
-        "sort": {
-          "default": "updatedAt",
-          "description": "Sort the canvases by the specified field",
-          "type": "string",
-          "enum": [
-            "updatedAt",
-            "createdAt",
-            "title"
-          ]
-        },
-        "descending": {
-          "default": true,
-          "description": "Reverse the order of the output",
-          "type": "boolean"
-        },
-        "limit": {
-          "default": 100,
-          "description": "Limit the number of results returned",
-          "type": "number"
-        }
-      }
-    },
-    "execution": {
-      "taskSupport": "forbidden"
-    }
-  },
-  {
-    "name": "read-canvas",
-    "description": "Read a canvas as JSON: its cards (nodes), arrows (edges) and ink strokes, each with its `kansoVersion`, and the note's `_rev`. Pass `groupId` to get only what lies inside one group. Stroke points are [x, y, pressure] relative to their ink node. Use the versions as `ifVersion` and `_rev` as `ifRev` in `edit-canvas` so you never overwrite drawing you have not seen.",
-    "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "type": "object",
-      "properties": {
-        "noteId": {
-          "type": "string",
-          "description": "The canvas note's ID, starting with 'note:'."
-        },
-        "groupId": {
-          "type": "string",
-          "description": "The ID of a group node on the canvas: return only the cards, strokes and arrows inside its rectangle."
-        }
-      },
-      "required": [
-        "noteId"
-      ]
     },
     "execution": {
       "taskSupport": "forbidden"

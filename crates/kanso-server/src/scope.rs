@@ -52,8 +52,8 @@ pub const READ_TOOLS: [&str; 24] = [
     "kanso-ask-search",
     "kanso-ask-read-lines",
     "kanso-ask-when",
-    "list-canvases",
-    "read-canvas",
+    "kanso-list-canvases",
+    "kanso-read-canvas",
 ];
 
 /// The tools Ask your notes gives an agent: the same five a model with an

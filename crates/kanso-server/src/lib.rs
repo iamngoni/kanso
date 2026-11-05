@@ -48,7 +48,7 @@ use axum::middleware;
 use axum::routing::post;
 use kanso_store::Store;
 
-pub use canvas::SharedCanvases;
+pub use canvas::{CanvasChange, SharedCanvases};
 pub use changeset::{
     AppliedSet, ApplyFailure, ChangeSet, ChangeSets, Counts, MergeTarget, OpKind, OpState,
     ProposedOp, Selection, TaskId, undo as undo_changes,

@@ -309,7 +309,7 @@ pub(crate) fn edit_canvas(
     if !key.sees(&vis, id) {
         return Err(ApiError::not_found());
     }
-    crate::canvas::edit(store, host, id, body)
+    crate::canvas::edit(store, host, key, &vis, id, body)
 }
 
 /// `GET /loops` for a key: loops in notes it sees.

@@ -42,7 +42,7 @@ pub(crate) struct NoteQuery {
     pub skip: usize,
     pub sort: Sort,
     pub descending: bool,
-    /// Only notes of this `doctype` (`canvas`), as `list-canvases` asks.
+    /// Only notes of this `doctype` (`canvas`), as `kanso-list-canvases` asks.
     pub doctype: Option<String>,
 }
 

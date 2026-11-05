@@ -386,19 +386,20 @@ mod tests {
         assert_eq!(
             &names[18..],
             [
-                "create-canvas",
-                "edit-canvas",
                 "kanso-ask-read-lines",
                 "kanso-ask-search",
                 "kanso-ask-when",
                 "kanso-attach-file",
+                "kanso-create-canvas",
                 "kanso-create-daily-note",
                 "kanso-create-from-template",
+                "kanso-edit-canvas",
                 "kanso-export-html",
                 "kanso-get-outline",
                 "kanso-get-properties",
                 "kanso-list-attachments",
                 "kanso-list-backlinks",
+                "kanso-list-canvases",
                 "kanso-list-mentions",
                 "kanso-list-note-links",
                 "kanso-list-open-loops",
@@ -407,14 +408,13 @@ mod tests {
                 "kanso-list-versions",
                 "kanso-move-note",
                 "kanso-read-attachment",
+                "kanso-read-canvas",
                 "kanso-read-version",
                 "kanso-related-notes",
                 "kanso-resolve-wikilink",
                 "kanso-run-query-view",
                 "kanso-search-by-meaning",
-                "kanso-set-task-done",
-                "list-canvases",
-                "read-canvas"
+                "kanso-set-task-done"
             ]
         );
         assert!(validate("kanso-list-open-loops", json!({"kind": "waiting"})).is_ok());

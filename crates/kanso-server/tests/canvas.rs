@@ -10,7 +10,7 @@ use axum::http::{Method, StatusCode};
 use common::*;
 use kanso_core::DocType;
 use kanso_core::canvas::{self, Canvas, Node, Point, Stroke};
-use kanso_server::{SharedCanvases, TokenStore, router_with_canvases};
+use kanso_server::{CanvasChange, SharedCanvases, TokenStore, router_with_canvases};
 use kanso_store::{Origin, Put, Store};
 use proptest::prelude::*;
 use proptest::test_runner::{FileFailurePersistence, TestCaseError};
@@ -297,7 +297,7 @@ async fn list_canvases_lists_canvases_only_and_not_locked_ones() {
     let (status, _) = get(&app.router, "/notes?doctype=bogus").await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
-    let listed = tool_json(&tool(&app.router, "list-canvases", json!({})).await);
+    let listed = tool_json(&tool(&app.router, "kanso-list-canvases", json!({})).await);
     let rows = listed.as_array().unwrap();
     assert_eq!(rows.len(), 1, "{listed}");
     assert_eq!(rows[0]["_id"], open.as_str());
@@ -310,13 +310,20 @@ async fn list_canvases_lists_canvases_only_and_not_locked_ones() {
     let by_keyword = tool_json(
         &tool(
             &app.router,
-            "list-canvases",
+            "kanso-list-canvases",
             json!({ "keyword": "nothing-here" }),
         )
         .await,
     );
     assert!(by_keyword.as_array().unwrap().is_empty());
-    let by_book = tool_json(&tool(&app.router, "list-canvases", json!({ "bookId": book })).await);
+    let by_book = tool_json(
+        &tool(
+            &app.router,
+            "kanso-list-canvases",
+            json!({ "bookId": book }),
+        )
+        .await,
+    );
     assert_eq!(by_book.as_array().unwrap().len(), 1);
 }
 
@@ -342,7 +349,8 @@ async fn read_canvas_returns_versions_rev_and_groups() {
     )
     .await;
     assert_eq!(alias, whole);
-    let via_tool = tool_json(&tool(&app.router, "read-canvas", json!({ "noteId": id })).await);
+    let via_tool =
+        tool_json(&tool(&app.router, "kanso-read-canvas", json!({ "noteId": id })).await);
     assert_eq!(via_tool, whole);
 
     let (_, group) = get(&app.router, &format!("/{id}/canvas?group=g1")).await;
@@ -508,7 +516,7 @@ async fn the_canvas_tools_work_over_mcp() {
     let created = tool_json(
         &tool(
             &app.router,
-            "create-canvas",
+            "kanso-create-canvas",
             json!({ "title": "Fresh", "bookId": book }),
         )
         .await,
@@ -518,7 +526,7 @@ async fn the_canvas_tools_work_over_mcp() {
     let from_doc = tool_json(
         &tool(
             &app.router,
-            "create-canvas",
+            "kanso-create-canvas",
             json!({ "title": "From JSON", "bookId": book, "canvas": serde_json::to_value(drawing()).unwrap() }),
         )
         .await,
@@ -535,17 +543,17 @@ async fn the_canvas_tools_work_over_mcp() {
     );
     let broken = tool(
         &app.router,
-        "create-canvas",
+        "kanso-create-canvas",
         json!({ "title": "Broken", "bookId": book, "canvas": { "nodes": [{ "id": "a", "type": "text", "width": -1, "height": 1 }] } }),
     )
     .await;
     assert_eq!(broken["isError"], true, "{broken}");
 
-    let read = tool_json(&tool(&app.router, "read-canvas", json!({ "noteId": id })).await);
+    let read = tool_json(&tool(&app.router, "kanso-read-canvas", json!({ "noteId": id })).await);
     let edited = tool_json(
         &tool(
             &app.router,
-            "edit-canvas",
+            "kanso-edit-canvas",
             json!({ "noteId": id, "ifRev": read["_rev"], "ops": [
                 { "op": "addNode", "type": "text", "x": 0, "y": 0, "text": "hello", "id": "mine" }
             ] }),
@@ -556,7 +564,7 @@ async fn the_canvas_tools_work_over_mcp() {
     // A stale edit is an error an agent can act on.
     let stale = tool(
         &app.router,
-        "edit-canvas",
+        "kanso-edit-canvas",
         json!({ "noteId": id, "ifRev": read["_rev"], "ops": [{ "op": "removeNode", "id": "mine" }] }),
     )
     .await;
@@ -568,7 +576,7 @@ async fn the_canvas_tools_work_over_mcp() {
     );
     let missing = tool(
         &app.router,
-        "edit-canvas",
+        "kanso-edit-canvas",
         json!({ "noteId": id, "ops": [{ "op": "moveNode", "id": "ghost", "x": 1, "y": 1 }] }),
     )
     .await;
@@ -582,10 +590,10 @@ async fn the_canvas_tools_work_over_mcp() {
         .map(|t| t["name"].as_str().unwrap().to_owned())
         .collect();
     for name in [
-        "list-canvases",
-        "read-canvas",
-        "edit-canvas",
-        "create-canvas",
+        "kanso-list-canvases",
+        "kanso-read-canvas",
+        "kanso-edit-canvas",
+        "kanso-create-canvas",
     ] {
         assert!(names.contains(&name.to_owned()), "{name}");
     }
@@ -613,7 +621,7 @@ async fn a_locked_canvas_is_empty_or_missing_everywhere() {
     for uri in [format!("/{id}/canvas"), format!("/{id}/canvas?group=g1")] {
         assert_eq!(get(&app.router, &uri).await.0, StatusCode::NOT_FOUND);
     }
-    let read = tool(&app.router, "read-canvas", json!({ "noteId": id })).await;
+    let read = tool(&app.router, "kanso-read-canvas", json!({ "noteId": id })).await;
     assert_eq!(read["isError"], true);
     assert!(!read.to_string().contains("zebra-secret"));
     let (status, _) = patch(
@@ -623,7 +631,7 @@ async fn a_locked_canvas_is_empty_or_missing_everywhere() {
     )
     .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
-    let listed = tool(&app.router, "list-canvases", json!({})).await;
+    let listed = tool(&app.router, "kanso-list-canvases", json!({})).await;
     assert!(
         !listed.to_string().contains("zebra-secret")
             && !listed.to_string().contains("Locked board")
@@ -674,7 +682,7 @@ proptest! {
             for ops in &batches {
                 let before = app.store.note(&open).unwrap().unwrap();
                 let (status, answer) = if via_tool {
-                    let result = tool(&app.router, "edit-canvas", json!({ "noteId": open, "ops": ops })).await;
+                    let result = tool(&app.router, "kanso-edit-canvas", json!({ "noteId": open, "ops": ops })).await;
                     let failed = result["isError"] == true;
                     (if failed { StatusCode::BAD_REQUEST } else { StatusCode::OK }, result)
                 } else {
@@ -694,7 +702,7 @@ proptest! {
                 let (sealed_status, sealed_answer) = patch(&app, &sealed, json!({ "ops": ops })).await;
                 prop_assert_eq!(sealed_status, StatusCode::NOT_FOUND);
                 prop_assert!(!sealed_answer.to_string().contains("Sealed"));
-                let tool_answer = tool(&app.router, "edit-canvas", json!({ "noteId": sealed, "ops": ops })).await;
+                let tool_answer = tool(&app.router, "kanso-edit-canvas", json!({ "noteId": sealed, "ops": ops })).await;
                 prop_assert_eq!(&tool_answer["isError"], &json!(true));
                 let read = get(&app.router, &format!("/{sealed}/canvas")).await;
                 prop_assert_eq!(read.0, StatusCode::NOT_FOUND);
@@ -715,17 +723,17 @@ proptest! {
 struct Room {
     canvas: Mutex<Canvas>,
     calls: Mutex<usize>,
+    title: Mutex<Option<String>>,
 }
 
 impl SharedCanvases for Room {
-    fn edit(
-        &self,
-        _note_id: &str,
-        change: &mut dyn FnMut(&Canvas) -> Result<Canvas, String>,
-    ) -> Result<bool, String> {
+    fn edit(&self, _note_id: &str, change: &mut CanvasChange<'_>) -> Result<bool, String> {
         let mut canvas = self.canvas.lock().unwrap();
-        let next = change(&canvas)?;
+        let (next, title) = change(&canvas)?;
         *canvas = next;
+        if title.is_some() {
+            *self.title.lock().unwrap() = title;
+        }
         *self.calls.lock().unwrap() += 1;
         Ok(true)
     }
@@ -762,6 +770,7 @@ async fn a_shared_canvas_is_changed_through_its_room_and_never_by_text() {
     let room = Arc::new(Room {
         canvas: Mutex::new(drawing()),
         calls: Mutex::new(0),
+        title: Mutex::new(None),
     });
     let router = with_room(&app, Some(room.clone()));
 
@@ -830,4 +839,261 @@ async fn a_shared_canvas_is_changed_through_its_room_and_never_by_text() {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(answer["reason"].as_str().unwrap().contains("sign in"));
+}
+
+#[tokio::test]
+async fn a_shared_rename_goes_with_the_change_and_a_stale_rev_is_refused() {
+    let app = app();
+    let book = make_book(&app.store);
+    let (id, _) = make_canvas(&app.store, &book, "Shared board", &drawing());
+    share(&app.store, &id);
+    let rev = app.store.note(&id).unwrap().unwrap().rev.unwrap();
+    let room = Arc::new(Room {
+        canvas: Mutex::new(drawing()),
+        calls: Mutex::new(0),
+        title: Mutex::new(None),
+    });
+    let router = with_room(&app, Some(room.clone()));
+    let (status, answer) = call(
+        &router,
+        Method::PATCH,
+        &format!("/{id}/canvas"),
+        Some(&json!({ "ifRev": "1-stale", "ops": [{ "op": "moveNode", "id": "t1", "x": 5, "y": 5 }] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{answer}");
+    assert_eq!(answer["rev"], rev.as_str());
+    assert_eq!(answer["versions"]["t1"], 1);
+    assert_eq!(room.canvas.lock().unwrap().node("t1").unwrap().x, 10.0);
+    // The new title is part of the same change to the room: one call, and
+    // the library is not written beside it.
+    let (status, done) = call(
+        &router,
+        Method::PATCH,
+        &format!("/{id}/canvas"),
+        Some(&json!({ "ifRev": rev, "ops": [
+            { "op": "moveNode", "id": "t1", "x": 5, "y": 5 },
+            { "op": "rename", "title": "Renamed" },
+        ] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{done}");
+    assert_eq!(*room.calls.lock().unwrap(), 1);
+    assert_eq!(room.title.lock().unwrap().as_deref(), Some("Renamed"));
+    assert_eq!(app.store.note(&id).unwrap().unwrap().title, "Shared board");
+}
+
+/// A key of `access` for `app`, limited to `books`.
+fn mint(app: &App, access: kanso_server::KeyAccess, books: Option<Vec<String>>) -> String {
+    app.keys
+        .mint(kanso_server::NewKey {
+            name: "Scoped".into(),
+            client: "other".into(),
+            access,
+            books,
+        })
+        .unwrap()
+        .key
+}
+
+/// Calls a tool through `/mcp` signed with `key`.
+async fn tool_as(app: &App, key: &str, name: &str, arguments: Value) -> Value {
+    let message = json!({
+        "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+        "params": { "name": name, "arguments": arguments },
+    });
+    let request = axum::http::Request::builder()
+        .method(Method::POST)
+        .uri("/mcp")
+        .header(axum::http::header::AUTHORIZATION, bearer(key))
+        .header(axum::http::header::CONTENT_TYPE, "application/json")
+        .body(axum::body::Body::from(message.to_string()))
+        .unwrap();
+    send(&app.router, request).await.json()["result"].clone()
+}
+
+fn notes_in(store: &Store, book: &str) -> usize {
+    store.notes_in_books(&[book.to_owned()]).unwrap().len()
+}
+
+#[tokio::test]
+async fn a_key_for_some_notebooks_must_say_where_a_canvas_goes() {
+    let app = app();
+    let book = make_book(&app.store);
+    let key = mint(
+        &app,
+        kanso_server::KeyAccess::Write,
+        Some(vec![book.clone()]),
+    );
+    let inbox = app
+        .store
+        .role_book(kanso_core::roles::Role::Inbox, Origin::Sync)
+        .unwrap();
+    let before = notes_in(&app.store, &inbox);
+    let answer = tool_as(
+        &app,
+        &key,
+        "kanso-create-canvas",
+        json!({ "title": "Where?" }),
+    )
+    .await;
+    assert_eq!(answer["isError"], true, "{answer}");
+    assert!(text(&answer, 0).contains("bookId"), "{answer}");
+    assert_eq!(notes_in(&app.store, &inbox), before);
+    // In one of its notebooks, it is made.
+    let made = tool_as(
+        &app,
+        &key,
+        "kanso-create-canvas",
+        json!({ "title": "Here", "bookId": book }),
+    )
+    .await;
+    assert_ne!(made["isError"], true, "{made}");
+    assert_eq!(notes_in(&app.store, &book), 1);
+}
+
+/// Lists `files` as attachments of note `id`.
+fn attach(store: &Store, id: &str, files: &[&str]) {
+    let files: Vec<kanso_core::model::NoteFile> = files
+        .iter()
+        .map(|file| kanso_core::model::NoteFile {
+            file: (*file).to_owned(),
+            v: 1,
+            seal: "AAAAAAAAAAAAAAAAAAAAAA".into(),
+            key: "wrapped".into(),
+            extra: serde_json::Map::new(),
+        })
+        .collect();
+    store.set_note_files(id, &files).unwrap();
+}
+
+fn picture(file: &str) -> Value {
+    json!({ "ops": [{ "op": "addNode", "type": "file", "x": 0, "y": 0, "file": file }] })
+}
+
+#[tokio::test]
+async fn a_card_points_only_at_what_the_key_could_already_read() {
+    let app = app();
+    let book = make_book(&app.store);
+    // The board already shows two pictures.
+    let mut board = drawing();
+    for (card, file) in [("p1", "file:mine"), ("p2", "file:both")] {
+        board.put_node(
+            Node {
+                id: card.into(),
+                kind: "file".into(),
+                x: 500.0,
+                y: 500.0,
+                width: 50.0,
+                height: 50.0,
+                file: Some(file.into()),
+                ..Node::default()
+            },
+            1,
+        );
+    }
+    let (id, _) = make_canvas(&app.store, &book, "Board", &board);
+    // Another note's picture.
+    let other = app
+        .store
+        .put(
+            DocType::Note,
+            json!({ "title": "Other", "bookId": book, "body": "![x](inkdrop://file:theirs)" }),
+            Put::Upsert,
+            Origin::Sync,
+        )
+        .unwrap()
+        .id;
+    // `file:both` is also held by a locked note, so it is sealed with it.
+    let (vault, _) = make_canvas(&app.store, &book, "Vault", &Canvas::default());
+    attach(&app.store, &vault, &["file:both"]);
+    lock(&app.store, &vault);
+    assert_eq!(
+        app.store.file_owners("file:both").unwrap(),
+        vec![vault.clone()]
+    );
+    assert_eq!(
+        app.store.file_owners("file:theirs").unwrap(),
+        vec![other.clone()]
+    );
+    let before = app.store.note(&id).unwrap().unwrap().rev;
+
+    // Another note's attachment, and one sealed with a locked note: refused.
+    for file in ["file:theirs", "file:both"] {
+        let (status, answer) = patch(&app, &id, picture(file)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{file}: {answer}");
+    }
+    // A card to a locked note is a card to a note that isn't there.
+    let (status, answer) = patch(&app, &id, picture(&vault)).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{answer}");
+    assert!(!answer.to_string().contains("Vault"));
+    assert_eq!(app.store.note(&id).unwrap().unwrap().rev, before);
+    // The canvas's own attachment, and a note the key sees, are fine.
+    let (status, answer) = patch(&app, &id, picture("file:mine")).await;
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    let (status, answer) = patch(&app, &id, picture(&other)).await;
+    assert_eq!(status, StatusCode::OK, "{answer}");
+
+    // A new canvas has no attachments: a picture card on it is refused.
+    let made = tool(
+        &app.router,
+        "kanso-create-canvas",
+        json!({ "title": "New", "bookId": book, "canvas": { "nodes": [
+            { "id": "p", "type": "file", "file": "file:theirs", "x": 0, "y": 0, "width": 10, "height": 10 }
+        ], "edges": [] } }),
+    )
+    .await;
+    assert_eq!(made["isError"], true, "{made}");
+    let made = tool(
+        &app.router,
+        "kanso-create-canvas",
+        json!({ "title": "New", "bookId": book, "canvas": { "nodes": [
+            { "id": "p", "type": "file", "file": vault, "x": 0, "y": 0, "width": 10, "height": 10 }
+        ], "edges": [] } }),
+    )
+    .await;
+    assert_eq!(made["isError"], true, "{made}");
+}
+
+#[tokio::test]
+async fn read_and_suggest_keys_read_canvases_but_never_change_them() {
+    let app = app();
+    let book = make_book(&app.store);
+    let (id, rev) = make_canvas(&app.store, &book, "Board", &drawing());
+    for access in [
+        kanso_server::KeyAccess::Read,
+        kanso_server::KeyAccess::Suggest,
+    ] {
+        let key = mint(&app, access, None);
+        let read = tool_as(&app, &key, "kanso-read-canvas", json!({ "noteId": id })).await;
+        assert_ne!(read["isError"], true, "{read}");
+        for (name, args) in [
+            (
+                "kanso-edit-canvas",
+                json!({ "noteId": id, "ops": [{ "op": "rename", "title": "x" }] }),
+            ),
+            (
+                "kanso-create-canvas",
+                json!({ "title": "x", "bookId": book }),
+            ),
+        ] {
+            let answer = tool_as(&app, &key, name, args).await;
+            assert_eq!(answer["isError"], true, "{name} {access:?}: {answer}");
+        }
+        let request = axum::http::Request::builder()
+            .method(Method::PATCH)
+            .uri(format!("/{id}/canvas"))
+            .header(axum::http::header::AUTHORIZATION, bearer(&key))
+            .header(axum::http::header::CONTENT_TYPE, "application/json")
+            .body(axum::body::Body::from(
+                json!({ "ops": [{ "op": "rename", "title": "x" }] }).to_string(),
+            ))
+            .unwrap();
+        assert_eq!(
+            send(&app.router, request).await.status,
+            StatusCode::FORBIDDEN
+        );
+    }
+    assert_eq!(app.store.note(&id).unwrap().unwrap().rev.unwrap(), rev);
+    assert_eq!(notes_in(&app.store, &book), 1);
 }

@@ -25,6 +25,14 @@ use crate::model::{CURSOR_COLOURS, CanvasMerge, CanvasPointer, RemotePointer};
 /// being drawn on.
 pub const WRITE_EVERY_MS: i64 = 2_000;
 
+/// The largest update one change from the local API may be: the room takes
+/// at most [`MAX_UPDATE`](crate::envelope::MAX_UPDATE) per envelope, and the
+/// seal and signature need some of it.
+pub const ONE_CHANGE: usize = crate::envelope::MAX_UPDATE - 16 * 1024;
+
+/// What a change too big to reach the others as one is refused with.
+pub const TOO_BIG_FOR_ONE: &str = "This change is too big to reach the others on the shared canvas as one change. Split it into smaller batches.";
+
 /// What the engine says to the person about a full canvas.
 pub const FULL: &str = "This shared canvas is full. Erase some ink or move cards to a new canvas: what you add now can't be saved in the note.";
 
@@ -91,39 +99,79 @@ impl Engine {
     }
 
     /// Changes the open shared canvas without a view: `change` is given the
-    /// canvas as the CRDT has it now and returns the canvas it wants and
-    /// whatever it made; the difference is written to the CRDT as one batch
-    /// of updates, so people drawing on it see it arrive like a
-    /// collaborator's. This is how the local API and MCP edit a shared
-    /// canvas. An open view is left as it is: it takes the change in at its
-    /// next sync. `change` runs under the note's lock and must not call the
-    /// engine.
+    /// canvas as the CRDT has it now (what has arrived from others merged
+    /// in, and the library written from it) and returns the canvas it wants,
+    /// a new title or none, and whatever it made. The difference is written
+    /// to the CRDT as **one** update, so the others take all of it or none
+    /// of it, and see it arrive like a collaborator's. This is how the local
+    /// API and MCP edit a shared canvas.
+    ///
+    /// Refused, with nothing written, for a member who may only read, for a
+    /// change too big to go as one update (split it), and for a canvas that
+    /// would be full. An open view is left as it is: it takes the change in
+    /// at its next sync. `change` runs under the note's lock and must not
+    /// call the engine.
     pub fn edit_canvas<T>(
         &self,
         share_id: &str,
-        change: impl FnOnce(&Canvas) -> std::result::Result<(Canvas, T), String>,
+        change: impl FnOnce(&Canvas) -> std::result::Result<(Canvas, Option<String>, T), String>,
     ) -> Result<T> {
         let loaded = self.loaded(share_id)?;
         let mut loaded = lock(&loaded);
-        let Some(doc) = loaded.doc.canvas() else {
+        if loaded.doc.canvas().is_none() {
             return Err(not_a_canvas());
-        };
+        }
         if loaded.ended || loaded.reloading {
             return Err(CollabError::Refused(
                 "The canvas is not ready to change: try again in a moment.".into(),
             ));
         }
-        if !loaded.role().may_edit() {
-            return Err(CollabError::Refused(
+        let read_only = || {
+            CollabError::Refused(
                 "The canvas was shared with you to read: it can't be changed here.".into(),
-            ));
+            )
+        };
+        if !loaded.role().may_edit() {
+            return Err(read_only());
         }
+        // What others sent goes in first, and the library is brought up to
+        // it, so the change is checked against the canvas as it is.
+        let delivered = self.merge_delivered(&mut loaded)?;
+        loaded.pending_mentions.extend(delivered.mentions);
+        if !delivered.authors.is_empty() {
+            self.store
+                .add_shared_authors(&loaded.note.note_id, &delivered.authors)?;
+        }
+        if delivered.text {
+            loaded.canvas_dirty = true;
+            self.settle_canvas(&mut loaded, true)?;
+        }
+        // The list that arrived may have taken this member's editing away.
+        if !loaded.role().may_edit() {
+            return Err(read_only());
+        }
+        let doc = loaded.doc.canvas().ok_or_else(not_a_canvas)?;
         let base = doc.view();
-        let (next, out) = change(&base).map_err(CollabError::Refused)?;
+        let (next, title, out) = change(&base).map_err(CollabError::Refused)?;
         if size_of(&next) > canvas::MAX_BYTES {
             return Err(CollabError::Refused(FULL.into()));
         }
-        if self.take_canvas_edit(&mut loaded, &base, &next)? {
+        let title = title.map(|t| super::clamp_text(t, String::new()).0);
+        // Worked out on a copy first: a Yrs change can't be taken back.
+        let size = doc.one_edit_size(&base, &next, title.as_deref());
+        if size > ONE_CHANGE {
+            return Err(CollabError::Refused(TOO_BIG_FOR_ONE.into()));
+        }
+        if size > 0 && doc.encode_state().len() + 2 * size > STATE_LIMIT {
+            return Err(CollabError::Refused(FULL.into()));
+        }
+        if let Some(update) = doc.edit_as_one(&base, &next, title.as_deref()) {
+            self.store
+                .push_outbox(&loaded.note.share_id, "u", &update)?;
+            self.store.add_shared_authors(
+                &loaded.note.note_id,
+                std::slice::from_ref(&self.account.caller.username),
+            )?;
             loaded.canvas_dirty = true;
         }
         self.settle_canvas(&mut loaded, true)?;

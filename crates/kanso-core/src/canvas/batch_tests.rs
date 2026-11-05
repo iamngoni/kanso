@@ -469,7 +469,15 @@ proptest! {
                 prop_assert_eq!(next.validate(), Ok(()));
                 let body = to_body(&next);
                 prop_assert!(body.len() < MAX_BYTES);
-                prop_assert_eq!(parse(&body).unwrap(), next.clone());
+                // Read back, it is the same canvas. A coordinate may come
+                // back a last bit off (serde_json reads floats fast, not
+                // exactly), so compare what it stores again.
+                let back = parse(&body).unwrap();
+                prop_assert_eq!(back.validate(), Ok(()));
+                prop_assert_eq!(back.nodes.len(), next.nodes.len());
+                prop_assert_eq!(back.edges.len(), next.edges.len());
+                let ids = |c: &Canvas| c.nodes.iter().map(|n| n.id.clone()).collect::<Vec<_>>();
+                prop_assert_eq!(ids(&back), ids(&next));
                 // What the batch made is there, and was not there before.
                 let ids = versions(&before);
                 for id in made.nodes.iter().chain(&made.edges).chain(&made.strokes) {
@@ -557,5 +565,261 @@ proptest! {
         let (after, _) = mv(&read).unwrap();
         prop_assert!(mv(&after).is_err());
         prop_assert_eq!(after.live_strokes().count(), 2);
+    }
+}
+
+// ------------------------------------------------------------ hostile input
+
+use super::batch::{MAX_BATCH_POINTS, MAX_BATCH_STROKES, MAX_FIELD_BYTES, MAX_LISTED};
+
+#[test]
+fn a_title_label_or_url_is_kept_far_under_one_room_update() {
+    // Four bytes a character: 100,000 of them would be 400 KB in one field.
+    let wide = "\u{1D11E}".repeat(MAX_FIELD_BYTES / 4 + 1);
+    for op in [
+        json!({ "op": "addNode", "type": "group", "x": 0, "y": 0, "label": wide }),
+        json!({ "op": "addNode", "type": "link", "x": 0, "y": 0, "url": format!("https://x/{wide}") }),
+        json!({ "op": "addNode", "type": "file", "x": 0, "y": 0, "file": "note:known", "title": wide }),
+        json!({ "op": "renameGroup", "id": "g1", "label": wide }),
+        json!({ "op": "updateEdge", "id": "e1", "label": wide }),
+    ] {
+        assert!(
+            matches!(run(&seed(), json!([op])), Err(Refusal::Invalid(_))),
+            "{op}"
+        );
+    }
+    // Text goes to the room in pieces, so a long text card is fine.
+    let long = "t".repeat(90_000);
+    assert!(
+        run(
+            &seed(),
+            json!([{ "op": "updateNode", "id": "t1", "text": long }])
+        )
+        .is_ok()
+    );
+    let fits = "l".repeat(MAX_FIELD_BYTES);
+    assert!(
+        run(
+            &seed(),
+            json!([{ "op": "renameGroup", "id": "g1", "label": fits }])
+        )
+        .is_ok()
+    );
+}
+
+#[test]
+fn a_batch_heavier_than_any_canvas_is_refused_before_it_is_worked() {
+    let stroke = json!({ "points": [[0, 0, 0.5]] });
+    let many = vec![stroke; MAX_BATCH_STROKES + 1];
+    let err = Batch::from_json(
+        &json!({ "ops": [{ "op": "addStrokes", "node": "i1", "strokes": many }] }),
+    )
+    .unwrap_err();
+    assert!(err.contains("at most"), "{err}");
+    let points = vec![json!([0, 0, 0.5]); MAX_BATCH_POINTS / 10 + 1];
+    let strokes = vec![json!({ "points": points }); 10];
+    assert!(
+        Batch::from_json(
+            &json!({ "ops": [{ "op": "addStrokes", "node": "i1", "strokes": strokes }] })
+        )
+        .is_err()
+    );
+    let ids = vec![json!("s1"); MAX_LISTED + 1];
+    assert!(
+        Batch::from_json(
+            &json!({ "ops": [{ "op": "removeStrokes", "node": "i1", "strokes": ids }] })
+        )
+        .is_err()
+    );
+    // A batch made in Rust is held to the same.
+    let heavy = Batch {
+        if_rev: None,
+        ops: vec![Op::AddStrokes {
+            node: "i1".into(),
+            strokes: vec![
+                NewStroke {
+                    tool: None,
+                    color: None,
+                    width: None,
+                    points: vec![Point::new(0.0, 0.0, 0.5)],
+                };
+                MAX_BATCH_STROKES + 1
+            ],
+        }],
+    };
+    assert!(matches!(
+        apply_batch(&seed(), &heavy, &ctx(false)),
+        Err(Refusal::Full(_))
+    ));
+}
+
+/// A number a hostile caller might send, NaN and infinities included (a
+/// batch made in Rust can carry them even though JSON can't).
+fn wild() -> impl Strategy<Value = f64> {
+    prop_oneof![
+        6 => -2000.0f64..2000.0,
+        1 => Just(f64::NAN),
+        1 => Just(f64::INFINITY),
+        1 => Just(f64::NEG_INFINITY),
+        1 => Just(f64::MAX),
+        1 => Just(-0.0),
+        1 => Just(1e7),
+    ]
+}
+
+fn wild_id() -> impl Strategy<Value = String> {
+    prop_oneof![
+        4 => prop::sample::select(vec!["t1", "g1", "far", "i1", "e1", "s1"]).prop_map(str::to_owned),
+        1 => prop::sample::select(vec!["", "ghost", "../../x", "a b", "\u{0}", "é"]).prop_map(str::to_owned),
+        1 => "[a-z0-9_-]{60,70}",
+    ]
+}
+
+fn wild_op() -> impl Strategy<Value = Op> {
+    let text = prop_oneof![
+        4 => Just(String::from("x")),
+        1 => Just("\u{1D11E}".repeat(MAX_FIELD_BYTES)),
+        1 => Just("y".repeat(100_001)),
+    ];
+    let point = (wild(), wild(), wild(), prop::option::of((wild(), wild()))).prop_map(
+        |(x, y, pressure, tilt)| Point {
+            x,
+            y,
+            pressure,
+            tilt,
+        },
+    );
+    prop_oneof![
+        (
+            prop::option::of(wild_id()),
+            prop::sample::select(vec!["text", "group", "link", "ink", "file", "?"]),
+            wild(),
+            wild(),
+            prop::option::of(wild()),
+            text.clone()
+        )
+            .prop_map(|(id, kind, x, y, width, words)| Op::AddNode {
+                id,
+                kind: kind.into(),
+                x,
+                y,
+                width,
+                height: width,
+                text: (kind == "text").then(|| words.clone()),
+                file: (kind == "file").then(|| "note:known".into()),
+                title: None,
+                url: (kind == "link").then(|| format!("https://x/{words}")),
+                label: (kind == "group").then_some(words),
+                color: None,
+            }),
+        (wild_id(), wild(), wild()).prop_map(|(id, x, y)| Op::MoveNode {
+            id,
+            x,
+            y,
+            if_version: None
+        }),
+        (wild_id(), wild(), wild()).prop_map(|(id, width, height)| Op::ResizeNode {
+            id,
+            width,
+            height,
+            if_version: None
+        }),
+        (wild_id(), text.clone()).prop_map(|(id, t)| Op::UpdateNode {
+            id,
+            text: Some(t),
+            title: None,
+            color: None,
+            label: None,
+            if_version: None
+        }),
+        wild_id().prop_map(|id| Op::RemoveNode {
+            id,
+            if_version: None
+        }),
+        (wild_id(), wild_id()).prop_map(|(from_node, to_node)| Op::AddEdge {
+            id: None,
+            from_node,
+            to_node,
+            from_side: None,
+            to_side: None,
+            from_end: None,
+            to_end: None,
+            label: None,
+            color: None,
+        }),
+        (prop::collection::vec(point, 0..40), wild()).prop_map(|(points, width)| Op::AddStrokes {
+            node: "i1".into(),
+            strokes: vec![NewStroke {
+                tool: None,
+                color: None,
+                width: Some(width),
+                points
+            }],
+        }),
+        (wild(), wild()).prop_map(|(dx, dy)| Op::MoveStrokes {
+            node: "i1".into(),
+            strokes: vec![StrokeId::Plain("s1".into()), StrokeId::Plain("s1".into())],
+            dx,
+            dy,
+        }),
+        (wild_id(), prop::option::of(wild_id())).prop_map(|(n, group)| Op::SetGroup {
+            nodes: vec![n],
+            group
+        }),
+        text.prop_map(|title| Op::Rename { title }),
+    ]
+}
+
+/// Every number in a canvas is a real one.
+fn all_finite(c: &Canvas) -> bool {
+    c.nodes.iter().filter(|n| !n.deleted).all(|n| {
+        [n.x, n.y, n.width, n.height].iter().all(|v| v.is_finite())
+            && n.strokes.iter().filter(|s| !s.deleted).all(|s| {
+                s.width.is_finite()
+                    && s.points.iter().all(|p| {
+                        p.x.is_finite()
+                            && p.y.is_finite()
+                            && p.pressure.is_finite()
+                            && p.tilt.is_none_or(|(a, b)| a.is_finite() && b.is_finite())
+                    })
+            })
+    })
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        cases: 512,
+        rng_seed: proptest::test_runner::RngSeed::Fixed(20_261_017),
+        failure_persistence: None,
+        ..ProptestConfig::default()
+    })]
+
+    /// Hostile batches, NaN and infinities among them, on a private canvas
+    /// and a shared one: nothing panics; a refused batch changes nothing;
+    /// what is taken is a valid canvas under the budget with only real
+    /// numbers, and no title, label or URL long enough to choke the room.
+    #[test]
+    fn hostile_batches_never_panic_or_make_a_bad_canvas(
+        ops in prop::collection::vec(wild_op(), 1..8),
+        shared in any::<bool>(),
+    ) {
+        let before = seed();
+        let batch = Batch { if_rev: None, ops };
+        match apply_batch(&before, &batch, &ctx(shared)) {
+            Err(_) => prop_assert_eq!(&before, &seed()),
+            Ok((next, made)) => {
+                prop_assert_eq!(next.validate(), Ok(()));
+                prop_assert!(all_finite(&next));
+                prop_assert!(to_body(&next).len() < MAX_BYTES);
+                for node in next.nodes.iter().filter(|n| !n.deleted) {
+                    for field in [&node.title, &node.label, &node.url].into_iter().flatten() {
+                        prop_assert!(field.len() <= MAX_FIELD_BYTES + 16);
+                    }
+                }
+                if let Some(title) = made.title {
+                    prop_assert!(title.chars().count() <= 500);
+                }
+            }
+        }
     }
 }

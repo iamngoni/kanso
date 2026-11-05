@@ -55,18 +55,11 @@ async fn lists_inkdrop_tools_before_kanso_tools_and_the_note_template() {
     let tools = answer["result"]["tools"].as_array().unwrap();
     // The 17, then Kanso's own.
     assert_eq!(tools.len(), 47);
-    // `kanso-…`, and the four canvas tools the design names plainly.
-    assert!(tools[18..].iter().all(|t| {
-        let name = t["name"].as_str().unwrap();
-        name.starts_with("kanso-")
-            || [
-                "create-canvas",
-                "edit-canvas",
-                "list-canvases",
-                "read-canvas",
-            ]
-            .contains(&name)
-    }));
+    assert!(
+        tools[18..]
+            .iter()
+            .all(|t| t["name"].as_str().unwrap().starts_with("kanso-"))
+    );
     for tool in tools {
         assert!(tool["description"].as_str().is_some_and(|d| !d.is_empty()));
         assert_eq!(tool["inputSchema"]["type"], "object");

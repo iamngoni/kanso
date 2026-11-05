@@ -751,16 +751,13 @@ fn node_mcp_server_and_native_mcp_agree() {
         .iter()
         .map(|t| t["name"].as_str().unwrap())
         .collect();
-    // The 17 first, then Kanso's own: `kanso-…`, and the four canvas tools
-    // the design names plainly (issue #45).
+    // The 17 first, then Kanso's own.
     assert_eq!(names[..TOOL_NAMES.len()], TOOL_NAMES);
-    assert!(names[TOOL_NAMES.len()..].iter().all(|n| {
-        n.starts_with("kanso-")
-            || matches!(
-                *n,
-                "create-canvas" | "edit-canvas" | "list-canvases" | "read-canvas"
-            )
-    }));
+    assert!(
+        names[TOOL_NAMES.len()..]
+            .iter()
+            .all(|n| n.starts_with("kanso-"))
+    );
     let mut failures = native.unexpected();
     eprintln!("native /mcp:\n{}", summary(&native));
     verify_store(

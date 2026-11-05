@@ -1,6 +1,6 @@
 //! Batches of operations on a canvas: what the local API's and MCP's
-//! `edit-canvas` applies (issue #45, step 12), and the read views
-//! `read-canvas` returns.
+//! `kanso-edit-canvas` applies (issue #45, step 12), and the read views
+//! `kanso-read-canvas` returns.
 //!
 //! A batch is atomic: [`apply`] works on a copy and hands it back only when
 //! every operation held, so a refused batch changes nothing. Each operation
@@ -29,8 +29,24 @@ pub const MAX_OPS: usize = 500;
 /// The largest coordinate or size an operation may set, in points.
 const LIMIT: f64 = 1.0e7;
 
-/// The longest text, title or label an operation may set, in characters.
+/// The longest text an operation may give a text card, in characters.
 const MAX_TEXT: usize = 100_000;
+
+/// The longest title, label or URL an operation may set, in bytes.
+pub const MAX_FIELD_BYTES: usize = 4 * 1024;
+
+/// The most strokes one batch may add, and the most points in all of them.
+/// A canvas holds at most 1 MB, so more could never be saved; the limits
+/// refuse such a batch before any work is done on it.
+pub const MAX_BATCH_STROKES: usize = 10_000;
+pub const MAX_BATCH_POINTS: usize = 200_000;
+
+/// The most IDs one operation may list (strokes to remove or move, cards to
+/// group).
+pub const MAX_LISTED: usize = 20_000;
+
+/// The largest batch, as JSON. Anything bigger could not fit the canvas.
+pub const MAX_BATCH_BYTES: usize = 4 * MAX_BYTES;
 
 /// Whether a shared canvas may take image (attachment) cards. Shared notes
 /// do not carry attachments yet, so a card would be a placeholder for
@@ -260,6 +276,15 @@ impl Batch {
         if ops.len() > MAX_OPS {
             return Err(format!("A batch holds at most {MAX_OPS} operations."));
         }
+        let bytes: usize = ops
+            .iter()
+            .map(|op| serde_json::to_vec(op).map_or(usize::MAX, |v| v.len()))
+            .fold(0, usize::saturating_add);
+        if bytes > MAX_BATCH_BYTES {
+            return Err(format!(
+                "A batch is at most {MAX_BATCH_BYTES} bytes of JSON: a canvas holds at most {MAX_BYTES}. Split it into smaller batches."
+            ));
+        }
         let ops = ops
             .iter()
             .enumerate()
@@ -268,7 +293,43 @@ impl Batch {
                     .map_err(|err| format!("Operation {} isn't valid: {err}", at + 1))
             })
             .collect::<Result<_, _>>()?;
-        Ok(Batch { if_rev, ops })
+        let batch = Batch { if_rev, ops };
+        batch.check_size()?;
+        Ok(batch)
+    }
+
+    /// Refuses a batch that adds more strokes or points, or lists more IDs,
+    /// than a canvas could ever hold.
+    pub fn check_size(&self) -> Result<(), String> {
+        let (mut strokes, mut points) = (0usize, 0usize);
+        for (at, op) in self.ops.iter().enumerate() {
+            let listed = match op {
+                Op::AddStrokes { strokes: new, .. } => {
+                    strokes = strokes.saturating_add(new.len());
+                    points = new
+                        .iter()
+                        .fold(points, |n, s| n.saturating_add(s.points.len()));
+                    0
+                }
+                Op::RemoveStrokes { strokes: ids, .. } | Op::MoveStrokes { strokes: ids, .. } => {
+                    ids.len()
+                }
+                Op::SetGroup { nodes, .. } => nodes.len(),
+                _ => 0,
+            };
+            if listed > MAX_LISTED {
+                return Err(format!(
+                    "Operation {} lists more than {MAX_LISTED} items.",
+                    at + 1
+                ));
+            }
+        }
+        if strokes > MAX_BATCH_STROKES || points > MAX_BATCH_POINTS {
+            return Err(format!(
+                "A batch adds at most {MAX_BATCH_STROKES} strokes and {MAX_BATCH_POINTS} points. Split it into smaller batches."
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -337,6 +398,7 @@ impl Refusal {
 /// Applies `batch` to `canvas`, all or none. Returns the new canvas and what
 /// the batch made. Pure besides `ctx`'s lookups.
 pub fn apply(canvas: &Canvas, batch: &Batch, ctx: &Context) -> Result<(Canvas, Applied), Refusal> {
+    batch.check_size().map_err(Refusal::Full)?;
     stale_check(canvas, &batch.ops)?;
     let mut next = canvas.clone();
     let mut made = Applied::default();
@@ -863,13 +925,25 @@ fn size(v: f64, name: &str) -> Result<f64, Refusal> {
     }
 }
 
+/// A text card's text, or a title, label or URL, within its limit. A text
+/// card's text goes to a shared canvas's room in pieces; every other field
+/// goes whole, so it is kept far under the room's 256 KB per change.
 fn words(s: &str, name: &str) -> Result<String, Refusal> {
-    if s.chars().count() > MAX_TEXT {
+    let too_long = if name == "text" {
+        s.chars().count() > MAX_TEXT
+    } else {
+        s.len() > MAX_FIELD_BYTES
+    };
+    if !too_long {
+        Ok(s.to_owned())
+    } else if name == "text" {
         Err(invalid(format!(
             "“{name}” is longer than {MAX_TEXT} characters."
         )))
     } else {
-        Ok(s.to_owned())
+        Err(invalid(format!(
+            "“{name}” is longer than {MAX_FIELD_BYTES} bytes."
+        )))
     }
 }
 

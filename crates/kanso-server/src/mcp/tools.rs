@@ -74,8 +74,8 @@ pub(crate) fn call(
         ("read-note", vis) => read_note(store, vis, &args),
         ("search-notes", vis) => search_notes(store, vis, &args),
         ("list-notes", vis) => list_notes(store, vis, &args),
-        ("list-canvases", vis) => list_canvases(store, vis, &args),
-        ("read-canvas", vis) => read_canvas(store, vis, &args),
+        ("kanso-list-canvases", vis) => list_canvases(store, vis, &args),
+        ("kanso-read-canvas", vis) => read_canvas(store, vis, &args),
         ("list-templates", vis) => list_templates(store, vis, &args),
         ("list-notebooks", Some(vis)) => list_visible_books(store, vis),
         ("kanso-get-outline", vis) => get_outline(store, vis, &args),
@@ -192,12 +192,21 @@ fn guard_write(
                 return Err(ApiError::not_found().into());
             }
         }
-        "edit-canvas" => {
+        "kanso-edit-canvas" => {
             let id = note("noteId");
             keyed::check_write(store, key, vis, DocType::Note, Some(&id), &Args::new())?;
             sees(&id)?;
         }
-        "create-canvas" => keyed::check_write(store, key, vis, DocType::Note, None, args)?,
+        "kanso-create-canvas" => {
+            // Without a notebook the canvas goes to the Inbox, which may not
+            // be one of the key's notebooks.
+            if key.scope.notebooks.is_some() && opt_str(args, "bookId").is_none() {
+                return Err(ToolError(
+                    "This key is limited to some notebooks: pass `bookId`, one of them, to say where the canvas goes.".into(),
+                ));
+            }
+            keyed::check_write(store, key, vis, DocType::Note, None, args)?;
+        }
         "kanso-set-task-done"
         | "kanso-attach-file"
         | "kanso-list-attachments"
@@ -238,8 +247,8 @@ fn call_full(state: &AppState, key: &Key, vis: &Visibility, name: &str, args: Ar
     match name {
         "read-backlinks" => read_backlinks(store, vis, &args),
         "create-note" => upsert(store, DocType::Note, args),
-        "create-canvas" => create_canvas(store, args),
-        "edit-canvas" => edit_canvas(state, &args),
+        "kanso-create-canvas" => create_canvas(store, vis, args),
+        "kanso-edit-canvas" => edit_canvas(state, key, vis, &args),
         "update-note" => update_note(store, args),
         "patch-note" => patch_note(store, &args),
         "list-tags" => list(keyed::list_docs(store, key, DocType::Tag, None, 0)?),
@@ -1445,15 +1454,19 @@ fn list_canvases(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolRe
             .unwrap_or(true),
         doctype: Some("canvas".into()),
     };
-    let rows = visible_rows(vis, api::list_notes(store, &query)?, usize::MAX);
-    let canvases: Vec<Value> = rows
+    // A locked canvas, or one in a locked notebook, is not listed at all;
+    // only the rows given back count as shown.
+    let unlocked = api::list_notes(store, &query)?
         .into_iter()
         .filter(|row| {
-            // A locked canvas is not listed at all.
-            row.get("_id")
-                .and_then(Value::as_str)
-                .is_some_and(|id| !store.note_is_locked(id).unwrap_or(true))
+            row.get("_id").and_then(Value::as_str).is_some_and(|id| {
+                !store.note_is_locked(id).unwrap_or(true)
+                    && !store.note_in_locked_book(id).unwrap_or(true)
+            })
         })
+        .collect();
+    let canvases: Vec<Value> = visible_rows(vis, unlocked, limit)
+        .into_iter()
         .take(limit)
         .map(|row| {
             json!({
@@ -1478,12 +1491,12 @@ fn read_canvas(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResu
     result(vec![text(pretty(&canvas))])
 }
 
-fn create_canvas(store: &Store, args: Args) -> ToolResult {
-    let res = crate::canvas::create(store, args).map_err(canvas_error)?;
+fn create_canvas(store: &Store, vis: &Visibility, args: Args) -> ToolResult {
+    let res = crate::canvas::create(store, vis, args).map_err(canvas_error)?;
     result(vec![text(pretty(&res))])
 }
 
-fn edit_canvas(state: &AppState, args: &Args) -> ToolResult {
+fn edit_canvas(state: &AppState, key: &Key, vis: &Visibility, args: &Args) -> ToolResult {
     let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
     let mut batch = Map::new();
     batch.insert(
@@ -1493,8 +1506,15 @@ fn edit_canvas(state: &AppState, args: &Args) -> ToolResult {
     if let Some(rev) = args.get("ifRev") {
         batch.insert("ifRev".into(), rev.clone());
     }
-    let res = crate::canvas::edit(&state.store, &state.canvases, &id, &Value::Object(batch))
-        .map_err(canvas_error)?;
+    let res = crate::canvas::edit(
+        &state.store,
+        &state.canvases,
+        key,
+        vis,
+        &id,
+        &Value::Object(batch),
+    )
+    .map_err(canvas_error)?;
     result(vec![text(pretty(&res))])
 }
 
@@ -1524,7 +1544,7 @@ fn update_note(store: &Store, args: Args) -> ToolResult {
         Value::Object(note) => note,
         _ => Map::new(),
     };
-    // Only `read-canvas` and `edit-canvas` change what a canvas holds.
+    // Only `kanso-read-canvas` and `kanso-edit-canvas` change what a canvas holds.
     note.remove("canvasJson");
     note.extend(args);
     note.insert("updatedAt".into(), now_ms().into());

@@ -10,9 +10,10 @@
 //! to the parsed canvas, each stamped like an edit in the canvas view, and
 //! writes it back as one revision with the API as its origin.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
-use kanso_core::canvas::{self, Batch, BatchContext, Canvas, Refusal};
+use kanso_core::canvas::{self, Batch, BatchContext, Canvas, Op, Refusal};
 use kanso_core::model::SHARE_FIELD;
 use kanso_core::{DocType, Note, now_ms};
 use kanso_store::{Origin, Put, Store, StoreError};
@@ -20,32 +21,81 @@ use serde_json::{Map, Value, json};
 
 use crate::api;
 use crate::error::{ApiError, ApiResult};
+use crate::keyed::Key;
+use crate::scope::Visibility;
 
 /// How many times an edit without `ifRev` re-reads and re-applies when
 /// someone else writes the note between its read and its write.
 const RETRIES: usize = 5;
 
+/// What [`SharedCanvases::edit`] asks of the canvas as the room has it: the
+/// canvas wanted and the note's new title, if any, or why not.
+pub type CanvasChange<'a> = dyn FnMut(&Canvas) -> Result<(Canvas, Option<String>), String> + 'a;
+
 /// What the local API needs from the app to change a canvas that is shared:
 /// its CRDT lives in the signed-in account's engine, which the server does
 /// not hold.
 pub trait SharedCanvases: Send + Sync {
-    /// Applies `change` to shared canvas `note_id` as one transaction, so
-    /// people drawing on it see the change arrive like a collaborator's.
-    /// `change` is given the canvas as the CRDT has it and returns the
-    /// canvas it wants, or why not.
+    /// Applies `change` to shared canvas `note_id` as one change to its
+    /// CRDT, so people drawing on it see all of it arrive at once, like a
+    /// collaborator's. `change` is given the canvas as the CRDT has it (the
+    /// library brought up to it first) and returns the canvas it wants and
+    /// the note's new title, if any, or why not. `change` reads the library
+    /// and must not call back into the host.
     ///
     /// `Ok(false)` when this device cannot reach that canvas's room (signed
     /// out), and nothing was changed.
-    fn edit(
-        &self,
-        note_id: &str,
-        change: &mut dyn FnMut(&Canvas) -> Result<Canvas, String>,
-    ) -> Result<bool, String>;
+    fn edit(&self, note_id: &str, change: &mut CanvasChange<'_>) -> Result<bool, String>;
 }
 
-/// What a batch asks the library: whether a note is there, and whether a
-/// file is one of the canvas's attachments.
-type Lookups<'a> = (&'a dyn Fn(&str) -> bool, &'a dyn Fn(&str) -> bool);
+/// What a caller's cards may point at, looked up before any edit: the notes
+/// a batch names that the caller sees, and the pictures already on this
+/// canvas (its attachments and the files its cards show) that the caller
+/// could read. So a card never brings in another note's attachment, one
+/// sealed with a locked note (#44), or one the key can't read.
+struct Reach {
+    notes: HashSet<String>,
+    files: HashSet<String>,
+}
+
+impl Reach {
+    fn of(store: &Store, key: &Key, vis: &Visibility, note: &Note, ops: &[Op]) -> ApiResult<Reach> {
+        let notes = ops
+            .iter()
+            .filter_map(|op| match op {
+                Op::AddNode {
+                    file: Some(target), ..
+                } if target.starts_with(canvas::NOTE_PREFIX) => Some(target.clone()),
+                _ => None,
+            })
+            .filter(|target| vis.note(target).is_some())
+            .collect();
+        let mut held: HashSet<String> = store.files_of_note(&note.id)?.into_iter().collect();
+        if let Ok(current) = canvas_of(note) {
+            held.extend(
+                current
+                    .nodes
+                    .iter()
+                    .filter_map(|n| n.file.clone())
+                    .filter(|f| f.starts_with(canvas::ATTACHMENT_PREFIX)),
+            );
+        }
+        let files = held
+            .into_iter()
+            .filter(|file| key.sees(vis, file) && !sealed(store, file))
+            .collect();
+        Ok(Reach { notes, files })
+    }
+}
+
+/// Whether attachment `id` is sealed with a locked note (#44). Fail closed.
+fn sealed(store: &Store, id: &str) -> bool {
+    match store.get(id) {
+        Ok(Some(doc)) => doc.fields.contains_key(kanso_core::model::FILE_LOCK_FIELD),
+        Ok(None) => false,
+        Err(_) => true,
+    }
+}
 
 /// The host, when the app gave one.
 pub(crate) type Host = Option<Arc<dyn SharedCanvases>>;
@@ -156,7 +206,11 @@ pub(crate) fn read(store: &Store, id: &str, group: Option<&str>) -> ApiResult<Va
 
 /// A new canvas note, empty or from a canvas document (`canvas`), through
 /// the same write as any note, so it is validated like one.
-pub(crate) fn create(store: &Store, mut args: Map<String, Value>) -> ApiResult<Value> {
+pub(crate) fn create(
+    store: &Store,
+    vis: &Visibility,
+    mut args: Map<String, Value>,
+) -> ApiResult<Value> {
     let document = args.remove("canvas");
     let canvas = match document {
         None | Some(Value::Null) => Canvas::default(),
@@ -167,6 +221,7 @@ pub(crate) fn create(store: &Store, mut args: Map<String, Value>) -> ApiResult<V
             canvas.validate().map_err(|why| {
                 ApiError::bad_request(format!("That isn't a valid canvas: {why}"))
             })?;
+            check_new_cards(&canvas, vis)?;
             canvas
         }
     };
@@ -177,6 +232,28 @@ pub(crate) fn create(store: &Store, mut args: Map<String, Value>) -> ApiResult<V
         args.insert("bookId".into(), inbox.into());
     }
     api::upsert(store, DocType::Note, Value::Object(args))
+}
+
+/// A new canvas has no attachments, so a picture card on it would show
+/// another note's: refused, as is a card to a note the caller can't see.
+/// Add pictures with `kanso-attach-file` and `kanso-edit-canvas`.
+fn check_new_cards(canvas: &Canvas, vis: &Visibility) -> ApiResult<()> {
+    for node in canvas.nodes.iter().filter(|n| !n.deleted) {
+        let Some(target) = node.file.as_deref() else {
+            continue;
+        };
+        if target.starts_with(canvas::ATTACHMENT_PREFIX) {
+            return Err(ApiError::bad_request(
+                "A new canvas has no attachments, so it can't hold a picture card. Create the canvas, attach the file to it with kanso-attach-file, then add the card with kanso-edit-canvas.",
+            ));
+        }
+        if target.starts_with(canvas::NOTE_PREFIX) && vis.note(target).is_none() {
+            return Err(ApiError::bad_request(format!(
+                "There is no note “{target}”."
+            )));
+        }
+    }
+    Ok(())
 }
 
 /// Gives items of a canvas that came without stamps the first version.
@@ -202,9 +279,30 @@ fn stamp(canvas: &mut Canvas, now: i64) {
 }
 
 /// `PATCH /note:<id>/canvas`: applies a batch of operations, all or none.
-/// Answers `{ok, id, rev, created: {nodes, edges, strokes}}`.
-pub(crate) fn edit(store: &Store, host: &Host, id: &str, body: &Value) -> ApiResult<Value> {
+/// Answers `{ok, id, rev, created: {nodes, edges, strokes}}`. `key` and
+/// `vis` say what the batch's cards may point at.
+pub(crate) fn edit(
+    store: &Store,
+    host: &Host,
+    key: &Key,
+    vis: &Visibility,
+    id: &str,
+    body: &Value,
+) -> ApiResult<Value> {
     let batch = Batch::from_json(body).map_err(ApiError::bad_request)?;
+    let note = open(store, id)?;
+    let reach = Reach::of(store, key, vis, &note, &batch.ops)?;
+    let exists = |n: &str| reach.notes.contains(n);
+    let attached = |f: &str| reach.files.contains(f);
+    if is_shared(&note) {
+        let context = BatchContext {
+            now: now_ms(),
+            shared: true,
+            note_exists: &exists,
+            attachment_ok: &attached,
+        };
+        return edit_shared(store, host, &note, &batch, &context);
+    }
     for attempt in 0..RETRIES {
         let note = open(store, id)?;
         let rev = note.rev.clone().unwrap_or_default();
@@ -213,16 +311,13 @@ pub(crate) fn edit(store: &Store, host: &Host, id: &str, body: &Value) -> ApiRes
         {
             return Err(stale_rev(&note, &canvas_of(&note)?));
         }
-        let attachments = store.files_of_note(id)?;
-        let exists = |n: &str| store.note(n).ok().flatten().is_some();
-        let attached = |f: &str| attachments.iter().any(|a| a == f);
-        let now = now_ms();
+        // It may have been shared since the first look.
         if is_shared(&note) {
-            return edit_shared(store, host, &note, &batch, (&exists, &attached), now);
+            return Err(ApiError::conflict());
         }
         let current = canvas_of(&note)?;
         let context = BatchContext {
-            now,
+            now: now_ms(),
             shared: false,
             note_exists: &exists,
             attachment_ok: &attached,
@@ -259,62 +354,55 @@ pub(crate) fn edit(store: &Store, host: &Host, id: &str, body: &Value) -> ApiRes
     Err(ApiError::conflict())
 }
 
-/// A batch against a shared canvas: applied to its CRDT as one transaction.
+/// A batch against a shared canvas: applied to its CRDT as one change, the
+/// title with it. `ifRev` is checked against the library as the engine has
+/// just brought it up to the room, under the room's lock.
 fn edit_shared(
     store: &Store,
     host: &Host,
     note: &Note,
     batch: &Batch,
-    (exists, attached): Lookups,
-    now: i64,
+    context: &BatchContext,
 ) -> ApiResult<Value> {
     let Some(host) = host else {
         return Err(ApiError::bad_request(SHARED_OFFLINE));
     };
-    let context = BatchContext {
-        now,
-        shared: true,
-        note_exists: exists,
-        attachment_ok: attached,
-    };
     let mut outcome: Option<canvas::Applied> = None;
-    let mut refusal: Option<Refusal> = None;
+    let mut refusal: Option<ApiError> = None;
     let done_edit = host
-        .edit(
-            &note.id,
-            &mut |live: &Canvas| match canvas::apply_batch(live, batch, &context) {
+        .edit(&note.id, &mut |live: &Canvas| {
+            let now = store.note(&note.id).ok().flatten();
+            let rev = now.as_ref().and_then(|n| n.rev.clone()).unwrap_or_default();
+            if let Some(want) = &batch.if_rev
+                && *want != rev
+            {
+                let latest = now.as_ref().unwrap_or(note);
+                let why = stale_rev(latest, &live.live());
+                let text = why.reason.clone();
+                refusal = Some(why);
+                return Err(text);
+            }
+            match canvas::apply_batch(live, batch, context) {
                 Ok((next, made)) => {
+                    let title = made.title.clone();
                     outcome = Some(made);
-                    Ok(next)
+                    Ok((next, title))
                 }
                 Err(why) => {
                     let text = why.message();
-                    refusal = Some(why);
+                    refusal = Some(refused(now.as_ref().unwrap_or(note))(why));
                     Err(text)
                 }
-            },
-        )
+            }
+        })
         .map_err(ApiError::bad_request);
     if let Some(why) = refusal {
-        return Err(refused(note)(why));
+        return Err(why);
     }
     if !done_edit? {
         return Err(ApiError::bad_request(SHARED_OFFLINE));
     }
     let made = outcome.unwrap_or_default();
-    // A new title goes to the library; the engine takes it into the room on
-    // its next settle, which a second, empty transaction makes now.
-    if let Some(title) = &made.title {
-        store.put_keeping(
-            DocType::Note,
-            json!({ "_id": note.id, "title": title }),
-            Put::Merge,
-            Origin::Api,
-            &api::app_only_names(DocType::Note),
-        )?;
-        host.edit(&note.id, &mut |live: &Canvas| Ok(live.clone()))
-            .map_err(ApiError::bad_request)?;
-    }
     let latest = store.note(&note.id)?.ok_or_else(ApiError::not_found)?;
     Ok(done(note.id.clone(), latest.rev.unwrap_or_default(), &made))
 }

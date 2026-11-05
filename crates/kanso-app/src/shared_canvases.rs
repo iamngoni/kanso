@@ -7,7 +7,7 @@ use std::sync::{Arc, RwLock};
 
 use kanso_collab::Engine;
 use kanso_core::canvas::Canvas;
-use kanso_server::SharedCanvases;
+use kanso_server::{CanvasChange, SharedCanvases};
 
 /// The engine of the signed-in session, or none while signed out. The
 /// server thread reads it; the app sets it when the session starts and ends.
@@ -25,11 +25,7 @@ impl EngineHost {
 }
 
 impl SharedCanvases for EngineHost {
-    fn edit(
-        &self,
-        note_id: &str,
-        change: &mut dyn FnMut(&Canvas) -> Result<Canvas, String>,
-    ) -> Result<bool, String> {
+    fn edit(&self, note_id: &str, change: &mut CanvasChange<'_>) -> Result<bool, String> {
         let Some(engine) = self.engine.read().ok().and_then(|slot| slot.clone()) else {
             return Ok(false);
         };
@@ -37,7 +33,9 @@ impl SharedCanvases for EngineHost {
             return Ok(false);
         };
         engine
-            .edit_canvas(&share_id, |live| change(live).map(|next| (next, ())))
+            .edit_canvas(&share_id, |live| {
+                change(live).map(|(next, title)| (next, title, ()))
+            })
             .map(|()| true)
             .map_err(|err| err.to_string())
     }
