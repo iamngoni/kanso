@@ -3,8 +3,7 @@
 
 use std::path::PathBuf;
 
-/// What a recording is made from. System audio arrives with the platform
-/// capture steps; until then only the microphone can be chosen.
+/// What a recording is made from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WhatToRecord {
     Microphone,
@@ -19,12 +18,41 @@ impl WhatToRecord {
         self == WhatToRecord::Microphone
     }
 
+    /// Whether the recording listens to another app's audio.
+    pub fn uses_system(self) -> bool {
+        self != WhatToRecord::Microphone
+    }
+
+    /// Whether the microphone is recorded too.
+    pub fn uses_microphone(self) -> bool {
+        self != WhatToRecord::SystemOnly
+    }
+
     /// What the recording bar names.
     pub fn label(self) -> &'static str {
         match self {
             WhatToRecord::Microphone => "Microphone",
             WhatToRecord::MicrophoneAndSystem => "Microphone + System Audio",
             WhatToRecord::SystemOnly => "System Audio",
+        }
+    }
+}
+
+/// Whose audio the system track holds.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SystemSource {
+    /// One app, by bundle ID, with the name the picker showed.
+    App { bundle_id: String, name: String },
+    /// Everything the Mac plays except Kanso.
+    Everything,
+}
+
+impl SystemSource {
+    /// What the recording bar names: `Zoom`, or `All system audio`.
+    pub fn label(&self) -> String {
+        match self {
+            SystemSource::App { name, .. } => name.clone(),
+            SystemSource::Everything => "All system audio".to_owned(),
         }
     }
 }
@@ -95,6 +123,13 @@ pub struct SavedRecording {
     pub created: bool,
 }
 
+/// What saving the system audio track made.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SavedTrack {
+    /// One file ID per part, in playing order.
+    pub file_ids: Vec<String>,
+}
+
 impl SavedRecording {
     /// The file the transcript's links name.
     pub fn first_file(&self) -> &str {
@@ -123,11 +158,31 @@ pub enum FlowError {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RecordPlan {
     pub what: WhatToRecord,
+    /// Whose audio, when `what` includes system audio. Nothing is chosen
+    /// until the person picks.
+    pub system: Option<SystemSource>,
     pub destination: Destination,
     pub transcribe: TranscribeWhen,
     /// The sound output to record when system audio is on: a device `id`
     /// from the platform's backend, or `None` for the default output.
     pub system_output: Option<String>,
+}
+
+impl RecordPlan {
+    /// Why this plan can't start yet, in the person's words.
+    pub fn problem(&self) -> Option<&'static str> {
+        (self.what.uses_system() && self.system.is_none()).then_some("Choose which app to record.")
+    }
+
+    /// What the recording bar says is being recorded: `Microphone · Zoom`.
+    pub fn bar_label(&self) -> String {
+        let system = self.system.as_ref().map(SystemSource::label);
+        match (self.what, system) {
+            (WhatToRecord::Microphone, _) | (_, None) => self.what.label().to_owned(),
+            (WhatToRecord::MicrophoneAndSystem, Some(app)) => format!("Microphone · {app}"),
+            (WhatToRecord::SystemOnly, Some(app)) => app,
+        }
+    }
 }
 
 impl RecordPlan {
@@ -138,6 +193,7 @@ impl RecordPlan {
         let what = WhatToRecord::Microphone;
         RecordPlan {
             what,
+            system: None,
             destination: Destination::NewNote { book_id: None },
             transcribe: TranscribeWhen::default_for(what),
             system_output: None,
