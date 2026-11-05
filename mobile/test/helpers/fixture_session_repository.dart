@@ -259,6 +259,7 @@ class FixtureSessionRepository implements SessionRepository {
     String id, {
     String? password,
   }) async {
+    await gate?.future;
     if (!unlocked && password == null) {
       return const Left<ApplicationError, Saved>(
         ApplicationError.locked(message: 'The note is locked.'),

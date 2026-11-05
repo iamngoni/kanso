@@ -52,6 +52,13 @@ class InterruptedLockBloc
     InterruptedLockCheckedEvent event,
     Emitter<InterruptedLockState> emit,
   ) async {
+    // Finishing or undoing writes the note, which checks it again: that
+    // check must not bring the buttons back while the work runs, or Undo
+    // could start in the middle of Finish.
+    if (state.stage == InterruptedStage.working &&
+        state.noteId == event.noteId) {
+      return;
+    }
     // Opening a locked note may have sealed its files: ask after it opened.
     final notice = await _session.takeSealedFilesNotice();
     final say = notice.fold((_) => false, (said) => said);
@@ -109,6 +116,11 @@ class InterruptedLockBloc
     Future<Either<ApplicationError, Unit>> Function(String id, String? password)
     work,
   ) async {
+    // Finish and Undo each have their own handler: one never starts while
+    // the other works.
+    if (state.stage == InterruptedStage.working) {
+      return;
+    }
     emit(
       state.copyWith(
         stage: InterruptedStage.working,

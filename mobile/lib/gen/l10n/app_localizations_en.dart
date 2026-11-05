@@ -3308,19 +3308,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(
-      origin,
-      {
-        'ui': 'Edited in Kanso',
-        'api': 'Replaced through the API',
-        'sync': 'Replaced by sync',
-        'import': 'Replaced by an import',
-        'collab': 'Edited in a shared note',
-        'agent': 'Suggested by an agent, applied by you',
-        'plugin': 'Changed by a plugin',
-        'other': 'Saved version',
-      },
-    );
+    String _temp0 = intl.Intl.selectLogic(origin, {
+      'ui': 'Edited in Kanso',
+      'api': 'Replaced through the API',
+      'sync': 'Replaced by sync',
+      'import': 'Replaced by an import',
+      'collab': 'Edited in a shared note',
+      'agent': 'Suggested by an agent, applied by you',
+      'plugin': 'Changed by a plugin',
+      'other': 'Saved version',
+    });
     return '$_temp0';
   }
 
@@ -7029,13 +7026,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lockInterruptedFailed => 'That didn\'t work. Try again.';
 
   @override
-  String get lockFilesNoticeTitle =>
-      'Locked notes now seal their pictures and files';
-
-  @override
-  String get lockFilesNoticeBody =>
-      'A note locked before this update has its pictures and files sealed the first time you open it. Nothing else is needed.';
-
-  @override
-  String get lockFilesNoticeDismiss => 'Dismiss';
+  String get lockFilesNotice =>
+      'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.';
 }

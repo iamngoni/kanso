@@ -73,13 +73,7 @@ class _InterruptedLockHostState extends State<InterruptedLockHost> {
                 SnackBar(
                   duration: const Duration(days: 1),
                   showCloseIcon: true,
-                  content: Text(
-                    '${l10n.lockFilesNoticeTitle}. ${l10n.lockFilesNoticeBody}',
-                  ),
-                  action: SnackBarAction(
-                    label: l10n.lockFilesNoticeDismiss,
-                    onPressed: () {},
-                  ),
+                  content: Text(l10n.lockFilesNotice),
                 ),
               );
               bloc.add(const InterruptedLockEvent.noticeShown());
