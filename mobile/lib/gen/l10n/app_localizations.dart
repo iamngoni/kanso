@@ -8788,6 +8788,24 @@ abstract class AppLocalizations {
   /// **'Your agent needs a newer Node. Install the Node version it asks for, then use Find again in Settings › AI.'**
   String get aiTroubleAgentNeedsNode;
 
+  /// The selected agent needs the person to sign in.
+  ///
+  /// In en, this message translates to:
+  /// **'Your agent needs you to sign in. Sign in to your agent, then try again.'**
+  String get aiTroubleAgentSignIn;
+
+  /// The provider account has run out of credits or needs a plan change.
+  ///
+  /// In en, this message translates to:
+  /// **'Your provider needs a billing change. Check your billing or plan with your AI provider, then try again.'**
+  String get aiTroubleBilling;
+
+  /// The configured server address does not point to its API.
+  ///
+  /// In en, this message translates to:
+  /// **'Your model server address looks wrong. Check the address in Settings › AI, then try again.'**
+  String get aiTroubleWrongAddress;
+
   /// A task needs a model that can use tools.
   ///
   /// In en, this message translates to:

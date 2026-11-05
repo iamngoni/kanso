@@ -28,10 +28,16 @@ pub enum Trouble {
     AgentNotInstalled,
     /// The chosen agent needs a newer Node.
     AgentNeedsNode,
+    /// The agent needs the person to sign in.
+    AgentNeedsSignIn,
     /// The model can't use tools, and the task needs them.
     NoTools,
+    /// The provider account needs more credits or a billing change.
+    Billing,
     /// The provider is limiting requests.
     Busy,
+    /// The configured server address does not point to its API.
+    WrongAddress,
     /// The request ran out of time.
     Slow,
     /// The named model isn't there.
@@ -88,8 +94,11 @@ impl Trouble {
             Trouble::NoAgent => "no_agent",
             Trouble::AgentNotInstalled => "agent_not_installed",
             Trouble::AgentNeedsNode => "agent_needs_node",
+            Trouble::AgentNeedsSignIn => "agent_needs_sign_in",
             Trouble::NoTools => "no_tools",
+            Trouble::Billing => "billing",
             Trouble::Busy => "busy",
+            Trouble::WrongAddress => "wrong_address",
             Trouble::Slow => "slow",
             Trouble::ModelNotFound => "model_not_found",
             Trouble::ServerDown => "server_down",
@@ -142,13 +151,25 @@ impl Trouble {
                 "Install the Node version it asks for, then use Find again in Settings › AI."
                     .to_owned(),
             ),
+            Trouble::AgentNeedsSignIn => (
+                "Your agent needs you to sign in",
+                "Sign in to your agent, then try again.".to_owned(),
+            ),
             Trouble::NoTools => (
                 "This model can't use tools",
                 "Pick a model that supports tools in Settings › AI.".to_owned(),
             ),
+            Trouble::Billing => (
+                "Your provider needs a billing change",
+                "Check your billing or plan with your AI provider, then try again.".to_owned(),
+            ),
             Trouble::Busy => (
                 "Your model is busy",
                 "It's limiting requests right now. Wait a moment, then try again.".to_owned(),
+            ),
+            Trouble::WrongAddress => (
+                "Your model server address looks wrong",
+                "Check the address in Settings › AI, then try again.".to_owned(),
             ),
             Trouble::Slow => (
                 "Your model took too long",
@@ -264,6 +285,8 @@ pub fn classify(raw: &str) -> Trouble {
         Trouble::NoAgent
     } else if has(&["can't use tools"]) {
         Trouble::NoTools
+    } else if has(&["needs you to sign in", "needs you to log in"]) {
+        Trouble::AgentNeedsSignIn
     } else if has(&["needs node"]) {
         Trouble::AgentNeedsNode
     } else if has(&[
@@ -298,19 +321,37 @@ pub fn classify(raw: &str) -> Trouble {
         ])
     {
         Trouble::KeyRejected
-    } else if code(&["429"]) || has(&["rate limit", "quota", "too many requests"]) {
+    } else if has(&[
+        "insufficient_quota",
+        "credit balance",
+        "quota exhausted",
+        "quota has been exceeded",
+        "quota exceeded",
+        "current quota",
+        "out of credits",
+        "billing limit",
+        "resource_exhausted",
+    ]) {
+        Trouble::Billing
+    } else if code(&["429"]) || has(&["rate limit", "too many requests"]) {
         Trouble::Busy
     } else if has(&["timed out", "timeout", "didn't answer in time"]) {
         Trouble::Slow
-    } else if code(&["404"])
-        || has(&[
-            "not found",
-            "no such model",
-            "unknown model",
-            "model_not_found",
-        ])
+    } else if has(&[
+        "no such model",
+        "unknown model",
+        "model_not_found",
+        "not_found_error",
+        "model not found",
+        "model is not found",
+        "model was not found",
+    ]) || (has(&["models/"]) && has(&["not found"]))
     {
         Trouble::ModelNotFound
+    } else if code(&["404"]) {
+        // A provider's model errors are recognized above. An HTML or plain
+        // 404 usually means a custom/local address points at the wrong route.
+        Trouble::WrongAddress
     } else if has_server_status(&lower) || has(&["overloaded", "bad gateway"]) {
         Trouble::ServerDown
     } else if has(&[
@@ -374,7 +415,7 @@ mod tests {
         for (status, want) in [
             (401, Trouble::KeyRejected),
             (403, Trouble::KeyRejected),
-            (404, Trouble::ModelNotFound),
+            (404, Trouble::WrongAddress),
             (429, Trouble::Busy),
             (500, Trouble::ServerDown),
             (503, Trouble::ServerDown),
@@ -551,8 +592,11 @@ mod tests {
         Trouble::NoAgent,
         Trouble::AgentNotInstalled,
         Trouble::AgentNeedsNode,
+        Trouble::AgentNeedsSignIn,
         Trouble::NoTools,
+        Trouble::Billing,
         Trouble::Busy,
+        Trouble::WrongAddress,
         Trouble::Slow,
         Trouble::ModelNotFound,
         Trouble::ServerDown,
