@@ -62,6 +62,9 @@ pub(crate) struct Inner {
     pub(crate) seal_progress: Listeners<crate::model::SealProgress>,
     /// Cancel was pressed on a lock in progress: it stops between two files.
     pub(crate) lock_cancelled: AtomicBool,
+    /// The copies the last lock or Remove Lock made, until the phone says so
+    /// (`LockSession::take_copy_notice`).
+    pub(crate) copy_notice: Mutex<Option<crate::model::LockCopyNotice>>,
     /// What the last sync said.
     pub(crate) sync_state: Mutex<SyncState>,
     pub(crate) status_listeners: Listeners<SyncStatus>,
@@ -351,6 +354,7 @@ fn open_inner(
         lock_events: Listeners::default(),
         seal_progress: Listeners::default(),
         lock_cancelled: AtomicBool::new(false),
+        copy_notice: Mutex::new(None),
         sync_state: Mutex::new(SyncState::Off),
         status_listeners: Listeners::default(),
         sync_gate: Mutex::new(()),

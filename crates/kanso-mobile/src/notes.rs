@@ -216,6 +216,12 @@ impl Library {
                 apply_inline_tags(&self.inner.store, &mut note, None);
             }
             if state == LockView::Open {
+                // What the text shows that isn't sealed yet (a legacy
+                // note's files, a pasted link) is sealed with the save; the
+                // sealed text links any copy made.
+                if let Some(text) = self.locks().seal_open_files(&mut note)? {
+                    note.body = text;
+                }
                 held(&self.inner.keys)
                     .seal(&mut note, Instant::now())
                     .map_err(|_| KansoError::Locked)?;
@@ -513,18 +519,17 @@ impl Library {
                 Ok(false) => {}
             }
         }
-        let view = held(&self.inner.keys).reveal(note, Some(&self.inner.store));
+        // Without the store: this runs under the session's lock, and a note
+        // that was plain a moment ago but whose notebook was locked since
+        // would be sealed (files and all) with that lock held. It shows
+        // plain this once, and the next open above seals it.
+        let view = held(&self.inner.keys).reveal(note, None);
         if view == LockView::Open {
             let locks = self.locks();
+            // Opening a note never writes: a note locked before attachments
+            // were sealed keeps its plain files until its first edit-save,
+            // as on the desktop (`LockSession::seal_open_files`).
             locks.cache_note_file_keys_for_note(note);
-            if note.is_locked()
-                && !note
-                    .extra
-                    .contains_key(kanso_core::model::KANSO_FILES_FIELD)
-                && let Err(error) = locks.migrate_note_attachments(note)
-            {
-                eprintln!("kanso: locked notes: couldn't seal an attachment list: {error}");
-            }
         }
         view
     }

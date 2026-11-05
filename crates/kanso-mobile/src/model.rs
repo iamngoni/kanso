@@ -584,6 +584,17 @@ pub struct LockSummary {
     pub shared: u32,
 }
 
+/// What a lock the person ran did about files another note also shows, for
+/// the sentence the phone says after it (the desktop's `copied_words` and
+/// `unsealed_words`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LockCopyNotice {
+    /// Remove Lock gave the note plain copies; otherwise Lock sealed copies.
+    pub removed: bool,
+    /// How many files were copied.
+    pub copied: u32,
+}
+
 impl From<kanso_engine::lock::files::Summary> for LockSummary {
     fn from(summary: kanso_engine::lock::files::Summary) -> LockSummary {
         LockSummary {

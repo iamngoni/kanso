@@ -3,8 +3,8 @@
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    InterruptedLock, KansoError, LockEvent, LockSession, LockStatus, LockSummary, Saved,
-    SealProgress,
+    InterruptedLock, KansoError, LockCopyNotice, LockEvent, LockSession, LockStatus, LockSummary,
+    Saved, SealProgress,
 };
 
 #[frb(opaque)]
@@ -113,6 +113,12 @@ impl KansoLocks {
     /// Stops the lock in progress between two files.
     pub fn cancel_lock(&self) {
         self.0.cancel_lock();
+    }
+
+    /// The files Lock Note or Remove Lock copied because another note also
+    /// shows them, once, for the phone to say so. `None` when none were.
+    pub fn take_copy_notice(&self) -> Result<Option<LockCopyNotice>, KansoError> {
+        self.0.take_copy_notice()
     }
 
     /// Whether the phone should say, once, that notes locked before this

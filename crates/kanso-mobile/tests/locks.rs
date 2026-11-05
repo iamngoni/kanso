@@ -489,10 +489,11 @@ fn removing_the_last_note_lock_restores_plain_attachment_without_session_keys() 
 }
 
 /// A note locked by an older Kanso has sealed text and a plain attachment,
-/// with no `kansoFiles` list. Opening it with the password seals the file and
-/// writes the list once; opening it again does not write the note again.
+/// with no `kansoFiles` list. Opening it, however often, writes nothing, as
+/// on the desktop; its first edit-save seals the file and writes the list,
+/// and the one-time notice is then due.
 #[test]
-fn a_legacy_locked_note_seals_its_attachment_when_opened() {
+fn a_legacy_locked_note_seals_its_attachment_on_its_first_edit_save() {
     let phone = lone_phone();
     let store = phone.library.store();
     let plain = b"legacy attachment bytes";
@@ -520,16 +521,32 @@ fn a_legacy_locked_note_seals_its_attachment_when_opened() {
     store
         .lock_note(serde_json::to_value(stored).unwrap())
         .unwrap();
+    let before = store.note(&id).unwrap().unwrap().rev;
+
+    let locks = phone.library.locks();
+    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(true));
+    // Opening, again and again, never writes.
+    for _ in 0..3 {
+        let view = phone.library.note(&id).unwrap();
+        assert_eq!(view.body.as_deref(), Some(body.as_str()));
+    }
+    let opened = store.note(&id).unwrap().unwrap();
+    assert_eq!(opened.rev, before, "opening a note never writes");
+    assert!(!opened.extra.contains_key(KANSO_FILES_FIELD));
     assert_eq!(
         store.attachment_state(&file).unwrap(),
         kanso_store::AttachmentState::Plain
     );
+    assert_eq!(locks.take_sealed_files_notice(), Ok(false));
 
-    let locks = phone.library.locks();
-    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(true));
-    let view = phone.library.note(&id).unwrap();
-    assert_eq!(view.body.as_deref(), Some(body.as_str()));
+    // The first edit-save seals it.
+    let edited = format!("{body}\nedited");
+    let saved = phone
+        .library
+        .save(&id, before.as_deref().unwrap_or_default(), edited.clone())
+        .unwrap();
     let stored = store.note(&id).unwrap().unwrap();
+    assert_eq!(stored.rev.as_deref(), Some(saved.rev.as_str()));
     let ownership = note_files_from_extra(&stored.extra).unwrap();
     assert_eq!(ownership.len(), 1);
     assert_eq!(ownership[0].file, file);
@@ -541,16 +558,8 @@ fn a_legacy_locked_note_seals_its_attachment_when_opened() {
         phone.library.attachment(&file).unwrap().bytes.as_slice(),
         plain
     );
-
-    // A second open sees the list and leaves the revision alone.
-    let rev = stored.rev;
-    assert_eq!(
-        phone.library.note(&id).unwrap().body.as_deref(),
-        Some(body.as_str())
-    );
-    let stored = store.note(&id).unwrap().unwrap();
-    assert_eq!(stored.rev, rev);
-    assert_eq!(note_files_from_extra(&stored.extra).unwrap().len(), 1);
+    assert_eq!(locks.take_sealed_files_notice(), Ok(true));
+    assert_eq!(locks.take_sealed_files_notice(), Ok(false), "said once");
 
     locks.lock().unwrap();
     assert_eq!(phone.library.attachment(&file), Err(KansoError::Locked));
@@ -921,12 +930,14 @@ fn the_notes_of_a_locked_notebook_are_locked_with_it() {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(16))]
 
-    /// Sealing a legacy note's attachment list is idempotent: one open
-    /// seals it, a second leaves its revision and list alone.
+    /// A legacy locked note is only sealed by an edit-save: any number of
+    /// opens leave its revision, list and file as they were, and the save
+    /// seals the file and lists it once.
     #[test]
-    fn prop_legacy_attachment_migration_is_idempotent(
+    fn prop_opening_a_legacy_note_never_writes_and_the_save_seals_it(
         prefix in "\\PC{0,40}",
         suffix in "\\PC{0,40}",
+        opens in 1usize..4,
     ) {
         let phone = lone_phone();
         let store = phone.library.store();
@@ -955,13 +966,24 @@ proptest! {
         store
             .lock_note(serde_json::to_value(stored).unwrap())
             .unwrap();
+        let before = store.note(&id).unwrap().unwrap().rev.unwrap();
 
         let locks = phone.library.locks();
         locks.unlock(LOCK_PASSWORD.into()).unwrap();
-        let first = phone.library.note(&id).unwrap();
-        prop_assert_eq!(first.body.as_deref(), Some(body.as_str()));
+        for _ in 0..opens {
+            let shown = phone.library.note(&id).unwrap();
+            prop_assert_eq!(shown.body.as_deref(), Some(body.as_str()));
+        }
+        let opened = store.note(&id).unwrap().unwrap();
+        prop_assert_eq!(opened.rev.as_deref(), Some(before.as_str()));
+        prop_assert!(!opened.extra.contains_key(KANSO_FILES_FIELD));
+        prop_assert_eq!(
+            store.attachment_state(&file).unwrap(),
+            kanso_store::AttachmentState::Plain
+        );
+
+        phone.library.save(&id, &before, format!("{body} more")).unwrap();
         let sealed = store.note(&id).unwrap().unwrap();
-        let rev = sealed.rev.clone();
         let ownership = note_files_from_extra(&sealed.extra).unwrap();
         prop_assert_eq!(ownership.len(), 1);
         prop_assert_eq!(&ownership[0].file, &file);
@@ -969,12 +991,6 @@ proptest! {
             store.attachment_state(&file).unwrap(),
             kanso_store::AttachmentState::Sealed
         );
-
-        let second = phone.library.note(&id).unwrap();
-        prop_assert_eq!(second.body.as_deref(), Some(body.as_str()));
-        let again = store.note(&id).unwrap().unwrap();
-        prop_assert_eq!(again.rev, rev);
-        prop_assert_eq!(note_files_from_extra(&again.extra).unwrap().len(), 1);
     }
 
     /// A file that unlocked notes still show is copied for the note being
@@ -1306,4 +1322,159 @@ fn a_file_linked_in_an_open_locked_note_is_sealed_by_the_save() {
     let listed = note_files_from_extra(&stored.extra).unwrap();
     assert!(listed.iter().any(|entry| entry.file == file));
     assert_eq!(phone.library.attachment(&file).unwrap().bytes, vec![7; 300]);
+}
+
+/// Presses Cancel, once, when the next lock reports that `files` files are
+/// open.
+fn cancel_after(locks: &kanso_mobile::LockSession, files: u32) {
+    let pressed = locks.clone();
+    let fired = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    locks.lock_progress(move |progress| {
+        if progress.phase == kanso_mobile::SealPhase::Sealing
+            && progress.done == files
+            && !fired.swap(true, std::sync::atomic::Ordering::SeqCst)
+        {
+            pressed.cancel_lock();
+        }
+        true
+    });
+}
+
+/// Cancel on Remove Lock, at any file, changes nothing: the note is locked,
+/// every file sealed and unreadable through the library, and a later Remove
+/// Lock without a Cancel finishes it. Before, files opened before the Cancel
+/// stayed decrypted beside a note that still listed them as sealed.
+#[test]
+fn a_cancelled_remove_lock_changes_nothing_and_a_second_one_finishes() {
+    for stop in 0..3 {
+        let phone = lone_phone();
+        let store = phone.library.store();
+        let files: Vec<String> = (0..3)
+            .map(|i| {
+                plain_file(
+                    store,
+                    &format!("m{i}.wav"),
+                    format!("CANARY-{i}").as_bytes(),
+                )
+            })
+            .collect();
+        let id = note_with(&phone, &files);
+        let locks = phone.library.locks();
+        locks.lock_note(&id, LOCK_PASSWORD.into()).unwrap();
+        let documents = store.counts().unwrap()[&DocType::File];
+
+        cancel_after(&locks, stop);
+        let err = phone.library.locks().remove_note_lock(&id).unwrap_err();
+        assert!(matches!(err, KansoError::Invalid { .. }), "{err:?}");
+
+        let stored = store.note(&id).unwrap().unwrap();
+        assert!(stored.is_locked(), "stopped at {stop}: still locked");
+        for file in &files {
+            assert_eq!(
+                store.attachment_state(file).unwrap(),
+                kanso_store::AttachmentState::Sealed,
+                "stopped at {stop}: {file} is still sealed"
+            );
+            assert!(store.attachment(file).unwrap().is_none());
+        }
+        assert_eq!(store.counts().unwrap()[&DocType::File], documents);
+
+        // The next Remove Lock starts clean: the old Cancel doesn't carry
+        // over, and it finishes.
+        locks.remove_note_lock(&id).unwrap();
+        assert!(!store.note(&id).unwrap().unwrap().is_locked());
+        for file in &files {
+            assert_eq!(
+                store.attachment_state(file).unwrap(),
+                kanso_store::AttachmentState::Plain
+            );
+        }
+    }
+}
+
+/// The copies a lock or Remove Lock made are said once, as the desktop says
+/// them: Lock Note sealed a copy of a file an unlocked note shows, and Remove
+/// Lock copied a file another locked note still shows.
+#[test]
+fn the_copies_a_lock_and_a_remove_lock_make_are_said_once() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let shared = plain_file(store, "both.wav", &[3; 300]);
+    let locked = note_with(&phone, std::slice::from_ref(&shared));
+    let _unlocked = note_with(&phone, std::slice::from_ref(&shared));
+    let locks = phone.library.locks();
+
+    assert_eq!(locks.take_copy_notice(), Ok(None), "nothing yet");
+    locks.lock_note(&locked, LOCK_PASSWORD.into()).unwrap();
+    assert_eq!(
+        locks.take_copy_notice(),
+        Ok(Some(kanso_mobile::LockCopyNotice {
+            removed: false,
+            copied: 1
+        }))
+    );
+    assert_eq!(locks.take_copy_notice(), Ok(None), "said once");
+
+    // A lock that copies nothing leaves nothing to say.
+    let alone = plain_file(store, "alone.wav", &[4; 300]);
+    let other = note_with(&phone, std::slice::from_ref(&alone));
+    locks.lock_note_with_session(&other).unwrap();
+    assert_eq!(locks.take_copy_notice(), Ok(None));
+    locks.remove_note_lock(&other).unwrap();
+    assert_eq!(locks.take_copy_notice(), Ok(None));
+}
+
+/// Remove Lock copies a file that another locked note still shows, and says
+/// so.
+#[test]
+fn remove_lock_copies_a_file_another_locked_note_still_shows() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let file = plain_file(store, "both.wav", &[5; 300]);
+    let first = note_with(&phone, std::slice::from_ref(&file));
+    let second = note_with(&phone, &[]);
+    let locks = phone.library.locks();
+    locks.lock_note(&first, LOCK_PASSWORD.into()).unwrap();
+    locks.lock_note_with_session(&second).unwrap();
+
+    // The second note's save links the first's sealed file.
+    let session = phone.library.edit(&second).unwrap();
+    let snapshot = session.snapshot().unwrap();
+    let end = snapshot.text.encode_utf16().count() as u32;
+    let link = format!("[memo](inkdrop://{file})\n");
+    let after = end + link.encode_utf16().count() as u32;
+    session
+        .apply(kanso_mobile::TextChange {
+            base_version: snapshot.version,
+            start: end,
+            end,
+            text: link,
+            selection: kanso_mobile::Range16 {
+                start: after,
+                end: after,
+            },
+            composing: None,
+        })
+        .unwrap();
+    session.flush().unwrap();
+    let listed = note_files_from_extra(&store.note(&second).unwrap().unwrap().extra).unwrap();
+    assert!(listed.iter().any(|entry| entry.file == file));
+    locks.take_copy_notice().unwrap();
+
+    locks.remove_note_lock(&first).unwrap();
+    assert_eq!(
+        locks.take_copy_notice(),
+        Ok(Some(kanso_mobile::LockCopyNotice {
+            removed: true,
+            copied: 1
+        }))
+    );
+    assert_eq!(
+        store.attachment_state(&file).unwrap(),
+        kanso_store::AttachmentState::Sealed,
+        "the other note keeps the sealed original"
+    );
+    let plain = store.note(&first).unwrap().unwrap();
+    assert!(!plain.is_locked());
+    assert!(!plain.body.contains(&file), "its link moved to the copy");
 }
