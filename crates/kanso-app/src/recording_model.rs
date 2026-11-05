@@ -12,8 +12,8 @@ pub struct BarState {
     /// The level meter, 0 to 1.
     pub level: f32,
     pub paused: bool,
-    /// "Microphone"
-    pub label: &'static str,
+    /// "Microphone", or "Microphone · zoom.us" with system audio.
+    pub label: String,
     /// The red dot is lit this beat.
     pub dot_lit: bool,
 }

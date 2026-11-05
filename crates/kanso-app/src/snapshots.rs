@@ -58,6 +58,7 @@ mod plugins_panel;
 mod plugins_settings;
 mod plugins_sheets;
 mod record_sheet;
+mod recording_sheet;
 mod voice;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead
@@ -6347,6 +6348,7 @@ fn snapshots() {
     for (name, prepare, dialog) in plugins_settings::SHOTS
         .iter()
         .chain(plugins_sheets::SHOTS)
+        .chain(recording_sheet::SHOTS)
         .chain(plugins_panel::SHOTS)
     {
         let theme = if name.starts_with("dark-") {

@@ -216,6 +216,9 @@ jobs:
               { echo "::error::Kanso.app is missing the Associated Domains entitlement"; exit 1; }
           fi
           /usr/libexec/PlistBuddy -c 'Print :NSMicrophoneUsageDescription' "$app/Contents/Info.plist" >/dev/null
+          # Without this key macOS never asks for Screen Recording, and
+          # recording another app's audio silently fails.
+          /usr/libexec/PlistBuddy -c 'Print :NSScreenCaptureUsageDescription' "$app/Contents/Info.plist" >/dev/null
           # Launch the signed app once: AMFI kills a binary whose restricted
           # entitlements its profile or certificate doesn't cover, and
           # nothing above would notice.
