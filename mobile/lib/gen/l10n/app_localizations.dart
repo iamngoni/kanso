@@ -9088,6 +9088,144 @@ abstract class AppLocalizations {
   /// **'Couldn\'t tidy this note: {reason}.'**
   String voiceTidyFailed(String reason);
 
+  /// The note menu's action that summarises a recording with the person's own AI.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarise recording'**
+  String get recordingSummaryMenu;
+
+  /// Title of the sheet that summarises a recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarise recording'**
+  String get recordingSummaryTitle;
+
+  /// Closes the summarise recording sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get recordingSummaryClose;
+
+  /// Said when Summarise recording can't be used on this note.
+  ///
+  /// In en, this message translates to:
+  /// **'To summarise a recording, turn on AI in Settings and open a note that holds the transcript of a recording. Locked notes, notes in the trash and notes tagged #ai-exclude are never sent.'**
+  String get recordingSummaryUnavailable;
+
+  /// Under the question that asks where the transcript goes.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is sent until you choose Send. You will see the summary and the action items before anything is written.'**
+  String get recordingSummaryNothingYet;
+
+  /// Said when the note already holds a summary.
+  ///
+  /// In en, this message translates to:
+  /// **'This note already has a summary. A new one replaces it.'**
+  String get recordingSummaryReplacesNote;
+
+  /// Shown while the AI summarises a recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarising the transcript…'**
+  String get recordingSummaryWorking;
+
+  /// Under the working line.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel stops the request. The note is not changed.'**
+  String get recordingSummaryCancelHint;
+
+  /// Said after a summary failed.
+  ///
+  /// In en, this message translates to:
+  /// **'The note is not changed.'**
+  String get recordingSummaryUnchanged;
+
+  /// Sends the transcript to the person's AI.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get recordingSummarySend;
+
+  /// Stops summarising.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get recordingSummaryCancel;
+
+  /// Throws the summary away without writing it.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get recordingSummaryDiscard;
+
+  /// Writes the summary and the ticked action items into the note.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get recordingSummaryApply;
+
+  /// Asks the AI for the summary again.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get recordingSummaryTryAgain;
+
+  /// Heading of the summary points.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get recordingSummarySectionSummary;
+
+  /// Heading of the decisions.
+  ///
+  /// In en, this message translates to:
+  /// **'Decisions'**
+  String get recordingSummarySectionDecisions;
+
+  /// Heading of the action items.
+  ///
+  /// In en, this message translates to:
+  /// **'Action items'**
+  String get recordingSummarySectionActions;
+
+  /// Under the Action items heading.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the ticked ones are written into the note.'**
+  String get recordingSummaryActionsHint;
+
+  /// Said when a very long transcript was cut.
+  ///
+  /// In en, this message translates to:
+  /// **'The transcript was long, so only its first part was summarised.'**
+  String get recordingSummaryCut;
+
+  /// Notice after a summary was written, with Undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary added above the transcript.'**
+  String get recordingSummaryAdded;
+
+  /// Notice after a summary replaced an earlier one, with Undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary replaced.'**
+  String get recordingSummaryReplaced;
+
+  /// Said when asking the AI for a summary failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t summarise this recording. {reason}'**
+  String recordingSummaryFailed(String reason);
+
+  /// Said when the AI gave items the transcript does not back.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{One item was left out for want of a quote from the recording.} other{{count} items were left out for want of a quote from the recording.}}'**
+  String recordingSummaryDropped(int count);
+
   /// Button that tries tidying a voice note again.
   ///
   /// In en, this message translates to:

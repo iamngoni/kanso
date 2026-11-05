@@ -26,6 +26,7 @@ import 'people.dart';
 import 'player.dart';
 import 'publish.dart';
 import 'recording.dart';
+import 'recording_summary.dart';
 import 'renderer.dart';
 import 'shared.dart';
 import 'sync.dart';
@@ -341,6 +342,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   /// Recording a note from the microphone, and what a crash left.
   KansoRecorder recorder();
+
+  /// Summarise Recording: a summary and action items for a recording's
+  /// transcript, written only once the person has looked them over.
+  KansoRecordingSummary recordingSummary();
 
   Future<TaskPlace?> reminderAnswer({
     required String key,

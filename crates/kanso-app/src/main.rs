@@ -168,6 +168,9 @@ mod record_sheet;
 mod recording;
 mod recording_bar;
 mod recording_model;
+mod recording_summary;
+#[cfg(test)]
+mod recording_summary_tests;
 #[cfg(test)]
 mod recording_tests;
 mod related;

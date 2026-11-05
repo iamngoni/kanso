@@ -36,6 +36,7 @@ use super::people::KansoPeople;
 use super::player::KansoPlayers;
 use super::publish::KansoPublisher;
 use super::recording::KansoRecorder;
+use super::recording_summary::KansoRecordingSummary;
 use super::renderer::KansoRenderer;
 use super::shared::KansoShared;
 use super::sync::KansoSync;
@@ -509,6 +510,13 @@ impl KansoLibrary {
     #[frb(sync)]
     pub fn voice_capture(&self) -> KansoVoiceCapture {
         KansoVoiceCapture::new(self.0.clone())
+    }
+
+    /// Summarise Recording: a summary and action items for a recording's
+    /// transcript, written only once the person has looked them over.
+    #[frb(sync)]
+    pub fn recording_summary(&self) -> KansoRecordingSummary {
+        KansoRecordingSummary::new(self.0.clone())
     }
 
     /// Opens canvas note `id` for drawing.

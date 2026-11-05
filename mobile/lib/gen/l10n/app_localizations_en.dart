@@ -5361,6 +5361,92 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get recordingSummaryMenu => 'Summarise recording';
+
+  @override
+  String get recordingSummaryTitle => 'Summarise recording';
+
+  @override
+  String get recordingSummaryClose => 'Close';
+
+  @override
+  String get recordingSummaryUnavailable =>
+      'To summarise a recording, turn on AI in Settings and open a note that holds the transcript of a recording. Locked notes, notes in the trash and notes tagged #ai-exclude are never sent.';
+
+  @override
+  String get recordingSummaryNothingYet =>
+      'Nothing is sent until you choose Send. You will see the summary and the action items before anything is written.';
+
+  @override
+  String get recordingSummaryReplacesNote =>
+      'This note already has a summary. A new one replaces it.';
+
+  @override
+  String get recordingSummaryWorking => 'Summarising the transcript…';
+
+  @override
+  String get recordingSummaryCancelHint =>
+      'Cancel stops the request. The note is not changed.';
+
+  @override
+  String get recordingSummaryUnchanged => 'The note is not changed.';
+
+  @override
+  String get recordingSummarySend => 'Send';
+
+  @override
+  String get recordingSummaryCancel => 'Cancel';
+
+  @override
+  String get recordingSummaryDiscard => 'Discard';
+
+  @override
+  String get recordingSummaryApply => 'Apply';
+
+  @override
+  String get recordingSummaryTryAgain => 'Try again';
+
+  @override
+  String get recordingSummarySectionSummary => 'Summary';
+
+  @override
+  String get recordingSummarySectionDecisions => 'Decisions';
+
+  @override
+  String get recordingSummarySectionActions => 'Action items';
+
+  @override
+  String get recordingSummaryActionsHint =>
+      'Only the ticked ones are written into the note.';
+
+  @override
+  String get recordingSummaryCut =>
+      'The transcript was long, so only its first part was summarised.';
+
+  @override
+  String get recordingSummaryAdded => 'Summary added above the transcript.';
+
+  @override
+  String get recordingSummaryReplaced => 'Summary replaced.';
+
+  @override
+  String recordingSummaryFailed(String reason) {
+    return 'Couldn\'t summarise this recording. $reason';
+  }
+
+  @override
+  String recordingSummaryDropped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count items were left out for want of a quote from the recording.',
+      one: 'One item was left out for want of a quote from the recording.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get voiceTidyTryAgain => 'Try again';
 
   @override
