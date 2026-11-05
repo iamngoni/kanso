@@ -6,7 +6,6 @@
 use std::sync::{Arc, RwLock};
 
 use kanso_collab::Engine;
-use kanso_core::canvas::Canvas;
 use kanso_server::{CanvasChange, SharedCanvases};
 
 /// The engine of the signed-in session, or none while signed out. The
