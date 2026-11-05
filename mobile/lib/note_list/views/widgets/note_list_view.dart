@@ -23,6 +23,7 @@ import '../../../core/views/widgets/kanso_refresh_control.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../../core/views/widgets/kanso_swipe_host.dart';
 import '../../../notebook_home/views/widgets/notebook_home_card.dart';
+import '../../../notices/views/widgets/notice_card_host.dart';
 import '../../../tabs/state/tabs/tabs_bloc.dart';
 import '../../models/data/note_list_entry.dart';
 import '../../state/note_list/note_list_bloc.dart';
@@ -96,6 +97,9 @@ class NoteListView extends StatelessWidget {
             SliverToBoxAdapter(
               child: KansoLargeTitle(title: title, subtitle: largeSubtitle),
             ),
+          // An update that changed something to fix: under the title, so
+          // it scrolls away with it.
+          const SliverToBoxAdapter(child: NoticeCardHost()),
           // The notebook's card, above its first note.
           if (state.place case ListPlace_Notebook(:final id))
             SliverToBoxAdapter(

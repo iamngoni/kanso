@@ -22,9 +22,9 @@ use crate::model::{Kind, LiveNotice, Placement, Role};
 
 const SERVER: &str = "https://sync.kanso.test";
 
-struct Device {
-    engine: Arc<Engine>,
-    store: Arc<Store>,
+pub(super) struct Device {
+    pub(super) engine: Arc<Engine>,
+    pub(super) store: Arc<Store>,
     _dir: TempDir,
 }
 
@@ -33,7 +33,7 @@ fn hex_id(prefix: &str, n: u8) -> String {
 }
 
 /// Device `device` of account `n` (username `user<n>`), with its own library.
-fn device(server: &MemoryCollab, n: u8, device: u8) -> Device {
+pub(super) fn device(server: &MemoryCollab, n: u8, device: u8) -> Device {
     let dir = TempDir::new().unwrap();
     let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
     let account = Account {
@@ -62,7 +62,7 @@ fn device(server: &MemoryCollab, n: u8, device: u8) -> Device {
     }
 }
 
-fn book(store: &Store) -> String {
+pub(super) fn book(store: &Store) -> String {
     store
         .put(
             DocType::Book,
@@ -74,7 +74,7 @@ fn book(store: &Store) -> String {
         .id
 }
 
-fn note(store: &Store, id: &str, title: &str, body: &str) -> String {
+pub(super) fn note(store: &Store, id: &str, title: &str, body: &str) -> String {
     let book = book(store);
     store
         .put(
@@ -88,7 +88,7 @@ fn note(store: &Store, id: &str, title: &str, body: &str) -> String {
 }
 
 /// Writes a note's body as the app's other writers do (Origin::Ui).
-fn write_body(store: &Store, id: &str, body: &str) -> kanso_store::Result<()> {
+pub(super) fn write_body(store: &Store, id: &str, body: &str) -> kanso_store::Result<()> {
     store
         .put(
             DocType::Note,
@@ -99,7 +99,7 @@ fn write_body(store: &Store, id: &str, body: &str) -> kanso_store::Result<()> {
         .map(|_| ())
 }
 
-fn body_of(device: &Device, share_id: &str) -> String {
+pub(super) fn body_of(device: &Device, share_id: &str) -> String {
     let note_id = device.store.shared_note(share_id).unwrap().unwrap().note_id;
     device.store.note(&note_id).unwrap().unwrap().body
 }
@@ -125,7 +125,7 @@ fn shared(owner: &Device, others: &[(&Device, Role)], body: &str) -> String {
     share
 }
 
-fn sync(devices: &[&Device], share: &str) {
+pub(super) fn sync(devices: &[&Device], share: &str) {
     for _ in 0..2 {
         for d in devices {
             d.engine.sync_note(share).unwrap();
@@ -213,7 +213,12 @@ fn a_viewers_writes_are_refused_by_the_library_the_server_and_the_members() {
     let forged = {
         let loaded = v.engine.loaded(&share).unwrap();
         let mut guard = lock(&loaded);
-        let update = guard.doc.set_text(Field::Body, "Forged").unwrap();
+        let update = guard
+            .doc
+            .text()
+            .unwrap()
+            .set_text(Field::Body, "Forged")
+            .unwrap();
         let (_, sealed) = v
             .engine
             .seal(&mut guard, Kind::Update, None, &update)
@@ -233,7 +238,7 @@ fn a_viewers_writes_are_refused_by_the_library_the_server_and_the_members() {
         guard.inbox.insert(next, forged);
         let merge = a.engine.merge_delivered(&mut guard).unwrap();
         assert!(!merge.text);
-        assert_eq!(guard.doc.text(Field::Body), "Read me");
+        assert_eq!(guard.doc.text().unwrap().text(Field::Body), "Read me");
     }
     // Commenting needs the comment role.
     assert!(v.engine.add_comment(&share, 0..4, "Nice").is_err());
@@ -652,7 +657,7 @@ fn an_author_outside_the_epochs_list_is_never_merged() {
     guard.inbox.insert(next, forged);
     let merge = a.engine.merge_delivered(&mut guard).unwrap();
     assert!(!merge.text);
-    assert_eq!(guard.doc.text(Field::Body), "Ours");
+    assert_eq!(guard.doc.text().unwrap().text(Field::Body), "Ours");
 }
 
 #[test]
@@ -961,7 +966,12 @@ fn a_title_longer_than_the_library_takes_is_cut_and_merging_goes_on() {
     let update = {
         let loaded = a.engine.loaded(&share).unwrap();
         let guard = lock(&loaded);
-        guard.doc.set_text(Field::Title, &long).unwrap()
+        guard
+            .doc
+            .text()
+            .unwrap()
+            .set_text(Field::Title, &long)
+            .unwrap()
     };
     let envelope = sealed(&a, &share, Kind::Update, &update);
     server.append(a.engine.caller(), &share, &envelope).unwrap();
@@ -978,7 +988,7 @@ fn a_title_longer_than_the_library_takes_is_cut_and_merging_goes_on() {
     b.engine.sync_note(&share).unwrap();
     assert_eq!(body_of(&b, &share), "Body, and more");
     let loaded = b.engine.loaded(&share).unwrap();
-    assert_eq!(lock(&loaded).doc.text(Field::Title), long);
+    assert_eq!(lock(&loaded).doc.text().unwrap().text(Field::Title), long);
 }
 
 #[test]
@@ -993,7 +1003,12 @@ fn an_update_relayed_after_its_epoch_ended_is_dropped() {
     // B writes under epoch 1; the server holds it back.
     let late = {
         let loaded = b.engine.loaded(&share).unwrap();
-        let update = lock(&loaded).doc.set_text(Field::Body, "Late").unwrap();
+        let update = lock(&loaded)
+            .doc
+            .text()
+            .unwrap()
+            .set_text(Field::Body, "Late")
+            .unwrap();
         drop(loaded);
         sealed(&b, &share, Kind::Update, &update)
     };
@@ -1010,7 +1025,7 @@ fn an_update_relayed_after_its_epoch_ended_is_dropped() {
     guard.inbox.insert(next, late);
     let merge = c.engine.merge_delivered(&mut guard).unwrap();
     assert!(!merge.text);
-    assert_eq!(guard.doc.text(Field::Body), "Ours");
+    assert_eq!(guard.doc.text().unwrap().text(Field::Body), "Ours");
 }
 
 #[test]
@@ -1048,6 +1063,8 @@ fn an_edit_past_the_size_limit_is_kept_as_a_private_note() {
     // The CRDT is already at the limit (history and text the library cut).
     guard
         .doc
+        .text()
+        .unwrap()
         .set_text(Field::Title, &"x".repeat(super::STATE_LIMIT))
         .unwrap();
     let local = (guard.base.0.clone(), format!("{} and more", guard.base.1));
@@ -1259,7 +1276,7 @@ proptest! {
         for d in devices {
             let loaded = d.engine.loaded(&share).unwrap();
             let guard = lock(&loaded);
-            prop_assert_eq!(guard.doc.text(Field::Body), texts[0].clone());
+            prop_assert_eq!(guard.doc.text().unwrap().text(Field::Body), texts[0].clone());
         }
     }
 

@@ -17,7 +17,9 @@ use serde_json::{Map, Value};
 
 use crate::write::{Synced, load_row, next_rev, store_row};
 use crate::{Origin, Result, Store, StoreError, WriteResult};
-use model::{CommentRecord, Contact, Outgoing, SealedKey, SharedNote, SharedStatus, StoredNotice};
+use model::{
+    CommentRecord, Contact, Outgoing, SealedKey, SharedKind, SharedNote, SharedStatus, StoredNotice,
+};
 
 /// Migration 9.
 pub(crate) const MIGRATION: &str = r#"
@@ -107,6 +109,10 @@ pub(crate) fn shared_role(fields: &Map<String, Value>) -> Option<&str> {
     share_of(fields)?.get("role").and_then(Value::as_str)
 }
 
+fn is_canvas(fields: &Map<String, Value>) -> bool {
+    fields.get("doctype").and_then(Value::as_str) == Some("canvas")
+}
+
 /// What private sync sends of a shared note: everything but its text, which
 /// the CRDT carries to everyone (this account's devices included).
 pub(crate) fn private_part(fields: &mut Map<String, Value>) {
@@ -154,6 +160,30 @@ pub(crate) fn guard_shared(
     {
         return Err(StoreError::Invalid(
             "The note was shared with you to read: its text can't be changed here.".into(),
+        ));
+    }
+    // A shared canvas's body is the projection of its CRDT, written by the
+    // engine only: nobody else may change it, whatever their role, and the
+    // note can't stop being a canvas while it is shared.
+    if let Some(prev) = previous
+        && share_of(prev).is_some()
+        && is_canvas(prev)
+        && (prev.get("body") != fields.get("body") || !is_canvas(fields))
+    {
+        return Err(StoreError::Invalid(
+            "The canvas is shared: it can only be changed by drawing on it, not by writing its text."
+                .into(),
+        ));
+    }
+    // Nor can a shared text note become a canvas: its CRDT is text, so the
+    // canvas's JSON would be merged character by character.
+    if let Some(prev) = previous
+        && share_of(prev).is_some()
+        && !is_canvas(prev)
+        && is_canvas(fields)
+    {
+        return Err(StoreError::Invalid(
+            "The note is shared as text: stop sharing it before making it a canvas.".into(),
         ));
     }
     if share_of(fields).is_some() && (fields.contains_key(LOCK_FIELD) || in_locked) {
@@ -240,11 +270,12 @@ fn shared_from_row(row: &rusqlite::Row) -> rusqlite::Result<SharedNote> {
         counter: row.get::<_, i64>(13)? as u64,
         needs_snapshot: row.get(14)?,
         updated_at: row.get(15)?,
+        kind: SharedKind::parse(&row.get::<_, String>(16)?),
     })
 }
 
 const SHARED_COLUMNS: &str = "share_id, note_id, owner_id, owner_name, role, status, epoch, list, \
-    list_sig, state, applied_seq, since_snapshot, bytes_since_snapshot, counter, needs_snapshot, updated_at";
+    list_sig, state, applied_seq, since_snapshot, bytes_since_snapshot, counter, needs_snapshot, updated_at, kind";
 
 /// What [`Store::write_shared_text`] writes into a shared note.
 #[derive(Clone, Debug)]
@@ -262,6 +293,18 @@ pub struct SharedText<'a> {
     /// whatever the note holds.
     pub expected_rev: Option<&'a str>,
     /// Who made this change, for the note's history.
+    pub authors: &'a [String],
+}
+
+/// What [`Store::write_shared_canvas`] writes into a shared canvas.
+#[derive(Clone, Debug)]
+pub struct SharedCanvas<'a> {
+    pub note_id: &'a str,
+    pub title: &'a str,
+    pub canvas: &'a kanso_core::canvas::Canvas,
+    pub mark: Option<Value>,
+    pub new_in: &'a str,
+    pub expected_rev: Option<&'a str>,
     pub authors: &'a [String],
 }
 
@@ -308,8 +351,8 @@ impl Store {
             tx.execute(
                 "INSERT INTO collab_notes (share_id, note_id, owner_id, owner_name, role, status, epoch,
                      list, list_sig, state, applied_seq, since_snapshot, bytes_since_snapshot, counter,
-                     needs_snapshot, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+                     needs_snapshot, updated_at, kind)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
                  ON CONFLICT (share_id) DO UPDATE SET note_id = excluded.note_id,
                      owner_id = excluded.owner_id, owner_name = excluded.owner_name, role = excluded.role,
                      status = excluded.status, epoch = excluded.epoch, list = excluded.list,
@@ -334,6 +377,7 @@ impl Store {
                     note.counter as i64,
                     note.needs_snapshot,
                     note.updated_at,
+                    note.kind.as_str(),
                 ],
             )?;
             Ok(())
@@ -365,6 +409,36 @@ impl Store {
     /// The names in `authors` are added to who changed it since its last
     /// saved version.
     pub fn write_shared_text(&self, text: &SharedText) -> Result<WriteResult> {
+        self.write_shared(text, None)
+    }
+
+    /// Writes a shared canvas's projection (and its `kansoShare`) as the
+    /// note's body, creating the note when this library doesn't have it yet,
+    /// as [`Origin::Collab`]. The canvas is checked as every canvas body is:
+    /// one that doesn't validate, or is past the size cap, is refused with
+    /// [`StoreError::Invalid`] (never cut short), and the note keeps its last
+    /// good body. The note's `doctype` is set to `canvas`.
+    pub fn write_shared_canvas(&self, canvas: &SharedCanvas) -> Result<WriteResult> {
+        canvas.canvas.validate().map_err(|why| {
+            StoreError::Invalid(format!("The shared canvas can't be saved: {why}"))
+        })?;
+        let body = kanso_core::canvas::to_body(canvas.canvas);
+        kanso_core::canvas::check_body(&body).map_err(StoreError::Invalid)?;
+        self.write_shared(
+            &SharedText {
+                note_id: canvas.note_id,
+                title: canvas.title,
+                body: &body,
+                mark: canvas.mark.clone(),
+                new_in: canvas.new_in,
+                expected_rev: canvas.expected_rev,
+                authors: canvas.authors,
+            },
+            Some("canvas"),
+        )
+    }
+
+    fn write_shared(&self, text: &SharedText, doctype: Option<&str>) -> Result<WriteResult> {
         self.write(|tx, changes| {
             let previous = load_row(tx, text.note_id)?.filter(|row| !row.deleted);
             if let (Some(expected), Some(prev)) = (text.expected_rev, &previous)
@@ -399,6 +473,9 @@ impl Store {
                 prev.fields.get("title").and_then(Value::as_str) == Some(text.title)
                     && prev.fields.get("body").and_then(Value::as_str) == Some(text.body)
                     && prev.fields.get(SHARE_FIELD) == text.mark.as_ref()
+                    && doctype.is_none_or(|kind| {
+                        prev.fields.get("doctype").and_then(Value::as_str) == Some(kind)
+                    })
             });
             if unchanged {
                 let prev = previous.as_ref().expect("checked");
@@ -410,6 +487,9 @@ impl Store {
             }
             fields.insert("title".into(), Value::String(text.title.to_owned()));
             fields.insert("body".into(), Value::String(text.body.to_owned()));
+            if let Some(kind) = doctype {
+                fields.insert("doctype".into(), Value::String(kind.to_owned()));
+            }
             match &text.mark {
                 Some(mark) => {
                     fields.insert(SHARE_FIELD.into(), mark.clone());
