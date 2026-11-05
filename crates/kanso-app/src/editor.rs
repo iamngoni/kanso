@@ -8050,6 +8050,154 @@ mod writing_tests {
         }
     }
 
+    /// A PDF in a locked note: the lock is removed, the PDF highlighted and
+    /// commented, and the note locked again. The highlights are sealed with
+    /// the text, the PDF is sealed again, and the file keys still open it.
+    // no-prop-test: drives one window through two locks and a removal.
+    #[gpui_kit::test]
+    fn a_relocked_pdfs_highlights_stay_sealed_and_its_file_still_opens(cx: &mut TestAppContext) {
+        use kanso_pdf::model::{Color, Quad};
+        use kanso_store::AttachmentState;
+        const BYTES: &[u8] = b"%PDF-1.7\n%Zebra body";
+        let open = Open::new(cx, "Notes\n");
+        let pdf = kanso_engine::attach::attach_pdf(&open.store, BYTES, "Report.pdf", None).unwrap();
+        let url = format!("inkdrop://{pdf}");
+        let link = format!("Notes\n\n[Report.pdf]({url})\n");
+        open.with(cx, move |editor, window, cx| {
+            editor.edit_for_test(&link, window, cx)
+        });
+        let key = cx.update(|cx| {
+            let key = kanso_sync::lock::LockKey::create(
+                &kanso_sync::lock::LockPassword::new("long enough").unwrap(),
+                kanso_sync::KdfParams::TEST,
+            )
+            .unwrap();
+            crate::locked::LockKeys::add(key, cx);
+            crate::locked::LockKeys::current(cx).unwrap()
+        });
+
+        // A locked note, its PDF sealed with it.
+        let first = key.clone();
+        open.with(cx, move |editor, window, cx| {
+            editor.lock_with(&first, window, cx)
+        });
+        cx.run_until_parked();
+        assert!(open.with(cx, |editor, _, _| editor.lock == super::LockView::Open));
+        assert_eq!(
+            open.store.attachment_state(&pdf).unwrap(),
+            AttachmentState::Sealed
+        );
+
+        // Unlocked: the lock comes off, and the PDF is plain again.
+        open.with(cx, |editor, window, cx| editor.remove_lock(window, cx));
+        cx.run_until_parked();
+        assert!(open.with(cx, |editor, _, _| editor.lock == super::LockView::Plain));
+        assert_eq!(
+            open.store.attachment_state(&pdf).unwrap(),
+            AttachmentState::Plain
+        );
+
+        // Highlighted and commented in the reader.
+        let shown = url.clone();
+        open.with(cx, move |editor, window, cx| {
+            editor.open_file_link(&shown, window, cx)
+        });
+        let reader = open.with(cx, |editor, _, _| editor.pdf.as_ref().unwrap().0.clone());
+        let page = kanso_pdf::PageText {
+            page: 1,
+            width: 612.,
+            height: 792.,
+            rotation: 0,
+            chars: "Zebra"
+                .chars()
+                .enumerate()
+                .map(|(i, ch)| kanso_pdf::TextChar {
+                    ch,
+                    quad: Quad::new(0.1 + i as f64 * 0.02, 0.1, 0.12 + i as f64 * 0.02, 0.125),
+                    turns: 0,
+                    space_before: false,
+                })
+                .collect(),
+        };
+        cx.update_window(open.window, move |_, window, cx| {
+            reader.update(cx, |reader, cx| {
+                reader.test_open(vec![[612., 792.]], window, cx);
+                reader.test_text(page, cx);
+                let id = reader.test_highlight_all(Color::Pink, window, cx).unwrap();
+                reader.test_comment(&id, "Quokka secret", window, cx);
+            })
+        })
+        .unwrap();
+        cx.run_until_parked();
+
+        // Locked again.
+        open.with(cx, move |editor, window, cx| {
+            editor.lock_with(&key, window, cx)
+        });
+        cx.run_until_parked();
+        open.with(cx, |editor, _, _| {
+            assert_eq!(editor.lock, super::LockView::Open, "not locked again");
+            let shown = &editor.note.as_ref().unwrap().body;
+            assert!(shown.contains("```kanso-pdf"), "lost: {shown}");
+            assert!(shown.contains("Quokka secret"), "lost: {shown}");
+        });
+
+        // The highlights are sealed: neither the stored note nor any of its
+        // versions hold them in the clear.
+        let raw = open.store.get(&open.id).unwrap().unwrap();
+        assert!(
+            raw.fields.contains_key(kanso_core::model::LOCK_FIELD),
+            "not locked"
+        );
+        let stored = serde_json::to_string(&raw.fields).unwrap();
+        let history = serde_json::to_string(
+            &open
+                .store
+                .revisions(&open.id)
+                .unwrap()
+                .into_iter()
+                .map(|r| r.fields)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        for clear in ["Quokka", "Zebra", "kanso-pdf"] {
+            assert!(!stored.contains(clear), "{clear} is stored in the clear");
+            assert!(
+                !history.contains(clear),
+                "{clear} is in the history in the clear"
+            );
+        }
+
+        // The PDF is sealed again, and opens with the file keys alone.
+        assert_eq!(
+            open.store.attachment_state(&pdf).unwrap(),
+            AttachmentState::Sealed
+        );
+        let sealed = open.store.stored_attachment(&pdf).unwrap().unwrap().data;
+        assert!(
+            !sealed.windows(5).any(|w| w == b"Zebra"),
+            "the PDF is stored in the clear"
+        );
+        // The store's reader the API serves from refuses it.
+        assert_eq!(open.store.attachment(&pdf).unwrap(), None);
+        assert_eq!(
+            crate::attachments::open_with(
+                &open.store,
+                &pdf,
+                &crate::attachments::FileKeys::default()
+            ),
+            crate::attachments::Opened::Locked
+        );
+        let keys = cx.update(crate::attachments::FileKeys::of);
+        let crate::attachments::Opened::Opened(file) =
+            crate::attachments::open_with(&open.store, &pdf, &keys)
+        else {
+            panic!("the sealed PDF doesn't open with the file keys");
+        };
+        assert_eq!(file.content_type, "application/pdf");
+        assert_eq!(file.bytes, BYTES);
+    }
+
     /// A note for ticking tasks in the preview. The task list counts the
     /// YAML line as its first task, though the preview draws no box there,
     /// and skips the fence's line: the three boxes drawn are the list's
