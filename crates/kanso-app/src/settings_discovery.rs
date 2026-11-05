@@ -142,6 +142,22 @@ pub fn sections(cx: &mut Context<SettingsView>) -> Vec<AnyElement> {
             .detail("Kanso couldn't find its PDF reader, so the words in PDFs can't be searched.")
     };
     rows.push(pdf_row);
+    rows.push(
+        Row::new(Lucide::Quote, "Quote highlights into the note")
+            .detail(
+                "Highlighting text in a PDF also adds the quote, with a link back to its page, under Highlights in the note. Undo takes it out in one step.",
+            )
+            .trailing(
+                div().debug_selector(|| "pdf-quote".into()).child(
+                    Switch::new("pdf-quote")
+                        .checked(discovery.pdf_quote)
+                        .on_click(|on, _, cx| {
+                            let on = *on;
+                            AppState::update_config(cx, |config| config.discovery.pdf_quote = on);
+                        }),
+                ),
+            ),
+    );
     rows.push(ink_row(&discovery, device, cx));
     vec![section("Discovery", rows, colors)]
 }

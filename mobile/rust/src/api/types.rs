@@ -28,18 +28,18 @@ pub use kanso_mobile::{
     MeaningResult, MemberRow, MentionSpan, MonthGrid, NewNote, NoteChange, NoteList, NoteMeaning,
     NoteRow, NoteView, NotebookRole, NotebookRow, OnThisDayRow, OpenLoopItem, OpenLoopKind,
     OpenLoopsBoard, OpenedDocuments, OpenedFile, PaletteDto, PasskeyFailure, PasskeyRequest,
-    PasskeyRequestKind, PasskeyRow, PersonLookup, PersonRow, PlannedNotice, PreviewAlign,
-    PreviewBlock, PreviewCanvasNotice, PreviewCanvasShown, PreviewCell, PreviewCodeRun,
-    PreviewFigureKind, PreviewInline, PreviewLink, PreviewListItem, PreviewOptions,
-    PreviewQueryRow, PreviewRow, PreviewSourcedBlock, PreviewSvg, PreviewTaskBox, PromptState,
-    Property, PropertyKind, ProviderEvent, ProviderKind, PushEnvironmentKind, PushPlatformKind,
-    QuotaLimit, Range16, RecoveryKeyText, RelatedRow, RelatedState, RelatedStatus, ReminderAnswer,
-    ReminderNote, ReminderPlan, Replacement, ResurfaceResult, ResurfaceRow, ReviewFinished,
-    ReviewSaved, ReviewTheme, ReviewView, ReviewWritten, RunBatch, SaveState, Saved, SealPhase,
-    SealProgress, SearchScope, ServerInfo, ServerMethods, Share, ShareFile, ShareInfo,
-    ShareLinkRow, ShareRole, SharedEvent, ShortcutEntry, ShortcutPlace, ShortcutSection,
-    SignOutReasonKind, SignedUp, SortKey, SpanRow, StatusChoice, StatusCount, StyledRun,
-    SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption, SyncPhase, SyncProblemKind,
+    PasskeyRequestKind, PasskeyRow, PdfHighlightChange, PdfHighlightRow, PdfNotes, PersonLookup,
+    PersonRow, PlannedNotice, PreviewAlign, PreviewBlock, PreviewCanvasNotice, PreviewCanvasShown,
+    PreviewCell, PreviewCodeRun, PreviewFigureKind, PreviewInline, PreviewLink, PreviewListItem,
+    PreviewOptions, PreviewQueryRow, PreviewRow, PreviewSourcedBlock, PreviewSvg, PreviewTaskBox,
+    PromptState, Property, PropertyKind, ProviderEvent, ProviderKind, PushEnvironmentKind,
+    PushPlatformKind, QuotaLimit, Range16, RecoveryKeyText, RelatedRow, RelatedState,
+    RelatedStatus, ReminderAnswer, ReminderNote, ReminderPlan, Replacement, ResurfaceResult,
+    ResurfaceRow, ReviewFinished, ReviewSaved, ReviewTheme, ReviewView, ReviewWritten, RunBatch,
+    SaveState, Saved, SealPhase, SealProgress, SearchScope, ServerInfo, ServerMethods, Share,
+    ShareFile, ShareInfo, ShareLinkRow, ShareRole, SharedEvent, ShortcutEntry, ShortcutPlace,
+    ShortcutSection, SignOutReasonKind, SignedUp, SortKey, SpanRow, StatusChoice, StatusCount,
+    StyledRun, SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption, SyncPhase, SyncProblemKind,
     SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine, SyncTone, SyntaxStyleRow, Table,
     TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard, TaskGroupKind, TaskItem, TaskListQuery,
     TaskPlace, TaskSection, TemplateRow, TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow,
@@ -281,6 +281,34 @@ pub struct _NewNote {
     pub tags: Vec<String>,
     #[frb(default = false)]
     pub pinned: bool,
+}
+
+#[frb(mirror(PdfNotes))]
+pub struct _PdfNotes {
+    pub file: String,
+    pub name: String,
+    pub url: String,
+    pub editable: bool,
+    pub why: Option<String>,
+    pub highlights: Vec<PdfHighlightRow>,
+}
+
+#[frb(mirror(PdfHighlightRow))]
+pub struct _PdfHighlightRow {
+    pub id: String,
+    pub page: u32,
+    pub color: String,
+    pub text: String,
+    pub comment: Option<String>,
+    pub in_note: bool,
+}
+
+#[frb(mirror(PdfHighlightChange))]
+pub enum _PdfHighlightChange {
+    Comment { comment: String },
+    Color { color: String },
+    AddQuote,
+    Delete,
 }
 
 #[frb(mirror(Saved))]
@@ -1654,6 +1682,10 @@ pub enum _PreviewBlock {
         svg: PreviewSvg,
     },
     EmptyDrawing,
+    PdfNotes {
+        url: Option<String>,
+        summary: String,
+    },
     Canvas {
         note: String,
         group: Option<String>,

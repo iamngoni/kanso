@@ -125,6 +125,7 @@ fn setup_with(
     cx.update(|cx| {
         cx.subscribe(&reader, move |_, event: &PdfEvent, _| match event {
             PdfEvent::Close => flag.store(true, std::sync::atomic::Ordering::SeqCst),
+            PdfEvent::Write(_) => {}
         })
         .detach();
     });
@@ -220,6 +221,14 @@ fn page_one_draws_as_a_texture(cx: &mut TestAppContext) {
     drive(cx, &f, drawn);
     assert_eq!(state(cx, &f), ReaderState::Showing { page: 1, pages: 2 });
     assert!(has(cx, &f, "pdf-page-0"), "the page isn't drawn");
+    // The picture fills the page's whole box, the one the highlights and
+    // the pointer are measured in.
+    let mut vcx = VisualTestContext::from_window(f.window, cx);
+    assert_eq!(
+        vcx.debug_bounds("pdf-page-image-0"),
+        vcx.debug_bounds("pdf-page-0"),
+        "the picture is not where the marks are"
+    );
     assert!(has(cx, &f, "pdf-page-label"));
     assert!(!has(cx, &f, "pdf-error"));
     let image = cx.read(|cx| f.reader.read(cx).page_texture(0)).unwrap();

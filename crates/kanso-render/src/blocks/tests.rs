@@ -687,6 +687,30 @@ fn drawings_that_fail_show_their_code_and_why() {
     );
 }
 
+/// A PDF's highlights block is a quiet line (or nothing when empty), never
+/// its JSON; a block that can't be read says so.
+#[test]
+fn a_pdf_block_is_a_quiet_line_not_json() {
+    let fence = |highlights: &str| {
+        format!(
+            "Intro\n\n```kanso-pdf\n{{\"file\":\"file:abc\",\"md5\":\"m\",\"version\":1,\"highlights\":[{highlights}],\"ink\":[]}}\n```\n\nOutro\n"
+        )
+    };
+    let two = fence("{\"id\":\"a\",\"page\":1,\"comment\":\"x\"},{\"id\":\"b\",\"page\":2}");
+    let drawn = plain_blocks(&two);
+    assert_eq!(
+        drawn[1],
+        Block::PdfNotes {
+            url: Some("inkdrop://file:abc".into()),
+            summary: "2 highlights \u{b7} 1 comment".into()
+        }
+    );
+    assert_eq!(drawn.len(), 3);
+    assert_eq!(plain_blocks(&fence("")).len(), 2, "no highlights: no line");
+    let broken = plain_blocks("```kanso-pdf\n{oops\n```\n");
+    assert!(matches!(&broken[0], Block::PdfNotes { url: None, .. }));
+}
+
 /// Colors a few byte ranges, overlapping and off character boundaries.
 struct Patchy;
 

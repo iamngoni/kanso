@@ -1818,6 +1818,12 @@ pub enum PreviewBlock {
     },
     /// An Excalidraw drawing with nothing in it yet.
     EmptyDrawing,
+    /// The line that stands for a PDF's highlights: "4 highlights · 1
+    /// comment". `url` (`inkdrop://file:…`) names the PDF, when it can.
+    PdfNotes {
+        url: Option<String>,
+        summary: String,
+    },
     /// A `canvas` fence: the canvas note `note` (and its `group`, if any),
     /// and what it shows. A tap on the picture opens the canvas.
     Canvas {
@@ -2183,6 +2189,7 @@ mod preview_blocks {
                     svg: svg.into(),
                 },
                 Block::EmptyDrawing => PreviewBlock::EmptyDrawing,
+                Block::PdfNotes { url, summary } => PreviewBlock::PdfNotes { url, summary },
                 Block::Canvas { note, group, shown } => {
                     use kanso_render::canvas::embed::{Notice, Shown};
                     PreviewBlock::Canvas {
@@ -2569,4 +2576,48 @@ pub struct DiscoveryMeasure {
     /// Sample notes embedded, and how many a second.
     pub notes: u32,
     pub notes_per_second: f64,
+}
+
+/// One PDF's highlights in a note (issue #43, step 6).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PdfNotes {
+    /// The attachment's document id (`file:…`).
+    pub file: String,
+    /// The PDF's name, for the quote's heading.
+    pub name: String,
+    /// `inkdrop://file:…`, the link that opens it.
+    pub url: String,
+    /// Whether the highlights can be changed: false while the block in the
+    /// note cannot be read (`why` says).
+    pub editable: bool,
+    pub why: Option<String>,
+    /// By page, then in the order they were made.
+    pub highlights: Vec<PdfHighlightRow>,
+}
+
+/// One highlight in a list.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PdfHighlightRow {
+    pub id: String,
+    /// The first page, 1-based.
+    pub page: u32,
+    /// `yellow`, `green`, `blue` or `pink`.
+    pub color: String,
+    pub text: String,
+    pub comment: Option<String>,
+    /// Whether its quote is still in the note.
+    pub in_note: bool,
+}
+
+/// A change to one highlight of a PDF's block.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PdfHighlightChange {
+    /// Sets the comment; blank clears it.
+    Comment { comment: String },
+    /// Changes the colour (`yellow`, `green`, `blue`, `pink`).
+    Color { color: String },
+    /// Puts the quote back under `## Highlights`.
+    AddQuote,
+    /// Removes the highlight (its quote stays in the note).
+    Delete,
 }
