@@ -17,17 +17,20 @@ use super::NoteEditor;
 use super::peers::open_editors;
 
 /// Whether note `id` is being edited in any open editor right now: typing
-/// or a canvas change not saved yet, a gesture under way, or a question
-/// about a change made elsewhere open. The background reader leaves such a
-/// note until it is still again.
+/// or a canvas change not saved yet, a gesture under way, a question about
+/// a change made elsewhere open, or ink in one of its inline sketches that
+/// the note doesn't hold yet (drawn, waiting two seconds for its write, or
+/// on its way to the editor). The background reader leaves such a note
+/// until it is still again.
 pub fn editing(id: &str, cx: &App) -> bool {
-    open_editors(cx).into_iter().any(|editor| {
-        let editor = editor.read(cx);
-        editor.note_id() == Some(id)
-            && (editor.has_unsaved_edits(cx)
-                || editor.incoming.is_some()
-                || editor.canvas.read(cx).is_drawing())
-    })
+    crate::sketch_view::busy(id, cx)
+        || open_editors(cx).into_iter().any(|editor| {
+            let editor = editor.read(cx);
+            editor.note_id() == Some(id)
+                && (editor.has_unsaved_edits(cx)
+                    || editor.incoming.is_some()
+                    || editor.canvas.read(cx).is_drawing())
+        })
 }
 
 /// The words `latest` holds, when it is `note` with nothing changed but
