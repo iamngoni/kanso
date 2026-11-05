@@ -59,7 +59,12 @@ jobs:
             echo "::error::A tree-sitter crate is in the build twice. Keep the requirements in Cargo.toml equal to gpui-component's."
             exit 1
           fi
-      - run: cargo test --workspace --locked
+      # The PDF worker needs its library, and its tests start the worker: it
+      # is built with the render feature, and the app's PDF tests find it in
+      # the target folder (issue #43).
+      - name: PDFium
+        run: scripts/fetch-pdfium.sh
+      - run: cargo test --workspace --locked --features kanso-pdf/render
 
   # The app and the command-line tools build for Windows and Linux too (the
   # release workflow ships them). The tests stay on the job above: several
@@ -120,6 +125,17 @@ jobs:
       # differs per platform. The app's tests need macOS's text system.
       - name: Tests (all but the app)
         run: cargo test --workspace --locked --exclude kanso-app
+        shell: bash
+      # The PDF worker contains itself with Landlock and seccomp on Linux:
+      # its tests start the real worker, which has to refuse to run where
+      # that can't be applied (issue #43). Windows builds the worker above;
+      # its AppContainer needs an installed folder, so its tests wait for a
+      # runner that has one.
+      - name: PDF worker (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          scripts/fetch-pdfium.sh
+          cargo test --locked -p kanso-pdf --features render
         shell: bash
 
   # The core the mobile app shares (#48): the engine, store, renderer, shared

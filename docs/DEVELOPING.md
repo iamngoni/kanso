@@ -52,6 +52,19 @@ KANSO_SNAPSHOT_DIR=/tmp/shots cargo test -q -p kanso-app snapshots -- --ignored 
 KANSO_SNAPSHOT_ONLY=dark-update-ready,light-settings-updates ...   # a few
 ```
 
+PDFs are drawn by `kanso-pdf-worker`, a separate, contained process with the
+PDFium library (issue #43). Fetch the pinned, checksummed library and build
+the worker once, and the reader and its tests find them in the source tree:
+
+```sh
+scripts/fetch-pdfium.sh                          # into vendor/pdfium/<platform>
+cargo build -p kanso-pdf --features render       # target/debug/kanso-pdf-worker
+cargo test -p kanso-pdf --features render        # the worker, started for real
+cargo test -p kanso-app --bin kanso -- pdf       # the reader (says SKIPPED without both)
+```
+
+The macOS bundle (`scripts/bundle-macos.sh`) does all of that itself.
+
 Voice input's real transcription test needs the Parakeet model (about 670 MB)
 in a folder of its own; it is skipped otherwise:
 

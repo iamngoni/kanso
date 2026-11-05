@@ -115,8 +115,16 @@ jobs:
         with:
           key: release-${{ matrix.target }}
 
+      # The PDFium library PDFs are drawn with: a pinned, checksummed,
+      # non-V8 build (scripts/fetch-pdfium.sh). macOS fetches it when it
+      # bundles.
+      - name: PDFium
+        if: runner.os != 'macOS'
+        shell: bash
+        run: scripts/fetch-pdfium.sh
+
       - name: Build
-        run: cargo build --release --locked -p kanso-app -p kanso-plugin-host
+        run: cargo build --release --locked -p kanso-app -p kanso-plugin-host -p kanso-pdf --features kanso-pdf/render
 
       # Developer ID signing and notarization when every Apple secret is set;
       # otherwise an ad hoc signature, as before. The secrets reach the shell
@@ -244,8 +252,15 @@ jobs:
           STEM: ${{ steps.version.outputs.stem }}
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Compress-Archive -Path target/release/kanso.exe, target/release/kanso-plugin-host.exe `
-            -DestinationPath "dist/$env:STEM.zip"
+          # Kanso, its helpers and the PDFium library sit together; PDFium's
+          # licences ride along.
+          $stage = Join-Path $env:RUNNER_TEMP 'zip'
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item target/release/kanso.exe, target/release/kanso-plugin-host.exe, `
+            target/release/kanso-pdf-worker.exe, vendor/pdfium/win-x64/bin/pdfium.dll $stage
+          Copy-Item vendor/pdfium/win-x64/licenses -Destination (Join-Path $stage 'pdfium-licenses') -Recurse
+          Copy-Item vendor/pdfium/win-x64/LICENSE -Destination (Join-Path $stage 'pdfium-licenses/LICENSE')
+          Compress-Archive -Path (Join-Path $stage '*') -DestinationPath "dist/$env:STEM.zip"
 
       # A per-user installer beside the zip (packaging/windows/kanso.iss).
       # Inno Setup is fetched at a pinned version and checked against its
@@ -271,8 +286,10 @@ jobs:
           $exe = (Resolve-Path target/release/kanso.exe).Path
           $dist = (Resolve-Path dist).Path
           $hostExe = (Resolve-Path target/release/kanso-plugin-host.exe).Path
+          $pdfWorker = (Resolve-Path target/release/kanso-pdf-worker.exe).Path
+          $pdfium = (Resolve-Path vendor/pdfium/win-x64).Path
           & (Join-Path $inno 'ISCC.exe') "/DAppVersion=$env:VERSION" "/DSourceExe=$exe" "/DSourceHostExe=$hostExe" `
-            "/DOutputDir=$dist" "/DOutputBase=$env:STEM-setup" packaging/windows/kanso.iss
+            "/DSourcePdfWorker=$pdfWorker" "/DSourcePdfium=$pdfium" "/DOutputDir=$dist" "/DOutputBase=$env:STEM-setup" packaging/windows/kanso.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Package (Linux)
@@ -286,6 +303,12 @@ jobs:
           strip "$stem/kanso"
           install -m 755 target/release/kanso-plugin-host "$stem/kanso-plugin-host"
           strip "$stem/kanso-plugin-host"
+          install -m 755 target/release/kanso-pdf-worker "$stem/kanso-pdf-worker"
+          strip "$stem/kanso-pdf-worker"
+          install -m 755 vendor/pdfium/linux-x64/lib/libpdfium.so "$stem/libpdfium.so"
+          mkdir -p "$stem/pdfium-licenses"
+          cp -R vendor/pdfium/linux-x64/licenses/. "$stem/pdfium-licenses/"
+          cp vendor/pdfium/linux-x64/LICENSE "$stem/pdfium-licenses/LICENSE"
           install -m 644 assets/linux/kanso.desktop "$stem/kanso.desktop"
           install -m 644 assets/icon/kanso.png "$stem/kanso.png"
           install -m 755 assets/linux/install.sh "$stem/install.sh"

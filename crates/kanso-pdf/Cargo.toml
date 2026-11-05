@@ -1,10 +1,22 @@
 [package]
 name = "kanso-pdf"
-description = "PDF reading in Kanso: the annotation block, page links and quotes. Pure types; no PDF engine."
+description = "PDF reading in Kanso: the annotation block, page links and quotes, the worker protocol and the helper process that renders pages under OS containment."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+
+[features]
+# The helper process (`kanso-pdf-worker`) and PDFium. The app depends on this
+# crate without it, so the UI binary never links PDFium.
+render = ["dep:pdfium-render"]
+# PDFs built in code, for this crate's tests and the app's.
+test-support = ["dep:md-5"]
+
+[[bin]]
+name = "kanso-pdf-worker"
+path = "src/bin/kanso-pdf-worker.rs"
+required-features = ["render"]
 
 [dependencies]
 fastrand.workspace = true
@@ -13,6 +25,38 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 unicode-normalization.workspace = true
+# PDFium's Rust binding (MIT OR Apache-2.0). Pinned together with the PDFium
+# build scripts/fetch-pdfium.sh downloads: `pdfium_7881` is the API of build
+# 7881. No `image` feature: pages leave the worker as raw BGRA.
+pdfium-render = { version = "=0.9.4", default-features = false, features = ["pdfium_7881", "thread_safe"], optional = true }
+
+# Builds the encrypted PDF fixture (MD5 is the PDF 1.x key derivation; MIT OR Apache-2.0).
+md-5 = { workspace = true, optional = true }
+
+[target.'cfg(unix)'.dependencies]
+# Resource limits and the process-group kill (MIT OR Apache-2.0).
+libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Landlock (MIT OR Apache-2.0) and a seccomp filter (Apache-2.0 OR BSD-3-Clause).
+landlock = "0.4"
+seccompiler = "0.5"
+
+[target.'cfg(windows)'.dependencies]
+# An AppContainer and a Job Object around the helper (MIT OR Apache-2.0).
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Isolation",
+    "Win32_Storage_FileSystem",
+    "Win32_System_JobObjects",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
+    "Win32_System_Memory",
+] }
 
 [dev-dependencies]
+# This crate's tests use its own fixtures.
+kanso-pdf = { path = ".", features = ["test-support"] }
 proptest.workspace = true
+tempfile.workspace = true

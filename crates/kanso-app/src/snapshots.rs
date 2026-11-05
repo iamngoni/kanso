@@ -53,6 +53,7 @@ mod ai;
 pub(crate) mod ask;
 mod discovery;
 mod learn_modals;
+mod pdf;
 mod plugins_panel;
 mod plugins_settings;
 mod plugins_sheets;
@@ -5609,6 +5610,16 @@ fn snapshots() {
         },
         // Voice input: the pill while listening and writing, and Settings'
         // Voice input in each state of the model.
+        // The PDF reader (issue #43): page 1 drawn by the worker, and the
+        // worker killed under it.
+        shot("dark-pdf-reader", Dark, Split, pdf::reader_page_one),
+        shot("light-pdf-reader", Light, Split, pdf::reader_page_one),
+        shot(
+            "dark-pdf-reader-killed",
+            Dark,
+            Split,
+            pdf::reader_worker_killed,
+        ),
         shot("dark-voice-listening", Dark, Edit, voice::editor_listening),
         shot(
             "light-voice-listening",

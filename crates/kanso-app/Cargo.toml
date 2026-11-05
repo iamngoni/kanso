@@ -31,6 +31,13 @@ recommends = "mesa-vulkan-drivers, gnome-keyring | kwalletmanager"
 assets = [
     ["target/release/kanso", "usr/bin/", "755"],
     ["target/release/kanso-plugin-host", "usr/bin/", "755"],
+    # PDFs are drawn in a contained helper beside its PDFium library, where
+    # the app looks for them (kanso_pdf::client::locate); scripts/fetch-pdfium.sh
+    # fetches the library.
+    ["target/release/kanso-pdf-worker", "usr/lib/kanso/", "755"],
+    ["../../vendor/pdfium/linux-x64/lib/libpdfium.so", "usr/lib/kanso/", "755"],
+    ["../../vendor/pdfium/linux-x64/LICENSE", "usr/share/doc/kanso/pdfium/LICENSE", "644"],
+    ["../../vendor/pdfium/linux-x64/licenses/*", "usr/share/doc/kanso/pdfium/licenses/", "644"],
     ["../../assets/linux/kanso.desktop", "usr/share/applications/", "644"],
     ["../../assets/icon/kanso.png", "usr/share/icons/hicolor/512x512/apps/", "644"],
 ]
@@ -74,6 +81,7 @@ kanso-acp.workspace = true
 kanso-collab.workspace = true
 kanso-gallery.workspace = true
 kanso-core.workspace = true
+kanso-pdf.workspace = true
 kanso-import.workspace = true
 # Plugins (docs/PLUGINS.md): manifests, grants, the router and the
 # supervisor of each plugin's sandboxed host process.
@@ -126,6 +134,8 @@ tokio = { version = "1", features = ["rt"] }
 kanso-sync = { workspace = true, features = ["test-support"] }
 # The generators of the engine's view-state tests.
 kanso-engine = { workspace = true, features = ["test-support"] }
+# PDFs built in code, for the reader's tests.
+kanso-pdf = { workspace = true, features = ["test-support"] }
 # gpui-kit's own test-support feature also resolves its alternative GPUI
 # backend, whose cocoa pin conflicts; enabling it on each layer is equivalent.
 gpui-pre = { version = "=0.3.9", features = ["test-support"] }

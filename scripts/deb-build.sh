@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Makes Kanso's .deb from the binaries `cargo build --release -p kanso-app
-# -p kanso-plugin-host` already made (docs/APT.md).
+# -p kanso-plugin-host -p kanso-pdf --features kanso-pdf/render` already made
+# (docs/APT.md), with scripts/fetch-pdfium.sh's library in vendor/pdfium.
 # Usage: scripts/deb-build.sh <version> <out-dir>
 #
 # <version> is the release's version, as the release workflow's Version step
@@ -32,13 +33,19 @@ mkdir -p "$out"
 out=$(cd "$out" && pwd)
 
 cd "$(dirname "$0")/.."
-for binary in kanso kanso-plugin-host; do
+for binary in kanso kanso-plugin-host kanso-pdf-worker; do
 	if [ ! -x "target/release/$binary" ]; then
 		echo "$0: target/release/$binary is missing; build it first:" >&2
-		echo "  cargo build --release --locked -p kanso-app -p kanso-plugin-host" >&2
+		echo "  cargo build --release --locked -p kanso-app -p kanso-plugin-host -p kanso-pdf --features kanso-pdf/render" >&2
 		exit 1
 	fi
 done
+
+if [ ! -f vendor/pdfium/linux-x64/lib/libpdfium.so ]; then
+	echo "$0: the PDFium library is missing; fetch it first:" >&2
+	echo "  scripts/fetch-pdfium.sh linux-x64" >&2
+	exit 1
+fi
 
 maintainer=$(sed -n 's/^maintainer = "\(.*\)"$/\1/p' crates/kanso-app/Cargo.toml | head -1)
 if [ -z "$maintainer" ]; then
