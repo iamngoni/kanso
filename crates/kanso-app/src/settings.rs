@@ -651,8 +651,8 @@ pub struct SettingsView {
     /// The quick capture shortcut's control.
     shortcut: Entity<crate::settings_capture::ShortcutRecorder>,
     voice_shortcut: Entity<crate::settings_capture::ShortcutRecorder>,
-    /// The AI agent the Local API page has setup for.
-    mcp_agent: crate::mcp_setup::Agent,
+    /// The Local API page's API keys group.
+    pub(crate) api_keys: Entity<crate::settings_api_keys::ApiKeysPage>,
     /// Settings › Editor's font pickers, made the first time it shows.
     fonts: Option<FontPickers>,
     /// The gallery's search field, kept across pages and filters.
@@ -705,7 +705,7 @@ impl SettingsView {
             backing_up: false,
             shortcut: cx.new(|_| crate::settings_capture::ShortcutRecorder::new()),
             voice_shortcut: cx.new(|_| crate::settings_capture::ShortcutRecorder::voice()),
-            mcp_agent: crate::mcp_setup::Agent::ClaudeCode,
+            api_keys: cx.new(|_| crate::settings_api_keys::ApiKeysPage::new()),
             fonts: None,
             gallery_search,
             _gallery_search,
@@ -743,6 +743,9 @@ impl SettingsView {
         }
         if page == SettingsPage::Plugins {
             self.plugins.update(cx, |plugins, cx| plugins.shown(cx));
+        }
+        if page == SettingsPage::LocalApi {
+            self.api_keys.update(cx, |keys, cx| keys.shown(cx));
         }
         if self.page != page {
             self.page = page;
@@ -957,7 +960,7 @@ impl SettingsView {
             SettingsPage::Account => vec![self.account.clone().into_any_element()],
             SettingsPage::Ai => vec![self.ai.clone().into_any_element()],
             SettingsPage::Plugins => vec![self.plugins.clone().into_any_element()],
-            SettingsPage::LocalApi => api_page(self.mcp_agent, cx),
+            SettingsPage::LocalApi => api_page(&self.api_keys, cx),
             SettingsPage::Updates => crate::updates::page(cx),
         }
     }
@@ -1356,7 +1359,10 @@ fn set_writing(cx: &mut App, change: impl FnOnce(&mut EditorSettings)) {
     update_editors(cx);
 }
 
-fn api_page(agent: crate::mcp_setup::Agent, cx: &mut Context<SettingsView>) -> Vec<AnyElement> {
+fn api_page(
+    api_keys: &Entity<crate::settings_api_keys::ApiKeysPage>,
+    cx: &mut Context<SettingsView>,
+) -> Vec<AnyElement> {
     let colors = Colors::get(cx);
     let server = config(cx).server.clone();
     let (state, tip) = match cx.try_global::<Services>() {
@@ -1406,11 +1412,10 @@ fn api_page(agent: crate::mcp_setup::Agent, cx: &mut Context<SettingsView>) -> V
             ],
             colors,
         ),
+        api_keys.clone().into_any_element(),
         section(
-            "Sign-in",
+            "Other apps",
             vec![
-                Row::new(Lucide::KeyRound, "API keys")
-                    .detail("Every agent, script and app that reaches Kanso needs its own key. Kanso refuses anything without one. Managing keys is coming to this page."),
                 Row::new(Lucide::Copy, "Settings from another app")
                     .detail("Takes the API port of the notes app found on this computer.")
                     .trailing(
@@ -1442,86 +1447,10 @@ fn api_page(agent: crate::mcp_setup::Agent, cx: &mut Context<SettingsView>) -> V
                                 )
                             }),
                     ),
-                agent_row(agent, &server, cx),
             ],
             colors,
         ),
     ]
-}
-
-/// The row that sets an AI agent up: which agent, where its setup goes, and
-/// a button that copies the setup. A setup with the sign-in in it is copied
-/// as a secret and never shown.
-fn agent_row(
-    agent: crate::mcp_setup::Agent,
-    server: &crate::config::ServerSettings,
-    cx: &mut Context<SettingsView>,
-) -> Row {
-    use crate::mcp_setup::{Agent, Setup};
-    let view = cx.entity();
-    let picker = Button::new("mcp-agent")
-        .debug_selector(|| "mcp-agent".into())
-        .outline()
-        .small()
-        .label(agent.name())
-        .dropdown_caret(true)
-        .dropdown_menu(move |mut menu, _, _| {
-            for option in Agent::ALL {
-                let view = view.clone();
-                menu = menu.item(
-                    PopupMenuItem::new(option.name())
-                        .checked(option == agent)
-                        .on_click(move |_, _, cx| {
-                            view.update(cx, |this, cx| {
-                                this.mcp_agent = option;
-                                cx.notify();
-                            })
-                        }),
-                );
-            }
-            menu
-        });
-    // No key is made here yet: an agent that signs in over HTTP waits for
-    // the API keys group (issue #243, step 7).
-    let ready = !agent.has_sign_in();
-    let detail = if ready {
-        agent.instructions().to_owned()
-    } else {
-        "Needs an API key. Creating keys is coming to Settings › Local API.".to_owned()
-    };
-    let setup = Setup {
-        endpoint: mcp_endpoint(&server.bind_address, server.port),
-        authorization: String::new(),
-        program: std::env::current_exe()
-            .map(|path| path.display().to_string())
-            .unwrap_or_else(|_| "kanso".to_owned()),
-    };
-    let copy = Button::new("copy-mcp-setup")
-        .debug_selector(|| "copy-mcp-setup".into())
-        .outline()
-        .small()
-        .label("Copy")
-        .disabled(!ready)
-        .on_click(move |_, window, cx| {
-            let text = agent.snippet(&setup);
-            let message = format!("Setup for {} copied.", agent.name());
-            if agent.has_sign_in() {
-                if crate::clipboard::copy_secret(&text, cx) {
-                    window.push_notification(
-                        Notification::info(format!(
-                            "{message} It holds your sign-in, so it clears in a minute."
-                        )),
-                        cx,
-                    );
-                }
-            } else {
-                copy_to_clipboard(text, message, window, cx);
-            }
-        });
-    Row::new(Lucide::Bot, "Connect an AI agent")
-        .detail(detail)
-        .trailing(picker)
-        .trailing(copy)
 }
 
 impl Render for SettingsView {

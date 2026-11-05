@@ -134,6 +134,7 @@ pub(crate) fn render(source: &str, palette: &Palette) -> Outcome {
         width: flat.width,
         height: flat.height,
         baseline: None,
+        notices: Vec::new(),
     })
 }
 

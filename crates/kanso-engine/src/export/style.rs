@@ -43,6 +43,7 @@ impl PageStyle {
             // A published or exported page is the one anybody can open:
             // the app's addresses and restrictions are for the phone only.
             app: None,
+            notes: None,
         }
     }
 
