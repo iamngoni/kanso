@@ -26,7 +26,12 @@ pub(crate) fn get_doc(
     if DocType::of_id(id).is_none() {
         return Err(ApiError::not_found());
     }
-    Ok(store.get_api(id, rev, attachments)?)
+    // A canvas also carries its document as JSON, beside the stored fence.
+    Ok(crate::canvas::with_canvas_json(store.get_api(
+        id,
+        rev,
+        attachments,
+    )?))
 }
 
 /// The parameters of `GET /notes`.
@@ -37,6 +42,8 @@ pub(crate) struct NoteQuery {
     pub skip: usize,
     pub sort: Sort,
     pub descending: bool,
+    /// Only notes of this `doctype` (`canvas`), as `kanso-list-canvases` asks.
+    pub doctype: Option<String>,
 }
 
 impl Default for NoteQuery {
@@ -47,11 +54,13 @@ impl Default for NoteQuery {
             skip: 0,
             sort: Sort::UpdatedAt,
             descending: true,
+            doctype: None,
         }
     }
 }
 
-/// `GET /notes`: notes matching a keyword, with full bodies.
+/// `GET /notes`: notes matching a keyword, with full bodies. A canvas is
+/// listed with its short Markdown summary in place of its JSON.
 pub(crate) fn list_notes(store: &Store, query: &NoteQuery) -> ApiResult<Vec<Value>> {
     let params = SearchParams {
         query: Query::parse(&query.keyword),
@@ -60,9 +69,14 @@ pub(crate) fn list_notes(store: &Store, query: &NoteQuery) -> ApiResult<Vec<Valu
         limit: query.limit,
         skip: query.skip,
         ocr: false,
+        doctype: query.doctype.clone(),
         ..SearchParams::default()
     };
-    Ok(store.search_api(&params)?)
+    Ok(store
+        .search_api(&params)?
+        .into_iter()
+        .map(crate::canvas::summarize)
+        .collect())
 }
 
 /// `GET /loops`: open loops across notes (see `Store::open_loops`), as JSON.
@@ -153,9 +167,23 @@ fn app_only_fields(doc_type: DocType) -> &'static [&'static str] {
     }
 }
 
+/// `canvasJson` is read-only: a client that reads a canvas and writes it
+/// back whole would otherwise store it as a field of the note.
+fn forget_canvas_json(body: &mut Value) {
+    if let Some(fields) = body.as_object_mut() {
+        fields.remove("canvasJson");
+    }
+}
+
+/// The names [`app_only_fields`] keeps for a document type.
+pub(crate) fn app_only_names(doc_type: DocType) -> Vec<&'static str> {
+    app_only_fields(doc_type).to_vec()
+}
+
 /// `POST /notes` and friends: create, or replace when `_id` exists.
 pub(crate) fn upsert(store: &Store, doc_type: DocType, body: Value) -> ApiResult<Value> {
     let mut body = body;
+    forget_canvas_json(&mut body);
     if doc_type == DocType::Note && body.get("bookId").and_then(Value::as_str) == Some("template") {
         let book = store.role_book(kanso_core::roles::Role::Templates, Origin::Api)?;
         if let Some(fields) = body.as_object_mut() {
@@ -178,6 +206,7 @@ pub(crate) fn merge(store: &Store, id: &str, body: Value) -> ApiResult<Value> {
         return Err(ApiError::bad_request("Expected a JSON object."));
     };
     fields.insert("_id".into(), Value::String(id.to_owned()));
+    fields.remove("canvasJson");
     Ok(write_response(store.put_keeping(
         doc_type,
         Value::Object(fields),

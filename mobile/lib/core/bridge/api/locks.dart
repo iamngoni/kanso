@@ -22,6 +22,10 @@ abstract class KansoLocks implements RustOpaqueInterface {
 
   Future<int> changePassword({required String old, required String new_});
 
+  /// The notes locked before attachments were sealed, and what sealing
+  /// theirs would do.
+  Future<FilesMigration> filesMigration();
+
   /// Finishes the lock that stopped on note `id`; `password` is the lock
   /// password when the session doesn't hold its key.
   Future<Saved> finishLocking({required String id, String? password});
@@ -64,15 +68,25 @@ abstract class KansoLocks implements RustOpaqueInterface {
   /// What locking notebook `book_id` would seal.
   Future<LockSummary> notebookLockSummary({required String bookId});
 
+  /// "Later" at the first-launch prompt.
+  Future<void> postponeFilesMigration();
+
   Future<Saved> removeNoteLock({required String id});
 
   Future<void> removeNotebookLock({required String bookId});
+
+  /// Seals the attachments of every locked note the held keys, or
+  /// `password`, open. Progress comes on `lock_progress`.
+  Future<MigrationOutcome> sealLockedAttachments({String? password});
 
   /// Whether the phone should say, once, that notes locked before this
   /// update sealed their attachments.
   Future<bool> takeSealedFilesNotice();
 
   Future<void> turnOffBiometrics();
+
+  /// Undoes a stopped sealing pass.
+  Future<int> undoFilesMigration({String? password});
 
   /// Undoes the lock that stopped on note `id`.
   Future<void> undoLocking({required String id, String? password});

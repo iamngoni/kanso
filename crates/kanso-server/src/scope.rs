@@ -29,7 +29,7 @@ use crate::tokens::TokenId;
 
 /// The tools an agent may ever be given: reads, and none that reach
 /// attachments. Everything else is denied.
-pub const READ_TOOLS: [&str; 22] = [
+pub const READ_TOOLS: [&str; 24] = [
     "search-notes",
     "read-note",
     "list-notes",
@@ -52,6 +52,8 @@ pub const READ_TOOLS: [&str; 22] = [
     "kanso-ask-search",
     "kanso-ask-read-lines",
     "kanso-ask-when",
+    "kanso-list-canvases",
+    "kanso-read-canvas",
 ];
 
 /// The tools Ask your notes gives an agent: the same five a model with an

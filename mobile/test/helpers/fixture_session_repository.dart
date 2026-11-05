@@ -299,4 +299,100 @@ class FixtureSessionRepository implements SessionRepository {
     filesNotice = false;
     return Right<ApplicationError, bool>(answer);
   }
+
+  /// The locked notes waiting to have their attachments sealed, by default
+  /// none.
+  FilesMigration migration = const FilesMigration(
+    notes: 0,
+    stopped: 0,
+    postponed: false,
+    counted: false,
+    files: 0,
+    bytes: 0,
+    shared: 0,
+  );
+
+  /// What a pass seals when it is run.
+  MigrationOutcome migrated = const MigrationOutcome(
+    notes: 0,
+    sealed: 0,
+    copied: 0,
+    unopened: 0,
+    failed: 0,
+    stopped: false,
+  );
+
+  /// When set, a pass waits for it before it finishes.
+  Completer<void>? migrationGate;
+
+  @override
+  Future<Either<ApplicationError, FilesMigration>> filesMigration() async =>
+      Right<ApplicationError, FilesMigration>(migration);
+
+  @override
+  Future<Either<ApplicationError, Unit>> postponeFilesMigration() async {
+    migration = FilesMigration(
+      notes: migration.notes,
+      stopped: migration.stopped,
+      postponed: true,
+      counted: migration.counted,
+      files: migration.files,
+      bytes: migration.bytes,
+      shared: migration.shared,
+    );
+    return _answer('postponeFilesMigration', unit);
+  }
+
+  ApplicationError? _migrationDenied(String? password) {
+    if (!unlocked && password == null) {
+      return const ApplicationError.locked(message: 'The notes are closed.');
+    }
+    if (password != null && password != this.password) {
+      return const ApplicationError.auth(
+        message: "That isn't the lock password.",
+      );
+    }
+    return null;
+  }
+
+  @override
+  Future<Either<ApplicationError, MigrationOutcome>> sealLockedAttachments({
+    String? password,
+  }) async {
+    final denied = _migrationDenied(password);
+    if (denied != null) {
+      return Left<ApplicationError, MigrationOutcome>(denied);
+    }
+    await migrationGate?.future;
+    migration = const FilesMigration(
+      notes: 0,
+      stopped: 0,
+      postponed: false,
+      counted: false,
+      files: 0,
+      bytes: 0,
+      shared: 0,
+    );
+    return _answer('sealLockedAttachments', migrated);
+  }
+
+  @override
+  Future<Either<ApplicationError, int>> undoFilesMigration({
+    String? password,
+  }) async {
+    final denied = _migrationDenied(password);
+    if (denied != null) {
+      return Left<ApplicationError, int>(denied);
+    }
+    migration = FilesMigration(
+      notes: migration.notes,
+      stopped: 0,
+      postponed: migration.postponed,
+      counted: migration.counted,
+      files: migration.files,
+      bytes: migration.bytes,
+      shared: migration.shared,
+    );
+    return _answer('undoFilesMigration', 2);
+  }
 }

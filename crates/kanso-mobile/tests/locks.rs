@@ -1177,6 +1177,219 @@ fn a_cancelled_lock_stops_between_files_and_can_be_finished_or_undone() {
     }
 }
 
+// MARK: Sealing the attachments of notes locked before (#44, step 7)
+
+/// A note locked as an older Kanso did: its text sealed, its files plain and
+/// no list. Returns its ID and its files'.
+/// The lock key an older Kanso's notes share: one password, one salt.
+fn legacy_key() -> LockKey {
+    static SECRET: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        LockKey::create(&LockPassword::new(LOCK_PASSWORD).unwrap(), KdfParams::TEST)
+            .unwrap()
+            .to_secret()
+            .to_string()
+    });
+    LockKey::from_secret(&SECRET).unwrap()
+}
+
+fn legacy_locked(phone: &Phone, title: &str, contents: &[&[u8]]) -> (String, Vec<String>) {
+    let store = phone.library.store();
+    let files: Vec<String> = contents
+        .iter()
+        .enumerate()
+        .map(|(i, bytes)| {
+            store
+                .put(
+                    DocType::File,
+                    json!({"name": format!("f{i}.png"), "contentType": "image/png",
+                        "_attachments": {"index": {"content_type": "image/png",
+                        "data": base64::engine::general_purpose::STANDARD.encode(bytes)}}}),
+                    Put::Upsert,
+                    Origin::Api,
+                )
+                .unwrap()
+                .id
+        })
+        .collect();
+    let body: String = files
+        .iter()
+        .map(|id| format!("![](inkdrop://{id})\n"))
+        .collect();
+    let id = note(&phone.library, title, &body);
+    let mut stored = store.note(&id).unwrap().unwrap();
+    let key = legacy_key();
+    Envelope::store(Some(&key.seal(&id, &stored.body)), &mut stored.extra);
+    stored.body.clear();
+    store
+        .lock_note(serde_json::to_value(stored).unwrap())
+        .unwrap();
+    (id, files)
+}
+
+#[test]
+fn the_prompt_counts_the_waiting_notes_and_later_is_remembered() {
+    let phone = lone_phone();
+    let locks = phone.library.locks();
+    assert_eq!(locks.files_migration().unwrap().notes, 0);
+    let (_, files) = legacy_locked(&phone, "A", &[b"one", b"two"]);
+    legacy_locked(&phone, "B", &[b"three"]);
+
+    // Closed: the notes are counted, the files and size wait for the key.
+    let closed = locks.files_migration().unwrap();
+    assert_eq!(
+        (closed.notes, closed.counted, closed.postponed),
+        (2, false, false)
+    );
+    assert_eq!(files.len(), 2);
+
+    locks.postpone_files_migration().unwrap();
+    assert!(locks.files_migration().unwrap().postponed);
+
+    // Open: exact.
+    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(true));
+    let open = locks.files_migration().unwrap();
+    assert!(open.counted);
+    assert_eq!((open.files, open.bytes, open.shared), (3, 3 + 3 + 5, 0));
+}
+
+#[test]
+fn sealing_all_with_the_password_seals_every_note_and_reports_progress() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let (one, one_files) = legacy_locked(&phone, "A", &[b"first", b"second"]);
+    let (two, two_files) = legacy_locked(&phone, "B", &[b"third"]);
+    let locks = phone.library.locks();
+    let (tx, rx) = mpsc::channel();
+    locks.lock_progress(move |progress| tx.send(progress).is_ok());
+
+    assert_eq!(locks.seal_locked_attachments(None), Err(KansoError::Locked));
+    assert!(matches!(
+        locks.seal_locked_attachments(Some("not the password".into())),
+        Err(KansoError::Auth { .. })
+    ));
+    let outcome = locks
+        .seal_locked_attachments(Some(LOCK_PASSWORD.into()))
+        .unwrap();
+    assert_eq!((outcome.notes, outcome.sealed, outcome.copied), (2, 3, 0));
+    assert!(!outcome.stopped);
+    let last = rx.try_iter().last().expect("progress was reported");
+    assert_eq!((last.done, last.total), (3, 3));
+    assert_eq!(locks.files_migration().unwrap().notes, 0);
+
+    for file in one_files.iter().chain(&two_files) {
+        assert_eq!(
+            store.attachment_state(file).unwrap(),
+            kanso_store::AttachmentState::Sealed
+        );
+    }
+    for (id, files) in [(&one, &one_files), (&two, &two_files)] {
+        let stored = store.note(id).unwrap().unwrap();
+        assert_eq!(
+            note_files_from_extra(&stored.extra).unwrap().len(),
+            files.len()
+        );
+    }
+    assert_eq!(
+        phone.library.attachment(&one_files[0]).unwrap().bytes,
+        b"first"
+    );
+    // Locked again, nothing opens; a second pass has nothing to do.
+    locks.lock().unwrap();
+    assert_eq!(
+        phone.library.attachment(&two_files[0]),
+        Err(KansoError::Locked)
+    );
+    assert_eq!(locks.unlock(LOCK_PASSWORD.into()), Ok(true));
+    let again = locks.seal_locked_attachments(None).unwrap();
+    assert_eq!((again.notes, again.sealed), (0, 0));
+}
+
+#[test]
+fn a_file_an_unlocked_note_shows_gets_a_sealed_copy_and_the_original_stays() {
+    let phone = lone_phone();
+    let store = phone.library.store();
+    let (id, files) = legacy_locked(&phone, "Locked", &[b"shared bytes"]);
+    let unlocked = note(
+        &phone.library,
+        "Open",
+        &format!("![](inkdrop://{})", files[0]),
+    );
+    let locks = phone.library.locks();
+    let outcome = locks
+        .seal_locked_attachments(Some(LOCK_PASSWORD.into()))
+        .unwrap();
+    assert_eq!((outcome.sealed, outcome.copied), (0, 1));
+    assert_eq!(
+        store.attachment_state(&files[0]).unwrap(),
+        kanso_store::AttachmentState::Plain
+    );
+    assert!(
+        store
+            .note(&unlocked)
+            .unwrap()
+            .unwrap()
+            .body
+            .contains(&files[0])
+    );
+    let listed = note_files_from_extra(&store.note(&id).unwrap().unwrap().extra).unwrap();
+    assert_ne!(listed[0].file, files[0]);
+    assert_eq!(
+        phone.library.attachment(&listed[0].file).unwrap().bytes,
+        b"shared bytes"
+    );
+}
+
+#[test]
+fn a_pass_that_stops_finishes_or_undoes_with_the_password() {
+    for undo in [false, true] {
+        let phone = lone_phone();
+        let store = phone.library.store();
+        let (_, files) = legacy_locked(&phone, "A", &[b"one", b"two", b"three"]);
+        let locks = phone.library.locks();
+        let stopper = phone.library.locks();
+        let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+        locks.lock_progress(move |progress| {
+            if progress.done == 1 && armed.swap(false, std::sync::atomic::Ordering::SeqCst) {
+                stopper.cancel_lock();
+            }
+            true
+        });
+        let stopped = locks
+            .seal_locked_attachments(Some(LOCK_PASSWORD.into()))
+            .unwrap();
+        assert!(stopped.stopped);
+        // The note keeps waiting, half done, and no file is lost.
+        let state = locks.files_migration().unwrap();
+        assert_eq!((state.notes, state.stopped), (1, 1));
+
+        // The app restarts: no keys.
+        locks.lock().unwrap();
+        if undo {
+            assert_eq!(locks.undo_files_migration(None), Err(KansoError::Locked));
+            assert_eq!(
+                locks.undo_files_migration(Some(LOCK_PASSWORD.into())),
+                Ok(1)
+            );
+            assert_eq!(locks.files_migration().unwrap().stopped, 0);
+            for file in &files {
+                assert_eq!(
+                    store.attachment_state(file).unwrap(),
+                    kanso_store::AttachmentState::Plain
+                );
+            }
+        } else {
+            let done = locks
+                .seal_locked_attachments(Some(LOCK_PASSWORD.into()))
+                .unwrap();
+            assert!(!done.stopped);
+            assert_eq!(locks.files_migration().unwrap().notes, 0);
+            for (file, bytes) in files.iter().zip([&b"one"[..], b"two", b"three"]) {
+                assert_eq!(phone.library.attachment(file).unwrap().bytes, bytes);
+            }
+        }
+    }
+}
+
 /// A Cancel stops the lock it was meant for and nothing after it: a note
 /// saved into a locked notebook later is still sealed with its file. Before,
 /// the flag stayed set and every later seal failed ("Locking was
