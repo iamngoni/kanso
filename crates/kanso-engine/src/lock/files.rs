@@ -30,7 +30,7 @@ use base64::engine::general_purpose::STANDARD;
 use kanso_core::model::{
     FileLock, KANSO_FILES_FIELD, NoteFile, note_files_from_extra, store_note_files,
 };
-use kanso_core::tasks::linked_file_ids;
+use kanso_core::tasks::shown_file_ids;
 use kanso_core::{DocType, Note};
 use kanso_store::{Attachment, AttachmentState, Origin, Put, Store, StoreError};
 use kanso_sync::lock::{
@@ -302,6 +302,10 @@ pub struct Counts {
     pub copied: usize,
     /// Files already sealed, whose key this note now holds too.
     pub shared: usize,
+    /// Files whose bytes haven't arrived (a sync still fetching them), left
+    /// for the next save to seal. Only a save of a note already locked
+    /// leaves one; a lock refuses instead.
+    pub waiting: usize,
 }
 
 /// The state a lock reads and updates.
@@ -317,6 +321,10 @@ pub struct Job<'a> {
     pub progress: Progress,
     /// Called as the lock moves; an error stops it before the next file.
     pub watch: &'a mut dyn FnMut(&Progress) -> Result<(), String>,
+    /// A save, not a lock: a file whose bytes haven't arrived is left for
+    /// the next save ([`Counts::waiting`]) rather than refusing, so the text
+    /// is never held back. A note already locked is always saved this way.
+    pub leave_waiting: bool,
 }
 
 impl<'a> Job<'a> {
@@ -334,6 +342,7 @@ impl<'a> Job<'a> {
             copies,
             progress: Progress::default(),
             watch,
+            leave_waiting: false,
         }
     }
 
@@ -357,7 +366,7 @@ pub fn summarize(store: &Store, notes: &[Note]) -> Summary {
     let mut seen = HashSet::new();
     let mut summary = Summary::default();
     for note in notes {
-        for id in linked_file_ids(&note.body) {
+        for id in shown_file_ids(&note.body) {
             if !seen.insert(id.clone())
                 || store.attachment_state(&id).ok() != Some(AttachmentState::Plain)
             {
@@ -564,8 +573,27 @@ pub fn seal_note_files(
     let mut locking: HashSet<String> = job.locking.clone();
     locking.insert(note.id.clone());
     let mut plans: Vec<Planned> = Vec::new();
+    // A file whose bytes haven't arrived yet (a sync still fetching them)
+    // can't be sealed: a lock refuses before it writes anything, and a save
+    // leaves it plain and unlisted for the next save to seal.
+    let mut waiting = HashSet::new();
+    for id in shown_file_ids(&body) {
+        if store.attachment_state(&id)? == AttachmentState::Plain && !has_current_bytes(store, &id)?
+        {
+            if !(locked || job.leave_waiting) {
+                let name = store.file_meta(&id)?.map_or_else(
+                    || "A picture or file".to_owned(),
+                    |meta| format!("\u{201c}{}\u{201d}", meta.name),
+                );
+                return Err(failed(format!(
+                    "{name} hasn't finished downloading from your other devices, so it can't be sealed yet. Try again once sync has fetched it."
+                )));
+            }
+            waiting.insert(id);
+        }
+    }
     let mut seen = HashSet::new();
-    for id in linked_file_ids(&body)
+    for id in shown_file_ids(&body)
         .into_iter()
         .filter(|id| seen.insert(id.clone()))
     {
@@ -608,6 +636,9 @@ pub fn seal_note_files(
                     to_seal: false,
                     new,
                 });
+            }
+            AttachmentState::Plain if waiting.contains(&id) => {
+                counts.waiting += 1;
             }
             AttachmentState::Plain => {
                 // A copy this pass made, or an earlier try left sealed.
@@ -750,6 +781,39 @@ pub fn seal_note_files(
     Ok((body, counts))
 }
 
+/// Whether open locked `note`'s text shows a file that is plain, or a
+/// sealed one its list doesn't hold (a link pasted from another locked
+/// note): its save must seal before it writes.
+pub fn needs_sealing(store: &Store, note: &Note) -> bool {
+    let listed: HashSet<String> = note_files_from_extra(&note.extra)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|entry| entry.file)
+        .collect();
+    shown_file_ids(&note.body)
+        .iter()
+        .any(|id| match store.attachment_state(id) {
+            Ok(AttachmentState::Plain) => true,
+            Ok(AttachmentState::Sealed) => !listed.contains(id),
+            _ => false,
+        })
+}
+
+/// Whether file `id` has the bytes its document describes: a sync may have
+/// brought the document before them, or an older version's.
+fn has_current_bytes(store: &Store, id: &str) -> Result<bool, FilesError> {
+    let Some(meta) = store.file_meta(id)? else {
+        return Ok(false);
+    };
+    let Some(blob) = store.stored_attachment(id)? else {
+        return Ok(false);
+    };
+    Ok(meta
+        .md5digest
+        .as_deref()
+        .is_none_or(|md5| md5.eq_ignore_ascii_case(&blob.md5_hex())))
+}
+
 /// The title of a note other than `except` that lists `file`, for words.
 fn owner_title(store: &Store, file: &str, except: &str) -> Option<String> {
     store
@@ -777,25 +841,8 @@ fn seal_file(store: &Store, plan: &Planned) -> Result<(), FilesError> {
     .to_canonical_json()
     .map_err(|_| failed("The attachment's name and type can't be sealed."))?;
     let plain = blob.data.clone();
-    let container = seal_container(
-        &plan.target,
-        &plan.seal,
-        &plan.key,
-        &[
-            SealedSegment {
-                kind: SEGMENT_CONTENT,
-                bytes: blob.data,
-            },
-            SealedSegment {
-                kind: SEGMENT_METADATA,
-                bytes: metadata,
-            },
-        ],
-    );
     // The plain bytes are only replaced by a container that opens to them.
-    if !opens_to(plan, &container, &plain) {
-        return Err(failed("The attachment couldn't be sealed safely."));
-    }
+    let container = sealed_container(&plan.target, &plan.seal, &plan.key, blob.data, metadata)?;
     let restore = meta.clone();
     let mut marker = FileLock::sealed(plan.seal.encode());
     marker.meta = true;
@@ -815,6 +862,131 @@ fn seal_file(store: &Store, plan: &Planned) -> Result<(), FilesError> {
         return Err(failed("The attachment couldn't be sealed safely."));
     }
     Ok(())
+}
+
+/// Seals `content` and `metadata` for file `id`, and opens the container
+/// again to check it gives them back: the plain bytes it replaces are gone
+/// once it is written, so a container that doesn't open is never written.
+fn sealed_container(
+    id: &str,
+    seal: &SealId,
+    key: &FileKey,
+    content: Vec<u8>,
+    metadata: Vec<u8>,
+) -> Result<Vec<u8>, FilesError> {
+    let (want_content, want_metadata) = (content.clone(), metadata.clone());
+    let container = seal_container(
+        id,
+        seal,
+        key,
+        &[
+            SealedSegment {
+                kind: SEGMENT_CONTENT,
+                bytes: content,
+            },
+            SealedSegment {
+                kind: SEGMENT_METADATA,
+                bytes: metadata,
+            },
+        ],
+    );
+    let opened = open_container(id, seal, key, &container).map_err(|_| {
+        failed("The attachment couldn't be sealed safely, so it was left as it is.")
+    })?;
+    let gives_back = |kind: u8, want: &[u8]| {
+        opened
+            .iter()
+            .find(|segment| segment.kind == kind)
+            .is_some_and(|segment| segment.bytes == want)
+    };
+    if !gives_back(SEGMENT_CONTENT, &want_content) || !gives_back(SEGMENT_METADATA, &want_metadata)
+    {
+        return Err(failed(
+            "The attachment couldn't be sealed safely, so it was left as it is.",
+        ));
+    }
+    Ok(container)
+}
+
+/// Seals new attachment `id` (`bytes`, never stored plain) for locked note
+/// `note_id`, whose lock is `envelope` under `key`: the container goes to
+/// the store, its file key to `keys`, and the entry for the note's list is
+/// returned. A recording into a locked note attaches its parts this way.
+#[allow(clippy::too_many_arguments)]
+pub fn seal_new_file(
+    store: &Store,
+    keys: &KeyBook,
+    key: &LockKey,
+    envelope: &Envelope,
+    note_id: &str,
+    id: &str,
+    bytes: Vec<u8>,
+    name: &str,
+    content_type: &str,
+) -> Result<NoteFile, FilesError> {
+    let seal = SealId::random();
+    let file_key = FileKey::random();
+    let metadata = SealedFileMetadata {
+        name: name.to_owned(),
+        content_type: content_type.to_owned(),
+        public_in: Vec::new(),
+    }
+    .to_canonical_json()
+    .map_err(|_| failed("The attachment's name and type can't be sealed."))?;
+    let container = sealed_container(id, &seal, &file_key, bytes, metadata)?;
+    // The stored name and type are the placeholders; the real ones are in
+    // the container.
+    let mut file = kanso_core::model::FileMeta {
+        id: id.to_owned(),
+        rev: store.get(id)?.map(|doc| doc.rev),
+        name: kanso_core::model::SEALED_FILE_NAME.to_owned(),
+        content_type: kanso_core::model::SEALED_FILE_CONTENT_TYPE.to_owned(),
+        content_length: 0,
+        public_in: Vec::new(),
+        md5digest: None,
+        created_at: kanso_core::now_ms(),
+        extra: Default::default(),
+    };
+    let mut marker = FileLock::sealed(seal.encode());
+    marker.meta = true;
+    FileLock::store(Some(&marker), &mut file.extra);
+    store.put_sealed_file(file, Attachment::new(container))?;
+    let entry = NoteFile {
+        file: id.to_owned(),
+        v: 1,
+        seal: seal.encode(),
+        key: STANDARD.encode(wrap_file_key(key, envelope, note_id, id, &seal, &file_key)),
+        extra: Default::default(),
+    };
+    keys.insert(&seal, file_key);
+    Ok(entry)
+}
+
+/// Saves open locked `note` with `body` as its text, the way the editor
+/// saves one: whatever its text shows that isn't sealed yet is sealed and
+/// listed (a legacy note's files on its first save, a file linked from
+/// elsewhere), the list is rewrapped, and the note is written sealed in
+/// one `Store::lock_note` transaction. `key` must open the note. Returns
+/// what was sealed.
+pub fn save_locked(
+    store: &Store,
+    keys: &KeyBook,
+    note: &mut Note,
+    body: &str,
+    key: &LockKey,
+) -> Result<Counts, FilesError> {
+    let locking = HashSet::from([note.id.clone()]);
+    let mut copies = HashMap::new();
+    let mut watch = |_: &Progress| Ok(());
+    let mut job = Job::new(store, keys, &locking, &mut copies, &mut watch);
+    job.leave_waiting = true;
+    let (_, counts) = seal_note_files(&mut job, note, body, key)?;
+    let mut stored = note.clone();
+    stored.body.clear();
+    let value = serde_json::to_value(&stored).map_err(|err| failed(err.to_string()))?;
+    let written = store.lock_note(value)?;
+    note.rev = Some(written.rev);
+    Ok(counts)
 }
 
 /// Whether `container` opens, with the plan's key, to content `plain`.
@@ -881,9 +1053,18 @@ pub fn interrupted_header(note: &Note) -> Option<Envelope> {
 /// Undoes a stopped lock: unseals the files it sealed and deletes the copies
 /// it made, then takes the list off the note. `key` must be the lock key the
 /// stopped lock used. Returns how many files it unsealed or removed.
+///
+/// A file stays sealed while another note holds a key for it (a locked note
+/// that shares it, or another note of the same stopped notebook lock), so
+/// undoing one never leaves a locked note listing a plain file. And it is
+/// unsealed when this note's list is the last that holds its key, however
+/// it came to be sealed: taking the list off must never leave a sealed file
+/// nobody can open.
 pub fn undo_locking(store: &Store, note: &Note, key: &LockKey) -> Result<usize, FilesError> {
     let entries = note_files_from_extra(&note.extra).unwrap_or_default();
-    let mut undone = 0;
+    // Every key opens before anything changes: a wrong password changes
+    // nothing.
+    let mut opened = Vec::with_capacity(entries.len());
     for entry in &entries {
         let Some(envelope) = header(entry) else {
             continue;
@@ -894,34 +1075,102 @@ pub fn undo_locking(store: &Store, note: &Note, key: &LockKey) -> Result<usize, 
         let Some((seal, file_key)) = unwrap_entry(key, &envelope, &note.id, entry) else {
             return Err(failed("That isn't the lock password."));
         };
-        if !entry.extra.contains_key(JOURNAL_NEW) {
-            continue;
-        }
+        opened.push((entry, seal, file_key));
+    }
+    let mut undone = 0;
+    let mut relinks: Vec<(String, String)> = Vec::new();
+    for (entry, seal, file_key) in opened {
+        let others = store
+            .file_key_holders(&entry.file)?
+            .iter()
+            .any(|holder| holder != &note.id);
+        let state = store.attachment_state(&entry.file)?;
         if entry.extra.contains_key(JOURNAL_FROM) {
-            // A copy made for this lock: nobody else shows it.
-            if store.attachment_state(&entry.file)? != AttachmentState::Missing
-                && store
-                    .file_owners(&entry.file)?
-                    .iter()
-                    .all(|o| o == &note.id)
-            {
+            // A copy made for this lock: removed once nobody else shows it.
+            let shown = store
+                .file_owners(&entry.file)?
+                .iter()
+                .any(|owner| owner != &note.id);
+            if state != AttachmentState::Missing && !others && !shown {
                 store.delete(&entry.file, Origin::Ui)?;
                 undone += 1;
             }
             continue;
         }
-        if store.attachment_state(&entry.file)? == AttachmentState::Sealed {
-            unseal_in_place(store, &entry.file, &seal, &file_key)?;
-            undone += 1;
+        if state != AttachmentState::Sealed {
+            continue;
         }
+        if others {
+            // A locked note took the file meanwhile: it keeps the sealed
+            // one, and this note gets a plain copy, as Remove Lock gives.
+            let opened = open_sealed(store, &entry.file, &seal, &file_key)?;
+            let copy = put_plain(
+                store,
+                &opened.name,
+                &opened.content_type,
+                &opened.public_in,
+                &opened.bytes,
+            )?;
+            relinks.push((entry.file.clone(), copy));
+        } else {
+            unseal_in_place(store, &entry.file, &seal, &file_key)?;
+        }
+        undone += 1;
     }
     let mut fresh = store
         .note(&note.id)?
         .ok_or_else(|| failed("The note was deleted."))?;
+    for (from, to) in &relinks {
+        fresh.body = replace_link(&fresh.body, from, to);
+    }
     store_note_files(None, &mut fresh.extra);
     let value = serde_json::to_value(&fresh).map_err(|err| failed(err.to_string()))?;
     store.put(DocType::Note, value, Put::Upsert, Origin::Ui)?;
     Ok(undone)
+}
+
+/// The stopped lock's list on plain `note`, its keys moved from `old` to
+/// `new` (`new_envelope` is the lock they now go with): what a change of
+/// password writes, so finishing or undoing the lock takes the new
+/// password. `None` when the note carries no such list or `old` doesn't
+/// open every entry of it (it is then left as it is).
+pub fn rewrap_journal(
+    note: &Note,
+    old: &LockKey,
+    new: &LockKey,
+    new_envelope: &Envelope,
+) -> Option<Vec<NoteFile>> {
+    if note.is_locked() {
+        return None;
+    }
+    let entries = note_files_from_extra(&note.extra)?;
+    let mut moved = Vec::with_capacity(entries.len());
+    for mut entry in entries {
+        let envelope = header(&entry)?;
+        if !old.fits(&envelope) {
+            return None;
+        }
+        let (seal, file_key) = unwrap_entry(old, &envelope, &note.id, &entry)?;
+        entry.key = STANDARD.encode(wrap_file_key(
+            new,
+            new_envelope,
+            &note.id,
+            &entry.file,
+            &seal,
+            &file_key,
+        ));
+        entry.extra.insert(
+            JOURNAL_LOCK.into(),
+            json!({
+                "salt": new_envelope.salt,
+                "m": new_envelope.m,
+                "t": new_envelope.t,
+                "p": new_envelope.p,
+            }),
+        );
+        moved.push(entry);
+    }
+    (!moved.is_empty()).then_some(moved)
 }
 
 // MARK: Unsealing

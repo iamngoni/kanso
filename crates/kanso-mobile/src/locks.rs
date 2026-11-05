@@ -71,7 +71,8 @@ impl LockSession {
         let body = note.body.clone();
         let locking = HashSet::from([note.id.clone()]);
         let mut copies = HashMap::new();
-        let (body, envelope) = self.seal_note_files(note, &body, &key, &locking, &mut copies)?;
+        let (body, envelope) =
+            self.seal_note_files(note, &body, &key, &locking, &mut copies, Watch::Save)?;
         // A file shared with an unlocked note is copied: the editor must
         // take the rewritten links, not the ones it started with.
         note.body = body;
@@ -423,40 +424,16 @@ impl LockSession {
         })
     }
 
+    /// Seals notebook `book_id` with `key` as the desktop does
+    /// (`lock::seal_notebook_with`): one pass over every note in it and the
+    /// notebooks inside it, its progress counted toward the whole notebook,
+    /// and Cancel heard between files.
     fn seal_book(&self, book_id: &str, key: &LockKey) -> Result<u32, KansoError> {
-        let books = self.inner.store.books()?;
-        let inside = lock::book_subtree(book_id, &books);
-        let mut book = books
-            .into_iter()
-            .find(|book| book.id == book_id)
-            .ok_or(KansoError::NotFound)?;
-        let mut sealed = Vec::new();
-        let notes = self.inner.store.notes_in_books(&inside)?;
-        // Every note in the subtree is sealed in this pass, so a file they
-        // share stays one sealed original rather than becoming a copy each.
-        let locking: HashSet<String> = notes.iter().map(|note| note.id.clone()).collect();
-        // One copy per shared original for this whole pass, so every note in
-        // the notebook points at the same sealed copy.
-        let mut copies = HashMap::new();
-        for mut note in notes {
-            if note.is_locked() {
-                continue;
-            }
-            let body = note.body.clone();
-            let (_, envelope) =
-                self.seal_note_files(&mut note, &body, key, &locking, &mut copies)?;
-            Envelope::store(Some(&envelope), &mut note.extra);
-            note.body.clear();
-            sealed.push(
-                serde_json::to_value(note).map_err(|err| KansoError::storage(err.to_string()))?,
-            );
-        }
-        Envelope::store(Some(&key.seal(book_id, "")), &mut book.extra);
-        let count = sealed.len();
-        let book =
-            serde_json::to_value(book).map_err(|err| KansoError::storage(err.to_string()))?;
-        self.inner.store.lock_book(book, sealed)?;
-        Ok(u32::try_from(count).unwrap_or(u32::MAX))
+        let keys = held(&self.inner.keys).file_keys();
+        let mut watch = self.lock_watch();
+        let sealed = lock::seal_notebook_with(&self.inner.store, book_id, key, &keys, &mut watch)
+            .map_err(KansoError::invalid)?;
+        Ok(u32::try_from(sealed).unwrap_or(u32::MAX))
     }
 
     /// Takes notebook `book_id`'s lock off: notes put in it from now on
@@ -682,7 +659,8 @@ impl LockSession {
         let body = std::mem::take(&mut note.body);
         let locking = HashSet::from([note.id.clone()]);
         let mut copies = HashMap::new();
-        let (_, envelope) = self.seal_note_files(&mut note, &body, key, &locking, &mut copies)?;
+        let (_, envelope) =
+            self.seal_note_files(&mut note, &body, key, &locking, &mut copies, Watch::Lock)?;
         Envelope::store(Some(&envelope), &mut note.extra);
         let value =
             serde_json::to_value(&note).map_err(|err| KansoError::storage(err.to_string()))?;
@@ -715,7 +693,8 @@ impl LockSession {
         let body = note.body.clone();
         let locking = HashSet::from([note.id.clone()]);
         let mut copies = HashMap::new();
-        let (body, envelope) = self.seal_note_files(note, &body, &key, &locking, &mut copies)?;
+        let (body, envelope) =
+            self.seal_note_files(note, &body, &key, &locking, &mut copies, Watch::Save)?;
         note.body = body;
         Envelope::store(Some(&envelope), &mut note.extra);
         // The first time, the phone says it once (`take_sealed_files_notice`).
@@ -748,23 +727,64 @@ impl LockSession {
         key: &LockKey,
         locking: &HashSet<String>,
         copies: &mut HashMap<String, String>,
+        watch: Watch,
     ) -> Result<(String, Envelope), KansoError> {
         let keys = held(&self.inner.keys).file_keys();
-        let events = &self.inner.seal_progress;
-        let cancelled = &self.inner.lock_cancelled;
-        let mut watch = |progress: &Progress| {
-            events.send(SealProgress::from(*progress));
-            if cancelled.load(Ordering::SeqCst) {
-                return Err("Locking was cancelled.".to_owned());
+        // Only a lock the person started reports to the sheet and hears its
+        // Cancel: a save or a background seal must neither move the sheet
+        // nor stop at a Cancel meant for another lock.
+        let mut lock_watch = self.lock_watch();
+        let mut quiet = |_: &Progress| Ok(());
+        let mut job = match watch {
+            Watch::Lock => Job::new(&self.inner.store, &keys, locking, copies, &mut lock_watch),
+            Watch::Save => {
+                let mut job = Job::new(&self.inner.store, &keys, locking, copies, &mut quiet);
+                job.leave_waiting = true;
+                job
             }
-            Ok(())
         };
-        let mut job = Job::new(&self.inner.store, &keys, locking, copies, &mut watch);
         let (body, _) = files::seal_note_files(&mut job, note, body, key).map_err(files_error)?;
         let envelope = Envelope::from_extra(&note.extra)
             .and_then(Result::ok)
             .ok_or_else(|| KansoError::invalid("The note's lock is damaged."))?;
         Ok((body, envelope))
+    }
+
+    /// What a lock the person started tells: its progress, to the sheet,
+    /// and a Cancel, which stops it between two files.
+    fn lock_watch(&self) -> impl FnMut(&Progress) -> Result<(), String> + '_ {
+        let events = &self.inner.seal_progress;
+        let cancelled = &self.inner.lock_cancelled;
+        move |progress: &Progress| {
+            events.send(SealProgress::from(*progress));
+            if cancelled.load(Ordering::SeqCst) {
+                return Err("Locking was cancelled.".to_owned());
+            }
+            Ok(())
+        }
+    }
+
+    /// Seals what open locked `note`'s text shows that isn't sealed yet (a
+    /// link pasted or brought back by Undo) and lists it, as the desktop's
+    /// save does, so no save writes a locked note beside a plain file.
+    /// Returns the text to seal, its links moved to any copies; `None` when
+    /// nothing needed it.
+    pub(crate) fn seal_open_files(&self, note: &mut Note) -> Result<Option<String>, KansoError> {
+        if !note.is_locked() || !files::needs_sealing(&self.inner.store, note) {
+            return Ok(None);
+        }
+        let Some(Ok(envelope)) = Envelope::from_extra(&note.extra) else {
+            return Ok(None);
+        };
+        let key = held(&self.inner.keys)
+            .fitting(&envelope)
+            .ok_or(KansoError::Locked)?;
+        let body = note.body.clone();
+        let locking = HashSet::from([note.id.clone()]);
+        let mut copies = HashMap::new();
+        let (body, _) =
+            self.seal_note_files(note, &body, &key, &locking, &mut copies, Watch::Save)?;
+        Ok(Some(body))
     }
 
     /// What locking note `id` would seal.
@@ -990,6 +1010,16 @@ impl LockSession {
             self.inner.lock_events.send(LockEvent::Locked { reason });
         }
     }
+}
+
+/// Who a seal of a note's files reports to.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Watch {
+    /// A lock the person started: the progress sheet, and its Cancel.
+    Lock,
+    /// A save or a background seal: nobody, and a file still downloading
+    /// is left for the next save.
+    Save,
 }
 
 /// A files error as the facade's.

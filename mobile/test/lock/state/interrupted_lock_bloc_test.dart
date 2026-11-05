@@ -2,6 +2,8 @@
 // Created 2026-11-05.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/lock/state/interrupted_lock/interrupted_lock_bloc.dart';
@@ -66,6 +68,26 @@ void main() {
   });
 
   group('InterruptedLockBloc finishes and undoes', () {
+    test('a check while finishing never lets Undo start', () async {
+      bloc.add(const InterruptedLockEvent.checked('note:1'));
+      await _settled(bloc, (s) => s.stage == InterruptedStage.stopped);
+      final gate = session.gate = Completer<void>();
+
+      bloc.add(const InterruptedLockEvent.finished());
+      await _settled(bloc, (s) => s.stage == InterruptedStage.working);
+      // Finishing writes the note, and the note's host checks it again.
+      bloc.add(const InterruptedLockEvent.checked('note:1'));
+      await Future<void>.delayed(Duration.zero);
+      expect(bloc.state.stage, InterruptedStage.working);
+      bloc.add(const InterruptedLockEvent.undone());
+      await Future<void>.delayed(Duration.zero);
+
+      gate.complete();
+      await _settled(bloc, (s) => s.stage == InterruptedStage.none);
+      expect(session.calls, contains('finishLocking:note:1'));
+      expect(session.calls, isNot(contains('undoLocking:note:1')));
+    });
+
     test('finishing with the notes open finishes it', () async {
       bloc.add(const InterruptedLockEvent.checked('note:1'));
       await _settled(bloc, (s) => s.stage == InterruptedStage.stopped);

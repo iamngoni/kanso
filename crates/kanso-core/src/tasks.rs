@@ -404,6 +404,24 @@ pub fn linked_file_ids(body: &str) -> Vec<String> {
     ids
 }
 
+/// IDs (`file:…`) of the attachments a note shows, deduplicated: the ones
+/// its text links, and, for a canvas, the ones its attachment cards point
+/// at (`file:<id>` with no link prefix). Who owns a file, what a lock seals
+/// and what may stay plain all go by this. Pure.
+pub fn shown_file_ids(body: &str) -> Vec<String> {
+    let mut ids = linked_file_ids(body);
+    if crate::canvas::fenced(body).is_some()
+        && let Ok(canvas) = crate::canvas::parse(body)
+    {
+        for id in canvas.attachment_ids() {
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
+        }
+    }
+    ids
+}
+
 fn uri_suffixes<'a>(body: &'a str, prefix: &'a str) -> impl Iterator<Item = &'a str> + 'a {
     body.match_indices(prefix).filter_map(move |(at, _)| {
         let rest = &body[at + prefix.len()..];
@@ -528,6 +546,77 @@ mod tests {
         assert_eq!(items[2].due, None);
         assert_eq!(due_date("@2024-02-29"), Some("2024-02-29".into()));
         assert_eq!(due_date("@2026-10-25T25:00"), None);
+    }
+
+    fn canvas_with_cards(files: &[String], text: &str) -> String {
+        use crate::canvas::{Canvas, Node, to_body};
+        let mut nodes: Vec<Node> = files
+            .iter()
+            .enumerate()
+            .map(|(ix, file)| Node {
+                id: format!("c{ix}"),
+                kind: "file".into(),
+                file: Some(file.clone()),
+                width: 100.0,
+                height: 80.0,
+                ..Node::default()
+            })
+            .collect();
+        nodes.push(Node {
+            id: "t".into(),
+            kind: "text".into(),
+            text: Some(text.into()),
+            width: 100.0,
+            height: 80.0,
+            ..Node::default()
+        });
+        to_body(&Canvas {
+            nodes,
+            ..Canvas::default()
+        })
+    }
+
+    #[test]
+    fn a_canvas_shows_the_files_its_cards_point_at() {
+        let body = canvas_with_cards(
+            &["file:card1".into(), "note:n1".into()],
+            "see ![](inkdrop://file:linked1)",
+        );
+        assert!(crate::canvas::parse(&body).is_ok(), "{body}");
+        // The text link alone is all `linked_file_ids` finds.
+        assert_eq!(linked_file_ids(&body), vec!["file:linked1".to_owned()]);
+        assert_eq!(
+            shown_file_ids(&body),
+            vec!["file:linked1".to_owned(), "file:card1".to_owned()]
+        );
+        // A note that isn't a canvas shows what it links.
+        assert_eq!(
+            shown_file_ids("file:card1 ![](inkdrop://file:x)"),
+            vec!["file:x".to_owned()]
+        );
+    }
+
+    proptest::proptest! {
+        /// Every card's attachment and every linked one is shown, each once,
+        /// and nothing else: a note card is not an attachment.
+        #[test]
+        fn prop_a_canvas_shows_every_card_and_link_once(
+            cards in proptest::collection::vec("[a-z0-9]{1,8}", 0..6),
+            notes in proptest::collection::vec("[a-z0-9]{1,8}", 0..3),
+            linked in proptest::collection::vec("[a-z0-9]{1,8}", 0..3),
+        ) {
+            let mut files: Vec<String> = cards.iter().map(|c| format!("file:{c}")).collect();
+            files.extend(notes.iter().map(|n| format!("note:{n}")));
+            let text: String = linked.iter().map(|l| format!("![](inkdrop://file:{l}) ")).collect();
+            let body = canvas_with_cards(&files, &text);
+            let shown = shown_file_ids(&body);
+            let unique: std::collections::HashSet<&String> = shown.iter().collect();
+            proptest::prop_assert_eq!(unique.len(), shown.len());
+            let want: std::collections::HashSet<String> =
+                linked.iter().chain(cards.iter()).map(|c| format!("file:{c}")).collect();
+            let got: std::collections::HashSet<String> = shown.into_iter().collect();
+            proptest::prop_assert_eq!(got, want);
+        }
     }
 
     proptest::proptest! {

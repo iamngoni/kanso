@@ -11968,19 +11968,7 @@ abstract class AppLocalizations {
   /// **'That didn\'t work. Try again.'**
   String get lockInterruptedFailed;
 
-  /// The title of the one-time notice about notes locked before attachments were sealed.
-  ///
-  /// In en, this message translates to:
-  /// **'Locked notes now seal their pictures and files'**
-  String get lockFilesNoticeTitle;
-
-  /// The one-time notice about notes locked before attachments were sealed.
-  ///
-  /// In en, this message translates to:
-  /// **'A note locked before this update has its pictures and files sealed the first time you open it. Nothing else is needed.'**
-  String get lockFilesNoticeBody;
-
-  /// Closes the one-time notice about sealed attachments.
+  /// Closes the notice about the attachments of locked notes.
   ///
   /// In en, this message translates to:
   /// **'Dismiss'**
@@ -12135,6 +12123,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done'**
   String get lockMigrationClose;
+
+  /// The one-time notice about notes locked before attachments were sealed, with what to do on other devices.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked notes now seal their pictures and files too. A note locked before is sealed the first time you open it. Update Kanso on every device before you change the lock password: an older version can\'t re-seal the files, and they would stop opening.'**
+  String get lockFilesNotice;
 }
 
 class _AppLocalizationsDelegate
