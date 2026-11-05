@@ -294,6 +294,8 @@ mod tests {
             "::",
             "fe80::1",
             "nonsense",
+            "localhost",
+            "my-mac.local",
             "",
         ] {
             assert!(is_lan_address(lan), "{lan}");

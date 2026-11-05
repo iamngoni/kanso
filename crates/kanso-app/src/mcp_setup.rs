@@ -119,28 +119,28 @@ impl Agent {
     pub fn instructions(self) -> String {
         match self {
             Agent::ClaudeCode => format!(
-                "Add the \"kanso\" entry to the mcpServers object in {CLAUDE_CODE_CONFIG} (your user settings, not a project's .mcp.json, which may be shared), then restart Claude Code."
+                "Quit Claude Code, add the \"kanso\" entry to the mcpServers object in {CLAUDE_CODE_CONFIG} (your user settings, not a project's .mcp.json, which may be shared), then start it again. Claude Code rewrites that file while it runs, so an edit made meanwhile can be lost."
             ),
-            Agent::ClaudeDesktop => {
-                "Add this to claude_desktop_config.json (Settings › Developer › Edit Config), then restart Claude.".to_owned()
-            }
+            Agent::ClaudeDesktop => format!(
+                "Add this to {CLAUDE_DESKTOP_CONFIG} (Settings › Developer › Edit Config), then restart Claude."
+            ),
             Agent::Codex => format!(
                 "Add this to {CODEX_CONFIG}, then restart Codex. It starts Kanso with the key in its environment, so the key is not in a command."
             ),
             Agent::Cursor => {
-                "Add this to ~/.cursor/mcp.json (Settings › MCP › Add new MCP server).".to_owned()
+                format!("Add this to {CURSOR_CONFIG} (Settings › MCP › Add new MCP server).")
             }
-            Agent::VsCode => {
-                "Add this to your mcp.json (command palette › MCP: Open User Configuration).".to_owned()
-            }
+            Agent::VsCode => format!(
+                "Add this to your {VS_CODE_CONFIG} (command palette › MCP: Open User Configuration)."
+            ),
             Agent::GeminiCli => format!(
                 "Add the \"kanso\" entry to the mcpServers object in {GEMINI_CLI_CONFIG}, then restart Gemini CLI."
             ),
-            Agent::Windsurf => {
-                "Add this to mcp_config.json (Settings › Cascade › MCP servers › View raw config).".to_owned()
-            }
-            Agent::Zed => "Add this to Zed's settings.json.".to_owned(),
-            Agent::OpenCode => "Add this to ~/.config/opencode/opencode.json.".to_owned(),
+            Agent::Windsurf => format!(
+                "Add this to {WINDSURF_CONFIG} (Settings › Cascade › MCP servers › View raw config)."
+            ),
+            Agent::Zed => format!("Add this to Zed's {ZED_CONFIG}."),
+            Agent::OpenCode => format!("Add this to {OPENCODE_CONFIG}."),
         }
     }
 
@@ -198,21 +198,35 @@ impl Agent {
     }
 }
 
-// The config files of the agents whose setup used to be a command. Each
-// agent's own docs say how it takes an MCP server and its key in a file:
-// Claude Code's `mcpServers` entry with `type` and `headers`; Gemini CLI's
-// `mcpServers` entry with `httpUrl` and `headers`; Codex's
-// `[mcp_servers.<name>]` table with `command`, `args` and an `env` table.
-/// Claude Code's user settings, where its servers are kept.
+// The agents' config files. Kanso only shows the entry for the user to
+// paste; it never writes another program's config. Each agent's own docs
+// say how it takes an MCP server and its key in a file: Claude Code's
+// `mcpServers` entry with `type` and `headers`; Gemini CLI's `mcpServers`
+// entry with `httpUrl` and `headers`; Codex's `[mcp_servers.<name>]` table
+// with `command`, `args` and an `env` table.
+/// Claude Code's user settings, where its user-scope servers are kept.
 const CLAUDE_CODE_CONFIG: &str = "~/.claude.json";
+/// Claude Desktop's config file.
+const CLAUDE_DESKTOP_CONFIG: &str = "claude_desktop_config.json";
 /// Codex's settings file.
 const CODEX_CONFIG: &str = "~/.codex/config.toml";
+/// Cursor's global MCP file.
+const CURSOR_CONFIG: &str = "~/.cursor/mcp.json";
+/// VS Code's user MCP file.
+const VS_CODE_CONFIG: &str = "mcp.json";
 /// Gemini CLI's user settings file.
 const GEMINI_CLI_CONFIG: &str = "~/.gemini/settings.json";
+/// Windsurf's MCP file.
+const WINDSURF_CONFIG: &str = "mcp_config.json";
+/// Zed's settings file.
+const ZED_CONFIG: &str = "settings.json";
+/// OpenCode's global config file.
+const OPENCODE_CONFIG: &str = "~/.config/opencode/opencode.json";
 
-/// `text` as a TOML basic string.
+/// `text` as a TOML string, escaped by TOML's own rules. A JSON string is
+/// not always a TOML one: TOML refuses a bare U+007F, which JSON allows.
 fn toml_string(text: &str) -> String {
-    serde_json::to_string(text).expect("a string prints")
+    toml::Value::String(text.to_owned()).to_string()
 }
 
 #[cfg(test)]
@@ -280,6 +294,20 @@ mod tests {
         );
         let vscode: Value = serde_json::from_str(&Agent::VsCode.snippet(&setup)).unwrap();
         assert_eq!(vscode["servers"]["kanso"]["type"], "http");
+    }
+
+    #[test]
+    fn the_codex_entry_is_toml_whatever_the_path_holds() {
+        // serde_json leaves U+007F bare, and TOML refuses it there.
+        let odd = Setup {
+            program: "/opt/k\u{7f}an\"so\\x\u{1}/kanso".into(),
+            ..setup()
+        };
+        let table: toml::Table = Agent::Codex.snippet(&odd).parse().unwrap();
+        assert_eq!(
+            table["mcp_servers"]["kanso"]["command"].as_str(),
+            Some(odd.program.as_str())
+        );
     }
 
     #[test]
@@ -359,6 +387,14 @@ mod tests {
             for agent in Agent::ALL {
                 check(agent, &setup)?;
             }
+        }
+
+        /// Whatever the program's path holds, the Codex entry reads back as
+        /// TOML with that path and the key.
+        #[test]
+        fn prop_codex_entry_escapes_any_path(program in any::<String>()) {
+            let setup = Setup { program, ..setup() };
+            check(Agent::Codex, &setup)?;
         }
     }
 }

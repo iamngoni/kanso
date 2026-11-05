@@ -222,9 +222,31 @@ fn an_ended_session_is_forgotten_and_the_config_signed_out() {
 fn only_loopback_is_quiet() {
     assert_eq!(exposed_warning("127.0.0.1"), None);
     assert_eq!(exposed_warning("::1"), None);
-    assert_eq!(exposed_warning("localhost"), None);
-    assert!(exposed_warning("0.0.0.0").is_some());
-    assert!(exposed_warning("192.168.1.4").is_some());
+    assert_eq!(exposed_warning(" 127.0.0.2 "), None);
+    // Every other address warns, a name or one that doesn't parse too, in
+    // the design's words.
+    for exposed in ["0.0.0.0", "::", "192.168.1.4", "fe80::1", "localhost", "my-mac.local", "nonsense", ""] {
+        let line = exposed_warning(exposed).unwrap_or_else(|| panic!("{exposed}"));
+        assert!(line.contains("sends keys unencrypted"), "{line}");
+    }
+}
+
+#[test]
+fn serve_names_a_library_with_no_working_key() {
+    let row = |revoked_at| kanso_store::ApiKeyRow {
+        id: "k".into(),
+        name: "n".into(),
+        client: "other".into(),
+        access: kanso_store::KeyAccess::Read,
+        books: None,
+        created_at: 0,
+        last_used_at: None,
+        revoked_at,
+    };
+    let notice = no_keys_notice(&[]).unwrap();
+    assert!(notice.contains("kanso api-key create"), "{notice}");
+    assert!(no_keys_notice(&[row(Some(1))]).is_some());
+    assert_eq!(no_keys_notice(&[row(Some(1)), row(None)]), None);
 }
 
 fn gen_report() -> impl Strategy<Value = SyncReport> {

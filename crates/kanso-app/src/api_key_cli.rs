@@ -21,7 +21,7 @@ use anyhow::{Context as _, Result, bail};
 use kanso_server::{KeyAccess, KeyId, KeyStore, NewKey};
 use kanso_store::{ApiKeyRow, Store, lock_data_dir};
 
-use crate::capture_cli::pick_book;
+use crate::capture_cli::pick_book_for;
 
 pub const USAGE: &str = "\
 Usage: kanso api-key create --name <name> [--access read|suggest|write]
@@ -201,16 +201,25 @@ fn list_line(row: &ApiKeyRow, books: &dyn Fn(&str) -> Option<String>) -> String 
         || "never used".to_owned(),
         |at| format!("used {}", when(at)),
     );
-    // The name last: it is free text and may hold tabs.
+    // The name last: it is free text, set wherever the key was made.
     format!(
         "{}\t{}\t{}\tcreated {}\t{}\t{}",
         row.id,
         row.access.as_str(),
-        scope,
+        plain(&scope),
         when(row.created_at),
         used,
-        row.name.replace(['\t', '\n'], " ")
+        plain(&row.name)
     )
+}
+
+/// `text` with every control character (tab, newline, the escape that
+/// starts a terminal sequence) as a space, so a name stays on its line and
+/// can't drive the terminal. Pure.
+fn plain(text: &str) -> String {
+    text.chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect()
 }
 
 /// Which live key `target` names: by id, else by name ignoring case.
@@ -264,8 +273,8 @@ pub fn execute(
         } => {
             let mut ids: Vec<String> = Vec::new();
             for wanted in &scopes {
-                let (id, _) = pick_book(&books, wanted).map_err(|reason| {
-                    anyhow::anyhow!("{reason}. Check --scope, or leave it off for every notebook")
+                let (id, _) = pick_book_for(&books, wanted, "--scope").map_err(|reason| {
+                    anyhow::anyhow!("{reason}. Without --scope the key reaches every notebook.")
                 })?;
                 if !ids.contains(id) {
                     ids.push(id.clone());
@@ -543,11 +552,31 @@ mod tests {
         );
         let message = result.unwrap_err().to_string();
         assert!(
-            message.contains("Nowhere") && message.contains("--scope"),
+            message.contains("Nowhere")
+                && message.contains("leave --scope off")
+                && !message.contains("--book"),
             "{message}"
         );
         assert_eq!(out, "");
         assert_eq!(store.api_keys_all().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn list_shows_neither_key_nor_hash_and_keeps_names_on_their_line() {
+        let (_dir, store) = fresh();
+        let key = make(&store, "Evil\u{1b}]0;x\u{7}\rname\nnext", KeyAccess::Read, &[]);
+        let (result, out, _) = run(&store, Command::List);
+        result.unwrap();
+        assert_eq!(out.lines().count(), 1, "{out:?}");
+        assert!(!out.chars().any(|c| c.is_control() && c != '\t' && c != '\n'));
+        assert!(!out.contains(&key));
+        let rows = store.api_keys_live().unwrap();
+        let hash: String = rows[0]
+            .token_hash
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        assert!(!out.contains(&hash), "{out}");
     }
 
     #[test]
