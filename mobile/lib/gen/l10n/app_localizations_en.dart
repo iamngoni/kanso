@@ -1467,6 +1467,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String pdfNotesScanned(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count scanned pages were read on a computer and are searchable',
+      one: '1 scanned page was read on a computer and is searchable',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get pdfNotesNotInNote => 'Not in the note';
 
   @override
@@ -1487,16 +1498,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String pdfNotesColor(String color) {
-    String _temp0 = intl.Intl.selectLogic(
-      color,
-      {
-        'yellow': 'Yellow',
-        'green': 'Green',
-        'blue': 'Blue',
-        'pink': 'Pink',
-        'other': 'Colour',
-      },
-    );
+    String _temp0 = intl.Intl.selectLogic(color, {
+      'yellow': 'Yellow',
+      'green': 'Green',
+      'blue': 'Blue',
+      'pink': 'Pink',
+      'other': 'Colour',
+    });
     return '$_temp0';
   }
 
@@ -3358,19 +3366,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(
-      origin,
-      {
-        'ui': 'Edited in Kanso',
-        'api': 'Replaced through the API',
-        'sync': 'Replaced by sync',
-        'import': 'Replaced by an import',
-        'collab': 'Edited in a shared note',
-        'agent': 'Suggested by an agent, applied by you',
-        'plugin': 'Changed by a plugin',
-        'other': 'Saved version',
-      },
-    );
+    String _temp0 = intl.Intl.selectLogic(origin, {
+      'ui': 'Edited in Kanso',
+      'api': 'Replaced through the API',
+      'sync': 'Replaced by sync',
+      'import': 'Replaced by an import',
+      'collab': 'Edited in a shared note',
+      'agent': 'Suggested by an agent, applied by you',
+      'plugin': 'Changed by a plugin',
+      'other': 'Saved version',
+    });
     return '$_temp0';
   }
 

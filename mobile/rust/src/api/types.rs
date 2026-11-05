@@ -290,6 +290,7 @@ pub struct _PdfNotes {
     pub editable: bool,
     pub why: Option<String>,
     pub highlights: Vec<PdfHighlightRow>,
+    pub scanned_pages: u32,
 }
 
 #[frb(mirror(PdfHighlightRow))]

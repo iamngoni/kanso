@@ -78,6 +78,7 @@ pub(crate) fn notes_in(body: &str, file: &str, name: &str) -> PdfNotes {
         editable,
         why,
         highlights,
+        scanned_pages: 0,
     }
 }
 
@@ -129,7 +130,9 @@ impl Library {
                 .into_iter()
                 .map(|file| {
                     let name = self.pdf_name(&file);
-                    notes_in(&body, &file, &name)
+                    let mut notes = notes_in(&body, &file, &name);
+                    notes.scanned_pages = self.scanned_pages(&file);
+                    notes
                 })
                 .collect())
         })
@@ -161,6 +164,20 @@ impl Library {
                 }),
             }
         })
+    }
+
+    /// The pages of PDF `file` whose words a computer read from their
+    /// pictures (step 8); the store hands them over only while the bytes are
+    /// the ones they were read from.
+    pub(crate) fn scanned_pages(&self, file: &str) -> u32 {
+        self.inner
+            .store
+            .pdf_ocr(file)
+            .ok()
+            .flatten()
+            .map_or(0, |ocr| {
+                ocr.pages.iter().filter(|p| !p.words.is_empty()).count() as u32
+            })
     }
 
     fn pdf_name(&self, file: &str) -> String {

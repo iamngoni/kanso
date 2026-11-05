@@ -224,6 +224,18 @@ class _PdfHighlightsSheetState extends State<PdfHighlightsSheet> {
         ),
         child: Text(pdf.name, style: context.typography.sectionLabel),
       ),
+      if (pdf.scannedPages > 0)
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: KansoSpacing.md,
+            vertical: KansoSpacing.xs,
+          ),
+          child: Text(
+            l10n.pdfNotesScanned(pdf.scannedPages),
+            key: const ValueKey<String>('pdf-notes-scanned'),
+            style: context.typography.secondary,
+          ),
+        ),
       if (!pdf.editable)
         Padding(
           padding: const EdgeInsets.symmetric(

@@ -3822,6 +3822,7 @@ class PdfNotes {
   final bool editable;
   final String? why;
   final List<PdfHighlightRow> highlights;
+  final int scannedPages;
 
   const PdfNotes({
     required this.file,
@@ -3830,6 +3831,7 @@ class PdfNotes {
     required this.editable,
     this.why,
     required this.highlights,
+    required this.scannedPages,
   });
 
   @override
@@ -3839,7 +3841,8 @@ class PdfNotes {
       url.hashCode ^
       editable.hashCode ^
       why.hashCode ^
-      highlights.hashCode;
+      highlights.hashCode ^
+      scannedPages.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -3851,7 +3854,8 @@ class PdfNotes {
           url == other.url &&
           editable == other.editable &&
           why == other.why &&
-          highlights == other.highlights;
+          highlights == other.highlights &&
+          scannedPages == other.scannedPages;
 }
 
 @freezed
