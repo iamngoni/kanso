@@ -170,9 +170,6 @@ impl SettingsPage {
 
 // MARK: Plain words for values and states
 
-/// What a saved password shows instead of itself, whatever its length.
-pub const MASK: &str = "••••••••";
-
 pub use kanso_engine::sync::StatusLine;
 pub use kanso_engine::sync::words::{SYNC_INTERVALS, interval_label, problem_help};
 
@@ -568,29 +565,11 @@ fn apply_port(value: String, cx: &mut App) -> Result<(), String> {
     Ok(())
 }
 
-fn apply_username(value: String, cx: &mut App) -> Result<(), String> {
-    let username = parse_username(&value)?;
-    AppState::update_config(cx, |config| config.server.username = username);
-    services::apply_server_settings(cx);
-    Ok(())
-}
-
 /// The API port from what was typed.
 pub fn parse_port(value: &str) -> Result<u16, String> {
     match value.trim().parse::<u16>() {
         Ok(port) if port >= 1024 => Ok(port),
         _ => Err("Use a port from 1024 to 65535.".into()),
-    }
-}
-
-/// The API username from what was typed. Basic authentication can't carry
-/// a colon in the username.
-pub fn parse_username(value: &str) -> Result<String, String> {
-    let value = value.trim();
-    if value.is_empty() || value.contains(':') || value.chars().any(char::is_control) {
-        Err("The username can't be empty or contain a colon.".into())
-    } else {
-        Ok(value.to_owned())
     }
 }
 
@@ -604,27 +583,10 @@ fn copy_to_clipboard(
     window.push_notification(Notification::info(message), cx);
 }
 
-fn change_password(window: &mut Window, cx: &mut App) {
-    dialogs::prompt_secret(
-        "New API Password",
-        "Change",
-        window,
-        cx,
-        |password, _, cx| {
-            AppState::update_config(cx, |config| config.server.password = password);
-            services::apply_server_settings(cx);
-            Ok(())
-        },
-    );
-}
-
 fn copy_local_api_settings(window: &mut Window, cx: &mut App) {
     dialogs::confirm(
-        "Use the other app's API port, username and password?",
-        format!(
-            "That app keeps its password in its encrypted settings, with a key in your Keychain. macOS will ask you to allow Kanso to read “{}”.",
-            kanso_import::safe_storage::SAFE_STORAGE_SERVICE
-        ),
+        "Use the other app's API port?",
+        "Kanso signs in with API keys, so only the port and address are taken.".to_owned(),
         "Continue",
         window,
         cx,
@@ -1403,32 +1365,6 @@ fn api_page(agent: crate::mcp_setup::Agent, cx: &mut Context<SettingsView>) -> V
     };
     let status = api_status_line(&state);
     let endpoint = mcp_endpoint(&server.bind_address, server.port);
-    let password = server.password.clone();
-    let mut password_controls = vec![
-        // None of the password shows: it may be one used elsewhere too,
-        // and Copy gets it when it's needed.
-        value_text(if password.is_empty() { "Not set" } else { MASK }, colors).into_any_element(),
-    ];
-    if !password.is_empty() {
-        password_controls.push(
-            Button::new("copy-password")
-                .outline()
-                .small()
-                .label("Copy")
-                .on_click(move |_, window, cx| {
-                    copy_to_clipboard(password.clone(), "Password copied.", window, cx)
-                })
-                .into_any_element(),
-        );
-    }
-    password_controls.push(
-        Button::new("change-password")
-            .outline()
-            .small()
-            .label("Change…")
-            .on_click(|_, window, cx| change_password(window, cx))
-            .into_any_element(),
-    );
     vec![
         status_row(&status, tip, None, colors),
         section(
@@ -1473,27 +1409,10 @@ fn api_page(agent: crate::mcp_setup::Agent, cx: &mut Context<SettingsView>) -> V
         section(
             "Sign-in",
             vec![
-                Row::new(Lucide::User, "Username").trailing_all(vec![
-                    value_text(
-                        if server.username.is_empty() {
-                            "Not set".to_owned()
-                        } else {
-                            server.username.clone()
-                        },
-                        colors,
-                    )
-                    .into_any_element(),
-                    change_button(
-                        "change-username",
-                        "API Username",
-                        server.username.clone(),
-                        apply_username,
-                    )
-                    .into_any_element(),
-                ]),
-                Row::new(Lucide::KeyRound, "Password").trailing_all(password_controls),
+                Row::new(Lucide::KeyRound, "API keys")
+                    .detail("Every agent, script and app that reaches Kanso needs its own key. Kanso refuses anything without one. Managing keys is coming to this page."),
                 Row::new(Lucide::Copy, "Settings from another app")
-                    .detail("Takes the API port, username and password of the notes app found on this computer, so clients already set up for it keep working.")
+                    .detail("Takes the API port of the notes app found on this computer.")
                     .trailing(
                         Button::new("copy-local-api-settings")
                             .outline()
@@ -1562,16 +1481,17 @@ fn agent_row(
             }
             menu
         });
-    let signed_in = !server.username.is_empty() && !server.password.is_empty();
-    let ready = signed_in || !agent.has_sign_in();
+    // No key is made here yet: an agent that signs in over HTTP waits for
+    // the API keys group (issue #243, step 7).
+    let ready = !agent.has_sign_in();
     let detail = if ready {
         agent.instructions().to_owned()
     } else {
-        "Set a username and password above first.".to_owned()
+        "Needs an API key. Creating keys is coming to Settings › Local API.".to_owned()
     };
     let setup = Setup {
         endpoint: mcp_endpoint(&server.bind_address, server.port),
-        authorization: kanso_server::basic_header(&server.username, &server.password),
+        authorization: String::new(),
         program: std::env::current_exe()
             .map(|path| path.display().to_string())
             .unwrap_or_else(|_| "kanso".to_owned()),
@@ -2148,7 +2068,7 @@ mod tests {
 
     use super::{
         FONT_SIZES, SYNC_INTERVALS, SettingsPage, api_status_line, display_path, interval_label,
-        mcp_endpoint, parse_port, parse_username, problem_help, step_font_size, sync_status_line,
+        mcp_endpoint, parse_port, problem_help, step_font_size, sync_status_line,
     };
     use crate::config::{DEFAULT_FONT_SIZE, SyncSettings};
     use crate::grouping::utc_label;
@@ -2200,9 +2120,6 @@ mod tests {
         assert!(parse_port("1023").is_err());
         assert!(parse_port("1984o").is_err());
         assert!(parse_port("65536").is_err());
-        assert_eq!(parse_username(" bob ").as_deref(), Ok("bob"));
-        assert!(parse_username("bob:x").is_err());
-        assert!(parse_username("  ").is_err());
     }
 
     #[test]
@@ -2440,16 +2357,6 @@ mod tests {
             prop_assert_eq!(parsed.is_ok(), port >= 1024);
             if let Ok(parsed) = parsed {
                 prop_assert_eq!(parsed, port);
-            }
-        }
-
-        /// Refinement: an accepted username is trimmed, non-empty and
-        /// usable in Basic authentication.
-        #[test]
-        fn prop_usernames_fit_basic_auth(value in "\\PC{0,12}|[a-z:]{0,6}") {
-            if let Ok(name) = parse_username(&value) {
-                prop_assert!(!name.is_empty() && !name.contains(':'));
-                prop_assert_eq!(name.trim(), name.as_str());
             }
         }
     }

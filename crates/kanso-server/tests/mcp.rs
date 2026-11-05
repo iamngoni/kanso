@@ -9,7 +9,6 @@ use base64::engine::general_purpose::STANDARD;
 use common::*;
 use kanso_core::DocType;
 use kanso_core::model::FileLock;
-use kanso_server::basic_header;
 use kanso_store::{Attachment, Origin, Put};
 use serde_json::{Value, json};
 
@@ -17,7 +16,7 @@ fn mcp_request(body: &str, extra: &[(&str, &str)]) -> Request<Body> {
     let mut builder = Request::builder()
         .method(Method::POST)
         .uri("/mcp")
-        .header(header::AUTHORIZATION, basic_header(USER, PASS))
+        .header(header::AUTHORIZATION, common::auth())
         .header(header::CONTENT_TYPE, "application/json")
         .header(header::ACCEPT, "application/json, text/event-stream");
     for (name, value) in extra {
@@ -513,7 +512,7 @@ async fn patch_note_needs_exactly_one_occurrence() {
         "Failed to patch: `old_string` matches multiple locations in the note body. Provide more surrounding context to make it unique."
     );
     let ok = tool_json(&tool(&app.router, "patch-note", patch("one", &rev)).await);
-    let (_, doc) = get(&app.router, &format!("/{note_id}")).await;
+    let doc = app.store.get_api(&note_id, None, false).unwrap();
     assert_eq!(doc["body"], "2 two two three");
     assert_eq!(doc["_rev"], ok["rev"]);
 }
@@ -521,10 +520,11 @@ async fn patch_note_needs_exactly_one_occurrence() {
 #[tokio::test]
 async fn backlinks_and_templates() {
     let app = app();
+    let (target_book, _) = write(&app.router, "/books", json!({ "name": "T" })).await;
     let (target, _) = write(
         &app.router,
         "/notes",
-        json!({ "bookId": "trash", "title": "Target", "body": "" }),
+        json!({ "bookId": target_book, "title": "Target", "body": "" }),
     )
     .await;
     let bare = target.strip_prefix("note:").unwrap().to_owned();
@@ -714,13 +714,6 @@ async fn files_through_the_tools() {
         text(&neither, 0),
         "Failed to create the attachment: provide exactly one of `filePath` or `data`."
     );
-    let missing = tool(
-        &app.router,
-        "create-file",
-        json!({ "filePath": "/no/such/file.png" }),
-    )
-    .await;
-    assert!(text(&missing, 0).starts_with("Failed to read the file at /no/such/file.png: "));
     let untyped = tool(
         &app.router,
         "create-file",
@@ -731,7 +724,21 @@ async fn files_through_the_tools() {
         "Failed to create the attachment: could not infer the content type. Pass `contentType` explicitly."
     ));
 
-    let created = tool(&app.router, "create-file", json!({ "filePath": png_path })).await;
+    // A key is never given local file paths, and the answer says what to do.
+    let by_path = tool(&app.router, "create-file", json!({ "filePath": png_path })).await;
+    assert_eq!(by_path["isError"], true);
+    assert!(
+        text(&by_path, 0).contains("Send the file's bytes in `data`"),
+        "{}",
+        text(&by_path, 0)
+    );
+
+    let created = tool(
+        &app.router,
+        "create-file",
+        json!({ "data": STANDARD.encode(PNG), "contentType": "image/png", "name": "pixel.png" }),
+    )
+    .await;
     let res = tool_json(&created);
     let file_id = res["id"].as_str().unwrap().to_owned();
     assert_eq!(
@@ -767,11 +774,8 @@ async fn files_through_the_tools() {
         json!({ "fileId": file_id, "outputPath": out }),
     )
     .await;
-    assert_eq!(
-        text(&written, 1),
-        format!("Attachment written to {}", out.display())
-    );
-    assert_eq!(std::fs::read(&out).unwrap(), PNG);
+    assert_eq!(written["isError"], true);
+    assert!(!out.exists(), "a key's read-file wrote a local file");
 
     // Inline data; SVG cannot be shown inline.
     let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"/>";
@@ -789,34 +793,15 @@ async fn files_through_the_tools() {
         "The attachment is a image/svg+xml file, which cannot be displayed inline. Pass `outputPath` to write it to disk."
     );
 
-    // A PDF over the 10 MiB image limit comes by path, is typed from its
-    // extension and linked rather than embedded; one over 50 MiB is refused.
-    let mut pdf = b"%PDF-1.7\n".to_vec();
-    pdf.resize(12 * 1024 * 1024, b' ');
-    let pdf_path = dir.path().join("report.pdf");
-    std::fs::write(&pdf_path, &pdf).unwrap();
-    let created = tool(&app.router, "create-file", json!({ "filePath": pdf_path })).await;
-    let pdf_id = tool_json(&created)["id"].as_str().unwrap().to_owned();
-    assert_eq!(
-        text(&created, 1),
-        format!(
-            "Markdown to embed this attachment in a note body:\n\n[report.pdf](inkdrop://{pdf_id})"
-        )
-    );
-    let (_, doc) = get(&app.router, &format!("/{pdf_id}")).await;
-    assert_eq!(doc["contentType"], "application/pdf");
-    pdf.resize(kanso_core::model::MAX_PDF_SIZE + 1, b' ');
-    std::fs::write(&pdf_path, &pdf).unwrap();
-    let refused = tool(&app.router, "create-file", json!({ "filePath": pdf_path })).await;
-    assert!(
-        text(&refused, 0).contains("byte limit"),
-        "{}",
-        text(&refused, 0)
-    );
-    // Over 10 MiB but not a PDF: the image limit.
-    let fake = dir.path().join("fake.pdf");
-    std::fs::write(&fake, vec![b'x'; 11 * 1024 * 1024]).unwrap();
-    let refused = tool(&app.router, "create-file", json!({ "filePath": fake })).await;
+    // Over 10 MiB: the image limit. (A PDF has no `contentType` the tool
+    // takes; it goes to POST /files.)
+    let fake = vec![b'x'; 11 * 1024 * 1024];
+    let refused = tool(
+        &app.router,
+        "create-file",
+        json!({ "data": STANDARD.encode(&fake), "contentType": "image/png", "name": "fake.png" }),
+    )
+    .await;
     assert!(
         text(&refused, 0).contains(&format!(
             "over the {} byte limit",
@@ -828,21 +813,21 @@ async fn files_through_the_tools() {
 }
 
 #[tokio::test]
-async fn local_files_are_off_for_non_loopback_binds() {
-    let dir = tempfile::tempdir().unwrap();
-    let store = std::sync::Arc::new(kanso_store::Store::open(dir.path().join("k.db")).unwrap());
-    let config = kanso_server::ServerConfig {
-        bind: "0.0.0.0:0".parse().unwrap(),
-        ..config()
-    };
-    let router = kanso_server::router(store, &config);
-    let png_path = dir.path().join("pixel.png");
-    std::fs::write(&png_path, PNG).unwrap();
-    let result = tool(&router, "create-file", json!({ "filePath": png_path })).await;
-    assert_eq!(result["isError"], true);
-    assert!(
-        text(&result, 0).contains("only available when the server is bound to a loopback address")
-    );
+async fn local_files_are_off_whatever_the_bind() {
+    for bind in ["0.0.0.0:0", "127.0.0.1:0"] {
+        let dir = tempfile::tempdir().unwrap();
+        let store = std::sync::Arc::new(kanso_store::Store::open(dir.path().join("k.db")).unwrap());
+        let config = kanso_server::ServerConfig {
+            bind: bind.parse().unwrap(),
+        };
+        let keys = keys_for(&store);
+        let router = kanso_server::router(store, &config, keys);
+        let png_path = dir.path().join("pixel.png");
+        std::fs::write(&png_path, PNG).unwrap();
+        let result = tool(&router, "create-file", json!({ "filePath": png_path })).await;
+        assert_eq!(result["isError"], true);
+        assert!(text(&result, 0).contains("API keys are not given local file paths"));
+    }
 }
 
 #[tokio::test]
@@ -1296,11 +1281,10 @@ async fn mcp_note_writes_never_set_a_published_link() {
         )
         .await,
     );
-    let (_, doc) = get(
-        &app.router,
-        &format!("/{}", created["id"].as_str().unwrap()),
-    )
-    .await;
+    let doc = app
+        .store
+        .get_api(created["id"].as_str().unwrap(), None, false)
+        .unwrap();
     assert!(doc.get("kansoPublish").is_none(), "{doc}");
 
     // A note the app published keeps its link through update-note.
@@ -1322,7 +1306,7 @@ async fn mcp_note_writes_never_set_a_published_link() {
         )
         .await,
     );
-    let (_, doc) = get(&app.router, &format!("/{}", res.id)).await;
+    let doc = app.store.get_api(&res.id, None, false).unwrap();
     assert_eq!(doc["title"], "Plan v2");
     assert_eq!(doc["kansoPublish"], ours, "{doc}");
 }
@@ -1463,10 +1447,9 @@ async fn mcp_never_returns_sealed_attachment_bytes_or_exports_them() {
         )
         .unwrap();
     let read = tool(&app.router, "read-file", json!({"fileId": file.id})).await;
-    assert_eq!(
-        text(&read, 0),
-        "That attachment is in a locked note. Open the note in Kanso and unlock it to use the file."
-    );
+    // The note that holds it is in the trash, which a key doesn't see, so
+    // the attachment is "not found" before its seal is even looked at.
+    assert_eq!(read["isError"], true);
     assert!(!read.to_string().contains(&encoded));
     assert!(!read.to_string().contains("secret.png"));
     assert!(!read.to_string().contains("image/png"));

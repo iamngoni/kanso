@@ -126,6 +126,10 @@ pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// The variable that holds the key `kanso capture` signs in with while
+/// Kanso is open.
+const KEY_VAR: &str = "KANSO_API_KEY";
+
 /// A running Kanso's local API.
 pub struct Api {
     base: String,
@@ -150,14 +154,23 @@ impl Api {
             IpAddr::V4(ip) => ip.to_string(),
             IpAddr::V6(ip) => format!("[{ip}]"),
         };
+        // The local link (issue #243, step 6) replaces this; until then a
+        // capture while Kanso is open signs in with a key that can write.
+        let key = std::env::var(KEY_VAR)
+            .ok()
+            .filter(|key| !key.trim().is_empty());
+        let Some(key) = key else {
+            bail!(
+                "Kanso is open, and capturing into it needs an API key. Set {KEY_VAR} to a key that can read and write (Kanso › Settings › Local API › API keys), or quit Kanso to capture from here."
+            );
+        };
         Ok(Api::at(
             &format!("http://{host}:{}", settings.port),
-            &settings.username,
-            &settings.password,
+            key.trim(),
         ))
     }
 
-    pub fn at(base: &str, username: &str, password: &str) -> Api {
+    pub fn at(base: &str, key: &str) -> Api {
         let agent: ureq::Agent = ureq::Agent::config_builder()
             .http_status_as_error(false)
             .max_redirects(0)
@@ -166,7 +179,7 @@ impl Api {
             .into();
         Api {
             base: base.trim_end_matches('/').to_owned(),
-            auth: kanso_server::basic_header(username, password),
+            auth: format!("Bearer {key}"),
             agent,
         }
     }
@@ -193,7 +206,9 @@ impl Api {
         let status = response.status().as_u16();
         let text = response.body_mut().read_to_string().unwrap_or_default();
         if status == 401 {
-            bail!("Kanso's local API didn't accept the username and password in its settings");
+            bail!(
+                "Kanso's local API didn't accept the key in {KEY_VAR}. It may have been revoked. Create a new one in Kanso › Settings › Local API › API keys."
+            );
         }
         Ok((status, serde_json::from_str(&text).unwrap_or(Value::Null)))
     }
@@ -280,16 +295,25 @@ mod tests {
     fn captures_through_the_local_api() {
         let dir = tempfile::tempdir().unwrap();
         let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
+        let keys = kanso_server::KeyStore::open(store.clone()).unwrap();
+        let key = keys
+            .mint(kanso_server::NewKey {
+                name: "Capture".into(),
+                client: "other".into(),
+                access: kanso_server::KeyAccess::Write,
+                books: None,
+            })
+            .unwrap()
+            .key;
         let handle = kanso_server::spawn(
             store.clone(),
             kanso_server::ServerConfig {
                 bind: "127.0.0.1:0".parse().unwrap(),
-                username: "u".into(),
-                password: "p".into(),
             },
+            keys,
         );
         let addr = handle.bind_result().unwrap();
-        let api = Api::at(&format!("http://{addr}"), "u", "p");
+        let api = Api::at(&format!("http://{addr}"), &key);
         let first = api.capture("Buy milk\nand eggs", None).unwrap().0;
         let second = api.capture("Call Sam", None).unwrap().0;
         let note = store.note(&first).unwrap().unwrap();
@@ -300,7 +324,7 @@ mod tests {
         assert_eq!(note.book_id, "book:inbox");
         assert_eq!(store.note(&second).unwrap().unwrap().book_id, "book:inbox");
         assert_eq!(store.books().unwrap().len(), 1);
-        let wrong = Api::at(&format!("http://{addr}"), "u", "nope");
+        let wrong = Api::at(&format!("http://{addr}"), "kcl_nope");
         assert!(
             wrong
                 .capture("x", None)
