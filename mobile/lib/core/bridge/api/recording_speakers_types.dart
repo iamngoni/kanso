@@ -10,7 +10,10 @@ class SpeakerChange {
   final String from;
   final String to;
 
-  const SpeakerChange({required this.from, required this.to});
+  const SpeakerChange({
+    required this.from,
+    required this.to,
+  });
 
   @override
   int get hashCode => from.hashCode ^ to.hashCode;
@@ -28,7 +31,10 @@ class SpeakerNameView {
   final String name;
   final int paragraphs;
 
-  const SpeakerNameView({required this.name, required this.paragraphs});
+  const SpeakerNameView({
+    required this.name,
+    required this.paragraphs,
+  });
 
   @override
   int get hashCode => name.hashCode ^ paragraphs.hashCode;
@@ -45,7 +51,9 @@ class SpeakerNameView {
 class SpeakersRenamed {
   final int? undo;
 
-  const SpeakersRenamed({this.undo});
+  const SpeakersRenamed({
+    this.undo,
+  });
 
   @override
   int get hashCode => undo.hashCode;

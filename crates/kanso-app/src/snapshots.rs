@@ -6292,6 +6292,44 @@ fn snapshots() {
             Edit,
             locking::lock_interrupted,
         ),
+        // Sealing the attachments of notes locked before (#44, step 7): the
+        // first-launch prompt, open and closed, and the progress sheet.
+        Shot {
+            dialog_width: 460.,
+            ..shot("dark-seal-prompt", Dark, Edit, locking::seal_prompt)
+        },
+        Shot {
+            dialog_width: 460.,
+            ..shot("light-seal-prompt", Light, Edit, locking::seal_prompt)
+        },
+        Shot {
+            dialog_width: 460.,
+            ..shot(
+                "dark-seal-prompt-closed",
+                Dark,
+                Edit,
+                locking::seal_prompt_closed,
+            )
+        },
+        Shot {
+            dialog_width: 460.,
+            ..shot(
+                "light-seal-prompt-closed",
+                Light,
+                Edit,
+                locking::seal_prompt_closed,
+            )
+        },
+        Shot {
+            dialog_width: crate::lock_flow::SHEET_WIDTH,
+            dialog_sample_y: Some(28.),
+            ..shot("dark-seal-progress", Dark, Edit, locking::seal_progress)
+        },
+        Shot {
+            dialog_width: crate::lock_flow::SHEET_WIDTH,
+            dialog_sample_y: Some(28.),
+            ..shot("light-seal-progress", Light, Edit, locking::seal_progress)
+        },
         // Voice input: the pill while listening and writing, and Settings'
         // Voice input in each state of the model.
         // The PDF reader (issue #43): page 1 drawn by the worker, and the

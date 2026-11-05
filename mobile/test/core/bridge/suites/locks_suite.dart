@@ -307,6 +307,61 @@ void locksSuite(OpenLibrary open, {BiometricAnswer? answer}) {
       },
       timeout: const Timeout(Duration(minutes: 5)),
     );
+
+    test(
+      'what a lock seals, a stopped lock, and older notes sealed in one pass',
+      () async {
+        final library = await open();
+        final locks = library.locks();
+        final progress = <SealProgress>[];
+        final listening = locks.lockProgress().listen(progress.add);
+        addTearDown(() => unawaited(listening.cancel()));
+        final vault = (await library.createNotebook(name: 'Vault')).id;
+        final id = await makeNote(library, 'Plan', 'the secret plan');
+
+        // Nothing is attached: a lock seals nothing, and nothing waits.
+        expect((await locks.noteLockSummary(id: id)).files, 0);
+        expect((await locks.notebookLockSummary(bookId: vault)).files, 0);
+        expect(await locks.takeSealedFilesNotice(), isFalse);
+        await locks.cancelLock();
+        await locks.lockNote(id: id, password: lockPassword);
+        expect(await locks.interruptedLock(id: id), isNull);
+        await expectLater(
+          locks.finishLocking(id: id),
+          throwsA(isA<KansoError>()),
+        );
+        await expectLater(
+          locks.undoLocking(id: id),
+          throwsA(isA<KansoError>()),
+        );
+
+        // Sealing the attachments of notes locked before: nothing waits, so
+        // the first-launch prompt has nothing to ask, and "Later" is kept.
+        final state = await locks.filesMigration();
+        expect((state.notes, state.stopped, state.postponed), (0, 0, false));
+        await locks.postponeFilesMigration();
+        expect((await locks.filesMigration()).postponed, isTrue);
+        final outcome = await locks.sealLockedAttachments();
+        expect((outcome.notes, outcome.stopped), (0, false));
+        expect(await locks.undoFilesMigration(), 0);
+
+        // Closed, a key is needed; a password that opens nothing is refused.
+        await locks.lock();
+        await expectLater(
+          locks.sealLockedAttachments(),
+          throwsA(isA<KansoError_Locked>()),
+        );
+        await expectLater(
+          locks.sealLockedAttachments(password: lockPassword),
+          throwsA(isA<KansoError_Auth>()),
+        );
+        await expectLater(
+          locks.undoFilesMigration(password: lockPassword),
+          throwsA(isA<KansoError_Auth>()),
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
   });
 }
 

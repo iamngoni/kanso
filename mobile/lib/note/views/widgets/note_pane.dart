@@ -18,6 +18,7 @@ import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/state/navigation_history/navigation_history_bloc.dart';
 import '../../../core/state/undo_notice/undo_notice_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
+import '../../../core/utils/note_liveness.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
@@ -243,9 +244,16 @@ class NotePane extends StatelessWidget {
                                           undoNotice: undoNoticeOf(context),
                                         ),
                                       ),
-                                // Never offered for a locked note, as on the
-                                // desktop: it is kept out of AI.
-                                if (readable && note.lock is LockState_Plain)
+                                // As on the desktop: only while AI is on, and
+                                // never for a locked or trashed note, which
+                                // is kept out of AI.
+                                if (readable &&
+                                    context
+                                        .watch<AiStatusBloc>()
+                                        .state
+                                        .enabled &&
+                                    note.lock is LockState_Plain &&
+                                    note.notebookId != trashNotebookId)
                                   NoteMenuAction.summarizeRecording: () =>
                                       unawaited(
                                         showRecordingSummarySheet(

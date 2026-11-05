@@ -3358,19 +3358,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(
-      origin,
-      {
-        'ui': 'Edited in Kanso',
-        'api': 'Replaced through the API',
-        'sync': 'Replaced by sync',
-        'import': 'Replaced by an import',
-        'collab': 'Edited in a shared note',
-        'agent': 'Suggested by an agent, applied by you',
-        'plugin': 'Changed by a plugin',
-        'other': 'Saved version',
-      },
-    );
+    String _temp0 = intl.Intl.selectLogic(origin, {
+      'ui': 'Edited in Kanso',
+      'api': 'Replaced through the API',
+      'sync': 'Replaced by sync',
+      'import': 'Replaced by an import',
+      'collab': 'Edited in a shared note',
+      'agent': 'Suggested by an agent, applied by you',
+      'plugin': 'Changed by a plugin',
+      'other': 'Saved version',
+    });
     return '$_temp0';
   }
 
@@ -5126,19 +5123,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiTroubleKey =>
-      'Your model turned the key down. Check the API key in AI settings.';
+      'Your model turned the key down. The API key was refused. Check it in Settings › AI, then try again.';
 
   @override
   String get aiTroubleBusy =>
-      'Your model is busy right now. Wait a moment, then try again.';
+      'Your model is busy. It\'s limiting requests right now. Wait a moment, then try again.';
 
   @override
   String get aiTroubleSlow =>
-      'Your model took too long to answer. Try again, or pick a smaller model.';
+      'Your model took too long. It didn\'t answer in time. Try again, or pick a smaller model in Settings › AI.';
 
   @override
   String get aiTroubleMissing =>
-      'The model in AI settings isn\'t available. Choose another, then try again.';
+      'Your model wasn\'t found. The model named in Settings › AI isn\'t available. Choose another, then try again.';
 
   @override
   String aiTroubleReachLocal(String app) {
@@ -5147,15 +5144,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiTroubleReach =>
-      'Couldn\'t reach your model. Check your connection and the address in AI settings.';
+      'Couldn\'t reach your model. Check your connection and the address in Settings › AI, then try again.';
 
   @override
   String get aiTroubleSetup =>
-      'AI isn\'t set up yet. Choose a model in AI settings to use this.';
+      'AI isn\'t set up yet. Choose a model in Settings › AI to use this.';
 
   @override
   String get aiTroubleOther =>
-      'Your model ran into a problem. Try again, or check AI settings.';
+      'Your model ran into a problem. Try again. If it keeps happening, check Settings › AI.';
+
+  @override
+  String get aiTroubleMissingKey =>
+      'No API key is saved. Add one in Settings › AI: choose your provider, then paste the key into API key.';
+
+  @override
+  String get aiTroubleMissingModel =>
+      'No model is chosen. Pick a model in Settings › AI, then try again.';
+
+  @override
+  String get aiTroubleMissingUrl =>
+      'No server address is set. Enter the server\'s address in Settings › AI, then try again.';
+
+  @override
+  String get aiTroubleNoAgent =>
+      'No agent is set up. Choose an agent in Settings › AI, or type the command of your own. Then try again.';
+
+  @override
+  String get aiTroubleAgentNotInstalled =>
+      'Your agent isn\'t installed. Install it, or choose another agent in Settings › AI and use Find to check again.';
+
+  @override
+  String get aiTroubleAgentNeedsNode =>
+      'Your agent needs a newer Node. Install the Node version it asks for, then use Find again in Settings › AI.';
+
+  @override
+  String get aiTroubleNoTools =>
+      'This model can\'t use tools. Pick a model that supports tools in Settings › AI.';
+
+  @override
+  String get aiTroubleServerDown =>
+      'Your model\'s server had a problem. That\'s on its side. Wait a moment, then try again.';
+
+  @override
+  String get aiTroubleBlocked =>
+      'Something blocked the request. A proxy, firewall or region limit turned it away before it reached your model, so it isn\'t your API key. Check your network and the address in Settings › AI, then try again.';
+
+  @override
+  String get aiTroubleReachLocalModel =>
+      'Couldn\'t reach your model. Is Ollama or LM Studio running? Start it, then try again.';
 
   @override
   String get aiTroubleRetry => 'Try again';
@@ -7232,6 +7269,195 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lockInterruptedFailed => 'That didn\'t work. Try again.';
+
+  @override
+  String get lockFilesNoticeDismiss => 'Dismiss';
+
+  @override
+  String get lockMigrationTitle => 'Seal attachments of locked notes';
+
+  @override
+  String get lockMigrationPrompt =>
+      'Attachments of your locked notes aren\'t sealed yet. Enter your lock password to seal them now.';
+
+  @override
+  String lockMigrationNotes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count locked notes still have pictures and files stored in plain form.',
+      one: '1 locked note still has pictures and files stored in plain form.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockMigrationCounted(int count, String size) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count attachments ($size) will be sealed.',
+      one: '1 attachment ($size) will be sealed.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockMigrationShared(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count attachments are also used by other notes: each locked note gets its own sealed copy, and the other notes keep theirs.',
+      one:
+          '1 attachment is also used by another note: the locked note gets its own sealed copy, and the other note keeps the original.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lockMigrationUncounted =>
+      'Kanso counts them, and their size, once the password opens the notes.';
+
+  @override
+  String get lockMigrationSealNow => 'Seal now';
+
+  @override
+  String get lockMigrationLater => 'Later';
+
+  @override
+  String get lockMigrationPasswordMessage =>
+      'Type your lock password. Kanso seals the attachments of every locked note it opens.';
+
+  @override
+  String get lockMigrationSealing => 'Sealing attachments';
+
+  @override
+  String get lockMigrationStoppedTitle => 'Sealing didn\'t finish';
+
+  @override
+  String lockMigrationStoppedMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count locked notes were left half done.',
+      one: '1 locked note was left half done.',
+    );
+    return '$_temp0 Some attachments are sealed, and none is lost. Finish sealing, or undo it to keep everything as it was.';
+  }
+
+  @override
+  String get lockMigrationFinish => 'Finish sealing';
+
+  @override
+  String get lockMigrationUndo => 'Undo';
+
+  @override
+  String lockMigrationDone(int files, int notes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      files,
+      locale: localeName,
+      other: 'Sealed $files attachments',
+      one: 'Sealed 1 attachment',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      notes,
+      locale: localeName,
+      other: '$notes locked notes',
+      one: '1 locked note',
+    );
+    return '$_temp0 in $_temp1.';
+  }
+
+  @override
+  String lockMigrationNothing(int notes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      notes,
+      locale: localeName,
+      other: 'Checked $notes locked notes: no attachments needed sealing.',
+      one: 'Checked 1 locked note: no attachments needed sealing.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockMigrationCopies(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count attachments also used by other notes have their own sealed copies.',
+      one: '1 attachment also used by another note has its own sealed copy.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockMigrationUnopened(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count locked notes use another lock password and were left as they are.',
+      one: '1 locked note uses another lock password and was left as it is.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockMigrationFailedNotes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count locked notes couldn\'t be sealed and stay as they were.',
+      one: '1 locked note couldn\'t be sealed and stays as it was.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lockMigrationStopped =>
+      'Sealing stopped. Open Settings, then Locked notes, to finish it.';
+
+  @override
+  String lockMigrationUndone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Undone. $count attachments are readable again, as before.',
+      one: 'Undone. 1 attachment is readable again, as before.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockMigrationReminder(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Attachments of $count locked notes aren\'t sealed yet.',
+      one: 'Attachments of 1 locked note aren\'t sealed yet.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsSealAttachments => 'Seal attachments of locked notes…';
+
+  @override
+  String settingsSealAttachmentsValue(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count notes',
+      one: '1 note',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lockMigrationClose => 'Done';
 
   @override
   String get lockFilesNotice =>

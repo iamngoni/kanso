@@ -10,6 +10,7 @@ import '../../../core/configs/kanso_sizes.dart';
 import '../../../core/models/data/browse_location.dart';
 import '../../../core/models/data/layout_class.dart';
 import '../../../core/views/widgets/kanso_plain_text.dart';
+import '../../../lock/views/widgets/files_migration_host.dart';
 import '../../../tabs/views/widgets/tab_actions.dart';
 import '../../../tabs/views/widgets/tabbed_note.dart';
 import '../../../tabs/views/widgets/tabs_sync.dart';
@@ -102,110 +103,115 @@ class BrowseShellState extends State<BrowseShell> {
       child: NoteCreationListener(
         // The panes beside the pages are not in a page's Scaffold.
         child: KansoPlainText(
-          child: UndoNoticeHost(
-            child: ValueListenableBuilder<LayoutClass>(
-              valueListenable: layout,
-              child: widget.child,
-              builder: (context, layoutClass, child) {
-                final width = MediaQuery.sizeOf(context).width;
-                final listOnly = location?.noteId == null;
-                Widget drawerAround(
-                  LayoutClass shown,
-                  Widget content,
-                  double drawer,
-                ) {
-                  return LibraryDrawerHost(
-                    location: location,
-                    designGallery: designGallery,
-                    width: drawer,
-                    edgeDragEnabled: shown != LayoutClass.single || listOnly,
-                    child: KansoShortcuts(
-                      layout: layoutClass,
+          child: FilesMigrationHost(
+            child: UndoNoticeHost(
+              child: ValueListenableBuilder<LayoutClass>(
+                valueListenable: layout,
+                child: widget.child,
+                builder: (context, layoutClass, child) {
+                  final width = MediaQuery.sizeOf(context).width;
+                  final listOnly = location?.noteId == null;
+                  Widget drawerAround(
+                    LayoutClass shown,
+                    Widget content,
+                    double drawer,
+                  ) {
+                    return LibraryDrawerHost(
                       location: location,
-                      child: content,
-                    ),
-                  );
-                }
-
-                if (focusActive && listOnly) {
-                  // No note is open: there is nothing to show by itself, so
-                  // the mode leaves rather than hide a page it cannot fill.
-                  _leaveFocusWithoutNote(onExit);
-                }
-
-                if (focusActive && !listOnly) {
-                  // Focus mode leaves the note alone: no library, no list,
-                  // no tabs and no note bars, with one way back.
-                  return TabsSync(
-                    enabled: false,
-                    location: location,
-                    child: TabActions(
+                      designGallery: designGallery,
+                      width: drawer,
+                      edgeDragEnabled: shown != LayoutClass.single || listOnly,
                       child: KansoShortcuts(
                         layout: layoutClass,
                         location: location,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: <Widget>[
-                            child!,
-                            FocusModeExit(onExit: onExit),
-                          ],
+                        child: content,
+                      ),
+                    );
+                  }
+
+                  if (focusActive && listOnly) {
+                    // No note is open: there is nothing to show by itself, so
+                    // the mode leaves rather than hide a page it cannot fill.
+                    _leaveFocusWithoutNote(onExit);
+                  }
+
+                  if (focusActive && !listOnly) {
+                    // Focus mode leaves the note alone: no library, no list,
+                    // no tabs and no note bars, with one way back.
+                    return TabsSync(
+                      enabled: false,
+                      location: location,
+                      child: TabActions(
+                        child: KansoShortcuts(
+                          layout: layoutClass,
+                          location: location,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: <Widget>[
+                              child!,
+                              FocusModeExit(onExit: onExit),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }
+                    );
+                  }
 
-                final panes = switch (layoutClass) {
-                  LayoutClass.single => drawerAround(
-                    LayoutClass.single,
-                    child!,
-                    width * KansoSizes.drawerFraction,
-                  ),
-                  LayoutClass.double => drawerAround(
-                    LayoutClass.double,
-                    ListNoteLayout(
-                      list: ListSlot(key: listKey, location: location),
-                      note: TabbedNote(child: child!),
+                  final panes = switch (layoutClass) {
+                    LayoutClass.single => drawerAround(
+                      LayoutClass.single,
+                      child!,
+                      width * KansoSizes.drawerFraction,
                     ),
-                    KansoSizes.libraryPane,
-                  ),
-                  // The library pane can be hidden: then it is the drawer
-                  // of the two panes left.
-                  LayoutClass.triple =>
-                    BlocBuilder<LibraryPaneBloc, LibraryPaneState>(
-                      builder: (context, pane) {
-                        if (!pane.visible) {
-                          return drawerAround(
-                            LayoutClass.triple,
-                            ListNoteLayout(
+                    LayoutClass.double => drawerAround(
+                      LayoutClass.double,
+                      ListNoteLayout(
+                        list: ListSlot(key: listKey, location: location),
+                        note: TabbedNote(child: child!),
+                      ),
+                      KansoSizes.libraryPane,
+                    ),
+                    // The library pane can be hidden: then it is the drawer
+                    // of the two panes left.
+                    LayoutClass.triple =>
+                      BlocBuilder<LibraryPaneBloc, LibraryPaneState>(
+                        builder: (context, pane) {
+                          if (!pane.visible) {
+                            return drawerAround(
+                              LayoutClass.triple,
+                              ListNoteLayout(
+                                list: ListSlot(
+                                  key: listKey,
+                                  location: location,
+                                ),
+                                note: TabbedNote(child: child!),
+                              ),
+                              KansoSizes.libraryPane,
+                            );
+                          }
+                          return KansoShortcuts(
+                            layout: layoutClass,
+                            location: location,
+                            child: TabletLayout(
+                              library: LibraryNavigation(
+                                location: location,
+                                designGallery: designGallery,
+                              ),
                               list: ListSlot(key: listKey, location: location),
                               note: TabbedNote(child: child!),
                             ),
-                            KansoSizes.libraryPane,
                           );
-                        }
-                        return KansoShortcuts(
-                          layout: layoutClass,
-                          location: location,
-                          child: TabletLayout(
-                            library: LibraryNavigation(
-                              location: location,
-                              designGallery: designGallery,
-                            ),
-                            list: ListSlot(key: listKey, location: location),
-                            note: TabbedNote(child: child!),
-                          ),
-                        );
-                      },
-                    ),
-                };
-                // Tabs are for the layouts with a pane for the note.
-                return TabsSync(
-                  enabled: layoutClass != LayoutClass.single,
-                  location: location,
-                  child: TabActions(child: panes),
-                );
-              },
+                        },
+                      ),
+                  };
+                  // Tabs are for the layouts with a pane for the note.
+                  return TabsSync(
+                    enabled: layoutClass != LayoutClass.single,
+                    location: location,
+                    child: TabActions(child: panes),
+                  );
+                },
+              ),
             ),
           ),
         ),

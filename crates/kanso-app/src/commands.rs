@@ -733,6 +733,17 @@ static COMMANDS: &[Command] = &[
         needs: Needs::Nothing,
     },
     Command {
+        id: "seal-attachments",
+        label: "Seal attachments of locked notes…",
+        label_when_pinned: None,
+        description: "Seals the pictures and files of notes locked before attachments were sealed.",
+        icon: IconName::LockKeyhole,
+        keywords: &["lock", "seal", "attachments", "files", "migrate"],
+        group: Group::Note,
+        run: action!(crate::seal_migration::SealLockedAttachments),
+        needs: Needs::Nothing,
+    },
+    Command {
         id: "touch-id-on",
         label: concat!("Unlock locked notes with ", crate::touch_id::unlock_name!()),
         label_when_pinned: None,
