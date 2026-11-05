@@ -14,10 +14,11 @@
 //! 2. [`apply_staged_restore`], at the next launch before the library opens,
 //!    checks the staged copy, gives it the library's API keys in place of
 //!    the backup's (keys never travel with a backup, so a revoked key stays
-//!    revoked) and the library's sync binding in place of the backup's
-//!    (a backup from another computer carries that library's account and
-//!    device identity, which this one must never adopt), keeps the library as a backup of its own (a
-//!    second name for the same file, or a finished copy), then renames the
+//!    revoked), drops the backup's sync state and account binding (it comes
+//!    back unbound, so the next sign-in asks before it merges) but keeps the
+//!    library's own device identity, keeps the library as a backup of its
+//!    own (a second name for the same file, or a finished copy), then
+//!    renames the
 //!    staged copy over `<db>`. The rename is atomic, so `<db>` is always the
 //!    old library or the restored one, never missing and never half of
 //!    either. A crash anywhere leaves the staged copy, and the next launch
@@ -219,15 +220,11 @@ pub fn apply_staged_restore(
 const API_KEY_COLUMNS: &str =
     "id, name, client, token_hash, access, books, created_at, last_used_at, revoked_at";
 
-/// The `meta` keys that say which account a library syncs with and which
-/// device it is there. A restore keeps the library's own, never the
-/// backup's. Mirrored by `kanso_sync::binding::meta_keys` (a test there
-/// checks they agree).
-pub const SYNC_BINDING_KEYS: [&str; 7] = [
-    "sync.v2.origin",
-    "sync.v2.account_id",
-    "sync.v2.username",
-    "sync.v2.server",
+/// The `meta` keys of the library's device identity (docs/ACCOUNTS.md ›
+/// Device identity): the one entry of sync state a restore keeps, the
+/// library's own and never the backup's. Mirrored by
+/// `kanso_sync::binding::meta_keys` (a test there checks they agree).
+pub const DEVICE_IDENTITY_KEYS: [&str; 3] = [
     "sync.v2.library_id",
     "sync.v2.device_secret",
     "sync.v2.hardware",
@@ -240,14 +237,17 @@ pub const SYNC_BINDING_KEYS: [&str; 7] = [
 ///
 /// Sync state doesn't travel either. Every `sync.*` entry of the staged
 /// copy goes: the backup's account, server, device identity, cursor and
-/// epoch describe another library (or this one at another time). The
-/// library's own binding and device identity ([`SYNC_BINDING_KEYS`]) are
-/// copied in, or nothing when there is no library; the cursor and epoch
-/// stay out, so the next sync reads the whole account again. Every note
-/// becomes unsynced, as when a library is bound to another account
-/// (`Store::reset_sync`), so sync merges it with the account and keeps both
-/// versions of what differs. Run again after a crash, it gives the same
-/// result.
+/// epoch describe another library (or this one at another time). Only the
+/// library's own device identity ([`DEVICE_IDENTITY_KEYS`]) is copied in, or
+/// nothing when there is no library. Its account binding is not: a restored
+/// library is not what the account holds, so it comes back unbound, and the
+/// next sign-in asks whether to add its notes to the account or replace
+/// them with the account's (docs/ACCOUNTS.md › Library binding). Kept, the
+/// binding would make that sign-in resume with no question and merge at
+/// once, bringing back everywhere every note deleted since the backup, or
+/// uploading another account's notes. Every note becomes unsynced, as
+/// `Store::reset_sync` leaves them, ready for either answer. Run again after
+/// a crash, it gives the same result.
 fn keep_local_state(staged: &Path, db: &Path, key: &LibraryKey) -> Result<()> {
     let conn = open_encrypted(staged, key)?;
     // A backup from before API keys has no table yet; the open that
@@ -301,7 +301,7 @@ fn keep_local_state(staged: &Path, db: &Path, key: &LibraryKey) -> Result<()> {
         |row| row.get::<_, i64>(0),
     )?;
     if table > 0 {
-        let keys = SYNC_BINDING_KEYS
+        let keys = DEVICE_IDENTITY_KEYS
             .iter()
             .map(|key| format!("'{key}'"))
             .collect::<Vec<_>>()

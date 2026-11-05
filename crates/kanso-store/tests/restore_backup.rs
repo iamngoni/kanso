@@ -507,11 +507,13 @@ fn a_restore_never_adopts_the_backups_sync_binding() {
     assert_eq!(sync_meta(&db, &ours), []);
 }
 
-/// The library's own binding and device identity survive a restore; the
-/// backup's cursor and epoch don't, and neither do the library's (the next
-/// sync reads the whole account again).
+/// The library's own device identity survives a restore; its account
+/// binding doesn't, and neither does any cursor or epoch. Regression (PR
+/// #301 review): the binding was kept, so the next sign-in resumed with no
+/// question and merged at once, bringing back every note deleted since the
+/// backup (`kanso-sync/tests/restore_sync.rs`).
 #[test]
-fn a_restore_keeps_this_librarys_binding_and_drops_the_cursor() {
+fn a_restore_keeps_only_this_librarys_device_identity() {
     let there = tempfile::tempdir().unwrap();
     let here = tempfile::tempdir().unwrap();
     let theirs = key_from(42);
@@ -529,7 +531,7 @@ fn a_restore_keeps_this_librarys_binding_and_drops_the_cursor() {
     assert!(apply_staged_restore(&db, &ours, &here.path().join("backups"), 2).unwrap());
     let found = sync_meta(&db, &ours);
     let names: Vec<&str> = found.iter().map(|(name, _)| name.as_str()).collect();
-    assert_eq!(names, kanso_store::SYNC_BINDING_KEYS);
+    assert_eq!(names, kanso_store::DEVICE_IDENTITY_KEYS);
     assert!(found.iter().all(|(_, value)| value.ends_with("@me")));
 }
 
@@ -656,10 +658,10 @@ proptest! {
     })]
 
     /// Invariants: whichever bindings the backup and the library hold (or
-    /// none), a restore leaves exactly the library's own binding, with no
-    /// cursor, and never a trace of the backup's.
+    /// none), a restore leaves exactly the library's own device identity,
+    /// no account binding and no cursor, and never a trace of the backup's.
     #[test]
-    fn prop_a_restore_keeps_only_the_librarys_own_binding(
+    fn prop_a_restore_keeps_only_the_librarys_own_device_identity(
         theirs_bound in any::<bool>(),
         ours_bound in any::<bool>(),
         theirs in 1u8..=100,
@@ -686,9 +688,9 @@ proptest! {
         apply_staged_restore(&db, &ours, &here.path().join("backups"), 2).unwrap();
         let found = sync_meta(&db, &ours);
         let own = found.iter().all(|(name, value)| {
-            kanso_store::SYNC_BINDING_KEYS.contains(&name.as_str()) && value.ends_with("@me")
+            kanso_store::DEVICE_IDENTITY_KEYS.contains(&name.as_str()) && value.ends_with("@me")
         });
         prop_assert!(own);
-        prop_assert_eq!(found.len(), if ours_bound { kanso_store::SYNC_BINDING_KEYS.len() } else { 0 });
+        prop_assert_eq!(found.len(), if ours_bound { kanso_store::DEVICE_IDENTITY_KEYS.len() } else { 0 });
     }
 }

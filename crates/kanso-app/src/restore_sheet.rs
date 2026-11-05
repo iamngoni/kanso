@@ -80,10 +80,17 @@ pub fn begin(path: PathBuf, window: &mut Window, cx: &mut App) -> Option<WeakEnt
     Some(weak)
 }
 
-/// Why a restore can't be staged now: the library is signed in to sync.
+/// Why a restore can't be staged now: the library is signed in to sync, or
+/// on its way there. The launch that applies it checks the keychain again
+/// (`library_open`), for a sign-in made after this.
 fn signed_in_refusal(cx: &App) -> Option<&'static str> {
     let services = cx.try_global::<crate::services::Services>()?;
-    restore_refusal(services.signed_in(), services.has_locked_session())
+    let pending = services.has_locked_session()
+        || services.session().is_some()
+        || services.restoring
+        || services.provider_wait.is_some()
+        || services.pending_unlocked_candidate.is_some();
+    restore_refusal(&services.account_state(), pending)
 }
 
 /// The sheet: what is being restored, the words if they're needed, and the
