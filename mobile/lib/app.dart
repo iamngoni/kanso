@@ -9,6 +9,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'account/views/widgets/device_approval_host.dart';
 import 'ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'assist/utils/assist_editor_extras.dart';
+import 'canvas/models/repos/abs/canvas_repository.dart';
+import 'canvas/utils/sketch_editor_extras.dart';
 import 'core/configs/kanso_theme.dart';
 import 'core/configs/kanso_theme_scope.dart';
 import 'core/models/repos/abs/ai_repository.dart';
@@ -23,7 +25,9 @@ import 'core/views/widgets/kanso_icon_set_scope.dart';
 import 'core/views/widgets/layout_class_reporter.dart';
 import 'core/views/widgets/review_prompt_host.dart';
 import 'crash/views/widgets/crash_notice_host.dart';
+import 'dictation/utils/combined_editor_extras.dart';
 import 'dictation/views/widgets/dictation_scope.dart';
+import 'editor_extras/models/data/editor_extras.dart';
 import 'feedback/views/widgets/feedback_host.dart';
 import 'gen/l10n/app_localizations.dart';
 import 'import/views/widgets/opened_documents_host.dart';
@@ -69,6 +73,7 @@ class App extends StatefulWidget {
 
 class _AppState extends State<App> {
   AssistEditorExtras? assistant;
+  EditorExtras? others;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +93,13 @@ class _AppState extends State<App> {
               isEnabled: () => status.state.enabled,
               selectionLabel: context.l10n.assistSelectionAction,
               keyLabel: context.l10n.assistAccessoryLabel,
+            );
+            others ??= CombinedEditorExtras(
+              assistant!,
+              SketchEditorExtras(
+                repository: getIt<CanvasRepository>(),
+                label: context.l10n.sketchInsertKey,
+              ),
             );
             final content = KansoIconSetScope(
               iconSet: state.iconSet,
@@ -167,7 +179,7 @@ class _AppState extends State<App> {
                       cursorColor: theme.colors.accent,
                       child: KansoFeedbackHost(
                         child: DictationScope(
-                          others: assistant,
+                          others: others,
                           child: widget.metrics == null
                               ? hosted
                               : MetricsHost(

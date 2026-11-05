@@ -7,6 +7,7 @@
 //! chunks of a long note parses it, which runs off the main thread.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use gpui_kit::assets::IconName as Lucide;
@@ -69,6 +70,18 @@ pub enum PreviewEdit {
     Replace { source: String, replacement: String },
     /// A task box ticked or cleared.
     Task(TaskTick),
+    /// A sketch drawn on: the fence with this ID in the note becomes this
+    /// JSON, if it fits the caps. `base` is the fence it was drawn from: one
+    /// the note changed since (another device, the handwriting reader) is
+    /// merged with it, not written over.
+    Sketch {
+        id: String,
+        json: String,
+        base: String,
+    },
+    /// "Open as canvas" (or "Copy as canvas" in a shared note) on the sketch
+    /// with this ID.
+    SketchToCanvas { id: String },
     /// A link to an attachment followed (`inkdrop://file:…`, with its
     /// fragment): the editor opens it if it is a PDF.
     OpenFile(String),
@@ -166,6 +179,8 @@ impl Preview {
             links: links.clone(),
             note: note.clone(),
             text_scale: Mutex::new(1.),
+            sketch_read_only: AtomicBool::new(false),
+            sketch_owner: crate::sketch_view::next_owner(),
         });
         let edits = resizes.clone();
         let extensions = quote_extensions(
@@ -247,6 +262,9 @@ impl Preview {
             }
         });
         if changed.unwrap_or(false) {
+            // Another note's sketches are let go (their ink was handed to the
+            // editor before it left).
+            crate::sketch_view::keep_only(self.rich.sketch_owner, changed_id.as_deref(), cx);
             if let Ok(mut images) = self.images.lock() {
                 images.clear();
             }
@@ -475,6 +493,26 @@ impl Preview {
     pub fn set_readable(&mut self, readable: bool, cx: &mut Context<Self>) {
         if self.readable != readable {
             self.readable = readable;
+            cx.notify();
+        }
+    }
+
+    /// Which preview this is, to the sketches drawn in it
+    /// ([`crate::sketch_view`]).
+    pub fn sketch_owner(&self) -> u64 {
+        self.rich.sketch_owner
+    }
+
+    /// Whether the sketches in the note are read only (it is shared or in the
+    /// trash): they draw as pictures, and "Copy as canvas" makes a private
+    /// canvas of one.
+    pub fn set_sketch_read_only(&mut self, read_only: bool, cx: &mut Context<Self>) {
+        if self
+            .rich
+            .sketch_read_only
+            .swap(read_only, Ordering::Relaxed)
+            != read_only
+        {
             cx.notify();
         }
     }

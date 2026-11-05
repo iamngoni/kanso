@@ -277,6 +277,22 @@ impl Store {
         })
     }
 
+    /// The number of documents no server has any revision of: written here
+    /// and never sent. Unlike [`Store::pending_count`] an edit to a document
+    /// the server has doesn't count, since signing in elsewhere brings that
+    /// document back (issue #243 step 11: when sync, not the library key,
+    /// can restore the notes).
+    pub fn never_sent_count(&self) -> Result<usize> {
+        self.read(|conn| {
+            let count: i64 = conn.query_row(
+                "SELECT count(*) FROM docs WHERE synced_rev IS NULL",
+                [],
+                |row| row.get(0),
+            )?;
+            Ok(count as usize)
+        })
+    }
+
     /// Records that the server accepted revision `rev` of `id`. Call it right
     /// after the push that sent `rev` succeeded. With a `guard`, nothing is
     /// written unless it holds ([`StoreError::GuardFailed`]).

@@ -3966,6 +3966,13 @@ sealed class PreviewBlock with _$PreviewBlock {
     required PreviewFigureKind kind,
     required PreviewSvg svg,
   }) = PreviewBlock_Figure;
+  const factory PreviewBlock.sketch({
+    required String id,
+    required int width,
+    required int height,
+    required bool empty,
+    required PreviewSvg svg,
+  }) = PreviewBlock_Sketch;
   const factory PreviewBlock.emptyDrawing() = PreviewBlock_EmptyDrawing;
   const factory PreviewBlock.canvas({
     required String note,

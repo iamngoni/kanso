@@ -1646,6 +1646,13 @@ pub enum _PreviewBlock {
         kind: PreviewFigureKind,
         svg: PreviewSvg,
     },
+    Sketch {
+        id: String,
+        width: u32,
+        height: u32,
+        empty: bool,
+        svg: PreviewSvg,
+    },
     EmptyDrawing,
     Canvas {
         note: String,
