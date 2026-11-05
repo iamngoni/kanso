@@ -722,6 +722,7 @@ mod tests {
                     ch: 'a',
                     quad: Quad::new(0.1, 0.1 + i as f64 * 1e-5, 0.2, 0.2),
                     turns: 0,
+                    space_before: false,
                 })
                 .collect(),
         }
@@ -877,7 +878,11 @@ mod tests {
             text.chars.len() as u32,
             &text
         ));
-        let text = page_text(MAX_PAGE_CHARS);
+        let mut text = page_text(MAX_PAGE_CHARS);
+        // The widest the mark can make a character: on every one.
+        for c in &mut text.chars {
+            c.space_before = true;
+        }
         assert!(text_page_is_sound(
             2,
             [612.0, 792.0],

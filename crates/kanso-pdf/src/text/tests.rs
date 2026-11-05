@@ -19,14 +19,16 @@ fn strip_ws(s: &str) -> String {
 
 /// A row of characters at `(x, y)` on an unrotated page.
 fn row(text: &str, x: f64, y: f64) -> Vec<Placed> {
-    text.chars()
+    let all: Vec<char> = text.chars().collect();
+    all.iter()
         .enumerate()
-        .filter(|(_, c)| *c != ' ')
-        .map(|(i, ch)| {
+        .filter(|(_, c)| **c != ' ')
+        .map(|(i, &ch)| {
             let x0 = x + i as f64 * CHAR_W;
             Placed {
                 ch,
                 rect: [x0, y, x0 + CHAR_W, y + CHAR_H],
+                space_before: i > 0 && all[i - 1] == ' ',
             }
         })
         .collect()
@@ -147,6 +149,7 @@ fn sideways_text_on_an_upright_page_is_its_own_group() {
             ch,
             quad: Quad::new(10.0 / w, (y1 - CHAR_W) / h, 18.0 / w, y1 / h),
             turns: 3,
+            space_before: false,
         });
     }
     let doc = doc_of(&[p]);
@@ -164,7 +167,63 @@ fn a_page_in_json_has_the_shape_the_worker_sends() {
     assert_eq!(p.chars[1].turns, 3);
     let back = serde_json::to_string(&p).unwrap();
     assert!(!back.contains("\"turns\":0"));
+    assert!(!back.contains("space_before"));
+    let spaced = r#"{"ch":"x","quad":[0.1,0.1,0.12,0.13],"space_before":true}"#;
+    let c: TextChar = serde_json::from_str(spaced).unwrap();
+    assert!(c.space_before);
+    assert!(
+        serde_json::to_string(&c)
+            .unwrap()
+            .contains("\"space_before\":true")
+    );
     assert_eq!(serde_json::from_str::<PageText>(&back).unwrap(), p);
+}
+
+/// A page of `text` set in one row, characters `advance` wide and `height`
+/// tall, touching, a word gap of `gap`; `reported` says whether PDFium's
+/// spaces are on the characters.
+fn row_page(text: &str, advance: f64, height: f64, gap: f64, reported: bool) -> PageText {
+    let mut placed = Vec::new();
+    let mut x = 40.0;
+    let mut space = false;
+    for ch in text.chars() {
+        if ch == ' ' {
+            x += gap;
+            space = true;
+            continue;
+        }
+        placed.push(Placed {
+            ch,
+            rect: [x, 40.0, x + advance, 40.0 + height],
+            space_before: reported && std::mem::take(&mut space),
+        });
+        x += advance;
+        space = false;
+    }
+    page_from(1, &placed, 600.0, 200.0, 0)
+}
+
+#[test]
+fn words_break_where_pdfium_put_a_space_whatever_the_gap() {
+    // A space PDFium reported breaks the word with no gap at all.
+    let touching = row_page("ab cd", 6.0, 8.0, 0.0, true);
+    assert_eq!(all_text(&doc_of(&[touching])), "ab cd");
+    // And once PDFium has said where the spaces are, a gap as wide as a
+    // word space does not make one where it did not put it.
+    let mut moved = row_page("ab cd", 6.0, 8.0, 5.0, true);
+    moved.chars[2].space_before = false;
+    moved.chars[1].space_before = true;
+    assert_eq!(all_text(&doc_of(&[moved])), "a bcd");
+}
+
+#[test]
+fn without_reported_spaces_the_fallback_scales_with_the_advance_not_the_height() {
+    // The same word gap, 2.5 points, is a space between narrow tall letters
+    // and nothing between wide short ones: only the advance tells.
+    let narrow = row_page("ab cd", 3.0, 12.0, 2.5, false);
+    assert_eq!(all_text(&doc_of(&[narrow])), "ab cd");
+    let wide = row_page("ab cd", 12.0, 3.0, 2.5, false);
+    assert_eq!(all_text(&doc_of(&[wide])), "abcd");
 }
 
 #[test]
@@ -175,16 +234,19 @@ fn generated_spaces_and_breaks_and_junk_boxes_are_harmless() {
         ch: ' ',
         quad: Quad([0.0; 4]),
         turns: 0,
+        space_before: false,
     });
     p.chars.push(TextChar {
         ch: '\n',
         quad: Quad([0.5; 4]),
         turns: 0,
+        space_before: false,
     });
     p.chars.push(TextChar {
         ch: '\u{2}',
         quad: Quad([f64::NAN, 0.0, 1.0, 1.0]),
         turns: 0,
+        space_before: false,
     });
     assert_eq!(all_text(&doc_of(&[p])), "ab cd");
     let empty = doc_of(&[PageText {

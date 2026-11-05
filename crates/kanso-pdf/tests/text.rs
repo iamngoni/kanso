@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 use kanso_pdf::client::{Worker, WorkerError};
 use kanso_pdf::fixtures::{encrypted_pdf, pages_pdf, pages_pdf_on, report_pdf, sample_pdf};
 use kanso_pdf::protocol::{ErrorKind, MAX_PAGE_CHARS, MAX_TEXT_WINDOW};
-use kanso_pdf::text::{PageText, layout_page};
+use kanso_pdf::text::{PageText, Sep, layout_page};
 
 mod common;
 
@@ -335,5 +335,156 @@ fn an_encrypted_pdf_has_no_text_to_index_without_its_password() {
     match worker.open(&encrypted_pdf("secret"), None) {
         Err(WorkerError::Refused { kind, .. }) => assert_eq!(kind, ErrorKind::PasswordRequired),
         other => panic!("{other:?}"),
+    }
+}
+
+// ---- Words (spaces where PDFium puts them) ----------------------------
+
+/// The words the text layer finds on a page: runs of glyphs with no
+/// separator between them.
+fn layout_words(text: &PageText) -> Vec<String> {
+    let layout = layout_page(text);
+    let mut out: Vec<String> = Vec::new();
+    for g in &layout.glyphs {
+        match (g.sep, out.last_mut()) {
+            (Sep::None, Some(word)) => word.push(g.ch),
+            _ => out.push(g.ch.to_string()),
+        }
+    }
+    out
+}
+
+/// Content for one line of `text` in the font `/F{n}` at `size`, set as one
+/// string (the PDF has a space character between the words).
+fn line(font: u8, size: u32, y: u32, text: &str) -> String {
+    format!("BT /F{font} {size} Tf 72 {y} Td ({text}) Tj ET")
+}
+
+/// The three kinds of standard font the reader meets: proportional sans,
+/// proportional serif and fixed pitch, as `(name, /F number)`.
+const FONTS: [(&str, u8); 3] = [("Helvetica", 1), ("Times", 3), ("Courier", 4)];
+
+/// The sentences a fixed gap used to get wrong: Helvetica was split as
+/// "q u ick", Courier as "K a n s o". Every word must come out whole, and
+/// every space must be found, at any size.
+#[test]
+fn words_break_where_pdfium_puts_spaces_in_every_font() {
+    let sentence = "The quick brown fox jumps over the lazy dog, Kanso page 12";
+    let expected: Vec<&str> = sentence.split(' ').collect();
+    for (name, font) in FONTS {
+        for size in [8u32, 10, 12, 14] {
+            let mut worker = open(&pages_pdf(&[line(font, size, 700, sentence)]));
+            let text = worker.text(0).unwrap();
+            assert!(
+                text.chars.iter().any(|c| c.space_before),
+                "{name} {size}: PDFium reported no space"
+            );
+            assert_eq!(layout_words(&text), expected, "{name} at {size} pt");
+            // Search reads PDFium's own text, which is what it always was.
+            assert_eq!(
+                worker.plain_text(0, 1).unwrap()[0].trim(),
+                sentence,
+                "{name} at {size} pt"
+            );
+        }
+    }
+}
+
+/// Words the PDF sets one by one with no space character between them, and
+/// words spaced out by kerning: PDFium generates the spaces, and the layout
+/// follows them.
+#[test]
+fn spaces_pdfium_generates_break_words_too() {
+    let by_move = [
+        "BT /F{n} 12 Tf 72 700 Td (Kanso) Tj 42 0 Td (reads) Tj 40 0 Td (quickly) Tj ET",
+        "BT /F{n} 12 Tf 72 680 Td [(Kanso) -1000 (reads) -1000 (quickly)] TJ ET",
+    ];
+    for (name, font) in FONTS {
+        for content in by_move {
+            let content = content.replace("{n}", &font.to_string());
+            let mut worker = open(&pages_pdf(std::slice::from_ref(&content)));
+            let text = worker.text(0).unwrap();
+            let got = layout_words(&text);
+            // However far apart PDFium put them, each word is whole, and a
+            // word is never joined to the next.
+            assert_eq!(got.concat(), "Kansoreadsquickly", "{name}: {content}");
+            for word in ["Kanso", "reads", "quickly"] {
+                assert!(got.iter().any(|g| g == word), "{name} {got:?}: {content}");
+            }
+            // Plain text and words agree on where the words are.
+            let plain = worker.plain_text(0, 1).unwrap().remove(0);
+            assert_eq!(got.join(" "), words(&plain).join(" "), "{name}");
+        }
+    }
+}
+
+/// A PDF where PDFium reports no space at all has only gaps to go on, and
+/// they are measured against the font's advance, not its height.
+#[test]
+fn without_any_space_from_pdfium_gaps_are_measured_against_the_advance() {
+    // Geometry alone cannot tell every space from every in-word gap (Times'
+    // "x" and "j" end up closer across a space than some letters inside a
+    // word), which is why PDFium's spaces come first: these are sentences
+    // the fallback can read.
+    let sentence = "The quick brown fox leaps over the lazy dog, Kanso page 12";
+    let expected: Vec<&str> = sentence.split(' ').collect();
+    for (name, font) in FONTS {
+        for size in [9u32, 12] {
+            let mut worker = open(&pages_pdf(&[line(font, size, 700, sentence)]));
+            let mut text = worker.text(0).unwrap();
+            for c in &mut text.chars {
+                c.space_before = false;
+            }
+            assert_eq!(layout_words(&text), expected, "{name} at {size} pt");
+        }
+    }
+}
+
+/// Words joined back together are PDFium's plain text with its whitespace
+/// tidied to single spaces, for random lines of random words in each font
+/// and size. The seed is pinned, so a failure is a failure on every run.
+#[test]
+fn the_words_are_the_plain_text_with_whitespace_normalised() {
+    use proptest::strategy::{Strategy, ValueTree};
+    use proptest::test_runner::{Config, RngAlgorithm, TestRng, TestRunner};
+
+    let word = "[a-zA-Z]{1,9}";
+    let lines = proptest::collection::vec(proptest::collection::vec(word, 1..=7), 1..=3);
+    let page = (0usize..FONTS.len(), 8u32..=14, lines);
+    let mut runner = TestRunner::new_with_rng(
+        Config::default(),
+        TestRng::from_seed(RngAlgorithm::ChaCha, b"kanso-pdf-text-words-pinned-seed"),
+    );
+    let pages: Vec<(usize, u32, Vec<Vec<String>>)> = (0..24)
+        .map(|_| page.new_tree(&mut runner).expect("a value").current())
+        .collect();
+    let contents: Vec<String> = pages
+        .iter()
+        .map(|(font, size, lines)| {
+            lines
+                .iter()
+                .enumerate()
+                .map(|(i, l)| line(FONTS[*font].1, *size, 700 - 20 * i as u32, &l.join(" ")))
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+        .collect();
+    let mut worker = open(&pages_pdf(&contents));
+    for (i, (font, size, lines)) in pages.iter().enumerate() {
+        let text = worker.text(i as u32).unwrap();
+        let plain = worker.plain_text(i as u32, 1).unwrap().remove(0);
+        let normalised = plain.split_whitespace().collect::<Vec<_>>().join(" ");
+        let got = layout_words(&text).join(" ");
+        let written = lines
+            .iter()
+            .map(|l| l.join(" "))
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert_eq!(
+            got, normalised,
+            "{} {size} pt, page {i}: {lines:?}",
+            FONTS[*font].0
+        );
+        assert_eq!(normalised, written, "plain text of page {i}");
     }
 }

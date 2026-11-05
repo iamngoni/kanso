@@ -11,10 +11,14 @@ fn is_zero(v: &u8) -> bool {
     *v == 0
 }
 
+fn is_false(v: &bool) -> bool {
+    !*v
+}
+
 /// One character of a page, as the worker reads it from PDFium.
 ///
-/// Wire shape: `{"ch":"H","quad":[x0,y0,x1,y1],"turns":0}`; `turns` may be
-/// left out when it is 0.
+/// Wire shape: `{"ch":"H","quad":[x0,y0,x1,y1],"turns":0,"space_before":true}`;
+/// `turns` may be left out when it is 0 and `space_before` when it is false.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TextChar {
     pub ch: char,
@@ -29,10 +33,19 @@ pub struct TextChar {
     /// `(a / 90).rem_euclid(4)`.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub turns: u8,
+    /// PDFium put a space (or a line break) in the text just before this
+    /// character: a space character the PDF itself set, or one PDFium
+    /// generated between two runs. The characters themselves are not sent,
+    /// only this mark on the next visible one. The layout breaks words
+    /// here, and only falls back to measuring gaps on a page where no
+    /// character carries the mark.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub space_before: bool,
 }
 
-/// One page's characters. Any order is accepted; spaces and line breaks the
-/// PDF generated are ignored, because the layout infers them from gaps.
+/// One page's characters. Any order is accepted; the spaces and line breaks
+/// of the PDF are not characters here but the [`TextChar::space_before`]
+/// mark on the character after them.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PageText {
     /// 1-based page number.

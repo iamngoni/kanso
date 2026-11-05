@@ -6,8 +6,16 @@
 //! sideways label on an upright page are handled by the same code.
 //!
 //! Left-to-right scripts are assumed. Every threshold is a fraction of the
-//! group's median character height, so the layout does not depend on the
-//! page's size or zoom.
+//! group's median character height (or, for the fallback word break, of a
+//! line's own character pitch), so the layout does not depend on the page's
+//! size or zoom.
+//!
+//! Words break where PDFium put a space ([`TextChar::space_before`]). No
+//! single gap width tells a space from the gap inside a word across fonts:
+//! measured on real output, Helvetica's widest in-word gap is 0.37 of the
+//! glyph height and its narrowest word gap 0.38, Times 0.27 and 0.375,
+//! Courier 0.63 and 1.1. Gaps are measured only on a page where PDFium
+//! reported no space at all.
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -18,8 +26,20 @@ use crate::model::Quad;
 /// A gap wider than this (times the median height) inside a line splits it
 /// into two pieces: a column gutter or a table cell edge.
 const SPLIT_GAP: f64 = 1.5;
-/// A gap wider than this inside a line reads as a space.
-const SPACE_GAP: f64 = 0.2;
+/// Fallback only, on a page where PDFium reported no space: a gap wider
+/// than this (times the line's median character pitch, the distance from
+/// one character's left edge to the next one's) reads as a space. Measured
+/// on real output, in those units: Helvetica's widest gap inside a word is
+/// 0.38 and its narrowest between words 0.44; Times 0.28 and 0.38.
+const SPACE_GAP: f64 = 0.41;
+/// The same on a line set in a fixed-pitch font (Courier: 0.55 inside a
+/// word, 1.04 between words), where a narrow letter leaves a wide gap but a
+/// space skips a whole cell.
+const FIXED_PITCH_SPACE_GAP: f64 = 0.8;
+/// A line is fixed-pitch when this share of its advances are within
+/// [`FIXED_PITCH_SLACK`] of the median one.
+const FIXED_PITCH_SHARE: f64 = 0.7;
+const FIXED_PITCH_SLACK: f64 = 0.03;
 /// Lines closer than this (vertical gap, times the height) share a block.
 const BLOCK_GAP: f64 = 0.5;
 /// A vertical cut between columns needs a gutter this wide.
@@ -31,6 +51,8 @@ type Rect = [f64; 4];
 #[derive(Clone, Copy)]
 struct Item {
     ch: char,
+    /// PDFium put a space just before this character.
+    space_before: bool,
     /// The displayed quad, kept to build the output.
     quad: Quad,
     rect: Rect,
@@ -41,6 +63,18 @@ struct Segment {
     items: Vec<usize>,
     rect: Rect,
     height: f64,
+    /// The fallback space width: the gap past which two neighbours read as
+    /// two words. Scaled by the line's average advance (the median distance
+    /// between the left edges of neighbouring characters), not by its
+    /// height, which is a different fraction of the advance in every font.
+    space_gap: f64,
+}
+
+/// A character about to be laid out.
+struct Piece {
+    ch: char,
+    quad: Quad,
+    space_before: bool,
 }
 
 fn cmp(a: f64, b: f64) -> Ordering {
@@ -105,20 +139,23 @@ pub fn layout_page(input: &PageText) -> PageLayout {
     let page_turns = ((input.rotation % 360) / 90) as u8;
 
     // Characters that run the same way on the display form a group.
-    let mut groups: BTreeMap<u8, Vec<(char, Quad)>> = BTreeMap::new();
+    let mut groups: BTreeMap<u8, Vec<Piece>> = BTreeMap::new();
     for c in &input.chars {
         if c.ch.is_whitespace() || c.ch.is_control() {
             continue;
         }
         let d = (page_turns + c.turns % 4) % 4;
         let [a, b, c2, e] = c.quad.0;
-        groups
-            .entry(d)
-            .or_default()
-            .push((c.ch, Quad::new(a, b, c2, e)));
+        groups.entry(d).or_default().push(Piece {
+            ch: c.ch,
+            quad: Quad::new(a, b, c2, e),
+            space_before: c.space_before,
+        });
     }
+    // PDFium's spaces are trusted when it reported any on the page.
+    let reported = input.chars.iter().any(|c| c.space_before);
     // The direction most characters run in reads first.
-    let mut order: Vec<(u8, Vec<(char, Quad)>)> = groups.into_iter().collect();
+    let mut order: Vec<(u8, Vec<Piece>)> = groups.into_iter().collect();
     order.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then(a.0.cmp(&b.0)));
 
     let mut out = PageLayout {
@@ -130,18 +167,25 @@ pub fn layout_page(input: &PageText) -> PageLayout {
         blocks: Vec::new(),
     };
     for (d, chars) in order {
-        layout_group(&mut out, d, w, h, chars);
+        layout_group(&mut out, d, (w, h), reported, chars);
     }
     out
 }
 
-fn layout_group(out: &mut PageLayout, d: u8, w: f64, h: f64, chars: Vec<(char, Quad)>) {
+fn layout_group(
+    out: &mut PageLayout,
+    d: u8,
+    (w, h): (f64, f64),
+    reported: bool,
+    chars: Vec<Piece>,
+) {
     let mut items: Vec<Item> = chars
         .into_iter()
-        .map(|(ch, quad)| Item {
-            ch,
-            quad,
-            rect: upright_rect(d, w, h, &quad),
+        .map(|p| Item {
+            ch: p.ch,
+            space_before: p.space_before,
+            quad: p.quad,
+            rect: upright_rect(d, w, h, &p.quad),
         })
         .collect();
     // A total order, so the input order never matters.
@@ -152,6 +196,7 @@ fn layout_group(out: &mut PageLayout, d: u8, w: f64, h: f64, chars: Vec<(char, Q
             .then(cmp(a.rect[2], b.rect[2]))
             .then(cmp(a.rect[3], b.rect[3]))
             .then(a.ch.cmp(&b.ch))
+            .then(a.space_before.cmp(&b.space_before))
     });
     let med = median(items.iter().map(|i| i.rect[3] - i.rect[1]).collect()).max(1e-3);
 
@@ -178,7 +223,11 @@ fn layout_group(out: &mut PageLayout, d: u8, w: f64, h: f64, chars: Vec<(char, Q
                     } else {
                         Sep::Line
                     }
-                } else if it.rect[0] - reach > SPACE_GAP * seg.height {
+                } else if if reported {
+                    it.space_before
+                } else {
+                    it.rect[0] - reach > seg.space_gap
+                } {
                     Sep::Space
                 } else {
                     Sep::None
@@ -263,6 +312,7 @@ fn segments(items: &[Item], med: f64) -> Vec<Segment> {
                 .then(cmp(items[a].rect[1], items[b].rect[1]))
                 .then(cmp(items[a].rect[3], items[b].rect[3]))
                 .then(items[a].ch.cmp(&items[b].ch))
+                .then(items[a].space_before.cmp(&items[b].space_before))
         });
         let mut cur: Vec<usize> = Vec::new();
         let mut reach = f64::NEG_INFINITY;
@@ -294,10 +344,38 @@ fn make_segment(items: &[Item], idx: Vec<usize>) -> Segment {
             .collect(),
     )
     .max(1e-3);
+    // Items come left to right. A repeated left edge (two boxes stacked on
+    // one another) is no advance. With no advance to measure, half the
+    // height stands in for it.
+    let advances: Vec<f64> = idx
+        .windows(2)
+        .map(|p| items[p[1]].rect[0] - items[p[0]].rect[0])
+        .filter(|d| *d > 1e-6)
+        .collect();
+    let (pitch, fixed) = if advances.is_empty() {
+        (0.5 * height, false)
+    } else {
+        let pitch = median(advances.clone());
+        let same = advances
+            .iter()
+            .filter(|a| (**a - pitch).abs() <= FIXED_PITCH_SLACK * pitch)
+            .count();
+        (
+            pitch,
+            advances.len() >= 3 && same as f64 >= FIXED_PITCH_SHARE * advances.len() as f64,
+        )
+    };
+    let space_gap = pitch
+        * if fixed {
+            FIXED_PITCH_SPACE_GAP
+        } else {
+            SPACE_GAP
+        };
     Segment {
         items: idx,
         rect,
         height,
+        space_gap,
     }
 }
 
