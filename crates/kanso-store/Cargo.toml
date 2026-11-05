@@ -13,10 +13,24 @@ base64.workspace = true
 getrandom.workspace = true
 kanso-core.workspace = true
 md-5.workspace = true
-rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+zeroize.workspace = true
+
+# The SQLite behind `rusqlite`, by platform (issue #243). The desktop builds
+# SQLCipher (BSD) so a library can be encrypted: macOS with CommonCrypto,
+# Windows and Linux with a vendored OpenSSL. The phones keep stock SQLite:
+# their sandbox and the OS's disk encryption cover the library, and they never
+# pass a key.
+[target.'cfg(target_os = "macos")'.dependencies]
+rusqlite = { workspace = true, features = ["bundled-sqlcipher"] }
+
+[target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
+rusqlite = { workspace = true, features = ["bundled-sqlcipher-vendored-openssl"] }
+
+[target.'cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))'.dependencies]
+rusqlite = { workspace = true, features = ["bundled"] }
 
 [features]
 # Test support for kanso-sync's rollback test only: `Store::apply_remote_legacy`,

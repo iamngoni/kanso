@@ -16,6 +16,8 @@ pub mod links;
 pub mod loop_score;
 pub mod loops;
 pub mod model;
+pub mod notice_model;
+pub mod notices;
 pub mod outline;
 pub mod page_cache;
 pub mod passages;

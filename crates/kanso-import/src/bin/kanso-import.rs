@@ -13,7 +13,7 @@ use kanso_import::{
     LocalServerCredentials, Phase, default_pouch_library_dir, find_pouch_db, import,
     read_local_server_config,
 };
-use kanso_store::Store;
+use kanso_store::{LibraryFile, Store};
 
 const USAGE: &str = "\
 Usage: kanso-import [--library-dir DIR] [--db FILE] --data-dir DIR
@@ -102,7 +102,22 @@ fn run() -> anyhow::Result<ExitCode> {
             args.data_dir.display()
         );
     };
-    let store = Store::open(args.data_dir.join("kanso.db"))?;
+    // This tool has no access to the library key, so it only adds to a
+    // plain library from before encryption; it never makes one, which would
+    // leave a new library unencrypted (issue #243).
+    let db = args.data_dir.join("kanso.db");
+    match LibraryFile::of(&db) {
+        LibraryFile::Plain => {}
+        LibraryFile::New => bail!(
+            "{} has no library; open Kanso once to make it, or use `kanso import`",
+            args.data_dir.display()
+        ),
+        LibraryFile::Encrypted => bail!(
+            "{} is encrypted and this tool has no key for it; use `kanso import`",
+            db.display()
+        ),
+    }
+    let store = Store::open(&db)?;
 
     eprintln!("Importing {}", source.display());
     let mut finished = None;

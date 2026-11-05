@@ -300,7 +300,7 @@ pub fn run_cli(data_dir: &Path, args: &[String]) -> anyhow::Result<()> {
             data_dir.display()
         );
     };
-    let store = Store::open(paths::db_path(data_dir))?;
+    let store = crate::library_open::open_store(data_dir)?;
     eprintln!("Importing {}", source.display());
     let report = kanso_import::import(&source, &store, |_| {})?;
     println!("{report}");

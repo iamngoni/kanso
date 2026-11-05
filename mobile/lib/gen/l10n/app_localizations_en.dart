@@ -6892,4 +6892,38 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get sketchNoteFull =>
       'This note\'s sketches are full. Open one as a canvas.';
+
+  @override
+  String get noticeNeedsAttention => 'Needs your attention';
+
+  @override
+  String get noticeHowToFix => 'How to fix';
+
+  @override
+  String get noticeDismiss => 'Dismiss';
+
+  @override
+  String get noticeMarkFixed => 'Mark as fixed';
+
+  @override
+  String get noticeSheetTitle => 'Update notice';
+
+  @override
+  String get noticeSheetDone => 'Done';
+
+  @override
+  String noticeCount(int total) {
+    return '1 of $total';
+  }
+
+  @override
+  String get noticeOpenSettings => 'Open Settings';
+
+  @override
+  String get noticeLearnMore => 'Learn More';
+
+  @override
+  String noticeStep(int number, String step) {
+    return 'Step $number: $step';
+  }
 }

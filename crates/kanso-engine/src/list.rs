@@ -909,6 +909,7 @@ mod tests {
                     owner_name: "user2".into(),
                     role: role.into(),
                     status: SharedStatus::Active,
+                    kind: kanso_store::SharedKind::Text,
                     epoch: 1,
                     list: String::new(),
                     list_sig: String::new(),

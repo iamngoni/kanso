@@ -109,6 +109,8 @@ pub enum Needs {
     AiOn,
     /// AI is on and a note is open that isn't in the trash or locked.
     AiNote,
+    /// An update notice applies to this library and isn't marked fixed.
+    UpdateNotices,
 }
 
 pub struct Command {
@@ -1665,6 +1667,24 @@ static COMMANDS: &[Command] = &[
         group: Group::App,
         run: action!(crate::updates::ShowWhatsNew),
         needs: Needs::Nothing,
+    },
+    Command {
+        id: "update-notices",
+        label: "Update notices",
+        label_when_pinned: None,
+        description: "What the last update changed that you may need to fix, with the steps to fix it.",
+        icon: IconName::TriangleAlert,
+        keywords: &[
+            "breaking",
+            "changes",
+            "fix",
+            "warning",
+            "update",
+            "migration",
+        ],
+        group: Group::App,
+        run: action!(crate::notice_views::ShowUpdateNotices),
+        needs: Needs::UpdateNotices,
     },
     Command {
         id: "check-updates",

@@ -8396,5 +8396,58 @@
   "sketchNoteFull": "This note's sketches are full. Open one as a canvas.",
   "@sketchNoteFull": {
     "description": "Shown when a note's sketches together are at their limit and no more can be added."
+  },
+  "noticeNeedsAttention": "Needs your attention",
+  "@noticeNeedsAttention": {
+    "description": "The small heading on the card that says an update changed something the person may need to fix."
+  },
+  "noticeHowToFix": "How to fix",
+  "@noticeHowToFix": {
+    "description": "Opens the steps that fix what an update changed."
+  },
+  "noticeDismiss": "Dismiss",
+  "@noticeDismiss": {
+    "description": "Hides an update notice on this phone for good."
+  },
+  "noticeMarkFixed": "Mark as fixed",
+  "@noticeMarkFixed": {
+    "description": "Hides an update notice because the person fixed what it said."
+  },
+  "noticeSheetTitle": "Update notice",
+  "@noticeSheetTitle": {
+    "description": "The title of the sheet that shows an update notice's steps."
+  },
+  "noticeSheetDone": "Done",
+  "@noticeSheetDone": {
+    "description": "Closes the sheet of an update notice's steps."
+  },
+  "noticeCount": "1 of {total}",
+  "@noticeCount": {
+    "description": "On the update notice card when more than one notice is waiting: this card is the first of {total}.",
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "noticeOpenSettings": "Open Settings",
+  "@noticeOpenSettings": {
+    "description": "The update notice's button that opens the page of Settings its steps name."
+  },
+  "noticeLearnMore": "Learn More",
+  "@noticeLearnMore": {
+    "description": "The update notice's button that opens a page about the change in the browser."
+  },
+  "noticeStep": "Step {number}: {step}",
+  "@noticeStep": {
+    "description": "What a screen reader says for one numbered step of an update notice.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "step": {
+        "type": "String"
+      }
+    }
   }
 }

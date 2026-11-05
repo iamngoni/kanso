@@ -5,7 +5,7 @@ use std::path::Path;
 use rusqlite::functions::FunctionFlags;
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::Result;
+use crate::{LibraryKey, Result};
 
 pub(crate) const MIGRATIONS: &[&str] = &[
     r#"
@@ -461,6 +461,12 @@ CREATE TABLE IF NOT EXISTS api_keys (
     revoked_at INTEGER
 ) WITHOUT ROWID;
 "#,
+    // Shared canvases (issue #45): what a shared note is, text or canvas,
+    // kept in its row when the share is made so a body that later fails to
+    // parse cannot change the kind of document the engine merges.
+    r#"
+ALTER TABLE collab_notes ADD COLUMN kind TEXT NOT NULL DEFAULT 'text';
+"#,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked
@@ -532,8 +538,10 @@ macro_rules! discoverable {
 }
 pub(crate) use discoverable;
 
-pub fn connect(path: &Path) -> Result<Connection> {
+pub fn connect(path: &Path, key: Option<&LibraryKey>) -> Result<Connection> {
     let conn = Connection::open(path)?;
+    // The key comes first: before WAL is chosen or anything is read.
+    crate::library_key::unlock(&conn, key)?;
     conn.busy_timeout(std::time::Duration::from_secs(5))?;
     conn.pragma_update(None, "journal_mode", "WAL")?;
     conn.pragma_update(None, "synchronous", "NORMAL")?;
@@ -669,7 +677,7 @@ mod tests {
     #[test]
     fn a_new_database_takes_every_migration() {
         let dir = tempfile::tempdir().unwrap();
-        let conn = connect(&dir.path().join("k.db")).unwrap();
+        let conn = connect(&dir.path().join("k.db"), None).unwrap();
         migrate(&conn).unwrap();
         assert_eq!(version(&conn), MIGRATIONS.len() as i64);
         assert!(has_column(&conn, "note_passages", "end_byte"));
@@ -692,7 +700,7 @@ mod tests {
     #[test]
     fn version_five_moves_to_six() {
         let dir = tempfile::tempdir().unwrap();
-        let conn = connect(&dir.path().join("k.db")).unwrap();
+        let conn = connect(&dir.path().join("k.db"), None).unwrap();
         for (index, sql) in MIGRATIONS.iter().take(5).enumerate() {
             conn.execute_batch(&format!(
                 "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
@@ -716,7 +724,7 @@ mod tests {
     #[test]
     fn version_twelve_moves_to_thirteen() {
         let dir = tempfile::tempdir().unwrap();
-        let conn = connect(&dir.path().join("k.db")).unwrap();
+        let conn = connect(&dir.path().join("k.db"), None).unwrap();
         for (index, sql) in MIGRATIONS.iter().take(12).enumerate() {
             conn.execute_batch(&format!(
                 "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
@@ -739,7 +747,7 @@ mod tests {
     #[test]
     fn version_thirteen_moves_to_fourteen() {
         let dir = tempfile::tempdir().unwrap();
-        let conn = connect(&dir.path().join("k.db")).unwrap();
+        let conn = connect(&dir.path().join("k.db"), None).unwrap();
         for (index, sql) in MIGRATIONS.iter().take(13).enumerate() {
             conn.execute_batch(&format!(
                 "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
@@ -767,7 +775,7 @@ mod tests {
     #[test]
     fn version_fourteen_moves_to_fifteen() {
         let dir = tempfile::tempdir().unwrap();
-        let conn = connect(&dir.path().join("k.db")).unwrap();
+        let conn = connect(&dir.path().join("k.db"), None).unwrap();
         for (index, sql) in MIGRATIONS.iter().take(14).enumerate() {
             conn.execute_batch(&format!(
                 "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
@@ -793,7 +801,7 @@ mod tests {
     #[test]
     fn version_fifteen_moves_to_sixteen() {
         let dir = tempfile::tempdir().unwrap();
-        let conn = connect(&dir.path().join("k.db")).unwrap();
+        let conn = connect(&dir.path().join("k.db"), None).unwrap();
         for (index, sql) in MIGRATIONS.iter().take(15).enumerate() {
             conn.execute_batch(&format!(
                 "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
@@ -823,7 +831,7 @@ mod tests {
     #[test]
     fn version_sixteen_moves_to_seventeen() {
         let dir = tempfile::tempdir().unwrap();
-        let conn = connect(&dir.path().join("k.db")).unwrap();
+        let conn = connect(&dir.path().join("k.db"), None).unwrap();
         for (index, sql) in MIGRATIONS.iter().take(16).enumerate() {
             conn.execute_batch(&format!(
                 "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
@@ -858,7 +866,7 @@ mod tests {
             .position(|sql| sql.contains("feedback_outbox"))
             .unwrap();
         let dir = tempfile::tempdir().unwrap();
-        let conn = connect(&dir.path().join("k.db")).unwrap();
+        let conn = connect(&dir.path().join("k.db"), None).unwrap();
         for (index, sql) in MIGRATIONS.iter().take(at).enumerate() {
             conn.execute_batch(&format!(
                 "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
@@ -902,7 +910,7 @@ mod overview_tests {
     #[test]
     fn version_seventeen_moves_to_eighteen() {
         let dir = tempfile::tempdir().unwrap();
-        let conn = connect(&dir.path().join("k.db")).unwrap();
+        let conn = connect(&dir.path().join("k.db"), None).unwrap();
         for (index, sql) in MIGRATIONS.iter().take(17).enumerate() {
             conn.execute_batch(&format!(
                 "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
