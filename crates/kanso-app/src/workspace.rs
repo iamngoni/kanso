@@ -752,6 +752,12 @@ impl Workspace {
                 EditorEvent::Notice(message) => {
                     window.push_notification(Notification::error(message.clone()), cx);
                 }
+                EditorEvent::Told { message, stays } => {
+                    window.push_notification(
+                        Notification::info(message.clone()).autohide(!*stays),
+                        cx,
+                    );
+                }
                 EditorEvent::ShowHistory => this.show_history(window, cx),
                 EditorEvent::Command(command) => {
                     let id = this.editor.read(cx).note_id().map(str::to_owned);

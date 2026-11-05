@@ -2,6 +2,8 @@
 // Created 2026-10-27.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:dartz/dartz.dart';
@@ -31,6 +33,8 @@ class LockSetupBloc extends Bloc<LockSetupEvent, LockSetupState> {
     on<LockSetupStartedEvent>(_onStarted, transformer: restartable());
     on<LockSetupSubmittedEvent>(_onSubmitted, transformer: droppable());
     on<LockSetupConfirmedEvent>(_onConfirmed, transformer: droppable());
+    on<LockSetupProgressedEvent>(_onProgressed);
+    on<LockSetupCancelledEvent>(_onCancelled, transformer: droppable());
   }
 
   final SessionRepository _session;
@@ -52,6 +56,47 @@ class LockSetupBloc extends Bloc<LockSetupEvent, LockSetupState> {
         ),
       ),
     );
+    // What it would seal, for the dialog's line about the attachments. A
+    // failure to count leaves the line out.
+    final target = event.target;
+    final counted = switch (target) {
+      NoteLockTarget(:final id) => await _session.noteLockSummary(id),
+      NotebookLockTarget(:final id) => await _session.notebookLockSummary(id),
+    };
+    final summary = counted.toOption().toNullable();
+    if (summary != null) {
+      emit(state.copyWith(summary: summary));
+    }
+  }
+
+  void _onProgressed(
+    LockSetupProgressedEvent event,
+    Emitter<LockSetupState> emit,
+  ) => emit(state.copyWith(progress: event.progress));
+
+  Future<void> _onCancelled(
+    LockSetupCancelledEvent event,
+    Emitter<LockSetupState> emit,
+  ) async {
+    if (state.status != LockFormStatus.working || state.cancelling) {
+      return;
+    }
+    emit(state.copyWith(cancelling: true));
+    await _session.cancelLock();
+  }
+
+  /// Locks the target while following how far sealing its files has come.
+  Future<Either<ApplicationError, int>> _watched({String? password}) async {
+    final listening = _session.lockProgress().listen((progress) {
+      if (!isClosed) {
+        add(LockSetupEvent.progressed(progress));
+      }
+    });
+    try {
+      return await _lock(password: password);
+    } finally {
+      unawaited(listening.cancel());
+    }
   }
 
   Future<void> _onSubmitted(
@@ -71,12 +116,22 @@ class LockSetupBloc extends Bloc<LockSetupEvent, LockSetupState> {
         return;
       }
     }
-    emit(state.copyWith(status: LockFormStatus.working, error: null));
-    final result = await _lock(password: event.password);
+    emit(
+      state.copyWith(
+        status: LockFormStatus.working,
+        error: null,
+        progress: null,
+        cancelling: false,
+      ),
+    );
+    final result = await _watched(password: event.password);
     result.fold(
       (error) => emit(
-        // A password that can't be the lock password is a wrong one.
-        error is AuthError || error is InvalidError
+        // Cancel stopped it: the note waits to be finished or undone.
+        state.cancelling
+            ? state.copyWith(status: LockFormStatus.stopped, error: error)
+            // A password that can't be the lock password is a wrong one.
+            : error is AuthError || error is InvalidError
             ? state.copyWith(status: LockFormStatus.wrongPassword)
             : state.copyWith(status: LockFormStatus.failed, error: error),
       ),
@@ -90,12 +145,22 @@ class LockSetupBloc extends Bloc<LockSetupEvent, LockSetupState> {
     LockSetupConfirmedEvent event,
     Emitter<LockSetupState> emit,
   ) async {
-    emit(state.copyWith(status: LockFormStatus.working, error: null));
-    final result = await _lock();
+    emit(
+      state.copyWith(
+        status: LockFormStatus.working,
+        error: null,
+        progress: null,
+        cancelling: false,
+      ),
+    );
+    final result = await _watched();
     result.fold(
       (error) => emit(
-        // The notes closed meanwhile: the password is needed after all.
-        error is LockedError
+        // Cancel stopped it: the note waits to be finished or undone.
+        state.cancelling
+            ? state.copyWith(status: LockFormStatus.stopped, error: error)
+            // The notes closed meanwhile: the password is needed after all.
+            : error is LockedError
             ? state.copyWith(
                 mode: LockMode.askPassword,
                 status: LockFormStatus.ready,

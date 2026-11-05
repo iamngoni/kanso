@@ -42,6 +42,9 @@ pub(crate) const CANVAS_GROUP_ANCHOR: &str = "group=";
 pub struct Rich {
     pub wake: async_channel::Sender<()>,
     pub store: Arc<Store>,
+    /// The file keys of the notes this session has open, for drawings
+    /// attached to a locked note.
+    pub files: crate::attachments::FileKeys,
     pub edits: ResizeSender,
     /// Where a click on an embedded canvas goes: a note link, as any.
     pub links: crate::preview::LinkSender,
@@ -351,6 +354,18 @@ pub(crate) fn image(job: &Job, svg: &kanso_render::Svg) -> Arc<Image> {
 /// `None` once read if it couldn't be.
 static SCENE_FILES: LazyLock<Mutex<HashMap<String, Option<Arc<str>>>>> =
     LazyLock::new(Default::default);
+/// Forgets the drawings read from attachments and the images made from
+/// drawings: Lock Notes Now calls it, so nothing read from a locked note's
+/// files stays reachable.
+pub fn forget_scenes() {
+    if let Ok(mut scenes) = SCENE_FILES.lock() {
+        scenes.clear();
+    }
+    if let Ok(mut images) = IMAGES.lock() {
+        images.clear();
+    }
+}
+
 static SCENES_READING: LazyLock<Mutex<HashSet<String>>> = LazyLock::new(Default::default);
 
 /// An attached drawing's JSON: `Some(Some)` when read, `Some(None)` when it
@@ -360,15 +375,20 @@ fn scene_file(id: &str, rich: &Rich, cx: &mut App) -> Option<Option<Arc<str>>> {
         return Some(found.clone());
     }
     if SCENES_READING.lock().ok()?.insert(id.to_owned()) {
-        let (store, id, wake) = (rich.store.clone(), id.to_owned(), rich.waker());
+        let (store, files, id, wake) = (
+            rich.store.clone(),
+            rich.files.clone(),
+            id.to_owned(),
+            rich.waker(),
+        );
         cx.background_executor()
             .spawn(async move {
-                let scene = store
-                    .attachment(&id)
-                    .ok()
-                    .flatten()
-                    .and_then(|(_, attachment)| String::from_utf8(attachment.data).ok())
-                    .map(Arc::from);
+                let scene = match crate::attachments::open_with(&store, &id, &files) {
+                    crate::attachments::Opened::Opened(file) => {
+                        String::from_utf8(file.bytes).ok().map(Arc::from)
+                    }
+                    _ => None,
+                };
                 if let Ok(mut files) = SCENE_FILES.lock() {
                     files.insert(id.clone(), scene);
                 }

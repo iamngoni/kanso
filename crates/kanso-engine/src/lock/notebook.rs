@@ -3,9 +3,13 @@
 //! or not, so its text stays out of search, the local API and related notes
 //! (`kanso_store`'s `locked_books`).
 
-use kanso_core::{Book, DocType};
+use std::collections::{HashMap, HashSet};
+
+use kanso_core::{Book, DocType, Note};
 use kanso_store::{Origin, Put, Store};
 use kanso_sync::lock::{Envelope, LockKey};
+
+use super::files::{self, Job, KeyBook, Progress};
 
 /// Notebook `id` and every notebook inside it, at any depth: what locking
 /// it seals. Should the notebooks form a cycle, each is taken once.
@@ -28,8 +32,23 @@ pub fn book_subtree(id: &str, books: &[Book]) -> Vec<String> {
 /// Locks notebook `book_id` with `key`: seals every note in it, and in the
 /// notebooks inside it, that isn't sealed yet, and sets the notebook's lock,
 /// in one write. Returns how many notes were sealed. A note locked on its
-/// own keeps its seal.
+/// own keeps its seal. The notes' pictures and files are sealed with them
+/// ([`seal_notebook_with`] keeps the keys and reports progress).
 pub fn seal_notebook(store: &Store, book_id: &str, key: &LockKey) -> Result<usize, String> {
+    seal_notebook_with(store, book_id, key, &KeyBook::default(), &mut |_| Ok(()))
+}
+
+/// [`seal_notebook`], with the file keys it makes put in `keys` and `watch`
+/// told how the sealing goes: it can stop the lock between files by
+/// returning an error, which leaves the notes plain with a journal each
+/// (`files::interrupted`).
+pub fn seal_notebook_with(
+    store: &Store,
+    book_id: &str,
+    key: &LockKey,
+    keys: &KeyBook,
+    watch: &mut dyn FnMut(&Progress) -> Result<(), String>,
+) -> Result<usize, String> {
     let books = store.books().map_err(|err| err.to_string())?;
     let mut book: Book = books
         .iter()
@@ -40,10 +59,17 @@ pub fn seal_notebook(store: &Store, book_id: &str, key: &LockKey) -> Result<usiz
     let notes = store
         .notes_in_books(&inside)
         .map_err(|err| err.to_string())?;
+    // Every note in the subtree is sealed in this pass, so a file they share
+    // stays one sealed original rather than becoming a copy each.
+    let locking: HashSet<String> = notes.iter().map(|note| note.id.clone()).collect();
+    let mut copies = HashMap::new();
+    let plain: Vec<Note> = notes.into_iter().filter(|note| !note.is_locked()).collect();
+    let mut job = Job::new(store, keys, &locking, &mut copies, watch);
+    job.expect(files::summarize(store, &plain));
     let mut sealed = Vec::new();
-    for mut note in notes.into_iter().filter(|note| !note.is_locked()) {
-        let envelope = key.seal(&note.id, &note.body);
-        Envelope::store(Some(&envelope), &mut note.extra);
+    for mut note in plain {
+        let text = note.body.clone();
+        files::seal_note_files(&mut job, &mut note, &text, key).map_err(|err| err.to_string())?;
         note.body.clear();
         sealed.push(serde_json::to_value(&note).map_err(|err| err.to_string())?);
     }
@@ -56,6 +82,22 @@ pub fn seal_notebook(store: &Store, book_id: &str, key: &LockKey) -> Result<usiz
         .lock_book(book, sealed)
         .map_err(|err| err.to_string())?;
     Ok(count)
+}
+
+/// What locking notebook `book_id` would seal: the plain pictures and files
+/// of the notes in it and in the notebooks inside it that aren't locked.
+pub fn notebook_summary(store: &Store, book_id: &str) -> files::Summary {
+    let Ok(books) = store.books() else {
+        return files::Summary::default();
+    };
+    let inside = book_subtree(book_id, &books);
+    let plain: Vec<Note> = store
+        .notes_in_books(&inside)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|note| !note.is_locked())
+        .collect();
+    files::summarize(store, &plain)
 }
 
 /// Writes notebook `book_id` without its lock. Its notes keep theirs.
