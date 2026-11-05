@@ -1083,7 +1083,7 @@ fn the_lock_dialog_can_count_what_it_seals_and_progress_is_reported() {
     let phone = lone_phone();
     let store = phone.library.store();
     let files: Vec<String> = (0..3)
-        .map(|i| plain_file(&store, &format!("m{i}.wav"), &[i as u8; 400]))
+        .map(|i| plain_file(store, &format!("m{i}.wav"), &[i as u8; 400]))
         .collect();
     let note = note_with(&phone, &files);
     let summary = phone.library.locks().note_lock_summary(&note).unwrap();
@@ -1119,7 +1119,7 @@ fn a_cancelled_lock_stops_between_files_and_can_be_finished_or_undone() {
     let phone = lone_phone();
     let store = phone.library.store();
     let files: Vec<String> = (0..3)
-        .map(|i| plain_file(&store, &format!("m{i}.wav"), &[i as u8; 400]))
+        .map(|i| plain_file(store, &format!("m{i}.wav"), &[i as u8; 400]))
         .collect();
     let note = note_with(&phone, &files);
 
@@ -1151,7 +1151,7 @@ fn a_cancelled_lock_stops_between_files_and_can_be_finished_or_undone() {
 
     // Another note is stopped and undone: its files are plain again.
     let other_files: Vec<String> = (3..5)
-        .map(|i| plain_file(&store, &format!("m{i}.wav"), &[i as u8; 400]))
+        .map(|i| plain_file(store, &format!("m{i}.wav"), &[i as u8; 400]))
         .collect();
     let other = note_with(&phone, &other_files);
     assert!(locks.interrupted_lock(&other).unwrap().is_none());
