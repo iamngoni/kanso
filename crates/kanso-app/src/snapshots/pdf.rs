@@ -192,7 +192,10 @@ pub(super) fn reader_highlights_restore(
             reader.test_hide_rail();
             reader.test_select_lines(1, 0..2, cx);
             reader.test_pick(Color::Blue, window, cx);
-            // The block is not in the note's text: the note was restored.
+            // The block was written, then the note was restored to a version
+            // without it. (A change not yet written would be written next,
+            // and is never shown as gone.)
+            reader.take_pending();
             reader.note_changed("Quarterly review".into(), cx);
             reader.test_show_panel();
         });

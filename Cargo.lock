@@ -4861,6 +4861,7 @@ dependencies = [
  "kanso-store",
  "landlock",
  "libc",
+ "markdown",
  "md-5",
  "pdfium-render",
  "proptest",

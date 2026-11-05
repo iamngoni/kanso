@@ -937,6 +937,7 @@ mod tests {
                         color: Color::Yellow,
                         comment: (i < commented).then(|| "c".to_owned()),
                         created_at: 0,
+                        rev: 0,
                         extra: Default::default(),
                     })
                     .unwrap();

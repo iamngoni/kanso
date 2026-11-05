@@ -325,8 +325,8 @@ pub fn lock_open_note(
             "Lock",
             window,
             cx,
-            move |_, cx| {
-                editor.update(cx, |editor, cx| editor.lock_with(&key, cx));
+            move |window, cx| {
+                editor.update(cx, |editor, cx| editor.lock_with(&key, window, cx));
             },
         );
         return None;
@@ -341,7 +341,7 @@ pub fn lock_open_note(
             window,
             cx,
             move |window, cx| match LockKeys::current(cx) {
-                Some(key) => editor.update(cx, |editor, cx| editor.lock_with(&key, cx)),
+                Some(key) => editor.update(cx, |editor, cx| editor.lock_with(&key, window, cx)),
                 None => {
                     lock_password_form(editor, locked, title, window, cx);
                 }
@@ -385,7 +385,7 @@ fn lock_password_form(
             move |key, window, cx| {
                 LockKeys::add(key, cx);
                 let key = LockKeys::current(cx).expect("a key was just added");
-                editor.update(cx, |editor, cx| editor.lock_with(&key, cx));
+                editor.update(cx, |editor, cx| editor.lock_with(&key, window, cx));
                 after_password(window, cx);
                 Ok(())
             },
@@ -423,7 +423,7 @@ fn set_password_form(
             move |key, window, cx| {
                 LockKeys::replace(Some(key), cx);
                 let key = LockKeys::current(cx).expect("a key was just set");
-                editor.update(cx, |editor, cx| editor.lock_with(&key, cx));
+                editor.update(cx, |editor, cx| editor.lock_with(&key, window, cx));
                 after_password(window, cx);
                 Ok(())
             },

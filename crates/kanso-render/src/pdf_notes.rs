@@ -133,6 +133,35 @@ mod tests {
             }
         }
 
+        /// A published or exported page shows the count line and nothing of
+        /// the block: no comment, no highlighted words, no JSON, wherever
+        /// the fence sits (top level, in a list or a quote, with `~~~`).
+        #[test]
+        fn a_published_page_never_shows_a_comment(
+            comment in "[a-z]{4,12}",
+            words in "[a-z]{4,12}",
+            place in 0usize..4,
+        ) {
+            prop_assume!(comment != words);
+            let (secret, quoted) = (format!("zq{comment}"), format!("zw{words}"));
+            let json = format!(
+                "{{\"file\":\"file:abc\",\"md5\":\"\",\"version\":1,\"highlights\":[{{\"id\":\"h1\",\"page\":1,\"quads\":{{\"1\":[[0.1,0.1,0.2,0.2]]}},\"text\":\"{quoted}\",\"comment\":\"{secret}\"}}],\"ink\":[]}}"
+            );
+            let fence = match place {
+                0 => format!("```kanso-pdf\n{json}\n```"),
+                1 => format!("~~~kanso-pdf\n{json}\n~~~"),
+                2 => format!("- item\n\n  ```kanso-pdf\n  {json}\n  ```"),
+                _ => format!("> ```kanso-pdf\n> {json}\n> ```"),
+            };
+            let body = format!("# Notes\n\nSome text.\n\n{fence}\n\nAfter.\n");
+            let none = |_: &str| None;
+            let page = crate::html::page("Notes", &body, &crate::Palette::LIGHT, &none);
+            prop_assert!(!page.contains(&secret), "the comment was published: {}", page);
+            prop_assert!(!page.contains(&quoted), "the block's text was published");
+            prop_assert!(!page.contains("\"highlights\""));
+            prop_assert!(page.contains("1 highlight · 1 comment"));
+        }
+
         /// Whatever is in the fence, the page shows no markup of it.
         #[test]
         fn nothing_in_the_fence_reaches_the_page_as_markup(junk in ".{0,200}") {

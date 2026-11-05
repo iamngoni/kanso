@@ -18,6 +18,7 @@ pub mod highlights;
 pub mod hostile;
 pub mod invert;
 pub mod link;
+pub mod merge;
 pub mod model;
 pub mod ocr;
 pub mod protocol;
@@ -31,7 +32,7 @@ pub use highlights::{Annotations, Row, Status};
 pub use link::PdfLink;
 pub use model::{
     BLOCK_FENCE, Color, Highlight, MAX_BLOCK_CHARS, MAX_COMMENT_CHARS, MAX_QUADS, MAX_QUOTE_CHARS,
-    PdfBlock, Quad,
+    MAX_REMOVED, PdfBlock, Quad,
 };
 pub use ocr::{OcrPage, OcrWord, PdfOcr};
 pub use quote::{Edit, append_quote, render_quote};
