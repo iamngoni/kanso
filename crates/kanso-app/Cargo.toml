@@ -201,6 +201,7 @@ objc2-vision = { version = "0.3", default-features = false, features = ["std", "
 objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "objc2-core-foundation", "WKWebView", "WKWebViewConfiguration", "WKPDFConfiguration", "WKNavigation"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
+windows-service = "0.8.1"
 # The window a passkey sheet belongs to (its HWND).
 raw-window-handle = "0.6"
 # Windows Hello unlocks locked notes (`touch_id.rs`): UserConsentVerifier,

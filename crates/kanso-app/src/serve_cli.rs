@@ -22,10 +22,14 @@ use crate::config::AppConfig;
 /// tests.
 pub type Say = Arc<dyn Fn(String) + Send + Sync>;
 
-/// `kanso serve [--verbose]`: runs until SIGINT or SIGTERM (Ctrl-C ends the
+/// `kanso serve [--verbose] [--as-service]`: runs until SIGINT or SIGTERM (Ctrl-C ends the
 /// process on Windows).
 pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
     let options = ServeOptions::parse(rest)?;
+    #[cfg(windows)]
+    if options.as_service {
+        return crate::service_cli::run_windows_service(data_dir);
+    }
     std::fs::create_dir_all(&data_dir)?;
     let Some(lock) = lock_data_dir(&data_dir)? else {
         bail!(
@@ -178,6 +182,7 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
 pub struct ServeOptions {
     pub verbose: bool,
     pub related_notes: Option<bool>,
+    pub as_service: bool,
 }
 
 impl ServeOptions {
@@ -189,6 +194,7 @@ impl ServeOptions {
         while index < args.len() {
             match args[index].as_str() {
                 "--verbose" | "-v" => options.verbose = true,
+                "--as-service" => options.as_service = true,
                 "--related-notes" => {
                     index += 1;
                     options.related_notes = Some(match args.get(index).map(String::as_str) {
@@ -252,6 +258,13 @@ fn wait_for_stop() {
 // no-prop-test: this is an OS registration adapter; testing the signal itself requires a Windows console session.
 #[cfg(not(unix))]
 fn wait_for_stop() {
+    #[cfg(windows)]
+    if let Some(stop) = crate::service_cli::windows_stop_flag() {
+        while !stop.load(Ordering::Relaxed) {
+            std::thread::sleep(Duration::from_millis(200));
+        }
+        return;
+    }
     let stop = Arc::new(AtomicBool::new(false));
     let handler_stop = stop.clone();
     if let Err(err) = ctrlc::set_handler(move || handler_stop.store(true, Ordering::Relaxed)) {
