@@ -3777,7 +3777,10 @@ continue when the six-digit code matches on both devices. GitHub and pairing can
 another signed-in device, or unlocked with the account's password. It never signs up or recovers. A
 library with notes needs `--add` or `--replace` without a terminal; otherwise the new session is
 logged out and nothing is written. Exit status: 0 signed in, 1 refused, 2 a bad command line. Every
-command but `status` takes the data-directory lock, so stop `kanso serve` first.
+command uses the owner-only control socket while `kanso serve` holds the lock. It streams prompts
+back to the terminal, runs the flow against the server's open library and restarts the sync driver
+after sign-in or sign-out. If the lock is held but the socket is unavailable, it reports that the
+running Kanso is not answering instead of attempting a second write.
 
 `kanso serve` restores the session at start and runs `kanso_engine::sync::driver`: one sync at a
 time through the same `Scheduler`, at start, every interval, and 20 s after an API or MCP write, with

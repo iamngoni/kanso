@@ -600,7 +600,10 @@ sudo -u kanso KANSO_DATA_DIR=/var/lib/kanso kanso account sign-in --username ngo
 sudo systemctl enable --now kanso
 ```
 
-Sign in again later with the service stopped (`sudo systemctl stop kanso` first).
+The account CLI uses the same owner-only control socket, so sign in, sign out,
+device listing and revocation can run while the service keeps serving requests.
+If an older process has the data-folder lock but no compatible socket, Kanso
+reports that the service must be restarted.
 
 Sign in with your password (typed, or on the first line of standard input with
 `--password-stdin`), or with `--provider github`, approved from a device that's already signed in

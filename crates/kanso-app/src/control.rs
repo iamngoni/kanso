@@ -15,7 +15,7 @@
 //! already trusts cannot use either channel: neither is on the HTTP port.
 
 use std::fmt;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::sync::{Arc, Mutex};
 
 use kanso_server::KeyStore;
@@ -24,22 +24,292 @@ use kanso_store::Store;
 /// A library's store and the keys served from it.
 type Library = (Arc<Store>, KeyStore);
 
-/// The library the control channel works on: the one the running process
-/// serves keys from. The app sets it again if the library's store changes.
+/// The library and operations the control channel exposes from the process
+/// that owns the data-folder lock.
 #[derive(Clone, Default)]
-pub struct ControlTarget(Arc<Mutex<Option<Library>>>);
+pub struct ControlTarget {
+    library: Arc<Mutex<Option<Library>>>,
+    account: Arc<Mutex<Option<AccountHandler>>>,
+}
+
+/// A stream usable by the line protocol on Unix sockets and Windows pipes.
+pub trait ControlStream: Read + Write {}
+impl<T: Read + Write> ControlStream for T {}
+
+type AccountHandler = Arc<
+    dyn Fn(&[String], &mut dyn crate::account_cli::Console) -> Result<(), String> + Send + Sync,
+>;
 
 impl ControlTarget {
     pub fn new(store: Arc<Store>, keys: KeyStore) -> ControlTarget {
-        ControlTarget(Arc::new(Mutex::new(Some((store, keys)))))
+        ControlTarget {
+            library: Arc::new(Mutex::new(Some((store, keys)))),
+            account: Arc::default(),
+        }
     }
 
     pub fn set(&self, store: Arc<Store>, keys: KeyStore) {
-        *self.0.lock().unwrap_or_else(|p| p.into_inner()) = Some((store, keys));
+        *self.library.lock().unwrap_or_else(|p| p.into_inner()) = Some((store, keys));
+    }
+
+    /// Adds the account commands the process can run while it owns the
+    /// library. The client remains the terminal for any prompts.
+    pub fn set_account_handler(
+        &self,
+        handler: impl Fn(&[String], &mut dyn crate::account_cli::Console) -> Result<(), String>
+        + Send
+        + Sync
+        + 'static,
+    ) {
+        *self.account.lock().unwrap_or_else(|p| p.into_inner()) = Some(Arc::new(handler));
     }
 
     fn get(&self) -> Option<Library> {
-        self.0.lock().unwrap_or_else(|p| p.into_inner()).clone()
+        self.library
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .clone()
+    }
+
+    fn account_handler(&self) -> Option<AccountHandler> {
+        self.account
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .clone()
+    }
+}
+
+/// Result of an account operation sent through the running process.
+pub enum AccountSent {
+    Done,
+    Failed(String),
+    NoSocket,
+}
+
+#[derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AccountStart {
+    op: String,
+    args: Vec<String>,
+    tty: bool,
+}
+
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+enum AccountFrame {
+    Say { text: String },
+    Prompt { text: String, mode: PromptMode },
+    Answer { text: String },
+    Done,
+    Failed { error: String },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum PromptMode {
+    Text,
+    Secret,
+    Stdin,
+}
+
+fn write_bytes(stream: &mut dyn ControlStream, bytes: &[u8]) -> io::Result<()> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10 * 60);
+    let mut written = 0;
+    while written < bytes.len() {
+        match stream.write(&bytes[written..]) {
+            Ok(0) => {
+                if std::time::Instant::now() >= deadline {
+                    return Err(io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        "timed out writing a control message",
+                    ));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            Ok(count) => written += count,
+            Err(error)
+                if error.kind() == io::ErrorKind::Interrupted
+                    || error.kind() == io::ErrorKind::WouldBlock
+                    || error.kind() == io::ErrorKind::TimedOut =>
+            {
+                if std::time::Instant::now() >= deadline {
+                    return Err(io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        "timed out writing a control message",
+                    ));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(())
+}
+
+fn write_frame(stream: &mut dyn ControlStream, frame: &AccountFrame) -> io::Result<()> {
+    let mut line = LimitedOutput::new(crate::control_model::MAX_LINE - 1);
+    serde_json::to_writer(&mut line, frame).map_err(io::Error::other)?;
+    line.bytes.push(b'\n');
+    write_bytes(stream, &line.bytes)
+}
+
+fn read_frame(stream: &mut dyn ControlStream) -> io::Result<AccountFrame> {
+    let mut bytes = Vec::new();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10 * 60);
+    loop {
+        let mut byte = [0];
+        match stream.read(&mut byte) {
+            Ok(0) => return Err(io::Error::other("the control message is incomplete")),
+            Ok(_) => {}
+            Err(error)
+                if error.kind() == io::ErrorKind::Interrupted
+                    || error.kind() == io::ErrorKind::WouldBlock
+                    || error.kind() == io::ErrorKind::TimedOut =>
+            {
+                if std::time::Instant::now() >= deadline {
+                    return Err(io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        "timed out waiting for the control client",
+                    ));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                continue;
+            }
+            Err(error) => return Err(error),
+        }
+        if byte[0] == b'\n' {
+            break;
+        }
+        if bytes.len() + 1 >= crate::control_model::MAX_LINE {
+            return Err(io::Error::other("the control message is too large"));
+        }
+        bytes.push(byte[0]);
+    }
+    serde_json::from_slice(&bytes).map_err(io::Error::other)
+}
+
+fn account_start(line: &[u8]) -> Option<AccountStart> {
+    let start = serde_json::from_slice::<AccountStart>(line).ok()?;
+    (start.op == "account").then_some(start)
+}
+
+fn serve_account(
+    stream: &mut dyn ControlStream,
+    target: &ControlTarget,
+    line: &[u8],
+) -> io::Result<()> {
+    let Some(start) = account_start(line) else {
+        return Ok(());
+    };
+    let Some(handler) = target.account_handler() else {
+        return write_frame(
+            stream,
+            &AccountFrame::Failed {
+                error: "Kanso isn't accepting account commands over its control socket.".into(),
+            },
+        );
+    };
+    let mut console = SocketConsole {
+        stream,
+        tty: start.tty,
+    };
+    match handler(&start.args, &mut console) {
+        Ok(()) => write_frame(console.stream, &AccountFrame::Done),
+        Err(error) => write_frame(console.stream, &AccountFrame::Failed { error }),
+    }
+}
+
+struct SocketConsole<'a> {
+    stream: &'a mut dyn ControlStream,
+    tty: bool,
+}
+
+impl SocketConsole<'_> {
+    fn ask(&mut self, text: &str, mode: PromptMode) -> io::Result<String> {
+        write_frame(
+            self.stream,
+            &AccountFrame::Prompt {
+                text: text.to_owned(),
+                mode,
+            },
+        )?;
+        match read_frame(self.stream)? {
+            AccountFrame::Answer { text } => Ok(text),
+            _ => Err(io::Error::other(
+                "the control client sent an unexpected message",
+            )),
+        }
+    }
+}
+
+impl crate::account_cli::Console for SocketConsole<'_> {
+    fn is_tty(&self) -> bool {
+        self.tty
+    }
+
+    fn prompt(&mut self, line: &str) -> Result<String, anyhow::Error> {
+        self.ask(line, PromptMode::Text)
+            .map_err(anyhow::Error::from)
+    }
+
+    fn prompt_secret(&mut self, line: &str) -> Result<zeroize::Zeroizing<String>, anyhow::Error> {
+        self.ask(line, PromptMode::Secret)
+            .map(zeroize::Zeroizing::new)
+            .map_err(anyhow::Error::from)
+    }
+
+    fn stdin_line(&mut self) -> Result<zeroize::Zeroizing<String>, anyhow::Error> {
+        self.ask("", PromptMode::Stdin)
+            .map(zeroize::Zeroizing::new)
+            .map_err(anyhow::Error::from)
+    }
+
+    fn say(&mut self, line: &str) {
+        let _ = write_frame(
+            self.stream,
+            &AccountFrame::Say {
+                text: line.to_owned(),
+            },
+        );
+    }
+}
+
+fn send_account_stream(
+    stream: &mut dyn ControlStream,
+    args: &[String],
+    console: &mut dyn crate::account_cli::Console,
+) -> io::Result<AccountSent> {
+    let start = AccountStart {
+        op: "account".into(),
+        args: args.to_vec(),
+        tty: console.is_tty(),
+    };
+    let mut request = LimitedOutput::new(crate::control_model::MAX_LINE - 1);
+    serde_json::to_writer(&mut request, &start).map_err(io::Error::other)?;
+    request.bytes.push(b'\n');
+    write_bytes(stream, &request.bytes)?;
+    loop {
+        match read_frame(stream)? {
+            AccountFrame::Say { text } => console.say(&text),
+            AccountFrame::Prompt { text, mode } => {
+                let answer = match mode {
+                    PromptMode::Text => console.prompt(&text).map_err(io::Error::other)?,
+                    PromptMode::Secret => console
+                        .prompt_secret(&text)
+                        .map_err(io::Error::other)?
+                        .to_string(),
+                    PromptMode::Stdin => {
+                        console.stdin_line().map_err(io::Error::other)?.to_string()
+                    }
+                };
+                write_frame(stream, &AccountFrame::Answer { text: answer })?;
+            }
+            AccountFrame::Done => return Ok(AccountSent::Done),
+            AccountFrame::Failed { error } => return Ok(AccountSent::Failed(error)),
+            AccountFrame::Answer { .. } => {
+                return Err(io::Error::other("Kanso sent an answer instead of a prompt"));
+            }
+        }
     }
 }
 
@@ -160,7 +430,10 @@ mod unix {
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
 
-    use super::{ControlTarget, Sent, answer, reply_line};
+    use super::{
+        AccountSent, ControlTarget, Sent, account_start, answer, reply_line, send_account_stream,
+        serve_account,
+    };
     use crate::control_model::{MAX_LINE, Reply, Request};
 
     /// The most a socket path may hold (`sun_path` is 104 bytes on macOS,
@@ -172,6 +445,7 @@ mod unix {
     /// key started, a few seconds at most).
     const CLIENT_WAIT: Duration = Duration::from_secs(5);
     const ANSWER_WAIT: Duration = Duration::from_secs(30);
+    const ACCOUNT_WAIT: Duration = Duration::from_secs(10 * 60);
     /// The data-folder lock serializes separate processes. This small guard
     /// also serializes same-process callers so a just-bound socket is never
     /// mistaken for a stale, not-yet-listening socket.
@@ -495,13 +769,19 @@ mod unix {
             // Nothing is said to a stranger.
             return Ok(());
         }
-        let reply = match serde_json::from_str::<Request>(&read_line(&stream, CLIENT_WAIT)?) {
+        let raw = read_line(&stream, CLIENT_WAIT)?;
+        let mut stream = stream;
+        if account_start(raw.as_bytes()).is_some() {
+            stream.set_read_timeout(Some(ACCOUNT_WAIT))?;
+            stream.set_write_timeout(Some(ACCOUNT_WAIT))?;
+            return serve_account(&mut stream, target, raw.as_bytes());
+        }
+        let reply = match serde_json::from_str::<Request>(&raw) {
             Err(_) => crate::control_model::Reply::Failed {
                 error: "Kanso didn't understand the command. Run the same version of `kanso api-key` as the Kanso that is running.".into(),
             },
             Ok(request) => answer(request, target),
         };
-        let mut stream = stream;
         let line = reply_line(&reply)?;
         stream.write_all(&line)
     }
@@ -664,10 +944,43 @@ mod unix {
             )),
         }
     }
+
+    pub fn send_account(
+        data_dir: &Path,
+        args: &[String],
+        console: &mut dyn crate::account_cli::Console,
+    ) -> std::io::Result<AccountSent> {
+        let data_dir = secure_data_dir(data_dir)?;
+        let path = socket_path(&data_dir);
+        if path.as_os_str().len() > MAX_PATH {
+            return Err(path_too_long(&path));
+        }
+        let mut stream = match UnixStream::connect(&path) {
+            Ok(stream) => stream,
+            Err(err)
+                if matches!(
+                    err.kind(),
+                    std::io::ErrorKind::NotFound | std::io::ErrorKind::ConnectionRefused
+                ) =>
+            {
+                return Ok(AccountSent::NoSocket);
+            }
+            Err(err) => return Err(err),
+        };
+        if !peer_is_me(&stream) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "the control socket belongs to another user",
+            ));
+        }
+        stream.set_write_timeout(Some(ACCOUNT_WAIT))?;
+        stream.set_read_timeout(Some(ACCOUNT_WAIT))?;
+        send_account_stream(&mut stream, args, console)
+    }
 }
 
 #[cfg(unix)]
-pub use unix::{ControlServer, send};
+pub use unix::{ControlServer, send, send_account};
 
 #[cfg(windows)]
 mod windows {
@@ -706,7 +1019,10 @@ mod windows {
         GetCurrentProcess, OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION,
     };
 
-    use super::{ControlTarget, Sent, answer, reply_line};
+    use super::{
+        AccountSent, ControlTarget, Sent, account_start, answer, reply_line, send_account_stream,
+        serve_account,
+    };
     use crate::control_model::{MAX_LINE, Reply, Request};
 
     const CLIENT_WAIT_MS: u32 = 5_000;
@@ -1021,7 +1337,11 @@ mod windows {
             return Ok(());
         }
         set_pipe_mode(handle)?;
-        let reply = match serde_json::from_str::<Request>(&read_line(&mut pipe, CLIENT_WAIT)?) {
+        let raw = read_line(&mut pipe, CLIENT_WAIT)?;
+        if account_start(raw.as_bytes()).is_some() {
+            return serve_account(&mut pipe, target, raw.as_bytes());
+        }
+        let reply = match serde_json::from_str::<Request>(&raw) {
             Ok(request) => answer(request, target),
             Err(_) => Reply::Failed {
                 error: "Kanso didn't understand the command. Run the same version of `kanso api-key` as the Kanso that is running.".into(),
@@ -1196,10 +1516,36 @@ mod windows {
             )),
         }
     }
+
+    pub fn send_account(
+        data_dir: &Path,
+        args: &[String],
+        console: &mut dyn crate::account_cli::Console,
+    ) -> std::io::Result<AccountSent> {
+        let name = pipe_name(data_dir)?;
+        let mut pipe = match connect_pipe(&name) {
+            Ok(pipe) => pipe.into_file(),
+            Err(error)
+                if error.raw_os_error()
+                    == Some(windows_sys::Win32::Foundation::ERROR_FILE_NOT_FOUND as i32) =>
+            {
+                return Ok(AccountSent::NoSocket);
+            }
+            Err(error) => return Err(error),
+        };
+        let handle = pipe.as_raw_handle() as HANDLE;
+        if !peer_has_current_sid(handle, true) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "the control pipe belongs to another user",
+            ));
+        }
+        send_account_stream(&mut pipe, args, console)
+    }
 }
 
 #[cfg(windows)]
-pub use windows::{ControlServer, send};
+pub use windows::{ControlServer, send, send_account};
 
 #[cfg(not(any(unix, windows)))]
 pub struct ControlServer;
@@ -1216,6 +1562,15 @@ impl ControlServer {
 #[cfg(not(any(unix, windows)))]
 pub fn send(_: &std::path::Path, _: &crate::control_model::Request) -> std::io::Result<Sent> {
     Ok(Sent::NoSocket)
+}
+
+#[cfg(not(any(unix, windows)))]
+pub fn send_account(
+    _: &std::path::Path,
+    _: &[String],
+    _: &mut dyn crate::account_cli::Console,
+) -> std::io::Result<AccountSent> {
+    Ok(AccountSent::NoSocket)
 }
 
 #[cfg(all(test, unix))]

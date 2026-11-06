@@ -101,6 +101,7 @@ impl Lab {
         let secrets = self.secrets.clone();
         World {
             data_dir: self.dir.path().to_path_buf(),
+            lock_held: false,
             backend: self.server.clone(),
             open_secrets: Box::new(move |_| {
                 let secrets: Arc<dyn Secrets> = secrets.clone();
@@ -463,7 +464,7 @@ fn a_running_kanso_holds_the_library() {
             &mut console,
         )
         .unwrap_err();
-    assert!(refused.0.contains("stop it first"), "{}", refused.0);
+    assert!(refused.0.contains("control socket"), "{}", refused.0);
     // Status works all the same.
     let mut status = Script::new(false, &[]);
     lab.run(&["status"], &mut status).unwrap();

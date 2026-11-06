@@ -5,8 +5,8 @@
 //! (`kanso account sign-in --secrets file`), and SIGTERM stops it cleanly.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::{Result, bail};
@@ -80,10 +80,8 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
     }
     // `kanso api-key` reaches this server over the local control channel,
     // so keys can be made and revoked while it runs.
-    let control = match crate::control::ControlServer::start(
-        &data_dir,
-        crate::control::ControlTarget::new(store.clone(), keys.clone()),
-    ) {
+    let control_target = crate::control::ControlTarget::new(store.clone(), keys.clone());
+    let control = match crate::control::ControlServer::start(&data_dir, control_target.clone()) {
         Ok(control) => Some(control),
         Err(err) => {
             eprintln!(
@@ -115,7 +113,7 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
             None
         }
     };
-    let driver = secrets.and_then(|secrets| {
+    let driver = Arc::new(Mutex::new(secrets.and_then(|secrets| {
         start_sync_with_status(
             SyncStart {
                 config: &config,
@@ -130,6 +128,56 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
             },
             sync_status.clone(),
         )
+    })));
+    let account_data_dir = data_dir.clone();
+    let account_store = store.clone();
+    let account_backend: Arc<dyn Backend> = Arc::new(kanso_sync::HttpBackend::new());
+    let account_machine = Machine::this_computer();
+    let account_driver = driver.clone();
+    let account_status = sync_status.clone();
+    let account_say = say.clone();
+    let account_verbose = options.verbose;
+    control_target.set_account_handler(move |args, console| {
+        let reconfigure = args
+            .first()
+            .is_some_and(|command| matches!(command.as_str(), "sign-in" | "sign-out"));
+        if reconfigure
+            && let Some(previous) = account_driver
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .take()
+        {
+            previous.stop();
+        }
+        let result = crate::account_cli::run_control(&account_data_dir, args, console)
+            .map_err(|refusal| refusal.0);
+        if reconfigure && let Ok(config) = crate::load_config(&account_data_dir) {
+            let next = match crate::secrets::open_secrets(&config, &account_data_dir) {
+                Ok(secrets) => start_sync_with_status(
+                    SyncStart {
+                        config: &config,
+                        data_dir: &account_data_dir,
+                        store: account_store.clone(),
+                        secrets,
+                        backend: account_backend.clone(),
+                        machine: account_machine.clone(),
+                        shared_notes: true,
+                        verbose: account_verbose,
+                        say: account_say.clone(),
+                    },
+                    account_status.clone(),
+                ),
+                Err(error) => {
+                    account_say(format!("kanso serve: {error:#}; running signed out."));
+                    None
+                }
+            };
+            let mut active = account_driver
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            *active = next;
+        }
+        result
     });
     let indexer = if config.discovery.related_notes {
         let indexer = kanso_engine::discovery::indexer::Indexer::start(
@@ -160,7 +208,11 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
     eprintln!("Kanso API on http://{addr} (MCP at /mcp). Ctrl-C stops it.");
     wait_for_stop();
     say("kanso serve: stopping: finishing the sync…".to_owned());
-    if let Some(driver) = driver {
+    if let Some(driver) = driver
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .take()
+    {
         driver.stop();
     }
     if let Some(indexer) = indexer
@@ -290,12 +342,6 @@ pub struct SyncStart<'a> {
     pub say: Say,
 }
 
-/// Restores the library's session and starts the sync driver when it is
-/// signed in and sync is on; says why not otherwise.
-pub fn start_sync(start: SyncStart<'_>) -> Option<Driver> {
-    start_sync_with_status(start, kanso_server::SyncStatus::default())
-}
-
 fn sync_snapshot(
     store: &Store,
     session: &kanso_sync::Session,
@@ -342,6 +388,11 @@ fn update_sync_phase(
     snapshot.state = phase;
     snapshot.problem = problem;
     status.set(snapshot);
+}
+
+#[cfg(test)]
+pub(crate) fn start_sync(start: SyncStart<'_>) -> Option<Driver> {
+    start_sync_with_status(start, kanso_server::SyncStatus::default())
 }
 
 fn start_sync_with_status(
