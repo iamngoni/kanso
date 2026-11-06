@@ -1541,7 +1541,7 @@ impl DigestView {
                     }
                     #[cfg(not(target_os = "macos"))]
                     {
-                        let _ = (calendar_id, weak);
+                        let _ = (&calendar_id, &weak);
                         menu
                     }
                 })

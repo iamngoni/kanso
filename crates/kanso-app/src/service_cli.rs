@@ -257,6 +257,7 @@ mod linux {
                         data_dir.display()
                     );
                 }
+                Ok(())
             }
             Action::Uninstall => {
                 let _ = systemctl(!system, &["disable", "--now", "kanso.service"]);
@@ -267,6 +268,7 @@ mod linux {
                     unit_path.display(),
                     data_dir.display()
                 );
+                Ok(())
             }
             Action::Start => systemctl(!system, &["start", "kanso.service"]),
             Action::Stop => systemctl(!system, &["stop", "kanso.service"]),
