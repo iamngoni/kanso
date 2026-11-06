@@ -156,6 +156,10 @@ jobs:
       - name: Build
         run: cargo build --release --locked -p kanso-app -p kanso-plugin-host -p kanso-pdf --features kanso-pdf/render
 
+      - name: Build headless CLI (Linux)
+        if: runner.os == 'Linux'
+        run: cargo build --release --locked -p kanso-app --bin kanso-headless
+
       # Developer ID signing and notarization when every Apple secret is set;
       # otherwise an ad hoc signature, as before. The secrets reach the shell
       # as variables, never the command line.
@@ -336,6 +340,7 @@ jobs:
         if: runner.os == 'Linux'
         env:
           STEM: ${{ steps.version.outputs.stem }}
+          VERSION: ${{ steps.version.outputs.version }}
           PDFIUM_PLATFORM: ${{ matrix.pdfium }}
         run: |
           stem=$STEM
@@ -343,6 +348,9 @@ jobs:
           mkdir -p "dist" "$stem"
           install -m 755 target/release/kanso "$stem/kanso"
           strip "$stem/kanso"
+          install -m 755 target/release/kanso-headless "$stem/kanso-headless"
+          strip "$stem/kanso-headless"
+          scripts/check-headless-ldd.sh "$stem/kanso-headless"
           install -m 755 target/release/kanso-plugin-host "$stem/kanso-plugin-host"
           strip "$stem/kanso-plugin-host"
           install -m 755 target/release/kanso-pdf-worker "$stem/kanso-pdf-worker"
@@ -359,6 +367,34 @@ jobs:
           install -m 644 assets/icon/kanso.png "$stem/kanso.png"
           install -m 755 assets/linux/install.sh "$stem/install.sh"
           tar -czf "dist/$stem.tar.gz" "$stem"
+
+          headless_stem="Kanso-$VERSION-${{ matrix.name }}-headless"
+          mkdir -p "$headless_stem"
+          install -m 755 target/release/kanso-headless "$headless_stem/kanso-headless"
+          install -m 755 assets/linux/install.sh "$headless_stem/install.sh"
+          scripts/check-headless-ldd.sh "$headless_stem/kanso-headless"
+          tar -czf "dist/$headless_stem.tar.gz" "$headless_stem"
+
+          # Exercise the server binary on the display-less release runner.
+          smoke=$(mktemp -d)
+          "$headless_stem/kanso-headless" account status --data-dir "$smoke" >"$smoke/status.txt"
+          grep -q 'Not signed in' "$smoke/status.txt"
+          "$headless_stem/kanso-headless" serve --data-dir "$smoke" >"$smoke/serve.log" 2>&1 &
+          serve_pid=$!
+          trap 'kill -TERM "$serve_pid" 2>/dev/null || true; wait "$serve_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 40); do
+            grep -q 'Kanso API on' "$smoke/serve.log" && break
+            sleep 0.25
+          done
+          grep -q 'Kanso API on' "$smoke/serve.log"
+          key=$("$headless_stem/kanso-headless" api-key create --name release-smoke --data-dir "$smoke")
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"release-smoke","version":"1"}}}' |
+            KANSO_MCP_TOKEN="$key" "$headless_stem/kanso-headless" mcp >"$smoke/mcp.txt"
+          grep -q '"protocolVersion":"2025-03-26"' "$smoke/mcp.txt"
+          kill -TERM "$serve_pid"
+          wait "$serve_pid"
+          trap - EXIT
+          rm -rf "$smoke"
 
       # The .deb for apt (docs/APT.md), from the same binaries. It never
       # stops a release: without it the tarball ships as before, and the apt
@@ -589,7 +625,8 @@ jobs:
           v=${GITHUB_REF_NAME#v}
           missing=0
           for f in "Kanso-$v-macos-arm64.dmg" "Kanso-$v-macos-arm64.app.tar.gz" \
-            "Kanso-$v-windows-x64.zip" "Kanso-$v-linux-x64.tar.gz" "Kanso-$v-linux-arm64.tar.gz"; do
+            "Kanso-$v-windows-x64.zip" "Kanso-$v-linux-x64.tar.gz" "Kanso-$v-linux-arm64.tar.gz" \
+            "Kanso-$v-linux-x64-headless.tar.gz" "Kanso-$v-linux-arm64-headless.tar.gz"; do
             if [ ! -s "dist/$f" ]; then
               echo "::error::dist/$f is missing or empty after the download"
               missing=1
