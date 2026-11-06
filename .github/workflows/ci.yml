@@ -115,6 +115,11 @@ jobs:
             runner: windows-2022
     runs-on: ${{ matrix.runner }}
     steps:
+      # Keep LF line endings on Windows: the theme files and the
+      # highlighter's fixtures are compared byte for byte.
+      - name: LF line endings (Windows)
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # The built-in themes: the kanso-themes repository.

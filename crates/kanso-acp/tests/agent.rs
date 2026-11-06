@@ -338,8 +338,10 @@ proptest! {
                 }
             })
         };
+        // Long enough that a cancel (seen within 25 ms) always beats it on a
+        // slow CI runner; an ignored request still times out to "no".
         let limits = Limits {
-            permission: Duration::from_millis(80),
+            permission: Duration::from_secs(1),
             ..quick()
         };
         let agent = connect(Script::Permissions(fates.len()), limits, policy);

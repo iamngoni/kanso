@@ -667,11 +667,12 @@ impl Shared {
             Some(option) => json!({ "outcome": "selected", "optionId": option }),
             None => json!({ "outcome": "cancelled" }),
         };
-        self.respond(asked.id.clone(), json!({ "outcome": outcome }));
-        if allowed || decision == Decision::Cancelled {
-            return;
-        }
-        if let Some(session) = &asked.session {
+        // The notice goes out before the answer: once the agent has its
+        // answer it may finish the turn, and a notice after that is lost.
+        if !allowed
+            && decision != Decision::Cancelled
+            && let Some(session) = &asked.session
+        {
             let why = if decision == Decision::TimedOut {
                 "No one answered in time, so Kanso said no."
             } else {
@@ -685,6 +686,7 @@ impl Shared {
                 )),
             );
         }
+        self.respond(asked.id.clone(), json!({ "outcome": outcome }));
     }
 }
 
