@@ -20,6 +20,17 @@ if [ "${1:-}" = "--uninstall" ]; then
     exit 0
 fi
 
+if [ "${1:-}" = "--headless" ]; then
+    if [ ! -f "$here/kanso-headless" ]; then
+        echo "This archive has no kanso-headless binary. Download the Linux headless release archive." >&2
+        exit 1
+    fi
+    mkdir -p "$bin_dir"
+    install -m 755 "$here/kanso-headless" "$bin_dir/kanso"
+    echo "Installed the headless Kanso CLI in $bin_dir/kanso. It provides serve, account, service, api-key and mcp."
+    exit 0
+fi
+
 mkdir -p "$bin_dir" "$apps_dir" "$icon_dir"
 install -m 755 "$here/kanso" "$bin_dir/kanso"
 # Plugins run in their own process, beside Kanso.

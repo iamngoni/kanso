@@ -24,6 +24,8 @@ required=(
   "Kanso-$version-windows-x64.zip"
   "Kanso-$version-linux-x64.tar.gz"
   "Kanso-$version-linux-arm64.tar.gz"
+  "Kanso-$version-linux-x64-headless.tar.gz"
+  "Kanso-$version-linux-arm64-headless.tar.gz"
 )
 # Zip headers per file; a truncated file is off by far more.
 slack_per_file=1024

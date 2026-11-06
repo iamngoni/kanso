@@ -11,6 +11,10 @@ rust-version.workspace = true
 name = "kanso"
 path = "src/main.rs"
 
+[[bin]]
+name = "kanso-headless"
+path = "src/headless.rs"
+
 # The .deb for apt (docs/APT.md), made by `cargo deb -p kanso-app --no-build`
 # from the binaries `cargo build --release` already made. The plugin host
 # sits beside `kanso`, where Kanso looks for it. Vulkan is loaded at run
