@@ -1,4 +1,3 @@
-use std::io::Read as _;
 use std::os::unix::fs::PermissionsExt as _;
 use std::os::unix::net::UnixStream;
 use std::sync::Arc;
@@ -45,6 +44,44 @@ fn revoke(dir: &std::path::Path, target: &str) -> Sent {
     .unwrap()
 }
 
+struct AccountConsole {
+    answers: std::collections::VecDeque<String>,
+    said: Vec<String>,
+    tty: bool,
+}
+
+impl crate::account_cli::Console for AccountConsole {
+    fn is_tty(&self) -> bool {
+        self.tty
+    }
+
+    fn prompt(&mut self, line: &str) -> anyhow::Result<String> {
+        self.said.push(line.to_owned());
+        self.answers
+            .pop_front()
+            .ok_or_else(|| anyhow::anyhow!("no answer for prompt"))
+    }
+
+    fn prompt_secret(&mut self, line: &str) -> anyhow::Result<zeroize::Zeroizing<String>> {
+        self.said.push(line.to_owned());
+        self.answers
+            .pop_front()
+            .map(zeroize::Zeroizing::new)
+            .ok_or_else(|| anyhow::anyhow!("no answer for secret prompt"))
+    }
+
+    fn stdin_line(&mut self) -> anyhow::Result<zeroize::Zeroizing<String>> {
+        self.answers
+            .pop_front()
+            .map(zeroize::Zeroizing::new)
+            .ok_or_else(|| anyhow::anyhow!("no stdin line"))
+    }
+
+    fn say(&mut self, line: &str) {
+        self.said.push(line.to_owned());
+    }
+}
+
 // no-prop-test: files and modes, not logic.
 #[test]
 fn the_socket_is_private_and_goes_with_the_server() {
@@ -61,6 +98,51 @@ fn the_socket_is_private_and_goes_with_the_server() {
         send(dir.path(), &Request::List).unwrap(),
         Sent::NoSocket
     ));
+}
+
+#[test]
+fn account_commands_use_the_running_process_and_prompt_the_terminal() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
+    let keys = KeyStore::open(store.clone()).unwrap();
+    let target = ControlTarget::new(store, keys);
+    target.set_account_handler(|args, console| {
+        assert_eq!(args, ["sign-in", "--password-stdin"]);
+        console.say("Kanso account on https://sync.example.invalid");
+        let password = console.stdin_line().map_err(|error| error.to_string())?;
+        assert_eq!(password.as_str(), "not-in-the-arguments");
+        console.say("Signed in as ana.");
+        Ok(())
+    });
+    let server = ControlServer::start(dir.path(), target).unwrap();
+    let mut console = AccountConsole {
+        answers: ["not-in-the-arguments".into()].into(),
+        said: Vec::new(),
+        tty: false,
+    };
+    let args = vec!["sign-in".into(), "--password-stdin".into()];
+    assert!(matches!(
+        send_account(dir.path(), &args, &mut console).unwrap(),
+        AccountSent::Done
+    ));
+    assert_eq!(
+        console.said,
+        [
+            "Kanso account on https://sync.example.invalid",
+            "Signed in as ana."
+        ]
+    );
+    drop(server);
+}
+
+proptest! {
+    #[test]
+    fn prop_account_control_frames_preserve_text(text in any::<String>()) {
+        let (mut writer, mut reader) = UnixStream::pair().unwrap();
+        let expected = AccountFrame::Say { text };
+        write_frame(&mut writer, &expected).unwrap();
+        prop_assert_eq!(read_frame(&mut reader).unwrap(), expected);
+    }
 }
 
 // no-prop-test: shutdown must drain accepted commands before the owner releases its folder lock.

@@ -47,9 +47,9 @@ Commands:
   recovery-key Show and confirm saving a pending recovery key
   help         Show this message
 
-Sign-in, devices, revoke and sign-out need the data folder to themselves:
-stop `kanso serve` (or quit Kanso) first. The password is asked for on the
-terminal; scripts pass it on the first line of standard input with
+When `kanso serve` owns the data folder, account commands use its control
+socket and the API keeps running. The password is asked for on the terminal;
+scripts pass it on the first line of standard input with
 --password-stdin. Google, Apple, passkeys and security keys need a browser
 on this computer: sign in with a password, --provider github or --pair.";
 
@@ -322,6 +322,9 @@ fn refuse<T>(words: impl Into<String>) -> Result<T, Refusal> {
 /// `MemoryServer` and `MemorySecrets` in tests.
 pub struct World {
     pub data_dir: PathBuf,
+    /// The caller already owns the data-folder lock. `kanso serve` uses
+    /// this while executing an account request on its control connection.
+    pub lock_held: bool,
     pub backend: Arc<dyn Backend>,
     /// Opens the secret store of a kind.
     pub open_secrets: Box<dyn Fn(SecretStoreKind) -> Result<Arc<dyn Secrets>>>,
@@ -365,9 +368,37 @@ pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {
             std::process::exit(BAD_COMMAND);
         }
     };
+    let needs_lock = !matches!(&command, Command::Help | Command::Status);
+    let lock_guard = if needs_lock {
+        std::fs::create_dir_all(data_dir)?;
+        match lock_data_dir(data_dir)? {
+            Some(lock) => Some(lock),
+            None => match crate::control::send_account(data_dir, rest, &mut Terminal) {
+                Ok(crate::control::AccountSent::Done) => return Ok(()),
+                Ok(crate::control::AccountSent::Failed(error)) => {
+                    eprintln!("kanso account: {error}");
+                    std::process::exit(REFUSED);
+                }
+                Ok(crate::control::AccountSent::NoSocket) => {
+                    eprintln!(
+                        "kanso account: Kanso is running with {} and isn't answering on its control socket.",
+                        data_dir.display()
+                    );
+                    std::process::exit(REFUSED);
+                }
+                Err(error) => {
+                    eprintln!("kanso account: couldn't use the control socket: {error}");
+                    std::process::exit(REFUSED);
+                }
+            },
+        }
+    } else {
+        None
+    };
     let data_dir_owned = data_dir.to_path_buf();
     let world = World {
         data_dir: data_dir.to_path_buf(),
+        lock_held: lock_guard.is_some(),
         backend: Arc::new(kanso_sync::HttpBackend::new()),
         open_secrets: Box::new(move |kind| {
             let secrets: Arc<dyn Secrets> = crate::secrets::open_kind(kind, &data_dir_owned)?;
@@ -380,12 +411,42 @@ pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {
         interrupt: Box::new(interrupt_flag),
     };
     match run(&world, command, &mut Terminal) {
-        Ok(()) => Ok(()),
+        Ok(()) => {
+            drop(lock_guard);
+            Ok(())
+        }
         Err(Refusal(words)) => {
+            drop(lock_guard);
             eprintln!("kanso account: {words}");
             std::process::exit(REFUSED);
         }
     }
+}
+
+/// Runs an account command for the process that already owns the data
+/// directory, such as `kanso serve` handling its control socket.
+pub fn run_control(
+    data_dir: &Path,
+    rest: &[String],
+    console: &mut dyn Console,
+) -> Result<(), Refusal> {
+    let command = parse(rest).map_err(|BadCommand(words)| Refusal(words))?;
+    let data_dir_owned = data_dir.to_path_buf();
+    let world = World {
+        data_dir: data_dir.to_path_buf(),
+        lock_held: true,
+        backend: Arc::new(kanso_sync::HttpBackend::new()),
+        open_secrets: Box::new(move |kind| {
+            let secrets: Arc<dyn Secrets> = crate::secrets::open_kind(kind, &data_dir_owned)?;
+            Ok(secrets)
+        }),
+        system_works: Box::new(|| crate::secrets::store_works(&crate::flavour::CURRENT.keychain())),
+        machine: Machine::this_computer(),
+        now_ms: Box::new(kanso_core::now_ms),
+        pause: Box::new(std::thread::sleep),
+        interrupt: Box::new(interrupt_flag),
+    };
+    run(&world, command, console)
 }
 
 /// Runs `command` in `world`, talking through `console`.
@@ -407,7 +468,7 @@ pub fn run(world: &World, command: Command, console: &mut dyn Console) -> Result
 /// Shows the pending key once and removes it only after the owner types its
 /// final group back, matching the desktop confirmation step.
 fn show_recovery_key(world: &World, console: &mut dyn Console) -> Result<(), Refusal> {
-    let _lock = lock(&world.data_dir)?;
+    let _lock = lock(world)?;
     if !console.is_tty() {
         return refuse("run `kanso account recovery-key` in a terminal to confirm saving it");
     }
@@ -449,15 +510,17 @@ fn show_recovery_key(world: &World, console: &mut dyn Console) -> Result<(), Ref
 }
 
 /// Takes the data-folder lock, or says who holds it.
-fn lock(data_dir: &Path) -> Result<kanso_store::DataDirLock, Refusal> {
-    std::fs::create_dir_all(data_dir)?;
-    match lock_data_dir(data_dir)? {
-        Some(lock) => Ok(lock),
-        None => refuse(format!(
-            "Kanso is running with {}; stop it first (systemctl stop kanso, or quit the app).",
-            data_dir.display()
-        )),
+fn lock(world: &World) -> Result<Option<kanso_store::DataDirLock>, Refusal> {
+    if world.lock_held {
+        return Ok(None);
     }
+    std::fs::create_dir_all(&world.data_dir)?;
+    lock_data_dir(&world.data_dir)?.map(Some).ok_or_else(|| {
+        Refusal(format!(
+            "Kanso is running with {}; its control socket should handle this command.",
+            world.data_dir.display()
+        ))
+    })
 }
 
 /// Opens the library with its key from the secret store the config names
@@ -517,7 +580,7 @@ fn sign_in(world: &World, args: SignInArgs, console: &mut dyn Console) -> Result
             "this sign-in needs a browser on this computer ({what}). Use a password or --provider github."
         ));
     }
-    let _lock = lock(&world.data_dir)?;
+    let _lock = lock(world)?;
     let mut config = config(&world.data_dir)?;
     let server = args
         .server
@@ -1209,7 +1272,7 @@ fn signed_in(world: &World) -> Result<(Flow, AppConfig, Session), Refusal> {
 
 /// `sign-out`.
 fn sign_out(world: &World, console: &mut dyn Console) -> Result<(), Refusal> {
-    let _lock = lock(&world.data_dir)?;
+    let _lock = lock(world)?;
     let (flow, mut config, session) = signed_in(world)?;
     if let Err(err) = flow.sign_out(&session) {
         // The secret items are gone and the logout is queued whatever the
@@ -1228,7 +1291,7 @@ fn sign_out(world: &World, console: &mut dyn Console) -> Result<(), Refusal> {
 
 /// `devices`.
 fn devices(world: &World, console: &mut dyn Console) -> Result<(), Refusal> {
-    let _lock = lock(&world.data_dir)?;
+    let _lock = lock(world)?;
     let (flow, _, session) = signed_in(world)?;
     let devices = kanso_sync::devices(flow.backend.as_ref(), &session)
         .map_err(|err| Refusal(words::error_words(&err, words::ErrorContext::Account)))?;
@@ -1294,7 +1357,7 @@ pub fn pick_device<'a>(
 
 /// `revoke <id>`.
 fn revoke(world: &World, wanted: &str, console: &mut dyn Console) -> Result<(), Refusal> {
-    let _lock = lock(&world.data_dir)?;
+    let _lock = lock(world)?;
     let (flow, _, session) = signed_in(world)?;
     let devices = kanso_sync::devices(flow.backend.as_ref(), &session)
         .map_err(|err| Refusal(words::error_words(&err, words::ErrorContext::Account)))?;
