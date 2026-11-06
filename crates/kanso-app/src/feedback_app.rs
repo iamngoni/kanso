@@ -305,7 +305,7 @@ impl Env {
         if !kanso_sync::feedback::is_kanso_origin(&session.origin) {
             return None;
         }
-        let machine = self.machine.clone().unwrap_or_else(Machine::this_mac);
+        let machine = self.machine.clone().unwrap_or_else(Machine::this_computer);
         let device = kanso_sync::device_identity(&self.store, &machine).ok()?;
         Reporter::from_session(session, &device)
     }

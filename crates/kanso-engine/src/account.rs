@@ -416,7 +416,7 @@ impl Flow {
     /// This library's identity on this device (on the task's thread:
     /// reading a Mac runs `ioreg` and `scutil`).
     pub fn device(&self) -> Result<DeviceIdentity, Failure> {
-        let machine = self.machine.clone().unwrap_or_else(Machine::this_mac);
+        let machine = self.machine.clone().unwrap_or_else(Machine::this_computer);
         kanso_sync::device_identity(&self.store, &machine).map_err(Failure::library)
     }
 

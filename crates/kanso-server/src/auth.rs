@@ -309,6 +309,7 @@ mod tests {
                     store,
                     tokens,
                     canvases: None,
+                    sync_status: crate::SyncStatus::default(),
                 })
                 .layer(axum::middleware::from_fn_with_state(gate, require_auth));
             Rig {

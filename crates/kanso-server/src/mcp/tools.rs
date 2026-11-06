@@ -85,6 +85,7 @@ pub(crate) fn call(
         ("kanso-list-tasks", vis) => list_tasks(store, vis, &args),
         ("kanso-list-open-loops", vis) => list_open_loops(store, vis, &args),
         ("kanso-related-notes", vis) => related_notes(store, vis, &args),
+        ("kanso-sync-status", _) => Ok(state.sync_status.value()),
         ("kanso-resolve-wikilink", vis) => resolve_wikilink(store, vis, &args),
         ("kanso-search-by-meaning", vis) => search_by_meaning(store, vis, &args),
         ("kanso-list-tags", vis) => list_visible_tags(store, vis),
@@ -260,6 +261,7 @@ fn call_full(state: &AppState, key: &Key, vis: &Visibility, name: &str, args: Ar
     let store = &*state.store;
     let file_shown = |id: &str| keyed::file_visible(key.scope, vis, id);
     match name {
+        "kanso-sync-now" => Ok(json!({ "accepted": state.sync_status.request_sync_now() })),
         "read-backlinks" => read_backlinks(store, vis, &args),
         "create-note" => upsert(store, DocType::Note, args),
         "kanso-create-canvas" => create_canvas(store, vis, args),

@@ -82,8 +82,9 @@ pub fn guard<'a>(pairs: &'a [(&'a str, &'a str)]) -> SyncGuard<'a> {
 
 /// What this computer reports about itself: on a Mac its hardware UUID
 /// (from `ioreg -rd1 -c IOPlatformExpertDevice`) and its ComputerName
-/// (`scutil --get ComputerName`); on Linux its machine ID and host name.
-/// Tests build it directly.
+/// (`scutil --get ComputerName`); on Linux its machine ID, and on Windows
+/// its registry MachineGuid, along with each platform's host name. Tests
+/// build it directly.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Machine {
     pub hardware_uuid: Option<String>,
@@ -92,10 +93,9 @@ pub struct Machine {
 
 // no-prop-test: runs two system commands; the parsing below is tested.
 impl Machine {
-    /// Reads this Mac: `ioreg -rd1 -c IOPlatformExpertDevice` for the
-    /// hardware UUID (none when it doesn't answer) and `scutil --get
-    /// ComputerName` for the name.
-    pub fn this_mac() -> Machine {
+    /// Reads this computer's platform identity. Missing or unreadable
+    /// identifiers remain `None`, preserving first-run adoption behavior.
+    pub fn this_computer() -> Machine {
         let run = |program: &str, args: &[&str]| {
             std::process::Command::new(program)
                 .args(args)
@@ -112,7 +112,7 @@ impl Machine {
                     &["-rd1", "-c", "IOPlatformExpertDevice"],
                 ))
             } else if cfg!(windows) {
-                None
+                windows_machine_guid()
             } else {
                 // systemd's machine ID (D-Bus's on older systems): a copied
                 // data folder on another server then reads as a copy. A
@@ -145,6 +145,28 @@ impl Machine {
             _ => String::new(),
         }
     }
+}
+
+#[cfg(windows)]
+fn windows_machine_guid() -> Option<String> {
+    windows_registry::LOCAL_MACHINE
+        .open("SOFTWARE\\Microsoft\\Cryptography")
+        .ok()?
+        .get_string("MachineGuid")
+        .ok()
+        .and_then(|value| machine_guid(&value))
+}
+
+#[cfg(not(windows))]
+fn windows_machine_guid() -> Option<String> {
+    None
+}
+
+/// A registry MachineGuid, normalized for a stable hardware hash.
+pub fn machine_guid(text: &str) -> Option<String> {
+    let id = text.trim();
+    (!id.is_empty() && id.len() <= 128 && !id.chars().any(char::is_control))
+        .then(|| id.to_ascii_lowercase())
 }
 
 /// The host name off macOS: `COMPUTERNAME` on Windows, the kernel's host
@@ -636,6 +658,54 @@ mod tests {
         assert_eq!(machine_id(&"0".repeat(32)), None);
     }
 
+    #[test]
+    fn windows_machine_guids_are_normalized_or_refused() {
+        assert_eq!(
+            machine_guid("  A1B2-C3D4\r\n").as_deref(),
+            Some("a1b2-c3d4")
+        );
+        assert_eq!(machine_guid(""), None);
+        assert_eq!(machine_guid("not\na guid"), None);
+        assert_eq!(machine_guid(&"a".repeat(129)), None);
+    }
+
+    #[test]
+    fn an_existing_library_adopts_a_platform_id_then_detects_a_copy() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path().join("kanso.db")).unwrap();
+        let without_id = Machine {
+            hardware_uuid: None,
+            computer_name: "server".into(),
+        };
+        let before = device_identity(&store, &without_id).unwrap();
+        let original_library = before.library_id.clone();
+        let original_device = before.device_id("a_123");
+        assert_eq!(
+            store.meta(meta_keys::HARDWARE).unwrap().as_deref(),
+            Some("")
+        );
+
+        let first_machine_id = Machine {
+            hardware_uuid: Some(machine_id("0123456789abcdef0123456789abcdef").unwrap()),
+            computer_name: "server".into(),
+        };
+        let adopted = device_identity(&store, &first_machine_id).unwrap();
+        assert_eq!(adopted.library_id, original_library);
+        assert_eq!(adopted.device_id("a_123"), original_device);
+        assert_eq!(
+            store.meta(meta_keys::HARDWARE).unwrap().as_deref(),
+            Some(first_machine_id.hardware_hash().as_str())
+        );
+
+        let other_machine = Machine {
+            hardware_uuid: Some(machine_guid("other-host-guid").unwrap()),
+            computer_name: "other".into(),
+        };
+        let copied = device_identity(&store, &other_machine).unwrap();
+        assert_ne!(copied.library_id, original_library);
+        assert_ne!(copied.device_id("a_123"), original_device);
+    }
+
     proptest! {
         /// Any 32 hex digits (not all zero) are an ID, whatever the case or
         /// surrounding whitespace; anything shorter, longer or not hex isn't.
@@ -653,6 +723,13 @@ mod tests {
                 prop_assert_eq!(machine(Some(found.clone())).hardware_hash().len(), 32);
                 prop_assert_ne!(machine(Some(found)).hardware_hash(), machine(None).hardware_hash());
             }
+        }
+
+        /// MachineGuid normalization is stable across surrounding whitespace and casing.
+        #[test]
+        fn prop_machine_guid_is_stable(id in "[a-zA-Z0-9-]{1,36}", pad in "[ \r\n\t]{0,3}") {
+            let normalized = machine_guid(&format!("{pad}{id}{pad}")).unwrap();
+            prop_assert_eq!(normalized, id.to_ascii_lowercase());
         }
     }
 

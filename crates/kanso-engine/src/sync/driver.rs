@@ -217,6 +217,30 @@ pub struct Driver {
     thread: Option<JoinHandle<()>>,
 }
 
+/// A cloneable, non-owning handle that asks a running driver to sync now.
+#[derive(Clone)]
+pub struct SyncControl {
+    wake: mpsc::Sender<Msg>,
+}
+
+impl SyncControl {
+    /// Asks the driver's scheduler for a manual sync.
+    pub fn sync_now(&self) -> Request {
+        let (answer, answered) = mpsc::channel();
+        if self
+            .wake
+            .send(Msg::Request {
+                manual: true,
+                answer,
+            })
+            .is_err()
+        {
+            return Request::Refused;
+        }
+        answered.recv().unwrap_or(Request::Refused)
+    }
+}
+
 impl Driver {
     /// Starts the loop on a thread named `kanso-sync-driver`; `on` is called
     /// on that thread for every event.
@@ -320,6 +344,13 @@ impl Driver {
     /// scheduler's answer.
     pub fn sync_now(&self) -> Request {
         self.request(true)
+    }
+
+    /// A cloneable control handle that does not keep the driver alive.
+    pub fn sync_control(&self) -> SyncControl {
+        SyncControl {
+            wake: self.wake.clone(),
+        }
     }
 
     /// Asks for a sync, `manual` for Sync now, and waits for the control

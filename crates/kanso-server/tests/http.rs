@@ -11,7 +11,10 @@ use base64::engine::general_purpose::STANDARD;
 use common::*;
 use kanso_core::DocType;
 use kanso_core::model::{FILE_LOCK_FIELD, FileLock};
-use kanso_server::ServerConfig;
+use kanso_server::{
+    ServerConfig, SyncPhase, SyncResult, SyncSnapshot, SyncStatus, TokenStore,
+    router_with_sync_status,
+};
 use kanso_store::{Attachment, Origin, Put};
 use serde_json::{Value, json};
 
@@ -55,6 +58,44 @@ async fn root_returns_app_meta() {
     assert_eq!(meta["name"], "Kanso");
     assert_eq!(meta["version"], env!("CARGO_PKG_VERSION"));
     assert_eq!(meta["compatibleWith"], "inkdrop-local-server");
+    assert_eq!(meta["sync"], json!({ "signedIn": false }));
+}
+
+#[tokio::test]
+async fn root_exposes_only_the_public_sync_snapshot() {
+    let app = app();
+    let sync = SyncStatus::new(SyncSnapshot {
+        signed_in: true,
+        username: Some("alice".into()),
+        server: Some("https://sync.example".into()),
+        device: Some("vps-01".into()),
+        state: SyncPhase::Idle,
+        last_sync_at: Some(42),
+        last_result: Some(SyncResult {
+            pulled: 3,
+            pushed: 1,
+            files_up: 0,
+            conflicts: 0,
+            pending: 0,
+        }),
+        problem: None,
+        hold_until: None,
+    });
+    let router = router_with_sync_status(
+        app.store.clone(),
+        &config(),
+        TokenStore::new(),
+        app.keys.clone(),
+        None,
+        sync,
+    );
+    let (_, meta) = get(&router, "/").await;
+    assert_eq!(meta["sync"]["signedIn"], true);
+    assert_eq!(meta["sync"]["state"], "idle");
+    assert_eq!(meta["sync"]["lastResult"]["pulled"], 3);
+    for forbidden in ["token", "key", "accountId", "deviceId"] {
+        assert!(meta["sync"].get(forbidden).is_none());
+    }
 }
 
 #[tokio::test]

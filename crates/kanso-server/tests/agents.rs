@@ -392,6 +392,7 @@ fn write_calls(ids: &[String], books: &[String]) -> Vec<(&'static str, Value)> {
         ("read-tag", json!({ "tagId": "tag:x" })),
         ("read-book", json!({ "bookId": book })),
         ("list-tags", json!({})),
+        ("kanso-sync-now", json!({})),
         ("no-such-tool", json!({})),
     ]
 }

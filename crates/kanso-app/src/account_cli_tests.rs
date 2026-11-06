@@ -494,6 +494,53 @@ fn commands_that_need_a_session_say_so() {
 }
 
 #[test]
+fn recovery_key_is_removed_only_after_its_last_group_is_confirmed() {
+    let lab = Lab::new();
+    let mut signed_in = Script::new(false, &[PASSWORD]);
+    lab.run(
+        &["sign-in", "--username", "alice", "--password-stdin"],
+        &mut signed_in,
+    )
+    .unwrap();
+    let config = lab.config();
+    let store = crate::library_open::open_store_with(lab.dir.path(), lab.secrets.as_ref()).unwrap();
+    let library = kanso_engine::lock::library_id(&store, &lab.world().machine).unwrap();
+    let recovery_key = kanso_sync::RecoveryKey::generate();
+    let shown = recovery_key.display();
+    let last = shown.rsplit('-').next().unwrap().to_owned();
+    kanso_sync::keychain::save_recovery_key(
+        lab.secrets.as_ref(),
+        &library,
+        &kanso_sync::keychain::PendingRecoveryKey {
+            origin: config.sync.account.as_ref().unwrap().origin.clone(),
+            account_id: config.sync.account.as_ref().unwrap().id.clone(),
+            username: "alice".into(),
+            server: kanso_sync::DEFAULT_SERVER.into(),
+            recovery_key,
+            unconfirmed: false,
+        },
+    )
+    .unwrap();
+
+    let mut wrong = Script::new(true, &["wrong"]);
+    assert!(lab.run(&["recovery-key"], &mut wrong).is_err());
+    assert!(
+        kanso_sync::keychain::load_any_recovery_key(lab.secrets.as_ref(), &library)
+            .unwrap()
+            .is_some()
+    );
+
+    let mut correct = Script::new(true, &[&last]);
+    lab.run(&["recovery-key"], &mut correct).unwrap();
+    assert!(
+        kanso_sync::keychain::load_any_recovery_key(lab.secrets.as_ref(), &library)
+            .unwrap()
+            .is_none()
+    );
+    assert!(correct.transcript().contains("Saved."));
+}
+
+#[test]
 fn bad_command_lines() {
     let args = |s: &str| -> Vec<String> { s.split_whitespace().map(str::to_owned).collect() };
     assert_eq!(parse(&[]), Ok(Command::Help));
@@ -506,6 +553,8 @@ fn bad_command_lines() {
     assert!(parse(&args("revoke")).is_err());
     assert!(parse(&args("revoke a b")).is_err());
     assert!(parse(&args("status now")).is_err());
+    assert_eq!(parse(&args("recovery-key")), Ok(Command::RecoveryKey));
+    assert!(parse(&args("recovery-key now")).is_err());
     assert!(parse(&args("launch")).is_err());
     assert_eq!(
         parse(&args("revoke d_91d2…")),
@@ -567,6 +616,7 @@ fn gen_args() -> impl Strategy<Value = Command> {
         Just(Command::Status),
         Just(Command::Devices),
         Just(Command::SignOut),
+        Just(Command::RecoveryKey),
         "d_[0-9a-f]{1,32}".prop_map(|device_id| Command::Revoke { device_id }),
         sign_in,
     ]

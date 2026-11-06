@@ -1057,5 +1057,29 @@
     "execution": {
       "taskSupport": "forbidden"
     }
+  },
+  {
+    "name": "kanso-sync-now",
+    "description": "Ask the library's sync driver to sync now.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "kanso-sync-status",
+    "description": "Read the library's safe sync status without revealing account or device identifiers.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
   }
 ]

@@ -41,6 +41,7 @@ use std::future::Future;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::{Mutex, RwLock};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
@@ -112,6 +113,102 @@ pub struct ServerConfig {
     pub bind: SocketAddr,
 }
 
+/// The public, secret-free view of sync state exposed at `GET /` and MCP.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncSnapshot {
+    pub signed_in: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device: Option<String>,
+    pub state: SyncPhase,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_sync_at: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_result: Option<SyncResult>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub problem: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hold_until: Option<i64>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SyncPhase {
+    #[default]
+    Idle,
+    Syncing,
+    Held,
+    SignedOut,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncResult {
+    pub pulled: usize,
+    pub pushed: usize,
+    pub files_up: usize,
+    pub conflicts: usize,
+    pub pending: usize,
+}
+
+/// Shared sync status for the REST root and MCP; only typed, public fields
+/// can be serialized. The optional callback asks the running driver to sync.
+#[derive(Clone, Default)]
+pub struct SyncStatus {
+    snapshot: Arc<RwLock<SyncSnapshot>>,
+    sync_now: Arc<Mutex<Option<SyncNow>>>,
+}
+
+type SyncNow = Arc<dyn Fn() -> bool + Send + Sync>;
+
+impl SyncStatus {
+    pub fn new(snapshot: SyncSnapshot) -> SyncStatus {
+        SyncStatus {
+            snapshot: Arc::new(RwLock::new(snapshot)),
+            sync_now: Arc::default(),
+        }
+    }
+
+    pub fn set(&self, snapshot: SyncSnapshot) {
+        *self.snapshot.write().unwrap_or_else(|e| e.into_inner()) = snapshot;
+    }
+
+    pub fn snapshot(&self) -> SyncSnapshot {
+        self.snapshot
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    /// JSON form shared by REST and MCP; signed-out libraries expose no
+    /// stale account, server, or device data.
+    pub fn value(&self) -> serde_json::Value {
+        let snapshot = self.snapshot();
+        if !snapshot.signed_in {
+            serde_json::json!({ "signedIn": false })
+        } else {
+            serde_json::to_value(snapshot)
+                .unwrap_or_else(|_| serde_json::json!({ "signedIn": false }))
+        }
+    }
+
+    pub fn set_sync_now(&self, callback: Arc<dyn Fn() -> bool + Send + Sync>) {
+        *self.sync_now.lock().unwrap_or_else(|e| e.into_inner()) = Some(callback);
+    }
+
+    pub fn request_sync_now(&self) -> bool {
+        self.sync_now
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .is_some_and(|callback| callback())
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct AppState {
     pub store: Arc<Store>,
@@ -120,6 +217,7 @@ pub(crate) struct AppState {
     /// How a shared canvas is changed, when the app can (see
     /// [`SharedCanvases`]).
     pub canvases: canvas::Host,
+    pub sync_status: SyncStatus,
 }
 
 /// The full API: REST endpoints, `/mcp`, sign-in by API key and the body
@@ -147,10 +245,30 @@ pub fn router_with_canvases(
     keys: KeyStore,
     canvases: Option<Arc<dyn SharedCanvases>>,
 ) -> Router {
+    router_with_sync_status(
+        store,
+        _config,
+        tokens,
+        keys,
+        canvases,
+        SyncStatus::default(),
+    )
+}
+
+/// [`router_with_canvases`], with the safe status exposed by `GET /` and MCP.
+pub fn router_with_sync_status(
+    store: Arc<Store>,
+    _config: &ServerConfig,
+    tokens: TokenStore,
+    keys: KeyStore,
+    canvases: Option<Arc<dyn SharedCanvases>>,
+    sync_status: SyncStatus,
+) -> Router {
     let state = AppState {
         store,
         tokens: tokens.clone(),
         canvases,
+        sync_status,
     };
     let gate = auth::Gate {
         keys: Some(keys),
@@ -177,6 +295,7 @@ pub fn agents_router(store: Arc<Store>, tokens: TokenStore) -> Router {
         store,
         tokens: tokens.clone(),
         canvases: None,
+        sync_status: SyncStatus::default(),
     };
     let gate = auth::Gate { keys: None, tokens };
     Router::new()
@@ -283,6 +402,18 @@ pub fn spawn_with_canvases(
     spawn_router(config.bind, app, tokens)
 }
 
+/// [`spawn_with_tokens`], with the live sync status shared with the API.
+pub fn spawn_with_sync_status(
+    store: Arc<Store>,
+    config: ServerConfig,
+    tokens: TokenStore,
+    keys: KeyStore,
+    sync_status: SyncStatus,
+) -> ServerHandle {
+    let app = router_with_sync_status(store, &config, tokens.clone(), keys, None, sync_status);
+    spawn_router(config.bind, app, tokens)
+}
+
 /// The agents' private listener ([`agents_router`]) on a free loopback port,
 /// for when the local API is off.
 pub fn spawn_agents(store: Arc<Store>, tokens: TokenStore) -> ServerHandle {
@@ -339,6 +470,61 @@ fn spawn_router(bind: SocketAddr, app: Router, tokens: TokenStore) -> ServerHand
             thread: Some(thread),
         },
         Err(err) => failed(err),
+    }
+}
+
+#[cfg(test)]
+mod sync_status_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn prop_sync_status_serializes_only_the_public_fields(
+            username in "[a-z]{1,24}",
+            server in "https://[a-z]{1,20}\\.example",
+            device in "[A-Za-z0-9 -]{1,32}",
+            pulled in 0usize..1000,
+            pushed in 0usize..1000,
+        ) {
+            let status = SyncStatus::new(SyncSnapshot {
+                signed_in: true,
+                username: Some(username),
+                server: Some(server),
+                device: Some(device),
+                state: SyncPhase::Idle,
+                last_sync_at: Some(42),
+                last_result: Some(SyncResult {
+                    pulled,
+                    pushed,
+                    ..SyncResult::default()
+                }),
+                problem: None,
+                hold_until: None,
+            });
+            let value = status.value();
+            prop_assert!(value.get("token").is_none());
+            prop_assert!(value.get("key").is_none());
+            prop_assert!(value.get("accountId").is_none());
+            prop_assert!(value.get("deviceId").is_none());
+            prop_assert_eq!(&value["signedIn"], &serde_json::Value::Bool(true));
+        }
+    }
+
+    #[test]
+    fn signed_out_status_does_not_retain_previous_device_details() {
+        let status = SyncStatus::new(SyncSnapshot {
+            signed_in: true,
+            username: Some("alice".into()),
+            server: Some("https://sync.example".into()),
+            device: Some("vps".into()),
+            ..SyncSnapshot::default()
+        });
+        status.set(SyncSnapshot {
+            state: SyncPhase::SignedOut,
+            ..SyncSnapshot::default()
+        });
+        assert_eq!(status.value(), serde_json::json!({ "signedIn": false }));
     }
 }
 

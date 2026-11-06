@@ -15,6 +15,27 @@ use crate::config::AccountRef;
 
 const PASSWORD: &str = "correct horse battery";
 
+proptest! {
+    #[test]
+    fn prop_serve_related_notes_override_round_trips(on: bool, verbose in any::<bool>()) {
+        let related = if on { "on" } else { "off" };
+        let mut args = vec!["--related-notes".to_owned(), related.to_owned()];
+        if verbose {
+            args.push("--verbose".to_owned());
+        }
+        prop_assert_eq!(
+            ServeOptions::parse(&args).unwrap(),
+            ServeOptions { verbose, related_notes: Some(on) }
+        );
+    }
+}
+
+#[test]
+fn serve_related_notes_rejects_missing_and_unknown_values() {
+    assert!(ServeOptions::parse(&["--related-notes".into()]).is_err());
+    assert!(ServeOptions::parse(&["--related-notes".into(), "maybe".into()]).is_err());
+}
+
 struct Lab {
     dir: tempfile::TempDir,
     server: Arc<MemoryServer>,
@@ -236,7 +257,10 @@ fn only_loopback_is_quiet() {
         "",
     ] {
         let line = exposed_warning(exposed).unwrap_or_else(|| panic!("{exposed}"));
-        assert!(line.contains("sends keys unencrypted"), "{line}");
+        assert!(
+            line.contains("reachable from other computers over plain HTTP"),
+            "{line}"
+        );
     }
 }
 
