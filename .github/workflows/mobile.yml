@@ -8,35 +8,8 @@ name: Mobile
 # CI runs on master and for pull requests from forks only. A branch of this
 # repository is checked before it merges, and checked again on master.
 on:
-  push:
-    branches: [master]
-    paths:
-      - "mobile/**"
-      - ".github/workflows/mobile.yml"
-      - "themes"
-      # The app builds the Rust library of mobile/rust from the workspace,
-      # with the toolchain and the compilers these name.
-      - "crates/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "rust-toolchain.toml"
-      - "scripts/mobile*"
-      - "scripts/mobile/**"
-      - "scripts/ci-rust.sh"
-  pull_request:
-    paths:
-      - "mobile/**"
-      - ".github/workflows/mobile.yml"
-      - "themes"
-      # The app builds the Rust library of mobile/rust from the workspace,
-      # with the toolchain and the compilers these name.
-      - "crates/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "rust-toolchain.toml"
-      - "scripts/mobile*"
-      - "scripts/mobile/**"
-      - "scripts/ci-rust.sh"
+  # On demand only (Actions tab, or gh workflow run): hosted minutes are
+  # limited, so nothing here runs on a push.
   workflow_dispatch:
 
 permissions:
@@ -65,15 +38,13 @@ defaults:
 jobs:
   # On macOS because the golden images are generated on a Mac; text and
   # image rendering differs slightly between operating systems, so they are
-  # only compared on the system that wrote them. Every job here runs on the
-  # owner's self-hosted runners, so never for a pull request: a fork's would
-  # run a stranger's code on the owner's machines.
+  # only compared on the system that wrote them. Every job here runs on
+  # GitHub-hosted runners, on demand.
   #
   # `flutter test` runs the hook too, so the binding tests call the real
   # library, built for the runner.
   analyze-and-test:
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, macOS]
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -172,8 +143,7 @@ jobs:
   # ships. Checks the library is in the app with the symbols the background
   # task and the bridge need, then records what the app weighs.
   build-ios:
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, macOS]
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -207,8 +177,7 @@ jobs:
   # else exercises that: the check looks the classes the library calls by
   # name up in the APK.
   build-android:
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -240,7 +209,7 @@ jobs:
         run: ../scripts/mobile-size.sh android --no-build | tee -a "$GITHUB_STEP_SUMMARY"
 
   # The integration tests in an iPhone simulator and in an iPad simulator,
-  # which lays the app out in two or three panes. The self-hosted Mac is
+  # which lays the app out in two or three panes. The hosted Mac (macos-15) is
   # Apple silicon, which the arm64-only library needs; the simulator is the first
   # one of its kind the runner has (the first iPad is an iPad Pro or an Air,
   # both 11 inch or larger). The iPad runs both orientations: the runner
@@ -248,8 +217,7 @@ jobs:
   # window the app is laid out in (see `turnDevice` in
   # integration_test/helpers/flow_driver.dart).
   integration-ios:
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, macOS]
+    runs-on: macos-15
     strategy:
       fail-fast: false
       matrix:
@@ -334,8 +302,7 @@ jobs:
   # runner removes the app it installed, so the debug APK it built goes on
   # again first.
   integration-android:
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:

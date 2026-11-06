@@ -8,25 +8,8 @@ name: Mobile core
 # CI runs on master and for pull requests from forks only. A branch of this
 # repository is checked before it merges, and checked again on master.
 on:
-  push:
-    branches: [master]
-    paths:
-      - "crates/**"
-      - "mobile/rust/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "scripts/mobile*"
-      - "scripts/mobile/**"
-      - ".github/workflows/mobile-core.yml"
-  pull_request:
-    paths:
-      - "crates/**"
-      - "mobile/rust/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "scripts/mobile*"
-      - "scripts/mobile/**"
-      - ".github/workflows/mobile-core.yml"
+  # On demand only (Actions tab, or gh workflow run): hosted minutes are
+  # limited, so nothing here runs on a push.
   workflow_dispatch:
 
 permissions:
@@ -48,8 +31,7 @@ jobs:
   # emulator is x86-64 at API 29, the lowest Android the app supports; the
   # developer's Mac tests the 64-bit ARM build.
   core-android:
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

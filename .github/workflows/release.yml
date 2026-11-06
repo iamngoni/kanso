@@ -40,21 +40,21 @@ jobs:
           # `pdfium` is the scripts/fetch-pdfium.sh platform whose library
           # the leg packages: each architecture ships its own.
           - name: macos-arm64
-            os: [self-hosted, macOS, ARM64]
+            os: macos-15
             target: aarch64-apple-darwin
             pdfium: mac-arm64
           - name: windows-x64
-            os: [self-hosted, Windows, X64]
+            os: windows-2022
             target: x86_64-pc-windows-msvc
             pdfium: win-x64
-          # Every job runs on the owner's self-hosted runners. The Linux
-          # runners' glibc sets the oldest distribution the builds run on.
+          # GitHub-hosted runners. Ubuntu 22.04's glibc sets the oldest
+          # distribution the Linux builds run on.
           - name: linux-x64
-            os: [self-hosted, Linux, X64]
+            os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             pdfium: linux-x64
           - name: linux-arm64
-            os: [self-hosted, Linux, ARM64]
+            os: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
             pdfium: linux-arm64
     defaults:
@@ -67,7 +67,7 @@ jobs:
           # The built-in themes: the kanso-themes repository.
           submodules: true
 
-      # On the self-hosted Windows runner, plain `bash` is WSL's launcher in
+      # On Windows, plain `bash` can be WSL's launcher in
       # WindowsApps, which can't run the step scripts; put Git Bash first.
       # Git for Windows may be installed for every user (Program Files) or
       # only the runner's (AppData\Local\Programs), so look where git is too.
@@ -424,7 +424,7 @@ jobs:
     name: Checksums
     if: github.ref_type != 'tag'
     needs: build
-    runs-on: [self-hosted, Linux]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
@@ -450,7 +450,7 @@ jobs:
     name: Signed update feed
     if: github.ref_type == 'tag'
     needs: [build, apt]
-    runs-on: [self-hosted, Linux]
+    runs-on: ubuntu-latest
     environment: release
     permissions:
       contents: read
@@ -540,7 +540,7 @@ jobs:
     name: apt repository
     if: github.ref_type == 'tag'
     needs: build
-    runs-on: [self-hosted, Linux]
+    runs-on: ubuntu-latest
     environment: release
     permissions:
       contents: read
@@ -594,7 +594,7 @@ jobs:
   publish:
     name: Publish release
     needs: [build, apt, feed]
-    runs-on: [self-hosted, Linux]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       actions: read
