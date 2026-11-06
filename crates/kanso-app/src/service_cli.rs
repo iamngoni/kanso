@@ -88,9 +88,7 @@ pub fn run_cli(args: &[String]) -> Result<()> {
     #[cfg(target_os = "macos")]
     return macos::run(options);
     #[cfg(target_os = "windows")]
-    {
-        return windows::run(options);
-    }
+    return windows::run(options);
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     {
         let _ = options;
