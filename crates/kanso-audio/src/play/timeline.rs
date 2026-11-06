@@ -153,12 +153,16 @@ mod tests {
                 boundary += frames;
                 let before = timeline.locate((boundary - 1) * FRAME_US).unwrap();
                 let at = timeline.locate(boundary * FRAME_US).unwrap();
-                let after = timeline.locate((boundary + 1) * FRAME_US).unwrap();
                 prop_assert_eq!(before.part, part);
                 prop_assert_eq!(at.part, part + 1);
                 prop_assert_eq!(at.offset_us, 0);
-                prop_assert_eq!(after.part, part + 1);
-                prop_assert_eq!(after.offset_us, FRAME_US);
+                // A frame past the boundary is still in the next part only
+                // when that part is longer than one frame.
+                if lengths[part + 1] > 1 {
+                    let after = timeline.locate((boundary + 1) * FRAME_US).unwrap();
+                    prop_assert_eq!(after.part, part + 1);
+                    prop_assert_eq!(after.offset_us, FRAME_US);
+                }
             }
         }
 

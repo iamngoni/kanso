@@ -73,6 +73,22 @@ void accountSettingsSuite(OpenLibrary open) {
       expect(first, isA<ProviderEvent_Failed>());
     });
 
+    test('signed out, no pairing code is made or checked', () async {
+      final settings = (await open()).accountSettings();
+      await expectLater(
+        settings.createPairing(),
+        throwsA(isA<KansoError_SignedOut>()),
+      );
+      await expectLater(
+        settings.pairingUsed(id: 'pairing'),
+        throwsA(isA<KansoError_SignedOut>()),
+      );
+      await expectLater(
+        settings.cancelPairing(id: 'pairing'),
+        throwsA(isA<KansoError_SignedOut>()),
+      );
+    });
+
     test('signing out when signed out is fine', () async {
       final library = await open();
       await library.accountSettings().signOut();

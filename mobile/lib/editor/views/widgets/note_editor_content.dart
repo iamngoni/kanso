@@ -652,6 +652,9 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
     final column = beforeCaret.last.runes.length;
     final typed = writingChars;
     writingChars = 0;
+    // Writing places are a nicety: a host without the Overview's repository
+    // (a test, an embedded editor) just doesn't record them.
+    if (!getIt.isRegistered<DigestRepository>()) return;
     unawaited(
       getIt<DigestRepository>()
           .noteWriting(

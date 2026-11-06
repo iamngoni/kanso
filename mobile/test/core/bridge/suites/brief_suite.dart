@@ -2,6 +2,8 @@
 // Created 2026-11-02.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/overview_types.dart';
 import 'package:kanso/core/bridge/api/types.dart';
@@ -105,6 +107,50 @@ void briefSuite(OpenLibrary open) {
       await library.clearRevisit(noteId: id);
       expect(await library.revisitOf(noteId: id), isNull);
     });
+
+    test(
+      'calendar events are kept and meeting notes made and linked',
+      () async {
+        final library = await open();
+        final start = DateTime.now().toUtc().millisecondsSinceEpoch;
+        final event = <String, Object>{
+          'uid': 'meeting-1',
+          'start': start,
+          'end': start + 30 * 60 * 1000,
+          'title': 'Planning',
+          'location': '',
+          'conference_url': '',
+          'attendees': <Object>[],
+          'calendar': 'Work',
+          'color': '',
+          'all_day': false,
+          'free': false,
+          'declined': false,
+        };
+        final one = jsonEncode(<Object>[event]);
+
+        await library.overviewPutCalendarEvents(eventsJson: one);
+        await expectLater(
+          library.overviewPutCalendarEvents(eventsJson: 'not json'),
+          throwsA(isA<KansoError_Invalid>()),
+        );
+
+        final made = await library.overviewCreateMeetingNote(
+          eventJson: one,
+          context: '',
+        );
+        expect(made, isNotEmpty);
+        await expectLater(
+          library.overviewCreateMeetingNote(eventJson: '[]', context: ''),
+          throwsA(isA<KansoError_Invalid>()),
+        );
+
+        final id = (await library.create(
+          note: const NewNote(title: 'Notes', body: 'Agenda.\n'),
+        )).id;
+        await library.overviewLinkMeetingNote(noteId: id, eventJson: one);
+      },
+    );
 
     test('settings are clamped and plan fixed-text notices', () async {
       final library = await open();
