@@ -94,13 +94,11 @@ where
         self
     }
 
-    /// Keep an explicit scroll handle attached when wrapping an existing
-    /// stateful scroll region with a scrollbar.
-    pub fn track_scroll(mut self, handle: &ScrollHandle) -> Self
-    where
-        E: StatefulInteractiveElement,
-    {
-        self.element = self.element.track_scroll(handle);
+    /// Use the caller's scroll handle for the scroll area and its bar. Only
+    /// the area tracks it: the wrapped element is the content inside the
+    /// area, and tracking it too would make the handle report the content's
+    /// bounds, so offsets set through the handle wouldn't scroll anything.
+    pub fn track_scroll(mut self, handle: &ScrollHandle) -> Self {
         self.scroll_handle = Some(handle.clone());
         self
     }

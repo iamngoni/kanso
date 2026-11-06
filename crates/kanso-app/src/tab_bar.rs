@@ -2,7 +2,6 @@
 //! showing, and what can be done to each. The model is in `tabs`; this only
 //! draws it and says what was clicked.
 
-use gpui_component::scroll::ScrollableElement as _;
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::menu::{ContextMenuExt as _, DropdownMenu as _, PopupMenuItem};
@@ -91,13 +90,7 @@ impl TabBar {
                 // with it. Asking on the next frame lets the row lay out
                 // first, which it has not on the frame the bar first shows.
                 let scroll = self.scroll.clone();
-                window.on_next_frame(move |_, _| {
-                    if active == 0 {
-                        scroll.set_offset(point(px(0.), px(0.)));
-                    } else {
-                        scroll.scroll_to_item(active);
-                    }
-                });
+                window.on_next_frame(move |_, _| scroll.scroll_to_item(active));
             }
             cx.notify();
         }
@@ -315,7 +308,7 @@ impl Render for TabBar {
                     .h_full()
                     .items_center()
                     .gap(px(2.))
-                    .overflow_x_scrollbar()
+                    .overflow_x_scroll()
                     .track_scroll(&self.scroll)
                     .children((0..self.tabs.len()).map(|index| self.tab(index, colors, cx))),
             )

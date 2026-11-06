@@ -11,7 +11,6 @@
 //! the keyboard while it is open, such as a shortcut for a new note, it
 //! closes.
 
-use gpui_component::scroll::ScrollableElement as _;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -1581,7 +1580,7 @@ impl Palette {
             .id("palette-list")
             .size_full()
             .py_1p5()
-            .overflow_y_scrollbar()
+            .overflow_y_scroll()
             .track_scroll(&self.scroll);
         for row in &self.rows {
             list = match row {
