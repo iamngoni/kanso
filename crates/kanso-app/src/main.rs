@@ -268,6 +268,7 @@ mod trash_words;
 mod triage_view;
 #[cfg(test)]
 mod ui_tests;
+mod update_cli;
 mod updates;
 // macOS finishes Apple's sign-in in its own sheet: only the forwarding of a
 // `kanso://` argument and the tests reach the router there.
@@ -315,6 +316,8 @@ Commands:
                     command line, see its status, list devices, sign
                     out; `kanso account help` lists how
   service           Install and control `kanso serve` as a system service
+  update            Check for a newer Kanso and install it, without
+                    opening the app [--check] [--yes]
   import <kind> [path]
                     Import a folder of Markdown or another app's export
                     [--dry-run]; Apple Notes finds its library itself.
@@ -472,6 +475,7 @@ fn main() -> Result<()> {
         }
         Some("serve") => serve_cli::run_cli(args.data_dir, &args.rest),
         Some("service") => service_cli::run_cli(&args.rest),
+        Some("update") => update_cli::run_cli(&args.rest),
         // The window an encryption of the library shows; started by the app.
         Some("encrypt-progress") => encrypt_progress::run_child(),
         // The window for a library that won't open; started by the app.

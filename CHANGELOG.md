@@ -7,6 +7,7 @@ heading compares the release with the one before.
 
 ### New
 
+- **app:** `kanso update` checks for a newer Kanso and installs it from the command line, without opening the app or the library, so it works even when the app won't start. It uses the same signed feed and checks as Settings › Updates. `--check` only reports (exit code 10 when there's a newer version); `--yes` installs without asking.
 - **app/mobile:** Overview brings Today and This week together as Kanso's home, with on-device system-calendar support ([#240](https://github.com/iamngoni/kanso/issues/240))
 
 ## [0.9.4](https://github.com/iamngoni/kanso/compare/v0.9.3...v0.9.4) - 2026-11-04
