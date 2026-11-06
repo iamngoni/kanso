@@ -185,6 +185,7 @@ pub enum DigestEvent {
     Link(String),
     /// Open Settings at Overview's section.
     OpenSettings,
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     OpenCalendarSettings,
     /// Something to tell the user.
     Notice(String),

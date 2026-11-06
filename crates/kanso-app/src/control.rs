@@ -492,7 +492,7 @@ mod unix {
                 ));
             }
             if parent_metadata.mode() & 0o022 != 0 {
-                let sticky = parent_metadata.mode() & libc::S_ISVTX as u32 != 0;
+                let sticky = parent_metadata.mode() & u32::from(libc::S_ISVTX) != 0;
                 let child_owned_by_user = std::fs::metadata(child)?.uid() == uid;
                 if !sticky || !child_owned_by_user {
                     return Err(std::io::Error::new(
