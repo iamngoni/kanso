@@ -322,6 +322,7 @@ fn note(text: impl Into<SharedString>, colors: &Colors) -> Div {
         .child(text.into())
 }
 
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 /// Where Screen Recording is turned on.
 const SETTINGS_URL: &str =
     "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";

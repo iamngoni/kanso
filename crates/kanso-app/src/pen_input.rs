@@ -123,6 +123,7 @@ pub fn plain_mouse_down() {
 
 /// A sample from the pen: `pressure` 0 to 1 and the tilt as the platform
 /// gives it, each of x and y from -1 to 1.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn sample(pressure: f64, tilt: Option<(f64, f64)>) {
     update(|s| {
         s.pressure = pressure.clamp(0.0, 1.0);

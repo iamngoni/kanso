@@ -149,6 +149,7 @@ pub fn core_version(version: &semver::Version) -> String {
     format!("{}.{}.{}", version.major, version.minor, version.patch)
 }
 
+#[cfg_attr(not(any(target_os = "macos", windows)), allow(dead_code))]
 fn command(program: &str, args: &[&str]) -> String {
     std::process::Command::new(program)
         .args(args)
