@@ -34,10 +34,12 @@ for t in "${targets[@]}"; do
 	cargo check --locked --target "$t" --no-default-features "${without_defaults[@]}"
 done
 
-# No window system, Objective-C bindings, desktop Keychain or agent
-# connection in any crate's tree for a phone. `cargo tree` lists what the
-# target builds.
-banned_pattern='gpui|objc|keyring|kanso-acp'
+# No window system, desktop Objective-C bindings (the old `objc` crate,
+# AppKit, Cocoa), desktop Keychain or agent connection in any crate's tree
+# for a phone. `cargo tree` lists what the target builds. The `objc2-*`
+# framework crates cpal uses for CoreAudio and AVFAudio are allowed: the
+# phones record and play audio through kanso-audio.
+banned_pattern='gpui|[─ ]objc v|objc2-app-kit|cocoa|keyring|kanso-acp'
 for t in "${targets[@]}"; do
 	case "$t" in
 	aarch64-apple-ios | aarch64-linux-android) ;;
