@@ -199,6 +199,7 @@ mod secrets;
 mod security_key_flow;
 mod selection;
 mod serve_cli;
+mod service_cli;
 mod services;
 mod settings;
 mod settings_ai;
@@ -304,10 +305,11 @@ Commands:
                     in the running Kanso if there is one
   serve             Run only the local API (REST and /mcp), without a
                     window; syncs with your account when signed in
-                    [--verbose] [--related-notes on|off]
+                    [--verbose] [--related-notes on|off] [--as-service]
   account           Sign this library in to a Kanso account from the
                     command line, see its status, list devices, sign
                     out; `kanso account help` lists how
+  service           Install and control `kanso serve` as a system service
   import <kind> [path]
                     Import a folder of Markdown or another app's export
                     [--dry-run]; Apple Notes finds its library itself.
@@ -464,6 +466,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Some("serve") => serve_cli::run_cli(args.data_dir, &args.rest),
+        Some("service") => service_cli::run_cli(&args.rest),
         // The window an encryption of the library shows; started by the app.
         Some("encrypt-progress") => encrypt_progress::run_child(),
         // The window for a library that won't open; started by the app.

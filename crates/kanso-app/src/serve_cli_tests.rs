@@ -17,15 +17,18 @@ const PASSWORD: &str = "correct horse battery";
 
 proptest! {
     #[test]
-    fn prop_serve_related_notes_override_round_trips(on: bool, verbose in any::<bool>()) {
+    fn prop_serve_related_notes_override_round_trips(on: bool, verbose in any::<bool>(), as_service in any::<bool>()) {
         let related = if on { "on" } else { "off" };
         let mut args = vec!["--related-notes".to_owned(), related.to_owned()];
         if verbose {
             args.push("--verbose".to_owned());
         }
+        if as_service {
+            args.push("--as-service".to_owned());
+        }
         prop_assert_eq!(
             ServeOptions::parse(&args).unwrap(),
-            ServeOptions { verbose, related_notes: Some(on) }
+            ServeOptions { verbose, related_notes: Some(on), as_service }
         );
     }
 }
