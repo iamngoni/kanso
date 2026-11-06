@@ -8,6 +8,7 @@ import '../../../core/bridge/api/types.dart';
 import '../../../core/models/repos/abs/digest_repository.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_empty_state.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../../core/views/widgets/kanso_swipe_host.dart';
 import '../../../injection.dart';
@@ -52,13 +53,15 @@ class OpenLoopsPage extends StatelessWidget {
             );
           }
           return KansoSwipeHost(
-            child: ListView(
-              padding: digestListPadding,
-              children: <Widget>[
-                for (final kind in OpenLoopKind.values)
-                  ..._group(context, board, kind),
-                const DigestAiPanel(find: true),
-              ],
+            child: KansoListScrollbar(
+              child: ListView(
+                padding: digestListPadding,
+                children: <Widget>[
+                  for (final kind in OpenLoopKind.values)
+                    ..._group(context, board, kind),
+                  const DigestAiPanel(find: true),
+                ],
+              ),
             ),
           );
         },

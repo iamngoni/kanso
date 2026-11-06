@@ -12,6 +12,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
+use gpui_component::scroll::Scrollbar;
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenu, PopupMenuItem};
@@ -773,7 +774,15 @@ impl Render for TasksView {
                         }
                     }))
                     .on_action(cx.listener(|this, _: &UndoCheckOff, _, cx| this.undo(cx)))
-                    .child(body),
+                    .child(div().relative().size_full().child(body).when(
+                        !entries.is_empty(),
+                        |el| {
+                            el.child(
+                                Scrollbar::vertical(&self.scroll)
+                                    .mode(crate::themes::list_scrollbar_mode(cx)),
+                            )
+                        },
+                    )),
             )
             .child(self.render_bottom_band(cx))
     }

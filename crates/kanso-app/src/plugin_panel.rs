@@ -5,6 +5,7 @@
 //! the tree can reach outside the panel, and what the person types stays
 //! here until they press a button.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::{BTreeMap, HashMap};
 
 use gpui_kit::assets::IconName as Lucide;
@@ -203,7 +204,7 @@ pub fn element(window: &mut Window, cx: &mut App) -> Option<AnyElement> {
                     .id("plugin-panel-body")
                     .flex_1()
                     .min_h_0()
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .p(px(12.))
                     .child(body),
             )

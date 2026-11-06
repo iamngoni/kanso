@@ -197,6 +197,30 @@ void main() {
     );
 
     blocTest<AppearanceBloc, AppearanceState>(
+      'saves the persistent scrollbar choice',
+      build: build,
+      act: (bloc) async {
+        bloc.add(const AppearanceEvent.started());
+        await bloc.stream.firstWhere(
+          (state) => state.status == AppearanceStatus.ready,
+        );
+        bloc.add(
+          const AppearanceEvent.scrollbarVisibilityChanged(always: true),
+        );
+      },
+      expect: () => <AppearanceState>[
+        const AppearanceState(status: AppearanceStatus.ready),
+        const AppearanceState(
+          alwaysShowScrollbars: true,
+          status: AppearanceStatus.ready,
+        ),
+      ],
+      verify: (_) {
+        verify(() => preferences.update(any())).called(1);
+      },
+    );
+
+    blocTest<AppearanceBloc, AppearanceState>(
       'started shows what was saved, reading the themes it names',
       setUp: () {
         saved = const Preferences(

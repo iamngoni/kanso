@@ -13,6 +13,7 @@ import '../../../core/state/navigation_history/navigation_history_bloc.dart';
 import '../../../core/state/sync_status/sync_status_bloc.dart';
 import '../../../core/state/undo_notice/undo_notice_bloc.dart';
 import '../../../core/views/widgets/kanso_divider.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_refresh_control.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../state/tasks/tasks_bloc.dart';
@@ -53,45 +54,48 @@ class TasksListView extends StatelessWidget {
         const UndoNoticeEvent.undoPressed(),
       ),
       builder: (context, focusedKey) {
-        return CustomScrollView(
-          physics: signedIn ? const AlwaysScrollableScrollPhysics() : null,
-          slivers: <Widget>[
-            if (signedIn)
-              KansoRefreshControl(onRefresh: () => syncNow(context)),
-            for (final section in state.board.groups)
-              SliverMainAxisGroup(
-                slivers: <Widget>[
-                  SliverToBoxAdapter(
-                    child: KansoSectionHeader(label: section.label),
-                  ),
-                  SliverList.builder(
-                    itemCount: section.items.length,
-                    itemBuilder: (context, at) {
-                      final task = section.items[at];
-                      return Column(
-                        key: ValueKey<String>(task.key),
-                        children: <Widget>[
-                          if (at > 0)
-                            const KansoDivider(indent: KansoSpacing.md),
-                          TaskRow(
-                            task: task,
-                            open: task.noteId == openNoteId,
-                            focused: task.key == focusedKey,
-                            onTick: () => bloc.add(TasksEvent.ticked(task)),
-                            onOpen: () => open(task),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
+        return KansoListScrollbar(
+          child: CustomScrollView(
+            physics: signedIn ? const AlwaysScrollableScrollPhysics() : null,
+            slivers: <Widget>[
+              if (signedIn)
+                KansoRefreshControl(onRefresh: () => syncNow(context)),
+              for (final section in state.board.groups)
+                SliverMainAxisGroup(
+                  slivers: <Widget>[
+                    SliverToBoxAdapter(
+                      child: KansoSectionHeader(label: section.label),
+                    ),
+                    SliverList.builder(
+                      itemCount: section.items.length,
+                      itemBuilder: (context, at) {
+                        final task = section.items[at];
+                        return Column(
+                          key: ValueKey<String>(task.key),
+                          children: <Widget>[
+                            if (at > 0)
+                              const KansoDivider(indent: KansoSpacing.md),
+                            TaskRow(
+                              task: task,
+                              open: task.noteId == openNoteId,
+                              focused: task.key == focusedKey,
+                              onTick: () => bloc.add(TasksEvent.ticked(task)),
+                              onOpen: () => open(task),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height:
+                      MediaQuery.paddingOf(context).bottom + KansoSpacing.md,
+                ),
               ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: MediaQuery.paddingOf(context).bottom + KansoSpacing.md,
-              ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );

@@ -8,6 +8,7 @@
 //! Suggestions live in memory: they expire after an hour and are gone when
 //! Kanso quits.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -431,13 +432,21 @@ impl Render for ReviewSheet {
                         .child("No suggested edits are waiting."),
                 )
             })
-            .child(
+            .child(if embedded {
                 v_flex()
                     .id("review-cards")
                     .gap(px(10.))
-                    .when(!embedded, |el| el.max_h(px(480.)).overflow_y_scroll())
-                    .children(cards),
-            )
+                    .children(cards)
+                    .into_any_element()
+            } else {
+                v_flex()
+                    .id("review-cards")
+                    .gap(px(10.))
+                    .max_h(px(480.))
+                    .overflow_y_scrollbar()
+                    .children(cards)
+                    .into_any_element()
+            })
             .into_any_element()
     }
 }

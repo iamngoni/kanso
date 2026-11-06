@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_large_title.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../shell/views/widgets/shell_back_button.dart';
 
@@ -42,23 +43,26 @@ class SettingsCategoryPane extends StatelessWidget {
               title: title,
             ),
             Expanded(
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(
-                  KansoSpacing.md,
-                  0,
-                  KansoSpacing.md,
-                  bottom + KansoSpacing.lg,
-                ),
-                children: <Widget>[
-                  KansoLargeTitle(
-                    title: title,
-                    padding: const EdgeInsets.only(bottom: KansoSpacing.md),
+              child: KansoListScrollbar(
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    KansoSpacing.md,
+                    0,
+                    KansoSpacing.md,
+                    bottom + KansoSpacing.lg,
                   ),
-                  for (final (index, section) in sections.indexed) ...<Widget>[
-                    if (index > 0) const SizedBox(height: KansoSpacing.lg),
-                    section,
+                  children: <Widget>[
+                    KansoLargeTitle(
+                      title: title,
+                      padding: const EdgeInsets.only(bottom: KansoSpacing.md),
+                    ),
+                    for (final (index, section)
+                        in sections.indexed) ...<Widget>[
+                      if (index > 0) const SizedBox(height: KansoSpacing.lg),
+                      section,
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ],

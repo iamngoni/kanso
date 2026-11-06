@@ -7,6 +7,7 @@
 //! server's very next request. The page never keeps a key: the sheet that
 //! made one holds it until it closes.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::{BTreeSet, HashMap};
 
 use gpui_kit::assets::IconName as Lucide;
@@ -618,7 +619,7 @@ impl Render for NewKeySheet {
                             v_flex()
                                 .id("key-books")
                                 .max_h(px(140.))
-                                .overflow_y_scroll()
+                                .overflow_y_scrollbar()
                                 .children(book_rows),
                         )
                         .when(self.books.is_empty(), |el| {
@@ -675,7 +676,7 @@ impl NewKeySheet {
                 v_flex()
                     .id("key-setup")
                     .max_h(px(260.))
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .p(px(10.))
                     .rounded(px(8.))
                     .bg(colors.fill)

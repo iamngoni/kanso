@@ -7,6 +7,7 @@
 //! question leave it. The answer is not saved unless the person presses Save
 //! as note, and no other note is changed.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -1734,7 +1735,7 @@ impl Render for AskPanel {
                         .id("ask-answer")
                         .flex_1()
                         .min_h_0()
-                        .overflow_y_scroll()
+                        .overflow_y_scrollbar()
                         .child(answers),
                 )
             })

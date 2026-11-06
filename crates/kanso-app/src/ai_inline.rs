@@ -8,6 +8,7 @@
 //! the selection and a little of the note before it; the model gets no
 //! tools and no other note (`ai_feature.rs`).
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::ops::Range;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -422,7 +423,7 @@ impl NoteEditor {
                         div()
                             .id("inline-suggestion-text")
                             .max_h(px(200.))
-                            .overflow_y_scroll()
+                            .overflow_y_scrollbar()
                             .text_size(px(13.))
                             .line_height(px(19.))
                             .text_color(colors.text)

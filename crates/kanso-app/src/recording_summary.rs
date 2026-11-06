@@ -15,6 +15,7 @@
 //! Every decision and action item has already been checked against the
 //! transcript by `ground`: one the model could not quote is not offered.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -401,7 +402,7 @@ impl Render for SummarySheet {
                         div()
                             .id("recording-summary-review")
                             .max_h(px(REVIEW_HEIGHT))
-                            .overflow_y_scroll()
+                            .overflow_y_scrollbar()
                             .child(review),
                     )
                     .children(notes.into_iter().map(|n| quiet(n, colors)))

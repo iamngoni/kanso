@@ -7,6 +7,7 @@
 //! 1 to 4 (or Space again, for Good) record it, E opens the note at the
 //! card, S suspends the card, Tab switches to Stats, Esc closes.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::sync::Arc;
 
 use gpui_kit::assets::IconName as Lucide;
@@ -409,7 +410,7 @@ impl FlashcardsView {
         v_flex()
             .id("review-stats-body")
             .size_full()
-            .overflow_y_scroll()
+            .overflow_y_scrollbar()
             .p(px(24.))
             .max_w(px(680.))
             .child(

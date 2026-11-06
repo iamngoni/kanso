@@ -3,6 +3,7 @@
 //! picker that finds and chooses one. The icon theme in use draws them
 //! all, and can add more of its own, kept as `<theme>/<icon>`.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::rc::Rc;
 
 use gpui_kit::assets::IconName as Lucide;
@@ -546,7 +547,7 @@ impl Render for IconPicker {
                 div()
                     .id("book-icon-grid")
                     .h(px(height))
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .track_scroll(&self.scroll)
                     .child(v_flex().gap(px(GAP)).children(blocks))
                     .when(found.is_empty(), |el| {

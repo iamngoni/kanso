@@ -5,6 +5,7 @@
 use std::rc::Rc;
 use std::time::Duration;
 
+use gpui_component::scroll::Scrollbar;
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
@@ -1469,6 +1470,7 @@ impl Render for NoteList {
         let empty = library.notes.is_empty();
         let shared_list = library.filter == Filter::Shared;
         let colors = Colors::get(cx);
+        let scrollbar_mode = crate::themes::list_scrollbar_mode(cx);
         let triage_bar = self.triage_bar(cx);
 
         let body = if empty {
@@ -1543,7 +1545,9 @@ impl Render for NoteList {
                             cx.propagate();
                         }
                     }))
-                    .child(body),
+                    .child(div().relative().size_full().child(body).when(!empty, |el| {
+                        el.child(Scrollbar::vertical(&self.scroll).mode(scrollbar_mode))
+                    })),
             )
             .when(self.offers_sync(cx), |el| {
                 el.child(crate::sync_nudge::render(Colors::get(cx)))

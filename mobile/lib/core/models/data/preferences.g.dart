@@ -30,6 +30,7 @@ _Preferences _$PreferencesFromJson(Map<String, dynamic> json) => _Preferences(
         unknownValue: DiagramRenderer.pele,
       ) ??
       DiagramRenderer.pele,
+  alwaysShowScrollbars: json['alwaysShowScrollbars'] as bool? ?? false,
   sort:
       $enumDecodeNullable(
         _$SortKeyEnumMap,
@@ -73,6 +74,7 @@ Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
       'interfaceTextSize': interfaceTextScaleToJson(instance.interfaceTextSize),
       'iconTheme': instance.iconTheme,
       'diagramRenderer': _$DiagramRendererEnumMap[instance.diagramRenderer]!,
+      'alwaysShowScrollbars': instance.alwaysShowScrollbars,
       'sort': _$SortKeyEnumMap[instance.sort]!,
       'descending': instance.descending,
       'backupNoticeSeen': instance.backupNoticeSeen,

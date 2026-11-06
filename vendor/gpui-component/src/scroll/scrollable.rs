@@ -1,6 +1,6 @@
 use std::{panic::Location, rc::Rc};
 
-use crate::{InteractiveElementExt as _, StyledExt};
+use crate::{InteractiveElementExt as _, StyledExt, theme::Theme};
 
 use super::{Scrollbar, ScrollbarAxis, ScrollbarHandle};
 use gpui::{
@@ -68,6 +68,7 @@ pub struct Scrollable<E: InteractiveElement + Styled + ParentElement + Element> 
     id: ElementId,
     element: E,
     axis: ScrollbarAxis,
+    scroll_handle: Option<ScrollHandle>,
 }
 
 impl<E> Scrollable<E>
@@ -80,6 +81,7 @@ where
             id: caller_id(),
             element,
             axis: axis.into(),
+            scroll_handle: None,
         }
     }
 
@@ -89,6 +91,15 @@ where
     /// otherwise share a single scroll position.
     pub fn id(mut self, id: impl Into<ElementId>) -> Self {
         self.id = id.into();
+        self
+    }
+
+    /// Use the caller's scroll handle for the scroll area and its bar. Only
+    /// the area tracks it: the wrapped element is the content inside the
+    /// area, and tracking it too would make the handle report the content's
+    /// bounds, so offsets set through the handle wouldn't scroll anything.
+    pub fn track_scroll(mut self, handle: &ScrollHandle) -> Self {
+        self.scroll_handle = Some(handle.clone());
         self
     }
 }
@@ -130,7 +141,9 @@ where
     E: InteractiveElement + Styled + ParentElement + Element + 'static,
 {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let scroll_handle = scroll_handle_for(&self.id, window, cx);
+        let scroll_handle = self
+            .scroll_handle
+            .unwrap_or_else(|| scroll_handle_for(&self.id, window, cx));
 
         // Preserve the caller-requested size on the wrapper, while keeping the
         // caller's element as the actual scroll-tracked layout container.
@@ -285,6 +298,11 @@ fn render_scrollbar<H: ScrollbarHandle + Clone>(
             Scrollbar::new(scroll_handle)
                 .id(id)
                 .axis(axis)
+                .mode(
+                    Theme::global(cx)
+                        .app_scrollbar_mode
+                        .unwrap_or(Theme::global(cx).scrollbar_mode),
+                )
                 .viewport_from_layout(),
         )
 }

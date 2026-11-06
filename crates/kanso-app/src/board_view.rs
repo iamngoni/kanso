@@ -4,6 +4,7 @@
 //! moved with ⇧← and ⇧→, changes its note's status or ticks its task.
 //! Return or a double-click opens the card's note.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -420,7 +421,7 @@ impl BoardView {
                     .px(px(8.))
                     .pb(px(8.))
                     .gap(px(6.))
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .track_scroll(&scroll)
                     .children(cards.iter().enumerate().map(|(row, &ix)| {
                         let selected = selected == Some((col, row));
@@ -664,7 +665,7 @@ impl Render for BoardView {
                 .items_start()
                 .gap(px(12.))
                 .p(px(16.))
-                .overflow_x_scroll()
+                .overflow_x_scrollbar()
                 .track_scroll(&self.lanes_scroll)
                 .children(columns.iter().enumerate().map(|(col, (lane, cards))| {
                     self.render_column(col, *lane, cards, selected, focused, cx)

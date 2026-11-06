@@ -19,6 +19,7 @@ import '../../../core/views/widgets/kanso_empty_state.dart';
 import '../../../core/views/widgets/kanso_grouped_section.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_inline_message.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_menu.dart';
 import '../../../core/views/widgets/kanso_page.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
@@ -205,65 +206,67 @@ class _PeopleListPageState extends State<PeopleListPage> {
                           onPressed: () => unawaited(_new(PeopleKind.person)),
                         ),
                       )
-                    : ListView(
-                        padding: const EdgeInsets.all(KansoSpacing.md),
-                        children: <Widget>[
-                          if (failure != null)
-                            KansoInlineMessage(message: failure),
-                          if (_suggestions.isNotEmpty) ...<Widget>[
-                            KansoSectionHeader(
-                              label: l10n.peopleSuggestionsTitle,
-                              horizontalPadding: 0,
-                            ),
-                            for (final s in _suggestions)
-                              _suggestion(context, s),
-                            if (status != null && status.aiOn)
-                              Align(
-                                alignment: AlignmentDirectional.centerStart,
-                                child: KansoButton(
-                                  label: _labelling
-                                      ? '…'
-                                      : l10n.peopleSettingsDetectAi,
-                                  variant: KansoButtonVariant.quiet,
-                                  compact: true,
-                                  expanded: false,
-                                  onPressed: _labelling
-                                      ? null
-                                      : () => unawaited(_label()),
-                                ),
+                    : KansoListScrollbar(
+                        child: ListView(
+                          padding: const EdgeInsets.all(KansoSpacing.md),
+                          children: <Widget>[
+                            if (failure != null)
+                              KansoInlineMessage(message: failure),
+                            if (_suggestions.isNotEmpty) ...<Widget>[
+                              KansoSectionHeader(
+                                label: l10n.peopleSuggestionsTitle,
+                                horizontalPadding: 0,
                               ),
-                            if (aiFailure != null)
-                              Text(
-                                aiTroubleText(aiFailure, l10n),
-                                style: typography.secondary.copyWith(
-                                  color: colors.danger,
-                                ),
-                              ),
-                            const SizedBox(height: KansoSpacing.lg),
-                          ],
-                          if (pages.isNotEmpty) ...<Widget>[
-                            KansoSectionHeader(
-                              label: l10n.peoplePagesTitle,
-                              horizontalPadding: 0,
-                            ),
-                            KansoGroupedSection(
-                              dividerIndent: 48,
-                              children: <Widget>[
-                                for (final p in pages)
-                                  KansoSettingsRow(
-                                    icon: p.kind == PeopleKind.person
-                                        ? KansoIcons.users
-                                        : KansoIcons.folder,
-                                    label: p.title,
-                                    value: p.detail,
-                                    chevron: true,
-                                    onTap: () =>
-                                        context.push(citedNoteLocation(p.id)),
+                              for (final s in _suggestions)
+                                _suggestion(context, s),
+                              if (status != null && status.aiOn)
+                                Align(
+                                  alignment: AlignmentDirectional.centerStart,
+                                  child: KansoButton(
+                                    label: _labelling
+                                        ? '…'
+                                        : l10n.peopleSettingsDetectAi,
+                                    variant: KansoButtonVariant.quiet,
+                                    compact: true,
+                                    expanded: false,
+                                    onPressed: _labelling
+                                        ? null
+                                        : () => unawaited(_label()),
                                   ),
-                              ],
-                            ),
+                                ),
+                              if (aiFailure != null)
+                                Text(
+                                  aiTroubleText(aiFailure, l10n),
+                                  style: typography.secondary.copyWith(
+                                    color: colors.danger,
+                                  ),
+                                ),
+                              const SizedBox(height: KansoSpacing.lg),
+                            ],
+                            if (pages.isNotEmpty) ...<Widget>[
+                              KansoSectionHeader(
+                                label: l10n.peoplePagesTitle,
+                                horizontalPadding: 0,
+                              ),
+                              KansoGroupedSection(
+                                dividerIndent: 48,
+                                children: <Widget>[
+                                  for (final p in pages)
+                                    KansoSettingsRow(
+                                      icon: p.kind == PeopleKind.person
+                                          ? KansoIcons.users
+                                          : KansoIcons.folder,
+                                      label: p.title,
+                                      value: p.detail,
+                                      chevron: true,
+                                      onTap: () =>
+                                          context.push(citedNoteLocation(p.id)),
+                                    ),
+                                ],
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
               ),
           ],

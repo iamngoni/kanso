@@ -2,6 +2,7 @@
 //! changed since each (section by section, each one to copy) or the
 //! version itself, and a way to bring one back.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::rc::Rc;
 
 use gpui_kit::base::text::TextView;
@@ -310,7 +311,7 @@ impl Render for HistoryView {
                     .w(px(LIST_WIDTH))
                     .flex_none()
                     .h_full()
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .child(
                         v_flex()
                             .gap(px(2.))
@@ -374,7 +375,7 @@ impl Render for HistoryView {
                             .id("revision-body")
                             .flex_1()
                             .min_h_0()
-                            .overflow_y_scroll()
+                            .overflow_y_scrollbar()
                             .track_scroll(&self.scroll)
                             .child(content),
                     ),

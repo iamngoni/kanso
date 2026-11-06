@@ -66,6 +66,9 @@ abstract class Preferences with _$Preferences {
     @Default(DiagramRenderer.pele)
     DiagramRenderer diagramRenderer,
 
+    /// Whether overflowing list scrollbars stay visible between scrolls.
+    @Default(false) bool alwaysShowScrollbars,
+
     /// What note lists are sorted by.
     @JsonKey(unknownEnumValue: SortKey.updated)
     @Default(SortKey.updated)

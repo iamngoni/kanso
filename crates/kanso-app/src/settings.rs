@@ -9,6 +9,7 @@
 //! restart on every keystroke. Passwords are never shown. The Account page
 //! is its own view, in `account_page.rs`.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::Path;
 use std::time::Duration;
@@ -960,11 +961,14 @@ impl SettingsView {
             SettingsPage::General => self.general_page(cx),
             SettingsPage::Editor => editor_page(self.fonts.as_ref(), cx),
             SettingsPage::Appearance => {
-                let mut page = vec![crate::settings_gallery::header(
-                    kanso_gallery::Kind::Color,
-                    &self.gallery_search,
-                    cx,
-                )];
+                let mut page = vec![
+                    crate::settings_gallery::header(
+                        kanso_gallery::Kind::Color,
+                        &self.gallery_search,
+                        cx,
+                    ),
+                    crate::settings_themes::scrollbars_row(cx),
+                ];
                 page.extend(crate::settings_themes::page(cx));
                 page
             }
@@ -1531,7 +1535,7 @@ impl Render for SettingsView {
                             .id("settings-page")
                             .flex_1()
                             .min_h_0()
-                            .overflow_y_scroll()
+                            .overflow_y_scrollbar()
                             .track_scroll(&self.scroll)
                             .child(
                                 page_column()

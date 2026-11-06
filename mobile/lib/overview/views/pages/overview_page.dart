@@ -22,6 +22,7 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_empty_state.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_menu.dart';
 import '../../../core/views/widgets/kanso_page.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
@@ -241,13 +242,15 @@ class _Body extends StatelessWidget {
     }
     return LayoutBuilder(
       builder: (context, box) => KansoSwipeHost(
-        child: ListView(
-          padding: overviewPagePadding(
-            box.maxWidth,
-          ).add(const EdgeInsets.only(bottom: overviewBottomSpace)),
-          children: isWeek
-              ? _weekChildren(context, state, week!)
-              : _todayChildren(context, state, today!),
+        child: KansoListScrollbar(
+          child: ListView(
+            padding: overviewPagePadding(
+              box.maxWidth,
+            ).add(const EdgeInsets.only(bottom: overviewBottomSpace)),
+            children: isWeek
+                ? _weekChildren(context, state, week!)
+                : _todayChildren(context, state, today!),
+          ),
         ),
       ),
     );

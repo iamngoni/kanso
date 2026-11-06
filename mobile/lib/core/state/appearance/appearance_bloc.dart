@@ -116,6 +116,8 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
               : Future<void>.value(),
         AppearanceDiagramRendererChangedEvent(:final renderer) =>
           _onDiagramRendererChanged(renderer, emit),
+        AppearanceScrollbarVisibilityChangedEvent(:final always) =>
+          _onScrollbarVisibilityChanged(always, emit),
         AppearanceThemeChangedEvent(:final id) => _onThemeChanged(id, emit),
       },
       transformer: sequential(),
@@ -187,6 +189,7 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
         previewTextSize: preferences.previewTextSize,
         interfaceTextSize: preferences.interfaceTextSize,
         diagramRenderer: preferences.diagramRenderer,
+        alwaysShowScrollbars: preferences.alwaysShowScrollbars,
         status: loaded.isRight() && shown.complete && icons != null
             ? AppearanceStatus.ready
             : AppearanceStatus.failed,
@@ -287,12 +290,7 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
     String family,
     Emitter<AppearanceState> emit,
   ) async {
-    emit(
-      state.copyWith(
-        googleFontLoading: true,
-        googleFontError: null,
-      ),
-    );
+    emit(state.copyWith(googleFontLoading: true, googleFontError: null));
     final result = await _googleFonts?.load(family);
     if (result == null || result.isLeft()) {
       final offline =
@@ -333,6 +331,16 @@ class AppearanceBloc extends Bloc<AppearanceEvent, AppearanceState> {
     await _themes.setDiagramRenderer(renderer);
     await _preferences.update(
       (current) => current.copyWith(diagramRenderer: renderer),
+    );
+  }
+
+  Future<void> _onScrollbarVisibilityChanged(
+    bool always,
+    Emitter<AppearanceState> emit,
+  ) async {
+    emit(state.copyWith(alwaysShowScrollbars: always));
+    await _preferences.update(
+      (current) => current.copyWith(alwaysShowScrollbars: always),
     );
   }
 

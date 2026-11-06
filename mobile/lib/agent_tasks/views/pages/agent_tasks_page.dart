@@ -19,6 +19,7 @@ import '../../../core/views/widgets/kanso_check_row.dart';
 import '../../../core/views/widgets/kanso_dialog.dart';
 import '../../../core/views/widgets/kanso_empty_state.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_page.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sheet_group.dart';
@@ -149,87 +150,91 @@ class _BodyState extends State<_Body> {
               title: l10n.agentTasksTitle,
             ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(KansoSpacing.md),
-                children: <Widget>[
-                  Text(
-                    l10n.agentTasksGoalLabel,
-                    style: context.typography.meta.copyWith(
-                      color: colors.textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: KansoSpacing.xxs),
-                  KansoTextField(
-                    controller: _goal,
-                    hint: l10n.agentTasksGoalHint,
-                    minLines: 2,
-                    maxLines: 4,
-                  ),
-                  if (widget.noteIds.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: KansoSpacing.xxs),
+              child: KansoListScrollbar(
+                child: ListView(
+                  padding: const EdgeInsets.all(KansoSpacing.md),
+                  children: <Widget>[
                     Text(
-                      l10n.agentTasksChosenNotes(widget.noteIds.length),
+                      l10n.agentTasksGoalLabel,
                       style: context.typography.meta.copyWith(
                         color: colors.textMuted,
                       ),
                     ),
-                  ],
-                  const SizedBox(height: KansoSpacing.xs),
-                  KansoSettingsRow(
-                    label: l10n.agentTasksNewNotesIn,
-                    value: _bookName ?? l10n.agentTasksInbox,
-                    chevron: true,
-                    onTap: () => _pickBook(context),
-                  ),
-                  const SizedBox(height: KansoSpacing.sm),
-                  KansoButton(
-                    label: l10n.agentTasksStart,
-                    onPressed: state.starting
-                        ? null
-                        : () => unawaited(_send(context)),
-                  ),
-                  const SizedBox(height: KansoSpacing.md),
-                  if (trouble != null)
-                    Center(
-                      child: AgentTroubleCard(
-                        message: trouble,
-                        onTryAgain: () {
-                          bloc.add(const AgentTasksEvent.troubleCleared());
-                          if (_lastGoal.isNotEmpty) {
-                            bloc.add(
-                              AgentTasksEvent.goalSent(
-                                _lastGoal,
-                                noteIds: widget.noteIds,
-                                newNoteBook: _bookId,
-                                confirmedAll: _lastConfirmed,
-                              ),
-                            );
-                          }
-                        },
-                        onSettings: () => context.push(KansoRoutes.settingsAi),
-                      ),
-                    )
-                  else if (state.tasks.isEmpty)
-                    KansoEmptyState(
-                      title: l10n.agentTasksEmptyTitle,
-                      message: l10n.agentTasksEmptyMessage,
+                    const SizedBox(height: KansoSpacing.xxs),
+                    KansoTextField(
+                      controller: _goal,
+                      hint: l10n.agentTasksGoalHint,
+                      minLines: 2,
+                      maxLines: 4,
                     ),
-                  for (final task in state.tasks.reversed)
-                    AgentTaskTile(
-                      key: ValueKey<int>(task.id),
-                      task: task,
-                      onStop: () => bloc.add(AgentTasksEvent.stopped(task.id)),
-                      onDismiss: () =>
-                          bloc.add(AgentTasksEvent.dismissed(task.id)),
-                      onReply: (text) =>
-                          bloc.add(AgentTasksEvent.replied(task.id, text)),
-                      onReview: () => Navigator.of(context).push<void>(
-                        MaterialPageRoute<void>(
-                          builder: (_) => AgentReviewPage(task: task.id),
+                    if (widget.noteIds.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: KansoSpacing.xxs),
+                      Text(
+                        l10n.agentTasksChosenNotes(widget.noteIds.length),
+                        style: context.typography.meta.copyWith(
+                          color: colors.textMuted,
                         ),
                       ),
+                    ],
+                    const SizedBox(height: KansoSpacing.xs),
+                    KansoSettingsRow(
+                      label: l10n.agentTasksNewNotesIn,
+                      value: _bookName ?? l10n.agentTasksInbox,
+                      chevron: true,
+                      onTap: () => _pickBook(context),
                     ),
-                ],
+                    const SizedBox(height: KansoSpacing.sm),
+                    KansoButton(
+                      label: l10n.agentTasksStart,
+                      onPressed: state.starting
+                          ? null
+                          : () => unawaited(_send(context)),
+                    ),
+                    const SizedBox(height: KansoSpacing.md),
+                    if (trouble != null)
+                      Center(
+                        child: AgentTroubleCard(
+                          message: trouble,
+                          onTryAgain: () {
+                            bloc.add(const AgentTasksEvent.troubleCleared());
+                            if (_lastGoal.isNotEmpty) {
+                              bloc.add(
+                                AgentTasksEvent.goalSent(
+                                  _lastGoal,
+                                  noteIds: widget.noteIds,
+                                  newNoteBook: _bookId,
+                                  confirmedAll: _lastConfirmed,
+                                ),
+                              );
+                            }
+                          },
+                          onSettings: () =>
+                              context.push(KansoRoutes.settingsAi),
+                        ),
+                      )
+                    else if (state.tasks.isEmpty)
+                      KansoEmptyState(
+                        title: l10n.agentTasksEmptyTitle,
+                        message: l10n.agentTasksEmptyMessage,
+                      ),
+                    for (final task in state.tasks.reversed)
+                      AgentTaskTile(
+                        key: ValueKey<int>(task.id),
+                        task: task,
+                        onStop: () =>
+                            bloc.add(AgentTasksEvent.stopped(task.id)),
+                        onDismiss: () =>
+                            bloc.add(AgentTasksEvent.dismissed(task.id)),
+                        onReply: (text) =>
+                            bloc.add(AgentTasksEvent.replied(task.id, text)),
+                        onReview: () => Navigator.of(context).push<void>(
+                          MaterialPageRoute<void>(
+                            builder: (_) => AgentReviewPage(task: task.id),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ],

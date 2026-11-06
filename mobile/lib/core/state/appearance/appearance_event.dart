@@ -77,6 +77,11 @@ sealed class AppearanceEvent with _$AppearanceEvent {
     DiagramRenderer renderer,
   ) = AppearanceDiagramRendererChangedEvent;
 
+  /// Whether overflowing list scrollbars stay visible.
+  const factory AppearanceEvent.scrollbarVisibilityChanged({
+    required bool always,
+  }) = AppearanceScrollbarVisibilityChangedEvent;
+
   /// The theme [id] installed from the gallery was installed again (updated)
   /// or removed: a theme in use is drawn again from its new tokens, and one
   /// that is gone is replaced, in any slot that used it, by Kanso's own.

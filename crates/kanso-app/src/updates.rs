@@ -18,6 +18,7 @@
 //! state, words and views. Without a transport (tests and snapshots),
 //! nothing reaches the network.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -1098,7 +1099,7 @@ pub fn open_notes(notes: ReleaseNotes, kind: SheetKind, window: &mut Window, cx:
                 div()
                     .id("update-notes")
                     .max_h(px(NOTES_HEIGHT))
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .border_1()
                     .border_color(colors.divider)
                     .rounded(px(8.))

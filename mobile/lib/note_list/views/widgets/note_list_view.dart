@@ -19,6 +19,7 @@ import '../../../core/utils/day_grouping.dart';
 import '../../../core/utils/list_labels.dart';
 import '../../../core/views/widgets/kanso_divider.dart';
 import '../../../core/views/widgets/kanso_large_title.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_refresh_control.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../../core/views/widgets/kanso_swipe_host.dart';
@@ -89,83 +90,88 @@ class NoteListView extends StatelessWidget {
       for (var at = 0; at < entries.length; at++) keyOf(entries[at]): at,
     };
     return KansoSwipeHost(
-      child: CustomScrollView(
-        physics: signedIn ? const AlwaysScrollableScrollPhysics() : null,
-        slivers: <Widget>[
-          if (signedIn) KansoRefreshControl(onRefresh: () => syncNow(context)),
-          if (largeTitle case final title?)
-            SliverToBoxAdapter(
-              child: KansoLargeTitle(title: title, subtitle: largeSubtitle),
-            ),
-          // An update that changed something to fix: under the title, so
-          // it scrolls away with it.
-          const SliverToBoxAdapter(child: NoticeCardHost()),
-          // The notebook's card, above its first note.
-          if (state.place case ListPlace_Notebook(:final id))
-            SliverToBoxAdapter(
-              child: NotebookHomeCard(
-                key: ValueKey<String>('home-card-$id'),
-                bookId: id,
-                beside: beside,
+      child: KansoListScrollbar(
+        child: CustomScrollView(
+          physics: signedIn ? const AlwaysScrollableScrollPhysics() : null,
+          slivers: <Widget>[
+            if (signedIn)
+              KansoRefreshControl(onRefresh: () => syncNow(context)),
+            if (largeTitle case final title?)
+              SliverToBoxAdapter(
+                child: KansoLargeTitle(title: title, subtitle: largeSubtitle),
+              ),
+            // An update that changed something to fix: under the title, so
+            // it scrolls away with it.
+            const SliverToBoxAdapter(child: NoticeCardHost()),
+            // The notebook's card, above its first note.
+            if (state.place case ListPlace_Notebook(:final id))
+              SliverToBoxAdapter(
+                child: NotebookHomeCard(
+                  key: ValueKey<String>('home-card-$id'),
+                  bookId: id,
+                  beside: beside,
+                ),
+              ),
+            SliverPadding(
+              padding: EdgeInsets.only(
+                top: KansoSpacing.xxs,
+                bottom:
+                    MediaQuery.paddingOf(context).bottom +
+                    KansoSpacing.md +
+                    bottomClearance,
+              ),
+              sliver: SliverList.builder(
+                itemCount: entries.length,
+                findChildIndexCallback: (key) =>
+                    key is ValueKey<Object> ? positions[key.value] : null,
+                itemBuilder: (context, at) {
+                  final entry = entries[at];
+                  return switch (entry) {
+                    HeaderEntry(:final bucket) => KansoSectionHeader(
+                      key: ValueKey<Object>(bucket),
+                      label: bucketLabel(l10n, bucket, today: today),
+                    ),
+                    NoteEntry(:final row) => Column(
+                      key: ValueKey<Object>(row.id),
+                      children: <Widget>[
+                        if (at > 0 && entries[at - 1] is NoteEntry)
+                          const KansoDivider(indent: KansoSpacing.md),
+                        NoteListRow(
+                          row: row,
+                          index: index,
+                          time: rowTimeLabel(
+                            l10n,
+                            byCreated ? row.createdMs : row.updatedMs,
+                            now: now,
+                          ),
+                          open: row.id == openNoteId,
+                          checked: state.selecting
+                              ? state.selected.contains(row.id)
+                              : null,
+                          onTap: () => state.selecting
+                              ? bloc.add(NoteListEvent.selectionToggled(row.id))
+                              : openNote(
+                                  context,
+                                  row.id,
+                                  inNewTab: tabs && newTabKeyHeld(),
+                                ),
+                          onOpenInNewTab: tabs && !state.selecting
+                              ? () => openNote(context, row.id, inNewTab: true)
+                              : null,
+                          onLongPress: () => state.selecting
+                              ? bloc.add(NoteListEvent.selectionToggled(row.id))
+                              : bloc.add(
+                                  NoteListEvent.selectionStarted(row.id),
+                                ),
+                        ),
+                      ],
+                    ),
+                  };
+                },
               ),
             ),
-          SliverPadding(
-            padding: EdgeInsets.only(
-              top: KansoSpacing.xxs,
-              bottom:
-                  MediaQuery.paddingOf(context).bottom +
-                  KansoSpacing.md +
-                  bottomClearance,
-            ),
-            sliver: SliverList.builder(
-              itemCount: entries.length,
-              findChildIndexCallback: (key) =>
-                  key is ValueKey<Object> ? positions[key.value] : null,
-              itemBuilder: (context, at) {
-                final entry = entries[at];
-                return switch (entry) {
-                  HeaderEntry(:final bucket) => KansoSectionHeader(
-                    key: ValueKey<Object>(bucket),
-                    label: bucketLabel(l10n, bucket, today: today),
-                  ),
-                  NoteEntry(:final row) => Column(
-                    key: ValueKey<Object>(row.id),
-                    children: <Widget>[
-                      if (at > 0 && entries[at - 1] is NoteEntry)
-                        const KansoDivider(indent: KansoSpacing.md),
-                      NoteListRow(
-                        row: row,
-                        index: index,
-                        time: rowTimeLabel(
-                          l10n,
-                          byCreated ? row.createdMs : row.updatedMs,
-                          now: now,
-                        ),
-                        open: row.id == openNoteId,
-                        checked: state.selecting
-                            ? state.selected.contains(row.id)
-                            : null,
-                        onTap: () => state.selecting
-                            ? bloc.add(NoteListEvent.selectionToggled(row.id))
-                            : openNote(
-                                context,
-                                row.id,
-                                inNewTab: tabs && newTabKeyHeld(),
-                              ),
-                        onOpenInNewTab: tabs && !state.selecting
-                            ? () => openNote(context, row.id, inNewTab: true)
-                            : null,
-                        onLongPress: () => state.selecting
-                            ? bloc.add(NoteListEvent.selectionToggled(row.id))
-                            : bloc.add(NoteListEvent.selectionStarted(row.id)),
-                      ),
-                    ],
-                  ),
-                };
-              },
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

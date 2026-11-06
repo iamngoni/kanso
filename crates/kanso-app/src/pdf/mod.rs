@@ -34,6 +34,7 @@ mod prefetch;
 mod session;
 mod texture;
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -1316,7 +1317,7 @@ impl PdfReader {
                     )
                     .child(column),
             )
-            .child(Scrollbar::vertical(&self.scroll));
+            .child(Scrollbar::vertical(&self.scroll).mode(crate::themes::list_scrollbar_mode(cx)));
 
         // The highlights panel floats over the pages' right edge: it must not
         // squeeze the pages out of a narrow pane.
@@ -1420,7 +1421,7 @@ impl PdfReader {
                 div()
                     .id("pdf-rail-scroll")
                     .size_full()
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .track_scroll(&self.rail_scroll)
                     .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
                     .child(column),

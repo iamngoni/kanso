@@ -6,6 +6,7 @@
 //! is left alone and reported. "Undo replace" puts the notes back, unless
 //! they've been edited since. Trashed notes are only touched when asked.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -472,7 +473,7 @@ impl Render for ReplaceView {
                 div()
                     .id("replace-preview")
                     .h(px(PREVIEW_HEIGHT))
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .rounded(px(8.))
                     .border_1()
                     .border_color(colors.divider)

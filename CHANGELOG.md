@@ -7,6 +7,7 @@ heading compares the release with the one before.
 
 ### New
 
+- **desktop/mobile:** Choose transient or always-visible scrollbars for overflowing lists and panels ([#327](https://github.com/iamngoni/kanso/issues/327))
 - **app:** `kanso update` checks for a newer Kanso and installs it from the command line, without opening the app or the library, so it works even when the app won't start. It uses the same signed feed and checks as Settings › Updates. `--check` only reports (exit code 10 when there's a newer version); `--yes` installs without asking.
 - **app/mobile:** Overview brings Today and This week together as Kanso's home, with on-device system-calendar support ([#240](https://github.com/iamngoni/kanso/issues/240))
 

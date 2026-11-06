@@ -2118,7 +2118,10 @@ impl Render for Palette {
                                     .h_full()
                                     .flex_none()
                                     .child(self.render_list(window, cx))
-                                    .child(Scrollbar::vertical(&self.scroll)),
+                                    .child(
+                                        Scrollbar::vertical(&self.scroll)
+                                            .mode(crate::themes::list_scrollbar_mode(cx)),
+                                    ),
                             )
                             .child(div().w(px(1.)).h_full().bg(colors.divider))
                             .child(

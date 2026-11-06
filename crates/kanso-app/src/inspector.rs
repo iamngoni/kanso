@@ -16,6 +16,7 @@ mod comments;
 #[path = "inspector_properties.rs"]
 mod properties_section;
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::sync::Arc;
 
 use gpui_kit::assets::IconName as Lucide;
@@ -528,7 +529,7 @@ impl Inspector {
         v_flex()
             .id("outline")
             .size_full()
-            .overflow_y_scroll()
+            .overflow_y_scrollbar()
             .track_scroll(&self.scroll)
             .px(px(PAD_X))
             .pb(px(12.))
@@ -660,7 +661,7 @@ impl Inspector {
         let mut list = v_flex()
             .id("backlinks")
             .size_full()
-            .overflow_y_scroll()
+            .overflow_y_scrollbar()
             .track_scroll(&self.scroll)
             .px(px(PAD_X))
             .pb(px(12.));
@@ -941,7 +942,7 @@ impl Inspector {
                 return v_flex()
                     .id("related")
                     .size_full()
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .px(px(PAD_X))
                     .pb(px(12.))
                     .child(about)
@@ -968,7 +969,7 @@ impl Inspector {
         v_flex()
             .id("related")
             .size_full()
-            .overflow_y_scroll()
+            .overflow_y_scrollbar()
             .track_scroll(&self.scroll)
             .px(px(PAD_X))
             .pb(px(12.))

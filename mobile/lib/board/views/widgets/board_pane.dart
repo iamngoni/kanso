@@ -20,6 +20,7 @@ import '../../../core/utils/place_labels.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_empty_state.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_message_card.dart';
 import '../../../core/views/widgets/kanso_notice.dart';
 import '../../../core/views/widgets/kanso_segment.dart';
@@ -285,27 +286,29 @@ class _Columns extends StatelessWidget {
       BoardPane.columnWidth,
       MediaQuery.sizeOf(context).width * 0.8,
     );
-    return ListView.separated(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(
-        horizontal: KansoSpacing.md,
-        vertical: KansoSpacing.xs,
+    return KansoListScrollbar(
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(
+          horizontal: KansoSpacing.md,
+          vertical: KansoSpacing.xs,
+        ),
+        itemCount: data.columns.length,
+        separatorBuilder: (_, _) => const SizedBox(width: KansoSpacing.sm),
+        itemBuilder: (context, index) {
+          return SizedBox(
+            width: width,
+            child: BoardColumnView(
+              column: data.columns[index],
+              draggable: draggable,
+              onOpen: onOpen,
+              onMove: onMove,
+              onDrop: onDrop,
+              onToggle: onToggle,
+            ),
+          );
+        },
       ),
-      itemCount: data.columns.length,
-      separatorBuilder: (_, _) => const SizedBox(width: KansoSpacing.sm),
-      itemBuilder: (context, index) {
-        return SizedBox(
-          width: width,
-          child: BoardColumnView(
-            column: data.columns[index],
-            draggable: draggable,
-            onOpen: onOpen,
-            onMove: onMove,
-            onDrop: onDrop,
-            onToggle: onToggle,
-          ),
-        );
-      },
     );
   }
 }

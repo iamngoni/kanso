@@ -4,6 +4,7 @@
 //! widens nor breaks it. A locked notebook is never offered and never in
 //! scope, whatever the settings say; the server decides that again.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::{BTreeSet, HashMap};
 
 use gpui_kit::component::WindowExt as _;
@@ -235,7 +236,7 @@ impl Render for ScopeSheet {
                 v_flex()
                     .id("agent-scope-books")
                     .max_h(px(280.))
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .when(all, |el| el.opacity(0.55))
                     .children(rows),
             )

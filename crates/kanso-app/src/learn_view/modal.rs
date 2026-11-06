@@ -54,7 +54,7 @@ impl LearnView {
                     .id("learn-body")
                     .w_full()
                     .max_h(cap)
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .child(body),
             )
             .into_any_element()

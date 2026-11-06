@@ -17,6 +17,7 @@
 //! close enough. Locked notes and notes tagged `#ai-exclude` are never
 //! searched from or shown.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -858,7 +859,7 @@ impl Render for Resurface {
             .flex_none()
             .w(px(MARGIN_WIDTH))
             .h_full()
-            .overflow_y_scroll()
+            .overflow_y_scrollbar()
             .pt(px(8.))
             .pr(px(10.))
             .pb(px(8.))
