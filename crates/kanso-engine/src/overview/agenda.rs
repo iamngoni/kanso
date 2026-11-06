@@ -50,6 +50,8 @@ pub fn order(a: &AgendaRow, b: &AgendaRow) -> Ordering {
         .then_with(|| a.free.cmp(&b.free))
         .then_with(|| a.context.cmp(&b.context))
         .then_with(|| a.due.cmp(&b.due))
+        .then_with(|| a.meeting.cmp(&b.meeting))
+        .then_with(|| a.event_details.cmp(&b.event_details))
         .then_with(|| a.end_min.cmp(&b.end_min))
         .then_with(|| a.is_loop.cmp(&b.is_loop))
 }
@@ -113,6 +115,7 @@ mod tests {
             meeting: None,
             color: String::new(),
             event: None,
+            event_details: None,
         }
     }
 

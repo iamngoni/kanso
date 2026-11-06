@@ -21,6 +21,7 @@ import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/application_error.dart';
 import '../../../core/models/data/browse_location.dart';
 import '../../../core/models/data/note_drag_data.dart';
+import '../../../core/models/repos/abs/digest_repository.dart';
 import '../../../core/models/repos/abs/renderer_repository.dart';
 import '../../../core/models/repos/abs/themes_repository.dart';
 import '../../../core/state/appearance/appearance_bloc.dart';
@@ -71,6 +72,27 @@ import 'outside_text.dart';
 import 'properties_section.dart';
 import 'remote_carets.dart';
 import 'word_goal_picker_sheet.dart';
+
+/// Counts the inserted Unicode characters between two editor snapshots.
+/// Replacements count their new text; deletions do not count as typing.
+int _insertedCharacters(String before, String after) {
+  final oldRunes = before.runes.toList(growable: false);
+  final newRunes = after.runes.toList(growable: false);
+  var prefix = 0;
+  while (prefix < oldRunes.length &&
+      prefix < newRunes.length &&
+      oldRunes[prefix] == newRunes[prefix]) {
+    prefix++;
+  }
+  var suffix = 0;
+  while (suffix < oldRunes.length - prefix &&
+      suffix < newRunes.length - prefix &&
+      oldRunes[oldRunes.length - suffix - 1] ==
+          newRunes[newRunes.length - suffix - 1]) {
+    suffix++;
+  }
+  return newRunes.length - prefix - suffix;
+}
 
 /// The open note's editor: the strips for a change made elsewhere or a
 /// failed save, the title, the properties, and the text, in one page that
@@ -184,6 +206,10 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
   late final AppLifecycleListener lifecycle;
   late final ValueNotifier<int> wordCount;
   Timer? wordCountTimer;
+  Timer? writingTimer;
+  String writingText = '';
+  String writingPrefix = '';
+  int writingChars = 0;
   EditorContext? lastContext;
 
   /// The note's comments, where the page has them.
@@ -293,6 +319,15 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
       noteId: note.state.noteId,
     );
     controller.addListener(keepPlace);
+    writingText = widget.snapshot.text;
+    final savedBody = note.state.note?.body ?? '';
+    if (savedBody.endsWith(writingText)) {
+      writingPrefix = savedBody.substring(
+        0,
+        savedBody.length - writingText.length,
+      );
+    }
+    controller.addListener(recordWriting);
     markReceiptRange();
     if (live) {
       startLive();
@@ -558,11 +593,15 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
 
   @override
   void dispose() {
+    recordWritingNow();
+    writingTimer?.cancel();
     markTimer?.cancel();
     lifecycle.dispose();
     editorExtras?.release(textTarget);
     textTarget.dispose();
-    controller.removeListener(keepPlace);
+    controller
+      ..removeListener(keepPlace)
+      ..removeListener(recordWriting);
     if (!note.isClosed) {
       final selection = controller.noteSelection;
       note.add(
@@ -585,6 +624,45 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
     stopLive();
     controller.dispose();
     super.dispose();
+  }
+
+  /// Records the current writing place at most once every ten seconds.
+  /// Deletes and cursor moves do not count as typing.
+  void recordWriting() {
+    final text = controller.noteText;
+    if (text == writingText) return;
+    writingChars += _insertedCharacters(writingText, text);
+    writingText = text;
+    if (writingChars == 0 || writingTimer != null) return;
+    writingTimer = Timer(const Duration(seconds: 10), recordWritingNow);
+  }
+
+  void recordWritingNow() {
+    writingTimer?.cancel();
+    writingTimer = null;
+    if (writingChars == 0 || readOnly || note.isClosed) return;
+    final selection = controller.noteSelection;
+    final offset = selection.isValid ? selection.extentOffset : 0;
+    final prefix = controller.noteText.substring(
+      0,
+      offset.clamp(0, controller.noteText.length),
+    );
+    final beforeCaret = prefix.split('\n');
+    final line = writingPrefix.split('\n').length - 1 + beforeCaret.length - 1;
+    final column = beforeCaret.last.runes.length;
+    final typed = writingChars;
+    writingChars = 0;
+    unawaited(
+      getIt<DigestRepository>()
+          .noteWriting(
+            noteId: note.state.noteId,
+            line: line,
+            column: column,
+            typedChars: typed,
+            body: '$writingPrefix${controller.noteText}',
+          )
+          .then((_) {}),
+    );
   }
 
   void onTitleChanged(String text) {

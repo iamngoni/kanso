@@ -115,6 +115,7 @@ abstract final class KansoRoutes {
   static const String settingsGeneral = '/settings/general';
   static const String settingsAppearance = '/settings/appearance';
   static const String settingsJournal = '/settings/journal';
+  static const String settingsCalendar = '/settings/calendar';
   static const String settingsDiscovery = '/settings/discovery';
   static const String settingsPrivacy = '/settings/privacy';
   static const String settingsAbout = '/settings/about';

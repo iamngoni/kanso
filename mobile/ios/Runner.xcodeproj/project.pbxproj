@@ -41,6 +41,7 @@
 		D93E4B8C90D029ED01B2380F /* CaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F088FED550A2CCD71B9EAD /* CaptureUITests.swift */; };
 		E284B9603BE8AADC6F58B4BA /* KansoWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DE68850E941F7AE9842B13EA /* KansoWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F1F2F3F4F5F60718293A4B5D /* KansoReminders.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F2F3F4F5F60718293A4B5C /* KansoReminders.swift */; };
+		A24000000000000000000002 /* KansoCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A24000000000000000000001 /* KansoCalendar.swift */; };
 		A11CE000000000000000000A /* VoiceDropManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000001 /* VoiceDropManifest.swift */; };
 		A11CE000000000000000000B /* VoiceDropManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000001 /* VoiceDropManifest.swift */; };
 		A11CE000000000000000000C /* VoiceCaptureState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11CE0000000000000000002 /* VoiceCaptureState.swift */; };
@@ -158,6 +159,7 @@
 		DE68850E941F7AE9842B13EA /* KansoWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = KansoWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDC18B638AAD36507F1F7BCD /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F1F2F3F4F5F60718293A4B5C /* KansoReminders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KansoReminders.swift; sourceTree = "<group>"; };
+		A24000000000000000000001 /* KansoCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KansoCalendar.swift; sourceTree = "<group>"; };
 		F539F99A22C0758280EEE66F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A11CE0000000000000000001 /* VoiceDropManifest.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceDropManifest.swift; sourceTree = "<group>"; };
 		A11CE0000000000000000002 /* VoiceCaptureState.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceCaptureState.swift; sourceTree = "<group>"; };
@@ -307,6 +309,7 @@
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				C7A5E0DE00000000000000A1 /* CrashDiagnostics.swift */,
 				F1F2F3F4F5F60718293A4B5C /* KansoReminders.swift */,
+				A24000000000000000000001 /* KansoCalendar.swift */,
 				A1B2C3D4E5F60718293A4B5C /* KansoFiles.swift */,
 				C7A5E0E000000000000000A1 /* NoteSceneDelegate.swift */,
 				C7A5E0DF00000000000000A1 /* NoteWindows.swift */,
@@ -604,6 +607,7 @@
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				C7A5E0DE00000000000000A2 /* CrashDiagnostics.swift in Sources */,
 				F1F2F3F4F5F60718293A4B5D /* KansoReminders.swift in Sources */,
+				A24000000000000000000002 /* KansoCalendar.swift in Sources */,
 				B1C2D3E4F5061728394A5B6C /* KansoFiles.swift in Sources */,
 				4FBC303DD28601A5DC00209F /* CaptureIntents.swift in Sources */,
 				B69D9DA81E62862DC1D2563F /* KansoLibraryLocation.swift in Sources */,

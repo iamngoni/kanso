@@ -314,7 +314,7 @@ return lockChanged();case _:
 
 class PdfReaderStartedEvent implements PdfReaderEvent {
   const PdfReaderStartedEvent({required this.noteId, required this.file, required this.name, this.page, this.highlight, this.dark = false});
-
+  
 
  final  String noteId;
  final  String file;
@@ -390,7 +390,7 @@ as bool,
 
 class PdfReaderPasswordSubmittedEvent implements PdfReaderEvent {
   const PdfReaderPasswordSubmittedEvent(this.password);
-
+  
 
  final  String password;
 
@@ -456,7 +456,7 @@ as String,
 
 class PdfReaderRetriedEvent implements PdfReaderEvent {
   const PdfReaderRetriedEvent();
-
+  
 
 
 
@@ -488,7 +488,7 @@ String toString() {
 
 class PdfReaderZoomChangedEvent implements PdfReaderEvent {
   const PdfReaderZoomChangedEvent(this.zoom);
-
+  
 
  final  PdfZoom zoom;
 
@@ -554,7 +554,7 @@ as PdfZoom,
 
 class PdfReaderInvertChangedEvent implements PdfReaderEvent {
   const PdfReaderInvertChangedEvent({required this.invert});
-
+  
 
  final  bool invert;
 
@@ -620,7 +620,7 @@ as bool,
 
 class PdfReaderDarkChangedEvent implements PdfReaderEvent {
   const PdfReaderDarkChangedEvent({required this.dark});
-
+  
 
  final  bool dark;
 
@@ -686,7 +686,7 @@ as bool,
 
 class PdfReaderPageChangedEvent implements PdfReaderEvent {
   const PdfReaderPageChangedEvent(this.page);
-
+  
 
  final  int page;
 
@@ -752,7 +752,7 @@ as int,
 
 class PdfReaderJumpToEvent implements PdfReaderEvent {
   const PdfReaderJumpToEvent(this.page);
-
+  
 
  final  int page;
 
@@ -818,7 +818,7 @@ as int,
 
 class PdfReaderWordSelectedEvent implements PdfReaderEvent {
   const PdfReaderWordSelectedEvent(this.page, this.x, this.y);
-
+  
 
  final  int page;
  final  double x;
@@ -888,7 +888,7 @@ as double,
 
 class PdfReaderLineSelectedEvent implements PdfReaderEvent {
   const PdfReaderLineSelectedEvent(this.page, this.x, this.y);
-
+  
 
  final  int page;
  final  double x;
@@ -958,7 +958,7 @@ as double,
 
 class PdfReaderSelectionExtendedEvent implements PdfReaderEvent {
   const PdfReaderSelectionExtendedEvent(this.page, this.x, this.y, {required this.fromStart});
-
+  
 
  final  int page;
  final  double x;
@@ -1030,7 +1030,7 @@ as bool,
 
 class PdfReaderSelectionClearedEvent implements PdfReaderEvent {
   const PdfReaderSelectionClearedEvent();
-
+  
 
 
 
@@ -1062,7 +1062,7 @@ String toString() {
 
 class PdfReaderSearchChangedEvent implements PdfReaderEvent {
   const PdfReaderSearchChangedEvent(this.query);
-
+  
 
  final  String query;
 
@@ -1128,7 +1128,7 @@ as String,
 
 class PdfReaderSearchRunEvent implements PdfReaderEvent {
   const PdfReaderSearchRunEvent(this.query);
-
+  
 
  final  String query;
 
@@ -1194,7 +1194,7 @@ as String,
 
 class PdfReaderSearchNextEvent implements PdfReaderEvent {
   const PdfReaderSearchNextEvent();
-
+  
 
 
 
@@ -1226,7 +1226,7 @@ String toString() {
 
 class PdfReaderSearchPreviousEvent implements PdfReaderEvent {
   const PdfReaderSearchPreviousEvent();
-
+  
 
 
 
@@ -1258,7 +1258,7 @@ String toString() {
 
 class PdfReaderSearchClosedEvent implements PdfReaderEvent {
   const PdfReaderSearchClosedEvent();
-
+  
 
 
 
@@ -1290,7 +1290,7 @@ String toString() {
 
 class PdfReaderHighlightRequestedEvent implements PdfReaderEvent {
   const PdfReaderHighlightRequestedEvent({required this.color, required this.quote});
-
+  
 
  final  String color;
  final  bool quote;
@@ -1358,7 +1358,7 @@ as bool,
 
 class PdfReaderInkDrawingChangedEvent implements PdfReaderEvent {
   const PdfReaderInkDrawingChangedEvent(this.enabled);
-
+  
 
  final  bool enabled;
 
@@ -1424,7 +1424,7 @@ as bool,
 
 class PdfReaderInkColorChangedEvent implements PdfReaderEvent {
   const PdfReaderInkColorChangedEvent(this.color);
-
+  
 
  final  String color;
 
@@ -1490,7 +1490,7 @@ as String,
 
 class PdfReaderInkWidthChangedEvent implements PdfReaderEvent {
   const PdfReaderInkWidthChangedEvent(this.width);
-
+  
 
  final  double width;
 
@@ -1556,7 +1556,7 @@ as double,
 
 class PdfReaderInkStrokeRequestedEvent implements PdfReaderEvent {
   const PdfReaderInkStrokeRequestedEvent({required this.page, required this.stroke});
-
+  
 
  final  int page;
  final  PdfInkStroke stroke;
@@ -1624,7 +1624,7 @@ as PdfInkStroke,
 
 class PdfReaderHighlightFocusedEvent implements PdfReaderEvent {
   const PdfReaderHighlightFocusedEvent(this.id);
-
+  
 
  final  String? id;
 
@@ -1690,7 +1690,7 @@ as String?,
 
 class PdfReaderNoticeDismissedEvent implements PdfReaderEvent {
   const PdfReaderNoticeDismissedEvent();
-
+  
 
 
 
@@ -1722,7 +1722,7 @@ String toString() {
 
 class PdfReaderLockChangedEvent implements PdfReaderEvent {
   const PdfReaderLockChangedEvent();
-
+  
 
 
 
@@ -2046,7 +2046,7 @@ return $default(_that.noteId,_that.file,_that.name,_that.status,_that.info,_that
 
 class _PdfReaderState implements PdfReaderState {
   const _PdfReaderState({this.noteId = '', this.file = '', this.name = '', this.status = PdfReaderStatus.opening, this.info, this.marks, this.declined, this.error, this.marksError, this.zoom = PdfZoom.fitWidth, this.invert = false, this.page = 1, this.jump = 0, this.selection, this.query = '', this.found, this.hit = 0, this.adding = false, this.inkDrawing = false, this.inkColor = '#1e1e1e', this.inkWidth = 4, this.addingInk = false, this.passwordWrong = false, this.focusHighlight, this.notice});
-
+  
 
 /// The note the attachment belongs to.
 @override@JsonKey() final  String noteId;

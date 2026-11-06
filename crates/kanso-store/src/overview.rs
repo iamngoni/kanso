@@ -69,6 +69,15 @@ pub struct RevisitRow {
     pub why: String,
 }
 
+/// A note linked to one event instance, or to its whole recurring series
+/// when `instance_start` is empty.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MeetingNote {
+    pub note_id: String,
+    pub uid: String,
+    pub instance_start: Option<i64>,
+}
+
 /// The session in progress or last finished, as stored.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Session {
@@ -184,6 +193,30 @@ pub(crate) fn drop_snapshot(conn: &Connection) -> Result<()> {
 }
 
 impl Store {
+    /// The event links found in live, readable notes. The `note_events`
+    /// index is rebuilt from front matter and updated with each note write.
+    pub fn meeting_notes(&self) -> Result<Vec<MeetingNote>> {
+        self.read(|conn| {
+            let sql = format!(
+                "SELECT e.note_id, e.uid, e.instance_start
+                 FROM note_events e JOIN docs d ON d.id = e.note_id
+                 WHERE d.type = 'note' AND d.deleted = 0 AND IFNULL(d.book_id, '') != 'trash'
+                   AND NOT {}
+                 ORDER BY e.uid, e.instance_start DESC, d.updated_at DESC",
+                note_locked!("d.")
+            );
+            let mut statement = conn.prepare(&sql)?;
+            let rows = statement.query_map([], |row| {
+                Ok(MeetingNote {
+                    note_id: row.get(0)?,
+                    uid: row.get(1)?,
+                    instance_start: row.get(2)?,
+                })
+            })?;
+            Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+        })
+    }
+
     /// Records typing in note `id`: where the caret is (`line`, `col`, in
     /// characters), how many characters were typed since the last call, and
     /// the hash of the paragraph's first words. Callers throttle to once
@@ -228,6 +261,20 @@ impl Store {
         limit: usize,
     ) -> Result<Vec<WritingPlace>> {
         let from = now - writing::STALE_DAYS * 86_400_000;
+        let has_eligible_session = self.read(|conn| {
+            Ok(conn.query_row(
+                "SELECT EXISTS(
+                    SELECT 1 FROM writing_places
+                    WHERE session_end >= ?1 AND session_end > hidden_at
+                      AND (session_chars >= ?2 OR session_end - session_start >= ?3)
+                )",
+                params![from, writing::MIN_CHARS, writing::MIN_MS],
+                |row| row.get::<_, bool>(0),
+            )?)
+        })?;
+        if !has_eligible_session {
+            return Ok(Vec::new());
+        }
         let sql = format!(
             "SELECT w.note_id, d.title, d.book_id, w.line, w.col, w.anchor_hash, w.session_end,
                     w.source, IFNULL({body}, '')
@@ -544,6 +591,16 @@ impl Store {
         to: &str,
         limit: usize,
     ) -> Result<Vec<RevisitRow>> {
+        let has_revisit = self.read(|conn| {
+            Ok(conn.query_row(
+                "SELECT EXISTS(SELECT 1 FROM note_revisit WHERE on_day > ?1 AND on_day <= ?2)",
+                params![after.unwrap_or(""), to],
+                |row| row.get::<_, bool>(0),
+            )?)
+        })?;
+        if !has_revisit {
+            return Ok(Vec::new());
+        }
         let sql = format!(
             "SELECT r.note_id, d.title, d.book_id, r.on_day, r.set_at, r.why
              FROM note_revisit r JOIN docs d ON d.id = r.note_id

@@ -38,6 +38,12 @@ pub struct OverviewAgendaRow {
     pub color: String,
     /// The meeting note this event links to, or empty.
     pub meeting_note_id: String,
+    /// `this`, `series`, or `last` for the linked event note.
+    pub meeting_which: String,
+    /// The local day of the prior meeting note, when `meeting_which` is `last`.
+    pub meeting_day: String,
+    /// The local system-calendar event as JSON, used to create a meeting note.
+    pub event_json: String,
 }
 
 /// Which List.

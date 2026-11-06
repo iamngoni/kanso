@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::base::text::{MarkdownExtensions, TextView};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
+use gpui_kit::component::menu::{ContextMenuExt as _, DropdownMenu as _, PopupMenuItem};
 use gpui_kit::component::{ActiveTheme as _, Icon, Sizable as _, StyledExt as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
@@ -183,6 +183,13 @@ impl DigestView {
         opts.model = store.embedding_model().ok().flatten();
         opts.agent = agent_items(cx);
         let task = cx.background_executor().spawn(async move {
+            #[cfg(target_os = "macos")]
+            {
+                opts.events = crate::system_calendar_macos::events(
+                    now.utc_ms.saturating_sub(7 * 86_400_000),
+                    now.utc_ms.saturating_add(21 * 86_400_000),
+                );
+            }
             let today = overview::today(&store, now, &opts)?;
             overview::save_snapshot(&store, &today).ok();
             let week = if want_week {
@@ -792,6 +799,7 @@ impl DigestView {
                     let open = menu_view.clone();
                     let save = menu_view.clone();
                     let settings = menu_view.clone();
+                    let calendar_settings = menu_view.clone();
                     let mut menu = menu.item(PopupMenuItem::new("Open Today's Note").on_click(
                         move |_, _, cx| {
                             open.update(cx, |_, cx| cx.emit(DigestEvent::OpenToday))
@@ -806,14 +814,20 @@ impl DigestView {
                             },
                         ));
                     }
-                    menu.item(PopupMenuItem::new("Overview Settings…").on_click(
-                        move |_, window, cx| {
+                    menu.item(
+                        PopupMenuItem::new("Calendar Settings…").on_click(move |_, _, cx| {
+                            calendar_settings
+                                .update(cx, |_, cx| cx.emit(DigestEvent::OpenCalendarSettings))
+                                .ok();
+                        }),
+                    )
+                    .item(
+                        PopupMenuItem::new("Overview Settings…").on_click(move |_, _, cx| {
                             settings
                                 .update(cx, |_, cx| cx.emit(DigestEvent::OpenSettings))
                                 .ok();
-                            let _ = window;
-                        },
-                    ))
+                        }),
+                    )
                 }),
         );
         h_flex()
@@ -1371,9 +1385,15 @@ impl DigestView {
             };
         let open = row.clone();
         let meeting_note = row.meeting.clone();
+        let event_details = row.event_details.clone();
+        let new_meeting_note = is_event
+            && meeting_note
+                .as_ref()
+                .is_none_or(|meeting| meeting.which != "this");
+        let create_for = row.clone();
         let hang = if wide { -HANG } else { 0. };
         let gutter_w = if wide { 64. } else { 48. };
-        div()
+        let row_view = div()
             .id(id)
             .group(group)
             .relative()
@@ -1438,6 +1458,10 @@ impl DigestView {
                                 .text_color(colors.link)
                                 .child(if meeting.locked {
                                     "Meeting note (locked)".to_owned()
+                                } else if meeting.which == "series" {
+                                    "Series note".to_owned()
+                                } else if meeting.which == "last" {
+                                    format!("Last time: {}", meeting.day)
                                 } else {
                                     "Meeting note".to_owned()
                                 })
@@ -1447,12 +1471,150 @@ impl DigestView {
                                     this.open_row(&note, 0, cx);
                                 })),
                         )
+                    })
+                    .when(new_meeting_note, |el| {
+                        el.child(
+                            div()
+                                .id(SharedString::from(format!("new-meeting-{}", row.key)))
+                                .flex_none()
+                                .self_center()
+                                .text_size(px(12.5))
+                                .text_color(colors.link)
+                                .child("New meeting note")
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    cx.stop_propagation();
+                                    this.create_meeting_note(&create_for, cx);
+                                })),
+                        )
                     }),
             )
             .on_click(cx.listener(move |this, _, _, cx| {
                 this.open_row(&open.note_id, open.line, cx);
-            }))
-            .into_any_element()
+            }));
+        if let Some(event) = event_details {
+            let open_at = event.start;
+            let conference_url = event.conference_url.clone();
+            let calendar_id = event.calendar_id.clone();
+            let weak = cx.entity().downgrade();
+            row_view
+                .context_menu(move |menu, _, _| {
+                    let event_to_link = event.clone();
+                    let link_view = weak.clone();
+                    let mut menu =
+                        menu.item(PopupMenuItem::new("Open in Calendar").on_click(
+                            move |_, _, cx| cx.open_url(&format!("calshow:{}", open_at / 1000)),
+                        ))
+                        .item(
+                            PopupMenuItem::new("Link to a note…").on_click(move |_, window, cx| {
+                                link_view
+                                    .update(cx, |this, cx| {
+                                        this.link_meeting_note(event_to_link.clone(), window, cx)
+                                    })
+                                    .ok();
+                            }),
+                        );
+                    if !conference_url.is_empty() {
+                        let url = conference_url.clone();
+                        menu = menu.item(PopupMenuItem::new("Copy meeting link").on_click(
+                            move |_, _, cx| {
+                                cx.write_to_clipboard(ClipboardItem::new_string(url.clone()));
+                            },
+                        ));
+                    }
+                    #[cfg(target_os = "macos")]
+                    {
+                        let calendar_id = calendar_id.clone();
+                        let hide_view = weak.clone();
+                        menu.item(PopupMenuItem::new("Hide this calendar").on_click(
+                            move |_, _, cx| {
+                                crate::system_calendar_macos::set_enabled(&calendar_id, false);
+                                hide_view
+                                    .update(cx, |this, cx| this.reload_overview(cx))
+                                    .ok();
+                            },
+                        ))
+                    }
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        let _ = (calendar_id, weak);
+                        menu
+                    }
+                })
+                .into_any_element()
+        } else {
+            row_view.into_any_element()
+        }
+    }
+
+    fn create_meeting_note(&mut self, row: &overview::AgendaRow, cx: &mut Context<Self>) {
+        let Some(event) = row.event_details.clone() else {
+            return;
+        };
+        match overview::create_meeting_note(&self.store, &event, now_of(cx).offset_ms, &row.context)
+        {
+            Ok(id) => self.open_row(&id, 0, cx),
+            Err(error) => cx.emit(DigestEvent::Notice(format!(
+                "Couldn't create the meeting note: {error}"
+            ))),
+        }
+    }
+
+    fn link_meeting_note(
+        &mut self,
+        event: overview::Event,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let store = self.store.clone();
+        let offset = now_of(cx).offset_ms;
+        let view = cx.entity().downgrade();
+        crate::dialogs::prompt_checked(
+            "Link meeting to a note",
+            "",
+            "Link",
+            window,
+            cx,
+            move |title_or_id, _window, cx| {
+                let exact_id = store
+                    .note(title_or_id.trim())
+                    .map_err(|error| error.to_string())?
+                    .map(|note| note.id);
+                let note_id = if let Some(id) = exact_id.filter(|id| {
+                    store
+                        .note_is_locked(id)
+                        .map(|locked| !locked)
+                        .unwrap_or(false)
+                }) {
+                    id
+                } else {
+                    let params = kanso_store::SearchParams {
+                        query: kanso_core::query::Query::parse(title_or_id.trim()),
+                        limit: Some(100),
+                        ..kanso_store::SearchParams::default()
+                    };
+                    let summaries = store
+                        .search_summaries(&params)
+                        .map_err(|error| error.to_string())?;
+                    let matches = summaries
+                        .iter()
+                        .filter(|note| note.title.eq_ignore_ascii_case(title_or_id.trim()))
+                        .collect::<Vec<_>>();
+                    match matches.as_slice() {
+                        [note] => note.id.clone(),
+                        [] => return Err("No readable note has that title or ID.".into()),
+                        _ => {
+                            return Err(
+                                "More than one note has that title; enter its note ID.".into()
+                            );
+                        }
+                    }
+                };
+                overview::link_meeting_note(&store, &note_id, &event, offset)
+                    .map_err(|error| error.to_string())?;
+                view.update(cx, |this, cx| this.reload_overview(cx)).ok();
+                Ok(())
+            },
+        );
     }
 
     fn list_block(&mut self, list: &overview::List, cx: &mut Context<Self>) -> Div {

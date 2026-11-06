@@ -59,6 +59,7 @@ class SettingsPage extends StatelessWidget {
                   KansoRoutes.settingsGeneral,
                   KansoRoutes.settingsAppearance,
                   KansoRoutes.settingsJournal,
+                  KansoRoutes.settingsCalendar,
                   KansoRoutes.settingsDiscovery,
                   KansoRoutes.settingsPrivacy,
                   KansoRoutes.settingsAbout,

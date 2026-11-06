@@ -14,6 +14,7 @@
 pub mod agenda;
 pub mod density;
 pub mod lede;
+mod meeting;
 pub mod model;
 mod past;
 mod snapshot;
@@ -21,6 +22,9 @@ pub mod summary;
 mod today;
 mod week;
 
+pub use meeting::{
+    create_note as create_meeting_note, link_note as link_meeting_note, links as meeting_links,
+};
 pub use model::*;
 pub use past::{dismiss_past, past_note};
 pub use snapshot::{load_snapshot, save_snapshot, snapshot_key};

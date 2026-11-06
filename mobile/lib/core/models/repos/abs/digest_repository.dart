@@ -38,6 +38,21 @@ abstract interface class DigestRepository {
   /// The week holding [from] (`YYYY-MM-DD`), or this week.
   Future<Either<ApplicationError, OverviewWeek>> overviewWeek({String? from});
 
+  /// Keeps the latest selected system-calendar events on this device.
+  Future<Either<ApplicationError, void>> putCalendarEvents(String eventsJson);
+
+  /// Creates a Journal note linked to one system-calendar event.
+  Future<Either<ApplicationError, String>> createMeetingNote({
+    required String eventJson,
+    required String context,
+  });
+
+  /// Links an existing note to one system-calendar event occurrence.
+  Future<Either<ApplicationError, void>> linkMeetingNote({
+    required String noteId,
+    required String eventJson,
+  });
+
   /// "Not now" on Pick up: hidden until the note is written in again.
   Future<Either<ApplicationError, void>> hidePlace(String noteId);
 

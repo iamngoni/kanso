@@ -3,8 +3,10 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/bridge/api/overview_types.dart';
@@ -12,6 +14,7 @@ import '../../core/models/repos/abs/ai_repository.dart';
 import '../../core/models/repos/abs/digest_repository.dart';
 import '../../core/models/repos/abs/library_repository.dart';
 import '../../core/utils/debounce.dart';
+import '../system_calendar.dart';
 
 /// Which of Overview's two views shows.
 enum OverviewPerspective { today, week }
@@ -204,6 +207,7 @@ class OverviewCubit extends Cubit<OverviewViewState> {
   /// Works the page out again.
   Future<void> refresh() async {
     final mine = ++_generation;
+    await _refreshSystemCalendarEvents();
     final today = await _digest.overviewToday();
     final wantWeek = state.perspective == OverviewPerspective.week;
     final week = wantWeek
@@ -219,6 +223,29 @@ class OverviewCubit extends Cubit<OverviewViewState> {
     );
     week?.fold((_) {}, (it) => next = next.copyWith(week: it));
     emit(next);
+  }
+
+  Future<void> _refreshSystemCalendarEvents() async {
+    final gateway = SystemCalendarGateway();
+    try {
+      await gateway.calendars();
+      final today = DateTime.now();
+      final start = DateTime(today.year, today.month, today.day);
+      final events = await gateway.events(
+        start: start.subtract(const Duration(days: 7)).millisecondsSinceEpoch,
+        end: start.add(const Duration(days: 21)).millisecondsSinceEpoch,
+      );
+      await _digest.putCalendarEvents(
+        jsonEncode(events.map((event) => event.toEngineMap()).toList()),
+      );
+    } on PlatformException {
+      // Revoked access must not leave events from the prior permission grant
+      // visible in the local Overview cache.
+      await _digest.putCalendarEvents('[]');
+    } on MissingPluginException {
+      // The system calendar exists only on iOS and Android.
+      await _digest.putCalendarEvents('[]');
+    }
   }
 
   Future<void> _refreshAiReady() async {

@@ -1345,6 +1345,9 @@ impl Workspace {
             DigestEvent::OpenSettings => {
                 self.open_settings(None, window, cx);
             }
+            DigestEvent::OpenCalendarSettings => {
+                self.open_settings(Some(crate::settings::SettingsPage::Calendar), window, cx);
+            }
             DigestEvent::Close => {
                 let back = self.library.read(cx).previous.clone();
                 let selected = self.library.read(cx).selected.clone();

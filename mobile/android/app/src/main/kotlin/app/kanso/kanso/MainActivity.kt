@@ -27,6 +27,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         KansoCrashes.register(flutterEngine)
+        KansoCalendar.register(this, flutterEngine)
         files.register(flutterEngine)
         KansoReminders.register(this, flutterEngine)
         // `app.kanso.kanso/recording`: RECORD_AUDIO for the Record screen.
@@ -83,6 +84,7 @@ class MainActivity : FlutterFragmentActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         KansoReminders.onPermissionResult(requestCode, grantResults)
         KansoRecordingSession.onPermissionResult(requestCode, grantResults)
+        KansoCalendar.onRequestPermissionsResult(requestCode, grantResults)
     }
 
     @Deprecated("The document picker result comes back through here.")

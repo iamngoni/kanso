@@ -69,7 +69,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 898849740;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1479693578;
 
 // Section: executor
 
@@ -13694,6 +13694,62 @@ fn wire__crate__api__library__KansoLibrary_overview_impl(
         },
     )
 }
+fn wire__crate__api__library__KansoLibrary_overview_create_meeting_note_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoLibrary_overview_create_meeting_note",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>,
+            >>::sse_decode(&mut deserializer);
+            let api_event_json = <String>::sse_decode(&mut deserializer);
+            let api_context = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::library::KansoLibrary::overview_create_meeting_note(
+                            &*api_that_guard,
+                            api_event_json,
+                            api_context,
+                        )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__library__KansoLibrary_overview_dismiss_past_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -13794,6 +13850,115 @@ fn wire__crate__api__library__KansoLibrary_overview_hide_place_impl(
                         &*api_that_guard,
                         api_note_id,
                     )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__library__KansoLibrary_overview_link_meeting_note_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoLibrary_overview_link_meeting_note",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>,
+            >>::sse_decode(&mut deserializer);
+            let api_note_id = <String>::sse_decode(&mut deserializer);
+            let api_event_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::library::KansoLibrary::overview_link_meeting_note(
+                        &*api_that_guard,
+                        api_note_id,
+                        api_event_json,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__library__KansoLibrary_overview_put_calendar_events_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoLibrary_overview_put_calendar_events",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoLibrary>,
+            >>::sse_decode(&mut deserializer);
+            let api_events_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::library::KansoLibrary::overview_put_calendar_events(
+                            &*api_that_guard,
+                            api_events_json,
+                        )?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -31523,6 +31688,9 @@ const _: fn() = || {
         let _: String = OverviewAgendaRow.raw;
         let _: String = OverviewAgendaRow.color;
         let _: String = OverviewAgendaRow.meeting_note_id;
+        let _: String = OverviewAgendaRow.meeting_which;
+        let _: String = OverviewAgendaRow.meeting_day;
+        let _: String = OverviewAgendaRow.event_json;
     }
     {
         let OverviewAheadDay = None::<crate::api::overview_types::OverviewAheadDay>.unwrap();
@@ -41013,6 +41181,9 @@ impl SseDecode for crate::api::overview_types::OverviewAgendaRow {
         let mut var_raw = <String>::sse_decode(deserializer);
         let mut var_color = <String>::sse_decode(deserializer);
         let mut var_meetingNoteId = <String>::sse_decode(deserializer);
+        let mut var_meetingWhich = <String>::sse_decode(deserializer);
+        let mut var_meetingDay = <String>::sse_decode(deserializer);
+        let mut var_eventJson = <String>::sse_decode(deserializer);
         return crate::api::overview_types::OverviewAgendaRow {
             kind: var_kind,
             key: var_key,
@@ -41027,6 +41198,9 @@ impl SseDecode for crate::api::overview_types::OverviewAgendaRow {
             raw: var_raw,
             color: var_color,
             meeting_note_id: var_meetingNoteId,
+            meeting_which: var_meetingWhich,
+            meeting_day: var_meetingDay,
+            event_json: var_eventJson,
         };
     }
 }
@@ -46362,1262 +46536,1280 @@ fn pde_ffi_dispatcher_primary_impl(
         258 => {
             wire__crate__api__library__KansoLibrary_overview_impl(port, ptr, rust_vec_len, data_len)
         }
-        259 => wire__crate__api__library__KansoLibrary_overview_dismiss_past_impl(
+        259 => wire__crate__api__library__KansoLibrary_overview_create_meeting_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        260 => wire__crate__api__library__KansoLibrary_overview_hide_place_impl(
+        260 => wire__crate__api__library__KansoLibrary_overview_dismiss_past_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        262 => wire__crate__api__library__KansoLibrary_overview_snooze_waiting_impl(
+        261 => wire__crate__api__library__KansoLibrary_overview_hide_place_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        263 => wire__crate__api__library__KansoLibrary_overview_today_impl(
+        262 => wire__crate__api__library__KansoLibrary_overview_link_meeting_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        264 => wire__crate__api__library__KansoLibrary_overview_week_impl(
+        263 => wire__crate__api__library__KansoLibrary_overview_put_calendar_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        267 => wire__crate__api__library__KansoLibrary_pdf_export_copy_impl(
+        265 => wire__crate__api__library__KansoLibrary_overview_snooze_waiting_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        269 => wire__crate__api__library__KansoLibrary_pdf_highlight_change_impl(
+        266 => wire__crate__api__library__KansoLibrary_overview_today_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        270 => wire__crate__api__library__KansoLibrary_pdf_highlights_impl(
+        267 => wire__crate__api__library__KansoLibrary_overview_week_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        271 => wire__crate__api__library__KansoLibrary_pdf_ink_clear_impl(
+        270 => wire__crate__api__library__KansoLibrary_pdf_export_copy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        274 => wire__crate__api__library__KansoLibrary_properties_impl(
+        272 => wire__crate__api__library__KansoLibrary_pdf_highlight_change_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        275 => wire__crate__api__library__KansoLibrary_publisher_impl(
+        273 => wire__crate__api__library__KansoLibrary_pdf_highlights_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        276 => wire__crate__api__library__KansoLibrary_query_view_impl(
+        274 => wire__crate__api__library__KansoLibrary_pdf_ink_clear_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        280 => wire__crate__api__library__KansoLibrary_reminder_answer_impl(
+        277 => wire__crate__api__library__KansoLibrary_properties_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        281 => wire__crate__api__library__KansoLibrary_reminders_forget_impl(
+        278 => wire__crate__api__library__KansoLibrary_publisher_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        282 => wire__crate__api__library__KansoLibrary_reminders_forget_future_impl(
+        279 => wire__crate__api__library__KansoLibrary_query_view_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        283 => wire__crate__api__library__KansoLibrary_reminders_plan_impl(
+        283 => wire__crate__api__library__KansoLibrary_reminder_answer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        284 => wire__crate__api__library__KansoLibrary_rename_notebook_impl(
+        284 => wire__crate__api__library__KansoLibrary_reminders_forget_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        285 => wire__crate__api__library__KansoLibrary_rename_tag_impl(
+        285 => wire__crate__api__library__KansoLibrary_reminders_forget_future_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        287 => wire__crate__api__library__KansoLibrary_replace_apply_impl(
+        286 => wire__crate__api__library__KansoLibrary_reminders_plan_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        288 => wire__crate__api__library__KansoLibrary_replace_preview_impl(
+        287 => wire__crate__api__library__KansoLibrary_rename_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        289 => wire__crate__api__library__KansoLibrary_replace_undo_impl(
+        288 => wire__crate__api__library__KansoLibrary_rename_tag_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        290 => wire__crate__api__library__KansoLibrary_restore_version_impl(
+        290 => wire__crate__api__library__KansoLibrary_replace_apply_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        291 => {
+        291 => wire__crate__api__library__KansoLibrary_replace_preview_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        292 => wire__crate__api__library__KansoLibrary_replace_undo_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        293 => wire__crate__api__library__KansoLibrary_restore_version_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        294 => {
             wire__crate__api__library__KansoLibrary_review_impl(port, ptr, rust_vec_len, data_len)
         }
-        292 => wire__crate__api__library__KansoLibrary_revisit_of_impl(
+        295 => wire__crate__api__library__KansoLibrary_revisit_of_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        294 => wire__crate__api__library__KansoLibrary_save_impl(port, ptr, rust_vec_len, data_len),
-        295 => wire__crate__api__library__KansoLibrary_save_drops_impl(
+        297 => wire__crate__api__library__KansoLibrary_save_impl(port, ptr, rust_vec_len, data_len),
+        298 => wire__crate__api__library__KansoLibrary_save_drops_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        296 => wire__crate__api__library__KansoLibrary_save_review_impl(
+        299 => wire__crate__api__library__KansoLibrary_save_review_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        297 => {
+        300 => {
             wire__crate__api__library__KansoLibrary_search_impl(port, ptr, rust_vec_len, data_len)
         }
-        298 => wire__crate__api__library__KansoLibrary_set_brief_prefs_impl(
+        301 => wire__crate__api__library__KansoLibrary_set_brief_prefs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        299 => wire__crate__api__library__KansoLibrary_set_daily_template_impl(
+        302 => wire__crate__api__library__KansoLibrary_set_daily_template_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        300 => wire__crate__api__library__KansoLibrary_set_default_word_goal_impl(
+        303 => wire__crate__api__library__KansoLibrary_set_default_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        301 => wire__crate__api__library__KansoLibrary_set_note_word_goal_impl(
+        304 => wire__crate__api__library__KansoLibrary_set_note_word_goal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        302 => wire__crate__api__library__KansoLibrary_set_notebook_color_impl(
+        305 => wire__crate__api__library__KansoLibrary_set_notebook_color_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        303 => wire__crate__api__library__KansoLibrary_set_notebook_icon_impl(
+        306 => wire__crate__api__library__KansoLibrary_set_notebook_icon_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        304 => wire__crate__api__library__KansoLibrary_set_revisit_impl(
+        307 => wire__crate__api__library__KansoLibrary_set_revisit_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        305 => wire__crate__api__library__KansoLibrary_set_tag_color_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        306 => {
-            wire__crate__api__library__KansoLibrary_set_task_impl(port, ptr, rust_vec_len, data_len)
-        }
-        307 => wire__crate__api__library__KansoLibrary_set_voice_settings_impl(
+        308 => wire__crate__api__library__KansoLibrary_set_tag_color_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         309 => {
+            wire__crate__api__library__KansoLibrary_set_task_impl(port, ptr, rust_vec_len, data_len)
+        }
+        310 => wire__crate__api__library__KansoLibrary_set_voice_settings_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        312 => {
             wire__crate__api__library__KansoLibrary_sketch_impl(port, ptr, rust_vec_len, data_len)
         }
-        310 => wire__crate__api__library__KansoLibrary_sketch_insert_impl(
+        313 => wire__crate__api__library__KansoLibrary_sketch_insert_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        314 => wire__crate__api__library__KansoLibrary_tag_places_impl(
+        317 => wire__crate__api__library__KansoLibrary_tag_places_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        315 => wire__crate__api__library__KansoLibrary_tags_impl(port, ptr, rust_vec_len, data_len),
-        317 => {
+        318 => wire__crate__api__library__KansoLibrary_tags_impl(port, ptr, rust_vec_len, data_len),
+        320 => {
             wire__crate__api__library__KansoLibrary_tasks_impl(port, ptr, rust_vec_len, data_len)
         }
-        318 => wire__crate__api__library__KansoLibrary_templates_impl(
+        321 => wire__crate__api__library__KansoLibrary_templates_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        320 => wire__crate__api__library__KansoLibrary_today_note_impl(
+        323 => wire__crate__api__library__KansoLibrary_today_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        321 => wire__crate__api__library__KansoLibrary_toggle_fold_impl(
+        324 => wire__crate__api__library__KansoLibrary_toggle_fold_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        322 => wire__crate__api__library__KansoLibrary_toggle_task_at_impl(
+        325 => wire__crate__api__library__KansoLibrary_toggle_task_at_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        323 => {
+        326 => {
             wire__crate__api__library__KansoLibrary_trash_impl(port, ptr, rust_vec_len, data_len)
         }
-        325 => wire__crate__api__library__KansoLibrary_undo_impl(port, ptr, rust_vec_len, data_len),
-        326 => wire__crate__api__library__KansoLibrary_update_notices_impl(
+        328 => wire__crate__api__library__KansoLibrary_undo_impl(port, ptr, rust_vec_len, data_len),
+        329 => wire__crate__api__library__KansoLibrary_update_notices_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        327 => wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
+        330 => wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        329 => wire__crate__api__library__KansoLibrary_voice_settings_impl(
+        332 => wire__crate__api__library__KansoLibrary_voice_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        330 => wire__crate__api__library__KansoLibrary_word_goal_presets_impl(
+        333 => wire__crate__api__library__KansoLibrary_word_goal_presets_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        331 => wire__crate__api__linking__KansoLinking_backlinks_impl(
+        334 => wire__crate__api__linking__KansoLinking_backlinks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        333 => wire__crate__api__linking__KansoLinking_link_mention_impl(
+        336 => wire__crate__api__linking__KansoLinking_link_mention_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        335 => {
+        338 => {
             wire__crate__api__linking__KansoLinking_palette_impl(port, ptr, rust_vec_len, data_len)
         }
-        336 => wire__crate__api__linking__KansoLinking_quick_open_impl(
+        339 => wire__crate__api__linking__KansoLinking_quick_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        337 => wire__crate__api__linking__KansoLinking_unlinked_mentions_impl(
+        340 => wire__crate__api__linking__KansoLinking_unlinked_mentions_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        338 => wire__crate__api__locks__KansoLocks_begin_biometric_enrollment_impl(
+        341 => wire__crate__api__locks__KansoLocks_begin_biometric_enrollment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        339 => wire__crate__api__locks__KansoLocks_begin_biometric_unlock_impl(
+        342 => wire__crate__api__locks__KansoLocks_begin_biometric_unlock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        340 => wire__crate__api__locks__KansoLocks_biometrics_on_impl(
+        343 => wire__crate__api__locks__KansoLocks_biometrics_on_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        341 => {
+        344 => {
             wire__crate__api__locks__KansoLocks_cancel_lock_impl(port, ptr, rust_vec_len, data_len)
         }
-        342 => wire__crate__api__locks__KansoLocks_change_password_impl(
+        345 => wire__crate__api__locks__KansoLocks_change_password_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        343 => wire__crate__api__locks__KansoLocks_files_migration_impl(
+        346 => wire__crate__api__locks__KansoLocks_files_migration_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        344 => wire__crate__api__locks__KansoLocks_finish_locking_impl(
+        347 => wire__crate__api__locks__KansoLocks_finish_locking_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        345 => wire__crate__api__locks__KansoLocks_interrupted_lock_impl(
+        348 => wire__crate__api__locks__KansoLocks_interrupted_lock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        346 => wire__crate__api__locks__KansoLocks_is_note_unlocked_impl(
+        349 => wire__crate__api__locks__KansoLocks_is_note_unlocked_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        347 => {
+        350 => {
             wire__crate__api__locks__KansoLocks_is_unlocked_impl(port, ptr, rust_vec_len, data_len)
         }
-        348 => {
+        351 => {
             wire__crate__api__locks__KansoLocks_library_id_impl(port, ptr, rust_vec_len, data_len)
         }
-        349 => wire__crate__api__locks__KansoLocks_lock_impl(port, ptr, rust_vec_len, data_len),
-        350 => {
+        352 => wire__crate__api__locks__KansoLocks_lock_impl(port, ptr, rust_vec_len, data_len),
+        353 => {
             wire__crate__api__locks__KansoLocks_lock_events_impl(port, ptr, rust_vec_len, data_len)
         }
-        351 => wire__crate__api__locks__KansoLocks_lock_for_background_impl(
+        354 => wire__crate__api__locks__KansoLocks_lock_for_background_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        352 => {
+        355 => {
             wire__crate__api__locks__KansoLocks_lock_note_impl(port, ptr, rust_vec_len, data_len)
         }
-        353 => wire__crate__api__locks__KansoLocks_lock_note_with_session_impl(
+        356 => wire__crate__api__locks__KansoLocks_lock_note_with_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        354 => wire__crate__api__locks__KansoLocks_lock_notebook_impl(
+        357 => wire__crate__api__locks__KansoLocks_lock_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        355 => wire__crate__api__locks__KansoLocks_lock_progress_impl(
+        358 => wire__crate__api__locks__KansoLocks_lock_progress_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        356 => {
+        359 => {
             wire__crate__api__locks__KansoLocks_lock_status_impl(port, ptr, rust_vec_len, data_len)
         }
-        357 => wire__crate__api__locks__KansoLocks_note_lock_summary_impl(
+        360 => wire__crate__api__locks__KansoLocks_note_lock_summary_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        358 => wire__crate__api__locks__KansoLocks_notebook_is_open_impl(
+        361 => wire__crate__api__locks__KansoLocks_notebook_is_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        359 => wire__crate__api__locks__KansoLocks_notebook_lock_summary_impl(
+        362 => wire__crate__api__locks__KansoLocks_notebook_lock_summary_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        360 => wire__crate__api__locks__KansoLocks_postpone_files_migration_impl(
+        363 => wire__crate__api__locks__KansoLocks_postpone_files_migration_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        361 => wire__crate__api__locks__KansoLocks_remove_note_lock_impl(
+        364 => wire__crate__api__locks__KansoLocks_remove_note_lock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        362 => wire__crate__api__locks__KansoLocks_remove_notebook_lock_impl(
+        365 => wire__crate__api__locks__KansoLocks_remove_notebook_lock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        363 => wire__crate__api__locks__KansoLocks_seal_locked_attachments_impl(
+        366 => wire__crate__api__locks__KansoLocks_seal_locked_attachments_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        364 => wire__crate__api__locks__KansoLocks_take_copy_notice_impl(
+        367 => wire__crate__api__locks__KansoLocks_take_copy_notice_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        365 => wire__crate__api__locks__KansoLocks_take_seal_failure_notice_impl(
+        368 => wire__crate__api__locks__KansoLocks_take_seal_failure_notice_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        366 => wire__crate__api__locks__KansoLocks_take_sealed_files_notice_impl(
+        369 => wire__crate__api__locks__KansoLocks_take_sealed_files_notice_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        367 => wire__crate__api__locks__KansoLocks_turn_off_biometrics_impl(
+        370 => wire__crate__api__locks__KansoLocks_turn_off_biometrics_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        368 => wire__crate__api__locks__KansoLocks_undo_files_migration_impl(
+        371 => wire__crate__api__locks__KansoLocks_undo_files_migration_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        369 => {
+        372 => {
             wire__crate__api__locks__KansoLocks_undo_locking_impl(port, ptr, rust_vec_len, data_len)
         }
-        370 => wire__crate__api__locks__KansoLocks_unlock_impl(port, ptr, rust_vec_len, data_len),
-        371 => {
+        373 => wire__crate__api__locks__KansoLocks_unlock_impl(port, ptr, rust_vec_len, data_len),
+        374 => {
             wire__crate__api__locks__KansoLocks_unlock_note_impl(port, ptr, rust_vec_len, data_len)
         }
-        372 => wire__crate__api__locks__KansoLocks_unlock_notebook_impl(
+        375 => wire__crate__api__locks__KansoLocks_unlock_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        373 => wire__crate__api__metrics__KansoMetrics_end_session_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        374 => {
-            wire__crate__api__metrics__KansoMetrics_launched_impl(port, ptr, rust_vec_len, data_len)
-        }
-        375 => wire__crate__api__metrics__KansoMetrics_mark_notice_seen_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        376 => wire__crate__api__metrics__KansoMetrics_notice_seen_impl(
+        376 => wire__crate__api__metrics__KansoMetrics_end_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         377 => {
+            wire__crate__api__metrics__KansoMetrics_launched_impl(port, ptr, rust_vec_len, data_len)
+        }
+        378 => wire__crate__api__metrics__KansoMetrics_mark_notice_seen_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        379 => wire__crate__api__metrics__KansoMetrics_notice_seen_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        380 => {
             wire__crate__api__metrics__KansoMetrics_record_impl(port, ptr, rust_vec_len, data_len)
         }
-        378 => {
+        381 => {
             wire__crate__api__metrics__KansoMetrics_send_due_impl(port, ptr, rust_vec_len, data_len)
         }
-        379 => wire__crate__api__notebook_home__KansoNotebookHome_after_move_impl(
+        382 => wire__crate__api__notebook_home__KansoNotebookHome_after_move_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        380 => wire__crate__api__notebook_home__KansoNotebookHome_candidates_impl(
+        383 => wire__crate__api__notebook_home__KansoNotebookHome_candidates_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        381 => wire__crate__api__notebook_home__KansoNotebookHome_card_impl(
+        384 => wire__crate__api__notebook_home__KansoNotebookHome_card_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        382 => wire__crate__api__notebook_home__KansoNotebookHome_choose_home_impl(
+        385 => wire__crate__api__notebook_home__KansoNotebookHome_choose_home_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        383 => wire__crate__api__notebook_home__KansoNotebookHome_clear_home_impl(
+        386 => wire__crate__api__notebook_home__KansoNotebookHome_clear_home_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        384 => wire__crate__api__notebook_home__KansoNotebookHome_copy_into_home_impl(
+        387 => wire__crate__api__notebook_home__KansoNotebookHome_copy_into_home_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        385 => wire__crate__api__notebook_home__KansoNotebookHome_customise_impl(
+        388 => wire__crate__api__notebook_home__KansoNotebookHome_customise_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        386 => wire__crate__api__notebook_home__KansoNotebookHome_hide_impl(
+        389 => wire__crate__api__notebook_home__KansoNotebookHome_hide_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        387 => wire__crate__api__notebook_home__KansoNotebookHome_map_impl(
+        390 => wire__crate__api__notebook_home__KansoNotebookHome_map_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        388 => wire__crate__api__notebook_home__KansoNotebookHome_new_home_impl(
+        391 => wire__crate__api__notebook_home__KansoNotebookHome_new_home_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        389 => wire__crate__api__notebook_home__KansoNotebookHome_not_right_impl(
+        392 => wire__crate__api__notebook_home__KansoNotebookHome_not_right_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        390 => wire__crate__api__notebook_home__KansoNotebookHome_open_impl(
+        393 => wire__crate__api__notebook_home__KansoNotebookHome_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        391 => wire__crate__api__notebook_home__KansoNotebookHome_pin_impl(
+        394 => wire__crate__api__notebook_home__KansoNotebookHome_pin_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        392 => wire__crate__api__notebook_home__KansoNotebookHome_refresh_all_impl(
+        395 => wire__crate__api__notebook_home__KansoNotebookHome_refresh_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        393 => wire__crate__api__notebook_home__KansoNotebookHome_refresh_section_impl(
+        396 => wire__crate__api__notebook_home__KansoNotebookHome_refresh_section_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        394 => wire__crate__api__notebook_home__KansoNotebookHome_reset_layout_impl(
+        397 => wire__crate__api__notebook_home__KansoNotebookHome_reset_layout_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        395 => wire__crate__api__notebook_home__KansoNotebookHome_section_markdown_impl(
+        398 => wire__crate__api__notebook_home__KansoNotebookHome_section_markdown_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        396 => wire__crate__api__notebook_home__KansoNotebookHome_sections_impl(
+        399 => wire__crate__api__notebook_home__KansoNotebookHome_sections_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        397 => wire__crate__api__notebook_home__KansoNotebookHome_set_settings_impl(
+        400 => wire__crate__api__notebook_home__KansoNotebookHome_set_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        398 => wire__crate__api__notebook_home__KansoNotebookHome_settings_impl(
+        401 => wire__crate__api__notebook_home__KansoNotebookHome_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        399 => wire__crate__api__notebook_home__KansoNotebookHome_show_all_impl(
+        402 => wire__crate__api__notebook_home__KansoNotebookHome_show_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        400 => wire__crate__api__notebook_home__KansoNotebookHome_show_hidden_impl(
+        403 => wire__crate__api__notebook_home__KansoNotebookHome_show_hidden_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        401 => wire__crate__api__notebook_home__KansoNotebookHome_words_impl(
+        404 => wire__crate__api__notebook_home__KansoNotebookHome_words_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        402 => wire__crate__api__pdf__KansoPdfReader_add_highlight_impl(
+        405 => wire__crate__api__pdf__KansoPdfReader_add_highlight_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        403 => wire__crate__api__pdf__KansoPdfReader_add_ink_stroke_impl(
+        406 => wire__crate__api__pdf__KansoPdfReader_add_ink_stroke_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        405 => wire__crate__api__pdf__KansoPdfReader_extend_impl(port, ptr, rust_vec_len, data_len),
-        406 => wire__crate__api__pdf__KansoPdfReader_find_impl(port, ptr, rust_vec_len, data_len),
-        407 => {
+        408 => wire__crate__api__pdf__KansoPdfReader_extend_impl(port, ptr, rust_vec_len, data_len),
+        409 => wire__crate__api__pdf__KansoPdfReader_find_impl(port, ptr, rust_vec_len, data_len),
+        410 => {
             wire__crate__api__pdf__KansoPdfReader_line_at_impl(port, ptr, rust_vec_len, data_len)
         }
-        408 => wire__crate__api__pdf__KansoPdfReader_render_impl(port, ptr, rust_vec_len, data_len),
-        409 => wire__crate__api__pdf__KansoPdfReader_select_impl(port, ptr, rust_vec_len, data_len),
-        410 => {
+        411 => wire__crate__api__pdf__KansoPdfReader_render_impl(port, ptr, rust_vec_len, data_len),
+        412 => wire__crate__api__pdf__KansoPdfReader_select_impl(port, ptr, rust_vec_len, data_len),
+        413 => {
             wire__crate__api__pdf__KansoPdfReader_word_at_impl(port, ptr, rust_vec_len, data_len)
         }
-        411 => wire__crate__api__pdf__KansoPdf_marks_impl(port, ptr, rust_vec_len, data_len),
-        412 => wire__crate__api__pdf__KansoPdf_open_impl(port, ptr, rust_vec_len, data_len),
-        413 => {
+        414 => wire__crate__api__pdf__KansoPdf_marks_impl(port, ptr, rust_vec_len, data_len),
+        415 => wire__crate__api__pdf__KansoPdf_open_impl(port, ptr, rust_vec_len, data_len),
+        416 => {
             wire__crate__api__people__KansoPeople_add_alias_impl(port, ptr, rust_vec_len, data_len)
         }
-        414 => wire__crate__api__people__KansoPeople_confirm_alias_impl(
+        417 => wire__crate__api__people__KansoPeople_confirm_alias_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        415 => wire__crate__api__people__KansoPeople_copy_into_note_impl(
+        418 => wire__crate__api__people__KansoPeople_copy_into_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        416 => wire__crate__api__people__KansoPeople_create_impl(port, ptr, rust_vec_len, data_len),
-        417 => wire__crate__api__people__KansoPeople_detect_impl(port, ptr, rust_vec_len, data_len),
-        418 => wire__crate__api__people__KansoPeople_detect_with_ai_impl(
+        419 => wire__crate__api__people__KansoPeople_create_impl(port, ptr, rust_vec_len, data_len),
+        420 => wire__crate__api__people__KansoPeople_detect_impl(port, ptr, rust_vec_len, data_len),
+        421 => wire__crate__api__people__KansoPeople_detect_with_ai_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        419 => {
+        422 => {
             wire__crate__api__people__KansoPeople_dismiss_impl(port, ptr, rust_vec_len, data_len)
         }
-        420 => {
+        423 => {
             wire__crate__api__people__KansoPeople_dismissed_impl(port, ptr, rust_vec_len, data_len)
         }
-        421 => wire__crate__api__people__KansoPeople_hide_impl(port, ptr, rust_vec_len, data_len),
-        422 => wire__crate__api__people__KansoPeople_merge_impl(port, ptr, rust_vec_len, data_len),
-        423 => {
+        424 => wire__crate__api__people__KansoPeople_hide_impl(port, ptr, rust_vec_len, data_len),
+        425 => wire__crate__api__people__KansoPeople_merge_impl(port, ptr, rust_vec_len, data_len),
+        426 => {
             wire__crate__api__people__KansoPeople_not_right_impl(port, ptr, rust_vec_len, data_len)
         }
-        424 => wire__crate__api__people__KansoPeople_page_impl(port, ptr, rust_vec_len, data_len),
-        425 => wire__crate__api__people__KansoPeople_pages_impl(port, ptr, rust_vec_len, data_len),
-        426 => wire__crate__api__people__KansoPeople_pin_impl(port, ptr, rust_vec_len, data_len),
-        427 => wire__crate__api__people__KansoPeople_refresh_all_impl(
+        427 => wire__crate__api__people__KansoPeople_page_impl(port, ptr, rust_vec_len, data_len),
+        428 => wire__crate__api__people__KansoPeople_pages_impl(port, ptr, rust_vec_len, data_len),
+        429 => wire__crate__api__people__KansoPeople_pin_impl(port, ptr, rust_vec_len, data_len),
+        430 => wire__crate__api__people__KansoPeople_refresh_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        428 => wire__crate__api__people__KansoPeople_refresh_section_impl(
+        431 => wire__crate__api__people__KansoPeople_refresh_section_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        429 => wire__crate__api__people__KansoPeople_section_markdown_impl(
+        432 => wire__crate__api__people__KansoPeople_section_markdown_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        430 => wire__crate__api__people__KansoPeople_set_settings_impl(
+        433 => wire__crate__api__people__KansoPeople_set_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        431 => {
+        434 => {
             wire__crate__api__people__KansoPeople_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        432 => {
+        435 => {
             wire__crate__api__people__KansoPeople_show_all_impl(port, ptr, rust_vec_len, data_len)
         }
-        433 => wire__crate__api__people__KansoPeople_show_hidden_impl(
+        436 => wire__crate__api__people__KansoPeople_show_hidden_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        434 => wire__crate__api__people__KansoPeople_status_impl(port, ptr, rust_vec_len, data_len),
-        435 => wire__crate__api__people__KansoPeople_suggest_again_impl(
+        437 => wire__crate__api__people__KansoPeople_status_impl(port, ptr, rust_vec_len, data_len),
+        438 => wire__crate__api__people__KansoPeople_suggest_again_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        436 => wire__crate__api__people__KansoPeople_suggestions_impl(
+        439 => wire__crate__api__people__KansoPeople_suggestions_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        445 => wire__crate__api__player__KansoPlayers_note_recording_impl(
+        448 => wire__crate__api__player__KansoPlayers_note_recording_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        446 => wire__crate__api__player__KansoPlayers_open_impl(port, ptr, rust_vec_len, data_len),
-        448 => wire__crate__api__publish__KansoPublisher_expiry_options_impl(
+        449 => wire__crate__api__player__KansoPlayers_open_impl(port, ptr, rust_vec_len, data_len),
+        451 => wire__crate__api__publish__KansoPublisher_expiry_options_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        449 => {
+        452 => {
             wire__crate__api__publish__KansoPublisher_note_impl(port, ptr, rust_vec_len, data_len)
         }
-        450 => wire__crate__api__publish__KansoPublisher_notebook_impl(
+        453 => wire__crate__api__publish__KansoPublisher_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        451 => wire__crate__api__publish__KansoPublisher_publish_note_impl(
+        454 => wire__crate__api__publish__KansoPublisher_publish_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        452 => wire__crate__api__publish__KansoPublisher_publish_notebook_impl(
+        455 => wire__crate__api__publish__KansoPublisher_publish_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        453 => wire__crate__api__publish__KansoPublisher_unpublish_note_impl(
+        456 => wire__crate__api__publish__KansoPublisher_unpublish_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        454 => wire__crate__api__publish__KansoPublisher_unpublish_notebook_impl(
+        457 => wire__crate__api__publish__KansoPublisher_unpublish_notebook_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        455 => wire__crate__api__recording__KansoRecorder_discard_found_impl(
+        458 => wire__crate__api__recording__KansoRecorder_discard_found_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        456 => {
+        459 => {
             wire__crate__api__recording__KansoRecorder_found_impl(port, ptr, rust_vec_len, data_len)
         }
-        457 => wire__crate__api__recording__KansoRecorder_recover_impl(
+        460 => wire__crate__api__recording__KansoRecorder_recover_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        458 => {
+        461 => {
             wire__crate__api__recording__KansoRecorder_start_impl(port, ptr, rust_vec_len, data_len)
         }
-        459 => wire__crate__api__recording_speakers__KansoRecordingSpeakers_names_impl(
+        462 => wire__crate__api__recording_speakers__KansoRecordingSpeakers_names_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        460 => wire__crate__api__recording_speakers__KansoRecordingSpeakers_rename_impl(
+        463 => wire__crate__api__recording_speakers__KansoRecordingSpeakers_rename_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        461 => wire__crate__api__recording_summary__KansoRecordingSummary_apply_impl(
+        464 => wire__crate__api__recording_summary__KansoRecordingSummary_apply_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        462 => wire__crate__api__recording_summary__KansoRecordingSummary_offer_impl(
+        465 => wire__crate__api__recording_summary__KansoRecordingSummary_offer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        463 => wire__crate__api__recording_summary__KansoRecordingSummary_summarize_impl(
+        466 => wire__crate__api__recording_summary__KansoRecordingSummary_summarize_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        464 => wire__crate__api__recording__KansoRecording_discard_impl(
+        467 => wire__crate__api__recording__KansoRecording_discard_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        468 => {
+        471 => {
             wire__crate__api__recording__KansoRecording_stop_impl(port, ptr, rust_vec_len, data_len)
         }
-        469 => wire__crate__api__renderer__KansoRenderer_builtin_theme_tokens_impl(
+        472 => wire__crate__api__renderer__KansoRenderer_builtin_theme_tokens_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        470 => wire__crate__api__renderer__KansoRenderer_builtin_themes_impl(
+        473 => wire__crate__api__renderer__KansoRenderer_builtin_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        471 => wire__crate__api__renderer__KansoRenderer_code_block_impl(
+        474 => wire__crate__api__renderer__KansoRenderer_code_block_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        472 => wire__crate__api__renderer__KansoRenderer_diagram_renderer_impl(
+        475 => wire__crate__api__renderer__KansoRenderer_diagram_renderer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        473 => wire__crate__api__renderer__KansoRenderer_diagram_svg_impl(
+        476 => wire__crate__api__renderer__KansoRenderer_diagram_svg_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        474 => wire__crate__api__renderer__KansoRenderer_highlight_impl(
+        477 => wire__crate__api__renderer__KansoRenderer_highlight_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        475 => wire__crate__api__renderer__KansoRenderer_icon_theme_icons_impl(
+        478 => wire__crate__api__renderer__KansoRenderer_icon_theme_icons_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        476 => wire__crate__api__renderer__KansoRenderer_icon_themes_impl(
+        479 => wire__crate__api__renderer__KansoRenderer_icon_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        477 => wire__crate__api__renderer__KansoRenderer_link_target_impl(
+        480 => wire__crate__api__renderer__KansoRenderer_link_target_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        478 => wire__crate__api__renderer__KansoRenderer_math_svg_impl(
+        481 => wire__crate__api__renderer__KansoRenderer_math_svg_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        479 => wire__crate__api__renderer__KansoRenderer_page_html_impl(
+        482 => wire__crate__api__renderer__KansoRenderer_page_html_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        480 => wire__crate__api__renderer__KansoRenderer_page_pdf_impl(
+        483 => wire__crate__api__renderer__KansoRenderer_page_pdf_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        481 => wire__crate__api__renderer__KansoRenderer_preview_blocks_impl(
+        484 => wire__crate__api__renderer__KansoRenderer_preview_blocks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        482 => wire__crate__api__renderer__KansoRenderer_preview_blocks_for_text_impl(
+        485 => wire__crate__api__renderer__KansoRenderer_preview_blocks_for_text_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        483 => wire__crate__api__renderer__KansoRenderer_preview_html_impl(
+        486 => wire__crate__api__renderer__KansoRenderer_preview_html_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        484 => wire__crate__api__renderer__KansoRenderer_preview_html_with_impl(
+        487 => wire__crate__api__renderer__KansoRenderer_preview_html_with_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        485 => wire__crate__api__renderer__KansoRenderer_set_diagram_renderer_impl(
+        488 => wire__crate__api__renderer__KansoRenderer_set_diagram_renderer_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        486 => wire__crate__api__renderer__KansoRenderer_set_fonts_impl(
+        489 => wire__crate__api__renderer__KansoRenderer_set_fonts_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        487 => wire__crate__api__renderer__KansoRenderer_styled_runs_impl(
+        490 => wire__crate__api__renderer__KansoRenderer_styled_runs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        488 => wire__crate__api__renderer__KansoRenderer_theme_tokens_impl(
+        491 => wire__crate__api__renderer__KansoRenderer_theme_tokens_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        489 => wire__crate__api__shared__KansoShared_accept_impl(port, ptr, rust_vec_len, data_len),
-        490 => wire__crate__api__shared__KansoShared_accept_new_key_impl(
+        492 => wire__crate__api__shared__KansoShared_accept_impl(port, ptr, rust_vec_len, data_len),
+        493 => wire__crate__api__shared__KansoShared_accept_new_key_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        491 => wire__crate__api__shared__KansoShared_add_comment_impl(
+        494 => wire__crate__api__shared__KansoShared_add_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        492 => wire__crate__api__shared__KansoShared_approve_request_impl(
+        495 => wire__crate__api__shared__KansoShared_approve_request_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        493 => {
+        496 => {
             wire__crate__api__shared__KansoShared_can_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        494 => wire__crate__api__shared__KansoShared_cancel_link_impl(
+        497 => wire__crate__api__shared__KansoShared_cancel_link_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        495 => {
+        498 => {
             wire__crate__api__shared__KansoShared_close_live_impl(port, ptr, rust_vec_len, data_len)
         }
-        496 => {
+        499 => {
             wire__crate__api__shared__KansoShared_comments_impl(port, ptr, rust_vec_len, data_len)
         }
-        497 => wire__crate__api__shared__KansoShared_comments_band_impl(
+        500 => wire__crate__api__shared__KansoShared_comments_band_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        498 => wire__crate__api__shared__KansoShared_create_link_impl(
+        501 => wire__crate__api__shared__KansoShared_create_link_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        499 => {
+        502 => {
             wire__crate__api__shared__KansoShared_decline_impl(port, ptr, rust_vec_len, data_len)
         }
-        500 => wire__crate__api__shared__KansoShared_decline_request_impl(
+        503 => wire__crate__api__shared__KansoShared_decline_request_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        501 => wire__crate__api__shared__KansoShared_delete_comment_impl(
+        504 => wire__crate__api__shared__KansoShared_delete_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        502 => wire__crate__api__shared__KansoShared_dismiss_problems_impl(
+        505 => wire__crate__api__shared__KansoShared_dismiss_problems_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        503 => wire__crate__api__shared__KansoShared_edit_comment_impl(
+        506 => wire__crate__api__shared__KansoShared_edit_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        504 => wire__crate__api__shared__KansoShared_events_impl(port, ptr, rust_vec_len, data_len),
-        505 => wire__crate__api__shared__KansoShared_info_impl(port, ptr, rust_vec_len, data_len),
-        506 => wire__crate__api__shared__KansoShared_invitations_impl(
+        507 => wire__crate__api__shared__KansoShared_events_impl(port, ptr, rust_vec_len, data_len),
+        508 => wire__crate__api__shared__KansoShared_info_impl(port, ptr, rust_vec_len, data_len),
+        509 => wire__crate__api__shared__KansoShared_invitations_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        507 => wire__crate__api__shared__KansoShared_invite_impl(port, ptr, rust_vec_len, data_len),
-        508 => wire__crate__api__shared__KansoShared_join_impl(port, ptr, rust_vec_len, data_len),
-        509 => wire__crate__api__shared__KansoShared_leave_impl(port, ptr, rust_vec_len, data_len),
-        510 => wire__crate__api__shared__KansoShared_live_status_impl(
+        510 => wire__crate__api__shared__KansoShared_invite_impl(port, ptr, rust_vec_len, data_len),
+        511 => wire__crate__api__shared__KansoShared_join_impl(port, ptr, rust_vec_len, data_len),
+        512 => wire__crate__api__shared__KansoShared_leave_impl(port, ptr, rust_vec_len, data_len),
+        513 => wire__crate__api__shared__KansoShared_live_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        511 => wire__crate__api__shared__KansoShared_lookup_person_impl(
+        514 => wire__crate__api__shared__KansoShared_lookup_person_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        512 => wire__crate__api__shared__KansoShared_open_comments_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        513 => {
-            wire__crate__api__shared__KansoShared_open_live_impl(port, ptr, rust_vec_len, data_len)
-        }
-        514 => wire__crate__api__shared__KansoShared_remove_impl(port, ptr, rust_vec_len, data_len),
-        515 => wire__crate__api__shared__KansoShared_resolve_comment_impl(
+        515 => wire__crate__api__shared__KansoShared_open_comments_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         516 => {
+            wire__crate__api__shared__KansoShared_open_live_impl(port, ptr, rust_vec_len, data_len)
+        }
+        517 => wire__crate__api__shared__KansoShared_remove_impl(port, ptr, rust_vec_len, data_len),
+        518 => wire__crate__api__shared__KansoShared_resolve_comment_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        519 => {
             wire__crate__api__shared__KansoShared_set_role_impl(port, ptr, rust_vec_len, data_len)
         }
-        517 => wire__crate__api__shared__KansoShared_share_impl(port, ptr, rust_vec_len, data_len),
-        518 => wire__crate__api__shared__KansoShared_stop_impl(port, ptr, rust_vec_len, data_len),
-        519 => wire__crate__api__shared__KansoShared_sync_shared_impl(
+        520 => wire__crate__api__shared__KansoShared_share_impl(port, ptr, rust_vec_len, data_len),
+        521 => wire__crate__api__shared__KansoShared_stop_impl(port, ptr, rust_vec_len, data_len),
+        522 => wire__crate__api__shared__KansoShared_sync_shared_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        520 => wire__crate__api__shared__KansoShared_verify_person_impl(
+        523 => wire__crate__api__shared__KansoShared_verify_person_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        521 => {
+        524 => {
             wire__crate__api__sync__KansoSync_check_server_impl(port, ptr, rust_vec_len, data_len)
         }
-        522 => {
+        525 => {
             wire__crate__api__sync__KansoSync_default_server_impl(port, ptr, rust_vec_len, data_len)
         }
-        526 => {
+        529 => {
             wire__crate__api__sync__KansoSync_push_enabled_impl(port, ptr, rust_vec_len, data_len)
         }
-        527 => {
+        530 => {
             wire__crate__api__sync__KansoSync_refresh_push_impl(port, ptr, rust_vec_len, data_len)
         }
-        528 => {
+        531 => {
             wire__crate__api__sync__KansoSync_set_foreground_impl(port, ptr, rust_vec_len, data_len)
         }
-        529 => wire__crate__api__sync__KansoSync_set_push_enabled_impl(
+        532 => wire__crate__api__sync__KansoSync_set_push_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        530 => {
+        533 => {
             wire__crate__api__sync__KansoSync_set_push_token_impl(port, ptr, rust_vec_len, data_len)
         }
-        531 => {
+        534 => {
             wire__crate__api__sync__KansoSync_set_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        532 => wire__crate__api__sync__KansoSync_settings_impl(port, ptr, rust_vec_len, data_len),
-        533 => wire__crate__api__sync__KansoSync_sign_in_password_impl(
+        535 => wire__crate__api__sync__KansoSync_settings_impl(port, ptr, rust_vec_len, data_len),
+        536 => wire__crate__api__sync__KansoSync_sign_in_password_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        534 => wire__crate__api__sync__KansoSync_sign_out_impl(port, ptr, rust_vec_len, data_len),
-        535 => wire__crate__api__sync__KansoSync_status_impl(port, ptr, rust_vec_len, data_len),
-        537 => {
+        537 => wire__crate__api__sync__KansoSync_sign_out_impl(port, ptr, rust_vec_len, data_len),
+        538 => wire__crate__api__sync__KansoSync_status_impl(port, ptr, rust_vec_len, data_len),
+        540 => {
             wire__crate__api__sync__KansoSync_status_stream_impl(port, ptr, rust_vec_len, data_len)
         }
-        538 => wire__crate__api__sync__KansoSync_sync_now_impl(port, ptr, rust_vec_len, data_len),
-        539 => wire__crate__api__themes__KansoThemes_fit_impl(port, ptr, rust_vec_len, data_len),
-        540 => wire__crate__api__themes__KansoThemes_icon_themes_impl(
+        541 => wire__crate__api__sync__KansoSync_sync_now_impl(port, ptr, rust_vec_len, data_len),
+        542 => wire__crate__api__themes__KansoThemes_fit_impl(port, ptr, rust_vec_len, data_len),
+        543 => wire__crate__api__themes__KansoThemes_icon_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        541 => wire__crate__api__themes__KansoThemes_import_impl(port, ptr, rust_vec_len, data_len),
-        542 => wire__crate__api__themes__KansoThemes_import_icon_theme_impl(
+        544 => wire__crate__api__themes__KansoThemes_import_impl(port, ptr, rust_vec_len, data_len),
+        545 => wire__crate__api__themes__KansoThemes_import_icon_theme_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        543 => wire__crate__api__themes__KansoThemes_list_impl(port, ptr, rust_vec_len, data_len),
-        544 => {
+        546 => wire__crate__api__themes__KansoThemes_list_impl(port, ptr, rust_vec_len, data_len),
+        547 => {
             wire__crate__api__themes__KansoThemes_notices_impl(port, ptr, rust_vec_len, data_len)
         }
-        545 => wire__crate__api__themes__KansoThemes_styled_runs_impl(
+        548 => wire__crate__api__themes__KansoThemes_styled_runs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        546 => wire__crate__api__triage__KansoTriage_card_impl(port, ptr, rust_vec_len, data_len),
-        547 => wire__crate__api__triage__KansoTriage_cards_impl(port, ptr, rust_vec_len, data_len),
-        548 => wire__crate__api__triage__KansoTriage_file_impl(port, ptr, rust_vec_len, data_len),
-        549 => wire__crate__api__triage__KansoTriage_plan_impl(port, ptr, rust_vec_len, data_len),
-        550 => wire__crate__api__triage__KansoTriage_refine_impl(port, ptr, rust_vec_len, data_len),
-        551 => wire__crate__api__triage__KansoTriage_reject_impl(port, ptr, rust_vec_len, data_len),
-        552 => {
+        549 => wire__crate__api__triage__KansoTriage_card_impl(port, ptr, rust_vec_len, data_len),
+        550 => wire__crate__api__triage__KansoTriage_cards_impl(port, ptr, rust_vec_len, data_len),
+        551 => wire__crate__api__triage__KansoTriage_file_impl(port, ptr, rust_vec_len, data_len),
+        552 => wire__crate__api__triage__KansoTriage_plan_impl(port, ptr, rust_vec_len, data_len),
+        553 => wire__crate__api__triage__KansoTriage_refine_impl(port, ptr, rust_vec_len, data_len),
+        554 => wire__crate__api__triage__KansoTriage_reject_impl(port, ptr, rust_vec_len, data_len),
+        555 => {
             wire__crate__api__triage__KansoTriage_resolve_impl(port, ptr, rust_vec_len, data_len)
         }
-        553 => wire__crate__api__triage__KansoTriage_set_settings_impl(
+        556 => wire__crate__api__triage__KansoTriage_set_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        554 => {
+        557 => {
             wire__crate__api__triage__KansoTriage_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        555 => wire__crate__api__triage__KansoTriage_status_impl(port, ptr, rust_vec_len, data_len),
-        556 => {
+        558 => wire__crate__api__triage__KansoTriage_status_impl(port, ptr, rust_vec_len, data_len),
+        559 => {
             wire__crate__api__triage__KansoTriage_unreject_impl(port, ptr, rust_vec_len, data_len)
         }
-        557 => wire__crate__api__voice_capture__KansoVoiceCapture_discard_drop_impl(
+        560 => wire__crate__api__voice_capture__KansoVoiceCapture_discard_drop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        558 => wire__crate__api__voice_capture__KansoVoiceCapture_drops_impl(
+        561 => wire__crate__api__voice_capture__KansoVoiceCapture_drops_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        559 => wire__crate__api__voice_capture__KansoVoiceCapture_note_info_impl(
+        562 => wire__crate__api__voice_capture__KansoVoiceCapture_note_info_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        560 => wire__crate__api__voice_capture__KansoVoiceCapture_quarantine_drop_impl(
+        563 => wire__crate__api__voice_capture__KansoVoiceCapture_quarantine_drop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        561 => wire__crate__api__voice_capture__KansoVoiceCapture_save_impl(
+        564 => wire__crate__api__voice_capture__KansoVoiceCapture_save_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        562 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_impl(
+        565 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        563 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_audio_only_impl(
+        566 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_audio_only_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        564 => wire__crate__api__voice_capture__KansoVoiceCapture_tidy_note_impl(
+        567 => wire__crate__api__voice_capture__KansoVoiceCapture_tidy_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        565 => {
+        568 => {
             wire__crate__api__diagnostics__backup_excluded_impl(port, ptr, rust_vec_len, data_len)
         }
-        573 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
-        575 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
-        577 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
-        578 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
+        576 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
+        578 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
+        580 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
+        581 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -47694,91 +47886,91 @@ fn pde_ffi_dispatcher_sync_impl(
         252 => {
             wire__crate__api__library__KansoLibrary_notebook_icons_impl(ptr, rust_vec_len, data_len)
         }
-        261 => wire__crate__api__library__KansoLibrary_overview_snapshot_impl(
+        264 => wire__crate__api__library__KansoLibrary_overview_snapshot_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        265 => {
+        268 => {
             wire__crate__api__library__KansoLibrary_parse_color_impl(ptr, rust_vec_len, data_len)
         }
-        266 => wire__crate__api__library__KansoLibrary_pdf_impl(ptr, rust_vec_len, data_len),
-        268 => wire__crate__api__library__KansoLibrary_pdf_export_enabled_impl(
+        269 => wire__crate__api__library__KansoLibrary_pdf_impl(ptr, rust_vec_len, data_len),
+        271 => wire__crate__api__library__KansoLibrary_pdf_export_enabled_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        272 => wire__crate__api__library__KansoLibrary_people_impl(ptr, rust_vec_len, data_len),
-        273 => wire__crate__api__library__KansoLibrary_players_impl(ptr, rust_vec_len, data_len),
-        277 => wire__crate__api__library__KansoLibrary_recorder_impl(ptr, rust_vec_len, data_len),
-        278 => wire__crate__api__library__KansoLibrary_recording_speakers_impl(
+        275 => wire__crate__api__library__KansoLibrary_people_impl(ptr, rust_vec_len, data_len),
+        276 => wire__crate__api__library__KansoLibrary_players_impl(ptr, rust_vec_len, data_len),
+        280 => wire__crate__api__library__KansoLibrary_recorder_impl(ptr, rust_vec_len, data_len),
+        281 => wire__crate__api__library__KansoLibrary_recording_speakers_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        279 => wire__crate__api__library__KansoLibrary_recording_summary_impl(
+        282 => wire__crate__api__library__KansoLibrary_recording_summary_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        286 => wire__crate__api__library__KansoLibrary_renderer_impl(ptr, rust_vec_len, data_len),
-        293 => wire__crate__api__library__KansoLibrary_revisit_options_impl(
+        289 => wire__crate__api__library__KansoLibrary_renderer_impl(ptr, rust_vec_len, data_len),
+        296 => wire__crate__api__library__KansoLibrary_revisit_options_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        308 => wire__crate__api__library__KansoLibrary_shared_impl(ptr, rust_vec_len, data_len),
-        311 => wire__crate__api__library__KansoLibrary_statuses_impl(ptr, rust_vec_len, data_len),
-        312 => wire__crate__api__library__KansoLibrary_syncing_impl(ptr, rust_vec_len, data_len),
-        313 => wire__crate__api__library__KansoLibrary_tag_colors_impl(ptr, rust_vec_len, data_len),
-        316 => {
+        311 => wire__crate__api__library__KansoLibrary_shared_impl(ptr, rust_vec_len, data_len),
+        314 => wire__crate__api__library__KansoLibrary_statuses_impl(ptr, rust_vec_len, data_len),
+        315 => wire__crate__api__library__KansoLibrary_syncing_impl(ptr, rust_vec_len, data_len),
+        316 => wire__crate__api__library__KansoLibrary_tag_colors_impl(ptr, rust_vec_len, data_len),
+        319 => {
             wire__crate__api__library__KansoLibrary_takes_sketches_impl(ptr, rust_vec_len, data_len)
         }
-        319 => wire__crate__api__library__KansoLibrary_themes_impl(ptr, rust_vec_len, data_len),
-        324 => wire__crate__api__library__KansoLibrary_triage_impl(ptr, rust_vec_len, data_len),
-        328 => {
+        322 => wire__crate__api__library__KansoLibrary_themes_impl(ptr, rust_vec_len, data_len),
+        327 => wire__crate__api__library__KansoLibrary_triage_impl(ptr, rust_vec_len, data_len),
+        331 => {
             wire__crate__api__library__KansoLibrary_voice_capture_impl(ptr, rust_vec_len, data_len)
         }
-        332 => wire__crate__api__linking__KansoLinking_current_heading_impl(
+        335 => wire__crate__api__linking__KansoLinking_current_heading_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        334 => wire__crate__api__linking__KansoLinking_outline_impl(ptr, rust_vec_len, data_len),
-        404 => wire__crate__api__pdf__KansoPdfReader_close_impl(ptr, rust_vec_len, data_len),
-        437 => wire__crate__api__player__KansoPlayer_pause_impl(ptr, rust_vec_len, data_len),
-        438 => wire__crate__api__player__KansoPlayer_play_impl(ptr, rust_vec_len, data_len),
-        439 => wire__crate__api__player__KansoPlayer_seek_ms_impl(ptr, rust_vec_len, data_len),
-        440 => wire__crate__api__player__KansoPlayer_set_speed_impl(ptr, rust_vec_len, data_len),
-        441 => wire__crate__api__player__KansoPlayer_set_volume_impl(ptr, rust_vec_len, data_len),
-        442 => wire__crate__api__player__KansoPlayer_skip_ms_impl(ptr, rust_vec_len, data_len),
-        443 => wire__crate__api__player__KansoPlayer_status_impl(ptr, rust_vec_len, data_len),
-        444 => wire__crate__api__player__KansoPlayer_toggle_impl(ptr, rust_vec_len, data_len),
-        447 => wire__crate__api__player__KansoPlayers_parts_state_impl(ptr, rust_vec_len, data_len),
-        465 => wire__crate__api__recording__KansoRecording_pause_impl(ptr, rust_vec_len, data_len),
-        466 => wire__crate__api__recording__KansoRecording_resume_impl(ptr, rust_vec_len, data_len),
-        467 => wire__crate__api__recording__KansoRecording_status_impl(ptr, rust_vec_len, data_len),
-        523 => wire__crate__api__sync__KansoSync_interval_label_impl(ptr, rust_vec_len, data_len),
-        524 => wire__crate__api__sync__KansoSync_interval_options_impl(ptr, rust_vec_len, data_len),
-        525 => wire__crate__api__sync__KansoSync_interval_phrase_impl(ptr, rust_vec_len, data_len),
-        536 => wire__crate__api__sync__KansoSync_status_line_impl(ptr, rust_vec_len, data_len),
-        566 => wire__crate__api__library__backups_summary_impl(ptr, rust_vec_len, data_len),
-        567 => wire__crate__api__canvas__canvas_ink_preview_impl(ptr, rust_vec_len, data_len),
-        568 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
-        569 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
-        570 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
-        571 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
-        572 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
-        574 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
-        576 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
-        579 => {
+        337 => wire__crate__api__linking__KansoLinking_outline_impl(ptr, rust_vec_len, data_len),
+        407 => wire__crate__api__pdf__KansoPdfReader_close_impl(ptr, rust_vec_len, data_len),
+        440 => wire__crate__api__player__KansoPlayer_pause_impl(ptr, rust_vec_len, data_len),
+        441 => wire__crate__api__player__KansoPlayer_play_impl(ptr, rust_vec_len, data_len),
+        442 => wire__crate__api__player__KansoPlayer_seek_ms_impl(ptr, rust_vec_len, data_len),
+        443 => wire__crate__api__player__KansoPlayer_set_speed_impl(ptr, rust_vec_len, data_len),
+        444 => wire__crate__api__player__KansoPlayer_set_volume_impl(ptr, rust_vec_len, data_len),
+        445 => wire__crate__api__player__KansoPlayer_skip_ms_impl(ptr, rust_vec_len, data_len),
+        446 => wire__crate__api__player__KansoPlayer_status_impl(ptr, rust_vec_len, data_len),
+        447 => wire__crate__api__player__KansoPlayer_toggle_impl(ptr, rust_vec_len, data_len),
+        450 => wire__crate__api__player__KansoPlayers_parts_state_impl(ptr, rust_vec_len, data_len),
+        468 => wire__crate__api__recording__KansoRecording_pause_impl(ptr, rust_vec_len, data_len),
+        469 => wire__crate__api__recording__KansoRecording_resume_impl(ptr, rust_vec_len, data_len),
+        470 => wire__crate__api__recording__KansoRecording_status_impl(ptr, rust_vec_len, data_len),
+        526 => wire__crate__api__sync__KansoSync_interval_label_impl(ptr, rust_vec_len, data_len),
+        527 => wire__crate__api__sync__KansoSync_interval_options_impl(ptr, rust_vec_len, data_len),
+        528 => wire__crate__api__sync__KansoSync_interval_phrase_impl(ptr, rust_vec_len, data_len),
+        539 => wire__crate__api__sync__KansoSync_status_line_impl(ptr, rust_vec_len, data_len),
+        569 => wire__crate__api__library__backups_summary_impl(ptr, rust_vec_len, data_len),
+        570 => wire__crate__api__canvas__canvas_ink_preview_impl(ptr, rust_vec_len, data_len),
+        571 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
+        572 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
+        573 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
+        574 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
+        575 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
+        577 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
+        579 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
+        582 => {
             wire__crate__api__word_goal__word_goal_format_count_impl(ptr, rust_vec_len, data_len)
         }
-        580 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
-        581 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
-        582 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
-        583 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
-        584 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
+        583 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
+        584 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
+        585 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
+        586 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
+        587 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -53385,6 +53577,9 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::overview_types::Ov
             self.0.raw.into_into_dart().into_dart(),
             self.0.color.into_into_dart().into_dart(),
             self.0.meeting_note_id.into_into_dart().into_dart(),
+            self.0.meeting_which.into_into_dart().into_dart(),
+            self.0.meeting_day.into_into_dart().into_dart(),
+            self.0.event_json.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -65152,6 +65347,9 @@ impl SseEncode for crate::api::overview_types::OverviewAgendaRow {
         <String>::sse_encode(self.raw, serializer);
         <String>::sse_encode(self.color, serializer);
         <String>::sse_encode(self.meeting_note_id, serializer);
+        <String>::sse_encode(self.meeting_which, serializer);
+        <String>::sse_encode(self.meeting_day, serializer);
+        <String>::sse_encode(self.event_json, serializer);
     }
 }
 

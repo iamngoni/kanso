@@ -16,7 +16,7 @@ use kanso_store::{CardScope, LoopQuery, Result, Store, TaskQuery, TaskRow, Waiti
 use super::density::{self, ALSO_CAP};
 use super::lede::{self, Next, TodayFacts};
 use super::model::*;
-use super::{agenda, past};
+use super::{agenda, meeting, past};
 use crate::brief::Now;
 use crate::tasks::display_text;
 
@@ -48,7 +48,7 @@ pub struct Options {
     pub open_note: Option<String>,
     /// The embedding model in use, for the note from the past.
     pub model: Option<String>,
-    /// Today's calendar events, read from the device's calendars.
+    /// Today's calendar events, read from the device's system calendars.
     pub events: Vec<Event>,
     /// Agent suggestions waiting for review.
     pub agent: Vec<ActivityItem>,
@@ -112,6 +112,7 @@ pub(super) fn task_row(task: &TaskRow, today: Date) -> Option<AgendaRow> {
         meeting: None,
         color: String::new(),
         event: None,
+        event_details: None,
     })
 }
 
@@ -186,6 +187,7 @@ fn event_rows(
             meeting: meetings.get(&key).cloned(),
             color: event.color.clone(),
             event: Some((event.uid.clone(), event.start)),
+            event_details: Some(event.clone()),
         });
     }
     (rows, all_day)
@@ -535,8 +537,8 @@ fn revisit_line(store: &Store, now: Now, today: Date) -> Result<Option<AlsoLine>
 }
 
 fn captured_line(store: &Store) -> Result<Option<AlsoLine>> {
-    let waiting = store.inbox_waiting(Role::Inbox.book_id())?;
-    if waiting.is_empty() {
+    let (count, waiting) = store.inbox_waiting_preview(Role::Inbox.book_id())?;
+    if count == 0 {
         return Ok(None);
     }
     let mut items = Vec::new();
@@ -565,7 +567,7 @@ fn captured_line(store: &Store) -> Result<Option<AlsoLine>> {
     }
     Ok(Some(AlsoLine {
         kind: AlsoKind::Captured,
-        count: waiting.len() as u32,
+        count,
         cards: 0,
         items,
         detail: Vec::new(),
@@ -675,9 +677,16 @@ pub fn today(store: &Store, now: Now, opts: &Options) -> Result<Overview> {
             meeting: None,
             color: String::new(),
             event: None,
+            event_details: None,
         });
     }
-    let (event_rows, all_day) = event_rows(&opts.events, now, day_start, &opts.meetings);
+    let mut meetings = if opts.events.is_empty() {
+        HashMap::new()
+    } else {
+        meeting::links(store, &opts.events, now.offset_ms)?
+    };
+    meetings.extend(opts.meetings.clone());
+    let (event_rows, all_day) = event_rows(&opts.events, now, day_start, &meetings);
     let meetings = event_rows.iter().filter(|r| !r.free).count() as u32;
     rows.extend(event_rows);
 

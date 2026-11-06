@@ -76,6 +76,10 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Kanso uses the camera to take a photo for a note.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Kanso Pocket shows today's events on Overview and links them to your meeting notes. It never changes your calendar, and events stay on this iPhone.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Kanso Pocket shows today's events on Overview and links them to your meeting notes. It never changes your calendar, and events stay on this iPhone.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Kanso uses Face ID to unlock your locked notes.</string>
 	<key>NSMicrophoneUsageDescription</key>

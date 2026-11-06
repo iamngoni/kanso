@@ -236,11 +236,13 @@ import 'recording/models/repos/abs/player_repository.dart' as _i217;
 import 'recording/models/repos/abs/recording_repository.dart' as _i28;
 import 'recording/models/repos/impl/rust_player_repository.dart' as _i441;
 import 'recording/models/repos/impl/rust_recording_repository.dart' as _i804;
-import 'recording_speakers/models/repos/abs/recording_speakers_repository.dart' as _i92001;
-import 'recording_speakers/models/repos/impl/rust_recording_speakers_repository.dart' as _i92002;
 import 'recording/services/recording_audio_session.dart' as _i133;
 import 'recording/state/player/player_bloc.dart' as _i186;
 import 'recording/state/recording/recording_bloc.dart' as _i181;
+import 'recording_speakers/models/repos/abs/recording_speakers_repository.dart'
+    as _i150;
+import 'recording_speakers/models/repos/impl/rust_recording_speakers_repository.dart'
+    as _i50;
 import 'recording_summary/models/repos/abs/recording_summary_repository.dart'
     as _i34;
 import 'recording_summary/models/repos/impl/rust_recording_summary_repository.dart'
@@ -729,9 +731,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i825.ExternalChanges>(),
       ),
     );
-    gh.lazySingleton<_i92001.RecordingSpeakersRepository>(
-      () => _i92002.RustRecordingSpeakersRepository(gh<_i455.KansoLibrary>()),
-    );
     gh.lazySingleton<_i608.ReplaceRepository>(
       () => _i1.RustReplaceRepository(gh<_i455.KansoLibrary>()),
     );
@@ -745,6 +744,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i1002.BackupsRepository>(
       () => _i270.RustBackupsRepository(gh<_i455.KansoLibrary>()),
+    );
+    gh.lazySingleton<_i150.RecordingSpeakersRepository>(
+      () => _i50.RustRecordingSpeakersRepository(gh<_i455.KansoLibrary>()),
     );
     gh.factory<_i686.JournalBloc>(
       () => _i686.JournalBloc(

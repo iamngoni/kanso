@@ -194,7 +194,8 @@ gpui-pre-wgpu = "=0.3.9"
 block2 = "0.6"
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSEvent", "NSGraphics", "NSOpenPanel", "NSPanel", "NSPrintInfo", "NSPrintOperation", "NSResponder", "NSSavePanel", "NSSpellChecker", "NSView", "NSWindow", "block2"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSBundle", "NSCalendar", "NSData", "NSDictionary", "NSError", "NSGeometry", "NSObject", "NSRange", "NSString", "NSURL"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSBundle", "NSCalendar", "NSDate", "NSData", "NSDictionary", "NSError", "NSGeometry", "NSObject", "NSRange", "NSString", "NSUserDefaults", "NSURL"] }
+objc2-event-kit = { version = "0.3", default-features = false, features = ["std", "block2", "EKCalendar", "EKCalendarItem", "EKEvent", "EKEventStore", "EKObject", "EKParticipant", "EKTypes"] }
 # Open at login with SMAppService on macOS 13 and later.
 objc2-service-management = { version = "0.3", default-features = false, features = ["std", "SMAppService", "objc2", "objc2-foundation"] }
 # Reminders: whether notifications are allowed, asked only inside an app

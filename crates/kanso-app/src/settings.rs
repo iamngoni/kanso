@@ -58,6 +58,7 @@ actions!(
         OpenPluginSettings,
         OpenApiSettings,
         OpenUpdateSettings,
+        OpenCalendarSettings,
         CloseSettings,
         NextSettingsPage,
         PreviousSettingsPage,
@@ -102,11 +103,12 @@ pub enum SettingsPage {
     Plugins,
     LocalApi,
     Updates,
+    Calendar,
 }
 
 impl SettingsPage {
     /// In the order the column lists them.
-    pub const ALL: [SettingsPage; 9] = [
+    pub const ALL: [SettingsPage; 10] = [
         SettingsPage::General,
         SettingsPage::Editor,
         SettingsPage::Appearance,
@@ -116,6 +118,7 @@ impl SettingsPage {
         SettingsPage::Plugins,
         SettingsPage::LocalApi,
         SettingsPage::Updates,
+        SettingsPage::Calendar,
     ];
 
     pub fn title(self) -> &'static str {
@@ -129,6 +132,7 @@ impl SettingsPage {
             SettingsPage::Plugins => "Plugins",
             SettingsPage::LocalApi => "Local API",
             SettingsPage::Updates => "Updates",
+            SettingsPage::Calendar => "Calendar",
         }
     }
 
@@ -143,6 +147,7 @@ impl SettingsPage {
             SettingsPage::Plugins => Lucide::Puzzle,
             SettingsPage::LocalApi => Lucide::Plug,
             SettingsPage::Updates => Lucide::CircleArrowDown,
+            SettingsPage::Calendar => Lucide::CalendarDays,
         }
     }
 
@@ -157,6 +162,7 @@ impl SettingsPage {
             SettingsPage::Plugins => "settings-plugins",
             SettingsPage::LocalApi => "settings-api",
             SettingsPage::Updates => "settings-updates",
+            SettingsPage::Calendar => "settings-calendar",
         }
     }
 
@@ -962,6 +968,19 @@ impl SettingsView {
             SettingsPage::Plugins => vec![self.plugins.clone().into_any_element()],
             SettingsPage::LocalApi => api_page(&self.api_keys, cx),
             SettingsPage::Updates => crate::updates::page(cx),
+            SettingsPage::Calendar => self.calendar_page(cx),
+        }
+    }
+
+    fn calendar_page(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        #[cfg(target_os = "macos")]
+        {
+            crate::system_calendar_macos::page(cx)
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = cx;
+            Vec::new()
         }
     }
 
@@ -1905,6 +1924,11 @@ pub fn on_actions(el: Div, cx: &mut Context<Workspace>) -> Div {
     .on_action(
         cx.listener(move |this, _: &OpenUpdateSettings, window, cx| updates(this, window, cx)),
     )
+    .on_action(
+        cx.listener(move |this, _: &OpenCalendarSettings, window, cx| {
+            this.open_settings(Some(SettingsPage::Calendar), window, cx)
+        }),
+    )
     .on_action(cx.listener(|this, _: &CloseSettings, window, cx| this.close_settings(window, cx)))
     .on_action(
         cx.listener(|_, _: &ReloadThemes, window, cx| crate::settings_themes::reload(window, cx)),
@@ -1965,6 +1989,9 @@ pub fn register_app_actions(cx: &mut App, open_main_window: fn(&mut App)) {
     });
     cx.on_action(move |_: &OpenUpdateSettings, cx| {
         show(Some(SettingsPage::Updates), open_main_window, cx)
+    });
+    cx.on_action(move |_: &OpenCalendarSettings, cx| {
+        show(Some(SettingsPage::Calendar), open_main_window, cx)
     });
     cx.on_action(move |_: &BrowseThemes, cx| {
         crate::settings_gallery::open(kanso_gallery::Kind::Color, cx);
@@ -2290,7 +2317,8 @@ mod tests {
         assert_eq!(SettingsPage::General.step(-1), SettingsPage::General);
         assert_eq!(SettingsPage::General.step(3), SettingsPage::IconThemes);
         assert_eq!(SettingsPage::LocalApi.step(1), SettingsPage::Updates);
-        assert_eq!(SettingsPage::Updates.step(1), SettingsPage::Updates);
+        assert_eq!(SettingsPage::Updates.step(1), SettingsPage::Calendar);
+        assert_eq!(SettingsPage::Calendar.step(1), SettingsPage::Calendar);
         assert_eq!(SettingsPage::Account.title(), "Account");
     }
 
@@ -2441,7 +2469,7 @@ mod tests {
                 prop_assert_eq!(moved, SettingsPage::ALL[target as usize]);
                 prop_assert_eq!(moved.step(-by), page);
             } else {
-                prop_assert_eq!(moved, if by < 0 { SettingsPage::General } else { SettingsPage::Updates });
+                prop_assert_eq!(moved, if by < 0 { SettingsPage::General } else { SettingsPage::Calendar });
             }
         }
     }

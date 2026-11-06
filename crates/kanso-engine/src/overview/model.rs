@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 pub const VERSION: u32 = 1;
 
 /// A calendar event, as the agenda needs it. Read from the device's own
-/// calendars or an ICS address, kept in local tables, never synced.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+/// calendars, kept in local tables, never synced.
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Event {
     /// The iCalendar UID. Together with `start` it names one instance.
     pub uid: String,
@@ -25,6 +25,9 @@ pub struct Event {
     pub conference_url: String,
     pub attendees: Vec<Attendee>,
     pub calendar: String,
+    /// Stable identifier of the system calendar, kept local to the device.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub calendar_id: String,
     /// The calendar's colour as `#rrggbb`, or empty.
     pub color: String,
     pub all_day: bool,
@@ -34,7 +37,7 @@ pub struct Event {
     pub declined: bool,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Attendee {
     pub name: String,
     pub email: String,
@@ -56,7 +59,7 @@ pub enum AgendaKind {
 }
 
 /// A meeting note an event row links to.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct MeetingLink {
     pub note_id: String,
     /// `this` for the instance's own note, `last` for the newest earlier
@@ -99,6 +102,10 @@ pub struct AgendaRow {
     pub color: String,
     /// The event's UID and start, for linking it to a note.
     pub event: Option<(String, i64)>,
+    /// Full local source data, carried only so a meeting note can preserve
+    /// the event's time and attendees without looking the event up again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event_details: Option<Event>,
 }
 
 impl AgendaRow {

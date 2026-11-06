@@ -20,6 +20,9 @@ class OverviewAgendaRow {
   final String raw;
   final String color;
   final String meetingNoteId;
+  final String meetingWhich;
+  final String meetingDay;
+  final String eventJson;
 
   const OverviewAgendaRow({
     required this.kind,
@@ -35,6 +38,9 @@ class OverviewAgendaRow {
     required this.raw,
     required this.color,
     required this.meetingNoteId,
+    required this.meetingWhich,
+    required this.meetingDay,
+    required this.eventJson,
   });
 
   @override
@@ -51,7 +57,10 @@ class OverviewAgendaRow {
       isLoop.hashCode ^
       raw.hashCode ^
       color.hashCode ^
-      meetingNoteId.hashCode;
+      meetingNoteId.hashCode ^
+      meetingWhich.hashCode ^
+      meetingDay.hashCode ^
+      eventJson.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -70,7 +79,10 @@ class OverviewAgendaRow {
           isLoop == other.isLoop &&
           raw == other.raw &&
           color == other.color &&
-          meetingNoteId == other.meetingNoteId;
+          meetingNoteId == other.meetingNoteId &&
+          meetingWhich == other.meetingWhich &&
+          meetingDay == other.meetingDay &&
+          eventJson == other.eventJson;
 }
 
 class OverviewAheadDay {

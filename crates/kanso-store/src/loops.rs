@@ -154,11 +154,11 @@ fn filter(query: &LoopQuery) -> (String, Vec<SqlValue>) {
         values.push(SqlValue::Text(kind.as_str().to_owned()));
     }
     if let Some(since) = query.since {
-        sql.push_str(" AND d.updated_at >= ?");
+        sql.push_str(" AND l.note_updated_at >= ?");
         values.push(SqlValue::Integer(since));
     }
     if let Some(before) = query.before {
-        sql.push_str(" AND d.updated_at < ?");
+        sql.push_str(" AND l.note_updated_at < ?");
         values.push(SqlValue::Integer(before));
     }
     if query.ai_visible {
@@ -174,8 +174,8 @@ impl Store {
         let (extra, mut values) = filter(query);
         let sql = format!(
             "SELECT l.note_id, d.title, d.book_id, l.line, l.kind, l.text, l.key, l.due, l.source,
-                    d.updated_at {OPEN_LOOPS}{extra}
-             ORDER BY d.updated_at DESC, l.note_id, l.ord LIMIT ?"
+                    l.note_updated_at {OPEN_LOOPS}{extra}
+             ORDER BY l.note_updated_at DESC, l.note_id, l.ord LIMIT ?"
         );
         values.push(SqlValue::Integer(query.limit.map_or(-1, |n| n as i64)));
         self.read(|conn| {
@@ -197,7 +197,7 @@ impl Store {
                     } else {
                         LoopSource::Rule
                     },
-                    note_updated_at: row.get::<_, Option<i64>>(9)?.unwrap_or(0),
+                    note_updated_at: row.get(9)?,
                 })
             })?;
             Ok(rows.collect::<rusqlite::Result<_>>()?)

@@ -80,6 +80,40 @@ impl Store {
         })
     }
 
+    /// The count and two newest notes still waiting in Triage. Overview
+    /// shows an exact count with only two examples, so avoid materializing
+    /// every candidate in a large Inbox.
+    pub fn inbox_waiting_preview(&self, inbox: &str) -> Result<(u32, Vec<InboxNote>)> {
+        self.read(|conn| {
+            let mut stmt = conn.prepare(concat!(
+                "SELECT d.id, d.rev, d.updated_at, COUNT(*) OVER() FROM docs d
+                 WHERE d.type = 'note' AND d.deleted = 0 AND d.book_id = ?1
+                 AND NOT ",
+                crate::schema::note_locked!("d."),
+                " AND IFNULL(json_extract(d.json, '$.kansoTriaged.at'), -1) < d.updated_at
+                 ORDER BY d.updated_at DESC, d.id LIMIT 2"
+            ))?;
+            let rows = stmt.query_map(params![inbox], |row| {
+                Ok((
+                    InboxNote {
+                        id: row.get(0)?,
+                        rev: row.get(1)?,
+                        updated_at: row.get(2)?,
+                    },
+                    row.get::<_, i64>(3)? as u32,
+                ))
+            })?;
+            let mut total = 0;
+            let mut notes = Vec::new();
+            for row in rows {
+                let (note, count) = row?;
+                total = count;
+                notes.push(note);
+            }
+            Ok((total, notes))
+        })
+    }
+
     /// Remembers that the person rejected `value` for `field` of note
     /// `note_id`, so it is not suggested again.
     pub fn dismiss_triage(
@@ -287,5 +321,11 @@ mod tests {
         assert!(ids.contains(&waiting) && ids.contains(&edited_since));
         assert!(!ids.contains(&done));
         assert_eq!(ids.len(), 2);
+        let (count, preview) = store.inbox_waiting_preview("book:inbox").unwrap();
+        assert_eq!(count, 2);
+        assert_eq!(
+            preview.into_iter().map(|note| note.id).collect::<Vec<_>>(),
+            ids
+        );
     }
 }

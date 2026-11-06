@@ -183,6 +183,7 @@ pub enum DigestEvent {
     Link(String),
     /// Open Settings at Overview's section.
     OpenSettings,
+    OpenCalendarSettings,
     /// Something to tell the user.
     Notice(String),
 }
