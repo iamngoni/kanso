@@ -202,13 +202,13 @@ impl Recorder {
         }
         create_private_dir(root)?;
         let dir = root.join(&id);
-        let mut builder = DirBuilder::new();
         #[cfg(unix)]
         {
             use std::os::unix::fs::DirBuilderExt;
-            builder.mode(0o700);
+            DirBuilder::new().mode(0o700).create(&dir)?;
         }
-        builder.create(&dir)?;
+        #[cfg(not(unix))]
+        DirBuilder::new().create(&dir)?;
         sync_dir(root)?;
 
         let now = now_ms();
