@@ -2189,6 +2189,8 @@ static COMMANDS: &[Command] = &[
         run: action!(OpenUpdateSettings),
         needs: Needs::Nothing,
     },
+    // Only macOS has a system calendar Kanso reads.
+    #[cfg(target_os = "macos")]
     Command {
         id: "settings-calendar",
         label: "Settings: Calendar",

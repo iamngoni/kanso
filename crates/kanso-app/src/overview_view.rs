@@ -814,14 +814,18 @@ impl DigestView {
                             },
                         ));
                     }
-                    menu.item(
-                        PopupMenuItem::new("Calendar Settings…").on_click(move |_, _, cx| {
+                    // Only macOS has a system calendar Kanso reads.
+                    #[cfg(target_os = "macos")]
+                    let menu = menu.item(PopupMenuItem::new("Calendar Settings…").on_click(
+                        move |_, _, cx| {
                             calendar_settings
                                 .update(cx, |_, cx| cx.emit(DigestEvent::OpenCalendarSettings))
                                 .ok();
-                        }),
-                    )
-                    .item(
+                        },
+                    ));
+                    #[cfg(not(target_os = "macos"))]
+                    let _ = calendar_settings;
+                    menu.item(
                         PopupMenuItem::new("Overview Settings…").on_click(move |_, _, cx| {
                             settings
                                 .update(cx, |_, cx| cx.emit(DigestEvent::OpenSettings))
