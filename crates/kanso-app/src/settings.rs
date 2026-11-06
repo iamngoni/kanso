@@ -107,7 +107,9 @@ pub enum SettingsPage {
 }
 
 impl SettingsPage {
-    /// In the order the column lists them.
+    /// In the order the column lists them. Calendar reads the system
+    /// calendar, which only macOS offers, so other desktops don't list it.
+    #[cfg(target_os = "macos")]
     pub const ALL: [SettingsPage; 10] = [
         SettingsPage::General,
         SettingsPage::Editor,
@@ -119,6 +121,18 @@ impl SettingsPage {
         SettingsPage::LocalApi,
         SettingsPage::Updates,
         SettingsPage::Calendar,
+    ];
+    #[cfg(not(target_os = "macos"))]
+    pub const ALL: [SettingsPage; 9] = [
+        SettingsPage::General,
+        SettingsPage::Editor,
+        SettingsPage::Appearance,
+        SettingsPage::IconThemes,
+        SettingsPage::Account,
+        SettingsPage::Ai,
+        SettingsPage::Plugins,
+        SettingsPage::LocalApi,
+        SettingsPage::Updates,
     ];
 
     pub fn title(self) -> &'static str {
@@ -2317,8 +2331,9 @@ mod tests {
         assert_eq!(SettingsPage::General.step(-1), SettingsPage::General);
         assert_eq!(SettingsPage::General.step(3), SettingsPage::IconThemes);
         assert_eq!(SettingsPage::LocalApi.step(1), SettingsPage::Updates);
-        assert_eq!(SettingsPage::Updates.step(1), SettingsPage::Calendar);
-        assert_eq!(SettingsPage::Calendar.step(1), SettingsPage::Calendar);
+        let last = SettingsPage::ALL[SettingsPage::ALL.len() - 1];
+        assert_eq!(SettingsPage::Updates.step(10), last);
+        assert_eq!(last.step(1), last);
         assert_eq!(SettingsPage::Account.title(), "Account");
     }
 
@@ -2469,7 +2484,7 @@ mod tests {
                 prop_assert_eq!(moved, SettingsPage::ALL[target as usize]);
                 prop_assert_eq!(moved.step(-by), page);
             } else {
-                prop_assert_eq!(moved, if by < 0 { SettingsPage::General } else { SettingsPage::Calendar });
+                prop_assert_eq!(moved, if by < 0 { SettingsPage::General } else { SettingsPage::ALL[SettingsPage::ALL.len() - 1] });
             }
         }
     }
