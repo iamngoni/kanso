@@ -1,18 +1,27 @@
 name: CI
 
-# CI runs on master and for pull requests from forks only. A branch of this
-# repository is checked before it merges, and checked again on master.
+# CI runs on GitHub-hosted runners, on master only: a branch is checked
+# locally before it merges. A push that only touches docs, the phone app or
+# other non-build files doesn't start a run; workflow_dispatch runs it all.
 on:
   push:
     branches: [master]
-  pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "mobile/**"
+      - "design/**"
+      - "LICENSE*"
+      - ".github/workflows/mobile*.yml"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/claude*.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# One run per branch at a time: a newer push cancels the older run, so the
-# self-hosted Mac never has two jobs installing the toolchain at once.
+# One run per branch at a time: a newer push cancels the older run, so
+# runner time goes only to the newest commit.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -21,16 +30,16 @@ env:
   CARGO_TERM_COLOR: always
   # Property tests run with a fixed seed so a CI failure reproduces locally.
   PROPTEST_RNG_SEED: "20261017"
+  # Hosted runners start with no target folder and limited disk: no
+  # incremental files, and line tables only instead of full debug info.
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  CARGO_PROFILE_TEST_DEBUG: line-tables-only
 
 jobs:
-  # On the self-hosted Mac: several tests need macOS's fonts and text
-  # system, and the Linux runner has no dbus headers for the keyring. The
-  # runner keeps its target folder between runs, so no cache step.
+  # On a Mac: several tests need macOS's fonts and text system.
   rust:
-    # Self-hosted, so never for a pull request: a fork's would run a
-    # stranger's code on the owner's machine.
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, macOS]
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -38,6 +47,7 @@ jobs:
           submodules: true
       # Installs the toolchain pinned in rust-toolchain.toml.
       - run: scripts/ci-rust.sh
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       # kanso-audio's libopus is built from the source the opus crate bundles,
       # with CMake (Linux has it from linux-deps.sh).
       - name: CMake (libopus)
@@ -81,13 +91,13 @@ jobs:
   # one's time (crates/kanso-store/tests/encryption_speed.rs). Slow, so it
   # has its own job and a release build.
   encryption-speed:
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, macOS]
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: true
       - run: scripts/ci-rust.sh
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - run: cargo test -p kanso-store --release --locked --test encryption_speed -- --include-ignored --nocapture
 
   # The app and the command-line tools build for Windows and Linux too (the
@@ -95,23 +105,21 @@ jobs:
   # need macOS's fonts and text system.
   portability:
     name: clippy + tests (${{ matrix.os }})
-    # Self-hosted, so never for a pull request.
-    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: linux-x64
-            runner: [self-hosted, Linux, X64]
+            runner: ubuntu-24.04
           - os: windows-x64
-            runner: [self-hosted, Windows, X64]
+            runner: windows-2022
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # The built-in themes: the kanso-themes repository.
           submodules: true
-      # On the self-hosted Windows runner, plain `bash` is WSL's launcher in
+      # On Windows, plain `bash` can be WSL's launcher in
       # WindowsApps, which can't run the step scripts; put Git Bash first.
       # Git for Windows may be installed for every user (Program Files) or
       # only the runner's (AppData\Local\Programs), so look where git is too.
@@ -188,18 +196,15 @@ jobs:
   # The core the mobile app shares (#48): the engine, store, renderer, shared
   # notes, importers, sync client and AI client have to build for iOS and
   # Android, with no window system, no desktop Keychain and no agent process
-  # in their trees, and their tests run on the iOS Simulator. On the
-  # self-hosted Mac, which has Xcode, the simulators and the Android NDK, so
-  # never for a pull request (a fork's would run a stranger's code on the
-  # owner's machine). The Android
+  # in their trees, and their tests run on the iOS Simulator. On a hosted
+  # Mac, which has Xcode, the simulators and the Android NDK. The Android
   # tests run in mobile-core.yml, on a Linux runner that can run an emulator.
   # The C code in SQLite, ring, QuickJS and tree-sitter needs the NDK's clang
   # for each Android target, and rquickjs's bindings need libclang: both are
   # set up by scripts/mobile/env.sh. The rust-toolchain.toml doesn't list the
   # phones' targets: the desktop builds never need them.
   engine-mobile:
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, macOS]
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -207,6 +212,7 @@ jobs:
           submodules: true
       # Installs the toolchain pinned in rust-toolchain.toml.
       - run: scripts/ci-rust.sh
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - run: rustup target add aarch64-apple-ios aarch64-apple-ios-sim aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
       # `cargo check` for the five targets, the banned-dependency look
       # (gpui, objc, keyring, kanso-acp) and clippy for the phones' cfg-gated
@@ -269,11 +275,8 @@ jobs:
           if-no-files-found: ignore
 
   worker:
-    # Self-hosted, so never for a pull request: a fork's would run a
-    # stranger's code on the owner's machine.
-    if: github.event_name != 'pull_request'
     # On a Mac: the property tests time out on the small Linux containers.
-    runs-on: [self-hosted, macOS]
+    runs-on: macos-15
     defaults:
       run:
         working-directory: cloud
@@ -289,10 +292,7 @@ jobs:
   # kansoapp.app: types, tests with their coverage floor, and a production
   # build. Nothing here needs Cloudflare credentials; deploying is by hand.
   site:
-    # Self-hosted, so never for a pull request: a fork's would run a
-    # stranger's code on the owner's machine.
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, macOS]
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: site
@@ -313,10 +313,7 @@ jobs:
   # Jobs share that Mac, so the script takes a free port the OS picks rather
   # than a fixed KANSO_E2E_PORT.
   e2e:
-    # Self-hosted, so never for a pull request: a fork's would run a
-    # stranger's code on the owner's machine.
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, macOS]
+    runs-on: macos-15
     needs: [rust, worker]
     env:
       WRANGLER_SEND_METRICS: "false"
@@ -326,6 +323,7 @@ jobs:
           # The built-in themes: the kanso-themes repository.
           submodules: true
       - run: scripts/ci-rust.sh
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24"
