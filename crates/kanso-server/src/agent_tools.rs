@@ -33,6 +33,7 @@ pub fn call(
         store: store.clone(),
         tokens: tokens.clone(),
         canvases: None,
+        sync_status: crate::SyncStatus::default(),
     };
     call_with_state(&state, token, scope, name, arguments)
 }

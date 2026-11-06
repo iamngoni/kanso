@@ -44,6 +44,7 @@ Commands:
   revoke <id>  Sign another device out (an ID from `devices`, or the
                start of one)
   sign-out     Sign this library out; its notes stay here
+  recovery-key Show and confirm saving a pending recovery key
   help         Show this message
 
 Sign-in, devices, revoke and sign-out need the data folder to themselves:
@@ -66,6 +67,7 @@ pub enum Command {
     SignOut,
     Devices,
     Revoke { device_id: String },
+    RecoveryKey,
 }
 
 /// How `sign-in` was asked to sign in.
@@ -109,6 +111,7 @@ pub fn parse(args: &[String]) -> Result<Command, BadCommand> {
         "status" => no_more(Command::Status),
         "devices" => no_more(Command::Devices),
         "sign-out" => no_more(Command::SignOut),
+        "recovery-key" => no_more(Command::RecoveryKey),
         "revoke" => match rest {
             [id] if !id.starts_with('-') && !id.is_empty() => Ok(Command::Revoke {
                 device_id: id.clone(),
@@ -199,6 +202,7 @@ fn unparse(command: &Command) -> Vec<String> {
             out.push("revoke".into());
             out.push(device_id.clone());
         }
+        Command::RecoveryKey => out.push("recovery-key".into()),
         Command::SignIn(args) => {
             out.push("sign-in".into());
             let mut pair = |flag: &str, value: &Option<String>| {
@@ -352,7 +356,7 @@ pub fn run_cli(data_dir: &Path, rest: &[String]) -> Result<()> {
             Ok(secrets)
         }),
         system_works: Box::new(|| crate::secrets::store_works(&crate::flavour::CURRENT.keychain())),
-        machine: Machine::this_mac(),
+        machine: Machine::this_computer(),
         now_ms: Box::new(kanso_core::now_ms),
         pause: Box::new(std::thread::sleep),
         interrupt: Box::new(interrupt_flag),
@@ -378,6 +382,51 @@ pub fn run(world: &World, command: Command, console: &mut dyn Console) -> Result
         Command::SignOut => sign_out(world, console),
         Command::Devices => devices(world, console),
         Command::Revoke { device_id } => revoke(world, &device_id, console),
+        Command::RecoveryKey => show_recovery_key(world, console),
+    }
+}
+
+/// Shows the pending key once and removes it only after the owner types its
+/// final group back, matching the desktop confirmation step.
+fn show_recovery_key(world: &World, console: &mut dyn Console) -> Result<(), Refusal> {
+    let _lock = lock(&world.data_dir)?;
+    if !console.is_tty() {
+        return refuse("run `kanso account recovery-key` in a terminal to confirm saving it");
+    }
+    let config = config(&world.data_dir)?;
+    let secrets = (world.open_secrets)(config.sync.secret_store)
+        .map_err(|err| Refusal(format!("{err:#}")))?;
+    let store = open_library(world, &config)?;
+    let flow = flow(world, store, secrets.clone());
+    let account = config
+        .sync
+        .account
+        .as_ref()
+        .map(|account| (account.origin.as_str(), account.id.as_str()));
+    let restored = flow
+        .restore(account)
+        .ok_or_else(|| Refusal("couldn't read this library's device identity".into()))?;
+    let key = kanso_sync::keychain::load_any_recovery_key(secrets.as_ref(), &restored.library_id)
+        .map_err(|err| Refusal(format!("couldn't read the recovery key: {err}")))?
+        .ok_or_else(|| Refusal("this library has no recovery key waiting to be saved".into()))?;
+    let shown = key.recovery_key.display();
+    let last_group = shown.rsplit('-').next().unwrap_or_default();
+    console.say(&format!(
+        "Your recovery key for {}:\n\n  {}\n\nKanso can't show it again. Save it now in a password manager or on paper.",
+        key.username, shown
+    ));
+    let answer = console.prompt_secret(&format!(
+        "Type the last group ({last_group}) to confirm you saved it: "
+    ))?;
+    if answer.trim().eq_ignore_ascii_case(last_group) {
+        kanso_sync::keychain::delete_recovery_key(secrets.as_ref(), &restored.library_id)
+            .map_err(|err| Refusal(format!("couldn't mark the recovery key as saved: {err}")))?;
+        console.say("Saved.");
+        Ok(())
+    } else {
+        refuse(
+            "that didn't match; the recovery key is still here. Run `kanso account recovery-key` to try again",
+        )
     }
 }
 

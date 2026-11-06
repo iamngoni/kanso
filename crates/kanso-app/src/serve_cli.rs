@@ -25,13 +25,7 @@ pub type Say = Arc<dyn Fn(String) + Send + Sync>;
 /// `kanso serve [--verbose]`: runs until SIGINT or SIGTERM (Ctrl-C ends the
 /// process on Windows).
 pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
-    let mut verbose = false;
-    for arg in rest {
-        match arg.as_str() {
-            "--verbose" | "-v" => verbose = true,
-            other => bail!("serve doesn't take `{other}`"),
-        }
-    }
+    let options = ServeOptions::parse(rest)?;
     std::fs::create_dir_all(&data_dir)?;
     let Some(lock) = lock_data_dir(&data_dir)? else {
         bail!(
@@ -39,7 +33,11 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
             data_dir.display()
         );
     };
-    let config = crate::load_config(&data_dir)?;
+    let mut config = crate::load_config(&data_dir)?;
+    if let Some(related_notes) = options.related_notes {
+        config.discovery.related_notes = related_notes;
+        config.save(&crate::paths::config_path(&data_dir))?;
+    }
     let server = crate::services::server_config(&config.server).map_err(anyhow::Error::msg)?;
     if let Some(warning) = crate::secrets::file_store_warning(
         config.sync.secret_store,
@@ -49,6 +47,10 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
         eprintln!("{warning}");
     }
     let store = Arc::new(crate::library_open::open_store(&data_dir)?);
+    if options.related_notes == Some(false) {
+        kanso_engine::discovery::related::forget(&store)
+            .map_err(|err| anyhow::anyhow!("turning related notes off: {err}"))?;
+    }
     // A daily snapshot of the database, as the app takes, checked every
     // hour: a server runs for months.
     let backup_store = store.clone();
@@ -86,18 +88,22 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
             None
         }
     };
-    let handle = kanso_server::spawn(store.clone(), server, keys);
-    match handle.bind_result() {
-        Ok(addr) => eprintln!("Kanso API on http://{addr} (MCP at /mcp). Ctrl-C stops it."),
+    let sync_status = kanso_server::SyncStatus::default();
+    let handle = kanso_server::spawn_with_sync_status(
+        store.clone(),
+        server,
+        kanso_server::TokenStore::new(),
+        keys,
+        sync_status.clone(),
+    );
+    let addr = match handle.bind_result() {
+        Ok(addr) => addr,
         Err(err) => bail!(
             "couldn't listen on {}:{}: {err}",
             config.server.bind_address,
             config.server.port
         ),
-    }
-    if let Some(line) = exposed_warning(&config.server.bind_address) {
-        say(line.to_owned());
-    }
+    };
     let secrets = match crate::secrets::open_secrets(&config, &data_dir) {
         Ok(secrets) => Some(secrets),
         Err(err) => {
@@ -106,22 +112,57 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
         }
     };
     let driver = secrets.and_then(|secrets| {
-        start_sync(SyncStart {
-            config: &config,
-            data_dir: &data_dir,
-            store: store.clone(),
-            secrets,
-            backend: Arc::new(kanso_sync::HttpBackend::new()),
-            machine: Machine::this_mac(),
-            shared_notes: true,
-            verbose,
-            say: say.clone(),
-        })
+        start_sync_with_status(
+            SyncStart {
+                config: &config,
+                data_dir: &data_dir,
+                store: store.clone(),
+                secrets,
+                backend: Arc::new(kanso_sync::HttpBackend::new()),
+                machine: Machine::this_computer(),
+                shared_notes: true,
+                verbose: options.verbose,
+                say: say.clone(),
+            },
+            sync_status.clone(),
+        )
     });
+    let indexer = if config.discovery.related_notes {
+        let indexer = kanso_engine::discovery::indexer::Indexer::start(
+            store.clone(),
+            data_dir.clone(),
+            move |status| match status {
+                kanso_engine::discovery::related::Status::Indexing { done, total } => {
+                    eprintln!(
+                        "kanso serve: related notes on; indexing {done} of {total} notes in the background."
+                    );
+                }
+                kanso_engine::discovery::related::Status::Ready { notes } => {
+                    eprintln!("kanso serve: related notes ready; {notes} notes indexed.");
+                }
+                kanso_engine::discovery::related::Status::Failed(error) => {
+                    eprintln!("kanso serve: related notes couldn't start: {error}");
+                }
+                _ => {}
+            },
+        );
+        Some(indexer)
+    } else {
+        None
+    };
+    if let Some(line) = exposed_warning(&config.server.bind_address) {
+        say(line.to_owned());
+    }
+    eprintln!("Kanso API on http://{addr} (MCP at /mcp). Ctrl-C stops it.");
     wait_for_stop();
     say("kanso serve: stopping: finishing the sync…".to_owned());
     if let Some(driver) = driver {
         driver.stop();
+    }
+    if let Some(indexer) = indexer
+        && let Err(err) = indexer.stop(&store)
+    {
+        eprintln!("kanso serve: stopping related notes: {err}");
     }
     if let Err(err) = handle.stop() {
         eprintln!("kanso serve: stopping the API: {err}");
@@ -130,6 +171,39 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
     drop(lock);
     say("kanso serve: stopped.".to_owned());
     Ok(())
+}
+
+/// The explicit command-line overrides supported by `kanso serve`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ServeOptions {
+    pub verbose: bool,
+    pub related_notes: Option<bool>,
+}
+
+impl ServeOptions {
+    /// Parses serve flags once so invalid overrides never partially update
+    /// the library configuration.
+    pub fn parse(args: &[String]) -> Result<Self> {
+        let mut options = ServeOptions::default();
+        let mut index = 0;
+        while index < args.len() {
+            match args[index].as_str() {
+                "--verbose" | "-v" => options.verbose = true,
+                "--related-notes" => {
+                    index += 1;
+                    options.related_notes = Some(match args.get(index).map(String::as_str) {
+                        Some("on") => true,
+                        Some("off") => false,
+                        Some(_) => bail!("--related-notes must be `on` or `off`"),
+                        None => bail!("--related-notes needs `on` or `off`"),
+                    });
+                }
+                other => bail!("serve doesn't take `{other}`"),
+            }
+            index += 1;
+        }
+        Ok(options)
+    }
 }
 
 /// How often `serve` checks whether the daily backup is due.
@@ -141,7 +215,7 @@ const BACKUP_CHECK: Duration = Duration::from_secs(60 * 60);
 /// including one that doesn't parse, warns.
 pub fn exposed_warning(bind_address: &str) -> Option<&'static str> {
     crate::api_keys_model::is_lan_address(bind_address).then_some(
-        "kanso serve: binding to a LAN address sends keys unencrypted, so anyone on the network can read them. Set server.bind_address in config.json to 127.0.0.1 to keep the API on this computer, or put TLS in front or use an SSH tunnel.",
+        "kanso serve: the API is reachable from other computers over plain HTTP; put TLS in front or use an SSH tunnel.",
     )
 }
 
@@ -154,10 +228,15 @@ pub fn no_keys_notice(rows: &[kanso_store::ApiKeyRow]) -> Option<&'static str> {
 }
 
 /// Blocks until SIGINT or SIGTERM.
+// no-prop-test: thin OS signal registration adapter; the signal APIs require a live process session.
 #[cfg(unix)]
 fn wait_for_stop() {
     let stop = Arc::new(AtomicBool::new(false));
-    for signal in [signal_hook::consts::SIGINT, signal_hook::consts::SIGTERM] {
+    for signal in [
+        signal_hook::consts::SIGINT,
+        signal_hook::consts::SIGTERM,
+        signal_hook::consts::SIGHUP,
+    ] {
         // A second signal while stopping ends the process at once.
         signal_hook::flag::register_conditional_shutdown(signal, 1, stop.clone()).ok();
         if let Err(err) = signal_hook::flag::register(signal, stop.clone()) {
@@ -169,11 +248,17 @@ fn wait_for_stop() {
     }
 }
 
-/// Windows: Ctrl-C ends the process, as before.
+/// Windows: Ctrl-C, console close, and the termination event stop the server.
+// no-prop-test: this is an OS registration adapter; testing the signal itself requires a Windows console session.
 #[cfg(not(unix))]
 fn wait_for_stop() {
-    loop {
-        std::thread::park();
+    let stop = Arc::new(AtomicBool::new(false));
+    let handler_stop = stop.clone();
+    if let Err(err) = ctrlc::set_handler(move || handler_stop.store(true, Ordering::Relaxed)) {
+        eprintln!("kanso serve: can't catch termination: {err}");
+    }
+    while !stop.load(Ordering::Relaxed) {
+        std::thread::sleep(Duration::from_millis(200));
     }
 }
 
@@ -195,6 +280,61 @@ pub struct SyncStart<'a> {
 /// Restores the library's session and starts the sync driver when it is
 /// signed in and sync is on; says why not otherwise.
 pub fn start_sync(start: SyncStart<'_>) -> Option<Driver> {
+    start_sync_with_status(start, kanso_server::SyncStatus::default())
+}
+
+fn sync_snapshot(
+    store: &Store,
+    session: &kanso_sync::Session,
+    device: String,
+) -> kanso_server::SyncSnapshot {
+    let last_sync_at = store
+        .meta(kanso_engine::sync::driver::LAST_SYNC_MS)
+        .ok()
+        .flatten()
+        .and_then(|value| value.parse::<i64>().ok());
+    let last_result = store
+        .meta(kanso_engine::sync::driver::LAST_RESULT)
+        .ok()
+        .flatten()
+        .and_then(|value| {
+            serde_json::from_str::<kanso_engine::sync::driver::LastResult>(&value).ok()
+        })
+        .map(|result| kanso_server::SyncResult {
+            pulled: result.pulled,
+            pushed: result.pushed,
+            files_up: result.files_up,
+            conflicts: result.conflicts,
+            pending: result.pending,
+        });
+    kanso_server::SyncSnapshot {
+        signed_in: true,
+        username: Some(session.username.clone()),
+        server: Some(session.server.clone()),
+        device: Some(device),
+        state: kanso_server::SyncPhase::Idle,
+        last_sync_at,
+        last_result,
+        problem: None,
+        hold_until: None,
+    }
+}
+
+fn update_sync_phase(
+    status: &kanso_server::SyncStatus,
+    phase: kanso_server::SyncPhase,
+    problem: Option<String>,
+) {
+    let mut snapshot = status.snapshot();
+    snapshot.state = phase;
+    snapshot.problem = problem;
+    status.set(snapshot);
+}
+
+fn start_sync_with_status(
+    start: SyncStart<'_>,
+    sync_status: kanso_server::SyncStatus,
+) -> Option<Driver> {
     let SyncStart {
         config,
         data_dir,
@@ -206,6 +346,7 @@ pub fn start_sync(start: SyncStart<'_>) -> Option<Driver> {
         verbose,
         say,
     } = start;
+    let device = kanso_sync::device_name(&machine.computer_name);
     let flow = Flow {
         backend: backend.clone(),
         secrets: secrets.clone(),
@@ -220,6 +361,7 @@ pub fn start_sync(start: SyncStart<'_>) -> Option<Driver> {
         .as_ref()
         .map(|a| (a.origin.as_str(), a.id.as_str()));
     let Some(restored) = flow.restore(account) else {
+        sync_status.set(kanso_server::SyncSnapshot::default());
         say(
             "kanso serve: couldn't read this library's device identity; running signed out."
                 .to_owned(),
@@ -227,11 +369,12 @@ pub fn start_sync(start: SyncStart<'_>) -> Option<Driver> {
         return None;
     };
     if restored.kept.is_some() {
-        say("kanso serve: an unsaved recovery key is kept for this library; open this library in Kanso to see it.".to_owned());
+        say("kanso serve: this library has a recovery key you haven't saved. Run `kanso account recovery-key`.".to_owned());
     }
     let session = match restored.loaded {
         Ok(Some(session)) => session,
         Ok(None) => {
+            sync_status.set(kanso_server::SyncSnapshot::default());
             match restored.pending {
                 Ok(Some(locked)) => say(format!(
                     "kanso serve: signed in to {}, but this computer isn't approved yet; run `kanso account sign-in` to finish.",
@@ -242,6 +385,7 @@ pub fn start_sync(start: SyncStart<'_>) -> Option<Driver> {
             return None;
         }
         Err(err) => {
+            sync_status.set(kanso_server::SyncSnapshot::default());
             say(format!(
                 "kanso serve: couldn't read the session ({err}); running signed out."
             ));
@@ -251,6 +395,8 @@ pub fn start_sync(start: SyncStart<'_>) -> Option<Driver> {
     flow.flush_logouts(&restored.library_id);
     let server = session.server.clone();
     let username = session.username.clone();
+    let initial = sync_snapshot(&store, &session, device);
+    sync_status.set(initial);
     if !config.sync.enabled {
         say(format!(
             "kanso serve: signed in as {username} on {server}; sync is off in this library's settings."
@@ -278,6 +424,7 @@ pub fn start_sync(start: SyncStart<'_>) -> Option<Driver> {
     };
     let config_path = crate::paths::config_path(data_dir);
     let mut last_problem = None;
+    let event_status = sync_status.clone();
     let on = Box::new(move |event: DriverEvent| {
         if let DriverEvent::SignedOut(_) = &event {
             // As the app does: the config forgets the account, so the next
@@ -293,12 +440,60 @@ pub fn start_sync(start: SyncStart<'_>) -> Option<Driver> {
         } else if matches!(event, DriverEvent::Synced(_)) {
             last_problem = None;
         }
+        match &event {
+            DriverEvent::SyncStarted => {
+                update_sync_phase(&event_status, kanso_server::SyncPhase::Syncing, None)
+            }
+            DriverEvent::Synced(report) => {
+                let mut snapshot = event_status.snapshot();
+                snapshot.state = kanso_server::SyncPhase::Idle;
+                snapshot.hold_until = None;
+                snapshot.problem = None;
+                snapshot.last_sync_at = Some(kanso_core::now_ms());
+                snapshot.last_result = Some(kanso_server::SyncResult {
+                    pulled: report.pulled,
+                    pushed: report.pushed,
+                    files_up: report.files_up,
+                    conflicts: report.conflicts(),
+                    pending: report.pending,
+                });
+                event_status.set(snapshot);
+            }
+            DriverEvent::Problem(problem) => {
+                let mut snapshot = event_status.snapshot();
+                snapshot.hold_until = None;
+                snapshot.state = match problem.schedule() {
+                    kanso_sync::Schedule::WaitsUntil(until) => {
+                        snapshot.hold_until = Some(until);
+                        kanso_server::SyncPhase::Held
+                    }
+                    _ => kanso_server::SyncPhase::Idle,
+                };
+                snapshot.problem =
+                    Some(kanso_engine::sync::words::problem_label(problem).to_owned());
+                event_status.set(snapshot);
+            }
+            DriverEvent::SignedOut(_) => event_status.set(kanso_server::SyncSnapshot {
+                state: kanso_server::SyncPhase::SignedOut,
+                ..kanso_server::SyncSnapshot::default()
+            }),
+            DriverEvent::Stopped => {
+                update_sync_phase(&event_status, kanso_server::SyncPhase::Idle, None)
+            }
+            _ => {}
+        }
         for line in event_lines(&event, verbose) {
             say(line);
         }
     });
     match Driver::start(seams, on) {
-        Ok(driver) => Some(driver),
+        Ok(driver) => {
+            let requested = driver.sync_control();
+            sync_status.set_sync_now(Arc::new(move || {
+                requested.sync_now() != kanso_engine::sync::Request::Refused
+            }));
+            Some(driver)
+        }
         Err(err) => {
             eprintln!("kanso serve: couldn't start syncing: {err}");
             None

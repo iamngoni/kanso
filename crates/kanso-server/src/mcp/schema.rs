@@ -449,7 +449,9 @@ mod tests {
                 "kanso-run-query-view",
                 "kanso-search-by-meaning",
                 "kanso-search-pdf",
-                "kanso-set-task-done"
+                "kanso-set-task-done",
+                "kanso-sync-now",
+                "kanso-sync-status"
             ]
         );
         assert!(validate("kanso-list-open-loops", json!({"kind": "waiting"})).is_ok());
@@ -484,6 +486,8 @@ mod tests {
         assert!(validate("kanso-resolve-wikilink", json!({"link": "[[A]]"})).is_ok());
         assert!(validate("kanso-search-by-meaning", json!({"query": "fruit"})).is_ok());
         assert!(validate("kanso-search-by-meaning", json!({"limit": 3})).is_err());
+        assert!(validate("kanso-sync-now", json!({})).is_ok());
+        assert!(validate("kanso-sync-status", json!({})).is_ok());
         assert!(validate("kanso-search-pdf", json!({"query": "revenue", "limit": 10})).is_ok());
         assert!(validate("kanso-search-pdf", json!({"query": ""})).is_err());
         assert!(

@@ -665,7 +665,7 @@ pub fn start_events(cx: &mut App) {
     let event_session = session.clone();
     cx.background_executor()
         .spawn(async move {
-            let machine = machine.unwrap_or_else(Machine::this_mac);
+            let machine = machine.unwrap_or_else(Machine::this_computer);
             let Ok(device) = kanso_sync::device_identity(&store, &machine) else {
                 return;
             };

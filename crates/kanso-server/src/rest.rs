@@ -376,11 +376,13 @@ fn alias_id(path: Result<Path<(String, String)>, PathRejection>) -> ApiResult<St
 /// it stays exactly as written.
 pub const COMPATIBLE_WITH: &str = "inkdrop-local-server";
 
-async fn meta() -> Json<Value> {
+async fn meta(State(state): State<AppState>) -> Json<Value> {
+    let sync = state.sync_status.value();
     Json(json!({
         "name": "Kanso",
         "version": env!("CARGO_PKG_VERSION"),
         "compatibleWith": COMPATIBLE_WITH,
+        "sync": sync,
     }))
 }
 

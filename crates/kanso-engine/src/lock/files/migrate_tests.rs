@@ -751,7 +751,10 @@ fn after_migration_no_plaintext_of_a_migrated_file_is_left_in_the_folder() {
         .unwrap();
     assert_eq!(pending(&world.store).legacy, 1);
     let before = every_byte_under(world.dir.path());
-    for canary in [CANARY, NAME, OLD_NAME, OCR, PDF_BYTES, PDF_TEXT] {
+    // Locking the note can already forget the derived PDF text cache. The
+    // migration still has to leave it absent if it was retained, but the
+    // precondition only requires bytes that remain in the legacy library.
+    for canary in [CANARY, NAME, OLD_NAME, OCR, PDF_BYTES] {
         assert!(
             holds(&before, canary),
             "the control: {} is on disk",

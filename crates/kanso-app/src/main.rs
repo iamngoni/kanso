@@ -304,7 +304,7 @@ Commands:
                     in the running Kanso if there is one
   serve             Run only the local API (REST and /mcp), without a
                     window; syncs with your account when signed in
-                    [--verbose]
+                    [--verbose] [--related-notes on|off]
   account           Sign this library in to a Kanso account from the
                     command line, see its status, list devices, sign
                     out; `kanso account help` lists how

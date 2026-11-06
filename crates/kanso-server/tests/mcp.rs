@@ -54,7 +54,7 @@ async fn lists_inkdrop_tools_before_kanso_tools_and_the_note_template() {
     let answer = rpc(&app.router, "tools/list", json!({})).await;
     let tools = answer["result"]["tools"].as_array().unwrap();
     // The 17, then Kanso's own.
-    assert_eq!(tools.len(), 54);
+    assert_eq!(tools.len(), 56);
     assert!(
         tools[18..]
             .iter()
@@ -91,6 +91,15 @@ async fn lists_inkdrop_tools_before_kanso_tools_and_the_note_template() {
         rpc(&app.router, "ping", json!({})).await["result"],
         json!({})
     );
+}
+
+#[tokio::test]
+async fn sync_status_is_read_only_and_sync_now_is_a_write_tool() {
+    let app = app();
+    let status = tool(&app.router, "kanso-sync-status", json!({})).await;
+    assert_eq!(status, json!({ "signedIn": false }));
+    let requested = tool(&app.router, "kanso-sync-now", json!({})).await;
+    assert_eq!(requested, json!({ "accepted": false }));
 }
 
 #[tokio::test]

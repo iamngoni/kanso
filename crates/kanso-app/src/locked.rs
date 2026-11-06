@@ -711,7 +711,7 @@ fn secrets(cx: &App) -> Option<Arc<dyn SecretStore>> {
 /// The library's ID, which names its Keychain (or Credential Manager) items.
 // no-prop-test: delegates to kanso_engine::lock::library_id, tested there.
 fn library_id(store: &Store) -> Result<String, String> {
-    kanso_engine::lock::library_id(store, &kanso_sync::Machine::this_mac())
+    kanso_engine::lock::library_id(store, &kanso_sync::Machine::this_computer())
 }
 
 /// Asks for a fingerprint (or Windows Hello), takes the lock keys kept for it
