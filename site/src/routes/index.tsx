@@ -87,6 +87,16 @@ function Home() {
       </section>
 
       <Plainly />
+      <section aria-labelledby="overview" className="page pt-[clamp(4rem,10vw,8rem)]">
+        <h2 id="overview" className="text-[clamp(1.5rem,1.2rem+1vw,2rem)] font-semibold tracking-[-0.02em]">
+          Your notes, gathered into a day.
+        </h2>
+        <p className="mt-3 max-w-[42rem] leading-relaxed text-fg-2">
+          Overview is Kanso's home. Today brings calendar events, reminders and tasks together; This week
+          shows the work in progress and what's ahead. It stays useful without AI, and reads only the
+          calendars already configured on your device.
+        </p>
+      </section>
       <Gallery />
 
       <section aria-labelledby="get" className="page pt-[clamp(4rem,10vw,8rem)] pb-[clamp(4rem,10vw,7rem)]">

@@ -26,6 +26,7 @@ enum NoteMenuAction {
   /// Renames the speakers named before the paragraphs of the note's
   /// recording transcript.
   renameSpeakers,
+
   /// Summarises the note's recording and lists its action items, with the
   /// person's own AI.
   summarizeRecording,

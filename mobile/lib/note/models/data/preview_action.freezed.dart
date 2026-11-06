@@ -470,7 +470,7 @@ as AttachmentFile,
 
 class PreviewOpenPdf implements PreviewAction {
   const PreviewOpenPdf({required this.noteId, required this.file, required this.name, this.page, this.highlight});
-
+  
 
  final  String noteId;
  final  String file;

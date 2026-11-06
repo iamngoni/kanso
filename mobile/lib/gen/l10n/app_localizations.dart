@@ -574,6 +574,54 @@ abstract class AppLocalizations {
   /// **'Daily notes and reminders'**
   String get settingsJournal;
 
+  /// Settings: system calendars shown in Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get settingsCalendar;
+
+  /// Before the operating system permission prompt for calendar access.
+  ///
+  /// In en, this message translates to:
+  /// **'Show your calendar on Overview?'**
+  String get calendarPermissionTitle;
+
+  /// Explains the read-only system-calendar permission before asking the OS.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso reads your events to list today\'s meetings and link them to your notes. It never changes your calendar, and events stay on this device.'**
+  String get calendarPermissionCopy;
+
+  /// Confirms that the person wants to request system-calendar permission.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get calendarAllowAccess;
+
+  /// Privacy note beneath the system calendar switches.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected calendars are read-only. Events stay on this device and are never sent to Kanso\'s servers.'**
+  String get calendarPrivacyCopy;
+
+  /// Connects the calendars configured on this device.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose system calendars'**
+  String get calendarConnect;
+
+  /// Empty state when the operating system returns no calendars.
+  ///
+  /// In en, this message translates to:
+  /// **'No visible calendars are configured on this device.'**
+  String get calendarNoCalendars;
+
+  /// Settings section with one switch per system calendar.
+  ///
+  /// In en, this message translates to:
+  /// **'System calendars'**
+  String get calendarSources;
+
   /// Settings: the row and page title of the category with crash reports, device backups and locked notes.
   ///
   /// In en, this message translates to:
@@ -11847,6 +11895,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Meeting note'**
   String get overviewMeetingNote;
+
+  /// The note linked to every instance of a recurring event.
+  ///
+  /// In en, this message translates to:
+  /// **'Series note'**
+  String get overviewSeriesNote;
+
+  /// Links to the note from the previous instance of a recurring event.
+  ///
+  /// In en, this message translates to:
+  /// **'Last time: {day}'**
+  String overviewLastTime(String day);
+
+  /// Creates a note linked to this calendar event.
+  ///
+  /// In en, this message translates to:
+  /// **'New meeting note'**
+  String get overviewNewMeetingNote;
+
+  /// Shown when the meeting note could not be created.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t create the meeting note.'**
+  String get overviewMeetingNoteError;
+
+  /// No description provided for @overviewEventDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Event details'**
+  String get overviewEventDetails;
+
+  /// No description provided for @overviewOpenInCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in Calendar'**
+  String get overviewOpenInCalendar;
+
+  /// No description provided for @overviewLinkToNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Link to a note…'**
+  String get overviewLinkToNote;
+
+  /// No description provided for @overviewCopyMeetingLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy meeting link'**
+  String get overviewCopyMeetingLink;
+
+  /// No description provided for @overviewHideCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide this calendar'**
+  String get overviewHideCalendar;
+
+  /// No description provided for @overviewChooseNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a note'**
+  String get overviewChooseNote;
 
   /// Hides a note from Pick up until it is written in again.
   ///

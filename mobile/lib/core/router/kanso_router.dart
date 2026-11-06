@@ -47,6 +47,7 @@ import '../../settings/views/pages/icon_themes_page.dart' as icon_picker;
 import '../../settings/views/pages/licences_page.dart';
 import '../../settings/views/pages/settings_category_pages.dart';
 import '../../settings/views/pages/settings_page.dart';
+import '../../settings/views/pages/system_calendar_settings_page.dart';
 import '../../sharing/views/pages/join_link_page.dart';
 import '../../sharing/views/pages/shared_with_you_page.dart';
 import '../../shell/views/widgets/browse_shell.dart';
@@ -400,6 +401,13 @@ class KansoRouter {
                   pageBuilder: (context, state) => kansoPage<void>(
                     key: state.pageKey,
                     child: const JournalSettingsPage(),
+                  ),
+                ),
+                GoRoute(
+                  path: 'calendar',
+                  pageBuilder: (context, state) => kansoPage<void>(
+                    key: state.pageKey,
+                    child: const SystemCalendarSettingsPage(),
                   ),
                 ),
                 GoRoute(

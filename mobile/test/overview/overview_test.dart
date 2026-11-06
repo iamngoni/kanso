@@ -4,7 +4,7 @@
 
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/overview_types.dart';
 import 'package:kanso/core/models/data/ai_settings.dart';
@@ -45,6 +45,9 @@ OverviewAgendaRow _row({
   raw: title,
   color: '',
   meetingNoteId: '',
+  meetingWhich: '',
+  meetingDay: '',
+  eventJson: '',
 );
 
 OverviewListRow _waiting({int quiet = 12}) => OverviewListRow(
@@ -174,6 +177,19 @@ void main() {
   late FixtureLibraryRepository library;
 
   setUp(() async {
+    const calendar = MethodChannel('app.kanso.kanso/system_calendar');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(calendar, (call) async {
+          if (call.method == 'requestAccess') return false;
+          if (call.method == 'calendars' || call.method == 'events') {
+            return <Object?>[];
+          }
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(calendar, null),
+    );
     await getIt.reset();
     digest = FixtureDigestRepository();
     ai = FixtureAiRepository(settings: _on());

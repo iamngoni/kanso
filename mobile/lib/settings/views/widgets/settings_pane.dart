@@ -90,6 +90,11 @@ class SettingsPane extends StatelessWidget {
                           route: KansoRoutes.settingsJournal,
                         ),
                         _CategoryRow(
+                          icon: KansoIcons.calendar,
+                          label: l10n.settingsCalendar,
+                          route: KansoRoutes.settingsCalendar,
+                        ),
+                        _CategoryRow(
                           icon: KansoIcons.compass,
                           label: l10n.settingsDiscovery,
                           route: KansoRoutes.settingsDiscovery,

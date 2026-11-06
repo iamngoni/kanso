@@ -82,5 +82,6 @@ class MockVoiceCaptureRepository extends Mock
 
 class MockRecordingSpeakersRepository extends Mock
     implements RecordingSpeakersRepository {}
+
 class MockRecordingSummaryRepository extends Mock
     implements RecordingSummaryRepository {}

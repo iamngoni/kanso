@@ -272,6 +272,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsJournal => 'Daily notes and reminders';
 
   @override
+  String get settingsCalendar => 'Calendar';
+
+  @override
+  String get calendarPermissionTitle => 'Show your calendar on Overview?';
+
+  @override
+  String get calendarPermissionCopy =>
+      'Kanso reads your events to list today\'s meetings and link them to your notes. It never changes your calendar, and events stay on this device.';
+
+  @override
+  String get calendarAllowAccess => 'Continue';
+
+  @override
+  String get calendarPrivacyCopy =>
+      'Selected calendars are read-only. Events stay on this device and are never sent to Kanso\'s servers.';
+
+  @override
+  String get calendarConnect => 'Choose system calendars';
+
+  @override
+  String get calendarNoCalendars =>
+      'No visible calendars are configured on this device.';
+
+  @override
+  String get calendarSources => 'System calendars';
+
+  @override
   String get settingsPrivacySecurity => 'Privacy and security';
 
   @override
@@ -6991,6 +7018,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get overviewMeetingNote => 'Meeting note';
+
+  @override
+  String get overviewSeriesNote => 'Series note';
+
+  @override
+  String overviewLastTime(String day) {
+    return 'Last time: $day';
+  }
+
+  @override
+  String get overviewNewMeetingNote => 'New meeting note';
+
+  @override
+  String get overviewMeetingNoteError => 'Couldn\'t create the meeting note.';
+
+  @override
+  String get overviewEventDetails => 'Event details';
+
+  @override
+  String get overviewOpenInCalendar => 'Open in Calendar';
+
+  @override
+  String get overviewLinkToNote => 'Link to a note…';
+
+  @override
+  String get overviewCopyMeetingLink => 'Copy meeting link';
+
+  @override
+  String get overviewHideCalendar => 'Hide this calendar';
+
+  @override
+  String get overviewChooseNote => 'Choose a note';
 
   @override
   String get overviewNotNow => 'Not now';

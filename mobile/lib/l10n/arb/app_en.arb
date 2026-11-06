@@ -348,6 +348,38 @@
   "@settingsJournal": {
     "description": "Settings: the row and page title of the category with the daily note template, task reminders and the brief and review."
   },
+  "settingsCalendar": "Calendar",
+  "@settingsCalendar": {
+    "description": "Settings: system calendars shown in Overview."
+  },
+  "calendarPermissionTitle": "Show your calendar on Overview?",
+  "@calendarPermissionTitle": {
+    "description": "Before the operating system permission prompt for calendar access."
+  },
+  "calendarPermissionCopy": "Kanso reads your events to list today's meetings and link them to your notes. It never changes your calendar, and events stay on this device.",
+  "@calendarPermissionCopy": {
+    "description": "Explains the read-only system-calendar permission before asking the OS."
+  },
+  "calendarAllowAccess": "Continue",
+  "@calendarAllowAccess": {
+    "description": "Confirms that the person wants to request system-calendar permission."
+  },
+  "calendarPrivacyCopy": "Selected calendars are read-only. Events stay on this device and are never sent to Kanso's servers.",
+  "@calendarPrivacyCopy": {
+    "description": "Privacy note beneath the system calendar switches."
+  },
+  "calendarConnect": "Choose system calendars",
+  "@calendarConnect": {
+    "description": "Connects the calendars configured on this device."
+  },
+  "calendarNoCalendars": "No visible calendars are configured on this device.",
+  "@calendarNoCalendars": {
+    "description": "Empty state when the operating system returns no calendars."
+  },
+  "calendarSources": "System calendars",
+  "@calendarSources": {
+    "description": "Settings section with one switch per system calendar."
+  },
   "settingsPrivacySecurity": "Privacy and security",
   "@settingsPrivacySecurity": {
     "description": "Settings: the row and page title of the category with crash reports, device backups and locked notes."
@@ -8483,6 +8515,33 @@
   "overviewMeetingNote": "Meeting note",
   "@overviewMeetingNote": {
     "description": "The link from a calendar event to its note."
+  },
+  "overviewSeriesNote": "Series note",
+  "@overviewSeriesNote": {
+    "description": "The note linked to every instance of a recurring event."
+  },
+  "overviewLastTime": "Last time: {day}",
+  "@overviewLastTime": {
+    "description": "Links to the note from the previous instance of a recurring event.",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "overviewNewMeetingNote": "New meeting note",
+  "@overviewNewMeetingNote": {
+    "description": "Creates a note linked to this calendar event."
+  },
+  "overviewMeetingNoteError": "Couldn't create the meeting note.",
+  "overviewEventDetails": "Event details",
+  "overviewOpenInCalendar": "Open in Calendar",
+  "overviewLinkToNote": "Link to a note…",
+  "overviewCopyMeetingLink": "Copy meeting link",
+  "overviewHideCalendar": "Hide this calendar",
+  "overviewChooseNote": "Choose a note",
+  "@overviewMeetingNoteError": {
+    "description": "Shown when the meeting note could not be created."
   },
   "overviewNotNow": "Not now",
   "@overviewNotNow": {

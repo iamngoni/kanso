@@ -176,7 +176,7 @@ return declined(_that.reason);case _:
 
 class PdfOpened implements PdfOpening {
   const PdfOpened({required this.session, required this.info});
-
+  
 
  final  PdfDocumentSession session;
  final  PdfInfo info;
@@ -244,7 +244,7 @@ as PdfInfo,
 
 class PdfDeclinedOpening implements PdfOpening {
   const PdfDeclinedOpening({required this.reason});
-
+  
 
  final  PdfDeclined reason;
 
@@ -307,7 +307,7 @@ as PdfDeclined,
 @override
 @pragma('vm:prefer-inline')
 $PdfDeclinedCopyWith<$Res> get reason {
-
+  
   return $PdfDeclinedCopyWith<$Res>(_self.reason, (value) {
     return _then(_self.copyWith(reason: value));
   });

@@ -93,6 +93,9 @@ import kanso_push
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "KansoReminders") {
       KansoReminders.shared.register(with: registrar.messenger())
     }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "KansoCalendar") {
+      KansoCalendar.shared.register(messenger: registrar.messenger())
+    }
     registerWidgetChannel(engineBridge.pluginRegistry)
     registerRecordingChannel(engineBridge.pluginRegistry)
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "KansoFiles") {

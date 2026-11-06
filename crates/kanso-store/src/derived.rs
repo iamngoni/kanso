@@ -28,10 +28,10 @@ use crate::{Origin, Result, Store, schema};
 /// The `meta` key holding the [`DERIVED_VERSION`] the tables were built with.
 pub const DERIVED_VERSION_KEY: &str = "index.derived_version";
 /// Changes whenever a derived table's source or derivation changes.
-pub const DERIVED_VERSION: &str = "7";
+pub const DERIVED_VERSION: &str = "9";
 
 /// The tables, for emptying them.
-pub(crate) const TABLES: [&str; 10] = [
+pub(crate) const TABLES: [&str; 11] = [
     "note_links",
     "note_headings",
     "note_tasks",
@@ -42,6 +42,7 @@ pub(crate) const TABLES: [&str; 10] = [
     "entity_names",
     "note_mentions",
     "note_revisit",
+    "note_events",
 ];
 
 /// The `finished_items` kind of a task that was open until a save that
@@ -121,9 +122,11 @@ pub(crate) fn write_note(
     };
     let body = fields.get("body").and_then(Value::as_str).unwrap_or("");
     let loops = read_loops(fields);
-    insert_rows(conn, id, body, &loops)?;
+    let updated_at = fields.get("updatedAt").and_then(Value::as_i64).unwrap_or(0);
+    insert_rows(conn, id, body, &loops, updated_at)?;
     if !locked {
         crate::overview::index_revisit(conn, id, fields)?;
+        index_event(conn, id, body)?;
     }
     crate::entity_index::write(
         conn,
@@ -143,6 +146,25 @@ pub(crate) fn write_note(
     if let Some(raw_fields) = ownership_fields {
         write_file_ownership(conn, id, raw_fields, in_locked_notebook)?;
     }
+    Ok(())
+}
+
+fn index_event(conn: &Connection, id: &str, body: &str) -> Result<()> {
+    let properties = kanso_core::properties::parse(body);
+    let Some(uid) = kanso_core::properties::get(&properties, "event")
+        .map(kanso_core::properties::Value::text)
+        .filter(|value| !value.trim().is_empty())
+    else {
+        return Ok(());
+    };
+    let instance_start = kanso_core::properties::get(&properties, "when")
+        .map(kanso_core::properties::Value::text)
+        .and_then(|value| chrono::DateTime::parse_from_rfc3339(&value).ok())
+        .map(|when| when.timestamp_millis());
+    conn.execute(
+        "INSERT INTO note_events (note_id, uid, instance_start) VALUES (?1, ?2, ?3)",
+        params![id, uid, instance_start],
+    )?;
     Ok(())
 }
 
@@ -251,7 +273,13 @@ fn write_file_ownership(
     Ok(())
 }
 
-fn insert_rows(conn: &Connection, id: &str, body: &str, loops: &Loops) -> Result<()> {
+fn insert_rows(
+    conn: &Connection,
+    id: &str,
+    body: &str,
+    loops: &Loops,
+    note_updated_at: i64,
+) -> Result<()> {
     if body.is_empty() {
         return Ok(());
     }
@@ -324,8 +352,8 @@ fn insert_rows(conn: &Connection, id: &str, body: &str, loops: &Loops) -> Result
     }
     {
         let mut stmt = conn.prepare_cached(
-            "INSERT INTO note_loops (note_id, ord, line, kind, text, key, due, source)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO note_loops (note_id, ord, line, kind, text, key, due, source, note_updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         )?;
         let mut keys = HashSet::new();
         let mut ord = 0i64;
@@ -340,7 +368,8 @@ fn insert_rows(conn: &Connection, id: &str, body: &str, loops: &Loops) -> Result
                 item.text,
                 key,
                 item.due,
-                "rule"
+                "rule",
+                note_updated_at
             ])?;
             ord += 1;
         }
@@ -361,7 +390,8 @@ fn insert_rows(conn: &Connection, id: &str, body: &str, loops: &Loops) -> Result
                 ai.text,
                 ai.key,
                 kanso_core::tasks::due_date(&ai.text),
-                "ai"
+                "ai",
+                note_updated_at
             ])?;
             ord += 1;
         }
@@ -411,7 +441,8 @@ pub(crate) fn rebuild_if_stale(conn: &mut Connection) -> Result<bool> {
         } else {
             Loops::default()
         };
-        insert_rows(&tx, &id, body.as_deref().unwrap_or(""), &loops)?;
+        let updated_at = fields.get("updatedAt").and_then(Value::as_i64).unwrap_or(0);
+        insert_rows(&tx, &id, body.as_deref().unwrap_or(""), &loops, updated_at)?;
         if body.is_some() {
             crate::overview::index_revisit(&tx, &id, &fields)?;
         }

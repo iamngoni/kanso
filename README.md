@@ -263,7 +263,7 @@ What locking does and doesn't do:
 
 - The text is sealed with XChaCha20-Poly1305 under a key Argon2id derives from the password (256 MiB,
   three passes), bound to the note, and kept in the note itself (`kansoLock`). The note's body in the
-  database is empty, so search, backlinks, tasks, reminders, open loops, the morning brief, the weekly review, related
+  database is empty, so search, backlinks, tasks, reminders, open loops, Overview, related
   notes and the local API (REST and MCP) never see it. Sync carries the sealed text inside the note's own encrypted document.
 - Locking clears the note's `kansoLoops` field (which loops were closed or hidden) and the loops found
   in it, and the finished-loop history kept on this device.
@@ -385,7 +385,7 @@ place of the old Kanso entry, restart the agent; a script sends `Authorization: 
 **Dismiss** hides the banner; **Mark as fixed** also drops it from the palette's **Update notices**.
 The notice stays under **Needs your attention** in What's new.
 
-### Open loops, the morning brief and the weekly review
+### Open loops and Overview
 
 **Open loops** are the promises your notes make: sentences like "I'll send the deck", "waiting on Rudo
 for the invoice" or "need to find out whether...". Kanso finds them with phrase rules on this device
@@ -396,25 +396,30 @@ find out) and by how long ago the note changed. For each one you can mark it **D
 loop** (hidden for good) or **Make Task** (the sentence becomes a `- [ ]` task in its note). Sentences
 inside code, quotes and links are skipped, and locked notes have no loops.
 
-**Morning Brief** shows what is due today or earlier, the open loops, timed tasks still to come today,
-and past notes that matter today (linked from today's daily note, or written a week, a month or a
-year ago today, or similar to what's due). It is worked out when you open it. **Weekly Review** shows
-the last seven days: what you wrote and finished, what is still open, overdue tasks, the themes that
-came up (tags and repeated words, counted on this device) and what is due next week; step back through
-earlier weeks. **Save as Note** writes it to the Journal as "Weekly review - 2026-W45"; saving the same
-week again asks before replacing it.
+**Overview** is Kanso's home, with **Today** and **This week** on one page. Today combines calendar
+events, timed reminders, tasks due today and overdue tasks in one agenda. It can also show notes you
+were last writing, people you are waiting on, shared activity, notes to revisit, Inbox captures,
+promises in your notes and a related note from the past. This week gathers active projects, finished
+work, open work and the coming days. Empty sections stay hidden. The agenda, lists and secondary lines
+have fixed caps so a busy day does not turn into an unranked list.
 
-Both can notify at a time you choose in **Settings > General > Brief and review** (the morning brief
-every day or on weekdays, the review on the day you pick). The notification says only counts, like
-"3 due, 2 open loops", never a note's words, and shows once a day, at most three hours late, through the
-same path as task reminders. On phones the next week of notifications is handed to the system ahead of
-time with fixed text. Clicking one opens the brief or the review.
+Calendar access is read-only and uses only calendars already configured with the operating system:
+EventKit on Apple devices and CalendarContract on Android. A Google or Microsoft account appears only
+when it has already been added to the system calendar. Each calendar can be switched on or off. Events
+stay on the device and are not sent to Kanso's servers. Kanso does not connect directly to calendar
+providers or calendar addresses.
+
+Overview can notify at a time you choose in **Settings > General**. The daily and weekly notifications
+contain counts only, never event titles, note titles or names. Clicking one opens the matching Overview
+view. The optional AI paragraph is generated only when requested, cached locally and rendered with
+links that resolve to notes cited by the paragraph.
+
+See [Overview](docs/OVERVIEW.md) for the page, calendar privacy and meeting-note details.
 
 **Find More Open Loops...** (the palette, or the button in Open Loops) is the only AI part, and only
 while AI is on in Settings > AI: it reads the notes changed in the last 14 days with your model and
 proposes sentences the rules missed. Each proposal is checked against the note's real text, and none
-is saved until you approve it. Locked notes and `#ai-exclude` notes are never sent. **Summarise**
-on the brief and the review (AI on only) writes a short paragraph from the same view, with its sources.
+is saved until you approve it. Locked notes and `#ai-exclude` notes are never sent. **Summarise** in Overview (AI on only) writes a short paragraph from the current view, with its sources.
 
 In the local API, `kanso-list-open-loops` (MCP) and `GET /loops` (REST) list the open loops, with the
 same exclusions as everywhere else (locked, trashed and `#ai-exclude` notes have none there). Which loops you have closed or hidden syncs with the note (the

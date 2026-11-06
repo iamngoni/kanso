@@ -3,12 +3,15 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/bridge/api/overview_types.dart';
+import '../../../core/bridge/api/types.dart' as api;
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/repos/abs/ai_repository.dart';
@@ -30,7 +33,11 @@ import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../core/views/widgets/kanso_undo_notice.dart';
 import '../../../digest/utils/open_digest_note.dart';
 import '../../../injection.dart';
+import '../../state/meeting_note/meeting_note_bloc.dart';
+import '../../state/meeting_note/meeting_note_event.dart';
+import '../../state/meeting_note/meeting_note_state.dart';
 import '../../state/overview_cubit.dart';
+import '../../system_calendar.dart';
 import '../widgets/overview_ai_block.dart';
 import '../widgets/overview_card.dart';
 import '../widgets/overview_rows.dart';
@@ -47,18 +54,40 @@ class OverviewPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<OverviewCubit>(
-      create: (_) =>
-          OverviewCubit(
-            getIt<DigestRepository>(),
-            getIt<LibraryRepository>(),
-            getIt<AiRepository>(),
-          )..load(
-            perspective: week
-                ? OverviewPerspective.week
-                : OverviewPerspective.today,
-          ),
-      child: const _OverviewView(),
+    return MultiBlocProvider(
+      providers: <BlocProvider<dynamic>>[
+        BlocProvider<OverviewCubit>(
+          create: (_) =>
+              OverviewCubit(
+                getIt<DigestRepository>(),
+                getIt<LibraryRepository>(),
+                getIt<AiRepository>(),
+              )..load(
+                perspective: week
+                    ? OverviewPerspective.week
+                    : OverviewPerspective.today,
+              ),
+        ),
+        BlocProvider<MeetingNoteBloc>(
+          create: (_) => MeetingNoteBloc(getIt<DigestRepository>()),
+        ),
+      ],
+      child: BlocListener<MeetingNoteBloc, MeetingNoteState>(
+        listenWhen: (before, after) =>
+            before.createdNoteId != after.createdNoteId ||
+            before.error != after.error,
+        listener: (context, state) {
+          final id = state.createdNoteId;
+          if (id != null) {
+            _open(context, id);
+          } else if (state.error != null) {
+            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+              SnackBar(content: Text(context.l10n.overviewMeetingNoteError)),
+            );
+          }
+        },
+        child: const _OverviewView(),
+      ),
     );
   }
 }
@@ -511,13 +540,180 @@ Widget _agendaTile(
     row: row,
     dimmed: dimmed,
     onTick: () => unawaited(cubit.tick(row)),
-    onOpen: () => _open(context, row.noteId, line: row.line),
+    onOpen: row.kind == OverviewRowKind.event
+        ? () => unawaited(_showEventDetails(context, row))
+        : () => _open(context, row.noteId, line: row.line),
     onOpenMeeting: row.meetingNoteId.isEmpty
         ? null
         : () => _open(context, row.meetingNoteId),
+    onNewMeetingNote:
+        row.kind == OverviewRowKind.event &&
+            (row.meetingNoteId.isEmpty || row.meetingWhich != 'this')
+        ? () => context.read<MeetingNoteBloc>().add(
+            MeetingNoteEvent.create(row: row),
+          )
+        : null,
     onRevisit: row.noteId.isEmpty
         ? null
         : () => unawaited(_revisit(context, row.noteId)),
+  );
+}
+
+Future<void> _showEventDetails(
+  BuildContext context,
+  OverviewAgendaRow row,
+) async {
+  if (row.eventJson.isEmpty) return;
+  final event = jsonDecode(row.eventJson) as Map<String, dynamic>;
+  final l10n = context.l10n;
+  final start = (event['start'] as num?)?.toInt() ?? 0;
+  final calendarId = event['calendar_id'] as String? ?? '';
+  final conferenceUrl = event['conference_url'] as String? ?? '';
+  final attendees = (event['attendees'] as List<Object?>? ?? const <Object?>[])
+      .whereType<Map<String, dynamic>>()
+      .map((attendee) => attendee['name'] as String? ?? '')
+      .where((name) => name.isNotEmpty)
+      .toList(growable: false);
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(row.title, style: Theme.of(sheetContext).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              row.context,
+              style: Theme.of(sheetContext).textTheme.bodyMedium,
+            ),
+            if ((event['location'] as String? ?? '').isNotEmpty) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(event['location'] as String),
+            ],
+            if (attendees.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(attendees.join(', ')),
+            ],
+            const SizedBox(height: 12),
+            if (row.meetingNoteId.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.note_alt_outlined),
+                title: Text(l10n.overviewMeetingNote),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _open(context, row.meetingNoteId);
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month_outlined),
+              title: Text(l10n.overviewOpenInCalendar),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                unawaited(SystemCalendarGateway().openEvent(start: start));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.link),
+              title: Text(l10n.overviewLinkToNote),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                unawaited(_linkEventToNote(context, row.eventJson));
+              },
+            ),
+            if (row.meetingNoteId.isEmpty || row.meetingWhich != 'this')
+              ListTile(
+                leading: const Icon(Icons.note_add_outlined),
+                title: Text(l10n.overviewNewMeetingNote),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  context.read<MeetingNoteBloc>().add(
+                    MeetingNoteEvent.create(row: row),
+                  );
+                },
+              ),
+            if (conferenceUrl.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.copy),
+                title: Text(l10n.overviewCopyMeetingLink),
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: conferenceUrl));
+                  Navigator.pop(sheetContext);
+                },
+              ),
+            if (calendarId.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.event_busy_outlined),
+                title: Text(l10n.overviewHideCalendar),
+                onTap: () async {
+                  await SystemCalendarGateway().setCalendarEnabled(
+                    id: calendarId,
+                    enabled: false,
+                  );
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  if (context.mounted) {
+                    await context.read<OverviewCubit>().refresh();
+                  }
+                },
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Future<void> _linkEventToNote(BuildContext context, String eventJson) async {
+  final result = await getIt<LibraryRepository>().list(
+    const api.ListQuery(
+      place: api.ListPlace.recent(),
+      pinnedOnly: false,
+      sort: api.SortKey.updated,
+      descending: true,
+    ),
+  );
+  final notes = result.fold(
+    (_) => const <api.NoteRow>[],
+    (list) => list.rows.where((note) => !note.locked && !note.canvas).toList(),
+  );
+  if (notes.isEmpty || !context.mounted) return;
+  final selected = await showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+            child: Text(
+              context.l10n.overviewChooseNote,
+              style: Theme.of(sheetContext).textTheme.titleMedium,
+            ),
+          ),
+          for (final note in notes)
+            ListTile(
+              title: Text(note.title),
+              subtitle: Text(note.snippet, maxLines: 1),
+              onTap: () => Navigator.pop(sheetContext, note.id),
+            ),
+        ],
+      ),
+    ),
+  );
+  if (selected == null || !context.mounted) return;
+  final linked = await getIt<DigestRepository>().linkMeetingNote(
+    noteId: selected,
+    eventJson: '[${jsonEncode(jsonDecode(eventJson))}]',
+  );
+  linked.fold(
+    (error) => ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(content: Text(error.message)),
+    ),
+    (_) => unawaited(context.read<OverviewCubit>().refresh()),
   );
 }
 

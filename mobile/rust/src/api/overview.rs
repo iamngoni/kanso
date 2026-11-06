@@ -9,6 +9,28 @@ use super::library::KansoLibrary;
 use flutter_rust_bridge::frb;
 
 impl KansoLibrary {
+    /// Stores selected system-calendar events locally for Overview.
+    pub fn overview_put_calendar_events(&self, events_json: String) -> Result<(), KansoError> {
+        self.0.overview_put_calendar_events(&events_json)
+    }
+
+    /// Creates a Journal note linked to the single event in `event_json`.
+    pub fn overview_create_meeting_note(
+        &self,
+        event_json: String,
+        context: String,
+    ) -> Result<String, KansoError> {
+        self.0.overview_create_meeting_note(&event_json, &context)
+    }
+
+    pub fn overview_link_meeting_note(
+        &self,
+        note_id: String,
+        event_json: String,
+    ) -> Result<(), KansoError> {
+        self.0.overview_link_meeting_note(&note_id, &event_json)
+    }
+
     /// Today, worked out now. Kept as the next launch's first frame.
     pub fn overview_today(&self) -> Result<OverviewToday, KansoError> {
         self.0.overview_today()

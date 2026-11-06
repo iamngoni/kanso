@@ -424,6 +424,14 @@ impl Store {
         day_start_ms: i64,
     ) -> Result<Vec<DueCard>> {
         self.read(|conn| {
+            let has_cards: bool = conn.query_row(
+                "SELECT EXISTS(SELECT 1 FROM note_cards)",
+                [],
+                |row| row.get(0),
+            )?;
+            if !has_cards {
+                return Ok(Vec::new());
+            }
             let settings = settings_in(conn)?;
             let (used_reviews, used_new) = Self::used_today(conn, day_start_ms)?;
             let (clause, extra) = scope_sql(scope);

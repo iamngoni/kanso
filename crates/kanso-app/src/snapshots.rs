@@ -5992,13 +5992,23 @@ fn snapshots() {
         shot("dark-overview", Dark, Edit, overview_today),
         Shot {
             size: size(px(1440.), px(1900.)),
+            ..shot("dark-overview-busy", Dark, Edit, overview_busy)
+        },
+        Shot {
+            size: size(px(1440.), px(1900.)),
             ..shot("light-overview-busy", Light, Edit, overview_busy)
         },
+        shot("light-overview-quiet", Light, Edit, overview_quiet),
         shot("dark-overview-quiet", Dark, Edit, overview_quiet),
+        shot("light-overview-new", Light, Edit, overview_new),
         shot("dark-overview-new", Dark, Edit, overview_new),
         Shot {
             size: size(px(1440.), px(1300.)),
             ..shot("light-overview-week", Light, Edit, overview_week)
+        },
+        Shot {
+            size: size(px(1440.), px(1300.)),
+            ..shot("dark-overview-week", Dark, Edit, overview_week)
         },
         shot("dark-tasks", Dark, Split, tasks_view),
         shot("light-tasks", Light, Split, tasks_view),

@@ -313,9 +313,23 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   Future<LibraryOverview> overview();
 
+  /// Creates a Journal note linked to the single event in `event_json`.
+  Future<String> overviewCreateMeetingNote({
+    required String eventJson,
+    required String context,
+  });
+
   Future<void> overviewDismissPast({required String noteId});
 
   Future<void> overviewHidePlace({required String noteId});
+
+  Future<void> overviewLinkMeetingNote({
+    required String noteId,
+    required String eventJson,
+  });
+
+  /// Stores selected system-calendar events locally for Overview.
+  Future<void> overviewPutCalendarEvents({required String eventsJson});
 
   /// The last Today kept, when it is today's: the first frame.
   OverviewToday? overviewSnapshot();

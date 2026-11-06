@@ -257,6 +257,12 @@ CREATE TABLE finished_items (
 ) WITHOUT ROWID;
 CREATE INDEX finished_items_at ON finished_items (at);
 "#,
+    // Overview's open-loop scan orders by note activity. Keep that timestamp
+    // in the derived rows so SQLite can satisfy the order from this index.
+    r#"
+ALTER TABLE note_loops ADD COLUMN note_updated_at INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX note_loops_updated ON note_loops (note_updated_at DESC, note_id, ord);
+"#,
     // Flashcards (issue #198): the `question :: answer` lines in note
     // bodies (derived, rebuilt like `note_tasks`); the schedule of each
     // card and the log of answers, both local caches rebuilt from the
@@ -491,6 +497,14 @@ CREATE TABLE IF NOT EXISTS pdf_ocr_pending (
 CREATE TABLE IF NOT EXISTS pdf_locked_files (
     file_id TEXT PRIMARY KEY
 ) WITHOUT ROWID;
+"#,
+    r#"
+CREATE TABLE IF NOT EXISTS note_events (
+    note_id TEXT PRIMARY KEY NOT NULL,
+    uid TEXT NOT NULL,
+    instance_start INTEGER
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS note_events_uid_start ON note_events (uid, instance_start);
 "#,
 ];
 
@@ -937,10 +951,10 @@ mod overview_tests {
     }
 
     /// A database pinned at version 17 (people and projects) moves to head
-    /// (Overview) keeping what it had, and the new tables work. Running the
+    /// (Overview and meeting-note index) keeping what it had, and the new tables work. Running the
     /// migration again changes nothing.
     #[test]
-    fn version_seventeen_moves_to_eighteen() {
+    fn version_seventeen_moves_to_nineteen() {
         let dir = tempfile::tempdir().unwrap();
         let conn = connect(&dir.path().join("k.db"), None).unwrap();
         for (index, sql) in MIGRATIONS.iter().take(17).enumerate() {
@@ -966,6 +980,7 @@ mod overview_tests {
             "loop_feedback",
             "waiting_snoozed",
             "note_revisit",
+            "note_events",
         ] {
             assert!(has_table(&conn, table), "{table}");
         }
@@ -975,6 +990,6 @@ mod overview_tests {
             [],
         )
         .unwrap();
-        conn.execute_batch(MIGRATIONS[17]).unwrap();
+        conn.execute_batch(MIGRATIONS[18]).unwrap();
     }
 }

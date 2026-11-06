@@ -36,6 +36,7 @@ use crate::overview_model::{
 /// Where the model's paragraph is kept, per day or week.
 const AI_TODAY: &str = "overview.ai.today.";
 const AI_WEEK: &str = "overview.ai.week.";
+const CALENDAR_EVENTS: &str = "overview.calendar.events";
 
 /// The kept paragraph: the same shape the desktop keeps.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -51,6 +52,50 @@ struct KeptAi {
 }
 
 impl Library {
+    /// Replaces the local, read-only events supplied by the system calendar
+    /// plugin. The value is local metadata and is never added to sync.
+    pub fn overview_put_calendar_events(&self, events_json: &str) -> Result<(), KansoError> {
+        guard(|| {
+            let events = calendar_events(events_json)?;
+            let value = serde_json::to_string(&events)
+                .map_err(|_| KansoError::invalid("Those calendar events are invalid."))?;
+            self.inner.store.set_meta(CALENDAR_EVENTS, &value)?;
+            Ok(())
+        })
+    }
+
+    /// Creates a Journal note linked to the single event in `event_json`.
+    pub fn overview_create_meeting_note(
+        &self,
+        event_json: &str,
+        context: &str,
+    ) -> Result<String, KansoError> {
+        guard(|| {
+            let events = calendar_events(event_json)?;
+            let [event] = events.as_slice() else {
+                return Err(KansoError::invalid("Choose one calendar event."));
+            };
+            overview::create_meeting_note(&self.inner.store, event, now_here().offset_ms, context)
+                .map_err(Into::into)
+        })
+    }
+
+    /// Links an existing note to a system-calendar event occurrence.
+    pub fn overview_link_meeting_note(
+        &self,
+        note_id: &str,
+        event_json: &str,
+    ) -> Result<(), KansoError> {
+        guard(|| {
+            let events = calendar_events(event_json)?;
+            let [event] = events.as_slice() else {
+                return Err(KansoError::invalid("Choose one calendar event."));
+            };
+            overview::link_meeting_note(&self.inner.store, note_id, event, now_here().offset_ms)
+                .map_err(Into::into)
+        })
+    }
+
     /// Today, worked out at the phone's time now. Kept as the next launch's
     /// first frame.
     pub fn overview_today(&self) -> Result<OverviewToday, KansoError> {
@@ -223,6 +268,14 @@ impl Library {
         opts.quiet_days = settings.quiet_days;
         opts.loops = settings.loops;
         opts.model = self.inner.store.embedding_model().ok().flatten();
+        opts.events = self
+            .inner
+            .store
+            .meta(CALENDAR_EVENTS)
+            .ok()
+            .flatten()
+            .and_then(|json| serde_json::from_str(&json).ok())
+            .unwrap_or_default();
         opts
     }
 
@@ -280,6 +333,26 @@ impl Library {
             ai: self.kept_ai(&format!("{AI_TODAY}{}", page.day)),
         }
     }
+}
+
+fn calendar_events(json: &str) -> Result<Vec<overview::Event>, KansoError> {
+    const MAX_EVENTS: usize = 20_000;
+    const MAX_TEXT_CHARS: usize = 2_000;
+    let events: Vec<overview::Event> = serde_json::from_str(json)
+        .map_err(|_| KansoError::invalid("Those calendar events are invalid."))?;
+    if events.len() > MAX_EVENTS
+        || events.iter().any(|event| {
+            event.uid.is_empty()
+                || event.title.chars().count() > MAX_TEXT_CHARS
+                || event.location.chars().count() > MAX_TEXT_CHARS
+                || event.calendar.chars().count() > MAX_TEXT_CHARS
+                || event.start >= event.end
+                || event.attendees.len() > 500
+        })
+    {
+        return Err(KansoError::invalid("Those calendar events are invalid."));
+    }
+    Ok(events)
 }
 
 fn week_of(from: Option<&str>, now: Now) -> Result<Date, KansoError> {
@@ -348,6 +421,21 @@ fn agenda_row(row: &AgendaRow) -> OverviewAgendaRow {
             .meeting
             .as_ref()
             .map(|m| m.note_id.clone())
+            .unwrap_or_default(),
+        meeting_which: row
+            .meeting
+            .as_ref()
+            .map(|m| m.which.clone())
+            .unwrap_or_default(),
+        meeting_day: row
+            .meeting
+            .as_ref()
+            .map(|m| m.day.clone())
+            .unwrap_or_default(),
+        event_json: row
+            .event_details
+            .as_ref()
+            .and_then(|event| serde_json::to_string(event).ok())
             .unwrap_or_default(),
     }
 }
@@ -511,5 +599,45 @@ fn now_here() -> Now {
     Now {
         utc_ms,
         offset_ms: offset * 1000,
+    }
+}
+
+#[cfg(test)]
+mod calendar_events_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn prop_valid_system_events_round_trip(
+            uid in "[a-zA-Z0-9-]{1,40}",
+            start in -2_000_000_000_000i64..2_000_000_000_000,
+            duration in 1i64..604_800_000,
+            title in ".{0,100}",
+            calendar in ".{1,100}",
+            free in any::<bool>(),
+            all_day in any::<bool>(),
+        ) {
+            let events = vec![overview::Event {
+                uid,
+                start,
+                end: start.saturating_add(duration),
+                title,
+                calendar,
+                free,
+                all_day,
+                ..overview::Event::default()
+            }];
+            let json = serde_json::to_string(&events).unwrap();
+            prop_assert_eq!(calendar_events(&json).unwrap(), events);
+        }
+    }
+
+    #[test]
+    fn malformed_or_reversed_system_events_are_rejected() {
+        assert!(calendar_events("not json").is_err());
+        assert!(
+            calendar_events(r#"[{"uid":"event","start":5,"end":5,"title":"Broken"}]"#,).is_err()
+        );
     }
 }

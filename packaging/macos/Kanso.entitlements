@@ -6,6 +6,9 @@
          that doesn't ask for it here, and macOS then never even asks. -->
     <key>com.apple.security.device.audio-input</key>
     <true/>
+    <!-- Overview reads system-calendar events, never writes them. -->
+    <key>com.apple.security.personal-information.calendars</key>
+    <true/>
     <!-- Recording another app's audio (ScreenCaptureKit) needs no entitlement
          under the hardened runtime: Screen Recording is a privacy permission
          the person grants in System Settings, and the question only shows

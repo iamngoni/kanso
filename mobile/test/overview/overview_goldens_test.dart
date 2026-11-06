@@ -2,7 +2,7 @@
 // Created 2026-11-04.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/overview_types.dart';
 import 'package:kanso/core/models/repos/abs/ai_repository.dart';
@@ -37,6 +37,9 @@ OverviewAgendaRow _task(
   raw: title,
   color: color,
   meetingNoteId: '',
+  meetingWhich: '',
+  meetingDay: '',
+  eventJson: '',
 );
 
 const OverviewListRow _pick = OverviewListRow(
@@ -145,8 +148,51 @@ final OverviewToday _day = OverviewToday(
   footer: 'Yesterday you wrote 4 notes and finished 6 tasks.',
 );
 
+const OverviewToday _quietDay = OverviewToday(
+  day: '2026-11-04',
+  greeting: 'Good morning',
+  overline: 'WEDNESDAY 4 NOVEMBER',
+  lede: 'Nothing on today.',
+  state: OverviewState.quiet,
+  earlier: <OverviewAgendaRow>[],
+  agenda: <OverviewAgendaRow>[],
+  agendaMore: 0,
+  taskTotal: 0,
+  lists: <OverviewList>[],
+  also: <OverviewLine>[],
+  footer: '',
+);
+
+const OverviewToday _newDay = OverviewToday(
+  day: '2026-11-04',
+  greeting: 'Good morning',
+  overline: 'WEDNESDAY 4 NOVEMBER',
+  lede: 'Your day will take shape as you write.',
+  state: OverviewState.new_,
+  earlier: <OverviewAgendaRow>[],
+  agenda: <OverviewAgendaRow>[],
+  agendaMore: 0,
+  taskTotal: 0,
+  lists: <OverviewList>[],
+  also: <OverviewLine>[],
+  footer: '',
+);
+
 void main() {
+  const calendar = MethodChannel('app.kanso.kanso/system_calendar');
   setUp(() async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(calendar, (call) async {
+          if (call.method == 'requestAccess') return false;
+          if (call.method == 'calendars' || call.method == 'events') {
+            return <Object?>[];
+          }
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(calendar, null),
+    );
     await getIt.reset();
     final library = FixtureLibraryRepository();
     getIt
@@ -160,11 +206,80 @@ void main() {
   });
 
   for (final brightness in Brightness.values) {
-    testWidgets('Today on a phone, ${brightness.name}', (tester) async {
+    for (final (label, day) in <(String, OverviewToday)>[
+      ('busy', _day),
+      ('quiet', _quietDay),
+      ('new', _newDay),
+    ]) {
+      testWidgets('$label Today on a phone, ${brightness.name}', (
+        tester,
+      ) async {
+        (getIt<DigestRepository>() as FixtureDigestRepository).today = day;
+        await expectGoldenOnBothPlatforms(
+          tester,
+          const OverviewPage(),
+          name: 'goldens/overview_${label}_phone_${brightness.name}',
+          brightness: brightness,
+          size: phoneSize,
+        );
+      });
+    }
+
+    testWidgets('This week on a phone, ${brightness.name}', (tester) async {
+      (getIt<DigestRepository>() as FixtureDigestRepository).week =
+          OverviewWeek(
+            from: '2026-11-02',
+            rangeLabel: '2 – 8 NOVEMBER',
+            weekLabel: 'Week 45',
+            isThisWeek: true,
+            lede: 'You wrote 4 notes and finished 2 tasks.',
+            projects: <OverviewProject>[
+              const OverviewProject(
+                id: 'book:kanso',
+                name: 'Kanso',
+                notesChanged: 4,
+                lastTitle: 'Kanso roadmap',
+                lastNoteId: 'note:roadmap',
+                nextTask: 'Send the beta invite',
+                nextDue: 'Thu',
+              ),
+            ],
+            finished: <OverviewFinished>[
+              const OverviewFinished(
+                noteId: 'note:work',
+                text: 'Send the invoice',
+              ),
+            ],
+            finishedMore: 0,
+            waiting: <OverviewListRow>[_wait],
+            stillOpen: <OverviewAgendaRow>[
+              _task('Review the release checklist'),
+            ],
+            stillOpenTotal: 1,
+            ahead: <OverviewAheadDay>[
+              OverviewAheadDay(
+                summary: 'THURSDAY 5 NOVEMBER',
+                rows: <OverviewAgendaRow>[
+                  _task('Send the beta invite', gutter: 'Thu'),
+                ],
+              ),
+            ],
+            also: <OverviewLine>[
+              const OverviewLine(
+                kind: OverviewLineKind.themes,
+                label: 'Themes',
+                count: 3,
+                cards: 0,
+                items: <OverviewItem>[],
+                detail: <String>[],
+              ),
+            ],
+            savedAs: '',
+          );
       await expectGoldenOnBothPlatforms(
         tester,
-        const OverviewPage(),
-        name: 'goldens/overview_today_phone_${brightness.name}',
+        const OverviewPage(week: true),
+        name: 'goldens/overview_week_phone_${brightness.name}',
         brightness: brightness,
         size: phoneSize,
       );

@@ -105,6 +105,7 @@ class FixtureDigestRepository implements DigestRepository {
   /// What was done on the page's rows.
   final List<String> done = <String>[];
   final List<String> hidden = <String>[];
+  final List<(String, String)> meetingLinks = <(String, String)>[];
   final List<String> snoozed = <String>[];
   final List<String> dismissed = <String>[];
   final List<(String, RevisitChoice)> revisits = <(String, RevisitChoice)>[];
@@ -151,6 +152,26 @@ class FixtureDigestRepository implements DigestRepository {
             savedAs: week.savedAs,
           ),
   );
+
+  @override
+  Future<Either<ApplicationError, void>> putCalendarEvents(
+    String eventsJson,
+  ) async => const Right<ApplicationError, void>(null);
+
+  @override
+  Future<Either<ApplicationError, String>> createMeetingNote({
+    required String eventJson,
+    required String context,
+  }) async => const Right<ApplicationError, String>('note:meeting');
+
+  @override
+  Future<Either<ApplicationError, void>> linkMeetingNote({
+    required String noteId,
+    required String eventJson,
+  }) async {
+    meetingLinks.add((noteId, eventJson));
+    return const Right<ApplicationError, void>(null);
+  }
 
   @override
   Future<Either<ApplicationError, void>> hidePlace(String noteId) async {

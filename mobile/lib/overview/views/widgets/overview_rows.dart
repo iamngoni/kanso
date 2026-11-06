@@ -35,6 +35,7 @@ class AgendaTile extends StatelessWidget {
     required this.onTick,
     required this.onOpen,
     this.onOpenMeeting,
+    this.onNewMeetingNote,
     this.onRevisit,
     this.dimmed = false,
     super.key,
@@ -44,6 +45,7 @@ class AgendaTile extends StatelessWidget {
   final VoidCallback onTick;
   final VoidCallback onOpen;
   final VoidCallback? onOpenMeeting;
+  final VoidCallback? onNewMeetingNote;
   final VoidCallback? onRevisit;
   final bool dimmed;
 
@@ -155,7 +157,25 @@ class AgendaTile extends StatelessWidget {
                     top: 2,
                   ),
                   child: Text(
-                    l10n.overviewMeetingNote,
+                    row.meetingWhich == 'series'
+                        ? l10n.overviewSeriesNote
+                        : row.meetingWhich == 'last'
+                        ? l10n.overviewLastTime(row.meetingDay)
+                        : l10n.overviewMeetingNote,
+                    style: typography.meta.copyWith(color: colors.link),
+                  ),
+                ),
+              ),
+            if (onNewMeetingNote != null)
+              KansoPressable(
+                onTap: onNewMeetingNote,
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: KansoSpacing.sm,
+                    top: 2,
+                  ),
+                  child: Text(
+                    l10n.overviewNewMeetingNote,
                     style: typography.meta.copyWith(color: colors.link),
                   ),
                 ),

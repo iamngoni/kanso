@@ -66,6 +66,34 @@ class RustDigestRepository implements DigestRepository {
   }) => attempt(() => _library.overviewWeek(from: from));
 
   @override
+  Future<Either<ApplicationError, void>> putCalendarEvents(String eventsJson) =>
+      attempt(
+        () => _library.overviewPutCalendarEvents(eventsJson: eventsJson),
+      );
+
+  @override
+  Future<Either<ApplicationError, String>> createMeetingNote({
+    required String eventJson,
+    required String context,
+  }) => attempt(
+    () => _library.overviewCreateMeetingNote(
+      eventJson: eventJson,
+      context: context,
+    ),
+  );
+
+  @override
+  Future<Either<ApplicationError, void>> linkMeetingNote({
+    required String noteId,
+    required String eventJson,
+  }) => attempt(
+    () => _library.overviewLinkMeetingNote(
+      noteId: noteId,
+      eventJson: eventJson,
+    ),
+  );
+
+  @override
   Future<Either<ApplicationError, void>> hidePlace(String noteId) =>
       attempt(() => _library.overviewHidePlace(noteId: noteId));
 

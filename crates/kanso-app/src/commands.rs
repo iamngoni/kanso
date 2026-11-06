@@ -13,9 +13,9 @@ use crate::editor::inline_glue::InlineAssist;
 use crate::journal::{NewTemplate, NextDay, OpenToday, PreviousDay, QuickCapture};
 use crate::settings::{
     BrowseIconThemes, BrowseThemes, CloseSettings, ImportIconTheme, OpenAccountSettings,
-    OpenAiSettings, OpenApiSettings, OpenAppearanceSettings, OpenEditorSettings,
-    OpenGeneralSettings, OpenIconThemeSettings, OpenPluginSettings, OpenUpdateSettings,
-    RefreshThemeGallery, ReloadIconThemes, ReloadThemes, StopThemePreview,
+    OpenAiSettings, OpenApiSettings, OpenAppearanceSettings, OpenCalendarSettings,
+    OpenEditorSettings, OpenGeneralSettings, OpenIconThemeSettings, OpenPluginSettings,
+    OpenUpdateSettings, RefreshThemeGallery, ReloadIconThemes, ReloadThemes, StopThemePreview,
 };
 use crate::tabs::{
     CloseTab, GoToTab1, GoToTab2, GoToTab3, GoToTab4, GoToTab5, GoToTab6, GoToTab7, GoToTab8,
@@ -2187,6 +2187,17 @@ static COMMANDS: &[Command] = &[
         ],
         group: Group::App,
         run: action!(OpenUpdateSettings),
+        needs: Needs::Nothing,
+    },
+    Command {
+        id: "settings-calendar",
+        label: "Settings: Calendar",
+        label_when_pinned: None,
+        description: "Choose which system calendars Overview reads. Kanso never changes calendar events.",
+        icon: IconName::CalendarDays,
+        keywords: &["preferences", "events", "system calendar", "privacy"],
+        group: Group::App,
+        run: action!(OpenCalendarSettings),
         needs: Needs::Nothing,
     },
     Command {

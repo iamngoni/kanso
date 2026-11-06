@@ -749,6 +749,15 @@ fn after_migration_no_plaintext_of_a_migrated_file_is_left_in_the_folder() {
             Origin::Sync,
         )
         .unwrap();
+    // Current writes discard derived PDF text as soon as the note becomes
+    // unreadable. Seed the old derived row directly to model a library made
+    // by a pre-migration version, which could still have this plaintext.
+    let conn = rusqlite::Connection::open(world.dir.path().join("k.db")).unwrap();
+    conn.execute(
+        "INSERT INTO pdf_page_text (file_id, page, text) VALUES (?1, 1, ?2)",
+        rusqlite::params![pdf, std::str::from_utf8(PDF_TEXT).unwrap()],
+    )
+    .unwrap();
     assert_eq!(pending(&world.store).legacy, 1);
     let before = every_byte_under(world.dir.path());
     // Locking the note can already forget the derived PDF text cache. The

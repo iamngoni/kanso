@@ -3,6 +3,12 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## Unreleased
+
+### New
+
+- **app/mobile:** Overview brings Today and This week together as Kanso's home, with on-device system-calendar support ([#240](https://github.com/iamngoni/kanso/issues/240))
+
 ## [0.9.4](https://github.com/iamngoni/kanso/compare/v0.9.3...v0.9.4) - 2026-11-04
 
 ### New

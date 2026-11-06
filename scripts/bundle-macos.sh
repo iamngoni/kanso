@@ -189,6 +189,8 @@ cat > "$app/Contents/Info.plist" <<PLIST
     </array>
     <key>NSMicrophoneUsageDescription</key>
     <string>Kanso listens only while you dictate or record, and turns what you say into text on this Mac.</string>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Kanso reads your system calendars to show today's events in Overview. Events stay on this Mac; Kanso never changes them.</string>
     <key>NSScreenCaptureUsageDescription</key>
     <string>Kanso uses Screen Recording only to hear the audio of the app you pick when you record a meeting. It never records or saves your screen.</string>
 </dict>

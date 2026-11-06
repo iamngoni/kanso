@@ -1852,7 +1852,7 @@ impl NoteEditor {
         let Some(id) = self.note_id().map(str::to_owned) else {
             return;
         };
-        let len = self.body.read(cx).text().len();
+        let len = self.body.read(cx).text().chars().count();
         // A paste or a note switch is not typing: one change counts for 80
         // characters at most.
         let typed = len.abs_diff(self.typing_len).min(80) as u32;

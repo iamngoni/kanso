@@ -135,6 +135,7 @@ abstract interface class SessionRepository {
   /// also shows them, once, for the sentence said after it; null when it
   /// copied none.
   Future<Either<ApplicationError, LockCopyNotice?>> takeCopyNotice();
+
   /// The notes locked before attachments were sealed, and what sealing theirs
   /// would do: counted only while a key that opens them is held.
   Future<Either<ApplicationError, FilesMigration>> filesMigration();

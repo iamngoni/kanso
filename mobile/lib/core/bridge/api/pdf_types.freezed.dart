@@ -200,7 +200,7 @@ return notAPdf();case _:
 
 class PdfDeclined_NeedsPassword extends PdfDeclined {
   const PdfDeclined_NeedsPassword(): super._();
-
+  
 
 
 
@@ -232,7 +232,7 @@ String toString() {
 
 class PdfDeclined_WrongPassword extends PdfDeclined {
   const PdfDeclined_WrongPassword(): super._();
-
+  
 
 
 
@@ -264,7 +264,7 @@ String toString() {
 
 class PdfDeclined_LockedNote extends PdfDeclined {
   const PdfDeclined_LockedNote({required this.message}): super._();
-
+  
 
  final  String message;
 
@@ -330,7 +330,7 @@ as String,
 
 class PdfDeclined_Unavailable extends PdfDeclined {
   const PdfDeclined_Unavailable({required this.message}): super._();
-
+  
 
  final  String message;
 
@@ -396,7 +396,7 @@ as String,
 
 class PdfDeclined_Refused extends PdfDeclined {
   const PdfDeclined_Refused({required this.message}): super._();
-
+  
 
  final  String message;
 
@@ -462,7 +462,7 @@ as String,
 
 class PdfDeclined_NotAPdf extends PdfDeclined {
   const PdfDeclined_NotAPdf(): super._();
-
+  
 
 
 

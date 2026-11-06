@@ -433,4 +433,32 @@ proptest! {
         }
         let _ = LoopKind::Mine;
     }
+
+    /// The indexed empty-range fast path agrees with the full date filter.
+    #[test]
+    fn revisit_ranges_match_their_half_open_lower_bound(
+        days in prop::collection::vec(1u32..30, 0..12),
+        after in 1u32..30,
+        to in 1u32..30,
+    ) {
+        let (_dir, store) = temp_store();
+        book(&store, "book:a");
+        for (index, day) in days.iter().enumerate() {
+            let id = format!("note:r{index}");
+            note(&store, &id, "Revisit this note");
+            store.set_revisit(&id, Some(&Revisit {
+                on: format!("2026-11-{day:02}"),
+                set_at: i64::from(*day),
+                why: String::new(),
+            })).unwrap();
+        }
+        let after = format!("2026-11-{after:02}");
+        let to = format!("2026-11-{to:02}");
+        let expected = days.iter().filter(|day| {
+            let day = format!("2026-11-{day:02}");
+            day > after && day <= to
+        }).count();
+        let actual = store.revisits_between(Some(&after), &to, 100).unwrap();
+        prop_assert_eq!(actual.len(), expected);
+    }
 }

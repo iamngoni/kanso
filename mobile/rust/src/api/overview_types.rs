@@ -70,6 +70,9 @@ pub struct _OverviewAgendaRow {
     pub raw: String,
     pub color: String,
     pub meeting_note_id: String,
+    pub meeting_which: String,
+    pub meeting_day: String,
+    pub event_json: String,
 }
 
 #[frb(mirror(OverviewListRow))]
