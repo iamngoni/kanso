@@ -210,7 +210,11 @@ git push origin master && git push origin v0.2.0   # or pass --push above
 
 The tag starts `.github/workflows/release.yml`, which builds each platform,
 signs and notarizes the Mac app when the Apple secrets are set, and makes
-the update archives. Its `feed` job then writes `latest.json` from them with
+the update archives. Linux releases also include `Kanso-<version>-linux-x64-headless.tar.gz`
+and `Kanso-<version>-linux-arm64-headless.tar.gz`, each with `kanso-headless` and
+`install.sh --headless`. The Linux packaging job checks the binary with `ldd` for Wayland, X11,
+Vulkan and libfido2, then exercises `serve`, account status and MCP initialization on the
+display-less runner. Its `feed` job then writes `latest.json` from them with
 the release's section of `CHANGELOG.md` (a tag without one fails), signs it
 with `KANSO_UPDATE_SIGNING_KEY`, and verifies it against the keys in the
 checkout. A missing or untrusted signing key fails the release, and so does

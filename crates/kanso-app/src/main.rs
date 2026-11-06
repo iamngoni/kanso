@@ -296,6 +296,9 @@ const USAGE: &str = "\
 Usage: kanso [command] [--data-dir <dir>] [--safe-mode]
        kanso <file.md> [more files]
 
+The Linux release also includes `kanso-headless`, a server-only binary with
+no window-system, graphics or security-key runtime libraries.
+
 --safe-mode (or Shift held as Kanso opens) keeps every plugin off for the
 session.
 
