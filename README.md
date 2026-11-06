@@ -578,6 +578,22 @@ Every command takes `--data-dir <dir>`. The default is `$KANSO_DATA_DIR` when se
 
 ### Headless / VPS
 
+Linux releases include a small `linux-x64-headless` or `linux-arm64-headless` tarball. Unpack it and
+run `./install.sh --headless`; this installs the display-free binary as `~/.local/bin/kanso`. It
+supports `serve`, `account`, `service`, `api-key` and `mcp`. The regular Linux archive also includes
+`kanso-headless` for the same install option. The headless binary does not load Wayland, X11, Vulkan
+or libfido2 libraries.
+
+Download and install the archive for the server's architecture from the [latest release](https://github.com/iamngoni/kanso/releases/latest):
+
+```bash
+VERSION=0.9.4 # replace with the current release version
+curl -fLO "https://github.com/iamngoni/kanso/releases/download/v$VERSION/Kanso-$VERSION-linux-x64-headless.tar.gz"
+tar -xzf "Kanso-$VERSION-linux-x64-headless.tar.gz"
+cd "Kanso-$VERSION-linux-x64-headless"
+./install.sh --headless
+```
+
 `kanso serve` runs the API and `/mcp` without a window, so an agent on a server (Codex, say) can use
 your notes, with an API key. Keys are stored in the library, which never syncs them. On the server,
 `kanso api-key create --name <name>` prints a new key and nothing else (`list` and `revoke` do the
@@ -589,15 +605,13 @@ running program over an owner-only local control channel: a mode-0600 `control.s
 named pipe restricted to the current user's SID on Windows. Both ends verify the peer identity;
 the channel is not on the API port, so no API key can reach it. With an older Kanso running, stop
 it first. Until the library has a key, `kanso serve` and `kanso mcp` refuse every request. Sign the server's library
-in to your account once, with the service stopped, and `kanso serve` syncs it while it runs: at
+in to your account once, before starting the service or while `kanso serve` is running, and it syncs
+while it runs: at
 start, every `sync.intervalSecs` (5 minutes), and 20 seconds after any API or MCP write.
 
 ```bash
-sudo useradd --system --home-dir /var/lib/kanso --shell /usr/sbin/nologin kanso
-sudo install -d -o kanso -g kanso -m 700 /var/lib/kanso
-sudo cp assets/linux/kanso.service /etc/systemd/system/ && sudo systemctl daemon-reload
-sudo -u kanso KANSO_DATA_DIR=/var/lib/kanso kanso account sign-in --username ngoni
-sudo systemctl enable --now kanso
+sudo kanso service install --user kanso --data-dir /var/lib/kanso
+sudo -u kanso kanso account sign-in --username ngoni --data-dir /var/lib/kanso
 ```
 
 The account CLI uses the same owner-only control socket, so sign in, sign out,
@@ -614,6 +628,10 @@ and expires after 10 minutes; approve the new computer and compare the six-digit
 devices. The command never creates or recovers an account. `kanso account devices`,
 `revoke <id>` and `sign-out` do the rest. If another device signs the server out, `kanso serve`
 says so once and keeps serving the library.
+
+The headless CLI supports password sign-in, GitHub device sign-in and pairing. It currently refuses
+Google, Apple, passkey and security-key sign-in, and has no sign-up or account-recovery commands.
+Sign in to those accounts in Kanso first, then add the server from Settings › Account › Devices.
 
 A server has no keyring, so the session goes in `secrets.json` in the data folder (owner-only,
 `0600`; `--secrets file`, the default when no Secret Service answers). **That file holds the key
@@ -633,14 +651,9 @@ key in a file only the `kanso` user can read instead. Before you delete the serv
 
 An example unit is in [`assets/linux/kanso.service`](assets/linux/kanso.service). Keep `bindAddress`
 at `127.0.0.1` and reach the API through an SSH tunnel (`ssh -L 19840:127.0.0.1:19840 vps`) or a TLS
-proxy; agents on the server itself use `kanso mcp`, with `KANSO_MCP_TOKEN` set to a key. The binary still links the desktop's shared
-libraries, so install them even without a display:
-
-```bash
-sudo apt install libwayland-client0 libxkbcommon0 libxkbcommon-x11-0 libvulkan1 libegl1 libx11-6 \
-  libx11-xcb1 libxcb1 libxcb-randr0 libxcb-shape0 libxcb-shm0 libxcb-xfixes0 libfontconfig1 \
-  libfreetype6 libssl3 libasound2 libdbus-1-3 libzstd1 libfido2-1
-```
+proxy; agents on the server itself use `kanso mcp`, with `KANSO_MCP_TOKEN` set to a key. The
+headless archive avoids the desktop's window-system, graphics and security-key libraries. Its
+release check verifies the remaining dynamic dependencies on Linux.
 
 ## Development
 

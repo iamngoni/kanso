@@ -247,13 +247,13 @@ mod linux {
                 println!("Installed {} and started it.", unit_path.display());
                 if system {
                     println!(
-                        "To sign in before control-channel sign-in is available: stop the service, run `sudo -u {} kanso account sign-in --data-dir {}`, then start it again.",
+                        "To sign in while the service runs, use `sudo -u {} kanso account sign-in --data-dir {}`; it uses the service's control channel.",
                         user.as_deref().unwrap(),
                         data_dir.display()
                     );
                 } else {
                     println!(
-                        "For a user service on a server, enable lingering with `loginctl enable-linger`. To sign in, stop the service, run `kanso account sign-in --data-dir {}`, then start it again.",
+                        "For a user service on a server, enable lingering with `loginctl enable-linger`. To sign in while it runs, use `kanso account sign-in --data-dir {}`; it uses the service's control channel.",
                         data_dir.display()
                     );
                 }
@@ -559,7 +559,7 @@ mod windows {
                     .start::<OsString>(&[])
                     .context("starting the Kanso service")?;
                 println!(
-                    "Installed and started the Kanso service. To sign in, stop it, run `kanso account sign-in --data-dir {}`, then start it again.",
+                    "Installed and started the Kanso service. To sign in while it runs, use `kanso account sign-in --data-dir {}`; it uses the service's control channel.",
                     data_dir.display()
                 );
             }

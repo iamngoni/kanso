@@ -376,6 +376,7 @@ jobs:
           tar -czf "dist/$headless_stem.tar.gz" "$headless_stem"
 
           # Exercise the server binary on the display-less release runner.
+          unset DISPLAY WAYLAND_DISPLAY
           smoke=$(mktemp -d)
           "$headless_stem/kanso-headless" account status --data-dir "$smoke" >"$smoke/status.txt"
           grep -q 'Not signed in' "$smoke/status.txt"

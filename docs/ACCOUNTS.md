@@ -3762,8 +3762,10 @@ Startup counts the Mac as signed in only when the config, the Keychain item and 
 `kanso account` signs a library in without a window, for `kanso serve` on a server:
 
 ```text
-sign-in   [--username N] [--password-stdin] [--server URL] [--provider github] [--pair CODE]
+sign-in   [--username N] [--password-stdin] [--server URL]
+          [--provider github] [--pair CODE]
           [--device-name N] [--secrets file|system] [--add | --replace]
+recovery-key             show and confirm saving a pending recovery key
 status                      account, server, device, secret store, last sync (no lock)
 devices                     the account's devices
 revoke    <device id>       sign another device out (an ID or a unique start of one)
@@ -3771,10 +3773,12 @@ sign-out                    sign this library out; its notes stay
 ```
 
 `sign-in` uses the engine's `Flow`, as the app does: a password sign-in, GitHub's device flow, or
-`--pair CODE`. Pairing starts in Settings › Account › Devices on a signed-in computer or phone.
-The code is single-use and expires in 10 minutes. The server then asks for the normal approval; only
-continue when the six-digit code matches on both devices. GitHub and pairing can be approved by
-another signed-in device, or unlocked with the account's password. It never signs up or recovers. A
+`--pair CODE`. Pairing starts in Settings › Account › Devices on a signed-in computer or phone. The
+code is single-use and expires in 10 minutes. The server then asks for the normal approval; only
+continue when the six-digit code matches on both devices. GitHub sign-in and pairing can be approved
+by another signed-in device or unlocked with the account's password. The headless CLI does not
+create or recover accounts, and it currently refuses Google, Apple, passkey and security-key sign-in
+up front; use the app to sign in with those methods, then pair the server. A
 library with notes needs `--add` or `--replace` without a terminal; otherwise the new session is
 logged out and nothing is written. Exit status: 0 signed in, 1 refused, 2 a bad command line. Every
 command uses the owner-only control socket while `kanso serve` holds the lock. It streams prompts
