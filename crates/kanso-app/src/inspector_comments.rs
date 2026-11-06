@@ -7,6 +7,7 @@
 //! own comments can be edited and deleted. Clicking one selects its words
 //! in the editor.
 
+use gpui_component::scroll::ScrollableElement as _;
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::notification::Notification;
@@ -78,7 +79,7 @@ impl Inspector {
         let mut list = v_flex()
             .id("comments")
             .size_full()
-            .overflow_y_scroll()
+            .overflow_y_scrollbar()
             .track_scroll(&self.scroll)
             .px(px(PAD_X))
             .pt(px(6.))

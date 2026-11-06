@@ -367,6 +367,43 @@ pub fn page(cx: &mut Context<SettingsView>) -> Vec<AnyElement> {
     pages
 }
 
+/// The list-scrollbar choice, kept on the Appearance page above its theme gallery.
+pub fn scrollbars_row(cx: &mut Context<SettingsView>) -> AnyElement {
+    let colors = Colors::get(cx);
+    let always = cx
+        .global::<AppState>()
+        .config
+        .appearance
+        .always_show_scrollbars;
+    section(
+        "",
+        vec![
+            Row::new(Lucide::PanelRight, "Show scrollbars")
+                .detail(if always {
+                    "Always show scrollbars when a list has more content."
+                } else {
+                    "Show scrollbars while scrolling or hovering."
+                })
+                .trailing(
+                    Button::new("scrollbar-visibility")
+                        .outline()
+                        .small()
+                        .label(if always { "Always" } else { "When scrolling" })
+                        .debug_selector(|| "scrollbar-visibility".into())
+                        .on_click(|_, _, cx| {
+                            AppState::update_config(cx, |config| {
+                                config.appearance.always_show_scrollbars =
+                                    !config.appearance.always_show_scrollbars;
+                            });
+                            themes::apply(None, cx);
+                        }),
+                ),
+        ],
+        colors,
+    )
+    .into_any_element()
+}
+
 /// Settings › Icon Themes: the icon themes' cards and their files.
 pub fn icon_theme_page(cx: &mut Context<SettingsView>) -> Vec<AnyElement> {
     if crate::settings_gallery::tab_for(kanso_gallery::Kind::Icons, cx)

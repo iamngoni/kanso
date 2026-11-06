@@ -8,6 +8,8 @@
 //! that decide are the engine's; this draws them and turns clicks into store
 //! writes.
 
+use gpui_component::scroll::ScrollableElement as _;
+use gpui_component::scroll::Scrollbar;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -674,7 +676,7 @@ impl DigestView {
                 .id("digest-page")
                 .flex_1()
                 .min_h_0()
-                .overflow_y_scroll()
+                .overflow_y_scrollbar()
                 .track_scroll(&self.page_scroll)
                 .child(page_chrome::centred(body))
                 .into_any_element()
@@ -1082,20 +1084,34 @@ impl DigestView {
                 .child(page_chrome::centred(top))
                 .child(
                     div().flex_1().min_h_0().child(
-                        v_virtual_list(cx.entity(), "loops", sizes, move |this, range, _, cx| {
-                            range
-                                .filter_map(|at| {
-                                    Some(match shown.get(at)? {
-                                        Entry::Header { kind, count } => {
-                                            this.loop_header(*kind, *count, cx)
-                                        }
-                                        Entry::Loop(ix) => this.loop_row(*ix, cx),
-                                    })
-                                })
-                                .collect()
-                        })
-                        .size_full()
-                        .track_scroll(&self.list_scroll),
+                        div()
+                            .relative()
+                            .size_full()
+                            .child(
+                                v_virtual_list(
+                                    cx.entity(),
+                                    "loops",
+                                    sizes,
+                                    move |this, range, _, cx| {
+                                        range
+                                            .filter_map(|at| {
+                                                Some(match shown.get(at)? {
+                                                    Entry::Header { kind, count } => {
+                                                        this.loop_header(*kind, *count, cx)
+                                                    }
+                                                    Entry::Loop(ix) => this.loop_row(*ix, cx),
+                                                })
+                                            })
+                                            .collect()
+                                    },
+                                )
+                                .size_full()
+                                .track_scroll(&self.list_scroll),
+                            )
+                            .child(
+                                Scrollbar::vertical(&self.list_scroll)
+                                    .mode(crate::themes::list_scrollbar_mode(cx)),
+                            ),
                     ),
                 )
                 .into_any_element()
@@ -1201,7 +1217,7 @@ impl DigestView {
                     .id("found-list")
                     .flex_1()
                     .min_h_0()
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .child(page_chrome::centred(column)),
             )
             .child(

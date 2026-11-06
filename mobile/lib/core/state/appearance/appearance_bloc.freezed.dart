@@ -55,7 +55,7 @@ extension AppearanceEventPatterns on AppearanceEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AppearanceStartedEvent value)?  started,TResult Function( AppearanceThemePickedEvent value)?  themePicked,TResult Function( AppearanceSyntaxPickedEvent value)?  syntaxPicked,TResult Function( AppearancePreviewPickedEvent value)?  previewPicked,TResult Function( AppearanceFollowSystemChangedEvent value)?  followSystemChanged,TResult Function( AppearanceIconThemePickedEvent value)?  iconThemePicked,TResult Function( AppearanceInterfaceFontChangedEvent value)?  interfaceFontChanged,TResult Function( AppearanceEditorFontChangedEvent value)?  editorFontChanged,TResult Function( AppearancePreviewFontChangedEvent value)?  previewFontChanged,TResult Function( AppearanceCodeFontChangedEvent value)?  codeFontChanged,TResult Function( AppearanceTextSizeChangedEvent value)?  textSizeChanged,TResult Function( AppearancePreviewTextSizeChangedEvent value)?  previewTextSizeChanged,TResult Function( AppearanceInterfaceTextSizeChangedEvent value)?  interfaceTextSizeChanged,TResult Function( AppearanceGoogleFontPickedEvent value)?  googleFontPicked,TResult Function( AppearanceGoogleFontChosenEvent value)?  googleFontChosen,TResult Function( AppearanceDiagramRendererChangedEvent value)?  diagramRendererChanged,TResult Function( AppearanceThemeChangedEvent value)?  themeChanged,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AppearanceStartedEvent value)?  started,TResult Function( AppearanceThemePickedEvent value)?  themePicked,TResult Function( AppearanceSyntaxPickedEvent value)?  syntaxPicked,TResult Function( AppearancePreviewPickedEvent value)?  previewPicked,TResult Function( AppearanceFollowSystemChangedEvent value)?  followSystemChanged,TResult Function( AppearanceIconThemePickedEvent value)?  iconThemePicked,TResult Function( AppearanceInterfaceFontChangedEvent value)?  interfaceFontChanged,TResult Function( AppearanceEditorFontChangedEvent value)?  editorFontChanged,TResult Function( AppearancePreviewFontChangedEvent value)?  previewFontChanged,TResult Function( AppearanceCodeFontChangedEvent value)?  codeFontChanged,TResult Function( AppearanceTextSizeChangedEvent value)?  textSizeChanged,TResult Function( AppearancePreviewTextSizeChangedEvent value)?  previewTextSizeChanged,TResult Function( AppearanceInterfaceTextSizeChangedEvent value)?  interfaceTextSizeChanged,TResult Function( AppearanceGoogleFontPickedEvent value)?  googleFontPicked,TResult Function( AppearanceGoogleFontChosenEvent value)?  googleFontChosen,TResult Function( AppearanceDiagramRendererChangedEvent value)?  diagramRendererChanged,TResult Function( AppearanceScrollbarVisibilityChangedEvent value)?  scrollbarVisibilityChanged,TResult Function( AppearanceThemeChangedEvent value)?  themeChanged,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case AppearanceStartedEvent() when started != null:
@@ -74,7 +74,8 @@ return previewTextSizeChanged(_that);case AppearanceInterfaceTextSizeChangedEven
 return interfaceTextSizeChanged(_that);case AppearanceGoogleFontPickedEvent() when googleFontPicked != null:
 return googleFontPicked(_that);case AppearanceGoogleFontChosenEvent() when googleFontChosen != null:
 return googleFontChosen(_that);case AppearanceDiagramRendererChangedEvent() when diagramRendererChanged != null:
-return diagramRendererChanged(_that);case AppearanceThemeChangedEvent() when themeChanged != null:
+return diagramRendererChanged(_that);case AppearanceScrollbarVisibilityChangedEvent() when scrollbarVisibilityChanged != null:
+return scrollbarVisibilityChanged(_that);case AppearanceThemeChangedEvent() when themeChanged != null:
 return themeChanged(_that);case _:
   return orElse();
 
@@ -93,7 +94,7 @@ return themeChanged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AppearanceStartedEvent value)  started,required TResult Function( AppearanceThemePickedEvent value)  themePicked,required TResult Function( AppearanceSyntaxPickedEvent value)  syntaxPicked,required TResult Function( AppearancePreviewPickedEvent value)  previewPicked,required TResult Function( AppearanceFollowSystemChangedEvent value)  followSystemChanged,required TResult Function( AppearanceIconThemePickedEvent value)  iconThemePicked,required TResult Function( AppearanceInterfaceFontChangedEvent value)  interfaceFontChanged,required TResult Function( AppearanceEditorFontChangedEvent value)  editorFontChanged,required TResult Function( AppearancePreviewFontChangedEvent value)  previewFontChanged,required TResult Function( AppearanceCodeFontChangedEvent value)  codeFontChanged,required TResult Function( AppearanceTextSizeChangedEvent value)  textSizeChanged,required TResult Function( AppearancePreviewTextSizeChangedEvent value)  previewTextSizeChanged,required TResult Function( AppearanceInterfaceTextSizeChangedEvent value)  interfaceTextSizeChanged,required TResult Function( AppearanceGoogleFontPickedEvent value)  googleFontPicked,required TResult Function( AppearanceGoogleFontChosenEvent value)  googleFontChosen,required TResult Function( AppearanceDiagramRendererChangedEvent value)  diagramRendererChanged,required TResult Function( AppearanceThemeChangedEvent value)  themeChanged,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AppearanceStartedEvent value)  started,required TResult Function( AppearanceThemePickedEvent value)  themePicked,required TResult Function( AppearanceSyntaxPickedEvent value)  syntaxPicked,required TResult Function( AppearancePreviewPickedEvent value)  previewPicked,required TResult Function( AppearanceFollowSystemChangedEvent value)  followSystemChanged,required TResult Function( AppearanceIconThemePickedEvent value)  iconThemePicked,required TResult Function( AppearanceInterfaceFontChangedEvent value)  interfaceFontChanged,required TResult Function( AppearanceEditorFontChangedEvent value)  editorFontChanged,required TResult Function( AppearancePreviewFontChangedEvent value)  previewFontChanged,required TResult Function( AppearanceCodeFontChangedEvent value)  codeFontChanged,required TResult Function( AppearanceTextSizeChangedEvent value)  textSizeChanged,required TResult Function( AppearancePreviewTextSizeChangedEvent value)  previewTextSizeChanged,required TResult Function( AppearanceInterfaceTextSizeChangedEvent value)  interfaceTextSizeChanged,required TResult Function( AppearanceGoogleFontPickedEvent value)  googleFontPicked,required TResult Function( AppearanceGoogleFontChosenEvent value)  googleFontChosen,required TResult Function( AppearanceDiagramRendererChangedEvent value)  diagramRendererChanged,required TResult Function( AppearanceScrollbarVisibilityChangedEvent value)  scrollbarVisibilityChanged,required TResult Function( AppearanceThemeChangedEvent value)  themeChanged,}){
 final _that = this;
 switch (_that) {
 case AppearanceStartedEvent():
@@ -112,7 +113,8 @@ return previewTextSizeChanged(_that);case AppearanceInterfaceTextSizeChangedEven
 return interfaceTextSizeChanged(_that);case AppearanceGoogleFontPickedEvent():
 return googleFontPicked(_that);case AppearanceGoogleFontChosenEvent():
 return googleFontChosen(_that);case AppearanceDiagramRendererChangedEvent():
-return diagramRendererChanged(_that);case AppearanceThemeChangedEvent():
+return diagramRendererChanged(_that);case AppearanceScrollbarVisibilityChangedEvent():
+return scrollbarVisibilityChanged(_that);case AppearanceThemeChangedEvent():
 return themeChanged(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -127,7 +129,7 @@ return themeChanged(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AppearanceStartedEvent value)?  started,TResult? Function( AppearanceThemePickedEvent value)?  themePicked,TResult? Function( AppearanceSyntaxPickedEvent value)?  syntaxPicked,TResult? Function( AppearancePreviewPickedEvent value)?  previewPicked,TResult? Function( AppearanceFollowSystemChangedEvent value)?  followSystemChanged,TResult? Function( AppearanceIconThemePickedEvent value)?  iconThemePicked,TResult? Function( AppearanceInterfaceFontChangedEvent value)?  interfaceFontChanged,TResult? Function( AppearanceEditorFontChangedEvent value)?  editorFontChanged,TResult? Function( AppearancePreviewFontChangedEvent value)?  previewFontChanged,TResult? Function( AppearanceCodeFontChangedEvent value)?  codeFontChanged,TResult? Function( AppearanceTextSizeChangedEvent value)?  textSizeChanged,TResult? Function( AppearancePreviewTextSizeChangedEvent value)?  previewTextSizeChanged,TResult? Function( AppearanceInterfaceTextSizeChangedEvent value)?  interfaceTextSizeChanged,TResult? Function( AppearanceGoogleFontPickedEvent value)?  googleFontPicked,TResult? Function( AppearanceGoogleFontChosenEvent value)?  googleFontChosen,TResult? Function( AppearanceDiagramRendererChangedEvent value)?  diagramRendererChanged,TResult? Function( AppearanceThemeChangedEvent value)?  themeChanged,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AppearanceStartedEvent value)?  started,TResult? Function( AppearanceThemePickedEvent value)?  themePicked,TResult? Function( AppearanceSyntaxPickedEvent value)?  syntaxPicked,TResult? Function( AppearancePreviewPickedEvent value)?  previewPicked,TResult? Function( AppearanceFollowSystemChangedEvent value)?  followSystemChanged,TResult? Function( AppearanceIconThemePickedEvent value)?  iconThemePicked,TResult? Function( AppearanceInterfaceFontChangedEvent value)?  interfaceFontChanged,TResult? Function( AppearanceEditorFontChangedEvent value)?  editorFontChanged,TResult? Function( AppearancePreviewFontChangedEvent value)?  previewFontChanged,TResult? Function( AppearanceCodeFontChangedEvent value)?  codeFontChanged,TResult? Function( AppearanceTextSizeChangedEvent value)?  textSizeChanged,TResult? Function( AppearancePreviewTextSizeChangedEvent value)?  previewTextSizeChanged,TResult? Function( AppearanceInterfaceTextSizeChangedEvent value)?  interfaceTextSizeChanged,TResult? Function( AppearanceGoogleFontPickedEvent value)?  googleFontPicked,TResult? Function( AppearanceGoogleFontChosenEvent value)?  googleFontChosen,TResult? Function( AppearanceDiagramRendererChangedEvent value)?  diagramRendererChanged,TResult? Function( AppearanceScrollbarVisibilityChangedEvent value)?  scrollbarVisibilityChanged,TResult? Function( AppearanceThemeChangedEvent value)?  themeChanged,}){
 final _that = this;
 switch (_that) {
 case AppearanceStartedEvent() when started != null:
@@ -146,7 +148,8 @@ return previewTextSizeChanged(_that);case AppearanceInterfaceTextSizeChangedEven
 return interfaceTextSizeChanged(_that);case AppearanceGoogleFontPickedEvent() when googleFontPicked != null:
 return googleFontPicked(_that);case AppearanceGoogleFontChosenEvent() when googleFontChosen != null:
 return googleFontChosen(_that);case AppearanceDiagramRendererChangedEvent() when diagramRendererChanged != null:
-return diagramRendererChanged(_that);case AppearanceThemeChangedEvent() when themeChanged != null:
+return diagramRendererChanged(_that);case AppearanceScrollbarVisibilityChangedEvent() when scrollbarVisibilityChanged != null:
+return scrollbarVisibilityChanged(_that);case AppearanceThemeChangedEvent() when themeChanged != null:
 return themeChanged(_that);case _:
   return null;
 
@@ -164,7 +167,7 @@ return themeChanged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( String id,  bool dark)?  themePicked,TResult Function( String? id)?  syntaxPicked,TResult Function( String? id)?  previewPicked,TResult Function( bool follow)?  followSystemChanged,TResult Function( String id)?  iconThemePicked,TResult Function( KansoFontFamily font)?  interfaceFontChanged,TResult Function( KansoFontFamily font)?  editorFontChanged,TResult Function( KansoFontFamily font)?  previewFontChanged,TResult Function( KansoFontFamily font)?  codeFontChanged,TResult Function( double scale)?  textSizeChanged,TResult Function( double scale)?  previewTextSizeChanged,TResult Function( double scale)?  interfaceTextSizeChanged,TResult Function( String family)?  googleFontPicked,TResult Function( KansoFontSlot slot,  String family)?  googleFontChosen,TResult Function( DiagramRenderer renderer)?  diagramRendererChanged,TResult Function( String id)?  themeChanged,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( String id,  bool dark)?  themePicked,TResult Function( String? id)?  syntaxPicked,TResult Function( String? id)?  previewPicked,TResult Function( bool follow)?  followSystemChanged,TResult Function( String id)?  iconThemePicked,TResult Function( KansoFontFamily font)?  interfaceFontChanged,TResult Function( KansoFontFamily font)?  editorFontChanged,TResult Function( KansoFontFamily font)?  previewFontChanged,TResult Function( KansoFontFamily font)?  codeFontChanged,TResult Function( double scale)?  textSizeChanged,TResult Function( double scale)?  previewTextSizeChanged,TResult Function( double scale)?  interfaceTextSizeChanged,TResult Function( String family)?  googleFontPicked,TResult Function( KansoFontSlot slot,  String family)?  googleFontChosen,TResult Function( DiagramRenderer renderer)?  diagramRendererChanged,TResult Function( bool always)?  scrollbarVisibilityChanged,TResult Function( String id)?  themeChanged,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case AppearanceStartedEvent() when started != null:
 return started();case AppearanceThemePickedEvent() when themePicked != null:
@@ -182,7 +185,8 @@ return previewTextSizeChanged(_that.scale);case AppearanceInterfaceTextSizeChang
 return interfaceTextSizeChanged(_that.scale);case AppearanceGoogleFontPickedEvent() when googleFontPicked != null:
 return googleFontPicked(_that.family);case AppearanceGoogleFontChosenEvent() when googleFontChosen != null:
 return googleFontChosen(_that.slot,_that.family);case AppearanceDiagramRendererChangedEvent() when diagramRendererChanged != null:
-return diagramRendererChanged(_that.renderer);case AppearanceThemeChangedEvent() when themeChanged != null:
+return diagramRendererChanged(_that.renderer);case AppearanceScrollbarVisibilityChangedEvent() when scrollbarVisibilityChanged != null:
+return scrollbarVisibilityChanged(_that.always);case AppearanceThemeChangedEvent() when themeChanged != null:
 return themeChanged(_that.id);case _:
   return orElse();
 
@@ -201,7 +205,7 @@ return themeChanged(_that.id);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( String id,  bool dark)  themePicked,required TResult Function( String? id)  syntaxPicked,required TResult Function( String? id)  previewPicked,required TResult Function( bool follow)  followSystemChanged,required TResult Function( String id)  iconThemePicked,required TResult Function( KansoFontFamily font)  interfaceFontChanged,required TResult Function( KansoFontFamily font)  editorFontChanged,required TResult Function( KansoFontFamily font)  previewFontChanged,required TResult Function( KansoFontFamily font)  codeFontChanged,required TResult Function( double scale)  textSizeChanged,required TResult Function( double scale)  previewTextSizeChanged,required TResult Function( double scale)  interfaceTextSizeChanged,required TResult Function( String family)  googleFontPicked,required TResult Function( KansoFontSlot slot,  String family)  googleFontChosen,required TResult Function( DiagramRenderer renderer)  diagramRendererChanged,required TResult Function( String id)  themeChanged,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( String id,  bool dark)  themePicked,required TResult Function( String? id)  syntaxPicked,required TResult Function( String? id)  previewPicked,required TResult Function( bool follow)  followSystemChanged,required TResult Function( String id)  iconThemePicked,required TResult Function( KansoFontFamily font)  interfaceFontChanged,required TResult Function( KansoFontFamily font)  editorFontChanged,required TResult Function( KansoFontFamily font)  previewFontChanged,required TResult Function( KansoFontFamily font)  codeFontChanged,required TResult Function( double scale)  textSizeChanged,required TResult Function( double scale)  previewTextSizeChanged,required TResult Function( double scale)  interfaceTextSizeChanged,required TResult Function( String family)  googleFontPicked,required TResult Function( KansoFontSlot slot,  String family)  googleFontChosen,required TResult Function( DiagramRenderer renderer)  diagramRendererChanged,required TResult Function( bool always)  scrollbarVisibilityChanged,required TResult Function( String id)  themeChanged,}) {final _that = this;
 switch (_that) {
 case AppearanceStartedEvent():
 return started();case AppearanceThemePickedEvent():
@@ -219,7 +223,8 @@ return previewTextSizeChanged(_that.scale);case AppearanceInterfaceTextSizeChang
 return interfaceTextSizeChanged(_that.scale);case AppearanceGoogleFontPickedEvent():
 return googleFontPicked(_that.family);case AppearanceGoogleFontChosenEvent():
 return googleFontChosen(_that.slot,_that.family);case AppearanceDiagramRendererChangedEvent():
-return diagramRendererChanged(_that.renderer);case AppearanceThemeChangedEvent():
+return diagramRendererChanged(_that.renderer);case AppearanceScrollbarVisibilityChangedEvent():
+return scrollbarVisibilityChanged(_that.always);case AppearanceThemeChangedEvent():
 return themeChanged(_that.id);}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -234,7 +239,7 @@ return themeChanged(_that.id);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( String id,  bool dark)?  themePicked,TResult? Function( String? id)?  syntaxPicked,TResult? Function( String? id)?  previewPicked,TResult? Function( bool follow)?  followSystemChanged,TResult? Function( String id)?  iconThemePicked,TResult? Function( KansoFontFamily font)?  interfaceFontChanged,TResult? Function( KansoFontFamily font)?  editorFontChanged,TResult? Function( KansoFontFamily font)?  previewFontChanged,TResult? Function( KansoFontFamily font)?  codeFontChanged,TResult? Function( double scale)?  textSizeChanged,TResult? Function( double scale)?  previewTextSizeChanged,TResult? Function( double scale)?  interfaceTextSizeChanged,TResult? Function( String family)?  googleFontPicked,TResult? Function( KansoFontSlot slot,  String family)?  googleFontChosen,TResult? Function( DiagramRenderer renderer)?  diagramRendererChanged,TResult? Function( String id)?  themeChanged,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( String id,  bool dark)?  themePicked,TResult? Function( String? id)?  syntaxPicked,TResult? Function( String? id)?  previewPicked,TResult? Function( bool follow)?  followSystemChanged,TResult? Function( String id)?  iconThemePicked,TResult? Function( KansoFontFamily font)?  interfaceFontChanged,TResult? Function( KansoFontFamily font)?  editorFontChanged,TResult? Function( KansoFontFamily font)?  previewFontChanged,TResult? Function( KansoFontFamily font)?  codeFontChanged,TResult? Function( double scale)?  textSizeChanged,TResult? Function( double scale)?  previewTextSizeChanged,TResult? Function( double scale)?  interfaceTextSizeChanged,TResult? Function( String family)?  googleFontPicked,TResult? Function( KansoFontSlot slot,  String family)?  googleFontChosen,TResult? Function( DiagramRenderer renderer)?  diagramRendererChanged,TResult? Function( bool always)?  scrollbarVisibilityChanged,TResult? Function( String id)?  themeChanged,}) {final _that = this;
 switch (_that) {
 case AppearanceStartedEvent() when started != null:
 return started();case AppearanceThemePickedEvent() when themePicked != null:
@@ -252,7 +257,8 @@ return previewTextSizeChanged(_that.scale);case AppearanceInterfaceTextSizeChang
 return interfaceTextSizeChanged(_that.scale);case AppearanceGoogleFontPickedEvent() when googleFontPicked != null:
 return googleFontPicked(_that.family);case AppearanceGoogleFontChosenEvent() when googleFontChosen != null:
 return googleFontChosen(_that.slot,_that.family);case AppearanceDiagramRendererChangedEvent() when diagramRendererChanged != null:
-return diagramRendererChanged(_that.renderer);case AppearanceThemeChangedEvent() when themeChanged != null:
+return diagramRendererChanged(_that.renderer);case AppearanceScrollbarVisibilityChangedEvent() when scrollbarVisibilityChanged != null:
+return scrollbarVisibilityChanged(_that.always);case AppearanceThemeChangedEvent() when themeChanged != null:
 return themeChanged(_that.id);case _:
   return null;
 
@@ -1290,6 +1296,72 @@ as DiagramRenderer,
 /// @nodoc
 
 
+class AppearanceScrollbarVisibilityChangedEvent implements AppearanceEvent {
+  const AppearanceScrollbarVisibilityChangedEvent({required this.always});
+  
+
+ final  bool always;
+
+/// Create a copy of AppearanceEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AppearanceScrollbarVisibilityChangedEventCopyWith<AppearanceScrollbarVisibilityChangedEvent> get copyWith => _$AppearanceScrollbarVisibilityChangedEventCopyWithImpl<AppearanceScrollbarVisibilityChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppearanceScrollbarVisibilityChangedEvent&&(identical(other.always, always) || other.always == always));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,always);
+
+@override
+String toString() {
+  return 'AppearanceEvent.scrollbarVisibilityChanged(always: $always)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AppearanceScrollbarVisibilityChangedEventCopyWith<$Res> implements $AppearanceEventCopyWith<$Res> {
+  factory $AppearanceScrollbarVisibilityChangedEventCopyWith(AppearanceScrollbarVisibilityChangedEvent value, $Res Function(AppearanceScrollbarVisibilityChangedEvent) _then) = _$AppearanceScrollbarVisibilityChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ bool always
+});
+
+
+
+
+}
+/// @nodoc
+class _$AppearanceScrollbarVisibilityChangedEventCopyWithImpl<$Res>
+    implements $AppearanceScrollbarVisibilityChangedEventCopyWith<$Res> {
+  _$AppearanceScrollbarVisibilityChangedEventCopyWithImpl(this._self, this._then);
+
+  final AppearanceScrollbarVisibilityChangedEvent _self;
+  final $Res Function(AppearanceScrollbarVisibilityChangedEvent) _then;
+
+/// Create a copy of AppearanceEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? always = null,}) {
+  return _then(AppearanceScrollbarVisibilityChangedEvent(
+always: null == always ? _self.always : always // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
 class AppearanceThemeChangedEvent implements AppearanceEvent {
   const AppearanceThemeChangedEvent(this.id);
   
@@ -1373,7 +1445,8 @@ mixin _$AppearanceState {
  double get textSize;/// The rendered preview's note text scale. The editor does not use it.
  double get previewTextSize;/// The interface's label and text scale. Note text has its own scales.
  double get interfaceTextSize;/// What draws Mermaid diagrams.
- DiagramRenderer get diagramRenderer; AppearanceStatus get status;
+ DiagramRenderer get diagramRenderer;/// Keep overflowing list scrollbars visible when idle.
+ bool get alwaysShowScrollbars; AppearanceStatus get status;
 /// Create a copy of AppearanceState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1384,16 +1457,16 @@ $AppearanceStateCopyWith<AppearanceState> get copyWith => _$AppearanceStateCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppearanceState&&(identical(other.selection, selection) || other.selection == selection)&&(identical(other.light, light) || other.light == light)&&(identical(other.dark, dark) || other.dark == dark)&&(identical(other.iconSet, iconSet) || other.iconSet == iconSet)&&(identical(other.fonts, fonts) || other.fonts == fonts)&&(identical(other.googleFontLoading, googleFontLoading) || other.googleFontLoading == googleFontLoading)&&(identical(other.googleFontError, googleFontError) || other.googleFontError == googleFontError)&&(identical(other.googleFontOffline, googleFontOffline) || other.googleFontOffline == googleFontOffline)&&(identical(other.textSize, textSize) || other.textSize == textSize)&&(identical(other.previewTextSize, previewTextSize) || other.previewTextSize == previewTextSize)&&(identical(other.interfaceTextSize, interfaceTextSize) || other.interfaceTextSize == interfaceTextSize)&&(identical(other.diagramRenderer, diagramRenderer) || other.diagramRenderer == diagramRenderer)&&(identical(other.status, status) || other.status == status));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppearanceState&&(identical(other.selection, selection) || other.selection == selection)&&(identical(other.light, light) || other.light == light)&&(identical(other.dark, dark) || other.dark == dark)&&(identical(other.iconSet, iconSet) || other.iconSet == iconSet)&&(identical(other.fonts, fonts) || other.fonts == fonts)&&(identical(other.googleFontLoading, googleFontLoading) || other.googleFontLoading == googleFontLoading)&&(identical(other.googleFontError, googleFontError) || other.googleFontError == googleFontError)&&(identical(other.googleFontOffline, googleFontOffline) || other.googleFontOffline == googleFontOffline)&&(identical(other.textSize, textSize) || other.textSize == textSize)&&(identical(other.previewTextSize, previewTextSize) || other.previewTextSize == previewTextSize)&&(identical(other.interfaceTextSize, interfaceTextSize) || other.interfaceTextSize == interfaceTextSize)&&(identical(other.diagramRenderer, diagramRenderer) || other.diagramRenderer == diagramRenderer)&&(identical(other.alwaysShowScrollbars, alwaysShowScrollbars) || other.alwaysShowScrollbars == alwaysShowScrollbars)&&(identical(other.status, status) || other.status == status));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,selection,light,dark,iconSet,fonts,googleFontLoading,googleFontError,googleFontOffline,textSize,previewTextSize,interfaceTextSize,diagramRenderer,status);
+int get hashCode => Object.hash(runtimeType,selection,light,dark,iconSet,fonts,googleFontLoading,googleFontError,googleFontOffline,textSize,previewTextSize,interfaceTextSize,diagramRenderer,alwaysShowScrollbars,status);
 
 @override
 String toString() {
-  return 'AppearanceState(selection: $selection, light: $light, dark: $dark, iconSet: $iconSet, fonts: $fonts, googleFontLoading: $googleFontLoading, googleFontError: $googleFontError, googleFontOffline: $googleFontOffline, textSize: $textSize, previewTextSize: $previewTextSize, interfaceTextSize: $interfaceTextSize, diagramRenderer: $diagramRenderer, status: $status)';
+  return 'AppearanceState(selection: $selection, light: $light, dark: $dark, iconSet: $iconSet, fonts: $fonts, googleFontLoading: $googleFontLoading, googleFontError: $googleFontError, googleFontOffline: $googleFontOffline, textSize: $textSize, previewTextSize: $previewTextSize, interfaceTextSize: $interfaceTextSize, diagramRenderer: $diagramRenderer, alwaysShowScrollbars: $alwaysShowScrollbars, status: $status)';
 }
 
 
@@ -1404,7 +1477,7 @@ abstract mixin class $AppearanceStateCopyWith<$Res>  {
   factory $AppearanceStateCopyWith(AppearanceState value, $Res Function(AppearanceState) _then) = _$AppearanceStateCopyWithImpl;
 @useResult
 $Res call({
- ThemeSelection selection, KansoPalette light, KansoPalette dark, KansoIconSet iconSet, KansoFonts fonts, bool googleFontLoading, String? googleFontError, bool googleFontOffline, double textSize, double previewTextSize, double interfaceTextSize, DiagramRenderer diagramRenderer, AppearanceStatus status
+ ThemeSelection selection, KansoPalette light, KansoPalette dark, KansoIconSet iconSet, KansoFonts fonts, bool googleFontLoading, String? googleFontError, bool googleFontOffline, double textSize, double previewTextSize, double interfaceTextSize, DiagramRenderer diagramRenderer, bool alwaysShowScrollbars, AppearanceStatus status
 });
 
 
@@ -1421,7 +1494,7 @@ class _$AppearanceStateCopyWithImpl<$Res>
 
 /// Create a copy of AppearanceState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? selection = null,Object? light = null,Object? dark = null,Object? iconSet = null,Object? fonts = null,Object? googleFontLoading = null,Object? googleFontError = freezed,Object? googleFontOffline = null,Object? textSize = null,Object? previewTextSize = null,Object? interfaceTextSize = null,Object? diagramRenderer = null,Object? status = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? selection = null,Object? light = null,Object? dark = null,Object? iconSet = null,Object? fonts = null,Object? googleFontLoading = null,Object? googleFontError = freezed,Object? googleFontOffline = null,Object? textSize = null,Object? previewTextSize = null,Object? interfaceTextSize = null,Object? diagramRenderer = null,Object? alwaysShowScrollbars = null,Object? status = null,}) {
   return _then(_self.copyWith(
 selection: null == selection ? _self.selection : selection // ignore: cast_nullable_to_non_nullable
 as ThemeSelection,light: null == light ? _self.light : light // ignore: cast_nullable_to_non_nullable
@@ -1435,7 +1508,8 @@ as bool,textSize: null == textSize ? _self.textSize : textSize // ignore: cast_n
 as double,previewTextSize: null == previewTextSize ? _self.previewTextSize : previewTextSize // ignore: cast_nullable_to_non_nullable
 as double,interfaceTextSize: null == interfaceTextSize ? _self.interfaceTextSize : interfaceTextSize // ignore: cast_nullable_to_non_nullable
 as double,diagramRenderer: null == diagramRenderer ? _self.diagramRenderer : diagramRenderer // ignore: cast_nullable_to_non_nullable
-as DiagramRenderer,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
+as DiagramRenderer,alwaysShowScrollbars: null == alwaysShowScrollbars ? _self.alwaysShowScrollbars : alwaysShowScrollbars // ignore: cast_nullable_to_non_nullable
+as bool,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as AppearanceStatus,
   ));
 }
@@ -1566,10 +1640,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ThemeSelection selection,  KansoPalette light,  KansoPalette dark,  KansoIconSet iconSet,  KansoFonts fonts,  bool googleFontLoading,  String? googleFontError,  bool googleFontOffline,  double textSize,  double previewTextSize,  double interfaceTextSize,  DiagramRenderer diagramRenderer,  AppearanceStatus status)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ThemeSelection selection,  KansoPalette light,  KansoPalette dark,  KansoIconSet iconSet,  KansoFonts fonts,  bool googleFontLoading,  String? googleFontError,  bool googleFontOffline,  double textSize,  double previewTextSize,  double interfaceTextSize,  DiagramRenderer diagramRenderer,  bool alwaysShowScrollbars,  AppearanceStatus status)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppearanceState() when $default != null:
-return $default(_that.selection,_that.light,_that.dark,_that.iconSet,_that.fonts,_that.googleFontLoading,_that.googleFontError,_that.googleFontOffline,_that.textSize,_that.previewTextSize,_that.interfaceTextSize,_that.diagramRenderer,_that.status);case _:
+return $default(_that.selection,_that.light,_that.dark,_that.iconSet,_that.fonts,_that.googleFontLoading,_that.googleFontError,_that.googleFontOffline,_that.textSize,_that.previewTextSize,_that.interfaceTextSize,_that.diagramRenderer,_that.alwaysShowScrollbars,_that.status);case _:
   return orElse();
 
 }
@@ -1587,10 +1661,10 @@ return $default(_that.selection,_that.light,_that.dark,_that.iconSet,_that.fonts
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ThemeSelection selection,  KansoPalette light,  KansoPalette dark,  KansoIconSet iconSet,  KansoFonts fonts,  bool googleFontLoading,  String? googleFontError,  bool googleFontOffline,  double textSize,  double previewTextSize,  double interfaceTextSize,  DiagramRenderer diagramRenderer,  AppearanceStatus status)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ThemeSelection selection,  KansoPalette light,  KansoPalette dark,  KansoIconSet iconSet,  KansoFonts fonts,  bool googleFontLoading,  String? googleFontError,  bool googleFontOffline,  double textSize,  double previewTextSize,  double interfaceTextSize,  DiagramRenderer diagramRenderer,  bool alwaysShowScrollbars,  AppearanceStatus status)  $default,) {final _that = this;
 switch (_that) {
 case _AppearanceState():
-return $default(_that.selection,_that.light,_that.dark,_that.iconSet,_that.fonts,_that.googleFontLoading,_that.googleFontError,_that.googleFontOffline,_that.textSize,_that.previewTextSize,_that.interfaceTextSize,_that.diagramRenderer,_that.status);case _:
+return $default(_that.selection,_that.light,_that.dark,_that.iconSet,_that.fonts,_that.googleFontLoading,_that.googleFontError,_that.googleFontOffline,_that.textSize,_that.previewTextSize,_that.interfaceTextSize,_that.diagramRenderer,_that.alwaysShowScrollbars,_that.status);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1607,10 +1681,10 @@ return $default(_that.selection,_that.light,_that.dark,_that.iconSet,_that.fonts
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ThemeSelection selection,  KansoPalette light,  KansoPalette dark,  KansoIconSet iconSet,  KansoFonts fonts,  bool googleFontLoading,  String? googleFontError,  bool googleFontOffline,  double textSize,  double previewTextSize,  double interfaceTextSize,  DiagramRenderer diagramRenderer,  AppearanceStatus status)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ThemeSelection selection,  KansoPalette light,  KansoPalette dark,  KansoIconSet iconSet,  KansoFonts fonts,  bool googleFontLoading,  String? googleFontError,  bool googleFontOffline,  double textSize,  double previewTextSize,  double interfaceTextSize,  DiagramRenderer diagramRenderer,  bool alwaysShowScrollbars,  AppearanceStatus status)?  $default,) {final _that = this;
 switch (_that) {
 case _AppearanceState() when $default != null:
-return $default(_that.selection,_that.light,_that.dark,_that.iconSet,_that.fonts,_that.googleFontLoading,_that.googleFontError,_that.googleFontOffline,_that.textSize,_that.previewTextSize,_that.interfaceTextSize,_that.diagramRenderer,_that.status);case _:
+return $default(_that.selection,_that.light,_that.dark,_that.iconSet,_that.fonts,_that.googleFontLoading,_that.googleFontError,_that.googleFontOffline,_that.textSize,_that.previewTextSize,_that.interfaceTextSize,_that.diagramRenderer,_that.alwaysShowScrollbars,_that.status);case _:
   return null;
 
 }
@@ -1622,7 +1696,7 @@ return $default(_that.selection,_that.light,_that.dark,_that.iconSet,_that.fonts
 
 
 class _AppearanceState extends AppearanceState {
-  const _AppearanceState({this.selection = const ThemeSelection(), this.light = KansoPalette.kansoLight, this.dark = KansoPalette.kansoDark, this.iconSet = KansoIconSet.lucide, this.fonts = const KansoFonts(), this.googleFontLoading = false, this.googleFontError, this.googleFontOffline = false, this.textSize = 1.0, this.previewTextSize = 1.0, this.interfaceTextSize = 1.0, this.diagramRenderer = DiagramRenderer.pele, this.status = AppearanceStatus.loading}): super._();
+  const _AppearanceState({this.selection = const ThemeSelection(), this.light = KansoPalette.kansoLight, this.dark = KansoPalette.kansoDark, this.iconSet = KansoIconSet.lucide, this.fonts = const KansoFonts(), this.googleFontLoading = false, this.googleFontError, this.googleFontOffline = false, this.textSize = 1.0, this.previewTextSize = 1.0, this.interfaceTextSize = 1.0, this.diagramRenderer = DiagramRenderer.pele, this.alwaysShowScrollbars = false, this.status = AppearanceStatus.loading}): super._();
   
 
 /// The themes chosen.
@@ -1654,6 +1728,8 @@ class _AppearanceState extends AppearanceState {
 @override@JsonKey() final  double interfaceTextSize;
 /// What draws Mermaid diagrams.
 @override@JsonKey() final  DiagramRenderer diagramRenderer;
+/// Keep overflowing list scrollbars visible when idle.
+@override@JsonKey() final  bool alwaysShowScrollbars;
 @override@JsonKey() final  AppearanceStatus status;
 
 /// Create a copy of AppearanceState
@@ -1666,16 +1742,16 @@ _$AppearanceStateCopyWith<_AppearanceState> get copyWith => __$AppearanceStateCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppearanceState&&(identical(other.selection, selection) || other.selection == selection)&&(identical(other.light, light) || other.light == light)&&(identical(other.dark, dark) || other.dark == dark)&&(identical(other.iconSet, iconSet) || other.iconSet == iconSet)&&(identical(other.fonts, fonts) || other.fonts == fonts)&&(identical(other.googleFontLoading, googleFontLoading) || other.googleFontLoading == googleFontLoading)&&(identical(other.googleFontError, googleFontError) || other.googleFontError == googleFontError)&&(identical(other.googleFontOffline, googleFontOffline) || other.googleFontOffline == googleFontOffline)&&(identical(other.textSize, textSize) || other.textSize == textSize)&&(identical(other.previewTextSize, previewTextSize) || other.previewTextSize == previewTextSize)&&(identical(other.interfaceTextSize, interfaceTextSize) || other.interfaceTextSize == interfaceTextSize)&&(identical(other.diagramRenderer, diagramRenderer) || other.diagramRenderer == diagramRenderer)&&(identical(other.status, status) || other.status == status));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppearanceState&&(identical(other.selection, selection) || other.selection == selection)&&(identical(other.light, light) || other.light == light)&&(identical(other.dark, dark) || other.dark == dark)&&(identical(other.iconSet, iconSet) || other.iconSet == iconSet)&&(identical(other.fonts, fonts) || other.fonts == fonts)&&(identical(other.googleFontLoading, googleFontLoading) || other.googleFontLoading == googleFontLoading)&&(identical(other.googleFontError, googleFontError) || other.googleFontError == googleFontError)&&(identical(other.googleFontOffline, googleFontOffline) || other.googleFontOffline == googleFontOffline)&&(identical(other.textSize, textSize) || other.textSize == textSize)&&(identical(other.previewTextSize, previewTextSize) || other.previewTextSize == previewTextSize)&&(identical(other.interfaceTextSize, interfaceTextSize) || other.interfaceTextSize == interfaceTextSize)&&(identical(other.diagramRenderer, diagramRenderer) || other.diagramRenderer == diagramRenderer)&&(identical(other.alwaysShowScrollbars, alwaysShowScrollbars) || other.alwaysShowScrollbars == alwaysShowScrollbars)&&(identical(other.status, status) || other.status == status));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,selection,light,dark,iconSet,fonts,googleFontLoading,googleFontError,googleFontOffline,textSize,previewTextSize,interfaceTextSize,diagramRenderer,status);
+int get hashCode => Object.hash(runtimeType,selection,light,dark,iconSet,fonts,googleFontLoading,googleFontError,googleFontOffline,textSize,previewTextSize,interfaceTextSize,diagramRenderer,alwaysShowScrollbars,status);
 
 @override
 String toString() {
-  return 'AppearanceState(selection: $selection, light: $light, dark: $dark, iconSet: $iconSet, fonts: $fonts, googleFontLoading: $googleFontLoading, googleFontError: $googleFontError, googleFontOffline: $googleFontOffline, textSize: $textSize, previewTextSize: $previewTextSize, interfaceTextSize: $interfaceTextSize, diagramRenderer: $diagramRenderer, status: $status)';
+  return 'AppearanceState(selection: $selection, light: $light, dark: $dark, iconSet: $iconSet, fonts: $fonts, googleFontLoading: $googleFontLoading, googleFontError: $googleFontError, googleFontOffline: $googleFontOffline, textSize: $textSize, previewTextSize: $previewTextSize, interfaceTextSize: $interfaceTextSize, diagramRenderer: $diagramRenderer, alwaysShowScrollbars: $alwaysShowScrollbars, status: $status)';
 }
 
 
@@ -1686,7 +1762,7 @@ abstract mixin class _$AppearanceStateCopyWith<$Res> implements $AppearanceState
   factory _$AppearanceStateCopyWith(_AppearanceState value, $Res Function(_AppearanceState) _then) = __$AppearanceStateCopyWithImpl;
 @override @useResult
 $Res call({
- ThemeSelection selection, KansoPalette light, KansoPalette dark, KansoIconSet iconSet, KansoFonts fonts, bool googleFontLoading, String? googleFontError, bool googleFontOffline, double textSize, double previewTextSize, double interfaceTextSize, DiagramRenderer diagramRenderer, AppearanceStatus status
+ ThemeSelection selection, KansoPalette light, KansoPalette dark, KansoIconSet iconSet, KansoFonts fonts, bool googleFontLoading, String? googleFontError, bool googleFontOffline, double textSize, double previewTextSize, double interfaceTextSize, DiagramRenderer diagramRenderer, bool alwaysShowScrollbars, AppearanceStatus status
 });
 
 
@@ -1703,7 +1779,7 @@ class __$AppearanceStateCopyWithImpl<$Res>
 
 /// Create a copy of AppearanceState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? selection = null,Object? light = null,Object? dark = null,Object? iconSet = null,Object? fonts = null,Object? googleFontLoading = null,Object? googleFontError = freezed,Object? googleFontOffline = null,Object? textSize = null,Object? previewTextSize = null,Object? interfaceTextSize = null,Object? diagramRenderer = null,Object? status = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? selection = null,Object? light = null,Object? dark = null,Object? iconSet = null,Object? fonts = null,Object? googleFontLoading = null,Object? googleFontError = freezed,Object? googleFontOffline = null,Object? textSize = null,Object? previewTextSize = null,Object? interfaceTextSize = null,Object? diagramRenderer = null,Object? alwaysShowScrollbars = null,Object? status = null,}) {
   return _then(_AppearanceState(
 selection: null == selection ? _self.selection : selection // ignore: cast_nullable_to_non_nullable
 as ThemeSelection,light: null == light ? _self.light : light // ignore: cast_nullable_to_non_nullable
@@ -1717,7 +1793,8 @@ as bool,textSize: null == textSize ? _self.textSize : textSize // ignore: cast_n
 as double,previewTextSize: null == previewTextSize ? _self.previewTextSize : previewTextSize // ignore: cast_nullable_to_non_nullable
 as double,interfaceTextSize: null == interfaceTextSize ? _self.interfaceTextSize : interfaceTextSize // ignore: cast_nullable_to_non_nullable
 as double,diagramRenderer: null == diagramRenderer ? _self.diagramRenderer : diagramRenderer // ignore: cast_nullable_to_non_nullable
-as DiagramRenderer,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
+as DiagramRenderer,alwaysShowScrollbars: null == alwaysShowScrollbars ? _self.alwaysShowScrollbars : alwaysShowScrollbars // ignore: cast_nullable_to_non_nullable
+as bool,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as AppearanceStatus,
   ));
 }

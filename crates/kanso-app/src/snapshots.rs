@@ -328,6 +328,22 @@ struct Shot {
 /// The most recently edited note, as after a restart.
 fn open_latest(_: &mut HeadlessAppContext, _: AnyWindowHandle, _: &Entity<Workspace>, _: &Store) {}
 
+/// The same overflowing lists with the persistent scrollbar preference on.
+fn scrollbars_always(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    open_latest(cx, window, workspace, store);
+    cx.update(|cx| {
+        AppState::update_config(cx, |config| {
+            config.appearance.always_show_scrollbars = true;
+        });
+        apply_theme(None, cx);
+    });
+}
+
 /// Three notes open as tabs, the newest showing, as after opening them from
 /// the list.
 fn open_tabs(
@@ -5604,6 +5620,8 @@ fn snapshots() {
     let mut shots = vec![
         shot("dark-split", Dark, Split, open_latest),
         shot("light-split", Light, Split, open_latest),
+        shot("dark-scrollbars-always", Dark, Split, scrollbars_always),
+        shot("light-scrollbars-always", Light, Split, scrollbars_always),
         shot("dark-edit", Dark, Edit, open_latest),
         shot("light-edit", Light, Edit, open_latest),
         shot("dark-live", Dark, Live, open_latest),

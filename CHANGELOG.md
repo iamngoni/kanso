@@ -7,6 +7,7 @@ heading compares the release with the one before.
 
 ### New
 
+- **desktop/mobile:** Choose transient or always-visible scrollbars for overflowing lists and panels ([#327](https://github.com/iamngoni/kanso/issues/327))
 - **app/mobile:** Overview brings Today and This week together as Kanso's home, with on-device system-calendar support ([#240](https://github.com/iamngoni/kanso/issues/240))
 
 ## [0.9.4](https://github.com/iamngoni/kanso/compare/v0.9.3...v0.9.4) - 2026-11-04

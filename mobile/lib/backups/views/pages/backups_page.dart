@@ -12,6 +12,7 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_feedback.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_message_card.dart';
 import '../../../core/views/widgets/kanso_page.dart';
 import '../../../core/views/widgets/kanso_progress.dart';
@@ -51,83 +52,86 @@ class BackupsPage extends StatelessWidget {
                   KansoFeedback.show(context, message);
                 }
               },
-              builder: (context, state) => ListView(
-                padding: const EdgeInsets.all(KansoSpacing.md),
-                children: <Widget>[
-                  Text(
-                    l10n.backupsSummary,
-                    style: context.typography.secondary,
-                  ),
-                  const SizedBox(height: KansoSpacing.md),
-                  KansoButton(
-                    label: state.working
-                        ? l10n.backupsBackingUp
-                        : l10n.backupsBackUpNow,
-                    icon: KansoIcons.databaseBackup,
-                    onPressed: state.working
-                        ? null
-                        : () => context.read<BackupsBloc>().add(
-                            const BackupsEvent.backUpNow(),
-                          ),
-                  ),
-                  if (state.problem != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: KansoSpacing.sm),
-                      child: Text(switch (state.problem!) {
-                        BackupsProblem.dailyFailed => l10n.backupsProblemDaily,
-                        BackupsProblem.backUpFailed =>
-                          l10n.backupsProblemBackUp,
-                        BackupsProblem.deleteFailed =>
-                          l10n.backupsProblemDelete,
-                        BackupsProblem.listFailed => l10n.backupsProblemList,
-                      }, style: TextStyle(color: context.colors.danger)),
+              builder: (context, state) => KansoListScrollbar(
+                child: ListView(
+                  padding: const EdgeInsets.all(KansoSpacing.md),
+                  children: <Widget>[
+                    Text(
+                      l10n.backupsSummary,
+                      style: context.typography.secondary,
                     ),
-                  const SizedBox(height: KansoSpacing.lg),
-                  Text(
-                    l10n.backupsListHeader,
-                    style: context.typography.heading2,
-                  ),
-                  if (state.status == LoadStatus.loading)
-                    Semantics(
-                      label: l10n.backupsLoading,
-                      child: const Padding(
-                        padding: EdgeInsets.all(KansoSpacing.md),
-                        child: KansoProgressBar(),
-                      ),
-                    )
-                  else if (state.status == LoadStatus.failed)
-                    KansoMessageCard(
+                    const SizedBox(height: KansoSpacing.md),
+                    KansoButton(
+                      label: state.working
+                          ? l10n.backupsBackingUp
+                          : l10n.backupsBackUpNow,
                       icon: KansoIcons.databaseBackup,
-                      title: l10n.backupsFailedTitle,
-                      message: l10n.backupsFailedMessage,
-                      actions: <Widget>[
-                        KansoButton(
-                          label: l10n.retry,
-                          onPressed: () => context.read<BackupsBloc>().add(
-                            const BackupsEvent.refreshed(),
-                          ),
+                      onPressed: state.working
+                          ? null
+                          : () => context.read<BackupsBloc>().add(
+                              const BackupsEvent.backUpNow(),
+                            ),
+                    ),
+                    if (state.problem != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: KansoSpacing.sm),
+                        child: Text(switch (state.problem!) {
+                          BackupsProblem.dailyFailed =>
+                            l10n.backupsProblemDaily,
+                          BackupsProblem.backUpFailed =>
+                            l10n.backupsProblemBackUp,
+                          BackupsProblem.deleteFailed =>
+                            l10n.backupsProblemDelete,
+                          BackupsProblem.listFailed => l10n.backupsProblemList,
+                        }, style: TextStyle(color: context.colors.danger)),
+                      ),
+                    const SizedBox(height: KansoSpacing.lg),
+                    Text(
+                      l10n.backupsListHeader,
+                      style: context.typography.heading2,
+                    ),
+                    if (state.status == LoadStatus.loading)
+                      Semantics(
+                        label: l10n.backupsLoading,
+                        child: const Padding(
+                          padding: EdgeInsets.all(KansoSpacing.md),
+                          child: KansoProgressBar(),
                         ),
-                      ],
-                    )
-                  else if (state.backups.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: KansoSpacing.lg,
-                      ),
-                      child: KansoMessageCard(
+                      )
+                    else if (state.status == LoadStatus.failed)
+                      KansoMessageCard(
                         icon: KansoIcons.databaseBackup,
-                        title: l10n.backupsEmptyTitle,
-                        message: l10n.backupsEmptyMessage,
-                        actions: const <Widget>[],
-                      ),
-                    )
-                  else
-                    for (final backup in state.backups)
-                      BackupRow(
-                        backup: backup,
-                        deleting: state.deleting.contains(backup.path),
-                      ),
-                ],
+                        title: l10n.backupsFailedTitle,
+                        message: l10n.backupsFailedMessage,
+                        actions: <Widget>[
+                          KansoButton(
+                            label: l10n.retry,
+                            onPressed: () => context.read<BackupsBloc>().add(
+                              const BackupsEvent.refreshed(),
+                            ),
+                          ),
+                        ],
+                      )
+                    else if (state.backups.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: KansoSpacing.lg,
+                        ),
+                        child: KansoMessageCard(
+                          icon: KansoIcons.databaseBackup,
+                          title: l10n.backupsEmptyTitle,
+                          message: l10n.backupsEmptyMessage,
+                          actions: const <Widget>[],
+                        ),
+                      )
+                    else
+                      for (final backup in state.backups)
+                        BackupRow(
+                          backup: backup,
+                          deleting: state.deleting.contains(backup.path),
+                        ),
+                  ],
+                ),
               ),
             ),
           ),

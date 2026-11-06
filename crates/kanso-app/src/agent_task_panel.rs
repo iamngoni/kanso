@@ -5,6 +5,7 @@
 //! the cards say comes from `kanso_engine::agent_task::review`. This file
 //! draws them and starts, stops, applies and undoes through the runner.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
@@ -362,7 +363,7 @@ impl AgentTasksPanel {
                         v_flex()
                             .id(("agent-task-reads-list", ix))
                             .max_h(px(140.))
-                            .overflow_y_scroll()
+                            .overflow_y_scrollbar()
                             .p(px(8.))
                             .rounded(px(8.))
                             .bg(colors.fill)
@@ -1024,7 +1025,7 @@ impl Render for NewTaskSheet {
                     v_flex()
                         .id("agent-task-books")
                         .max_h(px(140.))
-                        .overflow_y_scroll()
+                        .overflow_y_scrollbar()
                         .children(notebook_rows),
                 )
             })
@@ -1063,7 +1064,7 @@ impl Render for NewTaskSheet {
                 v_flex()
                     .id("agent-task-new-books")
                     .max_h(px(110.))
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .children(new_rows),
             )
             .child(section("AI"))
@@ -1609,7 +1610,7 @@ impl Render for ReviewChanges {
                     .id("agent-review-cards")
                     .gap(px(10.))
                     .max_h(px(460.))
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .children(rendered)
                     .when_some(self.queue.clone(), |el, queue| el.child(queue)),
             )

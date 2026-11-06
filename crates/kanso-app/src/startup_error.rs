@@ -9,6 +9,7 @@
 //! never a key) and exits with the button the person chose. The app, which
 //! holds no window yet, starts again when that is Try again.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::io::{Read as _, Write as _};
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -248,7 +249,7 @@ impl Render for ErrorView {
                     .id("startup-error-body")
                     .flex_1()
                     .min_h_0()
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .child(body(&self.screen, colors)),
             )
             .child(buttons(&self.screen, self.copied, on))

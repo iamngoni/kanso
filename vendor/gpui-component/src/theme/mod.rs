@@ -199,6 +199,9 @@ pub struct Theme {
     /// Show the scrollbar mode, default: Scrolling
     #[serde(alias = "scrollbar_show")]
     pub scrollbar_mode: ScrollbarMode,
+    /// Optional application list mode, separate from editor scrollbars.
+    #[serde(skip)]
+    pub app_scrollbar_mode: Option<ScrollbarMode>,
     /// The notification setting.
     #[serde(skip)]
     pub notification: NotificationSettings,
@@ -376,6 +379,12 @@ impl Theme {
     /// projects it onto the Base scrollbar and refreshes every window.
     pub fn set_scrollbar_mode(mode: ScrollbarMode, cx: &mut App) {
         Self::update(cx, |theme| theme.scrollbar_mode = mode);
+    }
+
+    /// Sets the mode used by application-owned `ScrollableElement` wrappers.
+    /// Editor scrollbars continue to follow the system scrollbar mode.
+    pub fn set_app_scrollbar_mode(mode: Option<ScrollbarMode>, cx: &mut App) {
+        Self::update(cx, |theme| theme.app_scrollbar_mode = mode);
     }
 
     /// Change the theme mode.
@@ -776,6 +785,7 @@ impl From<&ThemeColor> for Theme {
             shadow: true,
             focus_ring: true,
             scrollbar_mode: ScrollbarMode::default(),
+            app_scrollbar_mode: None,
             notification: NotificationSettings::default(),
             list: ListSettings::default(),
             colors: *colors,

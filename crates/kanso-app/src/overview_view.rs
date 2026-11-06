@@ -11,6 +11,7 @@
 //! sections are drawn only when they have something real, so a quiet day is
 //! a short page.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::sync::{Arc, Mutex};
 
 use gpui_kit::assets::IconName as Lucide;
@@ -707,7 +708,7 @@ impl DigestView {
                         .id("overview-page")
                         .flex_1()
                         .min_h_0()
-                        .overflow_y_scroll()
+                        .overflow_y_scrollbar()
                         .track_scroll(&self.page_scroll)
                         .child(page_chrome::centred(col)),
                 ),

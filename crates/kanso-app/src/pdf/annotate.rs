@@ -14,6 +14,7 @@
 //! * The note changing elsewhere is followed; a block that went away leaves
 //!   the highlights on screen, read-only, with **Restore annotations**.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::HashSet;
 use std::time::Duration;
 
@@ -965,7 +966,7 @@ impl PdfReader {
                     .id("pdf-panel-scroll")
                     .flex_1()
                     .min_h_0()
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .child(list),
             )
             .into_any_element()

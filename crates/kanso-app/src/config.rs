@@ -280,6 +280,8 @@ pub struct Appearance {
     /// How large the whole app is drawn, in percent; see [`crate::zoom`].
     pub zoom: u32,
     pub diagram_renderer: DiagramRenderer,
+    /// Keep scrollbars visible on overflowing app lists and panels.
+    pub always_show_scrollbars: bool,
 }
 
 impl Default for Appearance {
@@ -301,6 +303,7 @@ impl Default for Appearance {
             legacy_icon_pack: None,
             zoom: crate::zoom::DEFAULT_ZOOM,
             diagram_renderer: DiagramRenderer::Pele,
+            always_show_scrollbars: false,
         }
     }
 }
@@ -1064,6 +1067,30 @@ mod tests {
     use proptest::prelude::*;
     use proptest::test_runner::FileFailurePersistence;
 
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            rng_seed: proptest::test_runner::RngSeed::Fixed(20_261_017),
+            ..ProptestConfig::with_cases(16)
+        })]
+
+        #[test]
+        fn prop_scrollbar_visibility_roundtrips(always in any::<bool>()) {
+            let appearance = Appearance {
+                always_show_scrollbars: always,
+                ..Appearance::default()
+            };
+            let saved = serde_json::to_string(&appearance).unwrap();
+            let loaded: Appearance = serde_json::from_str(&saved).unwrap();
+            prop_assert_eq!(loaded.always_show_scrollbars, always);
+        }
+    }
+
+    #[test]
+    fn older_appearance_files_use_transient_scrollbars() {
+        let appearance: Appearance = serde_json::from_str("{}").unwrap();
+        assert!(!appearance.always_show_scrollbars);
+    }
+
     /// Any config, with the window layout too.
     fn gen_config() -> impl Strategy<Value = AppConfig> {
         (
@@ -1390,6 +1417,7 @@ mod tests {
                         legacy_icon_pack: None,
                         zoom,
                         diagram_renderer: diagrams,
+                        always_show_scrollbars: false,
                     },
                     launch_at_login: login,
                     last_note: last,

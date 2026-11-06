@@ -8,6 +8,7 @@
 //! window's side: drawing, the model call and the notices. A page shows its
 //! live sections below its note (`page_view.rs`).
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -546,7 +547,7 @@ impl Render for PeopleView {
             div()
                 .id("people-body")
                 .size_full()
-                .overflow_y_scroll()
+                .overflow_y_scrollbar()
                 .child(page_chrome::centred(page_chrome::column().child(
                     page_chrome::page_empty(
                         Lucide::Users,
@@ -608,7 +609,7 @@ impl Render for PeopleView {
             div()
                 .id("people-body")
                 .size_full()
-                .overflow_y_scroll()
+                .overflow_y_scrollbar()
                 .track_scroll(&self.scroll)
                 .child(page_chrome::centred(
                     page_chrome::column()

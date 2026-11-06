@@ -7,6 +7,7 @@
 //! first, then removes the report from Kanso's server; a delete that can't
 //! reach it shows "Deleting…" until it goes through.
 
+use gpui_component::scroll::ScrollableElement as _;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{
     Disableable as _, Sizable as _, StyledExt as _, WindowExt as _, h_flex, v_flex,
@@ -264,7 +265,7 @@ impl Render for MyFeedbackSheet {
             v_flex()
                 .id("my-feedback-list")
                 .max_h(px(420.))
-                .overflow_y_scroll()
+                .overflow_y_scrollbar()
                 .children(rows)
                 .into_any_element()
         };

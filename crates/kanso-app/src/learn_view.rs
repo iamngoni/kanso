@@ -9,6 +9,7 @@
 //! locked or tagged `#ai-exclude` since the page opened is not sent.
 //! Nothing is written until the person says so.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -1450,7 +1451,7 @@ impl LearnView {
                     div()
                         .id("learn-body")
                         .size_full()
-                        .overflow_y_scroll()
+                        .overflow_y_scrollbar()
                         .child(page_chrome::centred(body)),
                 ),
             )

@@ -47,6 +47,9 @@ abstract class AppearanceState with _$AppearanceState {
 
     /// What draws Mermaid diagrams.
     @Default(DiagramRenderer.pele) DiagramRenderer diagramRenderer,
+
+    /// Keep overflowing list scrollbars visible when idle.
+    @Default(false) bool alwaysShowScrollbars,
     @Default(AppearanceStatus.loading) AppearanceStatus status,
   }) = _AppearanceState;
 

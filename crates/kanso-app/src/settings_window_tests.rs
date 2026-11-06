@@ -1101,6 +1101,38 @@ fn picking_a_theme_applies_it_everywhere(cx: &mut TestAppContext) {
     assert_eq!(state(cx).0, LIGHT);
 }
 
+/// The visibility preference takes effect immediately and returns to the
+/// platform's transient scrollbar mode when switched back.
+#[gpui_kit::test]
+fn scrollbar_visibility_setting_is_saved_and_applied(cx: &mut TestAppContext) {
+    use crate::settings::OpenAppearanceSettings;
+    use gpui_component::scroll::ScrollbarMode;
+    use gpui_kit::component::ActiveTheme as _;
+
+    let f = setup(cx);
+    f.dispatch(cx, Box::new(OpenAppearanceSettings));
+    f.click(cx, "scrollbar-visibility");
+    assert!(cx.read(|cx| {
+        cx.global::<AppState>()
+            .config
+            .appearance
+            .always_show_scrollbars
+    }));
+    assert_eq!(
+        cx.read(|cx| cx.theme().app_scrollbar_mode),
+        Some(ScrollbarMode::Always)
+    );
+
+    f.click(cx, "scrollbar-visibility");
+    assert!(!cx.read(|cx| {
+        cx.global::<AppState>()
+            .config
+            .appearance
+            .always_show_scrollbars
+    }));
+    assert_eq!(cx.read(|cx| cx.theme().app_scrollbar_mode), None);
+}
+
 /// Every icon path asked for as windows draw, with the path drawn for it.
 type Seen = std::rc::Rc<std::cell::RefCell<Vec<(String, String)>>>;
 

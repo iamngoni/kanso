@@ -20,6 +20,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, SystemTime};
 
+use gpui_component::scroll::ScrollbarMode;
 use gpui_kit::component::highlighter::HighlightTheme;
 use gpui_kit::component::{Theme, ThemeConfig, ThemeMode};
 use gpui_kit::{App, Global, Window};
@@ -417,6 +418,10 @@ pub fn apply(window: Option<&mut Window>, cx: &mut App) {
         }
     }
     Theme::change(mode, window, cx);
+    let always_show_scrollbars = cx
+        .try_global::<AppState>()
+        .is_some_and(|state| state.config.appearance.always_show_scrollbars);
+    Theme::set_app_scrollbar_mode(always_show_scrollbars.then_some(ScrollbarMode::Always), cx);
     crate::zoom::apply_to_theme(cx);
 
     let code = code_highlight(&syntax.resolved, &preview_theme.resolved, &tokens);
@@ -434,6 +439,13 @@ pub fn apply(window: Option<&mut Window>, cx: &mut App) {
         page_code,
     });
     cx.refresh_windows();
+}
+
+/// Visibility mode shared by application-owned scrollable lists and panels.
+/// The note editor continues to use the theme's system scrollbar mode.
+pub fn list_scrollbar_mode(cx: &App) -> ScrollbarMode {
+    let theme = Theme::global(cx);
+    theme.app_scrollbar_mode.unwrap_or(theme.scrollbar_mode)
 }
 
 /// The component library's colors for a preview's code blocks, given the

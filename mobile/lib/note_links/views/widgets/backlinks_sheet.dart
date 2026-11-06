@@ -15,6 +15,7 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_empty_state.dart';
 import '../../../core/views/widgets/kanso_inline_message.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sheet_group.dart';
@@ -120,39 +121,41 @@ class _BacklinksSheetState extends State<BacklinksSheet> {
                 ),
               ),
             (_, final List<LinkRef> links, final List<LinkRef> mentions) =>
-              ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsets.only(bottom: KansoSpacing.sm),
-                children: <Widget>[
-                  if (links.isNotEmpty) ...<Widget>[
-                    KansoSectionHeader(label: l10n.noteBacklinksLinked),
-                    KansoSheetGroup(
-                      dividerIndent: KansoSettingsRow.iconInset,
-                      children: <Widget>[
-                        for (final ref in links)
-                          KansoSettingsRow(
-                            label: ref.title,
-                            value: ref.context,
-                            onTap: () => _open(context, ref),
-                          ),
-                      ],
-                    ),
+              KansoListScrollbar(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.only(bottom: KansoSpacing.sm),
+                  children: <Widget>[
+                    if (links.isNotEmpty) ...<Widget>[
+                      KansoSectionHeader(label: l10n.noteBacklinksLinked),
+                      KansoSheetGroup(
+                        dividerIndent: KansoSettingsRow.iconInset,
+                        children: <Widget>[
+                          for (final ref in links)
+                            KansoSettingsRow(
+                              label: ref.title,
+                              value: ref.context,
+                              onTap: () => _open(context, ref),
+                            ),
+                        ],
+                      ),
+                    ],
+                    if (mentions.isNotEmpty) ...<Widget>[
+                      KansoSectionHeader(label: l10n.noteBacklinksUnlinked),
+                      KansoSheetGroup(
+                        dividerIndent: KansoSettingsRow.iconInset,
+                        children: <Widget>[
+                          for (final ref in mentions)
+                            KansoSettingsRow(
+                              label: ref.title,
+                              value: ref.context,
+                              onTap: () => _open(context, ref),
+                            ),
+                        ],
+                      ),
+                    ],
                   ],
-                  if (mentions.isNotEmpty) ...<Widget>[
-                    KansoSectionHeader(label: l10n.noteBacklinksUnlinked),
-                    KansoSheetGroup(
-                      dividerIndent: KansoSettingsRow.iconInset,
-                      children: <Widget>[
-                        for (final ref in mentions)
-                          KansoSettingsRow(
-                            label: ref.title,
-                            value: ref.context,
-                            onTap: () => _open(context, ref),
-                          ),
-                      ],
-                    ),
-                  ],
-                ],
+                ),
               ),
           },
         ),

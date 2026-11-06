@@ -11,6 +11,7 @@
 //! a real note, the Home note, shown at the top and edited in place; Kanso
 //! never writes into it except to append a section the person copied.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
@@ -1570,7 +1571,7 @@ impl Render for NotebookHomeView {
                             .flex_1()
                             .min_h_0()
                             .w_full()
-                            .overflow_y_scroll()
+                            .overflow_y_scrollbar()
                             .track_scroll(&self.scroll)
                             .child(h_flex().w_full().justify_center().child(body)),
                     ),

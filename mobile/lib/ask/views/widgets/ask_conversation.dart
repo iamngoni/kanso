@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/models/data/ask_receipt.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../models/data/ask_phase.dart';
 import '../../state/ask/ask_bloc.dart';
 import 'ask_turn_view.dart';
@@ -79,29 +80,32 @@ class _AskConversationState extends State<AskConversation> {
   @override
   Widget build(BuildContext context) {
     final turns = widget.state.turns;
-    return ListView.separated(
+    return KansoListScrollbar(
       controller: controller,
-      padding: const EdgeInsets.all(KansoSpacing.md),
-      itemCount: turns.length,
-      separatorBuilder: (context, index) =>
-          const SizedBox(height: KansoSpacing.lg),
-      itemBuilder: (context, index) {
-        final last = index == turns.length - 1;
-        return AskTurnView(
-          turn: turns[index],
-          phase: last ? widget.state.phase : AskPhase.idle,
-          onOpenNote: widget.onOpenNote,
-          onOpenLink: widget.onOpenLink,
-          onRetry: last ? widget.onRetry : null,
-          onOpenReceipt: widget.onOpenReceipt,
-          onJumpToReceipt: widget.onJumpToReceipt,
-          onSearchAll: last ? widget.onSearchAll : null,
-          onDropTime: last ? widget.onDropTime : null,
-          onSave: last ? widget.onSave : null,
-          saveFailure: last ? widget.state.saveFailure : null,
-          usedExpanded: widget.usedExpanded,
-        );
-      },
+      child: ListView.separated(
+        controller: controller,
+        padding: const EdgeInsets.all(KansoSpacing.md),
+        itemCount: turns.length,
+        separatorBuilder: (context, index) =>
+            const SizedBox(height: KansoSpacing.lg),
+        itemBuilder: (context, index) {
+          final last = index == turns.length - 1;
+          return AskTurnView(
+            turn: turns[index],
+            phase: last ? widget.state.phase : AskPhase.idle,
+            onOpenNote: widget.onOpenNote,
+            onOpenLink: widget.onOpenLink,
+            onRetry: last ? widget.onRetry : null,
+            onOpenReceipt: widget.onOpenReceipt,
+            onJumpToReceipt: widget.onJumpToReceipt,
+            onSearchAll: last ? widget.onSearchAll : null,
+            onDropTime: last ? widget.onDropTime : null,
+            onSave: last ? widget.onSave : null,
+            saveFailure: last ? widget.state.saveFailure : null,
+            usedExpanded: widget.usedExpanded,
+          );
+        },
+      ),
     );
   }
 }

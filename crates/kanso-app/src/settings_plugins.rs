@@ -4,6 +4,7 @@
 //! Nothing here reaches the network unasked: the directory loads when the
 //! person presses Load the directory. A stored token is never shown.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::{BTreeSet, HashMap};
 
 use gpui_kit::assets::IconName as Lucide;
@@ -590,7 +591,7 @@ impl PluginsPage {
                         .mt(px(4.))
                         .p(px(8.))
                         .max_h(px(140.))
-                        .overflow_y_scroll()
+                        .overflow_y_scrollbar()
                         .rounded(px(6.))
                         .bg(colors.code)
                         .text_size(px(12.))
@@ -926,7 +927,7 @@ impl Render for BooksSheet {
                 v_flex()
                     .id("plugin-books")
                     .max_h(px(280.))
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .when(all, |el| el.opacity(0.55))
                     .children(rows),
             )

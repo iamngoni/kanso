@@ -32,6 +32,7 @@ import '../../../core/views/widgets/kanso_drawer_scope.dart';
 import '../../../core/views/widgets/kanso_icon.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_icon_set_scope.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_message_card.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
 import '../../../core/views/widgets/kanso_search_field.dart';
@@ -189,124 +190,126 @@ class _LibraryPaneState extends State<LibraryPane> {
                       ),
                     ),
                   ),
-                  LibraryIndexStatus.ready => ListView(
-                    padding: EdgeInsets.only(
-                      top: KansoSpacing.xxs,
-                      bottom: bottom + KansoSpacing.md,
-                    ),
-                    children: <Widget>[
-                      LibraryPlaceRow(
-                        place: const ListPlace.all(),
-                        icon: KansoIcons.files,
-                        label: l10n.libraryAllNotes,
-                        count: index.overview.all,
-                        selected: current == const ListPlace.all(),
+                  LibraryIndexStatus.ready => KansoListScrollbar(
+                    child: ListView(
+                      padding: EdgeInsets.only(
+                        top: KansoSpacing.xxs,
+                        bottom: bottom + KansoSpacing.md,
                       ),
-                      if (templates != null)
+                      children: <Widget>[
                         LibraryPlaceRow(
-                          place: ListPlace.notebook(id: templates.id),
-                          icon: KansoIcons.layoutTemplate,
-                          label: l10n.libraryTemplates,
-                          selected:
-                              current == ListPlace.notebook(id: templates.id),
+                          place: const ListPlace.all(),
+                          icon: KansoIcons.files,
+                          label: l10n.libraryAllNotes,
+                          count: index.overview.all,
+                          selected: current == const ListPlace.all(),
                         ),
-                      LibraryPlaceRow(
-                        place: const ListPlace.pinned(),
-                        icon: KansoIcons.pin,
-                        label: l10n.libraryPinned,
-                        count: index.overview.pinned,
-                        selected: current == const ListPlace.pinned(),
-                      ),
-                      LibraryPlaceRow(
-                        place: const ListPlace.recent(),
-                        icon: KansoIcons.clock,
-                        label: l10n.libraryRecent,
-                        selected: current == const ListPlace.recent(),
-                      ),
-                      const AskLibraryRow(),
-                      const AgentTasksLibraryRow(),
-                      const ReviewLibraryRow(),
-                      const PeopleLibraryRow(),
-                      SharedWithYouRow(
-                        onOpen: () =>
-                            leave(() => context.push(KansoRoutes.shared)),
-                      ),
-                      LibraryTasksRow(
-                        overdue: index.overdueTasks,
-                        selected: here is TasksLocation,
-                      ),
-                      LibraryPlaceRow(
-                        place: const ListPlace.canvases(),
-                        icon: KansoIcons.infinity,
-                        label: l10n.libraryCanvases,
-                        count: index.overview.canvases,
-                        selected: current == const ListPlace.canvases(),
-                      ),
-                      KansoSectionHeader(
-                        label: l10n.libraryNotebooks,
-                        trailing: <Widget>[
-                          KansoIconButton(
-                            icon: KansoIcons.plus,
-                            semanticLabel: l10n.libraryNewNotebook,
-                            iconSize: KansoSizes.iconSmall + 2,
-                            onPressed: () => NewNotebookSheet.open(context),
+                        if (templates != null)
+                          LibraryPlaceRow(
+                            place: ListPlace.notebook(id: templates.id),
+                            icon: KansoIcons.layoutTemplate,
+                            label: l10n.libraryTemplates,
+                            selected:
+                                current == ListPlace.notebook(id: templates.id),
                           ),
-                        ],
-                      ),
-                      if (_notebooks(index).isEmpty)
-                        _EmptyNote(text: l10n.libraryNoNotebooks)
-                      else
-                        for (final notebook in _notebooks(index))
-                          _notebookRow(context, index, current, notebook),
-                      const SizedBox(height: KansoSpacing.xs),
-                      _StatusSection(
-                        index: index,
-                        current: current,
-                        onLeave: leave,
-                      ),
-                      const SizedBox(height: KansoSpacing.xs),
-                      KansoSectionHeader(label: l10n.libraryTags),
-                      _TagSection(
-                        index: index,
-                        current: current,
-                        onLeave: leave,
-                      ),
-                      const SizedBox(height: KansoSpacing.xs),
-                      LibraryPlaceRow(
-                        place: const ListPlace.trash(),
-                        icon: KansoIcons.trash,
-                        label: l10n.libraryTrash,
-                        count: index.overview.trash,
-                        selected: current == const ListPlace.trash(),
-                        onLongPress: () => _emptyTrash(context, index),
-                      ),
-                      KansoSidebarRow(
-                        icon: KansoIcons.mic,
-                        label: l10n.libraryRecord,
-                        onTap: () =>
-                            leave(() => context.push(KansoRoutes.record)),
-                      ),
-                      KansoSidebarRow(
-                        icon: KansoIcons.replaceAll,
-                        label: l10n.libraryReplace,
-                        onTap: () => leave(
-                          () => context.push(KansoRoutes.replace),
+                        LibraryPlaceRow(
+                          place: const ListPlace.pinned(),
+                          icon: KansoIcons.pin,
+                          label: l10n.libraryPinned,
+                          count: index.overview.pinned,
+                          selected: current == const ListPlace.pinned(),
                         ),
-                      ),
-                      if (widget.designGallery)
+                        LibraryPlaceRow(
+                          place: const ListPlace.recent(),
+                          icon: KansoIcons.clock,
+                          label: l10n.libraryRecent,
+                          selected: current == const ListPlace.recent(),
+                        ),
+                        const AskLibraryRow(),
+                        const AgentTasksLibraryRow(),
+                        const ReviewLibraryRow(),
+                        const PeopleLibraryRow(),
+                        SharedWithYouRow(
+                          onOpen: () =>
+                              leave(() => context.push(KansoRoutes.shared)),
+                        ),
+                        LibraryTasksRow(
+                          overdue: index.overdueTasks,
+                          selected: here is TasksLocation,
+                        ),
+                        LibraryPlaceRow(
+                          place: const ListPlace.canvases(),
+                          icon: KansoIcons.infinity,
+                          label: l10n.libraryCanvases,
+                          count: index.overview.canvases,
+                          selected: current == const ListPlace.canvases(),
+                        ),
+                        KansoSectionHeader(
+                          label: l10n.libraryNotebooks,
+                          trailing: <Widget>[
+                            KansoIconButton(
+                              icon: KansoIcons.plus,
+                              semanticLabel: l10n.libraryNewNotebook,
+                              iconSize: KansoSizes.iconSmall + 2,
+                              onPressed: () => NewNotebookSheet.open(context),
+                            ),
+                          ],
+                        ),
+                        if (_notebooks(index).isEmpty)
+                          _EmptyNote(text: l10n.libraryNoNotebooks)
+                        else
+                          for (final notebook in _notebooks(index))
+                            _notebookRow(context, index, current, notebook),
+                        const SizedBox(height: KansoSpacing.xs),
+                        _StatusSection(
+                          index: index,
+                          current: current,
+                          onLeave: leave,
+                        ),
+                        const SizedBox(height: KansoSpacing.xs),
+                        KansoSectionHeader(label: l10n.libraryTags),
+                        _TagSection(
+                          index: index,
+                          current: current,
+                          onLeave: leave,
+                        ),
+                        const SizedBox(height: KansoSpacing.xs),
+                        LibraryPlaceRow(
+                          place: const ListPlace.trash(),
+                          icon: KansoIcons.trash,
+                          label: l10n.libraryTrash,
+                          count: index.overview.trash,
+                          selected: current == const ListPlace.trash(),
+                          onLongPress: () => _emptyTrash(context, index),
+                        ),
                         KansoSidebarRow(
-                          icon: KansoIcons.palette,
-                          label: l10n.libraryDesignGallery,
+                          icon: KansoIcons.mic,
+                          label: l10n.libraryRecord,
                           onTap: () =>
-                              leave(() => context.push(KansoRoutes.design)),
+                              leave(() => context.push(KansoRoutes.record)),
                         ),
-                      KansoSidebarRow(
-                        icon: KansoIcons.share,
-                        label: l10n.graphTitle,
-                        onTap: () =>
-                            leave(() => context.push(KansoRoutes.graph)),
-                      ),
-                    ],
+                        KansoSidebarRow(
+                          icon: KansoIcons.replaceAll,
+                          label: l10n.libraryReplace,
+                          onTap: () => leave(
+                            () => context.push(KansoRoutes.replace),
+                          ),
+                        ),
+                        if (widget.designGallery)
+                          KansoSidebarRow(
+                            icon: KansoIcons.palette,
+                            label: l10n.libraryDesignGallery,
+                            onTap: () =>
+                                leave(() => context.push(KansoRoutes.design)),
+                          ),
+                        KansoSidebarRow(
+                          icon: KansoIcons.share,
+                          label: l10n.graphTitle,
+                          onTap: () =>
+                              leave(() => context.push(KansoRoutes.graph)),
+                        ),
+                      ],
+                    ),
                   ),
                 };
               },

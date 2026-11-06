@@ -7,6 +7,7 @@
 //! import made and never undoes changes made in Kanso
 //! ([`kanso_import::library`]).
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -428,7 +429,7 @@ impl Render for ImportView {
                             .items_stretch()
                             .gap(px(8.))
                             .max_h(px(440.))
-                            .overflow_y_scroll()
+                            .overflow_y_scrollbar()
                             .pr(px(4.))
                             .children(cards),
                     )

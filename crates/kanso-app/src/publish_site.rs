@@ -9,6 +9,7 @@
 //! its key are kept in the notebook (`kansoPublish`), so the account's
 //! other devices can update or unpublish it too.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::sync::Arc;
 
 use gpui_kit::assets::IconName as Lucide;
@@ -311,7 +312,7 @@ impl PublishSiteView {
                     div()
                         .id("publish-site-notes")
                         .max_h(px(168.))
-                        .overflow_y_scroll()
+                        .overflow_y_scrollbar()
                         .track_scroll(&self.scroll)
                         .rounded(px(6.))
                         .border_1()

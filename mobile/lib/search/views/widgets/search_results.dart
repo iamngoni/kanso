@@ -15,6 +15,7 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_divider.dart';
 import '../../../core/views/widgets/kanso_empty_state.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_message_card.dart';
 import '../../../metrics/models/repos/abs/usage_metrics_repository.dart';
 import '../../../metrics/utils/count_usage.dart';
@@ -73,29 +74,31 @@ class SearchResults extends StatelessWidget {
             scope: state.scope,
             notebookId: state.notebookId,
           );
-          return ListView.separated(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.paddingOf(context).bottom + KansoSpacing.md,
+          return KansoListScrollbar(
+            child: ListView.separated(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.paddingOf(context).bottom + KansoSpacing.md,
+              ),
+              itemCount: state.hits.length,
+              separatorBuilder: (context, at) =>
+                  const KansoDivider(indent: KansoSpacing.md),
+              itemBuilder: (context, at) {
+                final hit = state.hits[at];
+                return SearchResultTile(
+                  hit: hit,
+                  notebook: index.notebookPath(hit.row.notebookId) ?? '',
+                  open: hit.row.id == openNoteId,
+                  onTap: () {
+                    // One search counts once, when a result is opened.
+                    countUsage(UsageFeature.search);
+                    context.read<NavigationHistoryBloc>().add(
+                      NavigationHistoryEvent.visited(hit.row.id),
+                    );
+                    context.go(here.withNote(hit.row.id).location);
+                  },
+                );
+              },
             ),
-            itemCount: state.hits.length,
-            separatorBuilder: (context, at) =>
-                const KansoDivider(indent: KansoSpacing.md),
-            itemBuilder: (context, at) {
-              final hit = state.hits[at];
-              return SearchResultTile(
-                hit: hit,
-                notebook: index.notebookPath(hit.row.notebookId) ?? '',
-                open: hit.row.id == openNoteId,
-                onTap: () {
-                  // One search counts once, when a result is opened.
-                  countUsage(UsageFeature.search);
-                  context.read<NavigationHistoryBloc>().add(
-                    NavigationHistoryEvent.visited(hit.row.id),
-                  );
-                  context.go(here.withNote(hit.row.id).location);
-                },
-              );
-            },
           );
         },
       ),

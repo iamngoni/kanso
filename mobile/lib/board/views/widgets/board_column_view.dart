@@ -8,6 +8,7 @@ import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_radii.dart';
 import '../../../core/configs/kanso_spacing.dart';
 import '../../../core/utils/context_extensions.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../models/data/board_drag.dart';
 import '../../utils/board_labels.dart';
 import 'board_card_tile.dart';
@@ -84,41 +85,43 @@ class BoardColumnView extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(
-                      KansoSpacing.xs,
-                      0,
-                      KansoSpacing.xs,
-                      KansoSpacing.xs,
+                  child: KansoListScrollbar(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(
+                        KansoSpacing.xs,
+                        0,
+                        KansoSpacing.xs,
+                        KansoSpacing.xs,
+                      ),
+                      itemCount: column.cards.length,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: KansoSpacing.xs),
+                      itemBuilder: (context, index) {
+                        final card = column.cards[index];
+                        final tile = BoardCardTile(
+                          card: card,
+                          draggable: draggable,
+                          onOpen: () => onOpen(card.key),
+                          onMove: () => onMove(card.key),
+                          onToggle: card.key is CardKey_Task
+                              ? (checked) =>
+                                    onToggle(card: card.key, checked: checked)
+                              : null,
+                        );
+                        if (!draggable) {
+                          return tile;
+                        }
+                        return LongPressDraggable<BoardDrag>(
+                          data: BoardDrag(card: card.key, from: column.lane),
+                          feedback: SizedBox(
+                            width: 280,
+                            child: Opacity(opacity: 0.9, child: tile),
+                          ),
+                          childWhenDragging: Opacity(opacity: 0.4, child: tile),
+                          child: tile,
+                        );
+                      },
                     ),
-                    itemCount: column.cards.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: KansoSpacing.xs),
-                    itemBuilder: (context, index) {
-                      final card = column.cards[index];
-                      final tile = BoardCardTile(
-                        card: card,
-                        draggable: draggable,
-                        onOpen: () => onOpen(card.key),
-                        onMove: () => onMove(card.key),
-                        onToggle: card.key is CardKey_Task
-                            ? (checked) =>
-                                  onToggle(card: card.key, checked: checked)
-                            : null,
-                      );
-                      if (!draggable) {
-                        return tile;
-                      }
-                      return LongPressDraggable<BoardDrag>(
-                        data: BoardDrag(card: card.key, from: column.lane),
-                        feedback: SizedBox(
-                          width: 280,
-                          child: Opacity(opacity: 0.9, child: tile),
-                        ),
-                        childWhenDragging: Opacity(opacity: 0.4, child: tile),
-                        child: tile,
-                      );
-                    },
                   ),
                 ),
               ],

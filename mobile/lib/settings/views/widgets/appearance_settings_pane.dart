@@ -90,6 +90,34 @@ class AppearanceSettingsPane extends StatelessWidget {
                   chevron: true,
                   onTap: () => context.push(KansoRoutes.fonts(atSize: true)),
                 ),
+                Padding(
+                  padding: const EdgeInsets.all(KansoSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      Text('Show scrollbars', style: context.typography.body),
+                      const SizedBox(height: KansoSpacing.xs),
+                      KansoSegmented<bool>(
+                        expanded: true,
+                        selected: appearance.alwaysShowScrollbars,
+                        semanticLabel: 'Show scrollbars',
+                        segments: const <KansoSegment<bool>>[
+                          KansoSegment<bool>(
+                            value: false,
+                            label: 'When scrolling',
+                          ),
+                          KansoSegment<bool>(value: true, label: 'Always'),
+                        ],
+                        onChanged: (always) =>
+                            context.read<AppearanceBloc>().add(
+                              AppearanceEvent.scrollbarVisibilityChanged(
+                                always: always,
+                              ),
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
             KansoGroupedSection(

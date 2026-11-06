@@ -6,6 +6,7 @@
 //! icons: a button to open it again, compose, the library places, the
 //! notebooks and the tags (lists in the palette), trash, sync and settings.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::HashSet;
 use std::time::Duration;
 
@@ -1587,7 +1588,7 @@ impl Sidebar {
                     .items_center()
                     .gap(px(2.))
                     .pt(px(12.))
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .child(self.rail_place(
                         "rail-overview",
                         Lucide::Compass,
@@ -2002,7 +2003,7 @@ impl Render for Sidebar {
                     .id("sidebar")
                     .flex_1()
                     .min_h_0()
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .track_scroll(&self.scroll)
                     .child(list),
             )

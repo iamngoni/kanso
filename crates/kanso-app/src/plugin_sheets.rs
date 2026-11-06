@@ -2,6 +2,7 @@
 //! changes before Kanso applies it. A developer folder is trusted here too:
 //! its path is typed out and a box ticked before Install works.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::BTreeSet;
 
 use gpui_kit::assets::IconName as Lucide;
@@ -255,7 +256,7 @@ impl Render for InstallSheet {
         v_flex()
             .id("plugin-install-body")
             .max_h(px(560.))
-            .overflow_y_scroll()
+            .overflow_y_scrollbar()
             .gap(px(12.))
             .child(
                 v_flex()
@@ -384,7 +385,7 @@ impl Render for InstallSheet {
                             v_flex()
                                 .id("plugin-books")
                                 .max_h(px(110.))
-                                .overflow_y_scroll()
+                                .overflow_y_scrollbar()
                                 .when(all, |el| el.opacity(0.55))
                                 .children(book_rows),
                         )
@@ -676,7 +677,7 @@ impl Render for ReviewSheet {
                 v_flex()
                     .id("review-notes")
                     .max_h(px(380.))
-                    .overflow_y_scroll()
+                    .overflow_y_scrollbar()
                     .children(rows),
             )
     }

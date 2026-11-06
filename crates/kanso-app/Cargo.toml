@@ -76,6 +76,7 @@ flate2 = "1.1"
 # key grab on Linux.
 global-hotkey = "0.9"
 gpui-kit.workspace = true
+gpui-component = "=0.7.3"
 # Parses a provider's page before the system opener sees it.
 url = "2.5"
 # Pasted images the API doesn't take (TIFF, WebP, BMP) are stored as PNG.

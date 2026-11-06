@@ -14,6 +14,7 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_empty_state.dart';
 import '../../../core/views/widgets/kanso_inline_message.dart';
+import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../../injection.dart';
@@ -89,21 +90,23 @@ class OutlineSheet extends StatelessWidget {
                       message: l10n.noteOutlineEmptyMessage,
                     ),
                   )
-                : ListView(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.only(bottom: KansoSpacing.sm),
-                    children: <Widget>[
-                      KansoSheetGroup(
-                        dividerIndent: KansoSettingsRow.iconInset,
-                        children: <Widget>[
-                          for (final heading in found)
-                            _OutlineRow(
-                              heading: heading,
-                              onTap: () => openAt(heading.line),
-                            ),
-                        ],
-                      ),
-                    ],
+                : KansoListScrollbar(
+                    child: ListView(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.only(bottom: KansoSpacing.sm),
+                      children: <Widget>[
+                        KansoSheetGroup(
+                          dividerIndent: KansoSettingsRow.iconInset,
+                          children: <Widget>[
+                            for (final heading in found)
+                              _OutlineRow(
+                                heading: heading,
+                                onTap: () => openAt(heading.line),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
           ),
         ),

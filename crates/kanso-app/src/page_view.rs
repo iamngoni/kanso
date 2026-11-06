@@ -10,6 +10,7 @@
 //! sections live in the page's cache (`kansoPage`), except when "Copy into
 //! the note" is chosen.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
@@ -914,7 +915,7 @@ impl Render for PagePanel {
                     v_flex()
                         .id("page-sections")
                         .max_h(px(MAX_HEIGHT))
-                        .overflow_y_scroll()
+                        .overflow_y_scrollbar()
                         .track_scroll(&self.scroll)
                         .children(sections)
                         .children(hidden_row),

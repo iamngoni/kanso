@@ -15,6 +15,7 @@
 //! it; ⌘↩ accepts every chip of the card; F files the card, S skips it, O
 //! opens it; Esc closes. The keys are handled here, not bound globally.
 
+use gpui_component::scroll::ScrollableElement as _;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -1354,7 +1355,7 @@ impl Render for TriageView {
             div()
                 .id("triage-cards")
                 .size_full()
-                .overflow_y_scroll()
+                .overflow_y_scrollbar()
                 .child(page_chrome::centred(page_chrome::column().child(
                     page_chrome::page_empty(
                         Lucide::Inbox,
@@ -1378,7 +1379,7 @@ impl Render for TriageView {
             div()
                 .id("triage-cards")
                 .size_full()
-                .overflow_y_scroll()
+                .overflow_y_scrollbar()
                 .track_scroll(&self.scroll)
                 .child(page_chrome::centred(
                     page_chrome::column()
