@@ -277,7 +277,10 @@ describe("keys", () => {
 			].sort(),
 		);
 		for (const key of keys) {
-			for (const leak of ["alice", "carol", "203.0.113", "2001", "db8"]) expect(key).not.toContain(leak);
+			// Hashes and account IDs are random hex, which can contain "db8" or
+			// "2001" by chance; only the readable parts can leak.
+			const readable = key.replace(/[0-9a-f]{16,}/g, "");
+			for (const leak of ["alice", "carol", "203.0.113", "2001", "db8"]) expect(readable).not.toContain(leak);
 			expect(key).toMatch(/^(signup-ip|login-ip|recover-ip):[0-9a-f]{32}$|^(login-user|password-account|password-total|writes-account):(a_[0-9a-f]{32}|unknown)(:[0-9a-f]{16})?$/);
 		}
 	});
