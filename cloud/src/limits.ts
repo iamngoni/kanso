@@ -38,6 +38,7 @@ export type Rule =
 	| "approval-create"
 	| "approval-poll"
 	| "approval-respond"
+	| "pair-ip"
 	| "crash-ip"
 	| "metrics-ip"
 	| "feedback-account"
@@ -71,6 +72,8 @@ export type Rule =
  * `approval-respond` every challenge, name and approval answer. The
  * approver's list GET isn't counted: it runs on an event or a launch, never
  * on a timer.
+ * `pair-ip` counts attempts to consume screenless-device codes per IP group;
+ * the single-use codes still need a bound on guesses from one address.
  *
  * `crash-ip` counts every crash report posted (docs/CRASH-REPORTS.md), per IP
  * group: a person sends a report by tapping Send, so five an hour is plenty.
@@ -105,6 +108,7 @@ export const RULES: Record<Rule, { window: number; max: number | null }> = {
 	"approval-create": { window: HOUR, max: 10 },
 	"approval-poll": { window: HOUR, max: 900 },
 	"approval-respond": { window: HOUR, max: 30 },
+	"pair-ip": { window: HOUR, max: 10 },
 	"crash-ip": { window: HOUR, max: 5 },
 	"metrics-ip": { window: HOUR, max: 600 },
 	"feedback-account": { window: DAY, max: 10 },

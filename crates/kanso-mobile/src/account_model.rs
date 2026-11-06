@@ -208,6 +208,24 @@ pub struct DeviceRow {
     pub last_seen_ms: Option<i64>,
 }
 
+/// A pairing code shown once to add a computer without a screen.
+#[derive(Clone, PartialEq, Eq)]
+pub struct PairingCode {
+    pub id: String,
+    pub code: String,
+    pub expires_at_ms: i64,
+}
+
+impl std::fmt::Debug for PairingCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PairingCode")
+            .field("id", &self.id)
+            .field("code", &"[REDACTED]")
+            .field("expires_at_ms", &self.expires_at_ms)
+            .finish()
+    }
+}
+
 /// Whether a provider is linked to the account.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LinkedProviderRow {

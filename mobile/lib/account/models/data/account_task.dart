@@ -7,6 +7,9 @@ enum AccountTask {
   /// Signing another device out.
   revokeDevice,
 
+  /// Making a one-time code for a computer without a screen.
+  createPairing,
+
   /// Signing this phone out.
   signOut,
 

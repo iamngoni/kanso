@@ -83,6 +83,32 @@ class FixtureAccountSettingsRepository implements AccountSettingsRepository {
   }
 
   @override
+  Future<Either<ApplicationError, PairingCode>> createPairing() async {
+    calls.add('createPairing');
+    return _answer(
+      PairingCode(
+        id: 'pairing-1',
+        code: '7HQK-3MZP',
+        expiresAtMs: DateTime.now()
+            .add(const Duration(minutes: 10))
+            .millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  @override
+  Future<Either<ApplicationError, bool>> pairingUsed(String id) async {
+    calls.add('pairingUsed ' + id);
+    return _answer(false);
+  }
+
+  @override
+  Future<Either<ApplicationError, Unit>> cancelPairing(String id) async {
+    calls.add('cancelPairing ' + id);
+    return _answer(unit);
+  }
+
+  @override
   Future<Either<ApplicationError, Unit>> signOut() async {
     calls.add('signOut');
     return _answer(unit);

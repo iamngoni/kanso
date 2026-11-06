@@ -2661,6 +2661,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PageTask dco_decode_page_task(dynamic raw);
 
   @protected
+  PairingCode dco_decode_pairing_code(dynamic raw);
+
+  @protected
   PaletteContext dco_decode_palette_context(dynamic raw);
 
   @protected
@@ -6088,6 +6091,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PageTask sse_decode_page_task(SseDeserializer deserializer);
+
+  @protected
+  PairingCode sse_decode_pairing_code(SseDeserializer deserializer);
 
   @protected
   PaletteContext sse_decode_palette_context(SseDeserializer deserializer);
@@ -10355,6 +10361,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_page_task(PageTask self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pairing_code(PairingCode self, SseSerializer serializer);
 
   @protected
   void sse_encode_palette_context(

@@ -451,6 +451,7 @@ impl From<ApiError> for AccountError {
             ApiError::UsernameMismatch => AccountError::UsernameMismatch,
             ApiError::ChecksumMismatch => AccountError::ChecksumMismatch,
             ApiError::UnsupportedMethod => AccountError::UnsupportedMethod,
+            ApiError::BadPairingCode => AccountError::BadRequest,
             ApiError::FlowExpired { .. } => AccountError::FlowExpired,
             ApiError::Unauthorized { reason } => AccountError::Unauthorized { reason },
             ApiError::InvalidCredentials => AccountError::InvalidCredentials,
@@ -2039,6 +2040,38 @@ pub fn devices(b: &dyn Backend, session: &Session) -> Result<Vec<DeviceInfo>, Ac
         .collect();
     devices.sort_by_key(|d| std::cmp::Reverse(d.last_seen_at));
     Ok(devices)
+}
+
+/// Makes a one-time code on this signed-in device for pairing a computer
+/// without a screen. The Worker verifies the same device proof used by the
+/// account event socket.
+pub fn create_pairing(
+    b: &dyn Backend,
+    session: &Session,
+    identity: &DeviceIdentity,
+) -> Result<crate::api::PairingCreated, AccountError> {
+    let device = session.login_device(identity);
+    b.api(&session.server)
+        .create_pairing(session.token(), &device.id, &device.proof)
+        .map_err(AccountError::from)
+}
+
+/// Checks whether a pairing code has been used or expired.
+pub fn pairing_status(
+    b: &dyn Backend,
+    session: &Session,
+    id: &str,
+) -> Result<crate::api::PairingStatus, AccountError> {
+    b.api(&session.server)
+        .pairing_status(session.token(), id)
+        .map_err(AccountError::from)
+}
+
+/// Cancels a pairing code that has not been used.
+pub fn cancel_pairing(b: &dyn Backend, session: &Session, id: &str) -> Result<(), AccountError> {
+    b.api(&session.server)
+        .cancel_pairing(session.token(), id)
+        .map_err(AccountError::from)
 }
 
 /// Signs out another device of this account (revoking this one is a logout).

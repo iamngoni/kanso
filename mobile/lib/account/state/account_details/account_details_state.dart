@@ -36,6 +36,12 @@ abstract class AccountDetailsState with _$AccountDetailsState {
     /// The code to type at GitHub while its link waits.
     ProviderCode? code,
 
+    /// The short-lived code currently shown in the pairing sheet.
+    PairingCode? pairing,
+
+    /// Whether the computer entered this code and now needs approval.
+    @Default(false) bool pairingUsed,
+
     /// How the page ended; null while it has not.
     AccountOutcome? outcome,
   }) = _AccountDetailsState;

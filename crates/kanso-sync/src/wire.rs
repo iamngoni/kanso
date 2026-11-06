@@ -472,6 +472,9 @@ pub enum ApiError {
     /// 400: a sign-in method this deployment doesn't offer.
     #[error("400 unsupported_method")]
     UnsupportedMethod,
+    /// 400: a pairing code is unknown, expired or already consumed.
+    #[error("400 bad_code")]
+    BadPairingCode,
     /// 401: session missing, malformed, unknown, revoked or expired.
     #[error("401 unauthorized ({})", reason.as_str())]
     Unauthorized { reason: SignOutReason },
@@ -623,7 +626,8 @@ impl ApiError {
             | ApiError::WeakKdf
             | ApiError::UsernameMismatch
             | ApiError::ChecksumMismatch
-            | ApiError::UnsupportedMethod => 400,
+            | ApiError::UnsupportedMethod
+            | ApiError::BadPairingCode => 400,
             ApiError::Unauthorized { .. }
             | ApiError::InvalidCredentials
             | ApiError::ReauthRequired => 401,
@@ -668,6 +672,7 @@ impl ApiError {
             ApiError::UsernameMismatch => "username_mismatch",
             ApiError::ChecksumMismatch => "checksum_mismatch",
             ApiError::UnsupportedMethod => "unsupported_method",
+            ApiError::BadPairingCode => "bad_code",
             ApiError::FlowExpired { .. } => "flow_expired",
             ApiError::Unauthorized { .. } => "unauthorized",
             ApiError::InvalidCredentials => "invalid_credentials",
@@ -746,6 +751,7 @@ impl ApiError {
             "username_mismatch" => ApiError::UsernameMismatch,
             "checksum_mismatch" => ApiError::ChecksumMismatch,
             "unsupported_method" => ApiError::UnsupportedMethod,
+            "bad_code" => ApiError::BadPairingCode,
             "flow_expired" => ApiError::FlowExpired {
                 gone: status == 410,
             },
@@ -863,6 +869,7 @@ mod tests {
             ApiError::UsernameMismatch,
             ApiError::ChecksumMismatch,
             ApiError::UnsupportedMethod,
+            ApiError::BadPairingCode,
             ApiError::FlowExpired { gone: false },
             ApiError::FlowExpired { gone: true },
             ApiError::InvalidCredentials,

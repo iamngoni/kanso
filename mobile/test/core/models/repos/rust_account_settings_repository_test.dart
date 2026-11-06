@@ -32,6 +32,34 @@ void main() {
   });
 
   group('RustAccountSettingsRepository', () {
+    test('creates, polls and cancels a pairing code', () async {
+      const pairing = PairingCode(
+        id: 'pairing-1',
+        code: '7HQK-3MZP',
+        expiresAtMs: 1794000000000,
+      );
+      when(settings.createPairing).thenAnswer((_) async => pairing);
+      when(() => settings.pairingUsed(id: pairing.id)).thenAnswer(
+        (_) async => true,
+      );
+      when(() => settings.cancelPairing(id: pairing.id)).thenAnswer(
+        (_) async {},
+      );
+
+      expect(
+        await repository.createPairing(),
+        const Right<ApplicationError, PairingCode>(pairing),
+      );
+      expect(
+        await repository.pairingUsed(pairing.id),
+        const Right<ApplicationError, bool>(true),
+      );
+      expect(
+        await repository.cancelPairing(pairing.id),
+        const Right<ApplicationError, Unit>(unit),
+      );
+    });
+
     test('the details, and a device signed out', () async {
       when(settings.details).thenAnswer((_) async => _details);
       when(

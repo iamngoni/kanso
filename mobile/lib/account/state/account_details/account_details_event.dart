@@ -13,6 +13,18 @@ sealed class AccountDetailsEvent with _$AccountDetailsEvent {
   const factory AccountDetailsEvent.deviceRevoked(String deviceId) =
       AccountDetailsDeviceRevokedEvent;
 
+  /// Makes a short-lived code to pair a computer without a screen.
+  const factory AccountDetailsEvent.pairingRequested() =
+      AccountDetailsPairingRequestedEvent;
+
+  /// Closes the code sheet and cancels any code not already used.
+  const factory AccountDetailsEvent.pairingDismissed() =
+      AccountDetailsPairingDismissedEvent;
+
+  /// The polling check saw the new computer use its code.
+  const factory AccountDetailsEvent.pairingUsed() =
+      AccountDetailsPairingUsedEvent;
+
   /// Signing this phone out was confirmed.
   const factory AccountDetailsEvent.signedOut() = AccountDetailsSignedOutEvent;
 
