@@ -11,11 +11,13 @@ use kanso_ai::InlineAction;
 
 use crate::editor::inline_glue::InlineAssist;
 use crate::journal::{NewTemplate, NextDay, OpenToday, PreviousDay, QuickCapture};
+#[cfg(target_os = "macos")]
+use crate::settings::OpenCalendarSettings;
 use crate::settings::{
     BrowseIconThemes, BrowseThemes, CloseSettings, ImportIconTheme, OpenAccountSettings,
-    OpenAiSettings, OpenApiSettings, OpenAppearanceSettings, OpenCalendarSettings,
-    OpenEditorSettings, OpenGeneralSettings, OpenIconThemeSettings, OpenPluginSettings,
-    OpenUpdateSettings, RefreshThemeGallery, ReloadIconThemes, ReloadThemes, StopThemePreview,
+    OpenAiSettings, OpenApiSettings, OpenAppearanceSettings, OpenEditorSettings,
+    OpenGeneralSettings, OpenIconThemeSettings, OpenPluginSettings, OpenUpdateSettings,
+    RefreshThemeGallery, ReloadIconThemes, ReloadThemes, StopThemePreview,
 };
 use crate::tabs::{
     CloseTab, GoToTab1, GoToTab2, GoToTab3, GoToTab4, GoToTab5, GoToTab6, GoToTab7, GoToTab8,

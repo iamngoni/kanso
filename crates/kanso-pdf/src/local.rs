@@ -25,7 +25,7 @@
 
 use std::collections::VecDeque;
 use std::io::{self, Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -95,7 +95,9 @@ fn module_dir() -> Option<PathBuf> {
             return None;
         }
         let name = std::ffi::CStr::from_ptr(info.dli_fname).to_str().ok()?;
-        Path::new(name).parent().map(Path::to_path_buf)
+        std::path::Path::new(name)
+            .parent()
+            .map(std::path::Path::to_path_buf)
     }
 }
 
