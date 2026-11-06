@@ -29,7 +29,8 @@ use kanso_sync::{
 use zeroize::Zeroizing;
 
 use crate::account_model::{
-    AccountDetails, DeviceRow, LinkedProviderRow, PasskeyRow, ProviderKind, RecoveryKeyText,
+    AccountDetails, DeviceRow, LinkedProviderRow, PairingCode, PasskeyRow, ProviderKind,
+    RecoveryKeyText,
 };
 use crate::approvals;
 use crate::boundary::{guard, held};
@@ -44,6 +45,45 @@ pub struct AccountSettings {
 }
 
 impl AccountSettings {
+    /// Creates a single-use pairing code that expires after ten minutes.
+    pub fn create_pairing(&self) -> Result<PairingCode, KansoError> {
+        guard(|| {
+            let session = self.session()?;
+            let identity = kanso_sync::device_identity(
+                &self.inner.store,
+                &kanso_sync::Machine::this_computer(),
+            )
+            .map_err(|error| KansoError::storage(error.to_string()))?;
+            let created =
+                kanso_sync::create_pairing(self.inner.backend.as_ref(), &session, &identity)
+                    .map_err(|error| self.fail(&session, &error, ErrorContext::Account))?;
+            Ok(PairingCode {
+                id: created.id,
+                code: created.code,
+                expires_at_ms: created.expires_at,
+            })
+        })
+    }
+
+    /// Checks whether the one-time code has been used by a computer.
+    pub fn pairing_used(&self, id: String) -> Result<bool, KansoError> {
+        guard(|| {
+            let session = self.session()?;
+            let status = kanso_sync::pairing_status(self.inner.backend.as_ref(), &session, &id)
+                .map_err(|error| self.fail(&session, &error, ErrorContext::Account))?;
+            Ok(status.status == "used")
+        })
+    }
+
+    /// Cancels a pairing code when its sheet is dismissed.
+    pub fn cancel_pairing(&self, id: String) -> Result<(), KansoError> {
+        guard(|| {
+            let session = self.session()?;
+            kanso_sync::cancel_pairing(self.inner.backend.as_ref(), &session, &id)
+                .map_err(|error| self.fail(&session, &error, ErrorContext::Account))
+        })
+    }
+
     /// The account's page: its devices (this phone first), the storage it
     /// uses, and the ways in. A server that ended this phone's session
     /// signs it out (`KansoError::SignedOut`).

@@ -73,6 +73,10 @@
 //   POST   /v2/account/sign-in/approvals/<id>/approve the approver's sealed data key       (session)
 //   DELETE /v2/account/sign-in/approvals/<id>         cancel or decline                     (session)
 //   GET    /v2/account/events           live approval hints, a WebSocket (session + device proof)
+//   POST   /v2/account/pairings         create a ten-minute screenless-device code (session + device proof)
+//   GET    /v2/account/pairings/<id>    read its status (session)
+//   DELETE /v2/account/pairings/<id>    cancel an unused code (session)
+//   POST   /v2/auth/pair                consume the code and ask for approval (public, rate-limited)
 //
 //   POST   /v1/crash-reports            a crash report the person chose to send       (public, no session)
 //   POST   /v1/metrics                  an anonymous usage count, passed on to PostHog (public, no session)
@@ -107,6 +111,7 @@ import { bindingFilter } from "./limits";
 import * as methods from "./methods";
 import * as metrics from "./metrics";
 import * as passkeys from "./passkeys";
+import * as pairings from "./pairings";
 import * as proofs from "./proofs";
 import * as pushes from "./push";
 import { runCron } from "./purge";
@@ -156,6 +161,7 @@ const ROUTES: Record<string, Route> = {
 	"/v2/auth/prelogin": { name: "prelogin", binding: true, methods: { POST: json(auth.prelogin, true) } },
 	"/v2/auth/signup": { name: "signup", binding: true, methods: { POST: json(auth.signup, true) } },
 	"/v2/auth/login": { name: "login", binding: true, methods: { POST: json(auth.login, true) } },
+	"/v2/auth/pair": { name: "pair", binding: true, methods: { POST: json(pairings.pair, true) } },
 	"/v2/auth/recover/start": { name: "recover_start", binding: true, methods: { POST: json(auth.recoverStart, true) } },
 	"/v2/auth/recover/finish": { name: "recover_finish", binding: true, methods: { POST: json(auth.recoverFinish, true) } },
 	"/v2/auth/passkey/start": { name: "passkey_start", binding: true, methods: { POST: json(passkeys.passkeyStart, true) } },
@@ -169,6 +175,7 @@ const ROUTES: Record<string, Route> = {
 	"/v2/account/delete": { name: "delete", methods: { POST: json(methods.deleteAccount) } },
 	"/v2/account/device": { name: "set_device", methods: { PUT: json(auth.setDevice) } },
 	"/v2/account/devices": { name: "devices", methods: { GET: { handler: auth.devices } } },
+	"/v2/account/pairings": { name: "pairings", methods: { POST: { handler: pairings.create } } },
 	"/v2/push": { name: "push", methods: { POST: json(sync.push) } },
 	"/v2/changes": { name: "changes", methods: { GET: { handler: sync.changes } } },
 	"/v2/account/identity": { name: "identity", methods: { PUT: json(identity.putIdentity), GET: { handler: identity.getIdentity } } },
@@ -248,6 +255,11 @@ function match(path: string): Route | null {
 	if (devicePush) {
 		const id = segment(devicePush[1]);
 		return { name: "device_push", methods: { PUT: json(pushes.registerPush(id)), DELETE: { handler: pushes.unregisterPush(id) } } };
+	}
+	const pairing = /^\/v2\/account\/pairings\/([^/]+)$/.exec(path);
+	if (pairing) {
+		const id = segment(pairing[1]);
+		return { name: "pairing", methods: { GET: { handler: pairings.status(id) }, DELETE: { handler: pairings.cancel(id) } } };
 	}
 	const device = /^\/v2\/account\/devices\/([^/]+)$/.exec(path);
 	if (device) return { name: "revoke_device", methods: { DELETE: { handler: auth.revokeDevice(segment(device[1])) } } };

@@ -549,6 +549,25 @@ fn bad_command_lines() {
     assert!(parse(&args("sign-in --username")).is_err());
     assert!(parse(&args("sign-in --secrets cloud")).is_err());
     assert!(parse(&args("sign-in --provider github --password-stdin")).is_err());
+    assert_eq!(
+        parse(&args("sign-in --pair 7HQK-3MZP")),
+        Ok(Command::SignIn(SignInArgs {
+            server: None,
+            username: None,
+            password_stdin: false,
+            method: Method::Password,
+            pair_code: Some("7HQK-3MZP".into()),
+            device_name: None,
+            secrets: None,
+            binding: None,
+        }))
+    );
+    assert!(parse(&args("sign-in --pair 7HQK-3MZP --provider github")).is_err());
+    assert!(pairing_code_shape("7hqk3mzp"));
+    assert!(pairing_code_shape("7HQK-3MZP"));
+    assert!(pairing_code_shape("7HQL-3MZO"));
+    assert!(!pairing_code_shape("7HQK-3MZ!"));
+    assert!(!pairing_code_shape("7HQK-3M"));
     assert!(parse(&args("sign-in --provider myspace")).is_err());
     assert!(parse(&args("revoke")).is_err());
     assert!(parse(&args("revoke a b")).is_err());
@@ -591,6 +610,7 @@ fn gen_args() -> impl Strategy<Value = Command> {
             Method::Refused("a passkey"),
             Method::Refused("a security key"),
         ]),
+        prop::option::of("[0-9A-HJKMNP-TV-ZOIL]{4}-?[0-9A-HJKMNP-TV-ZOIL]{4}"),
         prop::option::of(word),
         prop::option::of(prop::sample::select(vec![
             SecretStoreKind::System,
@@ -599,12 +619,14 @@ fn gen_args() -> impl Strategy<Value = Command> {
         prop::option::of(prop::sample::select(vec![Choice::Add, Choice::Replace])),
     )
         .prop_map(
-            |(server, username, stdin, method, device_name, secrets, binding)| {
+            |(server, username, stdin, method, pair_code, device_name, secrets, binding)| {
+                let pair_code = pair_code.filter(|_| method == Method::Password && !stdin);
                 Command::SignIn(SignInArgs {
                     server,
                     username,
-                    password_stdin: stdin && method != Method::Github,
+                    password_stdin: stdin && method != Method::Github && pair_code.is_none(),
                     method,
+                    pair_code,
                     device_name,
                     secrets,
                     binding,
@@ -649,7 +671,7 @@ proptest! {
     fn prop_unknown_flags_are_refused(flag in "--[a-z]{3,10}") {
         prop_assume!(![
             "--server", "--username", "--password-stdin", "--provider",
-            "--device-name", "--secrets", "--add", "--replace",
+            "--device-name", "--secrets", "--pair", "--add", "--replace",
         ].contains(&flag.as_str()));
         prop_assert!(parse(&["sign-in".to_owned(), flag]).is_err());
     }
@@ -673,6 +695,28 @@ proptest! {
             Err(_) => prop_assert!(!exact_match && sharing != 1),
         }
         prop_assert_eq!(device_lines(&devices, 0).len(), devices.len());
+    }
+
+    /// Canonical and ambiguously typed Crockford pairing codes are accepted
+    /// equally, with or without the visual separator.
+    #[test]
+    fn prop_pairing_code_format_and_aliases_are_equivalent(
+        digits in "[0-9A-HJKMNP-TV-Z]{8}",
+        separator in any::<bool>(),
+        alias in any::<bool>(),
+    ) {
+        let shown = if separator {
+            format!("{}-{}", &digits[..4], &digits[4..])
+        } else {
+            digits.clone()
+        };
+        prop_assert!(pairing_code_shape(&shown));
+        let alias_chars = if alias {
+            shown.replace('0', "O").replace('1', "L")
+        } else {
+            shown.clone()
+        };
+        prop_assert!(pairing_code_shape(&alias_chars));
     }
 }
 

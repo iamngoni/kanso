@@ -391,6 +391,28 @@ pub trait Api {
     fn cancel_approval(&self, _token: &SessionToken, _id: &str) -> Result<(), ApiError> {
         Err(ApiError::NotFound)
     }
+
+    /// `POST /v2/account/pairings`, authenticated with both the session and device proof.
+    fn create_pairing(
+        &self,
+        _token: &SessionToken,
+        _device_id: &str,
+        _device_proof: &str,
+    ) -> Result<PairingCreated, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `GET /v2/account/pairings/<id>`.
+    fn pairing_status(&self, _token: &SessionToken, _id: &str) -> Result<PairingStatus, ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `DELETE /v2/account/pairings/<id>`.
+    fn cancel_pairing(&self, _token: &SessionToken, _id: &str) -> Result<(), ApiError> {
+        Err(ApiError::NotFound)
+    }
+    /// `POST /v2/auth/pair`: consume a code and create the locked session and approval request.
+    fn pair(&self, _request: &PairRequest) -> Result<PairSession, ApiError> {
+        Err(ApiError::NotFound)
+    }
 }
 
 /// The routes implemented by [`crate::MemoryServer`], by the names its
@@ -441,6 +463,10 @@ pub enum Route {
     ApprovalName,
     ApprovalApprove,
     ApprovalCancel,
+    PairingCreate,
+    PairingStatus,
+    PairingCancel,
+    Pair,
     PutPush,
     DeletePush,
 }
@@ -475,6 +501,15 @@ impl Route {
         Route::ApprovalName,
         Route::ApprovalApprove,
         Route::ApprovalCancel,
+    ];
+
+    /// Pairing routes have their own end-to-end tests, rather than the
+    /// historical cross-server fixtures used by `ALL`.
+    pub const PAIRINGS: [Route; 4] = [
+        Route::PairingCreate,
+        Route::PairingStatus,
+        Route::PairingCancel,
+        Route::Pair,
     ];
 
     /// The passkey, proof and first-password routes: the four public routes
@@ -559,6 +594,10 @@ impl Route {
             Route::ApprovalName => ("POST", "/v2/account/sign-in/approvals/<id>/name"),
             Route::ApprovalApprove => ("POST", "/v2/account/sign-in/approvals/<id>/approve"),
             Route::ApprovalCancel => ("DELETE", "/v2/account/sign-in/approvals/<id>"),
+            Route::PairingCreate => ("POST", "/v2/account/pairings"),
+            Route::PairingStatus => ("GET", "/v2/account/pairings/<id>"),
+            Route::PairingCancel => ("DELETE", "/v2/account/pairings/<id>"),
+            Route::Pair => ("POST", "/v2/auth/pair"),
             Route::PutPush => ("PUT", "/v2/account/devices/<device_id>/push"),
             Route::DeletePush => ("DELETE", "/v2/account/devices/<device_id>/push"),
         }
@@ -578,6 +617,7 @@ impl Route {
                 | Route::PasskeySignupFinish
                 | Route::RecoverStart
                 | Route::RecoverFinish
+                | Route::Pair
                 | Route::ProviderStart
                 | Route::ProviderPoll
                 | Route::GoogleStart
@@ -1251,6 +1291,40 @@ pub struct ApprovalNameRequest {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApprovalApproveRequest {
     pub wrapped_key: String,
+}
+
+/// `POST /v2/account/pairings` 200: a one-time code, shown on the signed-in device.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PairingCreated {
+    pub id: String,
+    pub code: String,
+    pub expires_at: i64,
+}
+
+/// `GET /v2/account/pairings/<id>` 200.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PairingStatus {
+    pub status: String,
+    pub expires_at: i64,
+}
+
+/// `POST /v2/auth/pair` includes the new device and a commit to its ephemeral approval key.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PairRequest {
+    pub code: String,
+    pub device: LoginDevice,
+    pub request_id: String,
+    pub commit: String,
+}
+
+/// A successfully paired device is still locked until the existing approval protocol completes.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PairSession {
+    #[serde(flatten)]
+    pub session: crate::provider::ProviderSession,
+    pub approval_id: String,
+    pub expires_at: i64,
+    pub other_devices: u64,
 }
 
 #[cfg(test)]

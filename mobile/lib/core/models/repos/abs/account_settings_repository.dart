@@ -18,6 +18,12 @@ abstract interface class AccountSettingsRepository {
     String deviceId,
   );
 
+  Future<Either<ApplicationError, PairingCode>> createPairing();
+
+  Future<Either<ApplicationError, bool>> pairingUsed(String id);
+
+  Future<Either<ApplicationError, Unit>> cancelPairing(String id);
+
   /// Signs this phone out; a locked sign-in ends too.
   Future<Either<ApplicationError, Unit>> signOut();
 

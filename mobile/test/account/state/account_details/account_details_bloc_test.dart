@@ -115,6 +115,33 @@ void main() {
   });
 
   group('AccountDetailsBloc, devices', () {
+    test('a pairing code is shown and cancelled with its sheet', () async {
+      const pairing = PairingCode(
+        id: 'pairing-1',
+        code: '7HQK-3MZP',
+        expiresAtMs: 1794000000000,
+      );
+      when(settings.createPairing).thenAnswer(
+        (_) async => const Right<ApplicationError, PairingCode>(pairing),
+      );
+      when(() => settings.cancelPairing(pairing.id)).thenAnswer(
+        (_) async => const Right<ApplicationError, Unit>(unit),
+      );
+      when(() => settings.pairingUsed(pairing.id)).thenAnswer(
+        (_) async => const Right<ApplicationError, bool>(false),
+      );
+      final bloc = await started();
+      bloc.add(const AccountDetailsEvent.pairingRequested());
+      await bloc.stream.firstWhere((state) => state.pairing != null);
+      expect(bloc.state.pairing, pairing);
+      expect(bloc.state.busy, isNull);
+
+      bloc.add(const AccountDetailsEvent.pairingDismissed());
+      await bloc.stream.firstWhere((state) => state.pairing == null);
+      verify(() => settings.cancelPairing(pairing.id)).called(1);
+      await bloc.close();
+    });
+
     test(
       'signing another device out gives the page again, with a notice',
       () async {

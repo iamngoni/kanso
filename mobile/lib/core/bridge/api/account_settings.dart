@@ -13,10 +13,14 @@ import 'types.dart';
 abstract class KansoAccountSettings implements RustOpaqueInterface {
   Future<AccountDetails> addPasskey({required String currentPassword});
 
+  Future<void> cancelPairing({required String id});
+
   Future<RecoveryKeyText> changePassword({
     required String current,
     required String newPassword,
   });
+
+  Future<PairingCode> createPairing();
 
   Future<void> deleteAccount({
     required String password,
@@ -33,6 +37,8 @@ abstract class KansoAccountSettings implements RustOpaqueInterface {
   });
 
   Future<RecoveryKeyText> newRecoveryKey({required String currentPassword});
+
+  Future<bool> pairingUsed({required String id});
 
   Future<RecoveryKeyText?> pendingRecoveryKey();
 

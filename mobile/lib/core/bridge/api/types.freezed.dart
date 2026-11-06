@@ -10936,7 +10936,7 @@ as int,
 
 class PreviewLink_Pdf extends PreviewLink {
   const PreviewLink_Pdf({required this.id, required this.name, this.page, this.highlight}): super._();
-
+  
 
  final  String id;
  final  String name;

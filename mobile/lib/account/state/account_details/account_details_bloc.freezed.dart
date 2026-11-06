@@ -55,12 +55,15 @@ extension AccountDetailsEventPatterns on AccountDetailsEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AccountDetailsStartedEvent value)?  started,TResult Function( AccountDetailsDeviceRevokedEvent value)?  deviceRevoked,TResult Function( AccountDetailsSignedOutEvent value)?  signedOut,TResult Function( AccountDetailsPasswordChangedEvent value)?  passwordChanged,TResult Function( AccountDetailsRecoveryKeyRequestedEvent value)?  recoveryKeyRequested,TResult Function( AccountDetailsAccountDeletedEvent value)?  accountDeleted,TResult Function( AccountDetailsPasskeyAddedEvent value)?  passkeyAdded,TResult Function( AccountDetailsPasskeyRemovedEvent value)?  passkeyRemoved,TResult Function( AccountDetailsProviderLinkedEvent value)?  providerLinked,TResult Function( AccountDetailsProviderLinkCancelledEvent value)?  providerLinkCancelled,TResult Function( AccountDetailsProviderUnlinkedEvent value)?  providerUnlinked,TResult Function( AccountDetailsKeyShownEvent value)?  keyShown,TResult Function( AccountDetailsMessageDismissedEvent value)?  messageDismissed,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AccountDetailsStartedEvent value)?  started,TResult Function( AccountDetailsDeviceRevokedEvent value)?  deviceRevoked,TResult Function( AccountDetailsPairingRequestedEvent value)?  pairingRequested,TResult Function( AccountDetailsPairingDismissedEvent value)?  pairingDismissed,TResult Function( AccountDetailsPairingUsedEvent value)?  pairingUsed,TResult Function( AccountDetailsSignedOutEvent value)?  signedOut,TResult Function( AccountDetailsPasswordChangedEvent value)?  passwordChanged,TResult Function( AccountDetailsRecoveryKeyRequestedEvent value)?  recoveryKeyRequested,TResult Function( AccountDetailsAccountDeletedEvent value)?  accountDeleted,TResult Function( AccountDetailsPasskeyAddedEvent value)?  passkeyAdded,TResult Function( AccountDetailsPasskeyRemovedEvent value)?  passkeyRemoved,TResult Function( AccountDetailsProviderLinkedEvent value)?  providerLinked,TResult Function( AccountDetailsProviderLinkCancelledEvent value)?  providerLinkCancelled,TResult Function( AccountDetailsProviderUnlinkedEvent value)?  providerUnlinked,TResult Function( AccountDetailsKeyShownEvent value)?  keyShown,TResult Function( AccountDetailsMessageDismissedEvent value)?  messageDismissed,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case AccountDetailsStartedEvent() when started != null:
 return started(_that);case AccountDetailsDeviceRevokedEvent() when deviceRevoked != null:
-return deviceRevoked(_that);case AccountDetailsSignedOutEvent() when signedOut != null:
+return deviceRevoked(_that);case AccountDetailsPairingRequestedEvent() when pairingRequested != null:
+return pairingRequested(_that);case AccountDetailsPairingDismissedEvent() when pairingDismissed != null:
+return pairingDismissed(_that);case AccountDetailsPairingUsedEvent() when pairingUsed != null:
+return pairingUsed(_that);case AccountDetailsSignedOutEvent() when signedOut != null:
 return signedOut(_that);case AccountDetailsPasswordChangedEvent() when passwordChanged != null:
 return passwordChanged(_that);case AccountDetailsRecoveryKeyRequestedEvent() when recoveryKeyRequested != null:
 return recoveryKeyRequested(_that);case AccountDetailsAccountDeletedEvent() when accountDeleted != null:
@@ -89,12 +92,15 @@ return messageDismissed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AccountDetailsStartedEvent value)  started,required TResult Function( AccountDetailsDeviceRevokedEvent value)  deviceRevoked,required TResult Function( AccountDetailsSignedOutEvent value)  signedOut,required TResult Function( AccountDetailsPasswordChangedEvent value)  passwordChanged,required TResult Function( AccountDetailsRecoveryKeyRequestedEvent value)  recoveryKeyRequested,required TResult Function( AccountDetailsAccountDeletedEvent value)  accountDeleted,required TResult Function( AccountDetailsPasskeyAddedEvent value)  passkeyAdded,required TResult Function( AccountDetailsPasskeyRemovedEvent value)  passkeyRemoved,required TResult Function( AccountDetailsProviderLinkedEvent value)  providerLinked,required TResult Function( AccountDetailsProviderLinkCancelledEvent value)  providerLinkCancelled,required TResult Function( AccountDetailsProviderUnlinkedEvent value)  providerUnlinked,required TResult Function( AccountDetailsKeyShownEvent value)  keyShown,required TResult Function( AccountDetailsMessageDismissedEvent value)  messageDismissed,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AccountDetailsStartedEvent value)  started,required TResult Function( AccountDetailsDeviceRevokedEvent value)  deviceRevoked,required TResult Function( AccountDetailsPairingRequestedEvent value)  pairingRequested,required TResult Function( AccountDetailsPairingDismissedEvent value)  pairingDismissed,required TResult Function( AccountDetailsPairingUsedEvent value)  pairingUsed,required TResult Function( AccountDetailsSignedOutEvent value)  signedOut,required TResult Function( AccountDetailsPasswordChangedEvent value)  passwordChanged,required TResult Function( AccountDetailsRecoveryKeyRequestedEvent value)  recoveryKeyRequested,required TResult Function( AccountDetailsAccountDeletedEvent value)  accountDeleted,required TResult Function( AccountDetailsPasskeyAddedEvent value)  passkeyAdded,required TResult Function( AccountDetailsPasskeyRemovedEvent value)  passkeyRemoved,required TResult Function( AccountDetailsProviderLinkedEvent value)  providerLinked,required TResult Function( AccountDetailsProviderLinkCancelledEvent value)  providerLinkCancelled,required TResult Function( AccountDetailsProviderUnlinkedEvent value)  providerUnlinked,required TResult Function( AccountDetailsKeyShownEvent value)  keyShown,required TResult Function( AccountDetailsMessageDismissedEvent value)  messageDismissed,}){
 final _that = this;
 switch (_that) {
 case AccountDetailsStartedEvent():
 return started(_that);case AccountDetailsDeviceRevokedEvent():
-return deviceRevoked(_that);case AccountDetailsSignedOutEvent():
+return deviceRevoked(_that);case AccountDetailsPairingRequestedEvent():
+return pairingRequested(_that);case AccountDetailsPairingDismissedEvent():
+return pairingDismissed(_that);case AccountDetailsPairingUsedEvent():
+return pairingUsed(_that);case AccountDetailsSignedOutEvent():
 return signedOut(_that);case AccountDetailsPasswordChangedEvent():
 return passwordChanged(_that);case AccountDetailsRecoveryKeyRequestedEvent():
 return recoveryKeyRequested(_that);case AccountDetailsAccountDeletedEvent():
@@ -119,12 +125,15 @@ return messageDismissed(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AccountDetailsStartedEvent value)?  started,TResult? Function( AccountDetailsDeviceRevokedEvent value)?  deviceRevoked,TResult? Function( AccountDetailsSignedOutEvent value)?  signedOut,TResult? Function( AccountDetailsPasswordChangedEvent value)?  passwordChanged,TResult? Function( AccountDetailsRecoveryKeyRequestedEvent value)?  recoveryKeyRequested,TResult? Function( AccountDetailsAccountDeletedEvent value)?  accountDeleted,TResult? Function( AccountDetailsPasskeyAddedEvent value)?  passkeyAdded,TResult? Function( AccountDetailsPasskeyRemovedEvent value)?  passkeyRemoved,TResult? Function( AccountDetailsProviderLinkedEvent value)?  providerLinked,TResult? Function( AccountDetailsProviderLinkCancelledEvent value)?  providerLinkCancelled,TResult? Function( AccountDetailsProviderUnlinkedEvent value)?  providerUnlinked,TResult? Function( AccountDetailsKeyShownEvent value)?  keyShown,TResult? Function( AccountDetailsMessageDismissedEvent value)?  messageDismissed,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AccountDetailsStartedEvent value)?  started,TResult? Function( AccountDetailsDeviceRevokedEvent value)?  deviceRevoked,TResult? Function( AccountDetailsPairingRequestedEvent value)?  pairingRequested,TResult? Function( AccountDetailsPairingDismissedEvent value)?  pairingDismissed,TResult? Function( AccountDetailsPairingUsedEvent value)?  pairingUsed,TResult? Function( AccountDetailsSignedOutEvent value)?  signedOut,TResult? Function( AccountDetailsPasswordChangedEvent value)?  passwordChanged,TResult? Function( AccountDetailsRecoveryKeyRequestedEvent value)?  recoveryKeyRequested,TResult? Function( AccountDetailsAccountDeletedEvent value)?  accountDeleted,TResult? Function( AccountDetailsPasskeyAddedEvent value)?  passkeyAdded,TResult? Function( AccountDetailsPasskeyRemovedEvent value)?  passkeyRemoved,TResult? Function( AccountDetailsProviderLinkedEvent value)?  providerLinked,TResult? Function( AccountDetailsProviderLinkCancelledEvent value)?  providerLinkCancelled,TResult? Function( AccountDetailsProviderUnlinkedEvent value)?  providerUnlinked,TResult? Function( AccountDetailsKeyShownEvent value)?  keyShown,TResult? Function( AccountDetailsMessageDismissedEvent value)?  messageDismissed,}){
 final _that = this;
 switch (_that) {
 case AccountDetailsStartedEvent() when started != null:
 return started(_that);case AccountDetailsDeviceRevokedEvent() when deviceRevoked != null:
-return deviceRevoked(_that);case AccountDetailsSignedOutEvent() when signedOut != null:
+return deviceRevoked(_that);case AccountDetailsPairingRequestedEvent() when pairingRequested != null:
+return pairingRequested(_that);case AccountDetailsPairingDismissedEvent() when pairingDismissed != null:
+return pairingDismissed(_that);case AccountDetailsPairingUsedEvent() when pairingUsed != null:
+return pairingUsed(_that);case AccountDetailsSignedOutEvent() when signedOut != null:
 return signedOut(_that);case AccountDetailsPasswordChangedEvent() when passwordChanged != null:
 return passwordChanged(_that);case AccountDetailsRecoveryKeyRequestedEvent() when recoveryKeyRequested != null:
 return recoveryKeyRequested(_that);case AccountDetailsAccountDeletedEvent() when accountDeleted != null:
@@ -152,11 +161,14 @@ return messageDismissed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( String deviceId)?  deviceRevoked,TResult Function()?  signedOut,TResult Function( String current,  String newPassword,  String repeat)?  passwordChanged,TResult Function( String currentPassword)?  recoveryKeyRequested,TResult Function( String password,  String typedUsername)?  accountDeleted,TResult Function( String currentPassword)?  passkeyAdded,TResult Function( String id,  String currentPassword)?  passkeyRemoved,TResult Function( ProviderKind provider,  String currentPassword)?  providerLinked,TResult Function()?  providerLinkCancelled,TResult Function( ProviderKind provider,  String currentPassword)?  providerUnlinked,TResult Function()?  keyShown,TResult Function()?  messageDismissed,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( String deviceId)?  deviceRevoked,TResult Function()?  pairingRequested,TResult Function()?  pairingDismissed,TResult Function()?  pairingUsed,TResult Function()?  signedOut,TResult Function( String current,  String newPassword,  String repeat)?  passwordChanged,TResult Function( String currentPassword)?  recoveryKeyRequested,TResult Function( String password,  String typedUsername)?  accountDeleted,TResult Function( String currentPassword)?  passkeyAdded,TResult Function( String id,  String currentPassword)?  passkeyRemoved,TResult Function( ProviderKind provider,  String currentPassword)?  providerLinked,TResult Function()?  providerLinkCancelled,TResult Function( ProviderKind provider,  String currentPassword)?  providerUnlinked,TResult Function()?  keyShown,TResult Function()?  messageDismissed,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case AccountDetailsStartedEvent() when started != null:
 return started();case AccountDetailsDeviceRevokedEvent() when deviceRevoked != null:
-return deviceRevoked(_that.deviceId);case AccountDetailsSignedOutEvent() when signedOut != null:
+return deviceRevoked(_that.deviceId);case AccountDetailsPairingRequestedEvent() when pairingRequested != null:
+return pairingRequested();case AccountDetailsPairingDismissedEvent() when pairingDismissed != null:
+return pairingDismissed();case AccountDetailsPairingUsedEvent() when pairingUsed != null:
+return pairingUsed();case AccountDetailsSignedOutEvent() when signedOut != null:
 return signedOut();case AccountDetailsPasswordChangedEvent() when passwordChanged != null:
 return passwordChanged(_that.current,_that.newPassword,_that.repeat);case AccountDetailsRecoveryKeyRequestedEvent() when recoveryKeyRequested != null:
 return recoveryKeyRequested(_that.currentPassword);case AccountDetailsAccountDeletedEvent() when accountDeleted != null:
@@ -185,11 +197,14 @@ return messageDismissed();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( String deviceId)  deviceRevoked,required TResult Function()  signedOut,required TResult Function( String current,  String newPassword,  String repeat)  passwordChanged,required TResult Function( String currentPassword)  recoveryKeyRequested,required TResult Function( String password,  String typedUsername)  accountDeleted,required TResult Function( String currentPassword)  passkeyAdded,required TResult Function( String id,  String currentPassword)  passkeyRemoved,required TResult Function( ProviderKind provider,  String currentPassword)  providerLinked,required TResult Function()  providerLinkCancelled,required TResult Function( ProviderKind provider,  String currentPassword)  providerUnlinked,required TResult Function()  keyShown,required TResult Function()  messageDismissed,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( String deviceId)  deviceRevoked,required TResult Function()  pairingRequested,required TResult Function()  pairingDismissed,required TResult Function()  pairingUsed,required TResult Function()  signedOut,required TResult Function( String current,  String newPassword,  String repeat)  passwordChanged,required TResult Function( String currentPassword)  recoveryKeyRequested,required TResult Function( String password,  String typedUsername)  accountDeleted,required TResult Function( String currentPassword)  passkeyAdded,required TResult Function( String id,  String currentPassword)  passkeyRemoved,required TResult Function( ProviderKind provider,  String currentPassword)  providerLinked,required TResult Function()  providerLinkCancelled,required TResult Function( ProviderKind provider,  String currentPassword)  providerUnlinked,required TResult Function()  keyShown,required TResult Function()  messageDismissed,}) {final _that = this;
 switch (_that) {
 case AccountDetailsStartedEvent():
 return started();case AccountDetailsDeviceRevokedEvent():
-return deviceRevoked(_that.deviceId);case AccountDetailsSignedOutEvent():
+return deviceRevoked(_that.deviceId);case AccountDetailsPairingRequestedEvent():
+return pairingRequested();case AccountDetailsPairingDismissedEvent():
+return pairingDismissed();case AccountDetailsPairingUsedEvent():
+return pairingUsed();case AccountDetailsSignedOutEvent():
 return signedOut();case AccountDetailsPasswordChangedEvent():
 return passwordChanged(_that.current,_that.newPassword,_that.repeat);case AccountDetailsRecoveryKeyRequestedEvent():
 return recoveryKeyRequested(_that.currentPassword);case AccountDetailsAccountDeletedEvent():
@@ -214,11 +229,14 @@ return messageDismissed();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( String deviceId)?  deviceRevoked,TResult? Function()?  signedOut,TResult? Function( String current,  String newPassword,  String repeat)?  passwordChanged,TResult? Function( String currentPassword)?  recoveryKeyRequested,TResult? Function( String password,  String typedUsername)?  accountDeleted,TResult? Function( String currentPassword)?  passkeyAdded,TResult? Function( String id,  String currentPassword)?  passkeyRemoved,TResult? Function( ProviderKind provider,  String currentPassword)?  providerLinked,TResult? Function()?  providerLinkCancelled,TResult? Function( ProviderKind provider,  String currentPassword)?  providerUnlinked,TResult? Function()?  keyShown,TResult? Function()?  messageDismissed,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( String deviceId)?  deviceRevoked,TResult? Function()?  pairingRequested,TResult? Function()?  pairingDismissed,TResult? Function()?  pairingUsed,TResult? Function()?  signedOut,TResult? Function( String current,  String newPassword,  String repeat)?  passwordChanged,TResult? Function( String currentPassword)?  recoveryKeyRequested,TResult? Function( String password,  String typedUsername)?  accountDeleted,TResult? Function( String currentPassword)?  passkeyAdded,TResult? Function( String id,  String currentPassword)?  passkeyRemoved,TResult? Function( ProviderKind provider,  String currentPassword)?  providerLinked,TResult? Function()?  providerLinkCancelled,TResult? Function( ProviderKind provider,  String currentPassword)?  providerUnlinked,TResult? Function()?  keyShown,TResult? Function()?  messageDismissed,}) {final _that = this;
 switch (_that) {
 case AccountDetailsStartedEvent() when started != null:
 return started();case AccountDetailsDeviceRevokedEvent() when deviceRevoked != null:
-return deviceRevoked(_that.deviceId);case AccountDetailsSignedOutEvent() when signedOut != null:
+return deviceRevoked(_that.deviceId);case AccountDetailsPairingRequestedEvent() when pairingRequested != null:
+return pairingRequested();case AccountDetailsPairingDismissedEvent() when pairingDismissed != null:
+return pairingDismissed();case AccountDetailsPairingUsedEvent() when pairingUsed != null:
+return pairingUsed();case AccountDetailsSignedOutEvent() when signedOut != null:
 return signedOut();case AccountDetailsPasswordChangedEvent() when passwordChanged != null:
 return passwordChanged(_that.current,_that.newPassword,_that.repeat);case AccountDetailsRecoveryKeyRequestedEvent() when recoveryKeyRequested != null:
 return recoveryKeyRequested(_that.currentPassword);case AccountDetailsAccountDeletedEvent() when accountDeleted != null:
@@ -334,6 +352,102 @@ as String,
 
 
 }
+
+/// @nodoc
+
+
+class AccountDetailsPairingRequestedEvent implements AccountDetailsEvent {
+  const AccountDetailsPairingRequestedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AccountDetailsPairingRequestedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'AccountDetailsEvent.pairingRequested()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class AccountDetailsPairingDismissedEvent implements AccountDetailsEvent {
+  const AccountDetailsPairingDismissedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AccountDetailsPairingDismissedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'AccountDetailsEvent.pairingDismissed()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class AccountDetailsPairingUsedEvent implements AccountDetailsEvent {
+  const AccountDetailsPairingUsedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AccountDetailsPairingUsedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'AccountDetailsEvent.pairingUsed()';
+}
+
+
+}
+
+
+
 
 /// @nodoc
 
@@ -949,7 +1063,9 @@ mixin _$AccountDetailsState {
  AccountNotice? get notice;/// The recovery key a change made, until the page shows it.
  RecoveryKeyText? get newKey;/// The provider being linked.
  ProviderKind? get linking;/// The code to type at GitHub while its link waits.
- ProviderCode? get code;/// How the page ended; null while it has not.
+ ProviderCode? get code;/// The short-lived code currently shown in the pairing sheet.
+ PairingCode? get pairing;/// Whether the computer entered this code and now needs approval.
+ bool get pairingUsed;/// How the page ended; null while it has not.
  AccountOutcome? get outcome;
 /// Create a copy of AccountDetailsState
 /// with the given fields replaced by the non-null parameter values.
@@ -961,16 +1077,16 @@ $AccountDetailsStateCopyWith<AccountDetailsState> get copyWith => _$AccountDetai
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AccountDetailsState&&(identical(other.status, status) || other.status == status)&&(identical(other.details, details) || other.details == details)&&(identical(other.loadError, loadError) || other.loadError == loadError)&&(identical(other.busy, busy) || other.busy == busy)&&(identical(other.problem, problem) || other.problem == problem)&&(identical(other.error, error) || other.error == error)&&(identical(other.notice, notice) || other.notice == notice)&&(identical(other.newKey, newKey) || other.newKey == newKey)&&(identical(other.linking, linking) || other.linking == linking)&&(identical(other.code, code) || other.code == code)&&(identical(other.outcome, outcome) || other.outcome == outcome));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AccountDetailsState&&(identical(other.status, status) || other.status == status)&&(identical(other.details, details) || other.details == details)&&(identical(other.loadError, loadError) || other.loadError == loadError)&&(identical(other.busy, busy) || other.busy == busy)&&(identical(other.problem, problem) || other.problem == problem)&&(identical(other.error, error) || other.error == error)&&(identical(other.notice, notice) || other.notice == notice)&&(identical(other.newKey, newKey) || other.newKey == newKey)&&(identical(other.linking, linking) || other.linking == linking)&&(identical(other.code, code) || other.code == code)&&(identical(other.pairing, pairing) || other.pairing == pairing)&&(identical(other.pairingUsed, pairingUsed) || other.pairingUsed == pairingUsed)&&(identical(other.outcome, outcome) || other.outcome == outcome));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,details,loadError,busy,problem,error,notice,newKey,linking,code,outcome);
+int get hashCode => Object.hash(runtimeType,status,details,loadError,busy,problem,error,notice,newKey,linking,code,pairing,pairingUsed,outcome);
 
 @override
 String toString() {
-  return 'AccountDetailsState(status: $status, details: $details, loadError: $loadError, busy: $busy, problem: $problem, error: $error, notice: $notice, newKey: $newKey, linking: $linking, code: $code, outcome: $outcome)';
+  return 'AccountDetailsState(status: $status, details: $details, loadError: $loadError, busy: $busy, problem: $problem, error: $error, notice: $notice, newKey: $newKey, linking: $linking, code: $code, pairing: $pairing, pairingUsed: $pairingUsed, outcome: $outcome)';
 }
 
 
@@ -981,7 +1097,7 @@ abstract mixin class $AccountDetailsStateCopyWith<$Res>  {
   factory $AccountDetailsStateCopyWith(AccountDetailsState value, $Res Function(AccountDetailsState) _then) = _$AccountDetailsStateCopyWithImpl;
 @useResult
 $Res call({
- LoadStatus status, AccountDetails? details, ApplicationError? loadError, AccountTask? busy, FormProblem? problem, ApplicationError? error, AccountNotice? notice, RecoveryKeyText? newKey, ProviderKind? linking, ProviderCode? code, AccountOutcome? outcome
+ LoadStatus status, AccountDetails? details, ApplicationError? loadError, AccountTask? busy, FormProblem? problem, ApplicationError? error, AccountNotice? notice, RecoveryKeyText? newKey, ProviderKind? linking, ProviderCode? code, PairingCode? pairing, bool pairingUsed, AccountOutcome? outcome
 });
 
 
@@ -998,7 +1114,7 @@ class _$AccountDetailsStateCopyWithImpl<$Res>
 
 /// Create a copy of AccountDetailsState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? details = freezed,Object? loadError = freezed,Object? busy = freezed,Object? problem = freezed,Object? error = freezed,Object? notice = freezed,Object? newKey = freezed,Object? linking = freezed,Object? code = freezed,Object? outcome = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? details = freezed,Object? loadError = freezed,Object? busy = freezed,Object? problem = freezed,Object? error = freezed,Object? notice = freezed,Object? newKey = freezed,Object? linking = freezed,Object? code = freezed,Object? pairing = freezed,Object? pairingUsed = null,Object? outcome = freezed,}) {
   return _then(_self.copyWith(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LoadStatus,details: freezed == details ? _self.details : details // ignore: cast_nullable_to_non_nullable
@@ -1010,7 +1126,9 @@ as ApplicationError?,notice: freezed == notice ? _self.notice : notice // ignore
 as AccountNotice?,newKey: freezed == newKey ? _self.newKey : newKey // ignore: cast_nullable_to_non_nullable
 as RecoveryKeyText?,linking: freezed == linking ? _self.linking : linking // ignore: cast_nullable_to_non_nullable
 as ProviderKind?,code: freezed == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
-as ProviderCode?,outcome: freezed == outcome ? _self.outcome : outcome // ignore: cast_nullable_to_non_nullable
+as ProviderCode?,pairing: freezed == pairing ? _self.pairing : pairing // ignore: cast_nullable_to_non_nullable
+as PairingCode?,pairingUsed: null == pairingUsed ? _self.pairingUsed : pairingUsed // ignore: cast_nullable_to_non_nullable
+as bool,outcome: freezed == outcome ? _self.outcome : outcome // ignore: cast_nullable_to_non_nullable
 as AccountOutcome?,
   ));
 }
@@ -1144,10 +1262,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LoadStatus status,  AccountDetails? details,  ApplicationError? loadError,  AccountTask? busy,  FormProblem? problem,  ApplicationError? error,  AccountNotice? notice,  RecoveryKeyText? newKey,  ProviderKind? linking,  ProviderCode? code,  AccountOutcome? outcome)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LoadStatus status,  AccountDetails? details,  ApplicationError? loadError,  AccountTask? busy,  FormProblem? problem,  ApplicationError? error,  AccountNotice? notice,  RecoveryKeyText? newKey,  ProviderKind? linking,  ProviderCode? code,  PairingCode? pairing,  bool pairingUsed,  AccountOutcome? outcome)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AccountDetailsState() when $default != null:
-return $default(_that.status,_that.details,_that.loadError,_that.busy,_that.problem,_that.error,_that.notice,_that.newKey,_that.linking,_that.code,_that.outcome);case _:
+return $default(_that.status,_that.details,_that.loadError,_that.busy,_that.problem,_that.error,_that.notice,_that.newKey,_that.linking,_that.code,_that.pairing,_that.pairingUsed,_that.outcome);case _:
   return orElse();
 
 }
@@ -1165,10 +1283,10 @@ return $default(_that.status,_that.details,_that.loadError,_that.busy,_that.prob
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LoadStatus status,  AccountDetails? details,  ApplicationError? loadError,  AccountTask? busy,  FormProblem? problem,  ApplicationError? error,  AccountNotice? notice,  RecoveryKeyText? newKey,  ProviderKind? linking,  ProviderCode? code,  AccountOutcome? outcome)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LoadStatus status,  AccountDetails? details,  ApplicationError? loadError,  AccountTask? busy,  FormProblem? problem,  ApplicationError? error,  AccountNotice? notice,  RecoveryKeyText? newKey,  ProviderKind? linking,  ProviderCode? code,  PairingCode? pairing,  bool pairingUsed,  AccountOutcome? outcome)  $default,) {final _that = this;
 switch (_that) {
 case _AccountDetailsState():
-return $default(_that.status,_that.details,_that.loadError,_that.busy,_that.problem,_that.error,_that.notice,_that.newKey,_that.linking,_that.code,_that.outcome);case _:
+return $default(_that.status,_that.details,_that.loadError,_that.busy,_that.problem,_that.error,_that.notice,_that.newKey,_that.linking,_that.code,_that.pairing,_that.pairingUsed,_that.outcome);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1185,10 +1303,10 @@ return $default(_that.status,_that.details,_that.loadError,_that.busy,_that.prob
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LoadStatus status,  AccountDetails? details,  ApplicationError? loadError,  AccountTask? busy,  FormProblem? problem,  ApplicationError? error,  AccountNotice? notice,  RecoveryKeyText? newKey,  ProviderKind? linking,  ProviderCode? code,  AccountOutcome? outcome)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LoadStatus status,  AccountDetails? details,  ApplicationError? loadError,  AccountTask? busy,  FormProblem? problem,  ApplicationError? error,  AccountNotice? notice,  RecoveryKeyText? newKey,  ProviderKind? linking,  ProviderCode? code,  PairingCode? pairing,  bool pairingUsed,  AccountOutcome? outcome)?  $default,) {final _that = this;
 switch (_that) {
 case _AccountDetailsState() when $default != null:
-return $default(_that.status,_that.details,_that.loadError,_that.busy,_that.problem,_that.error,_that.notice,_that.newKey,_that.linking,_that.code,_that.outcome);case _:
+return $default(_that.status,_that.details,_that.loadError,_that.busy,_that.problem,_that.error,_that.notice,_that.newKey,_that.linking,_that.code,_that.pairing,_that.pairingUsed,_that.outcome);case _:
   return null;
 
 }
@@ -1200,7 +1318,7 @@ return $default(_that.status,_that.details,_that.loadError,_that.busy,_that.prob
 
 
 class _AccountDetailsState implements AccountDetailsState {
-  const _AccountDetailsState({this.status = LoadStatus.loading, this.details, this.loadError, this.busy, this.problem, this.error, this.notice, this.newKey, this.linking, this.code, this.outcome});
+  const _AccountDetailsState({this.status = LoadStatus.loading, this.details, this.loadError, this.busy, this.problem, this.error, this.notice, this.newKey, this.linking, this.code, this.pairing, this.pairingUsed = false, this.outcome});
   
 
 @override@JsonKey() final  LoadStatus status;
@@ -1222,6 +1340,10 @@ class _AccountDetailsState implements AccountDetailsState {
 @override final  ProviderKind? linking;
 /// The code to type at GitHub while its link waits.
 @override final  ProviderCode? code;
+/// The short-lived code currently shown in the pairing sheet.
+@override final  PairingCode? pairing;
+/// Whether the computer entered this code and now needs approval.
+@override@JsonKey() final  bool pairingUsed;
 /// How the page ended; null while it has not.
 @override final  AccountOutcome? outcome;
 
@@ -1235,16 +1357,16 @@ _$AccountDetailsStateCopyWith<_AccountDetailsState> get copyWith => __$AccountDe
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AccountDetailsState&&(identical(other.status, status) || other.status == status)&&(identical(other.details, details) || other.details == details)&&(identical(other.loadError, loadError) || other.loadError == loadError)&&(identical(other.busy, busy) || other.busy == busy)&&(identical(other.problem, problem) || other.problem == problem)&&(identical(other.error, error) || other.error == error)&&(identical(other.notice, notice) || other.notice == notice)&&(identical(other.newKey, newKey) || other.newKey == newKey)&&(identical(other.linking, linking) || other.linking == linking)&&(identical(other.code, code) || other.code == code)&&(identical(other.outcome, outcome) || other.outcome == outcome));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AccountDetailsState&&(identical(other.status, status) || other.status == status)&&(identical(other.details, details) || other.details == details)&&(identical(other.loadError, loadError) || other.loadError == loadError)&&(identical(other.busy, busy) || other.busy == busy)&&(identical(other.problem, problem) || other.problem == problem)&&(identical(other.error, error) || other.error == error)&&(identical(other.notice, notice) || other.notice == notice)&&(identical(other.newKey, newKey) || other.newKey == newKey)&&(identical(other.linking, linking) || other.linking == linking)&&(identical(other.code, code) || other.code == code)&&(identical(other.pairing, pairing) || other.pairing == pairing)&&(identical(other.pairingUsed, pairingUsed) || other.pairingUsed == pairingUsed)&&(identical(other.outcome, outcome) || other.outcome == outcome));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,details,loadError,busy,problem,error,notice,newKey,linking,code,outcome);
+int get hashCode => Object.hash(runtimeType,status,details,loadError,busy,problem,error,notice,newKey,linking,code,pairing,pairingUsed,outcome);
 
 @override
 String toString() {
-  return 'AccountDetailsState(status: $status, details: $details, loadError: $loadError, busy: $busy, problem: $problem, error: $error, notice: $notice, newKey: $newKey, linking: $linking, code: $code, outcome: $outcome)';
+  return 'AccountDetailsState(status: $status, details: $details, loadError: $loadError, busy: $busy, problem: $problem, error: $error, notice: $notice, newKey: $newKey, linking: $linking, code: $code, pairing: $pairing, pairingUsed: $pairingUsed, outcome: $outcome)';
 }
 
 
@@ -1255,7 +1377,7 @@ abstract mixin class _$AccountDetailsStateCopyWith<$Res> implements $AccountDeta
   factory _$AccountDetailsStateCopyWith(_AccountDetailsState value, $Res Function(_AccountDetailsState) _then) = __$AccountDetailsStateCopyWithImpl;
 @override @useResult
 $Res call({
- LoadStatus status, AccountDetails? details, ApplicationError? loadError, AccountTask? busy, FormProblem? problem, ApplicationError? error, AccountNotice? notice, RecoveryKeyText? newKey, ProviderKind? linking, ProviderCode? code, AccountOutcome? outcome
+ LoadStatus status, AccountDetails? details, ApplicationError? loadError, AccountTask? busy, FormProblem? problem, ApplicationError? error, AccountNotice? notice, RecoveryKeyText? newKey, ProviderKind? linking, ProviderCode? code, PairingCode? pairing, bool pairingUsed, AccountOutcome? outcome
 });
 
 
@@ -1272,7 +1394,7 @@ class __$AccountDetailsStateCopyWithImpl<$Res>
 
 /// Create a copy of AccountDetailsState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? details = freezed,Object? loadError = freezed,Object? busy = freezed,Object? problem = freezed,Object? error = freezed,Object? notice = freezed,Object? newKey = freezed,Object? linking = freezed,Object? code = freezed,Object? outcome = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? details = freezed,Object? loadError = freezed,Object? busy = freezed,Object? problem = freezed,Object? error = freezed,Object? notice = freezed,Object? newKey = freezed,Object? linking = freezed,Object? code = freezed,Object? pairing = freezed,Object? pairingUsed = null,Object? outcome = freezed,}) {
   return _then(_AccountDetailsState(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LoadStatus,details: freezed == details ? _self.details : details // ignore: cast_nullable_to_non_nullable
@@ -1284,7 +1406,9 @@ as ApplicationError?,notice: freezed == notice ? _self.notice : notice // ignore
 as AccountNotice?,newKey: freezed == newKey ? _self.newKey : newKey // ignore: cast_nullable_to_non_nullable
 as RecoveryKeyText?,linking: freezed == linking ? _self.linking : linking // ignore: cast_nullable_to_non_nullable
 as ProviderKind?,code: freezed == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
-as ProviderCode?,outcome: freezed == outcome ? _self.outcome : outcome // ignore: cast_nullable_to_non_nullable
+as ProviderCode?,pairing: freezed == pairing ? _self.pairing : pairing // ignore: cast_nullable_to_non_nullable
+as PairingCode?,pairingUsed: null == pairingUsed ? _self.pairingUsed : pairingUsed // ignore: cast_nullable_to_non_nullable
+as bool,outcome: freezed == outcome ? _self.outcome : outcome // ignore: cast_nullable_to_non_nullable
 as AccountOutcome?,
   ));
 }

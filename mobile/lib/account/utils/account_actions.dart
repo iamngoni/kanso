@@ -2,7 +2,7 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,12 +12,41 @@ import '../../core/utils/context_extensions.dart';
 import '../models/data/account_action_field.dart';
 import '../state/account_details/account_details_bloc.dart';
 import '../views/widgets/account_action_sheet.dart';
+import '../views/widgets/account_pairing_sheet.dart';
 import 'account_labels.dart';
 
 /// The changes to the account the Account page offers: each asks in a sheet
 /// for what it needs and, once that is given, tells the page's
 /// [AccountDetailsBloc] to make it. It needs one above the `context` given.
 abstract final class AccountActions {
+  /// Opens a ten-minute pairing-code sheet for a computer without a screen.
+  static Future<void> addComputer(BuildContext context) async {
+    context.read<AccountDetailsBloc>().add(
+      const AccountDetailsEvent.pairingRequested(),
+    );
+  }
+
+  /// Keeps the code visible until it is used, cancelled or expires.
+  static Future<void> showPairing(
+    BuildContext context,
+    PairingCode pairing,
+  ) async {
+    final bloc = context.read<AccountDetailsBloc>();
+    await showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => BlocProvider.value(
+        value: bloc,
+        child: AccountPairingSheet(pairing: pairing),
+      ),
+    );
+    if (!bloc.isClosed) {
+      bloc.add(const AccountDetailsEvent.pairingDismissed());
+    }
+  }
+
   /// Shows the recovery key waiting to be saved (the one a change made, or
   /// else the one the library kept), and reads the account again once the
   /// person is done with it.

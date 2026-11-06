@@ -27,8 +27,8 @@ pub use kanso_mobile::{
     LockState, LockStatus, LockSummary, LockedInfo, LoopAction, LoopProposal, LoopScan, MadeNote,
     MeaningResult, MemberRow, MentionSpan, MigrationOutcome, MonthGrid, NewNote, NoteChange,
     NoteList, NoteMeaning, NoteRow, NoteView, NotebookRole, NotebookRow, OnThisDayRow,
-    OpenLoopItem, OpenLoopKind, OpenLoopsBoard, OpenedDocuments, OpenedFile, PaletteDto,
-    PasskeyFailure, PasskeyRequest, PasskeyRequestKind, PasskeyRow, PdfHighlightChange,
+    OpenLoopItem, OpenLoopKind, OpenLoopsBoard, OpenedDocuments, OpenedFile, PairingCode,
+    PaletteDto, PasskeyFailure, PasskeyRequest, PasskeyRequestKind, PasskeyRow, PdfHighlightChange,
     PdfHighlightRow, PdfInkRow, PdfNotes, PersonLookup, PersonRow, PlannedNotice, PreviewAlign,
     PreviewBlock, PreviewCanvasNotice, PreviewCanvasShown, PreviewCell, PreviewCodeRun,
     PreviewFigureKind, PreviewInline, PreviewLink, PreviewListItem, PreviewOptions,
@@ -1153,6 +1153,13 @@ pub struct _DeviceRow {
     pub title: String,
     pub this_device: bool,
     pub last_seen_ms: Option<i64>,
+}
+
+#[frb(mirror(PairingCode))]
+pub struct _PairingCode {
+    pub id: String,
+    pub code: String,
+    pub expires_at_ms: i64,
 }
 
 #[frb(mirror(LinkedProviderRow))]

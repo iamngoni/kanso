@@ -8,6 +8,7 @@
 //! session loaded. The tasks themselves are in `account_flow.rs`.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -2303,32 +2304,164 @@ fn device_rows(details: &AccountDetails, busy: bool, cx: &App) -> Vec<Row> {
             .unwrap_or_else(|| "Checking…".to_owned());
         return vec![Row::new(Lucide::Laptop, "Devices").detail(words)];
     };
-    if devices.is_empty() {
-        return vec![Row::new(Lucide::Laptop, "No devices").detail("None is signed in.")];
-    }
-    devices
-        .iter()
-        .map(|device| {
-            let title = words::device_title(device);
-            let row = Row::new(Lucide::Laptop, title.clone())
-                .detail(device_detail(device, |at| Clock::edited_label(cx, at)));
-            if device.current {
-                row
-            } else {
-                let id = device.id.clone();
-                row.trailing(
-                    Button::new(SharedString::from(format!("revoke-{}", device.id)))
+    let mut rows: Vec<Row> = if devices.is_empty() {
+        vec![Row::new(Lucide::Laptop, "No devices").detail("None is signed in.")]
+    } else {
+        devices
+            .iter()
+            .map(|device| {
+                let title = words::device_title(device);
+                let row = Row::new(Lucide::Laptop, title.clone())
+                    .detail(device_detail(device, |at| Clock::edited_label(cx, at)));
+                if device.current {
+                    row
+                } else {
+                    let id = device.id.clone();
+                    row.trailing(
+                        Button::new(SharedString::from(format!("revoke-{}", device.id)))
+                            .outline()
+                            .small()
+                            .label("Sign out")
+                            .disabled(busy)
+                            .on_click(move |_, window, cx| {
+                                revoke_dialog(title.clone(), id.clone(), window, cx)
+                            }),
+                    )
+                }
+            })
+            .collect()
+    };
+    if cx
+        .try_global::<Services>()
+        .is_some_and(|services| services.session().is_some() && services.backend.is_some())
+    {
+        rows.push(
+            Row::new(Lucide::Laptop, "Add a computer without a screen…")
+                .detail("Make a one-time code for `kanso account sign-in --pair`.")
+                .trailing(
+                    Button::new("add-screenless-computer")
                         .outline()
                         .small()
-                        .label("Sign out")
+                        .label("Add computer…")
                         .disabled(busy)
-                        .on_click(move |_, window, cx| {
-                            revoke_dialog(title.clone(), id.clone(), window, cx)
-                        }),
+                        .debug_selector(|| "add-screenless-computer".into())
+                        .on_click(|_, window, cx| start_screenless_pairing(window, cx)),
+                ),
+        );
+    }
+    rows
+}
+
+/// Creates a ten-minute pairing code, shows the command to run on the new
+/// computer, and watches for its use while the existing approval listener
+/// opens the normal six-digit approval sheet.
+fn start_screenless_pairing(window: &mut Window, cx: &mut App) {
+    let Some(services) = cx.try_global::<Services>() else {
+        return;
+    };
+    let (Some(session), Some(backend)) = (services.session(), services.backend.clone()) else {
+        return;
+    };
+    let store = cx.global::<AppState>().store.clone();
+    let window_handle = window.window_handle();
+    let poll_backend = backend.clone();
+    let poll_session = session.clone();
+    let cancel_pairing = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let close_signal = cancel_pairing.clone();
+    cx.spawn(async move |cx| {
+        let made = cx
+            .background_executor()
+            .spawn(async move {
+                let identity = kanso_sync::device_identity(
+                    &store,
+                    &kanso_sync::Machine::this_computer(),
                 )
+                .map_err(|error| error.to_string())?;
+                kanso_sync::create_pairing(backend.as_ref(), &session, &identity)
+                    .map_err(|error| error.to_string())
+            })
+            .await;
+        let pairing = match made {
+            Ok(pairing) => pairing,
+            Err(error) => {
+                let message = format!("Couldn't make a pairing code: {error}");
+                cx.update_window(window_handle, |_, window, cx| {
+                    window.push_notification(Notification::error(message), cx);
+                })
+                .ok();
+                return;
             }
+        };
+        let command = format!("kanso account sign-in --pair {}", pairing.code);
+        cx.update_window(window_handle, |_, window, cx| {
+            let description = format!(
+                "Run this on the computer you're adding. This code works once, for 10 minutes.\n\n{}\n\nWaiting for a computer to use this code…",
+                command
+            );
+            let copy = command.clone();
+            let close_signal = close_signal.clone();
+            window.open_alert_dialog(cx, move |alert, _, _| {
+                let copy = copy.clone();
+                let close_signal = close_signal.clone();
+                alert
+                    .title("Add a computer without a screen")
+                    .description(description.clone())
+                    .show_cancel(true)
+                    .cancel_text("Done")
+                    .ok_text("Copy command")
+                    .on_ok(move |_, _, cx| {
+                        cx.write_to_clipboard(ClipboardItem::new_string(copy.clone()));
+                        false
+                    })
+                    .on_close(move |_, _, _| {
+                        close_signal.store(true, std::sync::atomic::Ordering::SeqCst);
+                    })
+            });
         })
-        .collect()
+        .ok();
+
+        let pairing_id = pairing.id;
+        let deadline = pairing.expires_at;
+        while kanso_core::now_ms() < deadline
+            && !cancel_pairing.load(std::sync::atomic::Ordering::SeqCst)
+        {
+            cx.background_executor()
+                .timer(std::time::Duration::from_secs(2))
+                .await;
+            let backend = poll_backend.clone();
+            let session = poll_session.clone();
+            let id = pairing_id.clone();
+            let status = cx
+                .background_executor()
+                .spawn(async move {
+                    kanso_sync::pairing_status(backend.as_ref(), &session, &id)
+                })
+                .await;
+            match status {
+                Ok(status) if status.status == "used" => {
+                    cx.update_window(window_handle, |_, window, cx| {
+                        window.push_notification(Notification::info(
+                            "The computer used this code. Check the device approval sheet and compare its code.",
+                        ), cx);
+                    })
+                    .ok();
+                    break;
+                }
+                Ok(status) if status.status == "waiting" => {}
+                _ => break,
+            }
+        }
+        if cancel_pairing.load(std::sync::atomic::Ordering::SeqCst) {
+            let backend = poll_backend;
+            let session = poll_session;
+            let id = pairing_id;
+            let _ = cx
+                .background_executor()
+                .spawn(async move { kanso_sync::cancel_pairing(backend.as_ref(), &session, &id) })
+                .await;
+        }
+    })
+    .detach();
 }
 
 /// This account's fingerprint, for the people it shares notes with to

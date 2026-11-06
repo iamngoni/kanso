@@ -560,6 +560,7 @@ in Insert mode. They are in Note › Format and in the toolbar's tooltips.
 kanso                       # open the app
 kanso serve                 # only the API (REST and /mcp), no window; syncs when signed in
 kanso account sign-in --username ngoni   # sign a headless library in; then kanso serve syncs it
+kanso account sign-in --pair 7HQK-3MZP # use a code from a signed-in computer or phone
 kanso account status        # account, this device, last sync (works while serve runs)
 kanso mcp                   # MCP over stdin/stdout for agents that start a program; needs KANSO_MCP_TOKEN=<API key>
 kanso api-key create --name "Backup script"   # make an API key with no window (list, revoke; works while serve runs); prints only the key
@@ -603,8 +604,11 @@ Sign in again later with the service stopped (`sudo systemctl stop kanso` first)
 
 Sign in with your password (typed, or on the first line of standard input with
 `--password-stdin`), or with `--provider github`, approved from a device that's already signed in
-with a code you compare on both. Google, Apple, passkeys and security keys need a browser on the
-server and are refused; the command never creates or recovers an account. `kanso account devices`,
+with a code you compare on both. For a passkey, security key or any account, open Settings › Account
+› Devices on a signed-in computer or phone, choose **Add a computer without a screen…**, then run
+the copied `kanso account sign-in --pair <code>` command on the server. The pairing code works once
+and expires after 10 minutes; approve the new computer and compare the six-digit code shown on both
+devices. The command never creates or recovers an account. `kanso account devices`,
 `revoke <id>` and `sign-out` do the rest. If another device signs the server out, `kanso serve`
 says so once and keeps serving the library.
 

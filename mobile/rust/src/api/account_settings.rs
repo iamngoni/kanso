@@ -4,7 +4,8 @@
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    AccountDetails, AccountSettings, KansoError, ProviderEvent, ProviderKind, RecoveryKeyText,
+    AccountDetails, AccountSettings, KansoError, PairingCode, ProviderEvent, ProviderKind,
+    RecoveryKeyText,
 };
 
 #[frb(opaque)]
@@ -21,6 +22,18 @@ impl KansoAccountSettings {
 
     pub fn revoke_device(&self, device_id: String) -> Result<AccountDetails, KansoError> {
         self.0.revoke_device(device_id)
+    }
+
+    pub fn create_pairing(&self) -> Result<PairingCode, KansoError> {
+        self.0.create_pairing()
+    }
+
+    pub fn pairing_used(&self, id: String) -> Result<bool, KansoError> {
+        self.0.pairing_used(id)
+    }
+
+    pub fn cancel_pairing(&self, id: String) -> Result<(), KansoError> {
+        self.0.cancel_pairing(id)
     }
 
     pub fn sign_out(&self) -> Result<(), KansoError> {

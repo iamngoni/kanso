@@ -24,7 +24,8 @@ use crate::api::{
 };
 use crate::api::{
     ApprovalApproveRequest, ApprovalChallengeRequest, ApprovalCreateRequest, ApprovalCreated,
-    ApprovalList, ApprovalNameRequest, ApprovalPoll,
+    ApprovalList, ApprovalNameRequest, ApprovalPoll, PairRequest, PairSession, PairingCreated,
+    PairingStatus,
 };
 use crate::binding::DeviceIdentity;
 use crate::crypto::{KdfParams, sha256_hex};
@@ -132,6 +133,10 @@ fn timeout(route: Route) -> Duration {
         | Route::ApprovalName
         | Route::ApprovalApprove
         | Route::ApprovalCancel
+        | Route::PairingCreate
+        | Route::PairingStatus
+        | Route::PairingCancel
+        | Route::Pair
         | Route::PutPush
         | Route::DeletePush => Duration::from_secs(30),
     }
@@ -179,6 +184,18 @@ impl HttpApi {
         payload: Payload,
         cap: u64,
     ) -> Result<(u16, Vec<u8>), ApiError> {
+        self.send_with_headers(route, path, token, payload, cap, &[])
+    }
+
+    fn send_with_headers(
+        &self,
+        route: Route,
+        path: &str,
+        token: Option<&SessionToken>,
+        payload: Payload,
+        cap: u64,
+        extra_headers: &[(&str, &str)],
+    ) -> Result<(u16, Vec<u8>), ApiError> {
         let (method, _) = route.http();
         let url = format!("{}{path}", self.base);
         // Before the handshake: an Android app that hasn't handed over its
@@ -195,6 +212,9 @@ impl HttpApi {
                 };
                 if let Some(auth) = &auth {
                     request = request.header("authorization", auth.as_str());
+                }
+                for (name, value) in extra_headers {
+                    request = request.header(*name, *value);
                 }
                 if matches!(route, Route::GetFile) {
                     // The Worker answers 404 for a file over this, rather
@@ -213,6 +233,9 @@ impl HttpApi {
                 };
                 if let Some(auth) = &auth {
                     request = request.header("authorization", auth.as_str());
+                }
+                for (name, value) in extra_headers {
+                    request = request.header(*name, *value);
                 }
                 let request = request.config().timeout_global(timeout).build();
                 match payload {
@@ -273,6 +296,26 @@ impl HttpApi {
         };
         // An answer may carry a session token.
         let bytes = Zeroizing::new(self.send(route, path, token, payload, cap)?.1);
+        serde_json::from_slice(&bytes)
+            .map_err(|e| ApiError::Protocol(format!("{}: {e}", route.http().1)))
+    }
+
+    fn json_with_headers<T: DeserializeOwned>(
+        &self,
+        route: Route,
+        path: &str,
+        token: Option<&SessionToken>,
+        body: &impl Serialize,
+        cap: u64,
+        headers: &[(&str, &str)],
+    ) -> Result<T, ApiError> {
+        let payload = Payload::Json(Zeroizing::new(
+            serde_json::to_vec(body).map_err(|e| ApiError::Protocol(e.to_string()))?,
+        ));
+        let bytes = Zeroizing::new(
+            self.send_with_headers(route, path, token, payload, cap, headers)?
+                .1,
+        );
         serde_json::from_slice(&bytes)
             .map_err(|e| ApiError::Protocol(format!("{}: {e}", route.http().1)))
     }
@@ -873,6 +916,56 @@ impl Api for HttpApi {
             MAX_AUTH_RESPONSE,
         )
         .map(|_| ())
+    }
+
+    fn create_pairing(
+        &self,
+        token: &SessionToken,
+        device_id: &str,
+        device_proof: &str,
+    ) -> Result<PairingCreated, ApiError> {
+        self.json_with_headers(
+            Route::PairingCreate,
+            "/v2/account/pairings",
+            Some(token),
+            &serde_json::json!({}),
+            MAX_AUTH_RESPONSE,
+            &[
+                ("x-kanso-device", device_id),
+                ("x-kanso-device-proof", device_proof),
+            ],
+        )
+    }
+
+    fn pairing_status(&self, token: &SessionToken, id: &str) -> Result<PairingStatus, ApiError> {
+        self.json(
+            Route::PairingStatus,
+            &format!("/v2/account/pairings/{id}"),
+            Some(token),
+            NO_BODY,
+            MAX_AUTH_RESPONSE,
+        )
+    }
+
+    fn cancel_pairing(&self, token: &SessionToken, id: &str) -> Result<(), ApiError> {
+        self.send(
+            Route::PairingCancel,
+            &format!("/v2/account/pairings/{id}"),
+            Some(token),
+            Payload::None,
+            MAX_AUTH_RESPONSE,
+        )
+        .map(|_| ())
+    }
+
+    fn pair(&self, request: &PairRequest) -> Result<PairSession, ApiError> {
+        self.json(
+            Route::Pair,
+            "/v2/auth/pair",
+            None,
+            Some(request),
+            MAX_AUTH_RESPONSE,
+        )
     }
 
     fn identity_start(

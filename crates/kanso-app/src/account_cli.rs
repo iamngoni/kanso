@@ -3,8 +3,8 @@
 //! devices and sign-out (docs/ACCOUNTS.md › Command line).
 //!
 //! It drives the engine's window-free [`Flow`], the same code the app signs
-//! in with. Password sign-in is the main way in; GitHub sign-in works too,
-//! approved from another signed-in device with a matching code. Google,
+//! in with. Password sign-in is the main way in; GitHub and pairing-code
+//! sign-in are approved from another signed-in device. Google,
 //! Apple, passkeys and security keys need a browser or an authenticator on
 //! this computer, and are refused. It never creates or recovers an account.
 
@@ -36,7 +36,7 @@ Usage: kanso account <command> [--data-dir <dir>]
 Commands:
   sign-in      Sign this library in to your Kanso account
                [--username <name>] [--password-stdin] [--server <url>]
-               [--provider github] [--device-name <name>]
+               [--provider github] [--pair <code>] [--device-name <name>]
                [--secrets file|system] [--add | --replace]
   status       Show the account, this device and the last sync; works
                while `kanso serve` runs
@@ -51,7 +51,7 @@ Sign-in, devices, revoke and sign-out need the data folder to themselves:
 stop `kanso serve` (or quit Kanso) first. The password is asked for on the
 terminal; scripts pass it on the first line of standard input with
 --password-stdin. Google, Apple, passkeys and security keys need a browser
-on this computer: sign in with a password or with --provider github.";
+on this computer: sign in with a password, --provider github or --pair.";
 
 /// Exit status of a refusal: wrong password, server unreachable, a
 /// question unanswered.
@@ -85,6 +85,8 @@ pub struct SignInArgs {
     pub username: Option<String>,
     pub password_stdin: bool,
     pub method: Method,
+    /// A one-time code from Settings › Account › Devices.
+    pub pair_code: Option<String>,
     pub device_name: Option<String>,
     pub secrets: Option<SecretStoreKind>,
     /// `--add` or `--replace`: the answer to "this computer already has
@@ -130,6 +132,7 @@ fn parse_sign_in(args: &[String]) -> Result<SignInArgs, BadCommand> {
         username: None,
         password_stdin: false,
         method: Method::Password,
+        pair_code: None,
         device_name: None,
         secrets: None,
         binding: None,
@@ -147,6 +150,12 @@ fn parse_sign_in(args: &[String]) -> Result<SignInArgs, BadCommand> {
             "--username" => parsed.username = Some(value("--username")?),
             "--device-name" => parsed.device_name = Some(value("--device-name")?),
             "--password-stdin" => parsed.password_stdin = true,
+            "--pair" => {
+                if parsed.pair_code.is_some() {
+                    return Err(BadCommand("pass --pair once".into()));
+                }
+                parsed.pair_code = Some(value("--pair")?);
+            }
             "--provider" => {
                 parsed.method = match value("--provider")?.to_ascii_lowercase().as_str() {
                     "github" => Method::Github,
@@ -184,6 +193,11 @@ fn parse_sign_in(args: &[String]) -> Result<SignInArgs, BadCommand> {
     if parsed.password_stdin && parsed.method == Method::Github {
         return Err(BadCommand(
             "--password-stdin is for password sign-in, not --provider github".into(),
+        ));
+    }
+    if parsed.pair_code.is_some() && (parsed.method != Method::Password || parsed.password_stdin) {
+        return Err(BadCommand(
+            "--pair cannot be combined with --provider or --password-stdin".into(),
         ));
     }
     Ok(parsed)
@@ -229,6 +243,10 @@ fn unparse(command: &Command) -> Vec<String> {
             pair("--provider", &provider.map(str::to_owned));
             if args.password_stdin {
                 out.push("--password-stdin".into());
+            }
+            if let Some(code) = &args.pair_code {
+                out.push("--pair".into());
+                out.push(code.clone());
             }
             match args.binding {
                 Some(Choice::Add) => out.push("--add".into()),
@@ -568,9 +586,13 @@ fn sign_in(world: &World, args: SignInArgs, console: &mut dyn Console) -> Result
         ..flow(world, store, secrets)
     };
     console.say(&format!("Kanso account on {server}"));
-    let (session, library_id, backup, evicted) = match args.method {
-        Method::Github => sign_in_github(&flow, &server, &args, world, console)?,
-        _ => sign_in_password(&flow, &server, &args, console)?,
+    let (session, library_id, backup, evicted) = if let Some(code) = &args.pair_code {
+        sign_in_pairing(&flow, &server, code, &args, world, console)?
+    } else {
+        match args.method {
+            Method::Github => sign_in_github(&flow, &server, &args, world, console)?,
+            _ => sign_in_password(&flow, &server, &args, console)?,
+        }
     };
     // The config last: the session and the binding are saved already, so
     // the config never names an account the library can't open.
@@ -813,6 +835,66 @@ fn sign_in_github(
             );
         }
     };
+    finish_locked_sign_in(flow, server, args, world, console, locked, device)
+}
+
+/// Uses a signed-in device's one-time code, then follows the same sealed-key
+/// approval and library-binding flow as provider sign-in.
+fn sign_in_pairing(
+    flow: &Flow,
+    server: &str,
+    code: &str,
+    args: &SignInArgs,
+    world: &World,
+    console: &mut dyn Console,
+) -> Result<SignedIn, Refusal> {
+    if !console.is_tty() {
+        return refuse("pairing approval needs a terminal; run this command interactively");
+    }
+    if !pairing_code_shape(code) {
+        return refuse("that isn't a pairing code. It looks like 7HQK-3MZP.");
+    }
+    let (locked, _, _) = kanso_sync::sign_in_with_pairing(world.backend.as_ref(), server, code)
+        .map_err(|error| {
+            Refusal(format!(
+                "that pairing code has expired or was already used: {error}"
+            ))
+        })?;
+    let device = flow.device().map_err(|failure| Refusal(failure.words))?;
+    console.say(&format!("Pairing with {}'s account…", locked.username));
+    finish_locked_sign_in(flow, server, args, world, console, locked, device)
+}
+
+/// Pairing-code input may omit its separator and use Crockford's ambiguous
+/// letter aliases, just like the Worker endpoint.
+fn pairing_code_shape(code: &str) -> bool {
+    let normalized: String = code
+        .chars()
+        .filter(|character| *character != '-')
+        .map(|character| match character.to_ascii_uppercase() {
+            'O' => '0',
+            'I' | 'L' => '1',
+            other => other,
+        })
+        .collect();
+    normalized.len() == 8
+        && normalized
+            .chars()
+            .all(|character| "0123456789ABCDEFGHJKMNPQRSTVWXYZ".contains(character))
+}
+
+/// The common path from a passwordless locked session through approval,
+/// binding consent and promotion to a fully signed-in device.
+fn finish_locked_sign_in(
+    flow: &Flow,
+    _server: &str,
+    args: &SignInArgs,
+    world: &World,
+    console: &mut dyn Console,
+    locked: kanso_sync::LockedSession,
+    device: DeviceIdentity,
+) -> Result<SignedIn, Refusal> {
+    let cancel = (world.interrupt)();
     console.say(&format!(
         "Signed in to {}, but this computer doesn't have your notes' key yet.",
         locked.username

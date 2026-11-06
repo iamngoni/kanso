@@ -2,6 +2,8 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:dartz/dartz.dart';
@@ -39,6 +41,9 @@ class AccountDetailsBloc
       _onDeviceRevoked,
       transformer: droppable(),
     );
+    on<AccountDetailsPairingRequestedEvent>(_onPairingRequested);
+    on<AccountDetailsPairingDismissedEvent>(_onPairingDismissed);
+    on<AccountDetailsPairingUsedEvent>(_onPairingUsed);
     on<AccountDetailsSignedOutEvent>(_onSignedOut, transformer: droppable());
     on<AccountDetailsPasswordChangedEvent>(
       _onPasswordChanged,
@@ -76,6 +81,7 @@ class AccountDetailsBloc
   final AccountSettingsRepository _settings;
   final AccountRepository _account;
   final AuthSessionRepository _session;
+  int _pairingGeneration = 0;
 
   Future<void> _onStarted(
     AccountDetailsStartedEvent event,
@@ -106,6 +112,63 @@ class AccountDetailsBloc
     emit(
       _afterDetails(result, AccountNotice.deviceSignedOut(name: name ?? '')),
     );
+  }
+
+  Future<void> _onPairingRequested(
+    AccountDetailsPairingRequestedEvent event,
+    Emitter<AccountDetailsState> emit,
+  ) async {
+    emit(_busy(AccountTask.createPairing));
+    final result = await _settings.createPairing();
+    result.fold(
+      (error) => emit(state.copyWith(busy: null, error: error)),
+      (pairing) {
+        final generation = ++_pairingGeneration;
+        emit(
+          state.copyWith(
+            busy: null,
+            error: null,
+            pairing: pairing,
+            pairingUsed: false,
+          ),
+        );
+        unawaited(_watchPairing(generation, pairing));
+      },
+    );
+  }
+
+  Future<void> _watchPairing(int generation, PairingCode pairing) async {
+    while (!isClosed &&
+        generation == _pairingGeneration &&
+        DateTime.now().millisecondsSinceEpoch < pairing.expiresAtMs) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (isClosed || generation != _pairingGeneration) return;
+      final status = await _settings.pairingUsed(pairing.id);
+      final used = status.fold((_) => false, (value) => value);
+      if (used) {
+        add(const AccountDetailsEvent.pairingUsed());
+        return;
+      }
+    }
+  }
+
+  Future<void> _onPairingDismissed(
+    AccountDetailsPairingDismissedEvent event,
+    Emitter<AccountDetailsState> emit,
+  ) async {
+    final pairing = state.pairing;
+    ++_pairingGeneration;
+    emit(state.copyWith(pairing: null, pairingUsed: false));
+    if (pairing != null) {
+      await _settings.cancelPairing(pairing.id);
+    }
+  }
+
+  void _onPairingUsed(
+    AccountDetailsPairingUsedEvent event,
+    Emitter<AccountDetailsState> emit,
+  ) {
+    if (state.pairing != null) emit(state.copyWith(pairingUsed: true));
   }
 
   Future<void> _onSignedOut(

@@ -29,6 +29,21 @@ class RustAccountSettingsRepository implements AccountSettingsRepository {
   ) => attempt(() => _settings.revokeDevice(deviceId: deviceId));
 
   @override
+  Future<Either<ApplicationError, PairingCode>> createPairing() =>
+      attempt(_settings.createPairing);
+
+  @override
+  Future<Either<ApplicationError, bool>> pairingUsed(String id) =>
+      attempt(() => _settings.pairingUsed(id: id));
+
+  @override
+  Future<Either<ApplicationError, Unit>> cancelPairing(String id) =>
+      attempt(() async {
+        await _settings.cancelPairing(id: id);
+        return unit;
+      });
+
+  @override
   Future<Either<ApplicationError, Unit>> signOut() => attempt(() async {
     await _settings.signOut();
     return unit;

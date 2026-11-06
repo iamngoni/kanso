@@ -15,7 +15,7 @@ use std::fmt;
 use crate::account::{AccountError, DeviceInfo, Session, SignedIn, checked_server, retrying};
 use crate::api::{
     ApprovalApproveRequest, ApprovalChallengeRequest, ApprovalCreateRequest, ApprovalNameRequest,
-    ApprovalPoll, ApprovalRow, Backend, DeviceNameRequest, LoginDevice, WireDevice,
+    ApprovalPoll, ApprovalRow, Backend, DeviceNameRequest, LoginDevice, PairRequest, WireDevice,
 };
 use crate::approval::{Approval, ApprovalKeys, Side, epk_text, matches_commitment, parse_epk};
 use crate::binding::DeviceIdentity;
@@ -429,6 +429,62 @@ pub struct ApprovalRequest {
 /// [`request_approval_resumable`] and reuses until that request ends.
 pub fn new_approval_request_id() -> String {
     b64(&random::<32>())
+}
+
+/// Consumes a screenless-device code and creates the matching locked session
+/// and approval request. The one-time endpoint is deliberately not retried:
+/// after a lost answer the code may already have been consumed, so the user
+/// must request a fresh code rather than risk creating a second device.
+pub fn sign_in_with_pairing(
+    b: &dyn Backend,
+    server: &str,
+    code: &str,
+) -> Result<(LockedSession, ApprovalRequest, ApprovalKeys), AccountError> {
+    let (server, origin) = checked_server(server)?;
+    let device = LoginDevice::ephemeral();
+    let keys = ApprovalKeys::generate();
+    let request_id = new_approval_request_id();
+    let request = PairRequest {
+        code: code.to_owned(),
+        device: device.clone(),
+        request_id: request_id.clone(),
+        commit: keys.commitment(),
+    };
+    let paired = b.api(&server).pair(&request)?;
+    if paired.approval_id != request_id || !is_approval_id(&paired.approval_id) {
+        return Err(AccountError::Protocol(
+            "the pairing answer changed its approval request ID".into(),
+        ));
+    }
+    let provider = paired.session;
+    let locked = LockedSession::new(
+        server,
+        origin,
+        provider.account_id,
+        provider.username,
+        device.id.clone(),
+        provider.token,
+        provider.key_id,
+        provider.epoch,
+        provider.passkey_wrapped_key,
+        None,
+    )
+    .with_has_password(provider.has_password)
+    .with_login_device(device)
+    .with_evicted_wire_device(provider.evicted_device)
+    .with_approval_resume(ApprovalResume::new(
+        request_id.clone(),
+        &keys,
+        paired.expires_at,
+        usize::try_from(paired.other_devices).unwrap_or(usize::MAX),
+    ));
+    let approval = ApprovalRequest {
+        id: request_id,
+        epk: keys.epk(),
+        expires_at: paired.expires_at,
+        other_devices: usize::try_from(paired.other_devices).unwrap_or(usize::MAX),
+    };
+    Ok((locked, approval, keys))
 }
 
 /// The approver's answer, as the new device's poll returns it.
