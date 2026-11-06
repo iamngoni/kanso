@@ -97,6 +97,7 @@ pub fn contain(_allow: &Allow) -> Result<(), ContainError> {
 /// resident size between requests (see `worker`); Windows has the Job
 /// Object's limit instead.
 #[cfg(unix)]
+#[cfg_attr(not(any(target_os = "macos", target_os = "linux")), allow(dead_code))]
 fn limit_memory() -> Result<(), ContainError> {
     // Address space is more than memory: PDFium and the system libraries
     // map a good deal that is never touched. Four times the budget leaves
@@ -125,6 +126,7 @@ fn limit_memory() -> Result<(), ContainError> {
 /// Closes every descriptor but stdin, stdout and stderr. The worker has
 /// opened nothing yet, so whatever is above 2 came from whoever started it.
 #[cfg(unix)]
+#[cfg_attr(not(any(target_os = "macos", target_os = "linux")), allow(dead_code))]
 fn close_inherited() -> Result<(), ContainError> {
     let listed = if cfg!(target_os = "linux") {
         "/proc/self/fd"
@@ -208,6 +210,7 @@ pub fn contained_then<T>(
 /// Checks, with plain std calls, that the process cannot do what containment
 /// forbids on Unix: read a file outside its folders or open a socket.
 #[cfg(unix)]
+#[cfg_attr(not(any(target_os = "macos", target_os = "linux")), allow(dead_code))]
 pub(crate) fn verify_unix() -> Result<(), ContainError> {
     if std::fs::File::open("/etc/hosts").is_ok() {
         return Err(ContainError(
