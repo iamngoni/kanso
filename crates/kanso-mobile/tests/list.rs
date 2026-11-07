@@ -382,7 +382,11 @@ proptest! {
         let rev = library.note(&saved.id).unwrap().rev;
         let next = library.save(&saved.id, &rev, text(&kept)).unwrap();
         prop_assert_eq!(tag_names(&saved.id), kept.clone());
-        prop_assert_ne!(next.rev, rev);
+        // New text is a new rev. The same text may keep the rev: a save in
+        // the same millisecond as the create writes an identical document.
+        if words != kept {
+            prop_assert_ne!(next.rev, rev);
+        }
     }
 }
 

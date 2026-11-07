@@ -179,6 +179,10 @@ jobs:
         shell: bash
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - run: cargo clippy --workspace --locked -- -D warnings
+      # The PDF worker's tests load PDFium from vendor/pdfium.
+      - name: PDFium
+        run: scripts/fetch-pdfium.sh ${{ runner.os == 'Windows' && 'win-x64' || 'linux-x64' }}
+        shell: bash
       # Everything but the app runs here too: the store, sync, server,
       # renderer, importer and updater, whose file, path and process code
       # differs per platform. The app's tests need macOS's text system.

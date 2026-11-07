@@ -126,6 +126,20 @@ fn drops_are_saved_oldest_first_by_time_then_by_name() {
     assert_eq!(saved.notes, expected);
 }
 
+/// Sets a folder's modified time. Windows opens a folder only with
+/// FILE_FLAG_BACKUP_SEMANTICS, and setting its times needs write access.
+fn age_dir(dir: &std::path::Path, to: SystemTime) {
+    let mut options = fs::OpenOptions::new();
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        options.write(true).custom_flags(0x0200_0000);
+    }
+    #[cfg(not(windows))]
+    options.read(true);
+    options.open(dir).unwrap().set_modified(to).unwrap();
+}
+
 // no-prop-test: a table of folders the reader leaves alone or removes.
 #[test]
 fn unfinished_folders_are_never_read_and_old_ones_are_removed() {
@@ -146,23 +160,14 @@ fn unfinished_folders_are_never_read_and_old_ones_are_removed() {
         &[],
     );
     let two_days = SystemTime::now() - Duration::from_secs(2 * 24 * 60 * 60);
-    fs::File::open(&stale)
-        .unwrap()
-        .set_modified(two_days)
-        .unwrap();
+    age_dir(&stale, two_days);
     // Not a drop's name: left alone, old or not.
     let other = inbox.join("somebody-elses");
     fs::create_dir_all(&other).unwrap();
-    fs::File::open(&other)
-        .unwrap()
-        .set_modified(two_days)
-        .unwrap();
+    age_dir(&other, two_days);
     let other_partial = inbox.join("notes.partial");
     fs::create_dir_all(&other_partial).unwrap();
-    fs::File::open(&other_partial)
-        .unwrap()
-        .set_modified(two_days)
-        .unwrap();
+    age_dir(&other_partial, two_days);
     // A plain file in the inbox.
     fs::write(inbox.join("stray.txt"), "x").unwrap();
 
