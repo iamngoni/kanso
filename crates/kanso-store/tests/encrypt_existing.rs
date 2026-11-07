@@ -1,6 +1,10 @@
 //! Encrypting a library that is already there (issue #243 step 10): the
 //! contents survive unchanged, no note text is left in the clear, and a
 //! crash at any step is recovered from at the next launch. Seeds are pinned.
+//!
+//! Desktop only: the phones build stock SQLite without SQLCipher (see
+//! kanso-store's Cargo.toml), never pass a key, and so can't encrypt.
+#![cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 
 use std::collections::BTreeMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
