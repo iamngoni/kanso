@@ -309,6 +309,20 @@ mod tests {
             .id
     }
 
+    /// A note with an explicit edit time, so two notes never tie on
+    /// `updatedAt` (a fast machine saves both within one millisecond).
+    fn put_at(store: &Store, title: &str, body: &str, book: &str, updated_at: i64) -> String {
+        store
+            .put(
+                DocType::Note,
+                json!({"title": title, "body": body, "bookId": book, "updatedAt": updated_at}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id
+    }
+
     fn words() -> impl Strategy<Value = String> {
         prop::sample::select(vec!["alpha", "beta", "gamma", "delta", "plan", "list"])
             .prop_map(str::to_owned)
@@ -388,8 +402,8 @@ mod tests {
     #[test]
     fn nothing_typed_lists_recent_notes_and_a_query_lists_notes_then_headings() {
         let (_dir, store, inbox) = store();
-        let first = put(&store, "First", "# Plan\nx", &inbox);
-        let second = put(&store, "Second", "# Plans\nx", &inbox);
+        let first = put_at(&store, "First", "# Plan\nx", &inbox, 1_000);
+        let second = put_at(&store, "Second", "# Plans\nx", &inbox, 2_000);
         let found = search(&store, "", true, &LockedNotes::closed()).unwrap();
         assert_eq!(found.notes.len(), 2);
         let listed = sections("", &found, Some(&second), &[]);

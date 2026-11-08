@@ -288,7 +288,8 @@ fn tree(dir: &Path) -> Vec<PathBuf> {
 /// gallery's own bookkeeping are on disk.
 fn assert_nothing_installed(setup: &Setup) {
     for path in tree(setup.phone.dir.path()) {
-        let name = path.to_string_lossy().into_owned();
+        // `/` on every platform: Windows joins with `\\`.
+        let name = path.to_string_lossy().replace('\\', "/");
         let ok = name.starts_with("library.db")
             || name == "gallery"
             || name == "gallery/meta.json"
