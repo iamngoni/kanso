@@ -41,12 +41,12 @@ if ! command -v rustup >/dev/null 2>&1; then
 	echo "No rustup on this runner; installing it for $(id -un)."
 	case "$(uname -s)" in
 	MINGW* | MSYS* | CYGWIN*)
-		curl --proto '=https' --tlsv1.2 -sSfL -o "$RUNNER_TEMP/rustup-init.exe" \
+		curl --retry 5 --retry-all-errors --proto '=https' --tlsv1.2 -sSfL -o "$RUNNER_TEMP/rustup-init.exe" \
 			https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe
 		"$RUNNER_TEMP/rustup-init.exe" -y --no-modify-path --default-toolchain none --profile minimal
 		;;
 	*)
-		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
+		curl --retry 5 --retry-all-errors --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
 			sh -s -- -y --no-modify-path --default-toolchain none --profile minimal
 		;;
 	esac

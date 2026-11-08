@@ -840,7 +840,7 @@ proptest! {
                 }
             }
             for path in tree(setup.phone.dir.path()) {
-                let name = path.to_string_lossy().into_owned();
+                let name = path.to_string_lossy().replace('\\', "/");
                 prop_assert!(
                     name.starts_with("library.db") || name == "gallery" || name.starts_with("gallery/"),
                     "{name} is outside the gallery's folder"
