@@ -293,6 +293,13 @@ impl Plugin {
 
     /// Builds the engine with its limits and the `kanso` object, but runs
     /// none of the plugin's code.
+    /// Whether the heap is within a tenth of the memory budget.
+    fn near_memory_budget(&self) -> bool {
+        let used = u64::try_from(self.runtime.memory_usage().malloc_size).unwrap_or(0);
+        let budget = self.budgets.memory as u64;
+        used.saturating_mul(10) >= budget.saturating_mul(9)
+    }
+
     fn boot(info: &PluginInfo, budgets: Budgets, link: &mut dyn Link) -> Result<Plugin, Failure> {
         let unavailable = |what: &dyn std::fmt::Display| {
             Failure::new(
@@ -389,7 +396,18 @@ impl Plugin {
         let envelope: Envelope = serde_json::from_str(&answer)
             .map_err(|_| Failure::new(CODE_THROWN, "the plugin's answer couldn't be read"))?;
         if !envelope.ok {
-            return Err(failure_from(envelope));
+            let failure = failure_from(envelope);
+            // On some platforms QuickJS runs out of memory while making the
+            // error itself, and an empty `thrown` is all that comes back:
+            // the heap still full to the budget says what happened.
+            if failure.code == CODE_THROWN
+                && failure.message.is_empty()
+                && self.near_memory_budget()
+            {
+                self.runtime.run_gc();
+                return Err(used_too_much_memory());
+            }
+            return Err(failure);
         }
         let value = envelope.value.unwrap_or(Value::Null);
         match serde_json::to_vec(&value) {

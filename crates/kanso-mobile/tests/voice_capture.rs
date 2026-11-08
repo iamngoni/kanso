@@ -273,7 +273,18 @@ fn an_old_unfinished_recording_is_kept_aside_not_deleted() {
     fs::create_dir_all(&partial).unwrap();
     fs::write(partial.join("rec.caf"), b"half a recording").unwrap();
     let two_days = std::time::SystemTime::now() - std::time::Duration::from_secs(2 * 24 * 3600);
-    fs::File::open(&partial)
+    // A folder's time is set through a handle that may write it; Windows
+    // opens a folder only with backup semantics.
+    let mut options = fs::OpenOptions::new();
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        options.write(true).custom_flags(0x0200_0000);
+    }
+    #[cfg(not(windows))]
+    options.read(true);
+    options
+        .open(&partial)
         .unwrap()
         .set_modified(two_days)
         .unwrap();
