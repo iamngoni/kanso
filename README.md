@@ -378,6 +378,10 @@ key. A request without a valid key gets `401` and a message that says how to mak
 `kanso mcp` without `KANSO_MCP_TOKEN`. Making a key, what each access level allows, every error and
 its fix, and the network cautions are in [docs/LOCAL-API.md](docs/LOCAL-API.md).
 
+**Agent skill.** `skills/kanso/` teaches coding agents how to use Kanso's MCP tools. Install it with
+`npx skills add iamngoni/kanso`, or copy `skills/kanso` to `~/.claude/skills/kanso`. See
+[docs/LOCAL-API.md](docs/LOCAL-API.md#agent-skill).
+
 **Upgrading.** The local API's username and password are gone, and agents set up with them stopped
 working at the update. If you had a login, a banner reads **Your AI agents and scripts need new
 keys**: **How to fix** gives the steps (make a key for each agent or script, paste the new setup in
