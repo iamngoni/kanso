@@ -156,6 +156,26 @@ canvas as one change, its new title included. A batch too big to send as one cha
 240 KB of changes) is refused: split it into smaller batches. A member who may only view the
 canvas can't change it. Pictures (`file:` cards) can't be added to a shared canvas yet.
 
+## Agent skill
+
+`skills/kanso/` is an [Agent Skill](https://agentskills.io) that teaches a coding agent (Claude Code,
+Codex, Cursor and others) to use Kanso's MCP tools well: how to connect, which tool does what, and how to
+read before it writes. It does not hold a key; connect the agent first, as in
+[An MCP client](#an-mcp-client). Install it with either:
+
+```sh
+npx skills add iamngoni/kanso
+```
+
+or copy the folder:
+
+```sh
+mkdir -p ~/.claude/skills && cp -R skills/kanso ~/.claude/skills/kanso
+```
+
+`skills/kanso/references/tools.md` lists every tool and its parameters; a test in `kanso-server`
+fails when a tool is missing from it.
+
 ## Connecting a caller
 
 ### An MCP client
