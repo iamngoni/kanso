@@ -1,4 +1,7 @@
 //! Opening a library with the key the secret store keeps (issue #243 step 9).
+//!
+//! Desktop only: the phones build stock SQLite without SQLCipher.
+#![cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 
 use kanso_store::{EncryptOptions, LibraryFile, Store, StoreError};
 use kanso_sync::keychain::library_key_item;

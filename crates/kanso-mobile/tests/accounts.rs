@@ -676,6 +676,10 @@ fn a_sign_up_over_notes_from_another_account_asks_before_it_makes_anything() {
 
 // no-prop-test: a fixed run with two phones and one passkey that answers PRF.
 #[test]
+#[cfg_attr(
+    target_os = "ios",
+    ignore = "iOS allows passkeys only for Kanso's own server, and this test server is local"
+)]
 fn a_passkey_with_prf_signs_up_and_unlocks_a_second_phone_without_approval() {
     let server = Arc::new(MemoryServer::new());
     let key = Arc::new(TestAuthenticator::new(1));
@@ -717,6 +721,10 @@ fn a_passkey_with_prf_signs_up_and_unlocks_a_second_phone_without_approval() {
 
 // no-prop-test: a fixed run: no sheet, a dismissed sheet and a failed one.
 #[test]
+#[cfg_attr(
+    target_os = "ios",
+    ignore = "iOS allows passkeys only for Kanso's own server, and this test server is local"
+)]
 fn a_passkey_that_cannot_run_or_is_dismissed_leaves_the_phone_as_it_was() {
     let server = Arc::new(MemoryServer::new());
     let a = phone(&server);
@@ -768,6 +776,10 @@ fn a_passkey_that_cannot_run_or_is_dismissed_leaves_the_phone_as_it_was() {
 // no-prop-test: a fixed run: the sheet is shown for the owner's relying
 // party only on the phones' rule; a server's own is fine on a computer.
 #[test]
+#[cfg_attr(
+    target_os = "ios",
+    ignore = "iOS allows passkeys only for Kanso's own server, and this test server is local"
+)]
 fn the_server_methods_follow_what_the_server_offers() {
     let server = Arc::new(MemoryServer::new());
     let a = phone(&server);
@@ -953,6 +965,10 @@ fn a_locked_phone_opens_with_the_accounts_password() {
 // no-prop-test: the acceptance walk: a locked phone recovers with the key,
 // the old key stops working and a new one is returned.
 #[test]
+#[cfg_attr(
+    target_os = "ios",
+    ignore = "iOS allows passkeys only for Kanso's own server, and this test server is local"
+)]
 fn a_locked_phone_recovers_with_the_key_and_the_old_key_stops_working() {
     let server = Arc::new(MemoryServer::new());
     let key = Arc::new(TestAuthenticator::new(2).without_prf());
@@ -1340,6 +1356,10 @@ fn apple_ends_with_its_sheet_and_only_its_own_callback_counts() {
 // no-prop-test: a fixed run: adding and removing a passkey, linking and
 // unlinking a provider, with the password as the proof.
 #[test]
+#[cfg_attr(
+    target_os = "ios",
+    ignore = "iOS allows passkeys only for Kanso's own server, and this test server is local"
+)]
 fn the_ways_in_are_added_and_removed_with_the_password_as_proof() {
     let server = Arc::new(MemoryServer::new());
     server.set_providers(vec![Provider::Github]);
@@ -1426,6 +1446,10 @@ proptest! {
     /// shell (states, keys, events, errors, requests) spells it, however it
     /// is written, and the passkey it unlocks still works.
     #[test]
+    #[cfg_attr(
+        target_os = "ios",
+        ignore = "iOS allows passkeys only for Kanso's own server, and this test server is local"
+    )]
     fn prop_the_prf_output_never_crosses_the_facade(prf in any::<[u8; 32]>()) {
         let server = Arc::new(MemoryServer::new());
         let key = Arc::new(TestAuthenticator::new(9));

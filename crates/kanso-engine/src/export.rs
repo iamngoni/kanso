@@ -989,6 +989,10 @@ mod tests {
         /// Invariant: exporting into a folder that already has files keeps
         /// them byte for byte and adds one file per note.
         #[test]
+        #[cfg_attr(
+            target_os = "ios",
+            ignore = "the simulator's case-insensitive disk refuses a folder differing only in case (phones are case-sensitive)"
+        )]
         fn prop_export_never_replaces_files(
             books in prop::collection::vec("[aA_]{1,3}", 1..4),
             notes in prop::collection::vec((0usize..4, "[aA. ]{0,3}"), 0..8),

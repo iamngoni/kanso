@@ -913,6 +913,10 @@ mod tests {
     /// A package packed as npm packs it (under `package/`) imports as the
     /// folder does, and the unpacked copy is removed.
     #[test]
+    #[cfg_attr(
+        any(target_os = "ios", target_os = "android"),
+        ignore = "the phone test runners can't start `tar`"
+    )]
     fn a_tarball_imports_like_its_folder() {
         let dir = tempfile::tempdir().unwrap();
         let pkg = dir.path().join("staging/package");

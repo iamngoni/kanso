@@ -89,7 +89,7 @@ case "$archive" in
     ;;
 esac
 url="https://github.com/$REPO/releases/download/chromium/$PDFIUM_BUILD/$archive"
-curl --fail --silent --show-error --location --output "$work/$archive" "$url"
+curl --retry 5 --retry-all-errors --retry-delay 5 --fail --silent --show-error --location --output "$work/$archive" "$url"
 
 if command -v sha256sum >/dev/null 2>&1; then
     actual=$(sha256sum "$work/$archive" | cut -d' ' -f1)

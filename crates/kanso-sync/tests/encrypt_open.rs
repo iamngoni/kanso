@@ -3,6 +3,9 @@
 //! plaintext once the next open is done, a lost key never strands the
 //! library, and a state Kanso can't sort out says so instead of "open Kanso
 //! to let it finish".
+//!
+//! Desktop only: the phones build stock SQLite without SQLCipher.
+#![cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};

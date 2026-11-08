@@ -84,7 +84,7 @@ jobs:
         run: scripts/check-pdfium-no-v8.sh vendor/pdfium
       # With `render`, this also runs the hostile-PDF corpus through the real
       # worker (kanso-pdf/tests/hostile.rs).
-      - run: cargo test --workspace --locked --features kanso-pdf/render
+      - run: cargo test --workspace --locked --features kanso-pdf/render --no-fail-fast
 
   # Encrypting the library costs little (issue #243, step 14): a 150 MB
   # library opens, searches, saves and backs up within five times a plain
@@ -187,7 +187,7 @@ jobs:
       # renderer, importer and updater, whose file, path and process code
       # differs per platform. The app's tests need macOS's text system.
       - name: Tests (all but the app)
-        run: cargo test --workspace --locked --exclude kanso-app
+        run: cargo test --workspace --locked --exclude kanso-app --no-fail-fast
         shell: bash
       # The PDF worker contains itself with Landlock and seccomp on Linux:
       # its tests start the real worker, which has to refuse to run where
@@ -199,7 +199,7 @@ jobs:
         run: |
           scripts/fetch-pdfium.sh
           scripts/check-pdfium-no-v8.sh vendor/pdfium
-          cargo test --locked -p kanso-pdf --features render
+          cargo test --locked -p kanso-pdf --features render --no-fail-fast
         shell: bash
 
   # The core the mobile app shares (#48): the engine, store, renderer, shared
