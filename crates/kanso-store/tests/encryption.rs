@@ -2,6 +2,11 @@
 //! its key, a backup round-trips with it, search works inside it, and no note
 //! text reaches the disk in the clear.
 
+//!
+//! Desktop only: the phones build stock SQLite without SQLCipher (see
+//! kanso-store's Cargo.toml), never pass a key, and so can't encrypt.
+#![cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+
 use std::path::{Path, PathBuf};
 
 use kanso_core::{DocType, Query};
