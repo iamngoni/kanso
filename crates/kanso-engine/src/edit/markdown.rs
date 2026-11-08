@@ -380,7 +380,8 @@ fn wrap(text: &str, selection: Range<usize>, marker: &str) -> Edit {
 
 /// Whether a line opens or closes a fenced code block.
 fn is_fence(line: &str) -> bool {
-    line.trim_start().starts_with("```")
+    let line = line.trim();
+    line.len() >= 3 && line.bytes().all(|b| b == b'`')
 }
 
 /// The fence lines right above and below `block`, when there are both.

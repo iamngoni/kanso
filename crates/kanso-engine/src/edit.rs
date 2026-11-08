@@ -591,6 +591,16 @@ mod tests {
         }
     }
 
+    /// A code block around a caret inside a fence-like line used to unfence
+    /// the wrong lines and drop the text between them.
+    #[test]
+    fn code_block_keeps_text_around_fence_like_lines() {
+        let text = "- éa\n    - éa\n- [ ] aé\n    - aé\n```_(\n ```aa\n- [ ] éa~日~\n```\n \n1. [🙂] \n   a\n  # a[";
+        let edit = format_with(Format::CodeBlock, text, 49..49);
+        let new = check_valid(text, &edit).unwrap();
+        assert_eq!(letters(&new), letters(text), "{new:?}");
+    }
+
     #[test]
     fn blocks_stand_alone() {
         let image = "![](inkdrop://file:a)";
