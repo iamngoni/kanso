@@ -41,6 +41,11 @@ assets = [
     # (linux-x64 or linux-arm64) in target/deb/pdfium.
     ["target/release/kanso-pdf-worker", "usr/lib/kanso/", "755"],
     ["../../target/deb/pdfium/lib/libpdfium.so", "usr/lib/kanso/", "755"],
+    # Voice input's ONNX Runtime (scripts/fetch-onnxruntime.sh), which the
+    # binaries find through their rpath ($ORIGIN/../lib/kanso).
+    ["../../target/deb/onnxruntime/lib/libonnxruntime.so.1", "usr/lib/kanso/", "755"],
+    ["../../target/deb/onnxruntime/LICENSE", "usr/share/doc/kanso/onnxruntime/LICENSE", "644"],
+    ["../../target/deb/onnxruntime/ThirdPartyNotices.txt", "usr/share/doc/kanso/onnxruntime/ThirdPartyNotices.txt", "644"],
     ["../../target/deb/pdfium/LICENSE", "usr/share/doc/kanso/pdfium/LICENSE", "644"],
     ["../../target/deb/pdfium/licenses/*", "usr/share/doc/kanso/pdfium/licenses/", "644"],
     ["../../assets/linux/kanso.desktop", "usr/share/applications/", "644"],

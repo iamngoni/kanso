@@ -12,6 +12,9 @@ kanso-apt-signing-key-BACKUP.*
 # The PDFium libraries scripts/fetch-pdfium.sh downloads.
 /vendor/pdfium/
 
+# The ONNX Runtime libraries scripts/fetch-onnxruntime.sh downloads.
+/vendor/onnxruntime/
+
 # cargo-fuzz's build, seeds and crashes for the PDF worker protocol
 # (crates/kanso-pdf/fuzz; scripts/pdf-fuzz.sh makes the seeds).
 /crates/kanso-pdf/fuzz/target/

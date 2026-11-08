@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Makes Kanso's .deb from the binaries `cargo build --release -p kanso-app
 # -p kanso-plugin-host -p kanso-pdf --features kanso-pdf/render` already made
-# (docs/APT.md), with scripts/fetch-pdfium.sh's library in vendor/pdfium.
+# (docs/APT.md), with scripts/fetch-pdfium.sh's library in vendor/pdfium and
+# scripts/fetch-onnxruntime.sh's in vendor/onnxruntime.
 # Usage: scripts/deb-build.sh <version> <out-dir>
 #
 # <version> is the release's version, as the release workflow's Version step
@@ -71,6 +72,19 @@ fi
 # for the same machine as the worker beside it.
 scripts/check-pdfium-no-v8.sh "$pdfium/lib/libpdfium.so"
 scripts/check-pdfium-arch.sh "$pdfium/lib/libpdfium.so" target/release/kanso-pdf-worker
+# Voice input's ONNX Runtime, which the binaries were linked against
+# (scripts/fetch-onnxruntime.sh; ORT_LIB_LOCATION when the build ran).
+ort=vendor/onnxruntime/$platform
+if [ ! -f "$ort/lib/libonnxruntime.so.1" ]; then
+	echo "$0: the ONNX Runtime library is missing; fetch it first:" >&2
+	echo "  scripts/fetch-onnxruntime.sh $platform" >&2
+	exit 1
+fi
+scripts/check-pdfium-arch.sh "$ort/lib/libonnxruntime.so.1" target/release/kanso-pdf-worker
+rm -rf target/deb/onnxruntime
+mkdir -p target/deb/onnxruntime/lib
+cp "$ort/lib/libonnxruntime.so.1" target/deb/onnxruntime/lib/libonnxruntime.so.1
+cp "$ort/LICENSE" "$ort/ThirdPartyNotices.txt" target/deb/onnxruntime/
 # cargo-deb's asset paths are fixed ([package.metadata.deb]); they point here.
 rm -rf target/deb/pdfium
 mkdir -p target/deb/pdfium/lib
@@ -94,6 +108,10 @@ mkdir -p target/deb
 	echo " -- $maintainer  $(LC_ALL=C date -u -R)"
 } >target/deb/changelog
 
+# dpkg-shlibdeps (cargo-deb's $auto) must find libonnxruntime.so.1, which the
+# binary needs and the package carries, to read its other dependencies; the
+# package that has it isn't installed here, so it is pointed at the copy.
+export LD_LIBRARY_PATH="$PWD/target/deb/onnxruntime/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 deb=$(cargo deb -p kanso-app --no-build --deb-version "$deb_version" -o "$out" | tail -1)
 
 # When dpkg-shlibdeps can't tell which package a library comes from (one
