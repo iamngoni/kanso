@@ -1,6 +1,10 @@
 //! Restoring a backup (issue #243 step 11): a backup opens with the key it
 //! was made with, this computer's or the 24 words from another, and takes
 //! the library's place at the next launch. Seeds are pinned.
+//!
+//! Desktop only: the phones build stock SQLite without SQLCipher (see
+//! kanso-store's Cargo.toml), never pass a key, and so can't encrypt.
+#![cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 
 use std::path::{Path, PathBuf};
 

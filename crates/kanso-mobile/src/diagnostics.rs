@@ -151,6 +151,10 @@ mod tests {
 
     // no-prop-test: the call itself, on this computer's memory store.
     #[test]
+    #[cfg_attr(
+        target_os = "ios",
+        ignore = "an unsigned simulator test binary has no Keychain access (-34018)"
+    )]
     fn the_probe_passes_on_the_platforms_store() {
         assert_eq!(secrets_probe(), Ok(()));
     }

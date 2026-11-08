@@ -7,6 +7,10 @@
 //!
 //! The run fails when encryption costs more than the budget in `within`.
 //! CI runs it on master (`.github/workflows/ci.yml`, job `encryption-speed`).
+//!
+//! Desktop only: the phones build stock SQLite without SQLCipher (see
+//! kanso-store's Cargo.toml), never pass a key, and so can't encrypt.
+#![cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 
 use std::path::Path;
 use std::time::{Duration, Instant};

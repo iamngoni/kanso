@@ -4,6 +4,9 @@
 //! deleted or overwritten without a copy, and a merge that can bring back
 //! notes deleted elsewhere only happens after the question that says so
 //! (docs/ACCOUNTS.md › Library binding, plan review 10).
+//!
+//! Desktop only: the phones build stock SQLite without SQLCipher.
+#![cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 
 mod common;
 
