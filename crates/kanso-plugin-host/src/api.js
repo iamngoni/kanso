@@ -209,7 +209,13 @@
 
   function thrown(error) {
     // QuickJS throws null when it can't even make the out-of-memory error.
-    if (error === null) {
+    // On some platforms (Windows) it makes an error object but has no memory
+    // left for its message: an error with an empty message, straight from
+    // the engine's own constructors, means the same.
+    const builtIn = [typeof InternalError === 'function' ? InternalError : null, RangeError, Error];
+    const engineError = error !== null && typeof error === 'object'
+      && builtIn.indexOf(Object.getPrototypeOf(error) && Object.getPrototypeOf(error).constructor) !== -1;
+    if (error === null || (engineError && error.message === '')) {
       return stringify({ ok: false, code: 'limit', message: 'it used too much memory' });
     }
     let code = 'thrown';
