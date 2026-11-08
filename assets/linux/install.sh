@@ -28,11 +28,6 @@ if [ "${1:-}" = "--headless" ]; then
     fi
     mkdir -p "$bin_dir"
     install -m 755 "$here/kanso-headless" "$bin_dir/kanso"
-    # ONNX Runtime, which the binary finds in ../lib/kanso.
-    if [ -f "$here/libonnxruntime.so.1" ]; then
-        mkdir -p "$lib_dir"
-        install -m 755 "$here/libonnxruntime.so.1" "$lib_dir/libonnxruntime.so.1"
-    fi
     echo "Installed the headless Kanso CLI in $bin_dir/kanso. It provides serve, account, service, api-key and mcp."
     exit 0
 fi

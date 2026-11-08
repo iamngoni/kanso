@@ -414,9 +414,10 @@ jobs:
           headless_stem="Kanso-$VERSION-${{ matrix.name }}-headless"
           mkdir -p "$headless_stem"
           install -m 755 target/release/kanso-headless "$headless_stem/kanso-headless"
-          install -m 755 "$ort/lib/libonnxruntime.so.1" "$headless_stem/libonnxruntime.so.1"
           install -m 755 assets/linux/install.sh "$headless_stem/install.sh"
           scripts/check-headless-ldd.sh "$headless_stem/kanso-headless"
+          # The server CLI has no voice input, so it doesn't link ONNX Runtime
+          # (a NEEDED it can't resolve here fails this check).
           scripts/check-linux-portable.sh "$headless_stem/kanso-headless"
           tar -czf "dist/$headless_stem.tar.gz" "$headless_stem"
 

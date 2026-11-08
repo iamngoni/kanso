@@ -30,7 +30,7 @@ changelog = "../../target/deb/changelog"
 section = "editors"
 priority = "optional"
 extended-description = "Local-first Markdown notes with end-to-end encrypted sync."
-depends = "$auto, libvulkan1"
+depends = "$auto, libvulkan1, libstdc++6"
 recommends = "mesa-vulkan-drivers, gnome-keyring | kwalletmanager"
 assets = [
     ["target/release/kanso", "usr/bin/", "755"],

@@ -109,9 +109,22 @@ mkdir -p target/deb
 } >target/deb/changelog
 
 # dpkg-shlibdeps (cargo-deb's $auto) must find libonnxruntime.so.1, which the
-# binary needs and the package carries, to read its other dependencies; the
-# package that has it isn't installed here, so it is pointed at the copy.
+# binary needs and the package carries, to read its other dependencies: it is
+# pointed at the staged copy, and told that no installed package owns it
+# (--ignore-missing-info), since cargo-deb runs it with neither. Without
+# either, dpkg-shlibdeps fails and cargo-deb leaves every shared library out
+# of Depends. libstdc++6, which that library needs, is in Depends by name.
 export LD_LIBRARY_PATH="$PWD/target/deb/onnxruntime/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+real_shlibdeps=$(command -v dpkg-shlibdeps || true)
+if [ -z "$real_shlibdeps" ]; then
+	echo "$0: dpkg-shlibdeps is required (the dpkg-dev package)" >&2
+	exit 1
+fi
+shim=$(mktemp -d)
+trap 'rm -rf "$shim"' EXIT
+printf '#!/bin/sh\nexec "%s" --ignore-missing-info "$@"\n' "$real_shlibdeps" >"$shim/dpkg-shlibdeps"
+chmod +x "$shim/dpkg-shlibdeps"
+export PATH="$shim:$PATH"
 deb=$(cargo deb -p kanso-app --no-build --deb-version "$deb_version" -o "$out" | tail -1)
 
 # When dpkg-shlibdeps can't tell which package a library comes from (one
