@@ -229,7 +229,13 @@ jobs:
           if [ "$signing" = 1 ]; then
             ditto -c -k --keepParent "$app" "$RUNNER_TEMP/Kanso-notarize.zip"
             notarize "$RUNNER_TEMP/Kanso-notarize.zip"
-            xcrun stapler staple "$app"
+            # Apple's ticket service drops connections now and then
+            # (error 68): stapling is retried before the job gives up.
+            for try in 1 2 3 4 5; do
+              xcrun stapler staple "$app" && break
+              [ "$try" = 5 ] && exit 1
+              sleep $((try * 20))
+            done
           fi
           codesign --verify --deep --strict "$app"
           # Without it the hardened runtime keeps voice input from the
@@ -282,7 +288,13 @@ jobs:
           if [ "$signing" = 1 ]; then
             codesign --force --timestamp --sign "$KANSO_SIGN_IDENTITY" "dist/$stem.dmg"
             notarize "dist/$stem.dmg"
-            xcrun stapler staple "dist/$stem.dmg"
+            # Apple's ticket service drops connections now and then
+            # (error 68): stapling is retried before the job gives up.
+            for try in 1 2 3 4 5; do
+              xcrun stapler staple "dist/$stem.dmg" && break
+              [ "$try" = 5 ] && exit 1
+              sleep $((try * 20))
+            done
             security delete-keychain "$keychain"
             rm -f "$RUNNER_TEMP/AuthKey.p8"
           fi
