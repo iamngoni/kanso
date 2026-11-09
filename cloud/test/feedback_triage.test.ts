@@ -573,11 +573,11 @@ describe("running triage now (POST /v1/admin/feedback/run)", () => {
 
 	it("runs the cron's triage and reports each failure's code", async () => {
 		net.issues = ISSUES;
-		net.gateway = [new Response("nope", { status: 401 })];
+		net.gateway = [new Response(JSON.stringify({ type: "error", error: { type: "invalid_request_error", message: "model: unknown" } }), { status: 400 })];
 		const r = await submit(report());
 		const res = await feedbackAdmin.run(post(`Bearer ${TOKEN}`), await configured({ FEEDBACK_ADMIN_TOKEN: TOKEN }), NOW);
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as any;
-		expect(body).toMatchObject({ configured: true, failed: 1, errors: [{ id: r.id, error: "gateway_401" }] });
+		expect(body).toMatchObject({ configured: true, failed: 1, errors: [{ id: r.id, error: "gateway_400", detail: "invalid_request_error: model: unknown" }] });
 	});
 });
