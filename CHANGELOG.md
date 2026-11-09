@@ -3,6 +3,26 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.10.2](https://github.com/iamngoni/kanso/compare/v0.10.1...v0.10.2) - 2026-11-09
+
+### New
+
+- **cloud:** Run feedback triage on demand with POST /v1/admin/feedback/run and feedback.sh run ([25f01db](https://github.com/iamngoni/kanso/commit/25f01db6a52600a1b90cfb9f3dc25a5f315218e9))
+- **cloud:** Show the gateway's error type and message in the feedback run report ([def37ab](https://github.com/iamngoni/kanso/commit/def37ab224b39c03c6b305af36db224ce040e8d4))
+
+### Fixed
+
+- **mobile:** Settings follow sign-in, keyboard stays up, one plus on iPad list bar ([c4bf881](https://github.com/iamngoni/kanso/commit/c4bf881812220845f753e828cb5b478caef2de4a))
+- **crash:** Send app.patch as null so the server accepts iOS reports ([c1012de](https://github.com/iamngoni/kanso/commit/c1012deb2d60a0a2348b3b4e7ff8159c7f74be13))
+- **ios:** Release SQLite locks before suspend and sync the App Group library ([fefe257](https://github.com/iamngoni/kanso/commit/fefe257cfb347c2cd73d72965faf977569a907c5))
+- **startup:** Update and send feedback from the library error screen ([cc0dc6e](https://github.com/iamngoni/kanso/commit/cc0dc6eaf971f0713d2c438a8644cc0de0b64811))
+- **settings:** Keep the copied MCP setup when macOS refuses the clipboard markers ([ae2212b](https://github.com/iamngoni/kanso/commit/ae2212b59d02c401e1cb4caecd10770b2cd3e049))
+- **cloud:** Stop sending temperature to feedback triage, which Haiku 5.5 refuses ([767ba5c](https://github.com/iamngoni/kanso/commit/767ba5c288d61c7bcaaa988690384b686369843e))
+
+### Under the hood
+
+- **scripts:** Add feedback.sh to read feedback, triage, screenshots and crash reports ([46d9885](https://github.com/iamngoni/kanso/commit/46d9885115b8ee64d85eb469b200897c15c39890))
+
 ## [0.10.1](https://github.com/iamngoni/kanso/compare/v0.10.0...v0.10.1) - 2026-11-09
 
 ### Fixed
