@@ -48,13 +48,25 @@ expect MinimumOSVersion 17.0
 signature="$(codesign -dvv "$app" 2>&1 || true)"
 grep -q '^TeamIdentifier=4973Y692JU$' <<<"$signature" ||
 	fail "the app isn't signed by team 4973Y692JU."
-grep -q '^Authority=Apple Distribution' <<<"$signature" ||
+# Older distribution certificates are named iPhone Distribution.
+grep -Eq '^Authority=(Apple|iPhone) Distribution' <<<"$signature" ||
 	fail "the app isn't signed with an Apple Distribution certificate."
 entitlements="$(codesign -d --entitlements :- "$app" 2>/dev/null || true)"
-if grep -q 'get-task-allow' <<<"$entitlements" &&
-	grep -A1 'get-task-allow' <<<"$entitlements" | grep -q '<true/>'; then
+# codesign prints the plist on one line, so the value is read by key.
+if [ "$(plutil -extract get-task-allow raw -o - - <<<"$entitlements" 2>/dev/null || true)" = true ]; then
 	fail "the app carries get-task-allow: it is a development build."
 fi
+# App Store Connect refuses a framework whose binary asks for a newer iOS
+# than its own Info.plist says (ITMS-90208).
+for framework in "$app"/Frameworks/*.framework; do
+	[ -d "$framework" ] || continue
+	name="$(basename "$framework" .framework)"
+	wanted="$(plutil -extract MinimumOSVersion raw -o - "$framework/Info.plist" 2>/dev/null || true)"
+	minos="$(vtool -show-build "$framework/$name" 2>/dev/null | awk '/minos/ {print $2; exit}')"
+	[ -z "$wanted" ] || [ -z "$minos" ] && continue
+	[ "$(printf '%s\n%s\n' "$minos" "$wanted" | sort -V | tail -n 1)" = "$wanted" ] ||
+		fail "$name.framework's binary needs iOS $minos but its Info.plist says $wanted (ITMS-90208)."
+done
 [ -f "$app/embedded.mobileprovision" ] || fail "the app has no embedded.mobileprovision."
 codesign --verify --deep --strict "$app" 2>&1 || fail "codesign --verify failed."
 
