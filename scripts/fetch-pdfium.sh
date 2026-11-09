@@ -29,23 +29,23 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
-PDFIUM_BUILD=7881
+PDFIUM_BUILD=8138
 REPO=bblanchon/pdfium-binaries
 
 sha256_for() {
     case "$1" in
-    mac-arm64) echo 52e94ca5aa8847934330daf3f8150c190682c5ca93831468794f8b90d4392e40 ;;
-    mac-x64) echo 6dedf83990e0e3d6b7c93c9e7589c5a126b0ae14b7464d76120cff7a26afb18b ;;
-    linux-x64) echo 1470e21b8b4a3b4ad7f85684e2da11d94f3b69a86d81dee11b9b6709d927ac1d ;;
-    linux-arm64) echo ee7f7b7d5468958336a818c1cd580bdd20972846b7377b13f9a923d92d1d4674 ;;
-    win-x64) echo 73cc0de638ac2095e7445bf56a38200a5b7c7ca0e9f4ba144598f2457377ac08 ;;
-    win-arm64) echo d3035d4d2cacac6ecd1a2ece197a3d702a1b2a58466276b9f870b8cb278a9d84 ;;
-    ios-device-arm64) echo 0f73152a94bbfb467dadedce745691e55b09792ed38cc9a6b0d11f2a9dc95ea7 ;;
-    ios-simulator-arm64) echo fcccdae4c81b39234398c102645490705da150d77bec43f75ed60738c2f50cd9 ;;
-    ios-simulator-x64) echo 7186c9ac94d4b25421b9cffd7716ac02e4153c8f27f955c831a98aab2ec107cd ;;
-    android-arm64) echo 16d23bb86c4188d59326dc509938f59df3c417ecfdd3d2ca2f160dc5bd49a839 ;;
-    android-arm) echo 57f7f5c349a3268f39b1737f830e50e271aa3116417abed2c30d0c0840b1b58b ;;
-    android-x64) echo 58bd708d6083173008c63860dbffa93396a2fee00dd76747cbd782bcf4ff9bd4 ;;
+    mac-arm64) echo 21a1567b397b571f4f77f21ca91eac7b892774219c3c715a5127a20950ccb18b ;;
+    mac-x64) echo 72662ac8eff7bf5381ef82ceebd0a0ad5bddb051b303981115114e6972fd201c ;;
+    linux-x64) echo d6b1e28950a0392590d79bbdbb7eb19686872b688f8a36f170acb19e41473113 ;;
+    linux-arm64) echo c70b1ce4d13257f741af19e0aeee575890875995eb81370a65be942e601a1862 ;;
+    win-x64) echo 8d48973e3eb472dda0f5f2435e595ac043f9f2219dd71883392f549445afa8a5 ;;
+    win-arm64) echo 5e04abdb36ba9b4b5c8630123eaf042036f8a62abda6e5529708fee3d35fbf4f ;;
+    ios-device-arm64) echo d2acc4d9c24fa3bd002415e89c8a52a1936da823215283315dfab2070e465698 ;;
+    ios-simulator-arm64) echo 7e2d50b1dbe1d4f9e4b28a575a0f69423b5f2150f30b3303455a39669dd70c61 ;;
+    ios-simulator-x64) echo 5696940a4e3adf1e2bca4010d69ce500d3ffadc1e740bc4df957349fb8fdbd98 ;;
+    android-arm64) echo fc73c8020d7204e52f7a9d8153489b3cac2e9c5dc5d70d3a37a976a7398c1a86 ;;
+    android-arm) echo ee004a2ced1b321b7d9875f71ef9470692d00155b86262312b8c4c1b787c2124 ;;
+    android-x64) echo cf71ceb527d72a64b3e8bf36e9b15b326984f56d33bb8b74350a92ab8706ba87 ;;
     *) return 1 ;;
     esac
 }
