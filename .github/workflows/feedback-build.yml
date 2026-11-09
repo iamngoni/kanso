@@ -129,6 +129,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: .github/feedback/issue-for-agent.sh
+      - name: Sandbox for Claude Code
+        # Subprocess env scrubbing needs bubblewrap; Ubuntu 24.04 also blocks the
+        # unprivileged user namespaces it uses unless AppArmor allows them.
+        run: |
+          set -euo pipefail
+          command -v bwrap >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap; }
+          sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          bwrap --ro-bind / / --dev /dev true
       - name: Sonnet plans
         uses: anthropics/claude-code-action@c0949c50a78c1ec8ce2647db36629b870e715d0c # v1
         with:
@@ -185,6 +193,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: .github/feedback/issue-for-agent.sh
+      - name: Sandbox for Claude Code
+        # Subprocess env scrubbing needs bubblewrap; Ubuntu 24.04 also blocks the
+        # unprivileged user namespaces it uses unless AppArmor allows them.
+        run: |
+          set -euo pipefail
+          command -v bwrap >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap; }
+          sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          bwrap --ro-bind / / --dev /dev true
       - name: Sonnet builds
         uses: anthropics/claude-code-action@c0949c50a78c1ec8ce2647db36629b870e715d0c # v1
         with:
@@ -342,6 +358,14 @@ jobs:
           git fetch -q --no-tags origin "refs/heads/$BRANCH"
           [ "$(git rev-parse FETCH_HEAD)" = "$PR_HEAD" ] || { echo "::error::$BRANCH moved"; exit 1; }
           git switch -q -C "$BRANCH" "$PR_HEAD"
+      - name: Sandbox for Claude Code
+        # Subprocess env scrubbing needs bubblewrap; Ubuntu 24.04 also blocks the
+        # unprivileged user namespaces it uses unless AppArmor allows them.
+        run: |
+          set -euo pipefail
+          command -v bwrap >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap; }
+          sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          bwrap --ro-bind / / --dev /dev true
       - name: Opus reviews
         uses: anthropics/claude-code-action@c0949c50a78c1ec8ce2647db36629b870e715d0c # v1
         with:
