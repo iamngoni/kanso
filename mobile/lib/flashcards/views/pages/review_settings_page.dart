@@ -15,6 +15,7 @@ import '../../../core/utils/kanso_error_mapping.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_confirm_sheet.dart';
 import '../../../core/views/widgets/kanso_page.dart';
+import '../../../core/views/widgets/kanso_time_sheet.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../injection.dart';
 import '../../../reminders/utils/reminders_coordinator.dart';
@@ -87,15 +88,12 @@ class _ReviewSettingsPageState extends State<ReviewSettingsPage> {
   );
 
   Future<void> _pickTime(CardSettingsView s) async {
-    final now = TimeOfDay.now();
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: now,
+    final text = await KansoTimeSheet.show(
+      context,
+      title: context.l10n.flashcardsDailyReminder,
+      initial: DateTime.now(),
     );
-    if (picked != null) {
-      final hh = picked.hour.toString().padLeft(2, '0');
-      final mm = picked.minute.toString().padLeft(2, '0');
-      final text = '$hh:$mm';
+    if (text != null) {
       await _save(_with(s, reminder: text));
     }
   }
