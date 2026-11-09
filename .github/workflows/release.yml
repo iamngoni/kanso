@@ -53,10 +53,12 @@ jobs:
             os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             pdfium: linux-x64
+            onnxruntime: linux-x64
           - name: linux-arm64
             os: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
             pdfium: linux-arm64
+            onnxruntime: linux-arm64
     defaults:
       run:
         shell: bash
@@ -157,6 +159,19 @@ jobs:
         env:
           PDFIUM_PLATFORM: ${{ matrix.pdfium }}
         run: scripts/fetch-pdfium.sh "$PDFIUM_PLATFORM"
+
+      # Linux links Microsoft's ONNX Runtime dynamically: pyke's static
+      # archives need glibc 2.38, and this runner's 2.35 is the oldest Linux
+      # Kanso supports (scripts/fetch-onnxruntime.sh). The Build steps below
+      # pick it up from these two variables; macOS and Windows link pyke's.
+      - name: ONNX Runtime (Linux)
+        if: runner.os == 'Linux'
+        env:
+          ORT_PLATFORM: ${{ matrix.onnxruntime }}
+        run: |
+          scripts/fetch-onnxruntime.sh "$ORT_PLATFORM"
+          echo "ORT_LIB_LOCATION=$PWD/vendor/onnxruntime/$ORT_PLATFORM/lib" >>"$GITHUB_ENV"
+          echo "ORT_PREFER_DYNAMIC_LINK=1" >>"$GITHUB_ENV"
 
       - name: Build
         run: cargo build --release --locked -p kanso-app -p kanso-plugin-host -p kanso-pdf --features kanso-pdf/render
@@ -359,6 +374,7 @@ jobs:
           STEM: ${{ steps.version.outputs.stem }}
           VERSION: ${{ steps.version.outputs.version }}
           PDFIUM_PLATFORM: ${{ matrix.pdfium }}
+          ORT_PLATFORM: ${{ matrix.onnxruntime }}
         run: |
           stem=$STEM
           pdfium=vendor/pdfium/$PDFIUM_PLATFORM
@@ -368,6 +384,12 @@ jobs:
           install -m 755 target/release/kanso-headless "$stem/kanso-headless"
           strip "$stem/kanso-headless"
           scripts/check-headless-ldd.sh "$stem/kanso-headless"
+          # Voice input's ONNX Runtime beside the binaries, where their
+          # rpath ($ORIGIN) finds it; install.sh moves it with them.
+          ort=vendor/onnxruntime/$ORT_PLATFORM
+          install -m 755 "$ort/lib/libonnxruntime.so.1" "$stem/libonnxruntime.so.1"
+          mkdir -p "$stem/onnxruntime-licenses"
+          cp "$ort/LICENSE" "$ort/ThirdPartyNotices.txt" "$stem/onnxruntime-licenses/"
           install -m 755 target/release/kanso-plugin-host "$stem/kanso-plugin-host"
           strip "$stem/kanso-plugin-host"
           install -m 755 target/release/kanso-pdf-worker "$stem/kanso-pdf-worker"
@@ -383,6 +405,10 @@ jobs:
           install -m 644 assets/linux/kanso.desktop "$stem/kanso.desktop"
           install -m 644 assets/icon/kanso.png "$stem/kanso.png"
           install -m 755 assets/linux/install.sh "$stem/install.sh"
+          # Glibc 2.35 is the most the Linux builds may need (Ubuntu 22.04,
+          # Debian 12), and the ONNX Runtime library must load from the folder.
+          scripts/check-linux-portable.sh "$stem/kanso" "$stem/kanso-headless" "$stem/kanso-plugin-host" \
+            "$stem/kanso-pdf-worker" "$stem/libonnxruntime.so.1"
           tar -czf "dist/$stem.tar.gz" "$stem"
 
           headless_stem="Kanso-$VERSION-${{ matrix.name }}-headless"
@@ -390,6 +416,9 @@ jobs:
           install -m 755 target/release/kanso-headless "$headless_stem/kanso-headless"
           install -m 755 assets/linux/install.sh "$headless_stem/install.sh"
           scripts/check-headless-ldd.sh "$headless_stem/kanso-headless"
+          # The server CLI has no voice input, so it doesn't link ONNX Runtime
+          # (a NEEDED it can't resolve here fails this check).
+          scripts/check-linux-portable.sh "$headless_stem/kanso-headless"
           tar -czf "dist/$headless_stem.tar.gz" "$headless_stem"
 
           # Exercise the server binary on the display-less release runner.

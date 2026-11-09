@@ -10,7 +10,8 @@ bin_dir="$HOME/.local/bin"
 data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
 apps_dir="$data_home/applications"
 icon_dir="$data_home/icons/hicolor/512x512/apps"
-# PDFs are drawn by a helper and its library, which Kanso finds in ../lib/kanso.
+# PDFs are drawn by a helper and its library, and voice input has ONNX
+# Runtime; Kanso finds them in ../lib/kanso.
 lib_dir="$HOME/.local/lib/kanso"
 
 if [ "${1:-}" = "--uninstall" ]; then
@@ -35,6 +36,15 @@ mkdir -p "$bin_dir" "$apps_dir" "$icon_dir"
 install -m 755 "$here/kanso" "$bin_dir/kanso"
 # Plugins run in their own process, beside Kanso.
 [ -f "$here/kanso-plugin-host" ] && install -m 755 "$here/kanso-plugin-host" "$bin_dir/kanso-plugin-host"
+# Voice input's ONNX Runtime, which the binary finds in ../lib/kanso.
+if [ -f "$here/libonnxruntime.so.1" ]; then
+    mkdir -p "$lib_dir"
+    install -m 755 "$here/libonnxruntime.so.1" "$lib_dir/libonnxruntime.so.1"
+    if [ -d "$here/onnxruntime-licenses" ]; then
+        mkdir -p "$lib_dir/onnxruntime-licenses"
+        cp -R "$here/onnxruntime-licenses/." "$lib_dir/onnxruntime-licenses/"
+    fi
+fi
 if [ -f "$here/kanso-pdf-worker" ] && [ -f "$here/libpdfium.so" ]; then
     mkdir -p "$lib_dir"
     install -m 755 "$here/kanso-pdf-worker" "$lib_dir/kanso-pdf-worker"

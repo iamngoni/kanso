@@ -2,7 +2,8 @@
 //! kanso-themes submodule's: `icon_themes::BUILTIN_FILES`; the color themes
 //! are compiled into kanso-engine, `kanso_engine::theme::builtin::BUILTIN`). On Windows, also puts the app icon
 //! (assets/icon/kanso.ico) into kanso.exe so Explorer, the taskbar and the
-//! window show it, and keeps DirectML from loading with the app.
+//! window show it, and keeps DirectML from loading with the app. On Linux release builds, the
+//! rpath ONNX Runtime's shared library is found through.
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
@@ -18,6 +19,22 @@ fn main() {
             println!("cargo:rustc-link-arg-bins=/DELAYLOAD:{dll}");
         }
         println!("cargo:rustc-link-arg-bins=delayimp.lib");
+    }
+    println!("cargo:rerun-if-env-changed=ORT_PREFER_DYNAMIC_LINK");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux")
+        && matches!(
+            std::env::var("ORT_PREFER_DYNAMIC_LINK").as_deref(),
+            Ok("1" | "true" | "TRUE")
+        )
+    {
+        // The Linux release links Microsoft's ONNX Runtime dynamically
+        // (scripts/fetch-onnxruntime.sh: pyke's static archives need a newer
+        // glibc than Ubuntu 22.04's). The loader finds libonnxruntime.so.1
+        // beside the binary (the release archive), or in ../lib/kanso (the
+        // .deb's /usr/lib/kanso and install.sh's ~/.local/lib/kanso).
+        for dir in ["$ORIGIN", "$ORIGIN/../lib/kanso"] {
+            println!("cargo:rustc-link-arg-bins=-Wl,-rpath,{dir}");
+        }
     }
     #[cfg(windows)]
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
