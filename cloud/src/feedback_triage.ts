@@ -244,7 +244,11 @@ export function duplicateComment(triage: Triage, report: Report): string {
 // ------------------------------------------------------------------ the call
 
 export class TriageFailure extends Error {
-	constructor(public reason: string) {
+	/** The gateway's or provider's own error type and message, for the owner's run report only. */
+	constructor(
+		public reason: string,
+		public detail?: string,
+	) {
 		super(reason);
 		this.name = "TriageFailure";
 	}
@@ -285,6 +289,22 @@ export function gatewayOf(env: Env): GatewayConfig | null {
 	};
 }
 
+/**
+ * The error type and message of a refused call (Anthropic's `{error: {type, message}}` or the
+ * gateway's `{errors: [{message}]}`), printable characters only, at most 300. They describe the
+ * request, not the report, and go only to the owner's run report, never to the log.
+ */
+async function errorDetail(response: Response): Promise<string | undefined> {
+	try {
+		const body = (await response.json()) as any;
+		const parts = [body?.error?.type, body?.error?.message, ...(Array.isArray(body?.errors) ? body.errors.map((e: any) => e?.message) : [])];
+		const text = parts.filter((p) => typeof p === "string").join(": ").replace(/[^\x20-\x7e]/g, "?");
+		return text ? text.slice(0, 300) : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 /** One Haiku call: the tool input it answered with. Throws TriageFailure for anything else. */
 export async function callGateway(
 	config: GatewayConfig,
@@ -315,7 +335,7 @@ export async function callGateway(
 		}),
 		signal: AbortSignal.timeout(25_000),
 	});
-	if (!response.ok) throw new TriageFailure(`gateway_${response.status}`);
+	if (!response.ok) throw new TriageFailure(`gateway_${response.status}`, await errorDetail(response));
 	let answer: { content?: { type: string; name?: string; input?: unknown }[]; stop_reason?: string };
 	try {
 		answer = await response.json();
@@ -347,7 +367,7 @@ export interface TriageReport {
 	untriaged: number;
 	capped: boolean;
 	/** Per report that failed this run: its ID and the error code the log gets. */
-	errors: { id: string; error: string }[];
+	errors: { id: string; error: string; detail?: string }[];
 }
 
 const utcDayStart = (now: number): number => now - (now % DAY);
@@ -429,7 +449,7 @@ export async function runTriage(env: Env, now: number, limit = BATCH): Promise<T
 				} catch (err) {
 					report.failed += 1;
 					const reason = err instanceof TriageFailure ? err.reason : "internal";
-					report.errors.push({ id: row.id, error: reason });
+					report.errors.push({ id: row.id, error: reason, ...(err instanceof TriageFailure && err.detail ? { detail: err.detail } : {}) });
 					console.error(JSON.stringify({ route: "feedback_triage", error: reason, kind: (err as Error)?.name ?? typeof err }));
 					continue;
 				}
