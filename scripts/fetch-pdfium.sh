@@ -71,7 +71,16 @@ expected=$(sha256_for "$platform") || {
 }
 
 dest=${PDFIUM_DIR:-vendor/pdfium}/$platform
-if [ -f "$dest/BUILD" ] && [ -f "$dest/args.gn" ] && [ "$(cat "$dest/BUILD")" = "$PDFIUM_BUILD $expected" ]; then
+# An iOS copy fetched before the minimum was restamped (below) is fetched again.
+stale_ios_minimum() {
+    case "$platform" in ios-*) ;; *) return 1 ;; esac
+    for lib in "$dest"/lib/*.dylib; do
+        [ -f "$lib" ] || return 0
+        vtool -show-build "$lib" | grep -q 'minos 13.0' || return 0
+    done
+    return 1
+}
+if [ -f "$dest/BUILD" ] && [ -f "$dest/args.gn" ] && [ "$(cat "$dest/BUILD")" = "$PDFIUM_BUILD $expected" ] && ! stale_ios_minimum; then
     # Looked at again, so a library swapped in after the fetch is caught.
     scripts/check-pdfium-no-v8.sh "$dest" >/dev/null
     echo "PDFium $PDFIUM_BUILD ($platform) is already in $dest."
@@ -123,5 +132,23 @@ cp -R "$work/unpacked/licenses" "$dest/licenses"
 cp "$work/unpacked/VERSION" "$dest/VERSION"
 # The build's own record of how it was made, which the V8 check reads.
 cp "$work/unpacked/args.gn" "$dest/args.gn"
+# The iOS builds are stamped with the SDK they were built with (iOS 26) as
+# their minimum, and App Store Connect refuses a framework whose binary asks
+# for more than the Info.plist Flutter writes for it (ITMS-90208). PDFium only
+# calls CoreGraphics, Foundation and libSystem functions far older than that,
+# with its own C++ library inside, so the minimum is restamped to iOS 13, the
+# lowest Flutter writes, which every plist Kanso ships is at or above.
+case "$platform" in
+ios-*)
+    for lib in "$dest"/lib/*.dylib; do
+        platform_name=ios
+        case "$platform" in ios-simulator-*) platform_name=iossim ;; esac
+        sdk=$(vtool -show-build "$lib" | awk '/sdk/ {print $2; exit}')
+        vtool -set-build-version "$platform_name" 13.0 "${sdk:-26.0}" -replace -output "$lib.tmp" "$lib"
+        mv "$lib.tmp" "$lib"
+        codesign --force --sign - "$lib" 2>/dev/null || true
+    done
+    ;;
+esac
 echo "$PDFIUM_BUILD $expected" >"$dest/BUILD"
 echo "PDFium $PDFIUM_BUILD ($platform) is in $dest."
