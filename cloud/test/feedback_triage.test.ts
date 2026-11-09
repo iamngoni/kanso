@@ -80,7 +80,6 @@ describe("the gateway request", () => {
 		expect(sent.body).toMatchObject({
 			model: "claude-haiku-5-5",
 			max_tokens: 1200,
-			temperature: 0,
 			system: TRIAGE_SYSTEM,
 			tools: [TRIAGE_TOOL],
 			tool_choice: { type: "tool", name: "file_triage" },

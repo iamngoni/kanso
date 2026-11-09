@@ -107,7 +107,7 @@ so there is no Anthropic key anywhere. The gateway's rate limit, spend limit and
 | `cf-aig-skip-cache: true` | every report is unique |
 | `cf-aig-metadata` | `{feedback, kind}` |
 
-The model is the `TRIAGE_MODEL` var (`claude-haiku-5-5`), `temperature: 0`, `max_tokens: 1200`,
+The model is the `TRIAGE_MODEL` var (`claude-haiku-5-5`), `max_tokens: 1200` (no `temperature`: Haiku 5.5 refuses it),
 `tool_choice` forced to the one tool `file_triage`, whose `input_schema` is strict
 (`additionalProperties: false`, every field required, enums for category, area, platform,
 severity and size). The system prompt (`TRIAGE_SYSTEM`, `src/feedback_triage.ts`) tells the model
