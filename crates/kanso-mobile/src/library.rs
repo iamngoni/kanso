@@ -181,6 +181,16 @@ impl Library {
             .map(|inner| Library { inner })
     }
 
+    /// Closes the library's database connections so the process holds no
+    /// lock on the library while it is suspended (see
+    /// [`Store::release_for_suspend`]). The next read or write opens them
+    /// again. Does nothing to a library that is not open in this process.
+    pub fn release_for_suspend(path: &Path) {
+        if let Some(library) = Library::existing(path) {
+            library.inner.store.release_for_suspend();
+        }
+    }
+
     /// The library's store, for tests that write to it as a sync would.
     #[cfg(any(test, feature = "test-support"))]
     #[doc(hidden)]

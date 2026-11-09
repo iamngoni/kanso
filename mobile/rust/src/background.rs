@@ -57,6 +57,36 @@ pub unsafe extern "C" fn kanso_background_sync(library_path: *const c_char, budg
     }
 }
 
+/// Closes the database connections of the library at `library_path`, if this
+/// process has it open, so the app holds no SQLite lock on a file in the App
+/// Group's container when iOS suspends it (`0xdead10cc`). The next use of the
+/// library opens them again. Returns 0, or -5 for a path that isn't text.
+///
+/// ```c
+/// int32_t kanso_library_release(const char *library_path);
+/// ```
+///
+/// # Safety
+///
+/// As for [`kanso_background_sync`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn kanso_library_release(library_path: *const c_char) -> i32 {
+    let caught = catch_unwind(AssertUnwindSafe(|| {
+        if library_path.is_null() {
+            return INTERNAL;
+        }
+        // SAFETY: non-null, and the caller promises it is a NUL-terminated
+        // string valid for this call.
+        let text = unsafe { CStr::from_ptr(library_path) };
+        let Ok(path) = text.to_str() else {
+            return INTERNAL;
+        };
+        kanso_mobile::Library::release_for_suspend(Path::new(path));
+        0
+    }));
+    caught.unwrap_or(INTERNAL)
+}
+
 /// [`kanso_background_sync`] with the server client and the secret store
 /// given, so tests can pass their own.
 ///

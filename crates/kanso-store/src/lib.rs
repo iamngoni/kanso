@@ -233,7 +233,12 @@ pub struct Store {
     path: PathBuf,
     /// The library's key; `None` for a plain library.
     key: Option<LibraryKey>,
-    writer: Mutex<Connection>,
+    /// The writer; `None` while the store is released for a suspend
+    /// ([`Store::release_for_suspend`]), reopened by the next write.
+    writer: Mutex<Option<Connection>>,
+    /// Set by a release and cleared by the next use: a reader that was out
+    /// when it ran is closed, not pooled again.
+    released: std::sync::atomic::AtomicBool,
     readers: Mutex<Vec<Connection>>,
     subscribers: Mutex<Vec<async_channel::Sender<Change>>>,
     /// A note's forgotten text may still be in the write-ahead log: a reader
@@ -271,7 +276,8 @@ impl Store {
         Ok(Store {
             path,
             key: key.cloned(),
-            writer: Mutex::new(writer),
+            writer: Mutex::new(Some(writer)),
+            released: Default::default(),
             readers: Mutex::new(Vec::new()),
             subscribers: Mutex::new(Vec::new()),
             wal_to_empty: Default::default(),
@@ -304,6 +310,8 @@ impl Store {
 
     /// Runs `f` on a pooled read connection.
     fn read<T>(&self, f: impl FnOnce(&Connection) -> Result<T>) -> Result<T> {
+        self.released
+            .store(false, std::sync::atomic::Ordering::SeqCst);
         let conn = self.readers.lock().expect("readers poisoned").pop();
         let conn = match conn {
             Some(conn) => conn,
@@ -311,10 +319,38 @@ impl Store {
         };
         let result = f(&conn);
         let mut readers = self.readers.lock().expect("readers poisoned");
-        if readers.len() < READER_POOL {
+        if readers.len() < READER_POOL && !self.released.load(std::sync::atomic::Ordering::SeqCst) {
             readers.push(conn);
         }
         result
+    }
+
+    /// Closes every database connection, so that no SQLite lock on the
+    /// database, its write-ahead log or its shared-memory file is held while
+    /// the process is suspended.
+    ///
+    /// iOS kills (`0xdead10cc`) an app that is suspended while it holds a
+    /// file lock on a file in a shared container, and the library lives in
+    /// the App Group's container. A WAL connection keeps a lock on the
+    /// `-shm` file for as long as it is open, even between transactions.
+    /// The log is checkpointed first, so the file left behind is whole.
+    /// Nothing is lost and nothing else changes: the next read or write
+    /// opens a connection again. Waits for a write in progress.
+    pub fn release_for_suspend(&self) {
+        use std::sync::atomic::Ordering;
+        self.released.store(true, Ordering::SeqCst);
+        let mut slot = self.writer.lock().expect("writer poisoned");
+        // The checkpoint is best effort: a reader holding the log only
+        // leaves it for the next connection.
+        if let Some(conn) = slot.as_ref() {
+            let _ = conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                row.get::<_, i64>(0)
+            });
+        }
+        self.readers.lock().expect("readers poisoned").clear();
+        if let Some(conn) = slot.take() {
+            let _ = conn.close();
+        }
     }
 
     /// Runs `f` inside one `BEGIN IMMEDIATE` transaction on the writer and
@@ -324,17 +360,21 @@ impl Store {
         f: impl FnOnce(&rusqlite::Transaction, &mut Vec<Change>) -> Result<T>,
     ) -> Result<T> {
         use std::sync::atomic::Ordering;
-        let mut conn = self.writer.lock().expect("writer poisoned");
-        let tx = rusqlite::Transaction::new(&mut conn, rusqlite::TransactionBehavior::Immediate)?;
+        self.released.store(false, Ordering::SeqCst);
+        let mut slot = self.writer.lock().expect("writer poisoned");
+        if slot.is_none() {
+            *slot = Some(schema::connect(&self.path, self.key.as_ref())?);
+        }
+        let conn = slot.as_mut().expect("the writer was just opened");
+        let tx = rusqlite::Transaction::new(conn, rusqlite::TransactionBehavior::Immediate)?;
         let mut changes = Vec::new();
         let written = f(&tx, &mut changes).and_then(|value| Ok(tx.commit().map(|()| value)?));
         let forgot = write::forgot_text();
         let value = written?;
         if forgot || self.wal_to_empty.load(Ordering::Relaxed) {
-            self.wal_to_empty
-                .store(!empty_wal(&conn), Ordering::Relaxed);
+            self.wal_to_empty.store(!empty_wal(conn), Ordering::Relaxed);
         }
-        drop(conn);
+        drop(slot);
         self.broadcast(&changes);
         Ok(value)
     }

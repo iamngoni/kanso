@@ -28,7 +28,7 @@ platform="${1:-}"
 }
 
 lib=kanso_mobile_bridge
-bridge_symbols=(frb_pde_ffi_dispatcher_primary kanso_background_sync kanso_passkey_answer)
+bridge_symbols=(frb_pde_ffi_dispatcher_primary kanso_background_sync kanso_library_release kanso_passkey_answer)
 failed=0
 
 fail() {
