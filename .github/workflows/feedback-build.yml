@@ -130,11 +130,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: .github/feedback/issue-for-agent.sh
       - name: Sandbox for Claude Code
-        # Subprocess env scrubbing needs bubblewrap; Ubuntu 24.04 also blocks the
+        # Subprocess env scrubbing needs bubblewrap and the shell sandbox socat; Ubuntu 24.04 also blocks the
         # unprivileged user namespaces it uses unless AppArmor allows them.
         run: |
           set -euo pipefail
-          command -v bwrap >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap; }
+          { command -v bwrap && command -v socat; } >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap socat; }
           sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           bwrap --ro-bind / / --dev /dev true
       - name: Sonnet plans
@@ -194,11 +194,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: .github/feedback/issue-for-agent.sh
       - name: Sandbox for Claude Code
-        # Subprocess env scrubbing needs bubblewrap; Ubuntu 24.04 also blocks the
+        # Subprocess env scrubbing needs bubblewrap and the shell sandbox socat; Ubuntu 24.04 also blocks the
         # unprivileged user namespaces it uses unless AppArmor allows them.
         run: |
           set -euo pipefail
-          command -v bwrap >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap; }
+          { command -v bwrap && command -v socat; } >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap socat; }
           sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           bwrap --ro-bind / / --dev /dev true
       - name: Sonnet builds
@@ -359,11 +359,11 @@ jobs:
           [ "$(git rev-parse FETCH_HEAD)" = "$PR_HEAD" ] || { echo "::error::$BRANCH moved"; exit 1; }
           git switch -q -C "$BRANCH" "$PR_HEAD"
       - name: Sandbox for Claude Code
-        # Subprocess env scrubbing needs bubblewrap; Ubuntu 24.04 also blocks the
+        # Subprocess env scrubbing needs bubblewrap and the shell sandbox socat; Ubuntu 24.04 also blocks the
         # unprivileged user namespaces it uses unless AppArmor allows them.
         run: |
           set -euo pipefail
-          command -v bwrap >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap; }
+          { command -v bwrap && command -v socat; } >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap socat; }
           sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           bwrap --ro-bind / / --dev /dev true
       - name: Opus reviews
