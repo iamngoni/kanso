@@ -80,7 +80,11 @@ class NoteListTopBar extends StatelessWidget {
           ),
         if (onNew != null)
           KansoIconButton(
-            icon: KansoIcons.plus,
+            // Beside the library the bar has the new-note plus as well; the
+            // menu of the other things to make is not a second plus.
+            icon: onNewNote == null
+                ? KansoIcons.plus
+                : KansoIcons.layoutTemplate,
             semanticLabel: l10n.newMenuLabel,
             onPressed: onNew,
           ),

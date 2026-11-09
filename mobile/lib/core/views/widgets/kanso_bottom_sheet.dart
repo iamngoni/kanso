@@ -161,8 +161,12 @@ class _KansoBottomSheetState extends State<KansoBottomSheet> {
             );
             final body = NotificationListener<ScrollNotification>(
               onNotification: (notification) {
-                if (notification is ScrollStartNotification ||
-                    notification is UserScrollNotification) {
+                // Only a finger dragging the content puts the keyboard
+                // away. The scroll that brings the focused field into view
+                // as the keyboard opens starts without one, and dismissed
+                // the keyboard it was made for.
+                if (notification is ScrollStartNotification &&
+                    notification.dragDetails != null) {
                   _dismissKeyboard();
                 }
                 return false;

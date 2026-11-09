@@ -7,11 +7,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/configs/kanso_icons.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/list_options.dart';
 import 'package:kanso/core/models/data/note_drag_data.dart';
 import 'package:kanso/core/views/widgets/kanso_bottom_sheet.dart';
 import 'package:kanso/core/views/widgets/kanso_drawer.dart';
+import 'package:kanso/core/views/widgets/kanso_icon.dart';
 import 'package:kanso/core/views/widgets/kanso_large_title.dart';
 import 'package:kanso/core/views/widgets/kanso_scrim.dart';
 import 'package:kanso/core/views/widgets/kanso_skeleton.dart';
@@ -631,6 +633,31 @@ void main() {
       await tester.tap(find.bySemanticsLabel('New note'));
       await tester.pump();
       expect(blocs.library.created.single.place, const ListPlace.all());
+    });
+
+    testWidgets('on an iPad the bar has one plus, not two alike', (
+      tester,
+    ) async {
+      final blocs = await BrowseBlocs.start();
+      final list = await blocs.listOf(const ListPlace.all());
+      await atMockNow(
+        () => pumpRouted(
+          tester,
+          blocs.provide(const NoteListPane(beside: true), list: list),
+          size: const Size(1180, 820),
+        ),
+      );
+      final bar = find.byType(KansoTopBar);
+      final plus = find.descendant(
+        of: bar,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is KansoIcon && widget.icon == KansoIcons.plus,
+        ),
+      );
+      expect(plus, findsOneWidget);
+      // The menu of the other things to make is still there, as its own icon.
+      expect(find.bySemanticsLabel('New note'), findsOneWidget);
+      expect(find.bySemanticsLabel('New'), findsOneWidget);
     });
 
     testWidgets('the button is not afloat while notes are being chosen', (
