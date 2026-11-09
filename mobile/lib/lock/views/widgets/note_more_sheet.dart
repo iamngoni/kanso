@@ -14,6 +14,7 @@ import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../../note/views/pages/presentation_page.dart';
 import '../../../note/views/widgets/note_html_export.dart';
 import '../../../note/views/widgets/note_pdf_export.dart';
+import '../../../publish/views/widgets/publish_sheet.dart';
 import '../../models/data/lock_target.dart';
 import '../../models/data/note_menu_action.dart';
 import '../../state/lock_status/lock_status_bloc.dart';
@@ -69,6 +70,8 @@ class NoteMoreSheet extends StatelessWidget {
         await exportNoteHtml(context, noteId: noteId);
       case NoteMenuAction.present:
         await PresentationPage.show(context, noteId: noteId);
+      case NoteMenuAction.publish:
+        await PublishSheet.showNote(context, noteId);
       case NoteMenuAction.lockNote:
         await LockItemSheet.show(
           context,
@@ -123,6 +126,7 @@ class NoteMoreSheet extends StatelessWidget {
                   NoteMenuAction.exportPdf => KansoIcons.download,
                   NoteMenuAction.exportHtml => KansoIcons.globe,
                   NoteMenuAction.present => KansoIcons.presentation,
+                  NoteMenuAction.publish => KansoIcons.externalLink,
                   NoteMenuAction.lockNote => KansoIcons.lock,
                   NoteMenuAction.removeLock => KansoIcons.lockOpen,
                   NoteMenuAction.lockNow => KansoIcons.lock,
@@ -141,6 +145,7 @@ class NoteMoreSheet extends StatelessWidget {
                   NoteMenuAction.exportPdf => l10n.noteExportPdf,
                   NoteMenuAction.exportHtml => l10n.noteExportHtml,
                   NoteMenuAction.present => l10n.notePresent,
+                  NoteMenuAction.publish => l10n.publishNoteMenu,
                   NoteMenuAction.lockNote => l10n.lockNoteMenu,
                   NoteMenuAction.removeLock => l10n.lockRemoveNoteMenu,
                   NoteMenuAction.lockNow => l10n.lockNowMenu,

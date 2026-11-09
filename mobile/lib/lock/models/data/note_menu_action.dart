@@ -12,6 +12,9 @@ enum NoteMenuAction {
 
   /// Shows the note full screen, as slides.
   present,
+
+  /// Publishes the note as a web page with a link (see `PublishSheet`).
+  publish,
   lockNote,
   removeLock,
   lockNow,

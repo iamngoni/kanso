@@ -20,6 +20,7 @@ List<NoteMenuAction> noteMenuActions({
       NoteMenuAction.exportPdf,
       NoteMenuAction.exportHtml,
       NoteMenuAction.present,
+      NoteMenuAction.publish,
       NoteMenuAction.lockNote,
       if (unlocked) NoteMenuAction.lockNow,
     ],
