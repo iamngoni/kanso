@@ -80,11 +80,16 @@ class _KansoTimeSheetState extends State<KansoTimeSheet> {
           ),
           SizedBox(
             height: 180,
-            child: CupertinoDatePicker(
-              mode: CupertinoDatePickerMode.time,
-              initialDateTime: widget.initial,
-              use24hFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-              onDateTimeChanged: (v) => _value = v,
+            // The wheel's colours follow the app's theme, not the system's:
+            // a dark app on a light phone would draw dark digits on dark.
+            child: CupertinoTheme(
+              data: CupertinoThemeData(brightness: context.brightness),
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.time,
+                initialDateTime: widget.initial,
+                use24hFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+                onDateTimeChanged: (v) => _value = v,
+              ),
             ),
           ),
           const SizedBox(height: KansoSpacing.sm),

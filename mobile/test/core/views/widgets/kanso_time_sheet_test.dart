@@ -38,6 +38,19 @@ void main() {
     expect(find.byType(TimePickerDialog), findsNothing);
   });
 
+  testWidgets('the wheel follows a dark app on a light phone', (tester) async {
+    await pumpKanso(
+      tester,
+      KansoTimeSheet(
+        title: 'Daily reminder',
+        initial: DateTime(2026, 11, 9, 9, 30),
+      ),
+      brightness: Brightness.dark,
+    );
+    final wheel = tester.element(find.byType(CupertinoDatePicker));
+    expect(CupertinoTheme.brightnessOf(wheel), Brightness.dark);
+  });
+
   testWidgets('Done returns the shown time as HH:mm', (tester) async {
     String? result;
     await open(tester, (v) => result = v);
