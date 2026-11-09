@@ -18,8 +18,10 @@ abstract class CrashApp with _$CrashApp {
     required String build,
 
     /// Shorebird's patch number; null without Shorebird or before the first
-    /// patch.
-    required int? patch,
+    /// patch. Always written, `null` included: the server requires the key
+    /// (the build.yaml default, `include_if_null: false`, would drop it and
+    /// the server would answer 400 for `app.patch`).
+    @JsonKey(includeIfNull: true) required int? patch,
   }) = _CrashApp;
 
   factory CrashApp.fromJson(Map<String, dynamic> json) =>

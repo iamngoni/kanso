@@ -31,7 +31,37 @@ public final class KansoBackground {
     NotificationCenter.default.addObserver(
       forName: UIScene.didEnterBackgroundNotification, object: nil, queue: .main
     ) { _ in schedule() }
+    NotificationCenter.default.addObserver(
+      forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+    ) { _ in releaseLibraryForSuspend() }
     schedule()
+  }
+
+  /// Closes the library's database connections as the app goes to the
+  /// background. The library is in the App Group's container, shared with the
+  /// widgets and the share extension, and iOS kills (`0xdead10cc`) an app
+  /// that is suspended while it holds a lock on such a file; a WAL
+  /// connection holds one for as long as it is open. A background task keeps
+  /// the process running long enough to close them, and always ends.
+  private static func releaseLibraryForSuspend() {
+    let application = UIApplication.shared
+    var task = UIBackgroundTaskIdentifier.invalid
+    let lock = NSLock()
+    func end() {
+      lock.lock()
+      defer { lock.unlock() }
+      guard task != .invalid else { return }
+      let finished = task
+      task = .invalid
+      application.endBackgroundTask(finished)
+    }
+    lock.lock()
+    task = application.beginBackgroundTask(withName: "kanso.library.release") { end() }
+    lock.unlock()
+    DispatchQueue.global(qos: .userInitiated).async {
+      KansoBackgroundSync.releaseLibrary()
+      DispatchQueue.main.async { end() }
+    }
   }
 
   /// Asks the system for the next refresh, `interval` from now at the
