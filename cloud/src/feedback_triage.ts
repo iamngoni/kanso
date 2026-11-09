@@ -327,7 +327,6 @@ export async function callGateway(
 		body: JSON.stringify({
 			model: config.model,
 			max_tokens: 1200,
-			temperature: 0,
 			system: TRIAGE_SYSTEM,
 			tools: [TRIAGE_TOOL],
 			tool_choice: { type: "tool", name: "file_triage" },
