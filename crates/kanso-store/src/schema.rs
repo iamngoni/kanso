@@ -660,6 +660,39 @@ pub fn migrate(conn: &Connection) -> Result<()> {
             index + 1
         ))?;
     }
+    repair_note_loops_updated_at(conn)?;
+    Ok(())
+}
+
+/// 0.10.0 put the `note_loops.note_updated_at` migration in the middle of
+/// [`MIGRATIONS`] rather than at its end, so a library made by 0.9.x was
+/// already past its index and skipped it, and then failed to open
+/// ("table note_loops has no column named note_updated_at"). Adds the
+/// column and its index wherever they are missing; the derived loop rows
+/// get the same default of 0 the original migration gave them.
+fn repair_note_loops_updated_at(conn: &Connection) -> Result<()> {
+    let has_table: bool = conn.query_row(
+        "SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'note_loops')",
+        [],
+        |row| row.get(0),
+    )?;
+    if !has_table {
+        return Ok(());
+    }
+    let has_column: bool = conn.query_row(
+        "SELECT EXISTS (SELECT 1 FROM pragma_table_info('note_loops') WHERE name = 'note_updated_at')",
+        [],
+        |row| row.get(0),
+    )?;
+    if has_column {
+        return Ok(());
+    }
+    conn.execute_batch(
+        "BEGIN;
+         ALTER TABLE note_loops ADD COLUMN note_updated_at INTEGER NOT NULL DEFAULT 0;
+         CREATE INDEX IF NOT EXISTS note_loops_updated ON note_loops (note_updated_at DESC, note_id, ord);
+         COMMIT;",
+    )?;
     Ok(())
 }
 
@@ -739,6 +772,33 @@ mod tests {
         assert!(has_column(&conn, "revisions", "author"));
         assert!(has_column(&conn, "revisions", "agent"));
         assert!(has_column(&conn, "triage_dismissed", "value"));
+    }
+
+    /// A 0.9.x library already past the index 0.10.0 gave the
+    /// `note_loops.note_updated_at` migration skipped it; opening it adds
+    /// the column and its index.
+    #[test]
+    fn library_missing_note_loops_updated_at_is_repaired() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = connect(&dir.path().join("k.db"), None).unwrap();
+        migrate(&conn).unwrap();
+        conn.execute_batch(
+            "DROP INDEX note_loops_updated;
+             ALTER TABLE note_loops DROP COLUMN note_updated_at;",
+        )
+        .unwrap();
+        assert!(!has_column(&conn, "note_loops", "note_updated_at"));
+        migrate(&conn).unwrap();
+        assert!(has_column(&conn, "note_loops", "note_updated_at"));
+        conn.execute(
+            "INSERT INTO note_loops (note_id, ord, line, kind, text, key, due, source, note_updated_at)
+             VALUES ('n', 0, 1, 'k', 't', 'key', NULL, 's', 5)",
+            [],
+        )
+        .unwrap();
+        // Running again changes nothing.
+        migrate(&conn).unwrap();
+        assert_eq!(version(&conn), MIGRATIONS.len() as i64);
     }
 
     /// A database on version 5 (find and replace) moves to 6 (discovery)
@@ -991,5 +1051,68 @@ mod overview_tests {
         )
         .unwrap();
         conn.execute_batch(MIGRATIONS[18]).unwrap();
+    }
+}
+
+/// Released migrations are frozen. A library's `user_version` counts how
+/// many of [`MIGRATIONS`] it has run, so changing, removing or inserting
+/// one before the end makes upgraded libraries skip or repeat work (0.10.0
+/// inserted one mid-list and 0.9.x libraries stopped opening). New
+/// migrations go at the end; once released, add their hash here.
+#[cfg(test)]
+mod frozen_migrations {
+    use sha2::{Digest, Sha256};
+
+    const RELEASED: &[&str] = &[
+        "4db9515b7311029a",
+        "64dbe43a1c31b17d",
+        "08ca39e00848cb0f",
+        "2735a48858a0afa3",
+        "6c3494ceca4a8c54",
+        "8b9fb28849310a94",
+        "3d0ae7f12fd98856",
+        "62bd7c9d3203b580",
+        "1b489df3cabba75a",
+        "9d1c30ad36455bd0",
+        "2c15bc2d82305d54",
+        "bee33aff5944b716",
+        "47dc3d20ccd190f1",
+        "9daf465a993a376d",
+        "f3b7f978fd2a5d2c",
+        "eb4ba3b4f6e6ea1f",
+        "6183fc6cae6b40f4",
+        "dfeed430aa590885",
+        "0498b583344c3d7f",
+        "98703742c0a98525",
+        "e7cb7a40428812c0",
+        "6498d51de657003d",
+        "e32cd11b1d19ed18",
+        "867d921b798c5865",
+        "4ebda7fee54b7e70",
+        "d59e69a5b2acdf78",
+    ];
+
+    fn hash(sql: &str) -> String {
+        let h: String = Sha256::digest(sql.as_bytes())
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        h[..16].to_string()
+    }
+
+    #[test]
+    fn released_migrations_are_unchanged_and_in_order() {
+        assert!(
+            super::MIGRATIONS.len() >= RELEASED.len(),
+            "a released migration was removed"
+        );
+        for (index, want) in RELEASED.iter().enumerate() {
+            assert_eq!(
+                hash(super::MIGRATIONS[index]),
+                *want,
+                "migration {index} changed or a new one was inserted before it; \
+                 released migrations are frozen, add new ones at the end"
+            );
+        }
     }
 }
