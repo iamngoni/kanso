@@ -299,13 +299,14 @@ mod mac {
                 CURRENT_HOST_ONLY,
             )
         };
-        let written = set_string(pasteboard, secret, UTF8_TEXT)
-            && set_string(pasteboard, "", CONCEALED)
-            && set_string(pasteboard, "", TRANSIENT);
-        if !written {
+        if !set_string(pasteboard, secret, UTF8_TEXT) {
             clear();
             return None;
         }
+        // The markers only keep clipboard managers away. A macOS that
+        // refuses an empty value for them must not lose the copy itself.
+        set_string(pasteboard, "", CONCEALED);
+        set_string(pasteboard, "", TRANSIENT);
         change_count()
     }
 
@@ -408,6 +409,17 @@ mod mac {
 mod tests {
     use super::{cf_html_fragment, should_clear, still_ours};
     use proptest::prelude::*;
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn mac_copy_reaches_pasteboard() {
+        let secret = "kcl_test {\"a\":1}\nline2";
+        let n = super::mac::copy_secret(secret);
+        assert!(n.is_some(), "copy_secret failed");
+        let out = std::process::Command::new("pbpaste").output().unwrap();
+        assert_eq!(String::from_utf8_lossy(&out.stdout), secret);
+        super::mac::clear();
+    }
 
     #[test]
     fn examples() {
