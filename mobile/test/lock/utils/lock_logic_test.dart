@@ -119,6 +119,12 @@ void main() {
         actions.contains(NoteMenuAction.removeLock),
         lock is LockState_Open,
       );
+      // Only a note that was never locked can be published: a lock keeps
+      // its words off the web.
+      expect(
+        actions.contains(NoteMenuAction.publish),
+        lock is LockState_Plain,
+      );
       // Only a never locked note can be locked.
       expect(
         actions.contains(NoteMenuAction.lockNote),
