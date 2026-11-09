@@ -144,6 +144,15 @@
             android:foregroundServiceType="microphone" />
         <!-- The Quick Settings tile "Voice note". It is active while recording
              (the service asks it to refresh) and records from the lock screen. -->
+        <!-- Starts the voice note for the tile and the widget from the
+             foreground, so Android 14+ lets it keep the microphone. -->
+        <activity
+            android:name=".VoiceCaptureActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <service
             android:name=".VoiceTileService"
             android:exported="true"

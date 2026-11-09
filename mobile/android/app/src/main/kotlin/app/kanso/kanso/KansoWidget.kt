@@ -18,7 +18,6 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
-import androidx.glance.appwidget.action.actionStartService
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -153,11 +152,13 @@ class KansoWidget : GlanceAppWidget() {
         val open = Intent(Intent.ACTION_VIEW, Uri.parse(link))
             .setClassName(context, MainActivity::class.java.name)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        // Voice note records right here when the microphone is allowed; the
-        // service shows its notification. Without the permission it opens
-        // the app, whose own flow asks for it.
+        // Voice note records right here when the microphone is allowed,
+        // through VoiceCaptureActivity (Android 14 and later refuse the
+        // microphone to a service the widget starts itself); the service
+        // shows its notification. Without the permission it opens the app,
+        // whose own flow asks for it.
         val click = if (link == VOICE && VoiceCaptureService.canRecord(context)) {
-            actionStartService(VoiceCaptureService.toggleIntent(context), isForegroundService = true)
+            actionStartActivity(VoiceCaptureActivity.intent(context))
         } else {
             actionStartActivity(open)
         }
