@@ -27,14 +27,15 @@ class KansoPage extends StatelessWidget {
     final keyboard = resizeToAvoidBottomInset
         ? MediaQuery.viewInsetsOf(context).bottom
         : 0.0;
-    final content = keyboard == 0
-        ? body
-        : AnimatedPadding(
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOut,
-            padding: EdgeInsets.only(bottom: keyboard),
-            child: body,
-          );
+    // Always the same widgets above the body: wrapping it only while the
+    // keyboard is up re-made every field in it as the keyboard began to
+    // open, and the field lost its focus and the keyboard went again.
+    final content = AnimatedPadding(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: keyboard),
+      child: body,
+    );
     return ColoredBox(
       color: backgroundColor ?? context.colors.editor,
       child: DefaultTextStyle(
