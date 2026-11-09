@@ -23,14 +23,17 @@ class VoiceTileService : TileService() {
     }
 
     override fun onClick() {
-        if (VoiceState.recording) {
-            try {
-                startService(VoiceCaptureService.toggleIntent(this).setAction(VoiceCaptureService.ACTION_STOP))
-            } catch (_: RuntimeException) {
-                VoiceState.set(false)
-            }
-        } else if (!VoiceCaptureService.start(this)) {
-            openApp()
+        // Started from the tile itself, the service would lose the
+        // microphone on Android 14 and later (VoiceCaptureActivity).
+        val pending = PendingIntent.getActivity(
+            this, 4, VoiceCaptureActivity.intent(this),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startActivityAndCollapse(pending)
+        } else {
+            @Suppress("DEPRECATION")
+            startActivityAndCollapse(VoiceCaptureActivity.intent(this))
         }
         render()
     }
@@ -44,18 +47,5 @@ class VoiceTileService : TileService() {
         }
         tile.subtitle = getString(if (recording) R.string.tile_voice_recording else R.string.tile_voice_idle)
         tile.updateTile()
-    }
-
-    /** The permission is missing or the start was refused: open the app's voice note. */
-    @Suppress("DEPRECATION")
-    private fun openApp() {
-        val link = VoiceCaptureService.voiceLink(this)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startActivityAndCollapse(
-                PendingIntent.getActivity(this, 3, link, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT),
-            )
-        } else {
-            startActivityAndCollapse(link)
-        }
     }
 }
