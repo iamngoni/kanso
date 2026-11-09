@@ -12,6 +12,8 @@
 #   scripts/feedback.sh logs              live Worker logs (cron runs, triage, filing)
 #   scripts/feedback.sh gateway           opens the AI Gateway's log page (each Haiku call)
 #   scripts/feedback.sh crashes [N]       newest N crash reports
+#   scripts/feedback.sh run               runs triage and filing now (the cron's job), prints the result;
+#                                         needs FEEDBACK_ADMIN_TOKEN (env, or ~/.config/kanso-secrets/feedback-admin-token)
 set -euo pipefail
 
 cd "$(dirname "$0")/../cloud"
@@ -101,8 +103,13 @@ crashes)
 	table "SELECT id, received_day AS day, kind, type, app_version AS version FROM crash_reports
 	       ORDER BY id DESC LIMIT $n"
 	;;
+run)
+	token=${FEEDBACK_ADMIN_TOKEN:-$(cat "$HOME/.config/kanso-secrets/feedback-admin-token" 2>/dev/null || true)}
+	[ -n "$token" ] || die "no admin token: set FEEDBACK_ADMIN_TOKEN or write ~/.config/kanso-secrets/feedback-admin-token"
+	curl -sS -X POST -H "Authorization: Bearer $token" https://sync.kansoapp.app/v1/admin/feedback/run | jq .
+	;;
 -h | --help | help)
-	sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+	sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
 	;;
 *)
 	die "unknown command $cmd (try --help)"

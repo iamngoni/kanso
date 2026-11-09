@@ -23,6 +23,7 @@ import {
 	unsafeText,
 	validateTriage,
 } from "../src/feedback_triage";
+import * as feedbackAdmin from "../src/feedback_admin";
 import { LABELS, appJwt, checkLabels } from "../src/github";
 import { base64url, fromBase64url } from "../src/protocol";
 import { START, call, resetServer, setSetting } from "./helpers";
@@ -548,5 +549,35 @@ describe("properties", () => {
 			runs(100),
 		);
 		expect(base64url(new Uint8Array([1]))).toBe("AQ");
+	});
+});
+
+describe("running triage now (POST /v1/admin/feedback/run)", () => {
+	const TOKEN = "a".repeat(40);
+	const post = (auth?: string) =>
+		new Request("https://sync.kansoapp.app/v1/admin/feedback/run", { method: "POST", headers: auth ? { authorization: auth } : {} });
+
+	it("does not exist without the secret", async () => {
+		const res = await feedbackAdmin.run(post(`Bearer ${TOKEN}`), await configured(), NOW);
+		expect(res.status).toBe(404);
+	});
+
+	it("refuses a missing or wrong token and runs nothing", async () => {
+		net.gateway = [toolAnswer(TRIAGE_OK)];
+		const r = await submit(report());
+		const e = await configured({ FEEDBACK_ADMIN_TOKEN: TOKEN });
+		expect((await feedbackAdmin.run(post(), e, NOW)).status).toBe(401);
+		expect((await feedbackAdmin.run(post(`Bearer ${"b".repeat(40)}`), e, NOW)).status).toBe(401);
+		expect(await row(r.id)).toMatchObject({ status: "received", triage_attempts: 0 });
+	});
+
+	it("runs the cron's triage and reports each failure's code", async () => {
+		net.issues = ISSUES;
+		net.gateway = [new Response("nope", { status: 401 })];
+		const r = await submit(report());
+		const res = await feedbackAdmin.run(post(`Bearer ${TOKEN}`), await configured({ FEEDBACK_ADMIN_TOKEN: TOKEN }), NOW);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as any;
+		expect(body).toMatchObject({ configured: true, failed: 1, errors: [{ id: r.id, error: "gateway_401" }] });
 	});
 });

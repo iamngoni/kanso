@@ -398,3 +398,12 @@ issue, the 180-day retention and deletion. Change it when "What is stored", "Tri
 The `npm run admin feedback list|show` commands that let the owner read a raw report
 (until then: `wrangler d1 execute kanso-sync --remote --command "SELECT report FROM feedback
 WHERE id = 'fb_…'"` and `wrangler r2 object get kanso-files/feedback/<id>/screenshot`).
+
+## Running triage now
+
+`scripts/feedback.sh run` calls `POST /v1/admin/feedback/run`, which runs the same triage and
+filing the cron runs every 15 minutes and answers with the run's report: the counts and, for each
+report that failed, its ID and error code (`gateway_401`, `no_tool_call`, `invalid_<field>`,
+`github`, …). It takes `Authorization: Bearer <FEEDBACK_ADMIN_TOKEN>` (a Worker secret of 32 or
+more characters, compared in constant time); with the secret unset the route answers 404. The
+script reads the token from `FEEDBACK_ADMIN_TOKEN` or `~/.config/kanso-secrets/feedback-admin-token`.
