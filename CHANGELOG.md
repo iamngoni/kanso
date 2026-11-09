@@ -3,6 +3,14 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.10.1](https://github.com/iamngoni/kanso/compare/v0.10.0...v0.10.1) - 2026-11-09
+
+### Fixed
+
+- **ios:** Restamp PDFium's iOS minimum so App Store Connect accepts the framework (ITMS-90208) ([861ba8a](https://github.com/iamngoni/kanso/commit/861ba8aeeb37cff3ad8cda8761c4c2fd37860d98))
+- **android:** Start voice notes from the tile and widget in the foreground ([eed5127](https://github.com/iamngoni/kanso/commit/eed512782d96b66ac0aecb2b275fb22f70b0aa88))
+- **store:** Add note_loops.note_updated_at to libraries upgraded from 0.9.x ([3f805b6](https://github.com/iamngoni/kanso/commit/3f805b623173eefc0c5af62db8cf1ca954c53e80))
+
 ## [0.10.0](https://github.com/iamngoni/kanso/compare/v0.9.4...v0.10.0) - 2026-11-08
 
 ### New
