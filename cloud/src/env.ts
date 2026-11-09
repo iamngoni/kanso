@@ -75,6 +75,11 @@ export interface Env {
 	CF_ACCOUNT_ID?: string;
 	AIG_GATEWAY?: string;
 	AIG_TOKEN?: string;
+	/**
+	 * Secret: the owner's token for `POST /v1/admin/feedback/run` (scripts/feedback.sh run), which runs
+	 * feedback triage now instead of at the next cron. Unset, the route answers 404.
+	 */
+	FEEDBACK_ADMIN_TOKEN?: string;
 	TRIAGE_MODEL?: string;
 	/** The repository issues are filed on (a plain var, `iamngoni/kanso`), and the only repository the webhook accepts. */
 	FEEDBACK_REPO?: string;

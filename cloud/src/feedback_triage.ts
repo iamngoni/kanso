@@ -346,6 +346,8 @@ export interface TriageReport {
 	failed: number;
 	untriaged: number;
 	capped: boolean;
+	/** Per report that failed this run: its ID and the error code the log gets. */
+	errors: { id: string; error: string }[];
 }
 
 const utcDayStart = (now: number): number => now - (now % DAY);
@@ -376,7 +378,7 @@ async function settle(
  * after MAX_ATTEMPTS a bare issue is filed. Does nothing without the gateway and App settings.
  */
 export async function runTriage(env: Env, now: number, limit = BATCH): Promise<TriageReport> {
-	const report: TriageReport = { configured: false, noise: 0, duplicate: 0, filed: 0, failed: 0, untriaged: 0, capped: false };
+	const report: TriageReport = { configured: false, noise: 0, duplicate: 0, filed: 0, failed: 0, untriaged: 0, capped: false, errors: [] };
 	const gateway = gatewayOf(env);
 	if (!gateway || !github.configOf(env)) return report;
 	report.configured = true;
@@ -426,7 +428,9 @@ export async function runTriage(env: Env, now: number, limit = BATCH): Promise<T
 					triage = verdict.value;
 				} catch (err) {
 					report.failed += 1;
-					console.error(JSON.stringify({ route: "feedback_triage", error: err instanceof TriageFailure ? err.reason : "internal", kind: (err as Error)?.name ?? typeof err }));
+					const reason = err instanceof TriageFailure ? err.reason : "internal";
+					report.errors.push({ id: row.id, error: reason });
+					console.error(JSON.stringify({ route: "feedback_triage", error: reason, kind: (err as Error)?.name ?? typeof err }));
 					continue;
 				}
 				// Kept before anything is filed, so a GitHub failure doesn't ask the model again.
@@ -458,6 +462,7 @@ export async function runTriage(env: Env, now: number, limit = BATCH): Promise<T
 			else report.untriaged += 1;
 		} catch (err) {
 			report.failed += 1;
+			report.errors.push({ id: row.id, error: "github" });
 			console.error(JSON.stringify({ route: "feedback_triage", error: "github", kind: (err as Error)?.name ?? typeof err }));
 		}
 	}

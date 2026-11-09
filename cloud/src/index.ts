@@ -114,6 +114,7 @@ import * as passkeys from "./passkeys";
 import * as pairings from "./pairings";
 import * as proofs from "./proofs";
 import * as pushes from "./push";
+import * as feedbackAdmin from "./feedback_admin";
 import { runCron } from "./purge";
 import { observe } from "./server_stats";
 import * as shares from "./shares";
@@ -157,6 +158,7 @@ const ROUTES: Record<string, Route> = {
 	"/v1/crash-reports": { name: "crash_reports", methods: { POST: json(crashReports.submit, true) } },
 	"/v1/metrics": { name: "metrics", methods: { POST: json(metrics.submit, true) } },
 	"/v1/feedback": { name: "feedback", methods: { POST: json(feedback.submit, true), GET: { handler: feedback.list, pepper: true } } },
+	"/v1/admin/feedback/run": { name: "feedback_admin_run", methods: { POST: { handler: feedbackAdmin.run } } },
 	"/v1/github/webhook": { name: "github_webhook", methods: { POST: { handler: githubWebhook.receive } } },
 	"/v2/auth/prelogin": { name: "prelogin", binding: true, methods: { POST: json(auth.prelogin, true) } },
 	"/v2/auth/signup": { name: "signup", binding: true, methods: { POST: json(auth.signup, true) } },
