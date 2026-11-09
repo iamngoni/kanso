@@ -14,14 +14,18 @@ use std::io::{Read as _, Write as _};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::{Icon, StyledExt as _, h_flex, v_flex};
+use gpui_kit::component::input::{Textarea, TextareaState};
+use gpui_kit::component::{Disableable as _, Icon, StyledExt as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
 use crate::startup_error_model::{Action, Failure, Screen, describe};
+use crate::startup_update::{Backend, Phase, Real, Recovery, Way};
 use crate::theme::Colors;
 
 /// The window's width.
@@ -210,10 +214,322 @@ pub fn buttons(screen: &Screen, copied: bool, on: Handler) -> impl IntoElement {
         .when(retry, |row| row.child(button(Action::TryAgain)))
 }
 
+/// Where "Send feedback" is.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Feedback {
+    Idle,
+    /// The text box is open.
+    Writing,
+    Sending,
+    Sent,
+    Failed(String),
+}
+
+/// What the updater's thread tells the window.
+enum Install {
+    Progress(u64, u64),
+    Done(Result<(), crate::updates::Problem>),
+}
+
 /// The window's view.
 struct ErrorView {
     screen: Screen,
     copied: bool,
+    /// `None` when this build never updates.
+    updater: Option<Arc<Real>>,
+    recovery: Option<Recovery>,
+    apt_copied: bool,
+    feedback: Feedback,
+    words: Entity<TextareaState>,
+}
+
+impl ErrorView {
+    fn new(screen: Screen, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let updater = Real::new(&screen.folder).map(Arc::new);
+        let recovery = updater.as_ref().map(|real| {
+            Recovery::new(
+                Way::of(&real.install),
+                screen.bug,
+                &crate::updates::current_version(),
+            )
+        });
+        let words = cx.new(|cx| {
+            TextareaState::new(window, cx).placeholder(crate::startup_feedback::PLACEHOLDER)
+        });
+        let mut view = ErrorView {
+            screen,
+            copied: false,
+            updater,
+            recovery,
+            apt_copied: false,
+            feedback: Feedback::Idle,
+            words,
+        };
+        view.check(cx);
+        view
+    }
+
+    /// Checks for an update (also Retry).
+    fn check(&mut self, cx: &mut Context<Self>) {
+        let (Some(real), Some(recovery)) = (self.updater.clone(), self.recovery.as_mut()) else {
+            return;
+        };
+        recovery.begin_check();
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { real.check() })
+                .await;
+            this.update(cx, |view, cx| {
+                if let Some(recovery) = view.recovery.as_mut() {
+                    recovery.checked(result);
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// "Update now": downloads, installs and restarts, as Restart now does.
+    fn update_now(&mut self, cx: &mut Context<Self>) {
+        let (Some(real), Some(recovery)) = (self.updater.clone(), self.recovery.as_mut()) else {
+            return;
+        };
+        let Some(update) = recovery.update_now() else {
+            return;
+        };
+        cx.notify();
+        let (tx, rx) = async_channel::unbounded();
+        let spawned = std::thread::Builder::new()
+            .name("kanso-startup-update".into())
+            .spawn(move || {
+                let progress_tx = tx.clone();
+                let mut progress = |done: u64, total: u64| {
+                    progress_tx.try_send(Install::Progress(done, total)).ok();
+                };
+                let result = real.install(&update, &mut progress, &AtomicBool::new(false));
+                tx.try_send(Install::Done(result)).ok();
+            });
+        if spawned.is_err() {
+            recovery.installed(Err(crate::updates::Problem::Other));
+            return;
+        }
+        cx.spawn(async move |this, cx| {
+            while let Ok(message) = rx.recv().await {
+                let done = matches!(message, Install::Done(_));
+                let restarted = this
+                    .update(cx, |view, cx| {
+                        let mut restarted = false;
+                        if let Some(recovery) = view.recovery.as_mut() {
+                            match message {
+                                Install::Progress(done, total) => recovery.progress(done, total),
+                                Install::Done(Ok(())) => restarted = true,
+                                Install::Done(result) => recovery.installed(result),
+                            }
+                        }
+                        cx.notify();
+                        restarted
+                    })
+                    .unwrap_or(false);
+                if restarted {
+                    // The new Kanso is on its way; this window's job is done.
+                    finish(Choice::Quit);
+                }
+                if done {
+                    break;
+                }
+            }
+        })
+        .detach();
+    }
+
+    fn send_feedback(&mut self, cx: &mut Context<Self>) {
+        if self.feedback == Feedback::Sending {
+            return;
+        }
+        self.feedback = Feedback::Sending;
+        cx.notify();
+        let own = self.words.read(cx).value().to_string();
+        let details = self.screen.details.clone();
+        let folder = self.screen.folder.clone();
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move {
+                    let app = crate::startup_feedback::app_info(Path::new(&folder));
+                    crate::startup_feedback::send(
+                        kanso_sync::feedback::HttpTransport::new(),
+                        &crate::flavour::CURRENT.keychain(),
+                        &details,
+                        &own,
+                        &app,
+                    )
+                })
+                .await;
+            this.update(cx, |view, cx| {
+                view.feedback = match result {
+                    Ok(()) => Feedback::Sent,
+                    Err(why) => Feedback::Failed(why),
+                };
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// The update section: what the check found and what to do about it.
+    fn update_section(&self, colors: &Colors, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let recovery = self.recovery.as_ref()?;
+        let button = |id: &'static str, text: &'static str| {
+            Button::new(SharedString::from(id))
+                .debug_selector(move || id.into())
+                .label(text)
+        };
+        let mut row = h_flex().gap(px(8.)).justify_end();
+        match (&recovery.phase, recovery.way) {
+            (Phase::Available(_), Way::Replace) => {
+                row = row.child(
+                    button("startup-update-now", "Update now")
+                        .primary()
+                        .on_click(cx.listener(|view, _, _, cx| view.update_now(cx))),
+                );
+            }
+            (Phase::Available(_), Way::Apt) => {
+                let copied = self.apt_copied;
+                row = row.child(
+                    button(
+                        "startup-update-apt",
+                        if copied { "Copied" } else { "Copy command" },
+                    )
+                    .primary()
+                    .on_click(cx.listener(|view, _, _, cx| {
+                        cx.write_to_clipboard(ClipboardItem::new_string(
+                            kanso_update::install::APT_UPGRADE.to_owned(),
+                        ));
+                        view.apt_copied = true;
+                        cx.notify();
+                    })),
+                );
+            }
+            (Phase::Available(update), Way::Page) => {
+                let url = update.release_url.clone();
+                let policy = self.updater.as_ref().map(|real| real.policy);
+                row = row.child(
+                    button("startup-update-page", "Open download page")
+                        .primary()
+                        .on_click(move |_, _, cx| {
+                            if policy.is_some_and(|p| p.check_release_page(&url).is_ok()) {
+                                cx.open_url(&url);
+                            }
+                        }),
+                );
+            }
+            _ if recovery.can_retry() => {
+                row = row.child(
+                    button("startup-update-retry", "Retry")
+                        .primary()
+                        .on_click(cx.listener(|view, _, _, cx| view.check(cx))),
+                );
+            }
+            _ => {}
+        }
+        let apt = matches!(
+            (&recovery.phase, recovery.way),
+            (Phase::Available(_), Way::Apt)
+        )
+        .then(|| {
+            div()
+                .text_size(px(12.5))
+                .text_color(colors.text_secondary)
+                .child(format!(
+                    "Run “{}” in a terminal.",
+                    kanso_update::install::APT_UPGRADE
+                ))
+        });
+        Some(
+            v_flex()
+                .debug_selector(|| "startup-update".into())
+                .gap(px(8.))
+                .child(
+                    div()
+                        .debug_selector(|| "startup-update-headline".into())
+                        .text_size(px(13.5))
+                        .line_height(px(20.))
+                        .font_medium()
+                        .text_color(colors.text)
+                        .child(recovery.headline()),
+                )
+                .children(apt)
+                .child(row)
+                .into_any_element(),
+        )
+    }
+
+    /// The feedback section.
+    fn feedback_section(&self, colors: &Colors, cx: &mut Context<Self>) -> AnyElement {
+        let mut col = v_flex()
+            .debug_selector(|| "startup-feedback".into())
+            .gap(px(8.));
+        match &self.feedback {
+            Feedback::Sent => {
+                return col
+                    .child(
+                        div()
+                            .debug_selector(|| "startup-feedback-sent".into())
+                            .text_size(px(13.5))
+                            .text_color(colors.text)
+                            .child(crate::startup_feedback::SENT),
+                    )
+                    .into_any_element();
+            }
+            Feedback::Idle => {
+                return col
+                    .child(
+                        h_flex().justify_end().child(
+                            Button::new("startup-feedback-open")
+                                .debug_selector(|| "startup-feedback-open".into())
+                                .ghost()
+                                .label("Send feedback")
+                                .on_click(cx.listener(|view, _, _, cx| {
+                                    view.feedback = Feedback::Writing;
+                                    cx.notify();
+                                })),
+                        ),
+                    )
+                    .into_any_element();
+            }
+            _ => {}
+        }
+        let sending = self.feedback == Feedback::Sending;
+        col = col.child(Textarea::new(&self.words).h(px(80.)).disabled(sending));
+        if let Feedback::Failed(why) = &self.feedback {
+            col = col.child(
+                div()
+                    .text_size(px(13.))
+                    .text_color(colors.warning)
+                    .child(why.clone()),
+            );
+        }
+        let label = match &self.feedback {
+            Feedback::Failed(_) => "Retry",
+            Feedback::Sending => "Sending…",
+            _ => "Send",
+        };
+        col.child(
+            h_flex().justify_end().child(
+                Button::new("startup-feedback-send")
+                    .debug_selector(|| "startup-feedback-send".into())
+                    .primary()
+                    .label(label)
+                    .disabled(sending)
+                    .on_click(cx.listener(|view, _, _, cx| view.send_feedback(cx))),
+            ),
+        )
+        .into_any_element()
+    }
 }
 
 impl Render for ErrorView {
@@ -237,6 +553,8 @@ impl Render for ErrorView {
                 }
             };
         });
+        let update = self.update_section(colors, cx);
+        let feedback = self.feedback_section(colors, cx);
         v_flex()
             .size_full()
             .bg(colors.editor)
@@ -250,7 +568,13 @@ impl Render for ErrorView {
                     .flex_1()
                     .min_h_0()
                     .overflow_y_scrollbar()
-                    .child(body(&self.screen, colors)),
+                    .child(
+                        v_flex()
+                            .gap(px(16.))
+                            .child(body(&self.screen, colors))
+                            .children(update)
+                            .child(feedback),
+                    ),
             )
             .child(buttons(&self.screen, self.copied, on))
     }
@@ -293,7 +617,8 @@ pub fn run_child() -> anyhow::Result<()> {
     let mut text = String::new();
     std::io::stdin().read_to_string(&mut text)?;
     let screen: Screen = serde_json::from_str(text.trim())?;
-    let height = height_for(&screen);
+    // The update and feedback sections sit under the text.
+    let height = (height_for(&screen) + 170.).min(720.);
     // The assets hold the warning icon the title wears.
     application()
         .with_assets(crate::assets::KansoAssets)
@@ -319,10 +644,7 @@ pub fn run_child() -> anyhow::Result<()> {
                 gpui_kit::component::Theme::sync_system_appearance(Some(window), cx);
                 // Closing the window is Quit.
                 window.on_window_should_close(cx, |_, _| finish(Choice::Quit));
-                cx.new(|_| ErrorView {
-                    screen,
-                    copied: false,
-                })
+                cx.new(|cx| ErrorView::new(screen, window, cx))
             });
             if opened.is_err() {
                 cx.quit();

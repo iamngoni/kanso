@@ -66,6 +66,10 @@ pub struct Screen {
     pub details: String,
     /// The folder Show folder opens.
     pub folder: String,
+    /// A bug in this version of Kanso rather than something about this
+    /// computer: the window says sorry, and offers feedback.
+    #[serde(default)]
+    pub bug: bool,
 }
 
 impl Screen {
@@ -419,7 +423,9 @@ fn describe_library(cause: &Cause, data_dir: &Path) -> Screen {
                 why.clone(),
             ),
         };
-    screen(title, message, steps, retry, &technical, &folder)
+    let mut screen = screen(title, message, steps, retry, &technical, &folder);
+    screen.bug = matches!(cause, Cause::Other(_));
+    screen
 }
 
 fn screen(
@@ -449,6 +455,7 @@ fn screen(
         actions,
         details,
         folder: folder.to_owned(),
+        bug: false,
     }
 }
 

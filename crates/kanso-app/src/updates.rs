@@ -326,7 +326,15 @@ pub fn init(cx: &mut App) {
     }
     let platform = Platform::current();
     updates.off = off_reason(&flavour::CURRENT, !updates.keys.is_empty(), platform);
-    updates.install = std::env::current_exe()
+    updates.install = locate_install(platform);
+    cx.set_global(updates);
+    after_launch(cx);
+}
+
+/// Where this running Kanso is installed and whether it may replace itself.
+/// Needs nothing but the executable, so the startup-error window uses it too.
+pub fn locate_install(platform: Option<Platform>) -> Result<Install, NotInstallable> {
+    std::env::current_exe()
         .map_err(|_| NotInstallable::NotInBundle)
         .and_then(|exe| {
             kanso_update::install::locate(
@@ -338,9 +346,7 @@ pub fn init(cx: &mut App) {
                     appimage: cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_some(),
                 },
             )
-        });
-    cx.set_global(updates);
-    after_launch(cx);
+        })
 }
 
 /// What happens at every start, whatever set the updater up: leftovers go

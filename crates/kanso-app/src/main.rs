@@ -243,6 +243,8 @@ mod spellcheck_macos;
 mod split;
 mod startup_error;
 mod startup_error_model;
+mod startup_feedback;
+mod startup_update;
 mod sticky;
 mod sticky_cli;
 mod sync_nudge;
