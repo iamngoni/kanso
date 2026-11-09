@@ -296,6 +296,38 @@ mod tests {
         assert_eq!(vscode["servers"]["kanso"]["type"], "http");
     }
 
+    /// What Copy puts on the clipboard is the snippet itself: the same text
+    /// the sheet shows line by line, with the real key in full, and valid
+    /// JSON (or TOML for Codex) for every client.
+    // no-prop-test: one example per client; the key's shape is covered by
+    // the properties below.
+    #[test]
+    fn the_copied_text_is_the_displayed_snippet_with_the_whole_key() {
+        let key = "kcl_Ab3-xY_9QwErTy0123456789abcdefghijklmn";
+        let setup = Setup {
+            key: Zeroizing::new(key.to_owned()),
+            ..setup()
+        };
+        for agent in Agent::ALL {
+            let text = agent.snippet(&setup);
+            let shown = text.lines().collect::<Vec<_>>().join("\n");
+            assert_eq!(text, shown, "{}: the copy is what is shown", agent.name());
+            assert_eq!(text.matches(key).count(), 1, "{}", agent.name());
+            if agent == Agent::Codex {
+                let table: toml::Table = text.parse().unwrap();
+                assert_eq!(
+                    table["mcp_servers"]["kanso"]["env"][TOKEN_VAR].as_str(),
+                    Some(key)
+                );
+            } else {
+                let json: Value = serde_json::from_str(&text)
+                    .unwrap_or_else(|err| panic!("{}: {err}", agent.name()));
+                assert!(json.is_object(), "{}", agent.name());
+            }
+        }
+        assert!(setup.rest_snippet().contains(&format!("Bearer {key}")));
+    }
+
     #[test]
     fn the_codex_entry_is_toml_whatever_the_path_holds() {
         // serde_json leaves U+007F bare, and TOML refuses it there.
