@@ -31,6 +31,7 @@ String metricKitPayload({
   String deviceType = 'iPhone17,1',
   String timeStampEnd = '2026-10-26 07:00:00',
   String Function(MetricKitFrame frame)? binaryName,
+  String? terminationReason,
 }) {
   Map<String, dynamic>? nest(List<MetricKitFrame> frames) {
     if (frames.isEmpty) {
@@ -94,7 +95,8 @@ String metricKitPayload({
           'platformArchitecture': 'arm64e',
           'regionFormat': 'ZW',
           'signal': signal,
-          'terminationReason': 'Namespace SIGNAL, Code 11 $noise',
+          'terminationReason':
+              terminationReason ?? 'Namespace SIGNAL, Code 11 $noise',
           'virtualMemoryRegionInfo': '0x0 is not in any region. $noise',
           'pid': 4242,
         },

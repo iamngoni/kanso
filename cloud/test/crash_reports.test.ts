@@ -95,6 +95,23 @@ describe("accepting", () => {
 		expect((await post(report)).status).toBe(204);
 	});
 
+	it("accepts a MetricKit kill: SIGKILL with its termination code in type", async () => {
+		const report = clone();
+		report.kind = "ios-native";
+		report.type = "SIGKILL.0xdead10cc";
+		report.app.patch = null;
+		report.frames = ["native libsystem_kernel.dylib +0x1b64 EEEEEEEE-1111-2222-3333-444444444444", "native CoreFoundation +0x5f3a0"];
+		expect((await post(report)).status).toBe(204);
+	});
+
+	it("rejects a report without the patch key: null must be sent, not left out", async () => {
+		const report = clone();
+		delete (report.app as Record<string, unknown>).patch;
+		const res = await post(report);
+		expect(res.status).toBe(400);
+		expect(res.body).toMatchObject({ field: "app.patch" });
+	});
+
 	it("stores no address, session or account", async () => {
 		await post(REPORT, { ip: "198.51.100.77", headers: { authorization: "Bearer kanso_x", cookie: "a=b" } });
 		const stored = JSON.stringify(await rows());

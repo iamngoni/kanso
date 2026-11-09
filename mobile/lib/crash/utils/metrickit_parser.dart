@@ -99,8 +99,11 @@ abstract final class MetricKitParser {
     final type = exception != null && exception != 10
         ? _exceptionTypes[exception]
         : _signals[signal] ?? _exceptionTypes[exception];
+    final code = _terminationCode(data['terminationReason']);
+    final name = CrashScrubber.type(type);
     return CrashTrace(
-      type: CrashScrubber.type(type),
+      // `SIGKILL.0xdead10cc`: a kill by the system names its reason.
+      type: code != null && name == 'SIGKILL' ? '$name.$code' : name,
       frames: frames,
       day: day,
       appVersion: CrashScrubber.appVersion(_text(data['appVersion'])),
@@ -108,6 +111,23 @@ abstract final class MetricKitParser {
       osVersion: CrashScrubber.osVersionIn(_text(data['osVersion'])),
       device: CrashScrubber.device(_text(data['deviceType'])),
     );
+  }
+
+  /// The termination code in MetricKit's `terminationReason` (`Namespace
+  /// RUNNINGBOARD, Code 0xdead10cc`): the eight hexadecimal digits after `0x`,
+  /// in lower case, as `0x...`; null if there is not exactly that. Nothing
+  /// else of the text is kept.
+  static String? _terminationCode(Object? reason) {
+    final text = _text(reason);
+    if (text == null) {
+      return null;
+    }
+    final found = RegExp(
+      r'\b0x([0-9a-fA-F]{8})\b',
+    ).allMatches(text).toList();
+    return found.length == 1
+        ? '0x${found.single.group(1)!.toLowerCase()}'
+        : null;
   }
 
   /// The crashed thread's frames, innermost first.

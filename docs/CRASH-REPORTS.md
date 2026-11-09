@@ -20,7 +20,7 @@ Worker (`cloud/src/crash_reports.ts`) refuses anything else.
 | `kind` | Where it comes from | What is read from it |
 |---|---|---|
 | `dart` | `FlutterError.onError`, `PlatformDispatcher.onError` | the error's runtime type name, the stack trace's frames |
-| `ios-native` | MetricKit `MXCrashDiagnostic` (delivered at the next launch) | the exception type / signal, the crashed thread's frames (binary name, offset, binary UUID) |
+| `ios-native` | MetricKit `MXCrashDiagnostic` (delivered at the next launch) | the exception type / signal (and, for a kill by the system, its termination code), the crashed thread's frames (binary name, offset, binary UUID) |
 | `android-native` | `ApplicationExitInfo` with `REASON_CRASH_NATIVE`, its tombstone (protobuf) | the signal name, the crashing thread's backtrace (file basename, relative pc, function name, build ID) |
 | `android-anr` | `ApplicationExitInfo` with `REASON_ANR`, its text trace | the main thread's frames |
 | `android-jvm` | an uncaught-exception handler in Kotlin | the throwable's class name, its frames (class, method, line) |
@@ -51,10 +51,10 @@ binary's base name, thread names.
 |---|---|---|
 | `v` | `1` | |
 | `kind` | `dart` \| `ios-native` \| `android-native` \| `android-anr` \| `android-jvm` | |
-| `type` | `^[A-Za-z_$][A-Za-z0-9_$.]{0,127}$`, else `unknown` | a type, signal or exception class name; generic arguments are cut at the first `<` |
+| `type` | `^[A-Za-z_$][A-Za-z0-9_$.]{0,127}$`, else `unknown` | a type, signal or exception class name; generic arguments are cut at the first `<`. A MetricKit `SIGKILL` that carries a termination code in its `terminationReason` is `SIGKILL.<code>`, the code being `0x` and eight lower-case hex digits and nothing else of the text, for example `SIGKILL.0xdead10cc` (the app slept holding a file lock), `SIGKILL.0x8badf00d` (a watchdog timeout) or `SIGKILL.0xc00010ff` (thermal) |
 | `app.version` | `^[0-9]{1,4}(\.[0-9]{1,4}){2}$` | |
 | `app.build` | `^[0-9]{1,10}$` | |
-| `app.patch` | integer 0–100000, or `null` | Shorebird's patch number; `null` without Shorebird or before the first patch |
+| `app.patch` | integer 0–100000, or `null` | Shorebird's patch number; `null` without Shorebird or before the first patch. The key is always present: a report without it is a 400 |
 | `os.name` | `ios` \| `android` | |
 | `os.version` | `^[0-9A-Za-z._-]{1,32}$`, else `unknown` | |
 | `device` | `^[A-Za-z0-9 ,._()-]{1,64}$`, else `unknown` | iOS's machine identifier (`iPhone17,1`), Android's `Build.MANUFACTURER` and `Build.MODEL` |

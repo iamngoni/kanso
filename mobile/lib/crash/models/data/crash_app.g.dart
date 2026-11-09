@@ -15,5 +15,5 @@ _CrashApp _$CrashAppFromJson(Map<String, dynamic> json) => _CrashApp(
 Map<String, dynamic> _$CrashAppToJson(_CrashApp instance) => <String, dynamic>{
   'version': instance.version,
   'build': instance.build,
-  'patch': ?instance.patch,
+  'patch': instance.patch,
 };
