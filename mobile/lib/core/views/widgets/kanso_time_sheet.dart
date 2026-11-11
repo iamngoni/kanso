@@ -3,7 +3,6 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 
 import '../../configs/kanso_spacing.dart';
 import '../../utils/clock_time.dart';
@@ -95,7 +94,6 @@ class _KansoTimeSheetState extends State<KansoTimeSheet> {
           const SizedBox(height: KansoSpacing.sm),
           KansoButton(
             label: l10n.noteListDone,
-            variant: KansoButtonVariant.primary,
             onPressed: () => Navigator.of(
               context,
             ).pop(formatClockTime(_value.hour, _value.minute)),
