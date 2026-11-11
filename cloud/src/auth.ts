@@ -8,6 +8,7 @@
 // carries the hash the Worker just checked, so of two concurrent changes one
 // wins and the other finds nothing to change.
 
+import { pendingMigrations } from "./schema";
 import { signOutSockets } from "./account_room";
 import { accountCollabStatements, afterAccountDeleted, memberships } from "./collab";
 import { type PepperKeys, hashToken, hex, hmac16, newToken, proofMatches, randomHex, sha256Hex } from "./crypto";
@@ -297,7 +298,9 @@ export const health: Handler = async (_request, env) => {
 	).first<{ signup: string | null; max_accounts: number | null; accounts: number }>();
 	let signup = "closed";
 	if (row?.signup === "open") signup = row.accounts >= (row.max_accounts ?? 0) ? "full" : "open";
-	return json({ ok: true, protocol: PROTOCOL_VERSION, signup, auth: healthAuth(env), events: healthEvents() });
+	// `schema` is "behind" when the database lacks a migration this Worker needs (see src/schema.ts).
+	const schema = (await pendingMigrations(env)).length === 0 ? "current" : "behind";
+	return json({ ok: true, protocol: PROTOCOL_VERSION, signup, schema, auth: healthAuth(env), events: healthEvents() });
 };
 
 // ------------------------------------------------------------------ prelogin

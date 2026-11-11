@@ -31,6 +31,7 @@ describe("the default export", () => {
 			ok: true,
 			protocol: 2,
 			signup: "open",
+			schema: "current",
 			// Nothing sign-in-related is configured in the test bindings.
 			auth: { password: true, passkeys: null, providers: [] },
 			// The live approval socket is always served.
