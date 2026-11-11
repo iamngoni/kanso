@@ -109,8 +109,27 @@ pub fn names_of(title: &str, body: &str) -> Vec<String> {
     std::iter::once(title.to_owned())
         .chain(aliases_of(body))
         .map(|name| normalize_name(&name))
+        .flat_map(|name| {
+            let bare = without_honorific(&name);
+            std::iter::once(name).chain(bare)
+        })
         .filter(|name| !name.is_empty() && seen.insert(name.clone()))
         .collect()
+}
+
+/// Titles a name may start with: "Miss Anshena Simathree" is also
+/// "Anshena Simathree".
+const HONORIFICS: &[&str] = &[
+    "mr", "mrs", "ms", "miss", "mx", "dr", "prof", "sir", "madam",
+];
+
+/// A normalized name without its leading title, when it has one and a name
+/// is left after it.
+pub fn without_honorific(name: &str) -> Option<String> {
+    let (first, rest) = name.split_once(' ')?;
+    let first = first.trim_end_matches('.');
+    let rest = rest.trim();
+    (HONORIFICS.contains(&first) && !rest.is_empty()).then(|| rest.to_owned())
 }
 
 /// The aliases as the person wrote them, with the title left out.
@@ -477,6 +496,41 @@ mod tests {
                 prop_assert!(m.line < lines);
                 prop_assert!(m.name != "amb");
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod honorific_tests {
+    use proptest::prelude::*;
+
+    use super::*;
+
+    #[test]
+    fn a_title_is_dropped_only_with_a_name_after_it() {
+        assert_eq!(
+            without_honorific("miss anshena simathree").as_deref(),
+            Some("anshena simathree")
+        );
+        assert_eq!(without_honorific("dr. ngoni").as_deref(), Some("ngoni"));
+        assert_eq!(without_honorific("miss"), None);
+        assert_eq!(without_honorific("missy elliott"), None);
+        assert_eq!(without_honorific("anshena simathree"), None);
+        assert_eq!(
+            names_of("Miss Anshena Simathree", ""),
+            vec![
+                "miss anshena simathree".to_owned(),
+                "anshena simathree".to_owned()
+            ]
+        );
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { rng_seed: proptest::test_runner::RngSeed::Fixed(375), ..ProptestConfig::default() })]
+        #[test]
+        fn a_page_answers_to_its_name_with_or_without_a_title(name in "[a-z]{2,8} [a-z]{2,8}") {
+            let names = names_of(&format!("Mrs {name}"), "");
+            prop_assert!(names.contains(&name));
         }
     }
 }
