@@ -510,7 +510,7 @@ impl Render for AgentTasksPanel {
                             .primary()
                             .label("New Task…")
                             .disabled(!ai_on)
-                            .on_click(|_, window, cx| open_new(Vec::new(), window, cx)),
+                            .on_click(|_, window, cx| open_new(Vec::new(), Default::default(), window, cx)),
                     ),
             )
             .when(!ai_on, |el| {
@@ -582,6 +582,9 @@ pub struct NewTaskSheet {
     goal: Entity<InputState>,
     goal_text: String,
     notes: Vec<String>,
+    /// The note open when the sheet was opened, if the agent should start
+    /// from it.
+    start_note: Option<String>,
     kind: ScopeKind,
     books: Vec<ScopeBook>,
     notebook: Option<String>,
@@ -610,16 +613,43 @@ fn book_list_height(rows: usize) -> Pixels {
     px(BOOK_ROW * rows.min(6) as f32)
 }
 
+/// The notebook and the note a new task starts from: the ones in `context`,
+/// when nothing is selected and the notebook can be given to an agent (not
+/// locked, not the trash). With a selection the selection decides, and with
+/// nothing to start from the sheet is as it always was.
+fn starting_point(
+    nothing_selected: bool,
+    context: TaskContext,
+    books: &[ScopeBook],
+) -> (Option<String>, Option<String>) {
+    if !nothing_selected {
+        return (None, None);
+    }
+    let notebook = context
+        .notebook
+        .filter(|book| books.iter().any(|b| &b.id == book));
+    (notebook, context.note)
+}
+
 impl NewTaskSheet {
-    fn new(notes: Vec<String>, window: &mut Window, cx: &mut Context<Self>) -> NewTaskSheet {
+    fn new(
+        notes: Vec<String>,
+        context: TaskContext,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> NewTaskSheet {
         let state = cx.global::<AppState>();
         let books = scope_books(&state.store);
+        // With nothing selected, the task starts from where the person is: the
+        // notebook shown and the note open. Anything else is still reachable.
+        let (here, start_note) = starting_point(notes.is_empty(), context, &books);
         let ops = state.config.ai.agent_tasks.ops();
         let first_book = notes
             .first()
             .and_then(|id| state.store.note(id).ok().flatten())
             .map(|note| note.book_id)
             .filter(|book| books.iter().any(|b| &b.id == book))
+            .or_else(|| here.clone())
             .or_else(|| books.first().map(|b| b.id.clone()));
         let goal = cx.new(|cx| {
             InputState::new(window, cx).placeholder(
@@ -636,13 +666,16 @@ impl NewTaskSheet {
         NewTaskSheet {
             goal,
             goal_text: String::new(),
-            kind: if notes.is_empty() {
-                ScopeKind::Allowed
-            } else {
+            kind: if !notes.is_empty() {
                 ScopeKind::Notes
+            } else if here.is_some() {
+                ScopeKind::Notebook
+            } else {
+                ScopeKind::Allowed
             },
             notes,
-            notebook: books.first().map(|b| b.id.clone()),
+            start_note,
+            notebook: here.or_else(|| books.first().map(|b| b.id.clone())),
             books,
             new_book: first_book,
             ops,
@@ -707,6 +740,7 @@ impl NewTaskSheet {
             &settings,
         );
         spec.ops = self.ops;
+        spec.start_note = self.start_note.clone();
         spec
     }
 
@@ -1127,10 +1161,21 @@ impl Render for NewTaskSheet {
     }
 }
 
+/// Where the person is when they start a task: the notebook the library
+/// shows and the note open, either of which may be none (All Notes, Trash,
+/// nothing open).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TaskContext {
+    pub notebook: Option<String>,
+    pub note: Option<String>,
+}
+
 /// Opens the New agent task sheet, with `notes` preselected when started
-/// from a selection (empty otherwise).
-pub fn open_new(notes: Vec<String>, window: &mut Window, cx: &mut App) {
-    let sheet = cx.new(|cx| NewTaskSheet::new(notes, window, cx));
+/// from a selection. With none, the sheet starts from `context`: its
+/// notebook is the scope and where new notes go, and its note is where the
+/// agent begins. The person can change all of it in the sheet.
+pub fn open_new(notes: Vec<String>, context: TaskContext, window: &mut Window, cx: &mut App) {
+    let sheet = cx.new(|cx| NewTaskSheet::new(notes, context, window, cx));
     let view = sheet.clone();
     window.open_alert_dialog(cx, move |alert, _, cx| {
         let start = view.clone();
@@ -1703,7 +1748,50 @@ pub fn open_review(task: TaskId, window: &mut Window, cx: &mut App) {
 
 #[cfg(test)]
 mod tests {
-    use super::NOTIFICATION_BODY;
+    use super::{NOTIFICATION_BODY, TaskContext, starting_point};
+    use crate::agent_scope::ScopeBook;
+
+    fn book(id: &str) -> ScopeBook {
+        ScopeBook {
+            id: id.to_owned(),
+            name: id.to_owned(),
+            depth: 0,
+            parent: None,
+        }
+    }
+
+    fn here(notebook: Option<&str>, note: Option<&str>) -> TaskContext {
+        TaskContext {
+            notebook: notebook.map(str::to_owned),
+            note: note.map(str::to_owned),
+        }
+    }
+
+    // no-prop-test: a handful of cases that name each branch.
+    #[test]
+    fn a_new_task_starts_from_the_notebook_and_note_in_view() {
+        let books = [book("a"), book("b")];
+        // Nothing selected: the notebook shown and the note open.
+        assert_eq!(
+            starting_point(true, here(Some("b"), Some("n1")), &books),
+            (Some("b".to_owned()), Some("n1".to_owned()))
+        );
+        // All Notes, Trash: no notebook, today's scope; the open note still starts it.
+        assert_eq!(
+            starting_point(true, here(None, Some("n1")), &books),
+            (None, Some("n1".to_owned()))
+        );
+        // A notebook that can't be given to an agent (locked, trash) is not used.
+        assert_eq!(
+            starting_point(true, here(Some("locked"), None), &books),
+            (None, None)
+        );
+        // A selection decides; the context is ignored.
+        assert_eq!(
+            starting_point(false, here(Some("a"), Some("n1")), &books),
+            (None, None)
+        );
+    }
 
     // no-prop-test: a constant; the point is that no goal text can reach it.
     #[test]

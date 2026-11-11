@@ -65,6 +65,9 @@ pub struct TaskSpec {
     pub ops: TaskOps,
     /// Where new notes go.
     pub new_note_book: String,
+    /// The note the agent should start from (the one open when the task was
+    /// made), if any. It only names a place to begin: it widens nothing.
+    pub start_note: Option<String>,
     pub time_limit: Duration,
     pub max_calls: usize,
     pub max_notes: usize,
@@ -93,6 +96,7 @@ impl TaskSpec {
             read,
             ops: TaskOps::default(),
             new_note_book: new_note_book.to_owned(),
+            start_note: None,
             time_limit: DEFAULT_TIME_LIMIT,
             max_calls: DEFAULT_MAX_CALLS,
             max_notes: DEFAULT_MAX_NOTES,
@@ -382,19 +386,32 @@ pub fn api_prompt(task: &OpenTask) -> Prompt {
 /// What follows the system prompt: the goal, and where new notes go.
 pub fn user_text(task: &OpenTask, api_names: bool) -> String {
     let goal = format!("Task: {}", task.spec.goal.trim());
+    let mut lines = Vec::new();
     let book = task.spec.new_note_book.trim();
-    if book.is_empty() {
-        return goal;
+    if !book.is_empty() {
+        let tool = if api_names {
+            "create_note"
+        } else {
+            "create-note"
+        };
+        lines.push(format!(
+            "New notes go in the notebook with bookId \"{book}\" (leave `bookId` out of {tool} to use it). Notes can only be created and moved into the notebooks of the notes you were given and that one."
+        ));
     }
-    let tool = if api_names {
-        "create_note"
-    } else {
-        "create-note"
-    };
+    if let Some(note) = task
+        .spec
+        .start_note
+        .as_deref()
+        .map(str::trim)
+        .filter(|note| !note.is_empty())
+    {
+        lines.push(format!(
+            "Start from the note with id \"{note}\": read it first. This only says where to begin."
+        ));
+    }
     // The task comes last, as the system prompt says.
-    format!(
-        "New notes go in the notebook with bookId \"{book}\" (leave `bookId` out of {tool} to use it). Notes can only be created and moved into the notebooks of the notes you were given and that one.\n\n{goal}"
-    )
+    lines.push(goal);
+    lines.join("\n\n")
 }
 
 /// Runs `task` on a model with an API key. The events are the model's words

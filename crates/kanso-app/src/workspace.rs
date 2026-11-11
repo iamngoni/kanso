@@ -1608,7 +1608,7 @@ impl Workspace {
             NoteCommand::AskAgent => {
                 if cx.global::<AppState>().config.ai.enabled {
                     self.show_inspector(Some(InspectorTab::Agents), cx);
-                    crate::agent_task_panel::open_new(ids.to_vec(), window, cx);
+                    crate::agent_task_panel::open_new(ids.to_vec(), Default::default(), window, cx);
                 }
                 return;
             }
@@ -3043,7 +3043,17 @@ impl Render for Workspace {
                 this.close_settings(window, cx);
                 this.set_focus_mode(false, window, cx);
                 this.show_inspector(Some(InspectorTab::Agents), cx);
-                crate::agent_task_panel::open_new(Vec::new(), window, cx);
+                let notebook = match this.library.read(cx).filter.clone() {
+                    Filter::Book(id) => Some(id),
+                    _ => None,
+                };
+                let note = this.editor.read(cx).note_id().map(str::to_owned);
+                crate::agent_task_panel::open_new(
+                    Vec::new(),
+                    crate::agent_task_panel::TaskContext { notebook, note },
+                    window,
+                    cx,
+                );
             }))
             // What acts on the open note brings it back from behind
             // Settings first, so the note it changes is in view.

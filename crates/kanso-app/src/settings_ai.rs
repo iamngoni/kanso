@@ -963,6 +963,42 @@ impl AiPage {
         rows
     }
 
+    /// The agent tools the person chose "Always allow" for, each with a
+    /// button that takes it back so the agent asks again.
+    fn always_allowed_rows(ai: &AiSettings) -> Vec<Row> {
+        ai.agent
+            .always_allowed
+            .iter()
+            .enumerate()
+            .map(|(ix, tool)| {
+                let detail = match &tool.kind {
+                    Some(kind) => format!("Always allowed for {} · {kind}", tool.agent),
+                    None => format!("Always allowed for {}", tool.agent),
+                };
+                let removed = tool.clone();
+                Row::new(gpui_kit::assets::IconName::ShieldCheck, tool.title.clone())
+                    .detail(detail)
+                    .trailing(
+                        Button::new(("ai-agent-forget-tool", ix))
+                            .debug_selector(move || format!("ai-agent-forget-tool-{ix}"))
+                            .outline()
+                            .small()
+                            .label("Remove")
+                            .on_click(move |_, _, cx| {
+                                AppState::update_config(cx, |config| {
+                                    config
+                                        .ai
+                                        .agent
+                                        .always_allowed
+                                        .retain(|tool| *tool != removed);
+                                });
+                                cx.refresh_windows();
+                            }),
+                    )
+            })
+            .collect()
+    }
+
     /// Settings > AI > Ask: how much one question may send, whether answers
     /// are checked against the notes, and whether links are followed.
     fn ask_rows(&self, ai: &AiSettings) -> Vec<Row> {
@@ -1455,6 +1491,7 @@ impl Render for AiPage {
                     rows.extend(self.custom_rows());
                 }
                 rows.extend(self.note_access_rows(&ai, cx));
+                rows.extend(Self::always_allowed_rows(&ai));
                 rows.push(self.agent_test_row(&ai, view.clone()));
             } else {
                 rows.push(self.provider_row(&ai, cx));

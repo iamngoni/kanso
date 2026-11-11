@@ -28,6 +28,9 @@ pub struct PermissionRequest {
     pub title: String,
     /// The kind of tool (read, edit, execute, …), if given.
     pub kind: Option<String>,
+    /// The agent's session the request came in, if given. The person may
+    /// allow a tool for the rest of one session.
+    pub session: Option<String>,
 }
 
 /// How a pending permission request ended.
@@ -43,8 +46,10 @@ enum Decision {
 }
 
 /// The way to answer one [`PermissionRequest`], from any thread, once.
-/// Dropping it unanswered rejects the request. Kanso never answers "always",
-/// so there is no way to.
+/// Dropping it unanswered rejects the request. Kanso never answers the
+/// agent's own "always" option: when the person allows a tool for a session
+/// or for good, Kanso remembers that itself and answers "allow once" each
+/// time, so the person can take it back in Kanso.
 pub struct PermissionReply {
     tx: Option<Sender<Decision>>,
     settled: Arc<AtomicBool>,
@@ -546,6 +551,10 @@ impl Shared {
                 .unwrap_or("one of its tools")
                 .to_owned(),
             kind: tool.get("kind").and_then(Value::as_str).map(str::to_owned),
+            session: params
+                .get("sessionId")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
         };
         let asked = AskedPermission {
             id,

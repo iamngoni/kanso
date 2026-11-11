@@ -717,6 +717,19 @@ pub struct AgentChoice {
     pub suggest_edits: bool,
     /// The ACP registry entry a custom agent was picked from, by its ID.
     pub registry: Option<String>,
+    /// Tools the person chose "Always allow" for: Kanso answers these without
+    /// asking. Removed in Settings > AI.
+    pub always_allowed: Vec<AllowedTool>,
+}
+
+/// One of an agent's own tools the person allowed for good: the agent's name
+/// and the tool as the agent describes it.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct AllowedTool {
+    pub agent: String,
+    pub kind: Option<String>,
+    pub title: String,
 }
 
 impl Default for AgentChoice {
@@ -730,6 +743,7 @@ impl Default for AgentChoice {
             notebooks: Vec::new(),
             suggest_edits: false,
             registry: None,
+            always_allowed: Vec::new(),
         }
     }
 }
@@ -1317,6 +1331,7 @@ mod tests {
                     notebooks,
                     suggest_edits,
                     registry,
+                    always_allowed: Vec::new(),
                 },
             )
     }
