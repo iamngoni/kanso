@@ -3,6 +3,12 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.10.5](https://github.com/iamngoni/kanso/compare/v0.10.4...v0.10.5) - 2026-11-11
+
+### Fixed
+
+- **app:** Delete key trashes the selected notes, and the Trash menu restores or deletes every selected note ([2b86e19](https://github.com/iamngoni/kanso/commit/2b86e1946d17566e6fcd9ddd6db256a1af10cb03))
+
 ## [0.10.4](https://github.com/iamngoni/kanso/compare/v0.10.3...v0.10.4) - 2026-11-11
 
 ### Fixed
