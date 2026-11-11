@@ -244,7 +244,9 @@ pub(crate) fn open_prompt(body: String, launch: bool, window: &mut Window, cx: &
             .cancel_text("Later")
             .ok_text("Seal now")
             .on_ok(|_, window, cx| {
-                proceed(window, cx);
+                // After this dialog closes: closing pops the top dialog,
+                // which would otherwise be the password form opened here.
+                window.defer(cx, proceed);
                 true
             })
             .on_cancel(move |_, _, cx| {
