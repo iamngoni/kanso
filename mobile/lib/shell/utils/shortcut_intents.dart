@@ -30,6 +30,7 @@ const Set<String> unboundOnMobile = <String>{
   'select_next', // The note list has no keyboard row-selection model.
   'select_previous', // The note list has no keyboard row-selection model.
   'select_all_notes', // The note list has no select-all event.
+  'delete_selected_notes', // The note list has no keyboard row-selection model.
   'select_one_note', // The note list has no keyboard row-selection model.
   'open_focused_in_new_tab', // There is no keyboard-focused note to open.
   'focus_editor', // The note list has no keyboard-focused row to open.
@@ -137,6 +138,7 @@ Intent? intentForShortcut(ShortcutEntry entry) => switch (entry.id) {
   'select_next' ||
   'select_previous' ||
   'select_all_notes' ||
+  'delete_selected_notes' ||
   'open_focused_in_new_tab' ||
   'select_one_note' => null, // The list has no keyboard-focused row model.
   'confirm' ||
