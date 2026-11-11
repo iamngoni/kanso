@@ -117,10 +117,21 @@ pub fn sync_dismissals(
 pub fn context(store: &Store) -> kanso_store::Result<Context> {
     let mut ctx = Context::default();
     for (_, title) in store.note_titles()? {
-        ctx.known_titles.insert(normalize_name(&title));
+        let key = normalize_name(&title);
+        if let Some(bare) = kanso_core::entities::without_honorific(&key) {
+            ctx.known_titles.insert(bare);
+        }
+        ctx.known_titles.insert(key);
     }
     for page in store.entities()? {
+        // Pages indexed before titles were dropped answer to the bare
+        // name too.
         for name in &page.names {
+            if let Some(bare) = kanso_core::entities::without_honorific(name) {
+                ctx.entity_names
+                    .entry(bare)
+                    .or_insert_with(|| page.id.clone());
+            }
             ctx.entity_names.insert(name.clone(), page.id.clone());
         }
     }
