@@ -12,9 +12,10 @@
 //! Offsets are UTF-8 byte offsets, as the desktop editor's selection is. An
 //! editor that counts in UTF-16 units converts with [`crate::text`].
 //!
-//! [`tab`] and [`enter`] are the rules the desktop editor follows for those
-//! keys, in one place; [`enter_continuing_lists`] adds continuing a list
-//! item, which the desktop doesn't do (yet).
+//! [`tab`] and [`enter_continuing_lists`] are the rules the desktop and
+//! mobile editors follow for those keys, in one place: [`enter`] is a
+//! table's Enter, and [`enter_continuing_lists`] adds continuing a list
+//! item.
 
 use std::ops::Range;
 

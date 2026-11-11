@@ -3286,8 +3286,9 @@ impl NoteEditor {
     }
 
     /// Enter at the end of a table row adds a row; in an empty last row it
-    /// leaves the table.
-    // no-prop-test: key glue over `kanso_engine::edit::enter`, tested there.
+    /// leaves the table. On a list item it starts the next item.
+    // no-prop-test: key glue over `kanso_engine::edit::enter_continuing_lists`,
+    // tested there.
     fn on_enter(&mut self, action: &Enter, window: &mut Window, cx: &mut Context<Self>) {
         if action.secondary || action.shift || !self.body_takes_edits(window, cx) {
             return;
@@ -3304,7 +3305,7 @@ impl NoteEditor {
         }
         let format = self.settings.format_tables;
         if self.smart_edit(window, cx, |_, text, selection| {
-            kanso_engine::edit::enter(text, selection, format)
+            kanso_engine::edit::enter_continuing_lists(text, selection, format)
         }) {
             cx.stop_propagation();
         }
@@ -7549,6 +7550,16 @@ mod writing_tests {
             "{text:?}"
         );
         assert!(selection.start > end);
+
+        // Enter on a list item starts the next one; on an empty one it ends the list.
+        open.with(cx, |editor, window, cx| {
+            editor.edit_for_test("- [x] a", window, cx)
+        });
+        open.select(cx, 7..7);
+        open.keys(cx, "enter");
+        assert_eq!(open.text(cx), ("- [x] a\n- [ ] ".into(), 14..14));
+        open.keys(cx, "enter");
+        assert_eq!(open.text(cx), ("- [x] a\n".into(), 8..8));
 
         // Format Table, from the palette or the menu.
         open.with(cx, |editor, window, cx| {
