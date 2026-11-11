@@ -3,6 +3,12 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.10.4](https://github.com/iamngoni/kanso/compare/v0.10.3...v0.10.4) - 2026-11-11
+
+### Fixed
+
+- **app:** Open the lock-password form after the sealing prompt closes, so Seal now works ([a350047](https://github.com/iamngoni/kanso/commit/a350047de4e9884ccf5617c404a742f70bf5110d))
+
 ## [0.10.3](https://github.com/iamngoni/kanso/compare/v0.10.2...v0.10.3) - 2026-11-11
 
 ### New
