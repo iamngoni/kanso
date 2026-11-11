@@ -23,7 +23,7 @@ pub mod registry;
 
 pub use connection::{
     AgentInfo, AgentProcess, AuthMethod, McpServer, PermissionPolicy, PermissionReply,
-    PermissionRequest, Session, SessionMode, Turn, reject_all,
+    PermissionRequest, Session, SessionMode, Turn, parse_tool_call, reject_all,
 };
 pub use detect::{AgentKind, Detection};
 pub use process::AgentSpec;
@@ -101,6 +101,29 @@ impl StopReason {
     }
 }
 
+/// How one of the agent's own tool calls is going.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ToolStatus {
+    Pending,
+    InProgress,
+    Completed,
+    Failed,
+}
+
+impl ToolStatus {
+    /// `pending`, `in_progress`, `completed` or `failed`; anything else is
+    /// not a status.
+    pub fn parse(text: &str) -> Option<ToolStatus> {
+        match text {
+            "pending" => Some(ToolStatus::Pending),
+            "in_progress" => Some(ToolStatus::InProgress),
+            "completed" => Some(ToolStatus::Completed),
+            "failed" => Some(ToolStatus::Failed),
+            _ => None,
+        }
+    }
+}
+
 /// Something an agent's turn says.
 #[derive(Clone, Debug, PartialEq)]
 pub enum AcpEvent {
@@ -108,8 +131,15 @@ pub enum AcpEvent {
     Text(String),
     /// The agent's reasoning, not part of the answer.
     Thought(String),
-    /// The agent is using one of its own tools; the title it gave.
-    Tool(String),
+    /// The agent started one of its own tools or reported on it
+    /// (`tool_call` / `tool_call_update`). Only `id` is always there: an
+    /// update that carries no title updates the call it names.
+    ToolCall {
+        id: String,
+        title: Option<String>,
+        kind: Option<String>,
+        status: Option<ToolStatus>,
+    },
     /// What the answer has cost so far, when the agent says.
     Cost { amount: f64, currency: String },
     /// A line for the person that isn't part of the answer.

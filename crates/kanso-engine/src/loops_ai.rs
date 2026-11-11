@@ -278,7 +278,7 @@ pub fn ask(provider: &dyn ChatProvider, prompt: &Prompt) -> Result<String, AiErr
             Event::Text(piece) => text.push_str(&piece),
             Event::Done => break,
             Event::Error(message) => return Err(AiError::Provider(message)),
-            Event::Status(_) => {}
+            Event::Status(_) | Event::Thought(_) | Event::Tool { .. } => {}
         }
     }
     Ok(text)

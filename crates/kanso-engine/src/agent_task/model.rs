@@ -48,6 +48,8 @@ pub enum EndedBy {
 pub struct TaskRow {
     pub id: TaskId,
     pub goal: String,
+    /// The goal cut to one line: what the list calls the task.
+    pub title: String,
     /// What the person calls the AI: "Claude Agent".
     pub agent: String,
     pub phase: Phase,
@@ -59,6 +61,18 @@ pub struct TaskRow {
     pub notes_read: usize,
     pub counts: Counts,
     pub elapsed: Duration,
+    /// When the transcript last grew, in Unix milliseconds.
+    pub last_activity_ms: i64,
+}
+
+/// A goal cut to one line for a title.
+pub fn title_of(goal: &str) -> String {
+    let line = goal.lines().next().unwrap_or_default().trim();
+    let mut title: String = line.chars().take(80).collect();
+    if line.chars().count() > 80 {
+        title.push('…');
+    }
+    title
 }
 
 impl TaskRow {
@@ -66,6 +80,7 @@ impl TaskRow {
         TaskRow {
             id,
             goal: goal.to_owned(),
+            title: title_of(goal),
             agent: agent.to_owned(),
             phase: Phase::Running,
             ended_by: None,
@@ -74,6 +89,7 @@ impl TaskRow {
             notes_read: 0,
             counts: Counts::default(),
             elapsed: Duration::ZERO,
+            last_activity_ms: 0,
         }
     }
 

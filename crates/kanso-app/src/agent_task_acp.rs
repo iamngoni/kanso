@@ -10,6 +10,7 @@ use kanso_ai::agent::Conversation;
 use kanso_ai::{Event, Prompt};
 use kanso_engine::agent_task::OpenTask;
 use kanso_engine::agent_task::runner::TaskDriver;
+use kanso_engine::agent_task::session::Transcript;
 use kanso_store::Store;
 
 pub struct AcpDriver(pub Arc<Conversation>);
@@ -23,7 +24,7 @@ impl TaskDriver for AcpDriver {
     }
 
     // The reply continues the same ACP session.
-    fn reply_prompt(&self, _task: &OpenTask, _said: &str, reply: &str) -> Prompt {
+    fn reply_prompt(&self, _task: &OpenTask, _transcript: &Transcript, reply: &str) -> Prompt {
         Prompt {
             system: "The user replied to your question.".to_owned(),
             user: reply.trim().to_owned(),

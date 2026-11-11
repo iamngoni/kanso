@@ -284,6 +284,10 @@ impl NoteEditor {
                 suggestion.text.push_str(&text);
             }
             Event::Status(line) => suggestion.notice = Some(line),
+            Event::Tool {
+                title: Some(title), ..
+            } => suggestion.notice = Some(title),
+            Event::Tool { .. } | Event::Thought(_) => {}
             Event::Done => {
                 suggestion.running = false;
                 suggestion.complete = true;

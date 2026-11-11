@@ -203,7 +203,7 @@ fn collect(
             Event::Text(t) => text.push_str(&t),
             Event::Error(message) => return Err(message),
             Event::Done => break,
-            Event::Status(_) => {}
+            Event::Status(_) | Event::Thought(_) | Event::Tool { .. } => {}
         }
     }
     Ok(text)

@@ -16,14 +16,15 @@
 pub mod model;
 pub mod review;
 pub mod runner;
+pub mod session;
 pub mod settings;
 
-use std::collections::{BTreeSet, HashSet};
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+use std::collections::{BTreeSet, HashSet, VecDeque};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
 
-use kanso_ai::{AiError, ChatProvider, Event, NO_TOOLS, Prompt, RawTool, ToolRegistry};
+use kanso_ai::{AiError, ChatProvider, Event, NO_TOOLS, Prompt, RawTool, ToolRegistry, ToolStatus};
 use kanso_server::{
     AgentScope, ChangeSet, TaskId, TaskLimits, TaskOps, TokenId, TokenStore, agent_tools,
     readable_notes,
@@ -312,6 +313,48 @@ pub fn answer_text(result: &Value) -> String {
 /// agent gets from the notes server, under underscore names, each running
 /// the same handler in process.
 pub fn registry(store: Arc<Store>, task: &OpenTask) -> ToolRegistry<()> {
+    registry_with_events(store, task, None)
+}
+
+/// The kind of tool a Kanso tool is, in the agent protocol's words.
+fn tool_kind(mcp_name: &str) -> &'static str {
+    let name = mcp_name.trim_start_matches("kanso-");
+    if name.contains("search") {
+        "search"
+    } else if name.starts_with("propose-move") {
+        "move"
+    } else if ["create", "update", "patch", "propose"]
+        .iter()
+        .any(|verb| name.starts_with(verb))
+    {
+        "edit"
+    } else if ["read", "get", "list"].iter().any(|v| name.starts_with(v)) {
+        "read"
+    } else {
+        "other"
+    }
+}
+
+/// "Search notes" for `search-notes`.
+fn tool_title(mcp_name: &str) -> String {
+    let words = mcp_name
+        .trim_start_matches("kanso-")
+        .replace(['-', '_'], " ");
+    let mut chars = words.chars();
+    chars
+        .next()
+        .map(|first| first.to_uppercase().chain(chars).collect())
+        .unwrap_or(words)
+}
+
+/// [`registry`] whose tools also tell `events` that they started and how
+/// they ended, as [`Event::Tool`]s.
+fn registry_with_events(
+    store: Arc<Store>,
+    task: &OpenTask,
+    events: Option<mpsc::Sender<Event>>,
+) -> ToolRegistry<()> {
+    let events = events.map(|tx| Arc::new(Mutex::new(tx)));
     let mut registry = ToolRegistry::new();
     let definitions = agent_tools::definitions_for(&task.scope);
     let known: Arc<Vec<String>> = Arc::new(
@@ -342,6 +385,7 @@ pub fn registry(store: Arc<Store>, task: &OpenTask) -> ToolRegistry<()> {
             task.scope.clone(),
         );
         let known = known.clone();
+        let events = events.clone();
         let mcp = name.to_owned();
         registry.register(RawTool::new(
             api_name(name),
@@ -349,14 +393,37 @@ pub fn registry(store: Arc<Store>, task: &OpenTask) -> ToolRegistry<()> {
             schema,
             Arc::new(move |arguments: Value| {
                 let name = mcp_name(&api_name(&mcp), &known).unwrap_or_else(|| mcp.clone());
-                Value::String(answer_text(&agent_tools::call(
-                    &store,
-                    &tokens,
-                    token,
-                    &scope,
-                    &name,
-                    Some(&arguments),
-                )))
+                let call = format!("api-{}", TOOL_CALLS.fetch_add(1, Ordering::Relaxed));
+                let tell = |title: Option<String>, kind: Option<&str>, status: ToolStatus| {
+                    if let Some(events) = &events {
+                        let tx = events.lock().unwrap_or_else(|e| e.into_inner());
+                        tx.send(Event::Tool {
+                            id: call.clone(),
+                            title,
+                            kind: kind.map(str::to_owned),
+                            status: Some(status),
+                        })
+                        .ok();
+                    }
+                };
+                tell(
+                    Some(tool_title(&name)),
+                    Some(tool_kind(&name)),
+                    ToolStatus::InProgress,
+                );
+                let result =
+                    agent_tools::call(&store, &tokens, token, &scope, &name, Some(&arguments));
+                let failed = result.get("isError") == Some(&Value::Bool(true));
+                tell(
+                    None,
+                    None,
+                    if failed {
+                        ToolStatus::Failed
+                    } else {
+                        ToolStatus::Completed
+                    },
+                );
+                Value::String(answer_text(&result))
             }),
         ));
     }
@@ -444,13 +511,43 @@ pub fn run_api_with_prompt(
     on_tool_completed: Box<dyn FnMut() + Send>,
     cancel: Arc<AtomicBool>,
 ) -> Result<Box<dyn Iterator<Item = Event> + Send>, AiError> {
-    provider.run_task(
+    let (tx, rx) = mpsc::channel();
+    let inner = provider.run_task(
         &prompt,
-        registry(store, task),
+        registry_with_events(store, task, Some(tx)),
         task.spec.max_calls,
         on_tool_completed,
         cancel,
-    )
+    )?;
+    Ok(Box::new(WithToolEvents {
+        inner,
+        rx,
+        queue: VecDeque::new(),
+    }))
+}
+
+/// Counts Kanso's own tool calls, for the ids of their [`Event::Tool`]s.
+static TOOL_CALLS: AtomicU64 = AtomicU64::new(0);
+
+/// The model's events with the tool events its tools told, each placed
+/// before the event that was waiting when they came.
+struct WithToolEvents {
+    inner: Box<dyn Iterator<Item = Event> + Send>,
+    rx: mpsc::Receiver<Event>,
+    queue: VecDeque<Event>,
+}
+
+impl Iterator for WithToolEvents {
+    type Item = Event;
+
+    fn next(&mut self) -> Option<Event> {
+        if self.queue.is_empty() {
+            let event = self.inner.next();
+            self.queue.extend(self.rx.try_iter());
+            self.queue.extend(event);
+        }
+        self.queue.pop_front()
+    }
 }
 
 /// Whether a task's last words say the model can't use tools.

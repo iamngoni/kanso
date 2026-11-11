@@ -14,9 +14,9 @@
 //! reaches the change set through the notes server over MCP. Everything a
 //! window shows comes from [`TaskRow`]s.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use kanso_ai::{Event, Prompt, SharedProvider};
 use kanso_server::{
@@ -25,6 +25,7 @@ use kanso_server::{
 use kanso_store::{Store, UndoReport};
 
 use super::model::{EndedBy, Phase, TaskRow};
+use super::session::{Item, RoundState, SessionKey, ToolKind, ToolStatus, Transcript};
 use super::{OpenTask, REPLY_WAIT, StartError, TaskSpec};
 
 /// The most tasks working at once.
@@ -45,8 +46,9 @@ pub const NOTICE_FOR: Duration = Duration::from_secs(30);
 /// What the window hears.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TaskEvent {
-    /// A row changed.
-    Changed,
+    /// A row or a transcript changed: `Some(task)` when it was that task's
+    /// alone, so a view of another task has nothing to look at again.
+    Changed(Option<TaskId>),
     /// A task just ended with changes to review.
     Finished(TaskId),
 }
@@ -79,8 +81,8 @@ pub trait TaskDriver: Send + Sync {
     fn first_prompt(&self, task: &OpenTask) -> Prompt;
 
     /// The prompt that continues `task` after the person answered a
-    /// question. `said` is everything the AI said so far.
-    fn reply_prompt(&self, task: &OpenTask, said: &str, reply: &str) -> Prompt;
+    /// question. `transcript` is the conversation so far.
+    fn reply_prompt(&self, task: &OpenTask, transcript: &Transcript, reply: &str) -> Prompt;
 
     /// Starts one stretch of work on `prompt`. `progress` is called after
     /// each tool call or note read; setting `cancel` stops the stretch.
@@ -119,7 +121,8 @@ impl TaskDriver for ApiDriver {
 
     // A model with an API key has no session: it starts again with what was
     // said, and `list_proposed` shows its own work.
-    fn reply_prompt(&self, task: &OpenTask, said: &str, reply: &str) -> Prompt {
+    fn reply_prompt(&self, task: &OpenTask, transcript: &Transcript, reply: &str) -> Prompt {
+        let said = transcript.agent_said();
         let mut prompt = super::api_prompt(task);
         prompt.user = format!(
             "{}\n\nEarlier in this task you said:\n{}\n\nThe user replied:\n{}\n\nContinue the task. Call list_proposed to see what you have proposed already.",
@@ -164,8 +167,35 @@ struct Entry {
     applied: Mutex<Option<AppliedSet>>,
     /// The words of the turn so far.
     said: Mutex<String>,
-    /// Over the whole task, for an API-key reply (which restarts the loop).
-    transcript: Mutex<String>,
+    /// Everything that happened, over the whole task: also what an API-key
+    /// reply is built from (it restarts the loop).
+    transcript: Mutex<Transcript>,
+    /// This session's own id (a [`TaskId`] restarts with each launch).
+    #[allow(dead_code)]
+    key: SessionKey,
+    /// The round of proposals the task is in; 1 until a follow-up.
+    round: AtomicU32,
+    /// When the transcript last grew, in Unix milliseconds.
+    last_activity_ms: AtomicI64,
+}
+
+/// Unix milliseconds now.
+fn now_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |since| {
+            i64::try_from(since.as_millis()).unwrap_or(i64::MAX)
+        })
+}
+
+impl Entry {
+    /// Changes the transcript and notes the time.
+    fn record(&self, change: impl FnOnce(&mut Transcript, i64)) {
+        let now = now_ms();
+        change(&mut lock(&self.transcript), now);
+        self.last_activity_ms.store(now, Ordering::Relaxed);
+        lock(&self.row).last_activity_ms = now;
+    }
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -192,6 +222,11 @@ impl Tasks {
         let (tx, rx) = async_channel::unbounded();
         lock(&self.subscribers).push(tx);
         rx
+    }
+
+    /// What happened in the task so far, if it is listed.
+    pub fn transcript(&self, id: TaskId) -> Option<Transcript> {
+        Some(lock(&self.entry(id)?.transcript).clone())
     }
 
     fn tell(&self, event: TaskEvent) {
@@ -272,6 +307,8 @@ impl Tasks {
         };
         let id = open.id;
         let mut row = TaskRow::new(id, &spec.goal, agent);
+        let started_ms = now_ms();
+        row.last_activity_ms = started_ms;
         if backend.queues() && self.active() > 0 {
             row.phase = Phase::Waiting;
         }
@@ -286,11 +323,15 @@ impl Tasks {
             asked_at: Mutex::new(None),
             applied: Mutex::new(None),
             said: Mutex::new(String::new()),
-            transcript: Mutex::new(String::new()),
+            transcript: Mutex::new(Transcript::default()),
+            key: SessionKey::new(started_ms),
+            round: AtomicU32::new(1),
+            last_activity_ms: AtomicI64::new(started_ms),
         });
+        entry.record(|transcript, now| transcript.user(&spec.goal, now));
         lock(&self.entries).push(entry.clone());
         drop(gate);
-        self.tell(TaskEvent::Changed);
+        self.tell(TaskEvent::Changed(Some(id)));
         self.watch(entry.clone(), spec.time_limit);
         let prompt = entry.backend.first_prompt(&entry.open);
         self.segment(entry, prompt);
@@ -384,7 +425,7 @@ impl Tasks {
                 row.line = format!("Reading {}", note.title);
             }
         }
-        self.tell(TaskEvent::Changed);
+        self.tell(TaskEvent::Changed(Some(entry.open.id)));
     }
 
     fn run_segment(&self, entry: &Arc<Entry>, prompt: &Prompt) {
@@ -402,11 +443,38 @@ impl Tasks {
             Err(message) => return self.conclude(entry, None, Some(message)),
         };
         let mut failure = None;
+        let mut thinking_since: Option<Instant> = None;
         for event in events {
+            if !matches!(event, Event::Thought(_)) {
+                thinking_since = None;
+            }
             match event {
                 Event::Text(text) => {
                     lock(&entry.said).push_str(&text);
+                    entry.record(|transcript, now| transcript.agent_text(&text, now));
                     self.refresh(entry, None);
+                }
+                Event::Thought(text) => {
+                    let since = *thinking_since.get_or_insert_with(Instant::now);
+                    let ms = u64::try_from(since.elapsed().as_millis()).unwrap_or(u64::MAX);
+                    entry.record(|transcript, _| transcript.thought(&text, ms));
+                    self.refresh(entry, None);
+                }
+                Event::Tool {
+                    id,
+                    title,
+                    kind,
+                    status,
+                } => {
+                    entry.record(|transcript, _| {
+                        transcript.tool(
+                            &id,
+                            title.as_deref(),
+                            kind.as_deref().map(ToolKind::parse),
+                            status.map(tool_status),
+                        );
+                    });
+                    self.refresh(entry, title);
                 }
                 Event::Status(line) => self.refresh(entry, Some(line)),
                 Event::Done => break,
@@ -420,7 +488,6 @@ impl Tasks {
             }
         }
         let said = std::mem::take(&mut *lock(&entry.said));
-        lock(&entry.transcript).push_str(&said);
         if !said.trim().is_empty() {
             lock(&entry.row).last_message = said.trim().to_owned();
         }
@@ -453,6 +520,7 @@ impl Tasks {
         let set = entry.open.changes();
         let counts = set.as_ref().map(|s| s.counts()).unwrap_or_default();
         let summary = set.as_ref().map(|s| s.summary.clone()).unwrap_or_default();
+        let failure_text = failure.clone();
         let finished = {
             let mut row = lock(&entry.row);
             if !row.is_active() {
@@ -477,9 +545,36 @@ impl Tasks {
             row.line.clear();
             row.can_review()
         };
+        let ended_by = lock(&entry.row).ended_by;
+        entry.record(|transcript, now| {
+            let notice = match (&failure_text, ended_by) {
+                (Some(message), _) => Some(format!("Failed: {message}")),
+                (None, Some(EndedBy::Stopped)) => Some("Stopped".to_owned()),
+                (None, Some(EndedBy::TimeLimit)) => Some(format!(
+                    "Hit the {}-minute limit",
+                    (entry.open.spec.time_limit.as_secs() / 60).max(1)
+                )),
+                (None, Some(EndedBy::CallLimit)) => Some(format!(
+                    "Hit the {}-tool-call limit",
+                    entry.open.spec.max_calls
+                )),
+                (None, Some(EndedBy::NoReply)) => Some("No reply, so the task stopped".to_owned()),
+                (None, _) => None,
+            };
+            if let Some(text) = notice {
+                transcript.notice(&text, now);
+            }
+            if counts.total() > 0 {
+                transcript.push(Item::Proposed {
+                    round: entry.round.load(Ordering::Relaxed),
+                    counts,
+                    state: RoundState::ToReview,
+                });
+            }
+        });
         entry.open.end();
         entry.cancel.store(true, Ordering::Relaxed);
-        self.tell(TaskEvent::Changed);
+        self.tell(TaskEvent::Changed(Some(entry.open.id)));
         if finished {
             self.tell(TaskEvent::Finished(entry.open.id));
         }
@@ -505,8 +600,9 @@ impl Tasks {
             return;
         }
         *lock(&entry.asked_at) = None;
-        let said = lock(&entry.transcript).clone();
-        let prompt = entry.backend.reply_prompt(&entry.open, &said, text);
+        entry.record(|transcript, now| transcript.user(text.trim(), now));
+        let transcript = lock(&entry.transcript).clone();
+        let prompt = entry.backend.reply_prompt(&entry.open, &transcript, text);
         self.segment(entry, prompt);
     }
 
@@ -524,6 +620,9 @@ impl Tasks {
         *lock(&entry.applied) = Some(applied.clone());
         let changes = selection.ticked.len().saturating_sub(applied.dropped.len());
         lock(&entry.row).phase = Phase::Applied { changes };
+        entry.record(|transcript, _| {
+            transcript.set_round_state(entry.round.load(Ordering::Relaxed), RoundState::Applied);
+        });
         let agent = lock(&entry.row).agent.clone();
         self.say(
             id,
@@ -542,6 +641,9 @@ impl Tasks {
         if let Ok(done) = &report {
             *lock(&entry.applied) = None;
             lock(&entry.row).phase = Phase::Undone;
+            entry.record(|transcript, _| {
+                transcript.set_round_state(entry.round.load(Ordering::Relaxed), RoundState::Undone);
+            });
             self.say(id, super::review::undo_message(done.skipped.len()), false);
         }
         Some(report)
@@ -566,7 +668,7 @@ impl Tasks {
             undoable,
             at: Instant::now(),
         });
-        self.tell(TaskEvent::Changed);
+        self.tell(TaskEvent::Changed(Some(task)));
     }
 
     /// Whether task `id` has something Undo would take back.
@@ -581,11 +683,18 @@ impl Tasks {
         entry.cancel.store(true, Ordering::Relaxed);
         entry.open.discard();
         let mut row = lock(&entry.row);
-        if row.is_active() || row.can_discard() {
+        let discarded = row.is_active() || row.can_discard();
+        if discarded {
             row.phase = Phase::Discarded;
         }
         drop(row);
-        self.tell(TaskEvent::Changed);
+        if discarded {
+            entry.record(|transcript, _| {
+                transcript
+                    .set_round_state(entry.round.load(Ordering::Relaxed), RoundState::Discarded);
+            });
+        }
+        self.tell(TaskEvent::Changed(Some(id)));
     }
 
     /// Takes a finished row off the panel.
@@ -599,7 +708,7 @@ impl Tasks {
             keep
         });
         drop(entries);
-        self.tell(TaskEvent::Changed);
+        self.tell(TaskEvent::Changed(Some(id)));
     }
 
     /// Stops every task and revokes every token: AI was turned off or Kanso is
@@ -614,5 +723,14 @@ impl Tasks {
     /// The prompt for quitting with unreviewed changes, if any.
     pub fn quit_prompt(&self) -> Option<String> {
         super::model::quit_prompt(&self.rows())
+    }
+}
+
+fn tool_status(status: kanso_ai::ToolStatus) -> ToolStatus {
+    match status {
+        kanso_ai::ToolStatus::Pending => ToolStatus::Pending,
+        kanso_ai::ToolStatus::InProgress => ToolStatus::InProgress,
+        kanso_ai::ToolStatus::Completed => ToolStatus::Completed,
+        kanso_ai::ToolStatus::Failed => ToolStatus::Failed,
     }
 }

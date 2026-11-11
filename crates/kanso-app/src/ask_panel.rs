@@ -625,6 +625,10 @@ impl AskPanel {
                     let update = match event {
                         kanso_ai::Event::Text(text) => Update::Text(text),
                         kanso_ai::Event::Status(line) => Update::Status(line),
+                        kanso_ai::Event::Tool {
+                            title: Some(title), ..
+                        } => Update::Status(title),
+                        kanso_ai::Event::Tool { .. } | kanso_ai::Event::Thought(_) => return,
                         kanso_ai::Event::Done => Update::SummaryDone,
                         kanso_ai::Event::Error(message) if message == kanso_ai::CUT_OFF => {
                             Update::CutOff
@@ -1343,6 +1347,10 @@ fn run_agent(
             on_event(TurnEvent::Text(piece));
         }
         kanso_ai::Event::Status(line) => on_event(TurnEvent::Status(line)),
+        kanso_ai::Event::Tool {
+            title: Some(title), ..
+        } => on_event(TurnEvent::Status(title)),
+        kanso_ai::Event::Tool { .. } | kanso_ai::Event::Thought(_) => {}
         kanso_ai::Event::Done => ended = true,
         kanso_ai::Event::Error(message) if message == kanso_ai::CUT_OFF => {}
         kanso_ai::Event::Error(message) => {
