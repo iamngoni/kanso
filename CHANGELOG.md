@@ -3,6 +3,31 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.10.3](https://github.com/iamngoni/kanso/compare/v0.10.2...v0.10.3) - 2026-11-11
+
+### New
+
+- **cloud:** Report pending D1 migrations on /v2/health, file an issue from the cron, and name a missing table in 500 logs ([c79b134](https://github.com/iamngoni/kanso/commit/c79b1341df2a7f0ca45ee7e5d10986578d3b0114))
+
+### Improved
+
+- **mobile:** Drop an unused import and a default argument in the time sheet ([2085b1c](https://github.com/iamngoni/kanso/commit/2085b1c82904ce694b9bc0ad5f0f2e69fda61eab))
+
+### Fixed
+
+- **ci:** Install bubblewrap so Claude Code starts in feedback build jobs ([a4a3e95](https://github.com/iamngoni/kanso/commit/a4a3e95e53907d95c6ff906f391b693aaf042eed))
+- **mobile:** Offer Publish in the note editor's menu ([9f2c325](https://github.com/iamngoni/kanso/commit/9f2c3251593e4351e3c3b69c6a4d1171fbb20d6f))
+- **ci:** Install socat for the Claude Code shell sandbox in feedback builds ([24dd0bb](https://github.com/iamngoni/kanso/commit/24dd0bb90262d04b04ad0a1aea712a51b7e3d68a))
+- **mobile:** Use an iOS time wheel for the daily reminder ([49e5768](https://github.com/iamngoni/kanso/commit/49e5768da0e71d9e6cf7b06cf1e7679ede1aa167)), reported by Ngonidzashe Mangudya
+- **mobile:** Draw the time wheel in the app's theme, not the system's ([8a72276](https://github.com/iamngoni/kanso/commit/8a722769d7682c9352dde9db1abd43ab0792d523)), reported by Ngonidzashe Mangudya
+- **cloud:** Apply remote D1 migrations before every deploy ([c47895c](https://github.com/iamngoni/kanso/commit/c47895c205f483b3b62a4eaee3cdfa88ac425fa2))
+- Continue markdown lists and checklists on Enter in the desktop editor ([a7308b3](https://github.com/iamngoni/kanso/commit/a7308b3fbe2aee938f2f8c926f400a6f43d1a077)), reported by schneider
+- Expect the caret at the end of the new checklist item in the desktop Enter test ([773bf0c](https://github.com/iamngoni/kanso/commit/773bf0c5dcd006fff98621175234463030a94b59))
+
+### Under the hood
+
+- Say the desktop editor continues lists on Enter ([28c16bf](https://github.com/iamngoni/kanso/commit/28c16bf2aeba6ecf3d6ece42bed2c5f40b8ef534))
+
 ## [0.10.2](https://github.com/iamngoni/kanso/compare/v0.10.1...v0.10.2) - 2026-11-09
 
 ### New
