@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// this one does not, so it can name a file on disk. 26 characters of
 /// Crockford base32, ULID-shaped: 48 bits of time, then 80 random bits, so
 /// ids sort by when they were made.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct SessionKey(pub String);
 
 const CROCKFORD: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";

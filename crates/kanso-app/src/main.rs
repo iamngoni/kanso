@@ -17,6 +17,8 @@ mod agent_permission;
 mod agent_permission_tests;
 mod agent_registry;
 mod agent_scope;
+#[cfg(test)]
+mod agent_session_view_tests;
 mod agent_task_acp;
 mod agent_task_panel;
 #[cfg(test)]
@@ -26,6 +28,7 @@ mod ai_feature;
 mod api_key_cli;
 mod api_keys_model;
 
+mod agent_session_view;
 #[cfg(test)]
 mod ask_agent_tests;
 mod ask_panel;
@@ -49,6 +52,7 @@ mod capture_request;
 mod capture_voice;
 #[cfg(test)]
 mod capture_voice_tests;
+mod chat_parts;
 mod clipboard;
 mod clock;
 mod code_lang;

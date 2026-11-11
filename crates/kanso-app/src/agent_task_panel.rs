@@ -6,17 +6,17 @@
 //! draws them and starts, stops, applies and undoes through the runner.
 
 use gpui_component::scroll::ScrollableElement as _;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::Duration;
 
-use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::base::text::TextView;
+use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Input, InputEvent, InputState};
+use gpui_kit::component::menu::{ContextMenuExt as _, PopupMenu, PopupMenuItem};
 use gpui_kit::component::{Disableable as _, Sizable as _, StyledExt as _, h_flex, v_flex};
-use gpui_kit::component::{Icon, WindowExt as _};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_engine::agent_task::review::{
@@ -31,7 +31,11 @@ use crate::services::Services;
 use crate::theme::Colors;
 use crate::workspace::AppState;
 use crate::zoom::px;
-use kanso_engine::agent_task::model::{NOTIFICATION, Phase, TaskRow, elapsed_label};
+use kanso_engine::agent_task::model::{Dot, NOTIFICATION, Phase, TaskRow, by_activity};
+use kanso_engine::agent_task::session::SessionKey;
+
+use crate::agent_session_view::{AgentSessionView, SessionEvent, open_in_window};
+use crate::theme::Rgb;
 use kanso_engine::agent_task::runner::{ApiDriver, CannotStart, TaskEvent, Tasks};
 
 /// The width of the New agent task sheet and of the review sheet.
@@ -74,6 +78,7 @@ pub fn undo_latest(cx: &mut App) {
 /// with the Agent Tasks tab showing.
 pub fn respond(cx: &mut App) {
     cx.activate(true);
+    cx.refresh_windows();
     crate::workspace::for_each_workspace(cx, |workspace, cx| {
         workspace.show_inspector(Some(crate::config::InspectorTab::Agents), cx)
     });
@@ -81,16 +86,29 @@ pub fn respond(cx: &mut App) {
 
 // ---------------------------------------------------------------- the panel
 
-/// The tab: the tasks, newest last, and what can be done with each.
+/// A session the New agent task sheet wants the panel to show: set after a
+/// task starts, taken by the panel the next time it draws.
+#[derive(Default)]
+struct OpenRequest(Option<SessionKey>);
+
+impl Global for OpenRequest {}
+
+/// The tab: the sessions, newest activity first, and one open in place of
+/// the list.
 pub struct AgentTasksPanel {
     tasks: Tasks,
-    replies: HashMap<TaskId, Entity<InputState>>,
-    /// Tasks whose "Notes read" list is open.
-    reads_open: HashSet<TaskId>,
+    /// The session showing in place of the list.
+    open: Option<OpenSession>,
     /// Why Try Again couldn't start the task again.
     retry_error: Option<String>,
     _watch: Task<()>,
     _tick: Task<()>,
+}
+
+struct OpenSession {
+    key: SessionKey,
+    view: Entity<AgentSessionView>,
+    _back: Subscription,
 }
 
 impl AgentTasksPanel {
@@ -125,12 +143,32 @@ impl AgentTasksPanel {
         });
         AgentTasksPanel {
             tasks,
-            replies: HashMap::new(),
-            reads_open: HashSet::new(),
+            open: None,
             retry_error: None,
             _watch: watch,
             _tick: tick,
         }
+    }
+
+    /// Shows the session `key` in place of the list.
+    pub fn open_session(&mut self, key: SessionKey, window: &mut Window, cx: &mut Context<Self>) {
+        let view = cx.new(|cx| AgentSessionView::new(key.clone(), true, cx));
+        let back = cx.subscribe_in(
+            &view,
+            window,
+            |this, _, event: &SessionEvent, _, cx| match event {
+                SessionEvent::Back => {
+                    this.open = None;
+                    cx.notify();
+                }
+            },
+        );
+        self.open = Some(OpenSession {
+            key,
+            view,
+            _back: back,
+        });
+        cx.notify();
     }
 
     /// A task ended with changes: tell the person when Kanso is behind other
@@ -147,33 +185,6 @@ impl AgentTasksPanel {
             body: NOTIFICATION_BODY.into(),
             actions: Vec::new(),
         });
-    }
-
-    fn reply_box(
-        &mut self,
-        id: TaskId,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Entity<InputState> {
-        self.replies
-            .entry(id)
-            .or_insert_with(|| {
-                cx.new(|cx| InputState::new(window, cx).placeholder("Reply to the agent"))
-            })
-            .clone()
-    }
-
-    fn send_reply(&mut self, id: TaskId, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(input) = self.replies.get(&id).cloned() else {
-            return;
-        };
-        let text = input.read(cx).value().to_string();
-        if text.trim().is_empty() {
-            return;
-        }
-        self.tasks.reply(id, &text);
-        input.update(cx, |input, cx| input.set_value("", window, cx));
-        cx.notify();
     }
 
     /// Try Again on a failed task: the same sheet, started anew. The failed
@@ -219,48 +230,189 @@ impl AgentTasksPanel {
         &mut self,
         ix: usize,
         row: TaskRow,
+        now_ms: i64,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let colors = Colors::get(cx);
         let id = row.id;
-        let asking = match &row.phase {
-            Phase::Asking { question } => Some(question.clone()),
-            _ => None,
-        };
+        let key = row.key.clone();
         let failure = match &row.phase {
             Phase::Failed { message } => Some(crate::page_chrome::ai_trouble(message)),
             _ => None,
         };
-        let reply = asking.as_ref().map(|_| self.reply_box(id, window, cx));
         let tasks = self.tasks.clone();
         let can_undo = self.tasks.can_undo(id);
+        let dot = match row.dot() {
+            Dot::Working => Rgb(0x4C8DFF),
+            Dot::NeedsYou => colors.warning,
+            Dot::Idle => colors.text_muted,
+            Dot::Failed => colors.danger,
+        };
+        let working = row.dot() == Dot::Working;
+        let panel = cx.entity().downgrade();
+        let title = row.title.clone();
+        let menu = {
+            let (panel, tasks, key, title) =
+                (panel.clone(), tasks.clone(), key.clone(), title.clone());
+            move |menu: PopupMenu, _: &mut Window, _: &mut Context<PopupMenu>| {
+                let (open_panel, open_key) = (panel.clone(), key.clone());
+                let window_key = key.clone();
+                let (rename_tasks, rename_title) = (tasks.clone(), title.clone());
+                let (end_tasks, delete_tasks) = (tasks.clone(), tasks.clone());
+                menu.item(PopupMenuItem::new("Open").on_click(move |_, window, cx| {
+                    open_panel
+                        .update(cx, |this, cx| {
+                            this.open_session(open_key.clone(), window, cx)
+                        })
+                        .ok();
+                }))
+                .item(
+                    PopupMenuItem::new("Open in Window")
+                        .on_click(move |_, _, cx| open_in_window(window_key.clone(), cx)),
+                )
+                .separator()
+                .item(PopupMenuItem::new("Rename…").on_click(move |_, window, cx| {
+                    let tasks = rename_tasks.clone();
+                    crate::dialogs::prompt_text(
+                        "Rename Session",
+                        &rename_title,
+                        "Rename",
+                        window,
+                        cx,
+                        move |value, _, _| tasks.rename(id, &value),
+                    );
+                }))
+                .item(PopupMenuItem::new("End Session").on_click(move |_, _, _| end_tasks.stop(id)))
+                .item(
+                    PopupMenuItem::new("Delete Session…").on_click(move |_, window, cx| {
+                        let tasks = delete_tasks.clone();
+                        crate::dialogs::confirm(
+                            "Delete this session?",
+                            "Its transcript is removed from this Mac. Changes you already applied stay.",
+                            "Delete",
+                            window,
+                            cx,
+                            move |_, _| {
+                                tasks.stop(id);
+                                tasks.dismiss(id);
+                            },
+                        );
+                    }),
+                )
+            }
+        };
+        let open_panel = panel.clone();
+        let dot_mark = div()
+            .id(("agent-session-dot", ix))
+            .flex_none()
+            .size(px(8.))
+            .rounded_full()
+            .bg(dot);
+        let dot_mark = if working {
+            dot_mark
+                .with_animation(
+                    ("agent-session-pulse", ix),
+                    Animation::new(Duration::from_millis(1400))
+                        .repeat()
+                        .with_easing(pulsating_between(0.35, 1.0)),
+                    |el, t| el.opacity(t),
+                )
+                .into_any_element()
+        } else {
+            dot_mark.into_any_element()
+        };
         v_flex()
-            .id(("agent-task", ix))
+            .id(("agent-session", ix))
+            .debug_selector(|| format!("agent-session-row-{ix}"))
             .flex_none()
             .gap(px(6.))
-            .p(px(12.))
+            .p(px(10.))
             .rounded(px(10.))
             .border_1()
             .border_color(colors.divider)
             .child(
-                div()
-                    .min_w_0()
-                    .max_h(px(58.))
-                    .overflow_hidden()
-                    .text_size(px(13.5))
-                    .line_height(px(19.))
-                    .font_semibold()
-                    .text_color(colors.text)
-                    .child(row.goal.clone()),
-            )
-            .child(
-                div()
-                    .min_w_0()
-                    .truncate()
-                    .text_size(px(12.))
-                    .text_color(colors.text_muted)
-                    .child(format!("{} · {}", row.agent, elapsed_label(row.elapsed))),
+                h_flex()
+                    .gap(px(8.))
+                    .items_center()
+                    .child(
+                        h_flex()
+                            .id(("agent-session-open", ix))
+                            .flex_1()
+                            .min_w_0()
+                            .gap(px(10.))
+                            .items_center()
+                            .cursor_pointer()
+                            .child(dot_mark)
+                            .child(
+                                v_flex()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .child(
+                                        div()
+                                            .min_w_0()
+                                            .truncate()
+                                            .text_size(px(13.5))
+                                            .line_height(px(19.))
+                                            .font_semibold()
+                                            .text_color(colors.text)
+                                            .child(title.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .min_w_0()
+                                            .truncate()
+                                            .text_size(px(12.))
+                                            .text_color(colors.text_muted)
+                                            .child(row.list_line(now_ms)),
+                                    ),
+                            )
+                            .when(row.unread, |el| {
+                                el.child(
+                                    div()
+                                        .debug_selector(|| format!("agent-session-unread-{ix}"))
+                                        .flex_none()
+                                        .size(px(7.))
+                                        .rounded_full()
+                                        .bg(colors.accent),
+                                )
+                            })
+                            .on_click(move |_, window, cx| {
+                                open_panel
+                                    .update(cx, |this, cx| {
+                                        this.open_session(key.clone(), window, cx)
+                                    })
+                                    .ok();
+                            }),
+                    )
+                    .when(row.can_stop(), |el| {
+                        let tasks = tasks.clone();
+                        el.child(
+                            Button::new(("agent-task-stop", ix))
+                                .outline()
+                                .xsmall()
+                                .label("Stop")
+                                .on_click(move |_, _, _| tasks.stop(id)),
+                        )
+                    })
+                    .when(can_undo, |el| {
+                        el.child(
+                            Button::new(("agent-task-undo", ix))
+                                .outline()
+                                .xsmall()
+                                .label("Undo")
+                                .on_click(cx.listener(move |this, _, _, cx| this.undo(id, cx))),
+                        )
+                    })
+                    .when(row.can_review(), |el| {
+                        el.child(
+                            Button::new(("agent-task-review", ix))
+                                .primary()
+                                .xsmall()
+                                .label("Review")
+                                .on_click(move |_, window, cx| open_review(id, window, cx)),
+                        )
+                    }),
             )
             .when_some(failure.clone(), |el, trouble| {
                 let retry = cx.entity().downgrade();
@@ -277,201 +429,7 @@ impl AgentTasksPanel {
                     cx,
                 ))
             })
-            .when(failure.is_none(), |el| {
-                el.child(
-                    h_flex()
-                        .gap(px(6.))
-                        .items_start()
-                        .when(row.is_active(), |el| {
-                            el.child(
-                                div().flex_none().pt(px(2.)).child(
-                                    Icon::new(Lucide::RefreshCcw)
-                                        .size(px(13.))
-                                        .text_color(colors.text_muted)
-                                        .with_animation(
-                                            ("agent-task-spin", ix),
-                                            Animation::new(Duration::from_millis(1100)).repeat(),
-                                            |icon, t| {
-                                                icon.transform(Transformation::rotate(percentage(
-                                                    t,
-                                                )))
-                                            },
-                                        ),
-                                ),
-                            )
-                        })
-                        .child(
-                            div()
-                                .flex_1()
-                                .min_w_0()
-                                .text_size(px(12.5))
-                                .line_height(px(18.))
-                                .text_color(colors.text_secondary)
-                                .child(row.status_line()),
-                        ),
-                )
-            })
-            .when(row.is_active() || row.notes_read > 0, |el| {
-                let open = self.reads_open.contains(&id);
-                let titles: Vec<String> = if open {
-                    let store = cx.global::<AppState>().store.clone();
-                    self.tasks
-                        .reads(id)
-                        .into_iter()
-                        .map(|note| {
-                            store
-                                .note(&note)
-                                .ok()
-                                .flatten()
-                                .map(|n| n.title)
-                                .filter(|t| !t.trim().is_empty())
-                                .unwrap_or_else(|| "Untitled".to_owned())
-                        })
-                        .collect()
-                } else {
-                    Vec::new()
-                };
-                el.child(
-                    h_flex()
-                        .gap(px(6.))
-                        .flex_wrap()
-                        .child(
-                            Button::new(("agent-task-reads", ix))
-                                .ghost()
-                                .xsmall()
-                                .label(format!(
-                                    "Notes read: {}{}",
-                                    row.notes_read,
-                                    if open { " ▾" } else { " ▸" }
-                                ))
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    if !this.reads_open.remove(&id) {
-                                        this.reads_open.insert(id);
-                                    }
-                                    cx.notify();
-                                })),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(12.))
-                                .text_color(colors.text_muted)
-                                .child(row.counts_line()),
-                        ),
-                )
-                .when(open, |el| {
-                    el.child(
-                        v_flex()
-                            .id(("agent-task-reads-list", ix))
-                            .max_h(px(140.))
-                            .overflow_y_scrollbar()
-                            .p(px(8.))
-                            .rounded(px(8.))
-                            .bg(colors.fill)
-                            .gap(px(2.))
-                            .children(titles.into_iter().map(|title| {
-                                div()
-                                    .min_w_0()
-                                    .truncate()
-                                    .text_size(px(12.5))
-                                    .text_color(colors.text)
-                                    .child(title)
-                            })),
-                    )
-                })
-            })
-            .when(!row.last_message.is_empty() && !row.is_active(), |el| {
-                el.child(
-                    div()
-                        .p(px(8.))
-                        .rounded(px(8.))
-                        .bg(colors.fill)
-                        .text_size(px(12.5))
-                        .line_height(px(18.))
-                        .text_color(colors.text_secondary)
-                        .child(row.last_message.clone()),
-                )
-            })
-            .when_some(asking, |el, question| {
-                el.child(
-                    div()
-                        .p(px(8.))
-                        .rounded(px(8.))
-                        .bg(colors.fill)
-                        .text_size(px(12.5))
-                        .line_height(px(18.))
-                        .text_color(colors.text)
-                        .child(question),
-                )
-            })
-            .when_some(reply, |el, input| {
-                el.child(
-                    h_flex()
-                        .gap(px(8.))
-                        .child(div().flex_1().child(Input::new(&input)))
-                        .child(
-                            Button::new(("agent-task-send", ix))
-                                .small()
-                                .primary()
-                                .label("Send")
-                                .on_click(cx.listener(move |this, _, window, cx| {
-                                    this.send_reply(id, window, cx)
-                                })),
-                        ),
-                )
-            })
-            .child(
-                h_flex()
-                    .gap(px(8.))
-                    .justify_end()
-                    .when(row.can_stop(), |el| {
-                        let tasks = tasks.clone();
-                        el.child(
-                            Button::new(("agent-task-stop", ix))
-                                .outline()
-                                .small()
-                                .label("Stop")
-                                .on_click(move |_, _, _| tasks.stop(id)),
-                        )
-                    })
-                    .when(can_undo, |el| {
-                        el.child(
-                            Button::new(("agent-task-undo", ix))
-                                .outline()
-                                .small()
-                                .label("Undo")
-                                .on_click(cx.listener(move |this, _, _, cx| this.undo(id, cx))),
-                        )
-                    })
-                    .when(row.can_discard(), |el| {
-                        let tasks = tasks.clone();
-                        el.child(
-                            Button::new(("agent-task-discard", ix))
-                                .outline()
-                                .small()
-                                .label("Discard")
-                                .on_click(move |_, _, _| tasks.discard(id)),
-                        )
-                    })
-                    .when(row.can_review(), |el| {
-                        el.child(
-                            Button::new(("agent-task-review", ix))
-                                .primary()
-                                .small()
-                                .label("Review…")
-                                .on_click(move |_, window, cx| open_review(id, window, cx)),
-                        )
-                    })
-                    .when(!row.is_active() && !row.can_review(), |el| {
-                        let tasks = tasks.clone();
-                        el.child(
-                            Button::new(("agent-task-dismiss", ix))
-                                .ghost()
-                                .small()
-                                .label("Dismiss")
-                                .on_click(move |_, _, _| tasks.dismiss(id)),
-                        )
-                    }),
-            )
+            .context_menu(menu)
             .into_any_element()
     }
 }
@@ -480,14 +438,31 @@ impl AgentTasksPanel {
 impl Render for AgentTasksPanel {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Colors::get(cx);
-        let rows = self.tasks.rows();
-        self.replies
-            .retain(|id, _| rows.iter().any(|row| row.id == *id && row.is_active()));
+        if cx.has_global::<OpenRequest>()
+            && let Some(key) = cx.global_mut::<OpenRequest>().0.take()
+        {
+            self.open_session(key, window, cx);
+        }
+        if let Some(open) = &self.open {
+            // A session that was deleted goes back to the list.
+            if self.tasks.by_key(&open.key).is_none() {
+                self.open = None;
+            }
+        }
+        if let Some(open) = &self.open {
+            return div()
+                .size_full()
+                .child(open.view.clone())
+                .into_any_element();
+        }
+        let mut rows = self.tasks.rows();
+        by_activity(&mut rows);
+        let now = crate::clock::Clock::now_ms(cx);
         let ai_on = cx.global::<AppState>().config.ai.enabled;
         let cards: Vec<AnyElement> = rows
             .into_iter()
             .enumerate()
-            .map(|(ix, row)| self.render_row(ix, row, window, cx))
+            .map(|(ix, row)| self.render_row(ix, row, now, window, cx))
             .collect();
         let empty = cards.is_empty();
         let notice = self.tasks.notice().map(|n| (n.task, n.text, n.undoable));
@@ -565,6 +540,7 @@ impl Render for AgentTasksPanel {
                 )
             })
             .children(cards)
+            .into_any_element()
     }
 }
 
@@ -803,8 +779,12 @@ impl NewTaskSheet {
             this.update_in(cx, |this, window, cx| {
                 this.starting = false;
                 match result {
-                    Ok(_) => {
+                    Ok(id) => {
                         window.close_dialog(cx);
+                        // Its view opens in the Agent Tasks tab.
+                        if let Some(key) = self::tasks(cx).and_then(|t| t.row(id)).map(|r| r.key) {
+                            cx.set_global(OpenRequest(Some(key)));
+                        }
                         // After this update, so no window is updated twice.
                         cx.spawn(async move |_, cx| {
                             cx.update(respond);

@@ -13,6 +13,7 @@
 //! [`review`] turns a finished set into the cards the review sheet and the
 //! review page show.
 
+pub mod blocks;
 pub mod model;
 pub mod review;
 pub mod runner;
