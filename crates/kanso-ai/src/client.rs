@@ -34,10 +34,44 @@ pub enum Event {
     /// A line about what is happening that isn't part of the answer: an
     /// agent starting, still working, or using one of its tools.
     Status(String),
+    /// The agent's reasoning, a piece at a time. Not part of the answer.
+    Thought(String),
+    /// One of the agent's tools started or moved on. Only `id` is always
+    /// there: an update that carries no title names the call it updates.
+    Tool {
+        id: String,
+        title: Option<String>,
+        /// ACP's kind of tool: `read`, `edit`, `search`, `execute`, ...
+        kind: Option<String>,
+        status: Option<ToolStatus>,
+    },
     /// The answer is complete.
     Done,
     /// The answer stopped, with a plain reason.
     Error(String),
+}
+
+/// How a tool call is going.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ToolStatus {
+    Pending,
+    InProgress,
+    Completed,
+    Failed,
+}
+
+impl Event {
+    /// The status line a consumer that only shows one line makes of this
+    /// event: what a tool is doing, or a status as it was said.
+    pub fn status_line(&self) -> Option<&str> {
+        match self {
+            Event::Status(line) => Some(line),
+            Event::Tool {
+                title: Some(title), ..
+            } => Some(title),
+            _ => None,
+        }
+    }
 }
 
 /// What went wrong before a stream opened, or while it ran.
@@ -266,7 +300,7 @@ pub fn complete(
         }
         match event {
             Event::Text(text) => said.push_str(&text),
-            Event::Status(_) => {}
+            Event::Status(_) | Event::Thought(_) | Event::Tool { .. } => {}
             Event::Done => break,
             Event::Error(message) => return Err(AiError::Provider(message)),
         }
@@ -346,7 +380,7 @@ pub fn probe(settings: &ClientSettings) -> Result<String, AiError> {
                     return Ok(said.trim().to_owned());
                 }
             }
-            Event::Status(_) => {}
+            Event::Status(_) | Event::Thought(_) | Event::Tool { .. } => {}
             Event::Done => break,
             Event::Error(message) => return Err(AiError::Provider(message)),
         }

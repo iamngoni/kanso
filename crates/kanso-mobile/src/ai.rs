@@ -896,6 +896,10 @@ fn feature_event(
             emitter.send(AssistEvent::Text { text: shape(said) });
         }
         Event::Status(line) => emitter.send(AssistEvent::Status { line }),
+        Event::Tool {
+            title: Some(line), ..
+        } => emitter.send(AssistEvent::Status { line }),
+        Event::Tool { .. } | Event::Thought(_) => {}
         Event::Done => {
             let text = shape(said);
             if text.trim().is_empty() {

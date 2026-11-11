@@ -56,6 +56,9 @@ pub enum Script {
     Notes,
     /// Answers HTTP MCP is not supported; otherwise as [`Script::Notes`].
     NotesStdio,
+    /// Thinks, starts a tool call, reports it completed in an update that
+    /// has no title, then answers "done".
+    Tools,
     /// An agent task: searches the MCP server for the task's last word,
     /// proposes merging the notes found into one new note in the first
     /// one's notebook (`kanso-propose-merge`), calls `kanso-task-done` and
@@ -87,6 +90,7 @@ impl Script {
             "notes" => Script::Notes,
             "notes-stdio" => Script::NotesStdio,
             "task" => Script::Task,
+            "tools" => Script::Tools,
             "sleep" => {
                 std::thread::sleep(Duration::from_secs(600));
                 Script::Hang
@@ -404,6 +408,41 @@ impl<W: Write> Fake<W> {
                 self.answer(&id, &session, &answer);
             }
             Script::Answer(answer) => self.answer(&id, &session, &answer),
+            Script::Tools => {
+                let update = |this: &mut Self, update: Value| {
+                    this.send(json!({
+                        "jsonrpc": "2.0",
+                        "method": "session/update",
+                        "params": { "sessionId": session, "update": update },
+                    }));
+                };
+                update(
+                    self,
+                    json!({
+                        "sessionUpdate": "agent_thought_chunk",
+                        "content": { "type": "text", "text": "hmm" },
+                    }),
+                );
+                update(
+                    self,
+                    json!({
+                        "sessionUpdate": "tool_call",
+                        "toolCallId": "c1",
+                        "title": "Read the plan",
+                        "kind": "read",
+                        "status": "pending",
+                    }),
+                );
+                update(
+                    self,
+                    json!({
+                        "sessionUpdate": "tool_call_update",
+                        "toolCallId": "c1",
+                        "status": "completed",
+                    }),
+                );
+                self.answer(&id, &session, "done");
+            }
             Script::Echo => self.answer(&id, &session, &text),
             Script::EchoInit => {
                 let init = self.init.to_string();

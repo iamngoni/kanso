@@ -108,7 +108,7 @@ pub fn summarize_recording(
             &mut |event| match event {
                 Event::Text(text) => said.push_str(&text),
                 Event::Error(message) => failed = Some(message),
-                Event::Status(_) | Event::Done => {}
+                Event::Status(_) | Event::Thought(_) | Event::Tool { .. } | Event::Done => {}
             },
         );
         if cancel.load(Ordering::Relaxed) {

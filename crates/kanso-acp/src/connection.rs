@@ -16,7 +16,7 @@ use crate::framing::{FrameError, LineFramer};
 use crate::process::{self, AgentSpec, ChildGuard, StderrRing};
 use crate::{
     AUTH_REQUIRED, AcpError, AcpEvent, Limits, METHOD_NOT_FOUND, PROTOCOL_VERSION, Stage,
-    StopReason,
+    StopReason, ToolStatus,
 };
 
 /// What an agent asked permission for.
@@ -509,11 +509,7 @@ impl Shared {
                     "{kind} {}",
                     update.get("kind").and_then(Value::as_str).unwrap_or("")
                 ));
-                update
-                    .get("title")
-                    .and_then(Value::as_str)
-                    .filter(|title| !title.trim().is_empty())
-                    .map(|title| AcpEvent::Tool(title.to_owned()))
+                parse_tool_call(&update)
             }
             "usage_update" => update.get("cost").and_then(|cost| {
                 Some(AcpEvent::Cost {
@@ -727,6 +723,29 @@ fn ended_label(reason: &AcpError) -> String {
 }
 
 /// The text in an update's `content`: one block, or several.
+/// The event a `tool_call` or `tool_call_update` says: its `toolCallId`, and
+/// whichever of title, kind and status it carries. `None` without an id (it
+/// could not be matched to anything).
+pub fn parse_tool_call(update: &Value) -> Option<AcpEvent> {
+    let text = |key: &str| {
+        update
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|text| !text.is_empty())
+            .map(str::to_owned)
+    };
+    Some(AcpEvent::ToolCall {
+        id: text("toolCallId")?,
+        title: text("title"),
+        kind: text("kind"),
+        status: update
+            .get("status")
+            .and_then(Value::as_str)
+            .and_then(ToolStatus::parse),
+    })
+}
+
 fn content_text(update: &Value) -> Option<String> {
     let content = update.get("content")?;
     let blocks: Vec<&Value> = match content {
@@ -1286,8 +1305,41 @@ impl Drop for Turn {
 
 #[cfg(test)]
 mod tests {
-    use super::{SessionMode, mode_rank, safest_mode};
+    use super::{SessionMode, mode_rank, parse_tool_call, safest_mode};
+    use crate::{AcpEvent, ToolStatus};
     use proptest::prelude::*;
+    use serde_json::json;
+
+    #[test]
+    fn a_tool_update_without_a_title_keeps_only_what_it_says() {
+        let update = json!({
+            "sessionUpdate": "tool_call_update",
+            "toolCallId": "t9",
+            "status": "failed",
+        });
+        assert_eq!(
+            parse_tool_call(&update),
+            Some(AcpEvent::ToolCall {
+                id: "t9".into(),
+                title: None,
+                kind: None,
+                status: Some(ToolStatus::Failed),
+            })
+        );
+        // Without an id it can't be matched to a call.
+        assert_eq!(parse_tool_call(&json!({ "title": "x" })), None);
+        // An unknown status is not a status.
+        let odd = json!({ "toolCallId": "t", "status": "weird", "title": " " });
+        assert_eq!(
+            parse_tool_call(&odd),
+            Some(AcpEvent::ToolCall {
+                id: "t".into(),
+                title: None,
+                kind: None,
+                status: None
+            })
+        );
+    }
 
     fn mode(id: &str, name: &str) -> SessionMode {
         SessionMode {

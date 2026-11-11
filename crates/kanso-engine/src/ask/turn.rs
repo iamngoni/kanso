@@ -401,12 +401,15 @@ pub fn run(turn: Turn, mut on_event: impl FnMut(TurnEvent)) {
                 on_event(TurnEvent::Used(shown.used()));
             }
         }
-        Event::Status(line) => {
-            on_event(TurnEvent::Status(line));
+        Event::Status(_) | Event::Tool { .. } => {
+            if let Some(line) = event.status_line() {
+                on_event(TurnEvent::Status(line.to_owned()));
+            }
             if dirty.swap(false, Ordering::Relaxed) {
                 on_event(TurnEvent::Used(shown.used()));
             }
         }
+        Event::Thought(_) => {}
         Event::Done => ended = true,
         Event::Error(message) if message == kanso_ai::CUT_OFF => {}
         Event::Error(message) => {

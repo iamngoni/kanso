@@ -159,7 +159,7 @@ impl ProposedOp {
 }
 
 /// How many ops of each kind a set holds.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Counts {
     pub creates: usize,
     pub edits: usize,

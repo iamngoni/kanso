@@ -434,6 +434,12 @@ impl LearnView {
                                         Update::Text(piece)
                                     }
                                     kanso_ai::Event::Status(line) => Update::Status(line),
+                                    kanso_ai::Event::Tool {
+                                        title: Some(title), ..
+                                    } => Update::Status(title),
+                                    kanso_ai::Event::Tool { .. } | kanso_ai::Event::Thought(_) => {
+                                        return;
+                                    }
                                     kanso_ai::Event::Done if said => Update::Done,
                                     kanso_ai::Event::Done => {
                                         Update::Error("Nothing came back.".into())

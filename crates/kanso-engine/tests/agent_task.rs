@@ -9,6 +9,7 @@ use std::sync::atomic::AtomicBool;
 use kanso_ai::{AiError, ChatProvider, Event, NO_TOOLS, Prompt, ToolCall, ToolRegistry};
 use kanso_core::DocType;
 use kanso_engine::agent_task::review::{self, CardDetail, CardState};
+use kanso_engine::agent_task::session::{Item, RoundState, ToolKind, ToolStatus, Transcript};
 use kanso_engine::agent_task::{self, ReadScope, StartError, TaskSpec};
 use kanso_server::{OpKind, Selection, TokenStore, agent_tools};
 use kanso_store::{Origin, Put, Store};
@@ -168,6 +169,20 @@ fn a_scripted_model_drives_a_full_task_and_nothing_is_written() {
     .unwrap()
     .collect();
     assert!(matches!(events.last(), Some(Event::Done)));
+    // Kanso's own tools show as tool calls: started, then completed.
+    let tools: Vec<_> = events
+        .iter()
+        .filter_map(|event| match event {
+            Event::Tool { title, status, .. } => Some((title.as_deref(), *status)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(tools.len(), 6, "{tools:?}");
+    assert_eq!(
+        tools[0],
+        (Some("Read note"), Some(kanso_ai::ToolStatus::InProgress))
+    );
+    assert_eq!(tools[1], (None, Some(kanso_ai::ToolStatus::Completed)));
     assert_eq!(*max.lock().unwrap(), 200, "the task's own call limit");
     assert_eq!(lib.store.last_seq().unwrap(), seq, "nothing was written");
     assert_eq!(task.reads(), vec![lib.notes[0].0.clone()]);
@@ -589,7 +604,7 @@ impl kanso_engine::agent_task::runner::TaskDriver for Idle {
     fn first_prompt(&self, task: &agent_task::OpenTask) -> Prompt {
         agent_task::api_prompt(task)
     }
-    fn reply_prompt(&self, task: &agent_task::OpenTask, _: &str, _: &str) -> Prompt {
+    fn reply_prompt(&self, task: &agent_task::OpenTask, _: &Transcript, _: &str) -> Prompt {
         agent_task::api_prompt(task)
     }
     fn begin(
@@ -633,4 +648,179 @@ fn starts_at_once_cannot_pass_the_active_limit() {
     });
     assert_eq!(started, MAX_ACTIVE);
     tasks.shutdown();
+}
+
+/// A driver that stages `ops` (tool name, arguments) through the in-process
+/// handlers and then says `events`.
+struct Scripted {
+    ops: Vec<(String, Value)>,
+    events: Vec<Event>,
+}
+
+impl kanso_engine::agent_task::runner::TaskDriver for Scripted {
+    fn first_prompt(&self, task: &agent_task::OpenTask) -> Prompt {
+        agent_task::api_prompt(task)
+    }
+    fn reply_prompt(&self, task: &agent_task::OpenTask, _: &Transcript, _: &str) -> Prompt {
+        agent_task::api_prompt(task)
+    }
+    fn begin(
+        &self,
+        _: &Prompt,
+        task: &agent_task::OpenTask,
+        store: Arc<Store>,
+        _: Box<dyn FnMut() + Send>,
+        _: Arc<AtomicBool>,
+    ) -> Result<Box<dyn Iterator<Item = Event> + Send>, String> {
+        for (name, arguments) in &self.ops {
+            agent_tools::call(
+                &store,
+                &task.tokens,
+                task.token,
+                &task.scope,
+                name,
+                Some(arguments),
+            );
+        }
+        Ok(Box::new(self.events.clone().into_iter()))
+    }
+}
+
+/// Runs a task on `driver` until it is no longer working, and returns its
+/// transcript. A task that ended on a question is stopped.
+fn run_to_the_end(lib: &Lib, driver: Scripted) -> Transcript {
+    use kanso_engine::agent_task::model::Phase;
+    use kanso_engine::agent_task::runner::Tasks;
+    let tokens = TokenStore::new();
+    let tasks = Tasks::default();
+    let id = tasks
+        .start(&lib.store, &tokens, &spec(lib), "x", |_| {
+            Ok(Arc::new(driver) as _)
+        })
+        .unwrap();
+    let began = std::time::Instant::now();
+    while matches!(
+        tasks.row(id).unwrap().phase,
+        Phase::Running | Phase::Waiting
+    ) {
+        assert!(began.elapsed().as_secs() < 20, "the task never ended");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    tasks.stop(id);
+    let transcript = tasks.transcript(id).unwrap();
+    tasks.shutdown();
+    transcript
+}
+
+#[test]
+fn the_transcript_runs_goal_then_agent_text_then_the_proposal() {
+    let lib = lib();
+    let transcript = run_to_the_end(
+        &lib,
+        Scripted {
+            ops: vec![merge_call(&lib, false)],
+            events: vec![
+                Event::Text("Merged ".into()),
+                Event::Text("the trip notes.".into()),
+                Event::Done,
+            ],
+        },
+    );
+    let [
+        Item::User { text: goal, .. },
+        Item::Agent { text, .. },
+        Item::Proposed {
+            round,
+            counts,
+            state,
+        },
+    ] = &transcript.items[..]
+    else {
+        panic!("{:?}", transcript.items);
+    };
+    assert_eq!(goal, "Merge these trip notes into one plan");
+    assert_eq!(text, "Merged the trip notes.");
+    assert_eq!(
+        (*round, counts.merges, *state),
+        (1, 1, RoundState::ToReview)
+    );
+}
+
+#[test]
+fn a_tool_and_its_update_are_one_item_with_the_final_status() {
+    let lib = lib();
+    let call = |title: Option<&str>, kind: Option<&str>, status| Event::Tool {
+        id: "t1".into(),
+        title: title.map(str::to_owned),
+        kind: kind.map(str::to_owned),
+        status,
+    };
+    let transcript = run_to_the_end(
+        &lib,
+        Scripted {
+            ops: vec![],
+            events: vec![
+                Event::Thought("hm".into()),
+                Event::Thought("m".into()),
+                call(
+                    Some("Read the plan"),
+                    Some("read"),
+                    Some(kanso_ai::ToolStatus::Pending),
+                ),
+                call(None, None, Some(kanso_ai::ToolStatus::Completed)),
+                Event::Text("Nothing to change.".into()),
+                Event::Done,
+            ],
+        },
+    );
+    let [
+        Item::User { .. },
+        Item::Thought { text, .. },
+        Item::Tool {
+            id,
+            title,
+            kind,
+            status,
+        },
+        Item::Agent { .. },
+    ] = &transcript.items[..]
+    else {
+        panic!("{:?}", transcript.items);
+    };
+    assert_eq!(text, "hmm");
+    assert_eq!(id, "t1");
+    assert_eq!(title, "Read the plan");
+    assert_eq!((*kind, *status), (ToolKind::Read, ToolStatus::Completed));
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+        ..ProptestConfig::with_cases(24)
+    })]
+
+    /// Invariant: the Agent items, joined, are exactly the text the agent
+    /// streamed, however its tool calls are mixed in.
+    #[test]
+    fn prop_joined_agent_items_equal_the_streamed_text(
+        chunks in prop::collection::vec(("\\PC{0,12}", any::<bool>()), 0..10),
+    ) {
+        let lib = lib();
+        let mut events = Vec::new();
+        for (ix, (chunk, tool)) in chunks.iter().enumerate() {
+            if *tool {
+                events.push(Event::Tool {
+                    id: format!("t{ix}"),
+                    title: Some("A tool".into()),
+                    kind: None,
+                    status: None,
+                });
+            }
+            events.push(Event::Text(chunk.clone()));
+        }
+        events.push(Event::Done);
+        let transcript = run_to_the_end(&lib, Scripted { ops: vec![], events });
+        let streamed: String = chunks.iter().map(|(chunk, _)| chunk.as_str()).collect();
+        prop_assert_eq!(transcript.agent_said(), streamed);
+    }
 }

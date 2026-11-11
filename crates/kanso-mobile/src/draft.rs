@@ -221,6 +221,12 @@ impl Drafting {
                             kanso_ai::Event::Status(line) => {
                                 emitter.send(DraftEvent::Status { line });
                             }
+                            kanso_ai::Event::Tool {
+                                title: Some(line), ..
+                            } => {
+                                emitter.send(DraftEvent::Status { line });
+                            }
+                            kanso_ai::Event::Tool { .. } | kanso_ai::Event::Thought(_) => {}
                             kanso_ai::Event::Done => {
                                 ended = true;
                                 if said.trim().is_empty() {

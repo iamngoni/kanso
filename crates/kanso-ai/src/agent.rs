@@ -27,7 +27,7 @@ use kanso_acp::{
 pub use kanso_acp::AgentKind;
 
 use crate::budget::Budget;
-use crate::client::{AiError, ChatProvider, Event, SharedProvider, Turn};
+use crate::client::{AiError, ChatProvider, Event, SharedProvider, ToolStatus, Turn};
 use crate::prompt::{self, Prompt, SentExcerpt, citing as prompt_citing};
 
 /// How long a warm agent may sit without a question before it is stopped.
@@ -582,12 +582,27 @@ impl TurnEvents {
                 self.said_anything = true;
                 vec![Event::Text(text)]
             }
-            AcpEvent::Thought(_) if !self.thinking && !self.said_anything => {
+            AcpEvent::Thought(text) if !self.thinking && !self.said_anything => {
                 self.thinking = true;
-                vec![Event::Status("Thinking…".to_owned())]
+                vec![Event::Status("Thinking…".to_owned()), Event::Thought(text)]
             }
-            AcpEvent::Thought(_) => Vec::new(),
-            AcpEvent::Tool(title) => vec![Event::Status(format!("{label}: {title}"))],
+            AcpEvent::Thought(text) => vec![Event::Thought(text)],
+            AcpEvent::ToolCall {
+                id,
+                title,
+                kind,
+                status,
+            } => vec![Event::Tool {
+                id,
+                title,
+                kind,
+                status: status.map(|status| match status {
+                    kanso_acp::ToolStatus::Pending => ToolStatus::Pending,
+                    kanso_acp::ToolStatus::InProgress => ToolStatus::InProgress,
+                    kanso_acp::ToolStatus::Completed => ToolStatus::Completed,
+                    kanso_acp::ToolStatus::Failed => ToolStatus::Failed,
+                }),
+            }],
             AcpEvent::Cost { amount, currency } => vec![Event::Status(format!(
                 "So far this answer cost {amount:.4} {currency}, billed by {}.",
                 host.settings.kind.vendor()

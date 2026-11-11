@@ -37,7 +37,7 @@ fn ask_once(
     kanso_ai::features::relay(provider.stream(prompt), cancel, &mut |event| match event {
         Event::Text(t) => text.push_str(&t),
         Event::Error(message) => failed = Some(message),
-        Event::Status(_) | Event::Done => {}
+        Event::Status(_) | Event::Thought(_) | Event::Tool { .. } | Event::Done => {}
     });
     match failed {
         Some(message) => Err(message),

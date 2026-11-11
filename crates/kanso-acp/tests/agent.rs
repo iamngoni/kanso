@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use kanso_acp::fake::{self, Script};
 use kanso_acp::{
     AcpError, AcpEvent, AgentProcess, AgentSpec, Limits, PermissionPolicy, PermissionReply,
-    PermissionRequest, StopReason, reject_all,
+    PermissionRequest, StopReason, ToolStatus, reject_all,
 };
 use proptest::prelude::*;
 
@@ -638,4 +638,38 @@ fn a_session_gets_its_mcp_servers_and_the_token_is_never_logged() {
     let plain = agent.new_session(dir.path()).unwrap();
     let said = text_of(&collect(plain.prompt("Question: zebra?", None).unwrap()));
     assert!(said.contains("no notes server"), "{said}");
+}
+
+#[test]
+fn a_tool_call_and_its_titleless_update_name_the_same_call() {
+    let agent = connect(Script::Tools, quick(), reject_all());
+    let dir = workspace();
+    let session = agent.new_session(dir.path()).unwrap();
+    let events = collect(session.prompt("go", None).unwrap());
+    let calls: Vec<_> = events
+        .iter()
+        .filter_map(|event| match event {
+            AcpEvent::ToolCall {
+                id,
+                title,
+                kind,
+                status,
+            } => Some((id.as_str(), title.as_deref(), kind.as_deref(), *status)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        calls,
+        vec![
+            (
+                "c1",
+                Some("Read the plan"),
+                Some("read"),
+                Some(ToolStatus::Pending)
+            ),
+            ("c1", None, None, Some(ToolStatus::Completed)),
+        ]
+    );
+    assert!(events.contains(&AcpEvent::Thought("hmm".to_owned())));
+    assert_eq!(text_of(&events), "done");
 }

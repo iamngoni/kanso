@@ -86,6 +86,7 @@ fn real_agent_matrix() {
             Event::Error(err) => panic!("[{label}] answer failed: {err}"),
             Event::Done => break,
             Event::Status(line) => eprintln!("[{label}] status: {line}"),
+            Event::Thought(_) | Event::Tool { .. } => {}
         }
     }
     eprintln!("[{label}] answered: {said:?}");
@@ -105,7 +106,7 @@ fn real_agent_matrix() {
                 }
                 Some(Event::Error(err)) => panic!("[{label}] long answer failed: {err}"),
                 Some(Event::Done) | None => break Instant::now(),
-                Some(Event::Status(_)) => {}
+                Some(Event::Status(_) | Event::Thought(_) | Event::Tool { .. }) => {}
             }
         }
     };
