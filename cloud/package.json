@@ -7,7 +7,7 @@
   "description": "Kanso's sync server, protocol v2: accounts with end-to-end encrypted libraries, on a Cloudflare Worker over D1 (accounts, sessions, sealed documents) and R2 (sealed file bytes).",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler d1 migrations apply kanso-sync --remote && wrangler deploy",
     "migrate:local": "wrangler d1 migrations apply kanso-sync --local",
     "migrate:remote": "wrangler d1 migrations apply kanso-sync --remote",
     "admin": "node scripts/admin.ts",
