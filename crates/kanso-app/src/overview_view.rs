@@ -38,8 +38,6 @@ use crate::zoom::px;
 
 /// The reading column's width.
 const COLUMN: f32 = 640.;
-/// How far the time gutter hangs left of the column.
-const HANG: f32 = 92.;
 /// The pane width from which the gutter hangs in the margin.
 const WIDE: f32 = 840.;
 /// How long a tick can be undone.
@@ -1258,12 +1256,15 @@ impl DigestView {
                         .text_color(colors.text_muted),
                     )
                     .child("Earlier today")
-                    .child(
-                        div()
-                            .text_color(colors.text_muted)
-                            .truncate()
-                            .child(format!("\u{b7} {}", names.join(" \u{b7} "))),
-                    )
+                    // Closed, the names say what's folded; open, the rows do.
+                    .when(!open, |el| {
+                        el.child(
+                            div()
+                                .text_color(colors.text_muted)
+                                .truncate()
+                                .child(format!("\u{b7} {}", names.join(" \u{b7} "))),
+                        )
+                    })
                     .on_click(cx.listener(|this, _, _, cx| {
                         if !this.expanded.remove("earlier") {
                             this.expanded.insert("earlier".into());
@@ -1396,13 +1397,11 @@ impl DigestView {
                 .as_ref()
                 .is_none_or(|meeting| meeting.which != "this");
         let create_for = row.clone();
-        let hang = if wide { -HANG } else { 0. };
         let gutter_w = if wide { 64. } else { 48. };
         let row_view = div()
             .id(id)
-            .group(group)
+            .group(group.clone())
             .relative()
-            .ml(px(hang))
             .when(dimmed, |el| el.opacity(0.6))
             .child(
                 h_flex()
@@ -1484,7 +1483,8 @@ impl DigestView {
                                 .flex_none()
                                 .self_center()
                                 .text_size(px(12.5))
-                                .text_color(colors.link)
+                                .text_color(colors.text_muted)
+                                .group_hover(group.clone(), |el| el.text_color(colors.link))
                                 .child("New meeting note")
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     cx.stop_propagation();
@@ -1997,7 +1997,7 @@ impl DigestView {
             } else if line.kind == AlsoKind::Revisit {
                 item.text.clone()
             } else {
-                format!("\u{201c}{}\u{201d}", item.text)
+                format!("\u{201c}{}\u{201d}", snippet(&item.text))
             };
             inline.push(
                 h_flex()
@@ -2124,13 +2124,10 @@ impl DigestView {
             .border_color(colors.divider)
             .child(
                 div()
-                    .text_size(px(11.5))
-                    .font_semibold()
+                    .text_size(px(12.5))
                     .text_color(colors.text_muted)
-                    .child(format!(
-                        "A NOTE FROM THE PAST \u{b7} {}",
-                        past.why.to_uppercase()
-                    )),
+                    .truncate()
+                    .child(format!("From the past \u{b7} {}", past.why)),
             )
             .child(
                 div()
@@ -2618,4 +2615,13 @@ fn agent_items(cx: &App) -> Vec<overview::ActivityItem> {
         }
     }
     out
+}
+
+/// A note's words for a one-line quote: Markdown markers gone, so
+/// `***Status:** Draft` reads "Status: Draft".
+fn snippet(text: &str) -> String {
+    kanso_engine::triage::title::plain_text(text)
+        .replace("**", "")
+        .trim_matches(|c: char| c == '*' || c == '_' || c.is_whitespace())
+        .to_owned()
 }
