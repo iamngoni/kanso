@@ -600,6 +600,16 @@ pub struct NewTaskSheet {
     _typing: Subscription,
 }
 
+/// A notebook row in the sheet's lists.
+const BOOK_ROW: f32 = 22.;
+
+/// A notebook list's height: every row up to six, then it scrolls. Fixed,
+/// not a maximum: the dialog squeezes a list with only a maximum, and a
+/// squeezed list draws over what follows instead of scrolling.
+fn book_list_height(rows: usize) -> Pixels {
+    px(BOOK_ROW * rows.min(6) as f32)
+}
+
 impl NewTaskSheet {
     fn new(notes: Vec<String>, window: &mut Window, cx: &mut Context<Self>) -> NewTaskSheet {
         let state = cx.global::<AppState>();
@@ -952,15 +962,19 @@ impl Render for NewTaskSheet {
                 .enumerate()
                 .map(|(ix, book)| {
                     let bid = book.id.clone();
-                    h_flex().pl(px(8. + 14. * book.depth as f32)).child(
-                        Checkbox::new(ElementId::NamedInteger(id.into(), ix as u64))
-                            .checked(chosen.as_deref() == Some(book.id.as_str()))
-                            .label(book.name.clone())
-                            .on_click(cx.listener(move |this, _: &bool, _, cx| {
-                                pick(this, bid.clone());
-                                cx.notify();
-                            })),
-                    )
+                    h_flex()
+                        .h(px(BOOK_ROW))
+                        .flex_shrink_0()
+                        .pl(px(8. + 14. * book.depth as f32))
+                        .child(
+                            Checkbox::new(ElementId::NamedInteger(id.into(), ix as u64))
+                                .checked(chosen.as_deref() == Some(book.id.as_str()))
+                                .label(book.name.clone())
+                                .on_click(cx.listener(move |this, _: &bool, _, cx| {
+                                    pick(this, bid.clone());
+                                    cx.notify();
+                                })),
+                        )
                 })
                 .collect::<Vec<_>>()
         };
@@ -1024,7 +1038,8 @@ impl Render for NewTaskSheet {
                 el.child(
                     v_flex()
                         .id("agent-task-books")
-                        .max_h(px(140.))
+                        .h(book_list_height(self.books.len()))
+                        .flex_shrink_0()
                         .overflow_y_scrollbar()
                         .children(notebook_rows),
                 )
@@ -1063,7 +1078,8 @@ impl Render for NewTaskSheet {
             .child(
                 v_flex()
                     .id("agent-task-new-books")
-                    .max_h(px(110.))
+                    .h(book_list_height(self.books.len()))
+                    .flex_shrink_0()
                     .overflow_y_scrollbar()
                     .children(new_rows),
             )
