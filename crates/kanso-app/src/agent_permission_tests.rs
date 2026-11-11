@@ -1,5 +1,6 @@
 //! The permission sheet in a headless window: no window rejects, Enter and
-//! Escape reject, only "Allow once" allows, a second request waits for the
+//! Escape reject, only the Allow buttons allow (once, for the session, or
+//! always, the last two answering the same tool without a sheet), a second request waits for the
 //! first, and a request that ended behind its sheet closes it. The sheet's
 //! choices are properties in `agent_permission.rs`; these check the window
 //! wires them up, against the fake agent over the real connection.
@@ -267,6 +268,83 @@ fn allow_once_allows_this_request_only(cx: &mut TestAppContext) {
     f.wait_for_sheet(cx);
     f.press(cx, "enter");
     assert_eq!(asking.heard(cx), "before permissions=yes,no");
+}
+
+#[gpui_kit::test]
+fn allow_for_this_session_allows_the_same_tool_without_a_sheet(cx: &mut TestAppContext) {
+    let f = setup(cx, true);
+    let first = ask(
+        Script::Permission,
+        "Fake Agent",
+        Limits::default(),
+        &f.policy,
+    );
+    f.wait_for_sheet(cx);
+    f.click(cx, "permission-session");
+    assert_eq!(first.heard(cx), "permission=yes");
+    // The same tool, asked again in the same session, is answered unseen.
+    let again = ask(
+        Script::Permission,
+        "Fake Agent",
+        Limits::default(),
+        &f.policy,
+    );
+    assert_eq!(again.heard(cx), "permission=yes");
+    assert!(!f.sheet_open(cx));
+    // Nothing was remembered across launches.
+    cx.update(|cx| {
+        assert!(
+            cx.global::<AppState>()
+                .config
+                .ai
+                .agent
+                .always_allowed
+                .is_empty()
+        )
+    });
+}
+
+#[gpui_kit::test]
+fn always_allow_is_remembered_in_the_settings_and_not_asked_again(cx: &mut TestAppContext) {
+    let f = setup(cx, true);
+    let first = ask(
+        Script::Permission,
+        "Fake Agent",
+        Limits::default(),
+        &f.policy,
+    );
+    f.wait_for_sheet(cx);
+    f.click(cx, "permission-always");
+    assert_eq!(first.heard(cx), "permission=yes");
+    let remembered = cx.update(|cx| {
+        cx.global::<AppState>()
+            .config
+            .ai
+            .agent
+            .always_allowed
+            .clone()
+    });
+    assert_eq!(remembered.len(), 1);
+    assert_eq!(remembered[0].agent, "Fake Agent");
+    assert_eq!(remembered[0].title, "Read ~/.ssh/id_ed25519");
+    let again = ask(
+        Script::Permission,
+        "Fake Agent",
+        Limits::default(),
+        &f.policy,
+    );
+    assert_eq!(again.heard(cx), "permission=yes");
+    assert!(!f.sheet_open(cx));
+    // Another agent asking for the same tool is still asked.
+    let other = ask(
+        Script::Permission,
+        "Other Agent",
+        Limits::default(),
+        &f.policy,
+    );
+    f.wait_for_sheet(cx);
+    f.press(cx, "enter");
+    assert_eq!(other.heard(cx), "permission=no");
 }
 
 #[gpui_kit::test]

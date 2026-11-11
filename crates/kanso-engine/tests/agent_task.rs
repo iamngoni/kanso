@@ -554,6 +554,34 @@ fn a_task_over_chosen_notes_writes_only_where_the_person_said() {
     assert!(agent_task::user_text(&task, false).contains("create-note"));
 }
 
+#[test]
+fn the_prompt_names_the_note_to_start_from_only_when_one_is_given() {
+    let lib = lib();
+    let tokens = TokenStore::new();
+    let open = |start_note: Option<String>| {
+        agent_task::open(
+            &lib.store,
+            &tokens,
+            &TaskSpec {
+                start_note,
+                ..spec(&lib)
+            },
+            "x",
+        )
+        .unwrap()
+    };
+    let plain = agent_task::user_text(&open(None), false);
+    assert!(!plain.contains("Start from the note"), "{plain}");
+    let id = lib.notes[0].0.clone();
+    let started = agent_task::user_text(&open(Some(id.clone())), false);
+    assert!(
+        started.contains(&format!("Start from the note with id \"{id}\"")),
+        "{started}"
+    );
+    // The task still comes last.
+    assert!(started.trim_end().ends_with("into one plan"), "{started}");
+}
+
 /// A driver whose task works until it is stopped.
 struct Idle;
 

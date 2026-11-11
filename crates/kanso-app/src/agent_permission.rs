@@ -3,9 +3,16 @@
 //! An agent on this computer may ask, in the middle of an answer, to run a
 //! tool of its own (read a file, run a command). Kanso can't see or limit
 //! what that tool does, so it asks the person: the agent's name, the tool's
-//! title and kind, and two buttons. **Reject** is the default: Enter,
+//! title and kind, and four buttons. **Reject** is the default: Enter,
 //! Escape and clicking away all reject. **Allow once** allows this one
-//! request; Kanso never answers "always".
+//! request. **Allow for this session** allows the same tool for the rest of
+//! that agent session, held in memory only: it ends with the session or the
+//! app. **Always allow** remembers the tool for that agent across launches
+//! (Settings > AI lists these, each with a Remove button). A tool is the
+//! agent's name plus the tool call's kind and title. Kanso never answers the
+//! agent's own "always" option: it remembers itself and answers "allow once"
+//! each time, so what it remembers can always be taken back. A request that
+//! is already allowed this way is answered without showing the sheet.
 //!
 //! Requests arrive from an agent's reader thread and wait their turn here:
 //! one sheet at a time, in order. A request with no window to show it in is
@@ -13,8 +20,9 @@
 //! is skipped, or closed if its sheet is up.
 
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -22,8 +30,10 @@ use gpui_kit::component::{WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 use kanso_acp::{PermissionPolicy, PermissionReply, PermissionRequest};
 
+use crate::config::AllowedTool;
 use crate::dialogs::FORM_WIDTH;
 use crate::theme::Colors;
+use crate::workspace::AppState;
 use crate::zoom::px;
 
 /// The line every sheet carries.
@@ -43,6 +53,10 @@ const WATCH: Duration = Duration::from_millis(250);
 pub enum Choice {
     Reject,
     AllowOnce,
+    /// Allow this tool until the agent session ends.
+    AllowSession,
+    /// Allow this tool from now on, for this agent.
+    AlwaysAllow,
 }
 
 /// Everything a person can do to the sheet.
@@ -50,17 +64,21 @@ pub enum Choice {
 pub enum Input {
     ClickReject,
     ClickAllowOnce,
+    ClickAllowSession,
+    ClickAlwaysAllow,
     Enter,
     Escape,
     /// Clicking outside, or the dialog closing some other way.
     Dismiss,
 }
 
-/// What an input answers. Only clicking "Allow once" allows; Reject is the
-/// default for every other way out.
+/// What an input answers. Only clicking one of the three Allow buttons
+/// allows; Reject is the default for every other way out.
 pub fn choice(input: Input) -> Choice {
     match input {
         Input::ClickAllowOnce => Choice::AllowOnce,
+        Input::ClickAllowSession => Choice::AllowSession,
+        Input::ClickAlwaysAllow => Choice::AlwaysAllow,
         Input::ClickReject | Input::Enter | Input::Escape | Input::Dismiss => Choice::Reject,
     }
 }
@@ -90,6 +108,57 @@ pub fn kind_line(request: &PermissionRequest) -> Option<String> {
     (!kind.is_empty()).then(|| format!("Kind: {kind}"))
 }
 
+/// The tool a request is for, as remembered: the agent, and the tool call's
+/// kind and title with its whitespace flattened.
+pub fn tool_of(request: &PermissionRequest) -> AllowedTool {
+    AllowedTool {
+        agent: request.agent.clone(),
+        kind: request
+            .kind
+            .as_deref()
+            .map(str::trim)
+            .filter(|kind| !kind.is_empty())
+            .map(str::to_owned),
+        title: request
+            .title
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" "),
+    }
+}
+
+/// The tools allowed for the rest of an agent session, by session ID. Kept
+/// in memory only.
+#[derive(Default)]
+pub struct SessionGrants(HashSet<(String, AllowedTool)>);
+
+impl SessionGrants {
+    /// Allows the request's tool for the rest of its session. A request with
+    /// no session ID can't be remembered.
+    pub fn allow(&mut self, request: &PermissionRequest) {
+        if let Some(session) = &request.session {
+            self.0.insert((session.clone(), tool_of(request)));
+        }
+    }
+
+    fn covers(&self, request: &PermissionRequest) -> bool {
+        request
+            .session
+            .as_ref()
+            .is_some_and(|session| self.0.contains(&(session.clone(), tool_of(request))))
+    }
+}
+
+/// Whether the request needs no sheet: its tool is allowed for this session
+/// or always.
+pub fn is_allowed(
+    request: &PermissionRequest,
+    session: &SessionGrants,
+    always: &[AllowedTool],
+) -> bool {
+    session.covers(request) || always.contains(&tool_of(request))
+}
+
 /// A request waiting for the person.
 struct Ask {
     request: PermissionRequest,
@@ -112,10 +181,22 @@ pub fn install(cx: &mut App) {
 
 /// The policy that shows each request in turn in the main window.
 pub(crate) fn start(cx: &mut App) -> PermissionPolicy {
-    let (queue, waiting) = async_channel::unbounded();
+    let (queue, waiting) = async_channel::unbounded::<(PermissionRequest, PermissionReply)>();
+    let grants = Arc::new(Mutex::new(SessionGrants::default()));
     cx.spawn(async move |cx| {
         while let Ok((request, reply)) = waiting.recv().await {
-            present(Ask { request, reply }, cx).await;
+            // A tool already allowed is answered without the sheet, when its
+            // turn comes, so one allowed while others waited covers them.
+            let allowed = cx.update(|cx| {
+                let always = &cx.global::<AppState>().config.ai.agent.always_allowed;
+                let session = grants.lock().unwrap_or_else(|e| e.into_inner());
+                is_allowed(&request, &session, always)
+            });
+            if allowed {
+                reply.allow_once();
+                continue;
+            }
+            present(Ask { request, reply }, grants.clone(), cx).await;
         }
     })
     .detach();
@@ -124,6 +205,8 @@ pub(crate) fn start(cx: &mut App) -> PermissionPolicy {
 
 /// One open sheet's answer, given once.
 struct Sheet {
+    request: PermissionRequest,
+    grants: Arc<Mutex<SessionGrants>>,
     reply: RefCell<Option<PermissionReply>>,
     done: async_channel::Sender<()>,
     /// The dialog's own focus, taken when it first draws, so the sheet
@@ -132,13 +215,35 @@ struct Sheet {
 }
 
 impl Sheet {
-    /// Answers the request, unless something already did.
-    fn answer(&self, input: Input) {
+    /// Answers the request, unless something already did, and remembers the
+    /// tool when the person chose to allow it for the session or for good.
+    fn answer(&self, input: Input, cx: Option<&mut App>) {
         let Some(reply) = self.reply.borrow_mut().take() else {
             return;
         };
-        match choice(input) {
-            Choice::AllowOnce => reply.allow_once(),
+        let chosen = choice(input);
+        if !reply.is_settled() {
+            match chosen {
+                Choice::AllowSession => self
+                    .grants
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .allow(&self.request),
+                Choice::AlwaysAllow => {
+                    if let Some(cx) = cx {
+                        let tool = tool_of(&self.request);
+                        AppState::update_config(cx, |config| {
+                            if !config.ai.agent.always_allowed.contains(&tool) {
+                                config.ai.agent.always_allowed.push(tool);
+                            }
+                        });
+                    }
+                }
+                Choice::AllowOnce | Choice::Reject => {}
+            }
+        }
+        match chosen {
+            Choice::AllowOnce | Choice::AllowSession | Choice::AlwaysAllow => reply.allow_once(),
             Choice::Reject => reply.reject(),
         }
         self.done.try_send(()).ok();
@@ -155,17 +260,19 @@ impl Sheet {
 }
 
 /// Shows `ask` and returns once it is answered or over.
-async fn present(ask: Ask, cx: &mut AsyncApp) {
+async fn present(ask: Ask, grants: Arc<Mutex<SessionGrants>>, cx: &mut AsyncApp) {
     if ask.reply.is_settled() {
         return;
     }
     let (done, finished) = async_channel::bounded(1);
+    let request = ask.request;
     let sheet = Rc::new(Sheet {
+        request: request.clone(),
+        grants,
         reply: RefCell::new(Some(ask.reply)),
         done,
         focus: RefCell::new(None),
     });
-    let request = ask.request;
     let shown = cx.update(|cx| {
         let Some((window, _)) = crate::workspace::main_workspace(cx) else {
             return false;
@@ -179,7 +286,7 @@ async fn present(ask: Ask, cx: &mut AsyncApp) {
     });
     if !shown {
         // No window to ask in: reject.
-        sheet.answer(Input::Dismiss);
+        sheet.answer(Input::Dismiss, None);
         return;
     }
     let watched = sheet.clone();
@@ -192,7 +299,7 @@ async fn present(ask: Ask, cx: &mut AsyncApp) {
             if watched.is_over() {
                 let sheet = watched.clone();
                 cx.update(|cx| close_sheet(&sheet, cx));
-                watched.answer(Input::Dismiss);
+                watched.answer(Input::Dismiss, None);
                 return;
             }
         }
@@ -239,6 +346,8 @@ fn open_sheet(request: &PermissionRequest, sheet: Rc<Sheet>, window: &mut Window
         let ended = sheet.is_over();
         let reject = sheet.clone();
         let allow = sheet.clone();
+        let session = sheet.clone();
+        let always = sheet.clone();
         let enter = sheet.clone();
         let escape = sheet.clone();
         alert
@@ -277,13 +386,32 @@ fn open_sheet(request: &PermissionRequest, sheet: Rc<Sheet>, window: &mut Window
                     .w_full()
                     .justify_end()
                     .gap(px(8.))
+                    .flex_wrap()
+                    .child(
+                        Button::new("permission-always")
+                            .label("Always allow")
+                            .debug_selector(|| "permission-always".into())
+                            .on_click(move |_, window, cx| {
+                                window.close_dialog(cx);
+                                always.answer(Input::ClickAlwaysAllow, Some(cx));
+                            }),
+                    )
+                    .child(
+                        Button::new("permission-session")
+                            .label("Allow for this session")
+                            .debug_selector(|| "permission-session".into())
+                            .on_click(move |_, window, cx| {
+                                window.close_dialog(cx);
+                                session.answer(Input::ClickAllowSession, Some(cx));
+                            }),
+                    )
                     .child(
                         Button::new("permission-allow")
                             .label("Allow once")
                             .debug_selector(|| "permission-allow".into())
                             .on_click(move |_, window, cx| {
                                 window.close_dialog(cx);
-                                allow.answer(Input::ClickAllowOnce);
+                                allow.answer(Input::ClickAllowOnce, Some(cx));
                             }),
                     )
                     .child(
@@ -293,17 +421,17 @@ fn open_sheet(request: &PermissionRequest, sheet: Rc<Sheet>, window: &mut Window
                             .debug_selector(|| "permission-reject".into())
                             .on_click(move |_, window, cx| {
                                 window.close_dialog(cx);
-                                reject.answer(Input::ClickReject);
+                                reject.answer(Input::ClickReject, Some(cx));
                             }),
                     ),
             )
             // Enter and Escape both reject.
             .on_ok(move |_, _, _| {
-                enter.answer(Input::Enter);
+                enter.answer(Input::Enter, None);
                 true
             })
             .on_cancel(move |_, _, _| {
-                escape.answer(Input::Escape);
+                escape.answer(Input::Escape, None);
                 true
             })
     });
@@ -311,7 +439,9 @@ fn open_sheet(request: &PermissionRequest, sheet: Rc<Sheet>, window: &mut Window
 
 #[cfg(test)]
 mod tests {
-    use super::{Choice, Input, choice, kind_line, title, tool_line};
+    use super::{
+        Choice, Input, SessionGrants, choice, is_allowed, kind_line, title, tool_line, tool_of,
+    };
     use kanso_acp::PermissionRequest;
     use proptest::prelude::*;
 
@@ -320,16 +450,85 @@ mod tests {
             agent: "Claude Agent".to_owned(),
             title: title.to_owned(),
             kind: kind.map(str::to_owned),
+            session: Some("s1".to_owned()),
         }
     }
 
+    fn in_session(mut request: PermissionRequest, session: &str) -> PermissionRequest {
+        request.session = Some(session.to_owned());
+        request
+    }
+
     #[test]
-    fn reject_is_the_default_and_only_allow_once_allows() {
+    fn reject_is_the_default_and_only_the_allow_buttons_allow() {
         assert_eq!(choice(Input::Enter), Choice::Reject);
         assert_eq!(choice(Input::Escape), Choice::Reject);
         assert_eq!(choice(Input::Dismiss), Choice::Reject);
         assert_eq!(choice(Input::ClickReject), Choice::Reject);
         assert_eq!(choice(Input::ClickAllowOnce), Choice::AllowOnce);
+        assert_eq!(choice(Input::ClickAllowSession), Choice::AllowSession);
+        assert_eq!(choice(Input::ClickAlwaysAllow), Choice::AlwaysAllow);
+    }
+
+    #[test]
+    fn a_session_allowed_tool_is_not_asked_again_in_that_session_only() {
+        let asked = request("Run cargo test", Some("execute"));
+        let mut session = SessionGrants::default();
+        assert!(!is_allowed(&asked, &session, &[]));
+        session.allow(&asked);
+        assert!(is_allowed(&asked, &session, &[]));
+        // The same tool in the same session, even with other spacing.
+        assert!(is_allowed(
+            &request("Run   cargo\ntest", Some("execute")),
+            &session,
+            &[]
+        ));
+        // A new session asks again.
+        assert!(!is_allowed(&in_session(asked.clone(), "s2"), &session, &[]));
+        // Another tool, kind or agent in the same session asks too.
+        assert!(!is_allowed(
+            &request("Run cargo build", Some("execute")),
+            &session,
+            &[]
+        ));
+        assert!(!is_allowed(
+            &request("Run cargo test", Some("read")),
+            &session,
+            &[]
+        ));
+        let mut other = asked.clone();
+        other.agent = "Other Agent".to_owned();
+        assert!(!is_allowed(&other, &session, &[]));
+    }
+
+    #[test]
+    fn a_request_with_no_session_cannot_be_allowed_for_a_session() {
+        let mut asked = request("Run cargo test", None);
+        asked.session = None;
+        let mut session = SessionGrants::default();
+        session.allow(&asked);
+        assert!(!is_allowed(&asked, &session, &[]));
+    }
+
+    #[test]
+    fn an_always_allowed_tool_is_not_asked_again_in_any_session() {
+        let asked = request("Run cargo test", Some("execute"));
+        let always = vec![tool_of(&asked)];
+        let session = SessionGrants::default();
+        assert!(is_allowed(&asked, &session, &always));
+        assert!(is_allowed(
+            &in_session(asked.clone(), "s9"),
+            &session,
+            &always
+        ));
+        assert!(!is_allowed(
+            &request("Run cargo build", Some("execute")),
+            &session,
+            &always
+        ));
+        let mut other = asked;
+        other.agent = "Other Agent".to_owned();
+        assert!(!is_allowed(&other, &session, &always));
     }
 
     #[test]
@@ -354,13 +553,15 @@ mod tests {
             prop_assert!(shown.chars().count() <= super::TITLE_MAX + 1);
         }
 
-        /// No input but clicking Allow once ever allows.
+        /// No input but clicking an Allow button ever allows.
         #[test]
-        fn prop_only_the_allow_button_allows(
+        fn prop_only_the_allow_buttons_allow(
             inputs in proptest::collection::vec(
                 prop_oneof![
                     Just(Input::ClickReject),
                     Just(Input::ClickAllowOnce),
+                    Just(Input::ClickAllowSession),
+                    Just(Input::ClickAlwaysAllow),
                     Just(Input::Enter),
                     Just(Input::Escape),
                     Just(Input::Dismiss),
@@ -369,7 +570,11 @@ mod tests {
             ),
         ) {
             for input in inputs {
-                prop_assert_eq!(choice(input) == Choice::AllowOnce, input == Input::ClickAllowOnce);
+                let clicked_allow = matches!(
+                    input,
+                    Input::ClickAllowOnce | Input::ClickAllowSession | Input::ClickAlwaysAllow
+                );
+                prop_assert_eq!(choice(input) != Choice::Reject, clicked_allow);
             }
         }
     }
