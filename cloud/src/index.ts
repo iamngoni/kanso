@@ -112,6 +112,7 @@ import * as methods from "./methods";
 import * as metrics from "./metrics";
 import * as passkeys from "./passkeys";
 import * as pairings from "./pairings";
+import { schemaHint } from "./schema";
 import * as proofs from "./proofs";
 import * as pushes from "./push";
 import * as feedbackAdmin from "./feedback_admin";
@@ -350,8 +351,12 @@ export async function handle(request: Request, env: Env, now: number, matched?: 
 		}
 		return await (method.handler as Handler)(request, env, now);
 	} catch (err) {
-		// Route names and error codes only: no paths, bodies or values.
-		console.error(JSON.stringify({ route: name, error: "internal", kind: (err as Error)?.name ?? typeof err }));
+		// Route names and error codes only: no paths, bodies or values. A missing table
+		// or column is named (schemaHint), since that is schema, never request data.
+		const hint = schemaHint(err);
+		console.error(
+			JSON.stringify({ route: name, error: "internal", kind: (err as Error)?.name ?? typeof err, ...(hint ? { schema: hint } : {}) }),
+		);
 		return error(500, "internal", "Internal error.");
 	}
 }

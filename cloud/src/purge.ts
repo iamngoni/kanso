@@ -11,6 +11,7 @@
 // round finding the account alive drops the row instead of listing; objects
 // the old account left behind are then orphans, which reconciliation removes.
 
+import { checkSchema } from "./schema";
 import { signOutSockets } from "./account_room";
 import { runCollabPurges } from "./collab";
 import { purgeCrashReports } from "./crash_reports";
@@ -338,6 +339,12 @@ export async function runCron(env: Env, now: number): Promise<CronReport> {
 	} catch (err) {
 		// Feedback is best effort: a failure here never stops the other jobs.
 		console.error(JSON.stringify({ route: "feedback", outcome: "failed", kind: (err as Error)?.name ?? "error" }));
+	}
+	try {
+		await checkSchema(env, now);
+	} catch (err) {
+		// The schema check is best effort: a failure here never stops the other jobs.
+		console.error(JSON.stringify({ route: "schema", outcome: "failed", kind: (err as Error)?.name ?? "error" }));
 	}
 	try {
 		await runServerStats(env, now);
