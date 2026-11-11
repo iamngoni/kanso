@@ -67,7 +67,8 @@ actions!(
         SelectPrevious,
         SelectAllNotes,
         SelectOneNote,
-        OpenFocusedInNewTab
+        OpenFocusedInNewTab,
+        DeleteSelectedNotes
     ]
 );
 
@@ -80,6 +81,10 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("secondary-a", SelectAllNotes, Some("NoteList")),
         KeyBinding::new("secondary-enter", OpenFocusedInNewTab, Some("NoteList")),
         KeyBinding::new("escape", SelectOneNote, Some("NoteList")),
+        // Delete or ⌫: the selected notes to the Trash; in the Trash,
+        // deleted for good after asking.
+        KeyBinding::new("backspace", DeleteSelectedNotes, Some("NoteList")),
+        KeyBinding::new("delete", DeleteSelectedNotes, Some("NoteList")),
     ]);
 }
 
@@ -90,8 +95,10 @@ pub enum NoteListEvent {
     Command(String, NoteCommand),
     /// A choice from the menu of several selected notes, for all of them.
     CommandSeveral(Vec<String>, NoteCommand),
-    Restore(String),
-    DeleteForever(String),
+    /// Out of the Trash: one note, or every selected one.
+    Restore(Vec<String>),
+    /// Deleted for good, after asking: one note, or every selected one.
+    DeleteForever(Vec<String>),
     /// Enter in the list or the search box: move focus to the editor.
     OpenSelected,
 }
@@ -731,13 +738,6 @@ impl NoteList {
                 }
             })
             .context_menu(move |menu, window, cx| {
-                let emit = |event: fn(String) -> NoteListEvent| {
-                    let view = view.clone();
-                    let id = menu_id.clone();
-                    move |_: &ClickEvent, _: &mut Window, cx: &mut App| {
-                        view.update(cx, |_, cx| cx.emit(event(id.clone())));
-                    }
-                };
                 if let Some(ids) = several.clone().filter(|_| !in_trash) {
                     let view = view.clone();
                     let count = ids.len();
@@ -749,11 +749,32 @@ impl NoteList {
                     });
                     crate::note_menu::several_items(menu, count, all_pinned, run, window, cx)
                 } else if in_trash {
-                    menu.item(PopupMenuItem::new("Restore").on_click(emit(NoteListEvent::Restore)))
+                    // The selected notes when this row is among them, else
+                    // this note alone.
+                    let ids: Vec<String> = match several.clone() {
+                        Some(ids) => ids.to_vec(),
+                        None => vec![menu_id.clone()],
+                    };
+                    let count = ids.len();
+                    let (restore, delete) = if count > 1 {
+                        (
+                            format!("Restore {count} Notes"),
+                            format!("Delete {count} Notes Permanently…"),
+                        )
+                    } else {
+                        ("Restore".to_owned(), "Delete Permanently…".to_owned())
+                    };
+                    let send = |event: fn(Vec<String>) -> NoteListEvent| {
+                        let view = view.clone();
+                        let ids = ids.clone();
+                        move |_: &ClickEvent, _: &mut Window, cx: &mut App| {
+                            view.update(cx, |_, cx| cx.emit(event(ids.clone())));
+                        }
+                    };
+                    menu.item(PopupMenuItem::new(restore).on_click(send(NoteListEvent::Restore)))
                         .separator()
                         .item(
-                            PopupMenuItem::new("Delete Permanently…")
-                                .on_click(emit(NoteListEvent::DeleteForever)),
+                            PopupMenuItem::new(delete).on_click(send(NoteListEvent::DeleteForever)),
                         )
                 } else {
                     let view = view.clone();
@@ -801,7 +822,7 @@ impl NoteList {
                     "row-restore",
                     Icon::new(Lucide::RotateCw),
                     "Restore",
-                    NoteListEvent::Restore,
+                    |id| NoteListEvent::Restore(vec![id]),
                     cx,
                 ))
             } else {
@@ -1523,6 +1544,19 @@ impl Render for NoteList {
                     .on_action(cx.listener(|this, _: &SelectPrevious, _, cx| {
                         this.library
                             .update(cx, |library, cx| library.select_relative(-1, cx));
+                    }))
+                    .on_action(cx.listener(|this, _: &DeleteSelectedNotes, _, cx| {
+                        let library = this.library.read(cx);
+                        let ids = library.selection.ids().to_vec();
+                        if ids.is_empty() {
+                            return;
+                        }
+                        let in_trash = library.filter == Filter::Trash;
+                        cx.emit(if in_trash {
+                            NoteListEvent::DeleteForever(ids)
+                        } else {
+                            NoteListEvent::CommandSeveral(ids, NoteCommand::Trash)
+                        });
                     }))
                     .on_action(cx.listener(|this, _: &SelectAllNotes, _, cx| {
                         this.library
@@ -2482,6 +2516,57 @@ mod tests {
                 (vec![a.clone()], Some(a.clone())),
                 "a plain click: one"
             );
+        }
+
+        // no-prop-test: drives the window; the batch's properties are in
+        // note_batch.rs.
+        #[gpui_kit::test]
+        fn delete_key_trashes_every_selected_note_and_trash_restores_them_all(
+            cx: &mut TestAppContext,
+        ) {
+            use kanso_core::model::TRASH_BOOK_ID;
+
+            let f = setup(cx);
+            f.window
+                .update(cx, |_, window, _| window.activate_window())
+                .unwrap();
+            let ids = listed(&f, cx);
+            let book = |cx: &mut TestAppContext, id: &str| {
+                cx.run_until_parked();
+                f.store.note(id).unwrap().unwrap().book_id
+            };
+            click(&f, cx, &ids[0], Modifiers::none());
+            let select_all = if cfg!(target_os = "macos") {
+                "cmd-a"
+            } else {
+                "ctrl-a"
+            };
+            cx.simulate_keystrokes(f.window, select_all);
+            cx.simulate_keystrokes(f.window, "backspace");
+            for id in &ids {
+                assert_eq!(book(cx, id), TRASH_BOOK_ID, "every selected note trashed");
+            }
+
+            // In the Trash, the menu of several selected notes restores
+            // them all.
+            let library = f.library(cx);
+            f.window
+                .update(cx, |_, _, cx| {
+                    library.update(cx, |library, cx| library.set_filter(Filter::Trash, cx))
+                })
+                .unwrap();
+            f.draw(cx);
+            let note_list = cx.read(|cx| f.workspace.read(cx).note_list.clone());
+            f.window
+                .update(cx, |_, _, cx| {
+                    note_list.update(cx, |_, cx| {
+                        cx.emit(crate::note_list::NoteListEvent::Restore(ids.clone()))
+                    })
+                })
+                .unwrap();
+            for id in &ids {
+                assert_ne!(book(cx, id), TRASH_BOOK_ID, "every selected note restored");
+            }
         }
 
         // no-prop-test: drives the window; the batch's properties are in

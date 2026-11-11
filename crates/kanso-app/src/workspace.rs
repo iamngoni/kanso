@@ -1540,7 +1540,7 @@ impl Workspace {
             NoteListEvent::CommandSeveral(ids, command) => {
                 self.run_several_command(ids, *command, window, cx)
             }
-            NoteListEvent::Restore(id) => {
+            NoteListEvent::Restore(ids) => {
                 let Some(book) = self.library.read(cx).books.first().map(|b| b.id.clone()) else {
                     return self.notify_error(
                         "Create a notebook to restore notes into.",
@@ -1548,26 +1548,36 @@ impl Workspace {
                         cx,
                     );
                 };
-                if !self.with_open_note(id, cx, |editor, cx| editor.set_book(book.clone(), cx)) {
-                    self.merge(DocType::Note, id, json!({"bookId": book}), window, cx);
-                    crate::metrics::record(cx, crate::metrics::Feature::NoteRestored);
+                if let [id] = ids.as_slice() {
+                    if !self.with_open_note(id, cx, |editor, cx| editor.set_book(book.clone(), cx))
+                    {
+                        self.merge(DocType::Note, id, json!({"bookId": book}), window, cx);
+                    }
+                } else {
+                    self.change_notes(ids, BatchChange::Move(book), window, cx);
                 }
+                crate::metrics::record(cx, crate::metrics::Feature::NoteRestored);
             }
-            NoteListEvent::DeleteForever(id) => {
-                let id = id.clone();
+            NoteListEvent::DeleteForever(ids) => {
+                let ids = ids.clone();
                 let store = self.store.clone();
-                confirm(
-                    "Delete this note permanently?",
-                    "It can't be restored afterwards.",
-                    "Delete",
-                    window,
-                    cx,
-                    move |window, cx| {
-                        if let Err(err) = store.delete(&id, Origin::Ui) {
+                let title = match ids.len() {
+                    1 => "Delete this note permanently?".to_owned(),
+                    n => format!("Delete {n} notes permanently?"),
+                };
+                let body = if ids.len() == 1 {
+                    "It can't be restored afterwards."
+                } else {
+                    "They can't be restored afterwards."
+                };
+                confirm(&title, body, "Delete", window, cx, move |window, cx| {
+                    for id in &ids {
+                        if let Err(err) = store.delete(id, Origin::Ui) {
                             window.push_notification(Notification::error(err.to_string()), cx);
+                            return;
                         }
-                    },
-                );
+                    }
+                });
             }
         }
     }
