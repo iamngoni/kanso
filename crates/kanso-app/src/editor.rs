@@ -7557,7 +7557,7 @@ mod writing_tests {
         });
         open.select(cx, 7..7);
         open.keys(cx, "enter");
-        assert_eq!(open.text(cx), ("- [x] a\n- [ ] ".into(), 15..15));
+        assert_eq!(open.text(cx), ("- [x] a\n- [ ] ".into(), 14..14));
         open.keys(cx, "enter");
         assert_eq!(open.text(cx), ("- [x] a\n".into(), 8..8));
 
