@@ -177,7 +177,14 @@ impl ApiKeysPage {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.ask(id, revoke_question(&name), REVOKE_DETAIL, "Revoke", window, cx);
+        self.ask(
+            id,
+            revoke_question(&name),
+            REVOKE_DETAIL,
+            "Revoke",
+            window,
+            cx,
+        );
     }
 
     /// Asks before disconnecting a paired app.
@@ -208,17 +215,10 @@ impl ApiKeysPage {
         cx: &mut Context<Self>,
     ) {
         let page = cx.entity();
-        dialogs::confirm(
-            question,
-            detail,
-            ok,
-            window,
-            cx,
-            move |_, cx| {
-                let id = KeyId(id.clone());
-                page.update(cx, |page, cx| page.revoke(&id, cx));
-            },
-        );
+        dialogs::confirm(question, detail, ok, window, cx, move |_, cx| {
+            let id = KeyId(id.clone());
+            page.update(cx, |page, cx| page.revoke(&id, cx));
+        });
     }
 
     /// The question before a revoke, as the Revoke button asks it.
@@ -243,12 +243,6 @@ impl ApiKeysPage {
     #[cfg(test)]
     pub(crate) fn paired(&self) -> &[ApiKeyRow] {
         &self.paired
-    }
-
-    /// Reads the keys again, for tests that moved the clock or the keys.
-    #[cfg(test)]
-    pub(crate) fn refresh_for_test(&mut self, cx: &mut Context<Self>) {
-        self.refresh(cx);
     }
 }
 

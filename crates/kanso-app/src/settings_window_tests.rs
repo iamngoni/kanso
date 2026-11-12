@@ -1680,6 +1680,34 @@ fn deny_denies_the_request(cx: &mut TestAppContext) {
     cx.update(crate::services::stop_server);
 }
 
+/// A second app asking while one waits makes the sheet warn, and Deny the
+/// main button.
+// no-prop-test: drives one window and a live server through clicks.
+#[gpui_kit::test]
+fn a_second_app_makes_the_sheet_warn_and_deny_the_default(cx: &mut TestAppContext) {
+    let api = pairing_api(cx);
+    let (request, _) = api.ask(cx);
+    let sheet = cx.read(|cx| crate::pairing_sheet::open_for_test(cx).unwrap());
+    assert!(!cx.read(|cx| sheet.read(cx).deny_is_main()));
+    assert!(!api.f.drawn(cx, "pair-contested"));
+
+    let (status, _) = pair_post(&api.base);
+    assert_eq!(status, 429, "one request waits at a time");
+    api.f
+        .window
+        .update(cx, |_, window, cx| {
+            sheet.update(cx, |sheet, cx| sheet.sync(window, cx))
+        })
+        .unwrap();
+    assert!(cx.read(|cx| sheet.read(cx).deny_is_main()));
+    assert!(api.f.drawn(cx, "pair-contested"), "the warning shows");
+
+    api.f.click(cx, "pair-deny");
+    drop(sheet);
+    assert_eq!(pair_poll(&api.base, &request).0, 403);
+    cx.update(crate::services::stop_server);
+}
+
 /// The sheet goes with the request, two minutes on.
 // no-prop-test: drives one window and a live server.
 #[gpui_kit::test]

@@ -28,6 +28,28 @@ pub const SHOTS: &[(&str, super::Prepare, Option<f32>)] = &[
     ("light-api-key-new", new_key, Some(WIDTH)),
     ("dark-api-key-shown", shown_once, Some(WIDTH)),
     ("light-api-key-shown", shown_once, Some(WIDTH)),
+    ("dark-settings-paired-apps", with_paired, None),
+    ("light-settings-paired-apps", with_paired, None),
+    (
+        "dark-pairing-sheet",
+        pairing_sheet,
+        Some(crate::pairing_sheet::SHEET_WIDTH),
+    ),
+    (
+        "light-pairing-sheet",
+        pairing_sheet,
+        Some(crate::pairing_sheet::SHEET_WIDTH),
+    ),
+    (
+        "dark-pairing-sheet-contested",
+        pairing_contested,
+        Some(crate::pairing_sheet::SHEET_WIDTH),
+    ),
+    (
+        "light-pairing-sheet-contested",
+        pairing_contested,
+        Some(crate::pairing_sheet::SHEET_WIDTH),
+    ),
     ("dark-api-key-revoke", revoke_question, Some(448.)),
     ("light-api-key-revoke", revoke_question, Some(448.)),
 ];
@@ -229,4 +251,76 @@ fn revoke_question(
         page.update(cx, |page, cx| page.snapshot_ask_revoke(0, window, cx));
     })
     .unwrap();
+}
+
+/// Raycast is paired: its row sits in Paired apps.
+fn with_paired(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    let mut keys = demo_keys();
+    keys.push(Demo {
+        name: "Raycast",
+        client: "raycast",
+        access: KeyAccess::Capture,
+        books: None,
+        made: 3 * 24 * 60,
+        used: Some(2),
+    });
+    open(cx, window, workspace, store, &keys, None);
+}
+
+/// A request for the sheet, as the design shows it.
+fn request(contested: bool) -> kanso_server::PendingPair {
+    kanso_server::PendingPair {
+        request: "r".into(),
+        name: "Raycast".into(),
+        client: "raycast".into(),
+        code: "482913".into(),
+        books: None,
+        expires_in: 120,
+        contested,
+    }
+}
+
+fn show_pairing(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+    contested: bool,
+) {
+    open(cx, window, workspace, store, &demo_keys(), None);
+    cx.update_window(window, |_, window, cx| {
+        let keys = crate::services::key_store(cx).unwrap();
+        crate::pairing_sheet::open_sheet_for_snapshot(
+            keys.pairing(),
+            request(contested),
+            window,
+            cx,
+        );
+    })
+    .unwrap();
+}
+
+/// Raycast asks to connect.
+fn pairing_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    show_pairing(cx, window, workspace, store, false);
+}
+
+/// A second app asked while Raycast's request waited.
+fn pairing_contested(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    store: &Store,
+) {
+    show_pairing(cx, window, workspace, store, true);
 }

@@ -23,6 +23,11 @@ pub const CANNOT: &str = "It will not be able to change or delete existing text.
 /// Under the notebooks.
 pub const LOCKED: &str = "Locked notes are never shown to a key.";
 
+/// Said when a second app asked while this request waited: one of them
+/// may not be what the person just started.
+pub const CONTESTED: &str =
+    "Two apps asked for a key. Deny unless you just started this from Raycast.";
+
 /// The title of the Paired apps group.
 pub const GROUP_TITLE: &str = "Paired apps";
 
@@ -38,6 +43,12 @@ pub fn shown_name(name: &str) -> String {
     }
     let cut: String = name.chars().take(NAME_SHOWN - 1).collect();
     format!("{}\u{2026}", cut.trim_end())
+}
+
+/// Whether Deny, not Allow, is the sheet's main button: when more than one
+/// app asked, a person who did nothing must not allow by habit.
+pub fn deny_is_default(pending: &PendingPair) -> bool {
+    pending.contested
 }
 
 /// The sheet's title: "Raycast wants to connect".
@@ -130,6 +141,7 @@ mod tests {
             code: "482913".into(),
             books,
             expires_in: 120,
+            contested: false,
         }
     }
 
@@ -157,6 +169,14 @@ mod tests {
         assert_eq!(code_label(&p.code), "482 913");
         assert_eq!(compare(&p), "Check that Raycast shows the same code.");
         assert_eq!(notebooks_line(&p, |_| None), "Notebooks: All notebooks");
+    }
+
+    #[test]
+    fn a_contested_request_makes_deny_the_default() {
+        let mut p = pending("Raycast", None);
+        assert!(!deny_is_default(&p));
+        p.contested = true;
+        assert!(deny_is_default(&p));
     }
 
     #[test]

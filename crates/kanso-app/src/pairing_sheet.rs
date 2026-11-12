@@ -18,7 +18,8 @@ use gpui_kit::*;
 use kanso_server::{PairError, Pairing, PendingPair};
 
 use crate::pairing_model::{
-    CAN, CANNOT, LOCKED, code_label, compare, intro, notebooks_line, title,
+    CAN, CANNOT, CONTESTED, LOCKED, code_label, compare, deny_is_default, intro, notebooks_line,
+    title,
 };
 use crate::theme::Colors;
 use crate::workspace::AppState;
@@ -119,6 +120,11 @@ impl PairSheet {
 
     /// What the sheet is for, for tests.
     #[cfg(test)]
+    pub(crate) fn deny_is_main(&self) -> bool {
+        deny_is_default(&self.pending)
+    }
+
+    #[cfg(test)]
     pub(crate) fn request(&self) -> &PendingPair {
         &self.pending
     }
@@ -178,16 +184,28 @@ impl Render for PairSheet {
                     .child(line(CANNOT.to_owned())),
             )
             .child(
-                v_flex()
-                    .gap(px(2.))
-                    .child(line(notebooks))
-                    .child(
-                        div()
-                            .text_size(px(12.))
-                            .text_color(colors.text_muted)
-                            .child(LOCKED),
-                    ),
+                v_flex().gap(px(2.)).child(line(notebooks)).child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(colors.text_muted)
+                        .child(LOCKED),
+                ),
             )
+            .when(self.pending.contested, |el| {
+                el.child(
+                    div()
+                        .id("pair-contested")
+                        .debug_selector(|| "pair-contested".into())
+                        .p(px(10.))
+                        .rounded(px(8.))
+                        .bg(colors.fill)
+                        .text_size(px(13.))
+                        .line_height(px(19.))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(colors.danger)
+                        .child(CONTESTED),
+                )
+            })
             .when_some(self.error.clone(), |el, error| {
                 el.child(
                     div()
@@ -206,29 +224,31 @@ struct PairFooter {
 
 // no-prop-test: drawing.
 impl Render for PairFooter {
-    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let (deny, allow) = (self.sheet.clone(), self.sheet.clone());
+        let deny_first = deny_is_default(&self.sheet.read(cx).pending);
+        let deny_button = Button::new("pair-deny")
+            .debug_selector(|| "pair-deny".into())
+            .label("Don't Allow")
+            .on_click(move |_, window, cx| deny.update(cx, |sheet, cx| sheet.deny(window, cx)));
+        let allow_button = Button::new("pair-allow")
+            .debug_selector(|| "pair-allow".into())
+            .label("Allow")
+            .on_click(move |_, window, cx| allow.update(cx, |sheet, cx| sheet.allow(window, cx)));
         h_flex()
             .w_full()
             .gap_2()
             .justify_end()
-            .child(
-                Button::new("pair-deny")
-                    .debug_selector(|| "pair-deny".into())
-                    .label("Don't Allow")
-                    .on_click(move |_, window, cx| {
-                        deny.update(cx, |sheet, cx| sheet.deny(window, cx))
-                    }),
-            )
-            .child(
-                Button::new("pair-allow")
-                    .debug_selector(|| "pair-allow".into())
-                    .primary()
-                    .label("Allow")
-                    .on_click(move |_, window, cx| {
-                        allow.update(cx, |sheet, cx| sheet.allow(window, cx))
-                    }),
-            )
+            .child(if deny_first {
+                deny_button.primary()
+            } else {
+                deny_button
+            })
+            .child(if deny_first {
+                allow_button
+            } else {
+                allow_button.primary()
+            })
     }
 }
 
@@ -312,4 +332,15 @@ pub(crate) fn open_for_test(cx: &App) -> Option<Entity<PairSheet>> {
     cx.try_global::<Open>()
         .and_then(|open| open.0.as_ref())
         .and_then(WeakEntity::upgrade)
+}
+
+/// The sheet for a request the server does not hold, for the snapshots.
+#[cfg(test)]
+pub(crate) fn open_sheet_for_snapshot(
+    pairing: Pairing,
+    pending: PendingPair,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    open_sheet(pairing, pending, window, cx);
 }
