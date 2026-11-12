@@ -49,6 +49,8 @@ pub fn is_well_formed(list: &MemberList) -> bool {
         && list.members.len() <= MAX_MEMBERS
         && owners.len() == 1
         && owners[0].account == list.owner
+        // Managers exist in shared notebooks only (crate::book_members).
+        && list.members.iter().all(|m| m.role != Role::Manager)
         && list.key_commit.len() == 64
         && list.members.iter().all(|m| {
             unb64_array::<32>(&m.sign_pub).is_some() && unb64_array::<32>(&m.box_pub).is_some()
@@ -195,5 +197,16 @@ mod tests {
             let (sb, ss) = sign(&forger, &stolen);
             prop_assert!(open(&sb, &ss, "s", &owner.sign_pub(), 0).is_err());
         }
+    }
+
+    /// Managers exist in shared notebooks only: a note's list that names one
+    /// is malformed.
+    #[test]
+    fn note_lists_have_no_managers() {
+        let owner = Identity::generate();
+        let mut list = list_of(&owner, &[("a_1".into(), Role::Edit)], 1);
+        assert!(is_well_formed(&list));
+        list.members[1].role = Role::Manager;
+        assert!(!is_well_formed(&list));
     }
 }
