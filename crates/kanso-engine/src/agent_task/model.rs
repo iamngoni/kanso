@@ -3,7 +3,10 @@
 
 use std::time::Duration;
 
-use kanso_server::{Counts, TaskId};
+use kanso_server::{Counts, TaskId, TaskOps};
+
+use super::session::SessionKey;
+use super::{ReadScope, TaskSpec};
 
 /// Where a task is.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -47,6 +50,8 @@ pub enum EndedBy {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TaskRow {
     pub id: TaskId,
+    /// The session's own id, which a restart keeps.
+    pub key: SessionKey,
     pub goal: String,
     /// The goal cut to one line: what the list calls the task.
     pub title: String,
@@ -63,6 +68,49 @@ pub struct TaskRow {
     pub elapsed: Duration,
     /// When the transcript last grew, in Unix milliseconds.
     pub last_activity_ms: i64,
+    /// New items since the session was last opened.
+    pub unread: bool,
+}
+
+/// The colour of a row's status dot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Dot {
+    /// Blue and pulsing.
+    Working,
+    /// Amber: a question, changes to review.
+    NeedsYou,
+    /// Grey.
+    Idle,
+    /// Red.
+    Failed,
+}
+
+/// Whether a session has items its viewer hasn't seen: the transcript's
+/// version has moved past the one last opened.
+pub fn is_unread(seen_version: u64, version: u64) -> bool {
+    version > seen_version
+}
+
+/// How long ago `then_ms` was at `now_ms`, in a few words: `now`, `2m ago`,
+/// `3h ago`, `yesterday`, `4d ago`.
+pub fn when_label(now_ms: i64, then_ms: i64) -> String {
+    let secs = (now_ms - then_ms).max(0) / 1000;
+    match secs {
+        0..60 => "now".to_owned(),
+        60..3600 => format!("{}m ago", secs / 60),
+        3600..86_400 => format!("{}h ago", secs / 3600),
+        86_400..172_800 => "yesterday".to_owned(),
+        _ => format!("{}d ago", secs / 86_400),
+    }
+}
+
+/// The rows in the order the list shows them: latest activity first.
+pub fn by_activity(rows: &mut [TaskRow]) {
+    rows.sort_by(|a, b| {
+        b.last_activity_ms
+            .cmp(&a.last_activity_ms)
+            .then(b.id.0.cmp(&a.id.0))
+    });
 }
 
 /// A goal cut to one line for a title.
@@ -79,6 +127,7 @@ impl TaskRow {
     pub fn new(id: TaskId, goal: &str, agent: &str) -> TaskRow {
         TaskRow {
             id,
+            key: SessionKey::default(),
             goal: goal.to_owned(),
             title: title_of(goal),
             agent: agent.to_owned(),
@@ -90,6 +139,48 @@ impl TaskRow {
             counts: Counts::default(),
             elapsed: Duration::ZERO,
             last_activity_ms: 0,
+            unread: false,
+        }
+    }
+
+    /// The status in a list row: `Working…`, `4 changes to review`, `Done`.
+    pub fn list_status(&self) -> String {
+        match &self.phase {
+            Phase::Waiting => "Waiting".to_owned(),
+            Phase::Running => "Working…".to_owned(),
+            Phase::Asking { .. } => "Has a question".to_owned(),
+            Phase::Ready => {
+                let n = self.counts.total();
+                format!("{n} change{} to review", if n == 1 { "" } else { "s" })
+            }
+            Phase::Nothing => "Done".to_owned(),
+            Phase::Failed { .. } => "Failed".to_owned(),
+            Phase::Applied { changes } => format!(
+                "Applied {changes} change{}",
+                if *changes == 1 { "" } else { "s" }
+            ),
+            Phase::Undone => "Undone".to_owned(),
+            Phase::Discarded => "Discarded".to_owned(),
+        }
+    }
+
+    /// The line under a list row's title: `Claude Agent · Working… · now`.
+    pub fn list_line(&self, now_ms: i64) -> String {
+        format!(
+            "{} · {} · {}",
+            self.agent,
+            self.list_status(),
+            when_label(now_ms, self.last_activity_ms)
+        )
+    }
+
+    /// The row's status dot.
+    pub fn dot(&self) -> Dot {
+        match &self.phase {
+            Phase::Waiting | Phase::Running => Dot::Working,
+            Phase::Asking { .. } | Phase::Ready => Dot::NeedsYou,
+            Phase::Failed { .. } => Dot::Failed,
+            Phase::Nothing | Phase::Applied { .. } | Phase::Undone | Phase::Discarded => Dot::Idle,
         }
     }
 
@@ -227,6 +318,53 @@ pub fn quit_prompt(rows: &[TaskRow]) -> Option<String> {
     }
 }
 
+/// What a session may read, in a few words: `Campus Pilot`, `3 notes`.
+pub fn reads_label(read: &ReadScope, book_name: &dyn Fn(&str) -> String) -> String {
+    match read {
+        ReadScope::Notes(ids) => format!(
+            "{} note{}",
+            ids.len(),
+            if ids.len() == 1 { "" } else { "s" }
+        ),
+        ReadScope::Notebook(id) => book_name(id),
+        ReadScope::Allowed(_) => "Notebooks you allowed".to_owned(),
+        ReadScope::Everything => "All notebooks".to_owned(),
+    }
+}
+
+/// What a session may propose: `new notes, edits, moves, merges`.
+pub fn ops_label(ops: &TaskOps) -> String {
+    let mut parts = Vec::new();
+    if ops.create {
+        parts.push("new notes");
+    }
+    if ops.edit {
+        parts.push("edits");
+    }
+    if ops.moves {
+        parts.push("moves");
+    }
+    if ops.merge_allowed() {
+        parts.push("merges");
+    }
+    if parts.is_empty() {
+        "nothing".to_owned()
+    } else {
+        parts.join(", ")
+    }
+}
+
+/// The scope in full, for the header chip:
+/// `Reads: Campus Pilot · May propose: new notes, edits · New notes go in: Campus Pilot`.
+pub fn scope_line(spec: &TaskSpec, book_name: &dyn Fn(&str) -> String) -> String {
+    format!(
+        "Reads: {} · May propose: {} · New notes go in: {}",
+        reads_label(&spec.read, book_name),
+        ops_label(&spec.ops),
+        book_name(&spec.new_note_book)
+    )
+}
+
 /// What the notification says when a task finishes while Kanso is behind
 /// other windows.
 pub const NOTIFICATION: &str = "Agent task ready to review";
@@ -251,6 +389,134 @@ mod tests {
             counts,
             ..TaskRow::new(TaskId(1), "Merge trips", "Claude Agent")
         }
+    }
+
+    #[test]
+    fn list_rows_say_the_status_of_each_phase() {
+        let c = counts(2, 2, 0, 0);
+        let said = |phase: Phase| row(phase, c).list_status();
+        assert_eq!(said(Phase::Waiting), "Waiting");
+        assert_eq!(said(Phase::Running), "Working…");
+        assert_eq!(
+            said(Phase::Asking {
+                question: "?".into()
+            }),
+            "Has a question"
+        );
+        assert_eq!(said(Phase::Ready), "4 changes to review");
+        assert_eq!(
+            row(Phase::Ready, counts(1, 0, 0, 0)).list_status(),
+            "1 change to review"
+        );
+        assert_eq!(said(Phase::Nothing), "Done");
+        assert_eq!(
+            said(Phase::Failed {
+                message: "x".into()
+            }),
+            "Failed"
+        );
+        assert_eq!(said(Phase::Applied { changes: 1 }), "Applied 1 change");
+        assert_eq!(said(Phase::Undone), "Undone");
+        assert_eq!(said(Phase::Discarded), "Discarded");
+    }
+
+    #[test]
+    fn the_line_under_a_title_has_agent_status_and_time() {
+        let mut working = row(Phase::Running, Counts::default());
+        working.last_activity_ms = 1_000_000;
+        assert_eq!(
+            working.list_line(1_010_000),
+            "Claude Agent · Working… · now"
+        );
+        let mut ready = row(Phase::Ready, counts(4, 0, 0, 0));
+        ready.last_activity_ms = 1_000_000;
+        assert_eq!(
+            ready.list_line(1_000_000 + 120_000),
+            "Claude Agent · 4 changes to review · 2m ago"
+        );
+    }
+
+    #[test]
+    fn times_read_like_a_person() {
+        assert_eq!(when_label(5_000, 5_000), "now");
+        assert_eq!(when_label(0, 5_000), "now");
+        assert_eq!(when_label(3_600_000, 0), "1h ago");
+        assert_eq!(when_label(86_400_000, 0), "yesterday");
+        assert_eq!(when_label(3 * 86_400_000, 0), "3d ago");
+    }
+
+    #[test]
+    fn dots_follow_what_the_person_must_do() {
+        assert_eq!(row(Phase::Running, counts(0, 0, 0, 0)).dot(), Dot::Working);
+        assert_eq!(row(Phase::Waiting, counts(0, 0, 0, 0)).dot(), Dot::Working);
+        assert_eq!(row(Phase::Ready, counts(1, 0, 0, 0)).dot(), Dot::NeedsYou);
+        assert_eq!(
+            row(
+                Phase::Asking {
+                    question: "?".into()
+                },
+                counts(0, 0, 0, 0)
+            )
+            .dot(),
+            Dot::NeedsYou
+        );
+        assert_eq!(row(Phase::Nothing, counts(0, 0, 0, 0)).dot(), Dot::Idle);
+        assert_eq!(
+            row(Phase::Applied { changes: 1 }, counts(1, 0, 0, 0)).dot(),
+            Dot::Idle
+        );
+        assert_eq!(
+            row(
+                Phase::Failed {
+                    message: "x".into()
+                },
+                counts(0, 0, 0, 0)
+            )
+            .dot(),
+            Dot::Failed
+        );
+    }
+
+    #[test]
+    fn the_scope_reads_in_one_line() {
+        let name = |id: &str| format!("Book {id}");
+        let mut spec = TaskSpec::new("g", ReadScope::Notebook("1".into()), "2");
+        assert_eq!(
+            scope_line(&spec, &name),
+            "Reads: Book 1 · May propose: new notes, edits, moves, merges · New notes go in: Book 2"
+        );
+        spec.read = ReadScope::Notes(vec!["a".into()]);
+        spec.ops.merge = false;
+        spec.ops.moves = false;
+        assert_eq!(
+            scope_line(&spec, &name),
+            "Reads: 1 note · May propose: new notes, edits · New notes go in: Book 2"
+        );
+        spec.ops = TaskOps {
+            create: false,
+            edit: false,
+            moves: false,
+            merge: false,
+        };
+        assert!(scope_line(&spec, &name).contains("May propose: nothing"));
+    }
+
+    #[test]
+    fn a_session_is_unread_until_its_version_is_seen() {
+        assert!(!is_unread(3, 3));
+        assert!(is_unread(3, 4));
+        assert!(!is_unread(4, 3));
+    }
+
+    #[test]
+    fn the_list_is_newest_activity_first() {
+        let at = |id: u64, ms: i64| TaskRow {
+            last_activity_ms: ms,
+            ..TaskRow::new(TaskId(id), "g", "a")
+        };
+        let mut rows = vec![at(1, 10), at(2, 30), at(3, 20)];
+        by_activity(&mut rows);
+        assert_eq!(rows.iter().map(|r| r.id.0).collect::<Vec<_>>(), [2, 3, 1]);
     }
 
     #[test]

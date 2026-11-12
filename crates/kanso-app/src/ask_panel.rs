@@ -29,6 +29,7 @@ use kanso_engine::ask::{
 use kanso_store::Store;
 
 use crate::ai_feature;
+use crate::chat_parts::note_row;
 use crate::clock::Clock;
 use crate::config::{AgentChoice, AiBackend};
 use crate::editor::{HIGHLIGHT_HOLD, NoteEditor};
@@ -435,57 +436,51 @@ impl AskPanel {
     /// Carries what the worker says into the panel until the request is
     /// over, or settles the panel if the worker ended without saying so.
     fn watch(rx: async_channel::Receiver<Update>, cx: &mut Context<Self>) -> Task<()> {
-        cx.spawn(async move |this, cx| {
-            while let Ok(update) = rx.recv().await {
-                let finished = this
-                    .update(cx, |this, cx| {
-                        match update {
-                            Update::Used(used) => {
-                                this.conversation
-                                    .note_used(&mut this.turn_notes, used.clone());
-                                this.used = used;
-                                this.searching = false;
-                                this.streaming = true;
-                            }
-                            Update::Text(text) => {
-                                this.notice = None;
-                                this.answer.push_str(&text);
-                            }
-                            Update::Status(line) => this.notice = Some(line),
-                            Update::Time(time) => this.time = Some(time),
-                            Update::Done(done) => this.finish_turn(*done),
-                            Update::SummaryDone => this.finish_summary(),
-                            Update::CutOff => {
-                                this.cut_off = true;
-                                this.end_turn();
-                            }
-                            Update::Error(message) => {
-                                this.error = Some(message);
-                                this.end_turn();
-                            }
-                            Update::Nothing { narrow } => {
-                                this.nothing = Some(narrow);
-                                this.end_turn();
-                            }
-                        }
-                        cx.notify();
-                        !this.searching && !this.streaming
-                    })
-                    .unwrap_or(true);
-                if finished {
-                    break;
+        crate::chat_parts::watch(
+            rx,
+            cx,
+            |this, update, cx| {
+                match update {
+                    Update::Used(used) => {
+                        this.conversation
+                            .note_used(&mut this.turn_notes, used.clone());
+                        this.used = used;
+                        this.searching = false;
+                        this.streaming = true;
+                    }
+                    Update::Text(text) => {
+                        this.notice = None;
+                        this.answer.push_str(&text);
+                    }
+                    Update::Status(line) => this.notice = Some(line),
+                    Update::Time(time) => this.time = Some(time),
+                    Update::Done(done) => this.finish_turn(*done),
+                    Update::SummaryDone => this.finish_summary(),
+                    Update::CutOff => {
+                        this.cut_off = true;
+                        this.end_turn();
+                    }
+                    Update::Error(message) => {
+                        this.error = Some(message);
+                        this.end_turn();
+                    }
+                    Update::Nothing { narrow } => {
+                        this.nothing = Some(narrow);
+                        this.end_turn();
+                    }
                 }
-            }
+                cx.notify();
+                !this.searching && !this.streaming
+            },
             // The worker or runtime ended without Done, Error or CutOff. Keep
             // Ask usable by settling the panel instead of leaving it running
             // forever.
-            this.update(cx, |this, cx| {
+            |this, cx| {
                 if this.settle_after_closed_channel() {
                     cx.notify();
                 }
-            })
-            .ok();
-        })
+            },
+        )
     }
 
     /// Ends the turn without keeping an exchange.
@@ -1394,26 +1389,6 @@ fn run_agent(
         check_sources,
         &prepared.retrieval,
     ))));
-}
-
-/// A row that names a note and opens it on click.
-fn note_row(id: (&'static str, u64), title: &str, colors: &Colors) -> Stateful<Div> {
-    let title = if title.trim().is_empty() {
-        "Untitled".to_owned()
-    } else {
-        title.to_owned()
-    };
-    h_flex()
-        .id(ElementId::NamedInteger(id.0.into(), id.1))
-        .w_full()
-        .px(px(6.))
-        .py(px(4.))
-        .rounded(px(5.))
-        .cursor_pointer()
-        .hover(|el| el.bg(colors.row_hover))
-        .text_size(px(12.5))
-        .text_color(colors.link)
-        .child(div().truncate().child(title))
 }
 
 /// The banner over an answer that could not be checked.

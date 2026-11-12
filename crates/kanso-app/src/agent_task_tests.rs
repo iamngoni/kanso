@@ -451,3 +451,32 @@ fn at_most_two_tasks_work_at_once() {
     tasks.stop(b);
     wait_until("both to end", || tasks.active() == 0);
 }
+
+#[test]
+fn a_session_is_unread_until_it_is_seen_and_can_be_found_and_renamed() {
+    let lib = library();
+    let tokens = TokenStore::new();
+    let tasks = Tasks::default();
+    let id = start_api(
+        &lib,
+        &tasks,
+        &tokens,
+        &spec(&lib, "Tidy the trips"),
+        vec![Run {
+            calls: vec![],
+            says: "All tidy.".into(),
+            hang: false,
+        }],
+    );
+    wait_until("the end", || !row(&tasks, id).is_active());
+    let r = row(&tasks, id);
+    // The goal is the person's own; what the agent said is new.
+    assert!(r.unread, "{r:?}");
+    assert_eq!(tasks.by_key(&r.key), Some(id));
+    tasks.mark_seen(id);
+    assert!(!row(&tasks, id).unread);
+    tasks.rename(id, "  Trips, tidied  ");
+    assert_eq!(row(&tasks, id).title, "Trips, tidied");
+    tasks.rename(id, "   ");
+    assert_eq!(row(&tasks, id).title, "Trips, tidied");
+}

@@ -14,7 +14,7 @@
 //! reaches the change set through the notes server over MCP. Everything a
 //! window shows comes from [`TaskRow`]s.
 
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -24,7 +24,7 @@ use kanso_server::{
 };
 use kanso_store::{Store, UndoReport};
 
-use super::model::{EndedBy, Phase, TaskRow};
+use super::model::{EndedBy, Phase, TaskRow, is_unread};
 use super::session::{Item, RoundState, SessionKey, ToolKind, ToolStatus, Transcript};
 use super::{OpenTask, REPLY_WAIT, StartError, TaskSpec};
 
@@ -171,8 +171,9 @@ struct Entry {
     /// reply is built from (it restarts the loop).
     transcript: Mutex<Transcript>,
     /// This session's own id (a [`TaskId`] restarts with each launch).
-    #[allow(dead_code)]
     key: SessionKey,
+    /// The transcript version the person last looked at.
+    seen: AtomicU64,
     /// The round of proposals the task is in; 1 until a follow-up.
     round: AtomicU32,
     /// When the transcript last grew, in Unix milliseconds.
@@ -242,9 +243,41 @@ impl Tasks {
                 if row.is_active() {
                     row.elapsed = entry.started.elapsed();
                 }
+                row.unread = is_unread(
+                    entry.seen.load(Ordering::Relaxed),
+                    lock(&entry.transcript).version,
+                );
                 row
             })
             .collect()
+    }
+
+    /// The task of the session `key`, if it is listed.
+    pub fn by_key(&self, key: &SessionKey) -> Option<TaskId> {
+        lock(&self.entries)
+            .iter()
+            .find(|entry| &entry.key == key)
+            .map(|entry| entry.open.id)
+    }
+
+    /// The person has looked at everything in the session so far.
+    pub fn mark_seen(&self, id: TaskId) {
+        let Some(entry) = self.entry(id) else { return };
+        let version = lock(&entry.transcript).version;
+        if entry.seen.swap(version, Ordering::Relaxed) != version {
+            self.tell(TaskEvent::Changed(Some(id)));
+        }
+    }
+
+    /// Renames the session. A blank name changes nothing.
+    pub fn rename(&self, id: TaskId, title: &str) {
+        let title = title.trim();
+        let Some(entry) = self.entry(id) else { return };
+        if title.is_empty() {
+            return;
+        }
+        lock(&entry.row).title = title.to_owned();
+        self.tell(TaskEvent::Changed(Some(id)));
     }
 
     pub fn row(&self, id: TaskId) -> Option<TaskRow> {
@@ -307,6 +340,8 @@ impl Tasks {
         };
         let id = open.id;
         let mut row = TaskRow::new(id, &spec.goal, agent);
+        let key = SessionKey::new(now_ms());
+        row.key = key.clone();
         let started_ms = now_ms();
         row.last_activity_ms = started_ms;
         if backend.queues() && self.active() > 0 {
@@ -324,11 +359,16 @@ impl Tasks {
             applied: Mutex::new(None),
             said: Mutex::new(String::new()),
             transcript: Mutex::new(Transcript::default()),
-            key: SessionKey::new(started_ms),
+            key,
+            seen: AtomicU64::new(0),
             round: AtomicU32::new(1),
             last_activity_ms: AtomicI64::new(started_ms),
         });
         entry.record(|transcript, now| transcript.user(&spec.goal, now));
+        // The goal is the person's own: only what comes after is unread.
+        entry
+            .seen
+            .store(lock(&entry.transcript).version, Ordering::Relaxed);
         lock(&self.entries).push(entry.clone());
         drop(gate);
         self.tell(TaskEvent::Changed(Some(id)));
