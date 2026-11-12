@@ -10,6 +10,20 @@
   "platforms": ["macOS", "Windows"],
   "commands": [
     {
+      "name": "capture",
+      "title": "Quick Capture",
+      "subtitle": "Kanso",
+      "description": "Save a note to Kanso. The first line is the title.",
+      "mode": "view"
+    },
+    {
+      "name": "add-task",
+      "title": "Add Task",
+      "subtitle": "Kanso",
+      "description": "Add a task with a date and repeat, like film review fri 3pm every week.",
+      "mode": "view"
+    },
+    {
       "name": "connect",
       "title": "Connect to Kanso",
       "subtitle": "Kanso",
