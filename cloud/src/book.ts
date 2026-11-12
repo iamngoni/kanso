@@ -719,7 +719,10 @@ export function stopBook(shareId: string): Handler {
 
 /** Tells the room the notebook's epoch and everyone's role: sockets of accounts no longer listed close at once. */
 async function tellRoom(env: Env, shareId: string, epoch: number, members: BookMember[]): Promise<void> {
-	const roles = Object.fromEntries(members.map((m) => [m.account, m.role])) as Record<string, Role>;
+	// Someone who left may still be named by the list; they are out of the room all the same.
+	const left = await env.DB.prepare("SELECT account_id FROM book_members WHERE share_id = ?1 AND status = 'left'").bind(shareId).all<{ account_id: string }>();
+	const gone = new Set(left.results.map((r) => r.account_id));
+	const roles = Object.fromEntries(members.filter((m) => !gone.has(m.account)).map((m) => [m.account, m.role])) as Record<string, Role>;
 	try {
 		await bookRoomOf(env, shareId).setEpoch({ epoch, roles });
 	} catch (err) {

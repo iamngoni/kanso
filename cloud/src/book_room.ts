@@ -480,6 +480,7 @@ export class BookRoom extends DurableObject<Env> {
 	 */
 	override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
 		const now = Date.now();
+		this.schema();
 		if (!this.take(this.buckets, ws, now, SOCKET_RATE, SOCKET_BURST)) return this.refuseFrame(ws, "rate_limited", { limit: "socket", retry_after: 1 });
 		const attachment = ws.deserializeAttachment() as Attachment;
 		if (typeof message === "string") return this.control(ws, attachment, message);
@@ -514,6 +515,7 @@ export class BookRoom extends DurableObject<Env> {
 	}
 
 	override async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
+		this.schema();
 		this.buckets.delete(ws);
 		this.sql.exec("DELETE FROM subs WHERE sock = ?", (ws.deserializeAttachment() as Attachment).sock);
 		try {
@@ -524,6 +526,7 @@ export class BookRoom extends DurableObject<Env> {
 	}
 
 	override async webSocketError(ws: WebSocket): Promise<void> {
+		this.schema();
 		this.buckets.delete(ws);
 		this.sql.exec("DELETE FROM subs WHERE sock = ?", (ws.deserializeAttachment() as Attachment).sock);
 	}
