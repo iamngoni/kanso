@@ -112,10 +112,20 @@ fn history_aad(share_id: &str, epoch: u32) -> Vec<u8> {
     aad
 }
 
+/// The key a history link is sealed under, derived from `K_b[epoch]` so the
+/// notebook key itself only ever feeds HKDF and never encrypts directly.
+fn history_key(key: &BookKey) -> Zeroizing<[u8; 32]> {
+    hkdf32(&key.0[..], None, b"kanso/v1/book-history")
+}
+
 /// The history link stored with epoch `epoch` (at least 2): `K_b[epoch - 1]`
-/// sealed under `K_b[epoch]`.
+/// sealed under a key derived from `K_b[epoch]`.
 pub fn history_link(share_id: &str, epoch: u32, new: &BookKey, previous: &BookKey) -> Vec<u8> {
-    seal(&new.0, &history_aad(share_id, epoch), &previous.0[..])
+    seal(
+        &history_key(new),
+        &history_aad(share_id, epoch),
+        &previous.0[..],
+    )
 }
 
 /// Opens epoch `epoch`'s history link with `K_b[epoch]`, giving
@@ -127,7 +137,7 @@ pub fn open_history_link(
     new: &BookKey,
     link: &[u8],
 ) -> Option<BookKey> {
-    let plain = open(&new.0, &history_aad(share_id, epoch), link)?;
+    let plain = open(&history_key(new), &history_aad(share_id, epoch), link)?;
     Some(BookKey::from_bytes(plain[..].try_into().ok()?))
 }
 
