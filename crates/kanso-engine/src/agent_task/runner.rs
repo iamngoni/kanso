@@ -25,7 +25,9 @@ use kanso_server::{
 use kanso_store::{Store, UndoReport};
 
 use super::model::{EndedBy, Phase, TaskRow, is_unread};
-use super::session::{Item, RoundState, SessionKey, ToolKind, ToolStatus, Transcript};
+use super::session::{
+    Item, PermissionAnswer, RoundState, SessionKey, ToolKind, ToolStatus, Transcript,
+};
 use super::{OpenTask, REPLY_WAIT, StartError, TaskSpec};
 
 /// The most tasks working at once.
@@ -94,6 +96,12 @@ pub trait TaskDriver: Send + Sync {
         progress: Box<dyn FnMut() + Send>,
         cancel: Arc<AtomicBool>,
     ) -> Result<Box<dyn Iterator<Item = Event> + Send>, String>;
+
+    /// The agent's id for the session this task runs in, once it has one.
+    /// It is what a permission request names ([`Tasks::by_session`]).
+    fn session_id(&self) -> Option<String> {
+        None
+    }
 
     /// Whether tasks on this driver wait their turn for it (an ACP agent
     /// is one process, one task at a time).
@@ -258,6 +266,30 @@ impl Tasks {
             .iter()
             .find(|entry| &entry.key == key)
             .map(|entry| entry.open.id)
+    }
+
+    /// The task running in the agent's session `session`, if it is listed.
+    pub fn by_session(&self, session: &str) -> Option<TaskId> {
+        lock(&self.entries)
+            .iter()
+            .find(|entry| entry.backend.session_id().as_deref() == Some(session))
+            .map(|entry| entry.open.id)
+    }
+
+    /// Records how a request to use a tool was answered, whether by the
+    /// person or because the tool was already allowed. `kind` is the
+    /// agent's word for the tool's kind.
+    pub fn note_permission(
+        &self,
+        id: TaskId,
+        title: &str,
+        kind: Option<&str>,
+        answer: PermissionAnswer,
+    ) {
+        let Some(entry) = self.entry(id) else { return };
+        let kind = kind.map(ToolKind::parse).unwrap_or_default();
+        entry.record(|transcript, _| transcript.permission(title, kind, answer));
+        self.tell(TaskEvent::Changed(Some(id)));
     }
 
     /// The person has looked at everything in the session so far.
