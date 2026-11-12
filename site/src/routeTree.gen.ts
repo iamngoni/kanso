@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DownloadRouteImport } from './routes/download'
 import { Route as HelpRouteImport } from './routes/help'
+import { Route as PriceRouteImport } from './routes/price'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ReleasesRouteImport } from './routes/releases'
 
@@ -30,6 +31,11 @@ const HelpRoute = HelpRouteImport.update({
   path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PriceRoute = PriceRouteImport.update({
+  id: '/price',
+  path: '/price',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/download': typeof DownloadRoute
   '/help': typeof HelpRoute
+  '/price': typeof PriceRoute
   '/privacy': typeof PrivacyRoute
   '/releases': typeof ReleasesRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/download': typeof DownloadRoute
   '/help': typeof HelpRoute
+  '/price': typeof PriceRoute
   '/privacy': typeof PrivacyRoute
   '/releases': typeof ReleasesRoute
 }
@@ -60,21 +68,30 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/download': typeof DownloadRoute
   '/help': typeof HelpRoute
+  '/price': typeof PriceRoute
   '/privacy': typeof PrivacyRoute
   '/releases': typeof ReleasesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/download' | '/help' | '/privacy' | '/releases'
+  fullPaths: '/' | '/download' | '/help' | '/price' | '/privacy' | '/releases'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/download' | '/help' | '/privacy' | '/releases'
-  id: '__root__' | '/' | '/download' | '/help' | '/privacy' | '/releases'
+  to: '/' | '/download' | '/help' | '/price' | '/privacy' | '/releases'
+  id:
+    | '__root__'
+    | '/'
+    | '/download'
+    | '/help'
+    | '/price'
+    | '/privacy'
+    | '/releases'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DownloadRoute: typeof DownloadRoute
   HelpRoute: typeof HelpRoute
+  PriceRoute: typeof PriceRoute
   PrivacyRoute: typeof PrivacyRoute
   ReleasesRoute: typeof ReleasesRoute
 }
@@ -102,6 +119,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/price': {
+      id: '/price'
+      path: '/price'
+      fullPath: '/price'
+      preLoaderRoute: typeof PriceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -123,6 +147,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DownloadRoute: DownloadRoute,
   HelpRoute: HelpRoute,
+  PriceRoute: PriceRoute,
   PrivacyRoute: PrivacyRoute,
   ReleasesRoute: ReleasesRoute,
 }

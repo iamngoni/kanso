@@ -43,6 +43,9 @@ export function SiteHeader() {
           <Link to="/help" className={cn(link, "hidden sm:inline-block")}>
             Help
           </Link>
+          <Link to="/price" className={cn(link, "hidden sm:inline-block")}>
+            Price
+          </Link>
           <Link to="/privacy" className={cn(link, "hidden sm:inline-block")}>
             Privacy
           </Link>
@@ -69,6 +72,9 @@ export function SiteFooter() {
         <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 text-fg-2">
           <Link to="/download" className="ink-link">
             Download
+          </Link>
+          <Link to="/price" className="ink-link">
+            Price
           </Link>
           <Link to="/privacy" className="ink-link">
             Privacy

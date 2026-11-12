@@ -32,6 +32,7 @@ describe("SiteHeader", () => {
     render(<SiteHeader />);
     const nav = within(screen.getByRole("navigation", { name: "Main" }));
     expect(nav.getByRole("link", { name: "Help" })).toHaveAttribute("href", "/help");
+    expect(nav.getByRole("link", { name: "Price" })).toHaveAttribute("href", "/price");
     expect(nav.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
     expect(nav.getByRole("link", { name: "GitHub" })).toHaveAttribute("href", REPOSITORY_URL);
     expect(nav.getByRole("link", { name: "Download" })).toHaveAttribute("href", "/download");
@@ -64,6 +65,7 @@ describe("SiteFooter", () => {
     render(<SiteFooter />);
     const nav = within(screen.getByRole("navigation", { name: "Footer" }));
     expect(nav.getByRole("link", { name: "Download" })).toHaveAttribute("href", "/download");
+    expect(nav.getByRole("link", { name: "Price" })).toHaveAttribute("href", "/price");
     expect(nav.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
     expect(nav.getByRole("link", { name: "Release notes" })).toHaveAttribute("href", "/releases");
     expect(nav.getByRole("link", { name: "Help" })).toHaveAttribute("href", "/help");

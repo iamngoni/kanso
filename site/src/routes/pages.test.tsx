@@ -21,6 +21,7 @@ vi.mock("../server/fns", () => ({ getSiteData: vi.fn(), getReleaseNotes: vi.fn()
 
 import { RELEASES_URL, REPOSITORY_URL } from "../lib/release";
 import { Help, ISSUES_URL, TOPICS } from "./help";
+import { Price } from "./price";
 import { Privacy } from "./privacy";
 import { ReleaseNotes } from "./releases";
 
@@ -119,5 +120,17 @@ describe("Privacy", () => {
       "href",
       `${REPOSITORY_URL}/blob/master/docs/FEEDBACK.md`,
     );
+  });
+});
+
+describe("Price", () => {
+  it("says Kanso is free, states the sync limits and the self-hosting and change promises", () => {
+    render(<Price />);
+    expect(screen.getByRole("heading", { level: 1, name: "What Kanso costs" })).toBeInTheDocument();
+    expect(screen.getByText(/no subscription, no trial and no paid\s+tier/)).toBeInTheDocument();
+    expect(screen.getByText(/up to 100 MiB of notes and\s+1 GiB of files, and upload up to 1 GiB a day/)).toBeInTheDocument();
+    expect(screen.getByText(/Shared notebooks count against their\s+owner's space/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "You can run your own sync server" })).toBeInTheDocument();
+    expect(screen.getByText(/It will say so here first, and nothing you already have will stop working/)).toBeInTheDocument();
   });
 });
