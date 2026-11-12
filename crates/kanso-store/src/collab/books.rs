@@ -289,6 +289,18 @@ impl Store {
         })
     }
 
+    /// Forgets a log that never went up (its note left the notebook, was
+    /// deleted or locked before it did).
+    pub fn drop_book_stream(&self, share_id: &str, stream: &str) -> Result<()> {
+        self.write(|tx, _| {
+            tx.execute(
+                "DELETE FROM collab_book_streams WHERE share_id = ?1 AND stream = ?2",
+                params![share_id, stream],
+            )?;
+            Ok(())
+        })
+    }
+
     /// Queues something written on this device for a notebook's log.
     pub fn push_book_outbox(&self, share_id: &str, stream: &str, payload: &[u8]) -> Result<i64> {
         self.write(|tx, _| {

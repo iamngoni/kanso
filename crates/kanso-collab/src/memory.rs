@@ -92,6 +92,9 @@ struct State {
     /// Requests that succeed before `offline` begins.
     grace: usize,
     now: i64,
+    /// Lists naming members whose keys aren't their account's are taken
+    /// (tests of a client against a server that doesn't check).
+    lax_book_members: bool,
 }
 
 /// The Worker's shared-note routes in memory.

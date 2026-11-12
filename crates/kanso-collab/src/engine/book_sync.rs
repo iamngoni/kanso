@@ -55,11 +55,10 @@ impl Engine {
     ) -> std::result::Result<Opened, Unopened> {
         let (header, _) = parse_header(envelope_bytes).ok_or(Unopened::Bad)?;
         let Some(key) = ctx.keys.get(&header.epoch) else {
-            return Err(if header.epoch > ctx.row.epoch {
-                Unopened::NeedKey
-            } else {
-                Unopened::Bad
-            });
+            // No key for the entry's epoch, older or newer: never "forged".
+            // The caller refreshes the chain (its history links give the
+            // earlier keys) and tries again, so these entries aren't skipped.
+            return Err(Unopened::NeedKey);
         };
         let member = ctx
             .chain
@@ -107,7 +106,6 @@ impl Engine {
                 row.applied_seq,
                 PAGE,
             )?;
-            ctx.row.head = ctx.row.head.max(page.head);
             if let Some(snapshot) = &page.snapshot {
                 let bytes = unb64(&snapshot.envelope)
                     .ok_or_else(|| CollabError::Protocol("a snapshot isn't base64url".into()))?;
@@ -125,6 +123,7 @@ impl Engine {
                     _ => {}
                 }
                 row.applied_seq = row.applied_seq.max(snapshot.base_seq);
+                ctx.row.head = ctx.row.head.max(row.applied_seq);
             }
             result.pulled += page.entries.len();
             for entry in &page.entries {
@@ -148,6 +147,9 @@ impl Engine {
                     _ => {}
                 }
                 row.applied_seq = entry.seq;
+                // The head this device trusts grows only with what it has
+                // received, never with the server's say-so.
+                ctx.row.head = ctx.row.head.max(entry.seq);
             }
             if !page.more {
                 break;

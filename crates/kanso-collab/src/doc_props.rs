@@ -68,6 +68,33 @@ fn parts(text: &str) -> Option<(Vec<FrontEntry>, &str)> {
     split_note(text)
 }
 
+/// Whether `text` opens like a front-matter block (a `---` line) that
+/// [`parts`] can't keep key by key: half typed, or with something the
+/// entries can't hold. Inside is the body after the block's closing line;
+/// `None` there when the block isn't closed (yet).
+fn unkept_front(text: &str) -> Option<Option<&str>> {
+    if let Some(front) = properties::split(text) {
+        return split_note(text)
+            .is_none()
+            .then_some(Some(&text[front.body_start..]));
+    }
+    let rest = text.strip_prefix('\u{feff}').unwrap_or(text);
+    let mut lines = rest.split_inclusive('\n');
+    let first = lines.next()?;
+    if first.trim_end_matches(['\n', '\r', ' ', '\t']) != "---" || !first.ends_with('\n') {
+        return None;
+    }
+    let mut end = first.len();
+    for line in lines {
+        end += line.len();
+        let marker = line.trim_end_matches(['\n', '\r', ' ', '\t']);
+        if marker == "---" || marker == "..." {
+            return Some(Some(&rest[end..]));
+        }
+    }
+    Some(None)
+}
+
 /// Puts `key` into `order` after the nearest earlier key of `before` that is
 /// already there, or first when none is (at the end for `fallback_end`).
 fn insert_after(order: &mut Vec<String>, key: &str, before: &[&str], fallback_end: bool) {
@@ -335,6 +362,23 @@ impl CollabDoc {
         // A note that still has its front matter in the body (made before
         // properties had entries) moves it into them on this edit.
         let legacy = now_props.is_empty() && properties::split(&now_body).is_some();
+        // The person is in the middle of typing in the front matter (a line
+        // without its colon yet, an unclosed block): it doesn't read as
+        // properties, and must not be taken for a body that wiped them. Only
+        // what is after the block is theirs to give for now; the properties
+        // stay as they are until the block reads again. (A block that isn't
+        // closed has no body part: nothing is taken until it is.)
+        if !legacy
+            && let Some((base_props, base_body)) = parts(base)
+            && !base_props.is_empty()
+            && let Some(after) = unkept_front(local)
+        {
+            let Some(local_body) = after else {
+                return Vec::new();
+            };
+            let body = crate::engine::rebase(base_body, local_body, &now_body);
+            return self.set_text_in_parts(Field::Body, &body, part);
+        }
         if !legacy
             && let (Some((base_props, base_body)), Some((props, body))) =
                 (parts(base), parts(local))

@@ -141,6 +141,19 @@ fn post_list(
     people: &[(&Device, Role)],
     new_epoch: bool,
 ) -> BookKey {
+    let mut members = vec![member_of(owner, Role::Owner)];
+    members.extend(people.iter().map(|(d, role)| member_of(d, *role)));
+    post_members(server, owner, share, members, new_epoch)
+}
+
+/// `post_list` with the entries given (the owner's included).
+fn post_members(
+    server: &MemoryCollab,
+    owner: &Device,
+    share: &str,
+    members: Vec<Member>,
+    new_epoch: bool,
+) -> BookKey {
     let ctx = owner.engine.book_ctx(share).unwrap();
     let old = ctx.keys[&ctx.row.epoch].clone();
     let head = ctx.chain.head.clone();
@@ -154,8 +167,6 @@ fn post_list(
     } else {
         (head.list.epoch, old.clone(), head.list.from_seq)
     };
-    let mut members = vec![member_of(owner, Role::Owner)];
-    members.extend(people.iter().map(|(d, role)| member_of(d, *role)));
     let mut list = BookMemberList {
         v: 1,
         share: share.to_owned(),
@@ -626,6 +637,229 @@ fn a_list_the_owner_never_signed_is_refused_at_join() {
         "{err:?}"
     );
     assert!(d.store.shared_book(&share).unwrap().is_none());
+}
+
+#[test]
+fn a_member_whose_keys_arent_the_ones_their_account_published_stops_the_sync() {
+    let server = MemoryCollab::new();
+    let (a, b, c) = (
+        device(&server, 1, 1),
+        device(&server, 2, 1),
+        device(&server, 3, 1),
+    );
+    let (book, _) = notebook(&a.store, "Studio", &[("One".to_owned(), "1".to_owned())]);
+    let share = shared(&a, &[(&b, Role::Edit)], &book);
+    // The owner's signed list names C with keys that aren't the ones C's
+    // account published.
+    // (A server that doesn't check, or is the one doing it.)
+    server.skip_book_member_checks();
+    let mut stranger = member_of(&c, Role::Edit);
+    stranger.box_pub = b64(&a.engine.identity().unwrap().box_pub());
+    post_members(
+        &server,
+        &a,
+        &share,
+        vec![
+            member_of(&a, Role::Owner),
+            member_of(&b, Role::Edit),
+            stranger,
+        ],
+        false,
+    );
+    let err = b.engine.sync_book(&share).unwrap_err();
+    assert!(matches!(err, CollabError::Crypto(_)), "{err:?}");
+    assert_eq!(b.engine.book_ctx(&share).unwrap().chain.head.list.rev, 1);
+    // A new device of B's refuses it at join as well.
+    let d = device(&server, 2, 2);
+    let err = d.engine.join_book(&share).unwrap_err();
+    assert!(matches!(err, CollabError::Crypto(_)), "{err:?}");
+    assert!(d.store.shared_book(&share).unwrap().is_none());
+}
+
+#[test]
+fn entries_of_an_epoch_whose_key_is_missing_are_not_skipped_for_good() {
+    let server = MemoryCollab::new();
+    let (a, b, c) = (
+        device(&server, 1, 1),
+        device(&server, 2, 1),
+        device(&server, 3, 1),
+    );
+    let notes: Vec<(String, String)> = (0..4)
+        .map(|i| (format!("Note {i}"), format!("Epoch one text {i}\n")))
+        .collect();
+    let (book, _) = notebook(&a.store, "Studio", &notes);
+    let share = shared(&a, &[(&b, Role::Edit)], &book);
+    a.engine.person("user3").unwrap();
+    post_list(
+        &server,
+        &a,
+        &share,
+        &[(&b, Role::Edit), (&c, Role::Edit)],
+        true,
+    );
+    a.engine.sync_book(&share).unwrap();
+    // The server can't give C the link to epoch 1 for now: C can't open the
+    // notes, and says so, rather than taking them for forged.
+    let links = server.take_book_history(&share);
+    let err = c.engine.join_book(&share).unwrap_err();
+    assert_eq!(err.code(), Some("epoch_changed"), "{err:?}");
+    let row = c.store.shared_book(&share).unwrap().unwrap();
+    // Nothing was passed over: when the link is back, everything is read.
+    server.put_book_history(&share, links);
+    c.engine.sync_book(&share).unwrap();
+    let want: BTreeMap<String, String> = notes.into_iter().collect();
+    assert_eq!(texts(&c, &row.book_id), want);
+}
+
+#[test]
+fn the_server_cant_name_another_owner_than_the_genesis_list() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let (book, _) = notebook(&a.store, "Studio", &[("One".to_owned(), "1".to_owned())]);
+    let share = shared(&a, &[(&b, Role::Edit)], &book);
+    server.set_book_owner(&share, &b.engine.caller().account_id);
+    let d = device(&server, 2, 2);
+    let err = d.engine.join_book(&share).unwrap_err();
+    assert!(
+        matches!(err, CollabError::BookList(BookListError::Malformed)),
+        "{err:?}"
+    );
+    assert!(d.store.shared_book(&share).unwrap().is_none());
+}
+
+#[test]
+fn joining_again_after_removal_holds_the_chain_to_the_old_head() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let (book, _) = notebook(&a.store, "Studio", &[("One".to_owned(), "1".to_owned())]);
+    let share = shared(&a, &[(&b, Role::Edit)], &book);
+    let mut row = b.store.shared_book(&share).unwrap().unwrap();
+    row.status = kanso_store::SharedStatus::Removed;
+    b.store.put_shared_book(&row).unwrap();
+    // A history the owner signed that isn't the one B saw: a fork at the
+    // head B trusted.
+    let trusted: crate::book_model::StoredChain = serde_json::from_str(&row.chain).unwrap();
+    let mut rival = trusted.head.list;
+    rival.at += 7;
+    let signed = sign(&a.engine.identity().unwrap(), &rival);
+    server.replace_book_list(&share, 1, &signed.list, &signed.sig);
+    let err = b.engine.join_book(&share).unwrap_err();
+    assert!(matches!(err, CollabError::BookList(_)), "{err:?}");
+}
+
+#[test]
+fn a_resumed_share_leaves_out_notes_moved_deleted_or_locked_since() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let notes: Vec<(String, String)> = (0..120)
+        .map(|i| (format!("Note {i}"), format!("Text {i}\n")))
+        .collect();
+    let (book, _) = notebook(&a.store, "Studio", &notes);
+    a.engine.person("user2").unwrap();
+    server.go_offline_after(80, 1);
+    let err = a
+        .engine
+        .share_book(&book, &[("user2".into(), Role::Edit)], false, &mut |_| {})
+        .unwrap_err();
+    assert!(err.is_offline(), "{err:?}");
+    let row = a.store.shared_book_of(&book).unwrap().unwrap();
+    let pending: Vec<String> = a
+        .store
+        .book_streams(&row.share_id)
+        .unwrap()
+        .into_iter()
+        .filter(|s| !s.on_server)
+        .filter_map(|s| s.note_id)
+        .take(3)
+        .collect();
+    assert_eq!(pending.len(), 3);
+    // Since the crash: one moved to another notebook, one deleted, one locked.
+    let other = a
+        .store
+        .put(
+            DocType::Book,
+            json!({"name": "Elsewhere"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    a.store
+        .put(
+            DocType::Note,
+            json!({"_id": pending[0], "bookId": other}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    a.store.delete(&pending[1], Origin::Ui).unwrap();
+    let rev = a.store.note(&pending[2]).unwrap().unwrap().rev;
+    a.store
+        .lock_note(json!({
+            "_id": pending[2],
+            "_rev": rev,
+            "bookId": book,
+            "title": "",
+            "body": "",
+            "kansoLock": {"v": 1, "salt": "AAAA", "nonce": "AAAA", "sealed": "AAAA"}
+        }))
+        .unwrap();
+    a.engine
+        .resume_book_share(&row.share_id, &mut |_| {})
+        .unwrap();
+    // Manifest and 117 notes are on the server; the three never went up.
+    assert_eq!(server.book_room(&row.share_id).map(|r| r.1), Some(118));
+    let moved = a.store.note(&pending[0]).unwrap().unwrap();
+    assert!(!moved.extra.contains_key(kanso_core::model::SHARE_FIELD));
+    assert_eq!(moved.book_id, other);
+    let joined = b.engine.join_book(&row.share_id).unwrap();
+    assert_eq!(joined.notes, 117);
+}
+
+#[test]
+fn the_head_a_device_trusts_only_grows_with_what_it_received() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let notes: Vec<(String, String)> = (0..3)
+        .map(|i| (format!("Note {i}"), format!("Text {i}\n")))
+        .collect();
+    let (book, _) = notebook(&a.store, "Studio", &notes);
+    let share = shared(&a, &[(&b, Role::Edit)], &book);
+    // A server that claims a head far beyond its log.
+    server.inflate_book_head(&share, 1_000_000);
+    sync(&[&a, &b], &share);
+    for d in [&a, &b] {
+        let held = d.engine.book_ctx(&share).unwrap().row.head;
+        let received = d
+            .store
+            .book_streams(&share)
+            .unwrap()
+            .iter()
+            .map(|s| s.applied_seq)
+            .max()
+            .unwrap();
+        assert!(held <= received, "{held} > {received}");
+        assert!(held < 1_000, "{held}");
+    }
+}
+
+#[test]
+fn half_typed_front_matter_and_a_key_edited_elsewhere_both_land() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let start = "---\nstage: draft\ntags: x\n---\nbody\n";
+    let (book, _) = notebook(&a.store, "Studio", &[("One".to_owned(), start.to_owned())]);
+    let share = shared(&a, &[(&b, Role::Edit)], &book);
+    let b_book = b.store.shared_book(&share).unwrap().unwrap().book_id;
+    let a_id = note_of(&a, &book, "One");
+    let b_id = note_of(&b, &b_book, "One");
+    // A changes a key; B, offline, is part way through typing a new one.
+    write(&a, &a_id, "---\nstage: done\ntags: x\n---\nbody\n");
+    write(&b, &b_id, "---\nstage: draft\nsta\ntags: x\n---\nbody 2\n");
+    sync(&[&a, &b], &share);
+    let want = "---\nstage: done\ntags: x\n---\nbody 2\n";
+    assert_eq!(body(&a, &a_id), want);
+    assert_eq!(body(&b, &b_id), want);
 }
 
 proptest! {
