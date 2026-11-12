@@ -45,6 +45,25 @@ void agentTasksSuite(OpenLibrary open) {
       expect(await tasks.tasks(), isEmpty);
     });
 
+    test('a library with no tasks has no sessions', () async {
+      final tasks = (await open()).ai().agentTasks();
+      expect(await tasks.agentSessions(), isEmpty);
+    });
+
+    test('a session that is not there has no transcript', () async {
+      final tasks = (await open()).ai().agentTasks();
+      expect(await tasks.agentTranscript(key: 'NOPE'), isNull);
+    });
+
+    test('a message or an end for a session that is not there fails', () async {
+      final tasks = (await open()).ai().agentTasks();
+      await expectLater(
+        tasks.agentFollowUp(key: 'NOPE', text: 'hi'),
+        throwsA(anything),
+      );
+      await expectLater(tasks.agentEndSession(key: 'NOPE'), throwsA(anything));
+    });
+
     test('a task that is not there has nothing to review or undo', () async {
       final tasks = (await open()).ai().agentTasks();
       await tasks.stop(id: 99);

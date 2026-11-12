@@ -6,9 +6,11 @@ import 'package:injectable/injectable.dart';
 
 import '../../../bridge/api/agent_tasks.dart' as bridge;
 import '../../../bridge/api/ai.dart' show KansoAi;
+import '../../../bridge/api/types.dart' show KansoError;
 import '../../../utils/kanso_error_mapping.dart';
 import '../../data/agent_card.dart';
 import '../../data/agent_review.dart';
+import '../../data/agent_session.dart';
 import '../../data/agent_task.dart';
 import '../../data/agent_task_prefs.dart';
 import '../../data/application_error.dart';
@@ -89,6 +91,82 @@ class RustAgentTasksRepository implements AgentTasksRepository {
               elapsedSeconds: row.elapsedSecs,
             ),
         ];
+      });
+
+  AgentSession _session(bridge.SessionView s) => AgentSession(
+    id: s.id,
+    key: s.key,
+    title: s.title,
+    agent: s.agent,
+    phase: AgentTaskPhase.of(s.phase),
+    detail: s.detail,
+    dot: AgentSessionDot.of(s.dot),
+    unread: s.unread,
+    lastActivityMs: s.lastActivityMs,
+    notesRead: s.notesRead,
+    changes: s.changes,
+    canStop: s.canStop,
+    canReview: s.canReview,
+    canFollowUp: s.canFollowUp,
+  );
+
+  AgentTranscriptItem _item(bridge.TranscriptItem i) => switch (i.kind) {
+    'user' => AgentTranscriptItem.user(i.text),
+    'agent' => AgentTranscriptItem.agent(i.text),
+    'thought' => AgentTranscriptItem.thought(
+      text: i.text,
+      seconds: i.thoughtSecs,
+    ),
+    'tool' => AgentTranscriptItem.tool(
+      title: i.title,
+      kind: AgentToolKind.of(i.toolKind),
+      status: AgentToolStatus.of(i.status),
+    ),
+    'permission' => AgentTranscriptItem.permission(
+      title: i.title,
+      answer: AgentPermissionAnswer.of(i.answer),
+    ),
+    'proposed' => AgentTranscriptItem.proposed(
+      round: i.round,
+      counts: i.counts,
+      state: AgentRoundState.of(i.state),
+    ),
+    _ => AgentTranscriptItem.notice(i.text),
+  };
+
+  @override
+  Future<Either<ApplicationError, List<AgentSession>>> sessions() => attempt(
+    () async => <AgentSession>[
+      for (final row in await _tasks.agentSessions()) _session(row),
+    ],
+  );
+
+  @override
+  Future<Either<ApplicationError, AgentTranscript>> transcript(String key) =>
+      attempt(() async {
+        final found = await _tasks.agentTranscript(key: key);
+        if (found == null) {
+          throw const KansoError.notFound();
+        }
+        return AgentTranscript(
+          session: _session(found.session),
+          version: found.version,
+          items: <AgentTranscriptItem>[for (final i in found.items) _item(i)],
+        );
+      });
+
+  @override
+  Future<Either<ApplicationError, Unit>> followUp(String key, String text) =>
+      attempt(() async {
+        await _tasks.agentFollowUp(key: key, text: text);
+        return unit;
+      });
+
+  @override
+  Future<Either<ApplicationError, Unit>> endSession(String key) =>
+      attempt(() async {
+        await _tasks.agentEndSession(key: key);
+        return unit;
       });
 
   @override

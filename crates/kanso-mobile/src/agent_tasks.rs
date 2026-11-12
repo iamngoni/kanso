@@ -10,13 +10,17 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
+use kanso_engine::agent_task::model::{Phase, by_activity};
 use kanso_engine::agent_task::review::{self, CardDetail, CardState, LineKind};
 use kanso_engine::agent_task::runner::{ApiDriver, Tasks};
+use kanso_engine::agent_task::session::SessionKey;
 use kanso_engine::agent_task::settings::AgentTaskSettings;
 use kanso_engine::agent_task::{ReadScope, TaskSpec};
 use kanso_server::{OpKind, Selection, TaskId, TokenStore};
 
-use crate::agent_tasks_model::{AgentTaskPrefs, TaskCard, TaskReview, TaskView};
+use crate::agent_tasks_model::{
+    AgentTaskPrefs, SessionTranscript, SessionView, TaskCard, TaskReview, TaskView,
+};
 use crate::ai::AiHandle;
 use crate::errors::KansoError;
 
@@ -26,6 +30,12 @@ pub const TASKS_OFF: &str = "Agent tasks are turned off in Settings.";
 /// What starting a task says when it can read every notebook and Settings
 /// ask first, and the person hasn't confirmed.
 pub const CONFIRM_ALL: &str = "Confirm that this task may read all your notebooks.";
+
+/// What a call on a session that isn't listed says.
+pub const NO_SESSION: &str = "That session is no longer here.";
+
+/// What a message to a session that isn't waiting for one says.
+pub const NOT_ASKING: &str = "The agent isn't waiting for a message yet.";
 
 /// The file the preferences are kept in, beside the library.
 const PREFS_FILE: &str = "agent-tasks.json";
@@ -219,6 +229,66 @@ impl AgentTasks {
             .iter()
             .map(TaskView::from_row)
             .collect()
+    }
+
+    /// The sessions, latest activity first, as the list shows them.
+    pub fn sessions(&self, now_ms: i64) -> Vec<SessionView> {
+        let mut rows = self.runtime().tasks.rows();
+        by_activity(&mut rows);
+        rows.iter()
+            .map(|row| SessionView::from_row(row, now_ms))
+            .collect()
+    }
+
+    /// What was said in session `key`. Opening it counts as seeing it, so
+    /// its unread dot goes. `None` when no such session is listed.
+    pub fn transcript(&self, key: &str, now_ms: i64) -> Option<SessionTranscript> {
+        let runtime = self.runtime();
+        let id = runtime.tasks.by_key(&SessionKey(key.to_owned()))?;
+        runtime.tasks.mark_seen(id);
+        let transcript = runtime.tasks.transcript(id)?;
+        let row = runtime.tasks.row(id)?;
+        Some(SessionTranscript::from_parts(&row, &transcript, now_ms))
+    }
+
+    /// Sends `text` into session `key`.
+    ///
+    /// TODO(#375 step 4): call `Tasks::follow_up` when it is in master. Until
+    /// then the only way into a session is answering a question, so this
+    /// refuses unless the agent asked one.
+    pub fn follow_up(&self, key: &str, text: &str) -> Result<(), KansoError> {
+        let runtime = self.runtime();
+        let id = runtime
+            .tasks
+            .by_key(&SessionKey(key.to_owned()))
+            .ok_or_else(|| KansoError::invalid(NO_SESSION))?;
+        let asking = runtime
+            .tasks
+            .row(id)
+            .is_some_and(|row| matches!(row.phase, Phase::Asking { .. }));
+        if !asking {
+            return Err(KansoError::invalid(NOT_ASKING));
+        }
+        if text.trim().is_empty() {
+            return Err(KansoError::invalid("Write a message first."));
+        }
+        runtime.tasks.reply(id, text);
+        Ok(())
+    }
+
+    /// Ends session `key`: stops its turn and keeps what it did.
+    ///
+    /// TODO(#375 step 4): call `Tasks::end_session` (closes the agent
+    /// conversation, revokes the token) when it is in master; until then a
+    /// session ends by being stopped.
+    pub fn end_session(&self, key: &str) -> Result<(), KansoError> {
+        let runtime = self.runtime();
+        let id = runtime
+            .tasks
+            .by_key(&SessionKey(key.to_owned()))
+            .ok_or_else(|| KansoError::invalid(NO_SESSION))?;
+        runtime.tasks.stop(id);
+        Ok(())
     }
 
     /// Stops a task; what it proposed stays for review.

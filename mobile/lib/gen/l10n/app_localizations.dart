@@ -12927,6 +12927,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Kanso {version}'**
   String whatsNewEarlierVersion(String version);
+
+  /// A session list row: the AI asked something.
+  ///
+  /// In en, this message translates to:
+  /// **'Has a question'**
+  String get agentSessionAsking;
+
+  /// A session list row: finished with nothing to change.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get agentSessionDone;
+
+  /// A session list row: the AI stopped with an error.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get agentSessionFailed;
+
+  /// A session list row: its changes were thrown away.
+  ///
+  /// In en, this message translates to:
+  /// **'Discarded'**
+  String get agentSessionDiscarded;
+
+  /// The line under a session's title: who, how it stands, and when.
+  ///
+  /// In en, this message translates to:
+  /// **'{agent} · {status} · {when}'**
+  String agentSessionLine(String agent, String status, String when);
+
+  /// A session's last activity was just now.
+  ///
+  /// In en, this message translates to:
+  /// **'now'**
+  String get agentSessionWhenNow;
+
+  /// A session's last activity, in minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}m ago'**
+  String agentSessionWhenMinutes(int count);
+
+  /// A session's last activity, in hours.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}h ago'**
+  String agentSessionWhenHours(int count);
+
+  /// A session's last activity was yesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'yesterday'**
+  String get agentSessionWhenYesterday;
+
+  /// A session's last activity, in days.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}d ago'**
+  String agentSessionWhenDays(int count);
+
+  /// Spoken for the dot on a session with new items.
+  ///
+  /// In en, this message translates to:
+  /// **'New activity'**
+  String get agentSessionUnread;
+
+  /// The button that ends a session.
+  ///
+  /// In en, this message translates to:
+  /// **'End session'**
+  String get agentSessionEnd;
+
+  /// The title of the question before a session ends.
+  ///
+  /// In en, this message translates to:
+  /// **'End this session?'**
+  String get agentSessionEndTitle;
+
+  /// The body of the question before a session ends.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI stops and the transcript stays. Changes it proposed stay for you to review.'**
+  String get agentSessionEndBody;
+
+  /// The hint in a session's message field.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask for more…'**
+  String get agentSessionComposerHint;
+
+  /// Shown in place of the message field while the AI works.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI is working. You can write when it asks.'**
+  String get agentSessionComposerWorking;
+
+  /// Shown in place of the message field once a session ended.
+  ///
+  /// In en, this message translates to:
+  /// **'This session has ended.'**
+  String get agentSessionComposerEnded;
+
+  /// Spoken for the button that sends a message.
+  ///
+  /// In en, this message translates to:
+  /// **'Send message'**
+  String get agentSessionComposerSend;
+
+  /// A collapsed block of the AI's thinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thought for {seconds}s'**
+  String agentSessionThought(int seconds);
+
+  /// A collapsed block of the AI's thinking that took under a second.
+  ///
+  /// In en, this message translates to:
+  /// **'Thought'**
+  String get agentSessionThoughtShort;
+
+  /// Several tool calls folded into one row.
+  ///
+  /// In en, this message translates to:
+  /// **'Used {count} tools'**
+  String agentSessionTools(int count);
+
+  /// What the person answered when asked for a tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed once: {title}'**
+  String agentSessionAllowedOnce(String title);
+
+  /// What the person answered when asked for a tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed for this session: {title}'**
+  String agentSessionAllowedSession(String title);
+
+  /// What the person answered when asked for a tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Always allowed: {title}'**
+  String agentSessionAllowedAlways(String title);
+
+  /// What the person answered when asked for a tool.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected: {title}'**
+  String agentSessionRejected(String title);
+
+  /// The title of a proposal card.
+  ///
+  /// In en, this message translates to:
+  /// **'Round {round} · {counts}'**
+  String agentSessionRound(int round, String counts);
+
+  /// A proposal card after its changes were applied.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied {counts}'**
+  String agentSessionRoundApplied(String counts);
+
+  /// A proposal card after its changes were thrown away.
+  ///
+  /// In en, this message translates to:
+  /// **'Discarded {counts}'**
+  String agentSessionRoundDiscarded(String counts);
+
+  /// A proposal card after its changes were taken back.
+  ///
+  /// In en, this message translates to:
+  /// **'Undone {counts}'**
+  String agentSessionRoundUndone(String counts);
+
+  /// A proposal card whose changes are gone.
+  ///
+  /// In en, this message translates to:
+  /// **'{counts} are no longer available'**
+  String agentSessionRoundLost(String counts);
+
+  /// The button that takes back what a proposal applied.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get agentSessionUndo;
+
+  /// Shown when an open session has been removed.
+  ///
+  /// In en, this message translates to:
+  /// **'This session is no longer here.'**
+  String get agentSessionGone;
+
+  /// Spoken for a tool call that finished.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get agentSessionToolDone;
+
+  /// Spoken for a tool call that failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get agentSessionToolFailed;
+
+  /// Spoken for a tool call still going.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get agentSessionToolRunning;
+
+  /// Spoken before the person's own message.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get agentSessionYou;
+
+  /// Spoken before the AI's message.
+  ///
+  /// In en, this message translates to:
+  /// **'{agent} said'**
+  String agentSessionAgentSaid(String agent);
 }
 
 class _AppLocalizationsDelegate

@@ -4,6 +4,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../data/agent_review.dart';
+import '../../data/agent_session.dart';
 import '../../data/agent_task.dart';
 import '../../data/agent_task_prefs.dart';
 import '../../data/application_error.dart';
@@ -31,6 +32,19 @@ abstract interface class AgentTasksRepository {
 
   /// Every task this session, oldest first.
   Future<Either<ApplicationError, List<AgentTask>>> tasks();
+
+  /// The sessions, latest activity first.
+  Future<Either<ApplicationError, List<AgentSession>>> sessions();
+
+  /// What was said in session [key]; opening it clears its unread dot. A
+  /// [NotFoundError] when the session is no longer listed.
+  Future<Either<ApplicationError, AgentTranscript>> transcript(String key);
+
+  /// Sends [text] into session [key].
+  Future<Either<ApplicationError, Unit>> followUp(String key, String text);
+
+  /// Ends session [key]; what it did stays.
+  Future<Either<ApplicationError, Unit>> endSession(String key);
 
   Future<Either<ApplicationError, Unit>> stop(int id);
 

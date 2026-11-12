@@ -22,6 +22,7 @@ import 'account/state/recovery_key/recovery_key_bloc.dart' as _i35;
 import 'account/state/sign_in/sign_in_bloc.dart' as _i552;
 import 'account/state/unlock/unlock_bloc.dart' as _i858;
 import 'agent_tasks/state/agent_review/agent_review_bloc.dart' as _i54;
+import 'agent_tasks/state/agent_session/agent_session_bloc.dart' as _i243;
 import 'agent_tasks/state/agent_settings/agent_settings_cubit.dart' as _i733;
 import 'agent_tasks/state/agent_tasks/agent_tasks_bloc.dart' as _i939;
 import 'ai_settings/state/ai_settings/ai_settings_bloc.dart' as _i182;
@@ -1067,6 +1068,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i54.AgentReviewBloc>(
       () => _i54.AgentReviewBloc(gh<_i214.AgentTasksRepository>()),
+    );
+    gh.factory<_i243.AgentSessionBloc>(
+      () => _i243.AgentSessionBloc(gh<_i214.AgentTasksRepository>()),
     );
     gh.factory<_i733.AgentSettingsCubit>(
       () => _i733.AgentSettingsCubit(gh<_i214.AgentTasksRepository>()),
