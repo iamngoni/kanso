@@ -46,6 +46,15 @@ abstract interface class AgentTasksRepository {
   /// Ends session [key]; what it did stays.
   Future<Either<ApplicationError, Unit>> endSession(String key);
 
+  /// Renames session [key]; a blank [title] changes nothing.
+  Future<Either<ApplicationError, Unit>> renameSession(
+    String key,
+    String title,
+  );
+
+  /// Deletes session [key] from the phone; applied changes stay.
+  Future<Either<ApplicationError, Unit>> deleteSession(String key);
+
   Future<Either<ApplicationError, Unit>> stop(int id);
 
   Future<Either<ApplicationError, Unit>> reply(int id, String text);

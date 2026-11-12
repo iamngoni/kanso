@@ -55,7 +55,7 @@ extension AgentTasksEventPatterns on AgentTasksEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AgentTasksStartedEvent value)?  started,TResult Function( AgentTasksPolledEvent value)?  polled,TResult Function( AgentTasksGoalSentEvent value)?  goalSent,TResult Function( AgentTasksStoppedEvent value)?  stopped,TResult Function( AgentTasksDismissedEvent value)?  dismissed,TResult Function( AgentTasksTroubleClearedEvent value)?  troubleCleared,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AgentTasksStartedEvent value)?  started,TResult Function( AgentTasksPolledEvent value)?  polled,TResult Function( AgentTasksGoalSentEvent value)?  goalSent,TResult Function( AgentTasksStoppedEvent value)?  stopped,TResult Function( AgentTasksDismissedEvent value)?  dismissed,TResult Function( AgentTasksRenamedEvent value)?  renamed,TResult Function( AgentTasksDeletedEvent value)?  deleted,TResult Function( AgentTasksTroubleClearedEvent value)?  troubleCleared,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case AgentTasksStartedEvent() when started != null:
@@ -63,7 +63,9 @@ return started(_that);case AgentTasksPolledEvent() when polled != null:
 return polled(_that);case AgentTasksGoalSentEvent() when goalSent != null:
 return goalSent(_that);case AgentTasksStoppedEvent() when stopped != null:
 return stopped(_that);case AgentTasksDismissedEvent() when dismissed != null:
-return dismissed(_that);case AgentTasksTroubleClearedEvent() when troubleCleared != null:
+return dismissed(_that);case AgentTasksRenamedEvent() when renamed != null:
+return renamed(_that);case AgentTasksDeletedEvent() when deleted != null:
+return deleted(_that);case AgentTasksTroubleClearedEvent() when troubleCleared != null:
 return troubleCleared(_that);case _:
   return orElse();
 
@@ -82,7 +84,7 @@ return troubleCleared(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AgentTasksStartedEvent value)  started,required TResult Function( AgentTasksPolledEvent value)  polled,required TResult Function( AgentTasksGoalSentEvent value)  goalSent,required TResult Function( AgentTasksStoppedEvent value)  stopped,required TResult Function( AgentTasksDismissedEvent value)  dismissed,required TResult Function( AgentTasksTroubleClearedEvent value)  troubleCleared,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AgentTasksStartedEvent value)  started,required TResult Function( AgentTasksPolledEvent value)  polled,required TResult Function( AgentTasksGoalSentEvent value)  goalSent,required TResult Function( AgentTasksStoppedEvent value)  stopped,required TResult Function( AgentTasksDismissedEvent value)  dismissed,required TResult Function( AgentTasksRenamedEvent value)  renamed,required TResult Function( AgentTasksDeletedEvent value)  deleted,required TResult Function( AgentTasksTroubleClearedEvent value)  troubleCleared,}){
 final _that = this;
 switch (_that) {
 case AgentTasksStartedEvent():
@@ -90,7 +92,9 @@ return started(_that);case AgentTasksPolledEvent():
 return polled(_that);case AgentTasksGoalSentEvent():
 return goalSent(_that);case AgentTasksStoppedEvent():
 return stopped(_that);case AgentTasksDismissedEvent():
-return dismissed(_that);case AgentTasksTroubleClearedEvent():
+return dismissed(_that);case AgentTasksRenamedEvent():
+return renamed(_that);case AgentTasksDeletedEvent():
+return deleted(_that);case AgentTasksTroubleClearedEvent():
 return troubleCleared(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -105,7 +109,7 @@ return troubleCleared(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AgentTasksStartedEvent value)?  started,TResult? Function( AgentTasksPolledEvent value)?  polled,TResult? Function( AgentTasksGoalSentEvent value)?  goalSent,TResult? Function( AgentTasksStoppedEvent value)?  stopped,TResult? Function( AgentTasksDismissedEvent value)?  dismissed,TResult? Function( AgentTasksTroubleClearedEvent value)?  troubleCleared,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AgentTasksStartedEvent value)?  started,TResult? Function( AgentTasksPolledEvent value)?  polled,TResult? Function( AgentTasksGoalSentEvent value)?  goalSent,TResult? Function( AgentTasksStoppedEvent value)?  stopped,TResult? Function( AgentTasksDismissedEvent value)?  dismissed,TResult? Function( AgentTasksRenamedEvent value)?  renamed,TResult? Function( AgentTasksDeletedEvent value)?  deleted,TResult? Function( AgentTasksTroubleClearedEvent value)?  troubleCleared,}){
 final _that = this;
 switch (_that) {
 case AgentTasksStartedEvent() when started != null:
@@ -113,7 +117,9 @@ return started(_that);case AgentTasksPolledEvent() when polled != null:
 return polled(_that);case AgentTasksGoalSentEvent() when goalSent != null:
 return goalSent(_that);case AgentTasksStoppedEvent() when stopped != null:
 return stopped(_that);case AgentTasksDismissedEvent() when dismissed != null:
-return dismissed(_that);case AgentTasksTroubleClearedEvent() when troubleCleared != null:
+return dismissed(_that);case AgentTasksRenamedEvent() when renamed != null:
+return renamed(_that);case AgentTasksDeletedEvent() when deleted != null:
+return deleted(_that);case AgentTasksTroubleClearedEvent() when troubleCleared != null:
 return troubleCleared(_that);case _:
   return null;
 
@@ -131,14 +137,16 @@ return troubleCleared(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function()?  polled,TResult Function( String goal,  List<String> noteIds,  String newNoteBook,  bool confirmedAll)?  goalSent,TResult Function( int id)?  stopped,TResult Function( int id)?  dismissed,TResult Function()?  troubleCleared,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function()?  polled,TResult Function( String goal,  List<String> noteIds,  String newNoteBook,  bool confirmedAll)?  goalSent,TResult Function( int id)?  stopped,TResult Function( int id)?  dismissed,TResult Function( String key,  String title)?  renamed,TResult Function( String key)?  deleted,TResult Function()?  troubleCleared,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case AgentTasksStartedEvent() when started != null:
 return started();case AgentTasksPolledEvent() when polled != null:
 return polled();case AgentTasksGoalSentEvent() when goalSent != null:
 return goalSent(_that.goal,_that.noteIds,_that.newNoteBook,_that.confirmedAll);case AgentTasksStoppedEvent() when stopped != null:
 return stopped(_that.id);case AgentTasksDismissedEvent() when dismissed != null:
-return dismissed(_that.id);case AgentTasksTroubleClearedEvent() when troubleCleared != null:
+return dismissed(_that.id);case AgentTasksRenamedEvent() when renamed != null:
+return renamed(_that.key,_that.title);case AgentTasksDeletedEvent() when deleted != null:
+return deleted(_that.key);case AgentTasksTroubleClearedEvent() when troubleCleared != null:
 return troubleCleared();case _:
   return orElse();
 
@@ -157,14 +165,16 @@ return troubleCleared();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function()  polled,required TResult Function( String goal,  List<String> noteIds,  String newNoteBook,  bool confirmedAll)  goalSent,required TResult Function( int id)  stopped,required TResult Function( int id)  dismissed,required TResult Function()  troubleCleared,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function()  polled,required TResult Function( String goal,  List<String> noteIds,  String newNoteBook,  bool confirmedAll)  goalSent,required TResult Function( int id)  stopped,required TResult Function( int id)  dismissed,required TResult Function( String key,  String title)  renamed,required TResult Function( String key)  deleted,required TResult Function()  troubleCleared,}) {final _that = this;
 switch (_that) {
 case AgentTasksStartedEvent():
 return started();case AgentTasksPolledEvent():
 return polled();case AgentTasksGoalSentEvent():
 return goalSent(_that.goal,_that.noteIds,_that.newNoteBook,_that.confirmedAll);case AgentTasksStoppedEvent():
 return stopped(_that.id);case AgentTasksDismissedEvent():
-return dismissed(_that.id);case AgentTasksTroubleClearedEvent():
+return dismissed(_that.id);case AgentTasksRenamedEvent():
+return renamed(_that.key,_that.title);case AgentTasksDeletedEvent():
+return deleted(_that.key);case AgentTasksTroubleClearedEvent():
 return troubleCleared();}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -179,14 +189,16 @@ return troubleCleared();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function()?  polled,TResult? Function( String goal,  List<String> noteIds,  String newNoteBook,  bool confirmedAll)?  goalSent,TResult? Function( int id)?  stopped,TResult? Function( int id)?  dismissed,TResult? Function()?  troubleCleared,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function()?  polled,TResult? Function( String goal,  List<String> noteIds,  String newNoteBook,  bool confirmedAll)?  goalSent,TResult? Function( int id)?  stopped,TResult? Function( int id)?  dismissed,TResult? Function( String key,  String title)?  renamed,TResult? Function( String key)?  deleted,TResult? Function()?  troubleCleared,}) {final _that = this;
 switch (_that) {
 case AgentTasksStartedEvent() when started != null:
 return started();case AgentTasksPolledEvent() when polled != null:
 return polled();case AgentTasksGoalSentEvent() when goalSent != null:
 return goalSent(_that.goal,_that.noteIds,_that.newNoteBook,_that.confirmedAll);case AgentTasksStoppedEvent() when stopped != null:
 return stopped(_that.id);case AgentTasksDismissedEvent() when dismissed != null:
-return dismissed(_that.id);case AgentTasksTroubleClearedEvent() when troubleCleared != null:
+return dismissed(_that.id);case AgentTasksRenamedEvent() when renamed != null:
+return renamed(_that.key,_that.title);case AgentTasksDeletedEvent() when deleted != null:
+return deleted(_that.key);case AgentTasksTroubleClearedEvent() when troubleCleared != null:
 return troubleCleared();case _:
   return null;
 
@@ -465,6 +477,140 @@ class _$AgentTasksDismissedEventCopyWithImpl<$Res>
   return _then(AgentTasksDismissedEvent(
 null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class AgentTasksRenamedEvent implements AgentTasksEvent {
+  const AgentTasksRenamedEvent(this.key, this.title);
+  
+
+ final  String key;
+ final  String title;
+
+/// Create a copy of AgentTasksEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AgentTasksRenamedEventCopyWith<AgentTasksRenamedEvent> get copyWith => _$AgentTasksRenamedEventCopyWithImpl<AgentTasksRenamedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AgentTasksRenamedEvent&&(identical(other.key, key) || other.key == key)&&(identical(other.title, title) || other.title == title));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,key,title);
+
+@override
+String toString() {
+  return 'AgentTasksEvent.renamed(key: $key, title: $title)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AgentTasksRenamedEventCopyWith<$Res> implements $AgentTasksEventCopyWith<$Res> {
+  factory $AgentTasksRenamedEventCopyWith(AgentTasksRenamedEvent value, $Res Function(AgentTasksRenamedEvent) _then) = _$AgentTasksRenamedEventCopyWithImpl;
+@useResult
+$Res call({
+ String key, String title
+});
+
+
+
+
+}
+/// @nodoc
+class _$AgentTasksRenamedEventCopyWithImpl<$Res>
+    implements $AgentTasksRenamedEventCopyWith<$Res> {
+  _$AgentTasksRenamedEventCopyWithImpl(this._self, this._then);
+
+  final AgentTasksRenamedEvent _self;
+  final $Res Function(AgentTasksRenamedEvent) _then;
+
+/// Create a copy of AgentTasksEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? key = null,Object? title = null,}) {
+  return _then(AgentTasksRenamedEvent(
+null == key ? _self.key : key // ignore: cast_nullable_to_non_nullable
+as String,null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class AgentTasksDeletedEvent implements AgentTasksEvent {
+  const AgentTasksDeletedEvent(this.key);
+  
+
+ final  String key;
+
+/// Create a copy of AgentTasksEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AgentTasksDeletedEventCopyWith<AgentTasksDeletedEvent> get copyWith => _$AgentTasksDeletedEventCopyWithImpl<AgentTasksDeletedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AgentTasksDeletedEvent&&(identical(other.key, key) || other.key == key));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,key);
+
+@override
+String toString() {
+  return 'AgentTasksEvent.deleted(key: $key)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AgentTasksDeletedEventCopyWith<$Res> implements $AgentTasksEventCopyWith<$Res> {
+  factory $AgentTasksDeletedEventCopyWith(AgentTasksDeletedEvent value, $Res Function(AgentTasksDeletedEvent) _then) = _$AgentTasksDeletedEventCopyWithImpl;
+@useResult
+$Res call({
+ String key
+});
+
+
+
+
+}
+/// @nodoc
+class _$AgentTasksDeletedEventCopyWithImpl<$Res>
+    implements $AgentTasksDeletedEventCopyWith<$Res> {
+  _$AgentTasksDeletedEventCopyWithImpl(this._self, this._then);
+
+  final AgentTasksDeletedEvent _self;
+  final $Res Function(AgentTasksDeletedEvent) _then;
+
+/// Create a copy of AgentTasksEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? key = null,}) {
+  return _then(AgentTasksDeletedEvent(
+null == key ? _self.key : key // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

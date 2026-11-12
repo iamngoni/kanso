@@ -351,4 +351,45 @@ void main() {
       expect(blocks[3] as List<AgentToolItem>, hasLength(3));
     });
   });
+
+  testWidgets('the menu renames the session', (tester) async {
+    final repo = await _open(
+      tester,
+      session: _session(),
+      items: const <AgentTranscriptItem>[],
+    );
+    await tester.tap(find.bySemanticsLabel('Session actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rename'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText), '  Lisbon, done  ');
+    await tester.pump();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(repo.calls, contains('renameSession:k4:Lisbon, done'));
+  });
+
+  testWidgets('the menu deletes the session only once confirmed', (
+    tester,
+  ) async {
+    final repo = await _open(
+      tester,
+      session: _session(),
+      items: const <AgentTranscriptItem>[],
+    );
+    await tester.tap(find.bySemanticsLabel('Session actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete session'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(repo.calls.where((c) => c.startsWith('deleteSession')), isEmpty);
+    await tester.tap(find.bySemanticsLabel('Session actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete session'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete session').last);
+    await tester.pumpAndSettle();
+    expect(repo.calls, contains('deleteSession:k4'));
+  });
 }

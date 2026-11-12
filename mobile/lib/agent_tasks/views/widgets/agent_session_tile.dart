@@ -22,6 +22,7 @@ class AgentSessionTile extends StatelessWidget {
     required this.onOpen,
     required this.onStop,
     required this.onReview,
+    this.onLongPress,
     super.key,
   });
 
@@ -33,6 +34,9 @@ class AgentSessionTile extends StatelessWidget {
   final VoidCallback onStop;
   final VoidCallback onReview;
 
+  /// Opens the session's actions (rename, delete).
+  final VoidCallback? onLongPress;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -41,6 +45,7 @@ class AgentSessionTile extends StatelessWidget {
     final unread = session.unread;
     return KansoPressable(
       onTap: onOpen,
+      onLongPress: onLongPress,
       child: Container(
         constraints: const BoxConstraints(minHeight: KansoSizes.touchTarget),
         padding: const EdgeInsets.fromLTRB(

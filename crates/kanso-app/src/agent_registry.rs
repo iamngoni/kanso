@@ -220,6 +220,9 @@ mod tests {
             node in prop::option::of(18u32..30),
             tested in any::<bool>(),
         ) {
+            // A package that is itself called `npx` would put the word in the
+            // sheet legitimately; the property is about the install command.
+            prop_assume!(!package.contains("npx"));
             let text = confirm_text(&name, &package, node, tested);
             let command = format!("npm install -g {package}");
             prop_assert!(text.contains(&command));

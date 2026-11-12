@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
+import '../../../core/models/data/agent_session.dart';
 import '../../../core/router/kanso_routes.dart';
 import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
@@ -29,6 +30,7 @@ import '../../../core/views/widgets/kanso_text_field.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../injection.dart';
 import '../../state/agent_tasks/agent_tasks_bloc.dart';
+import '../widgets/agent_session_actions.dart';
 import '../widgets/agent_session_tile.dart';
 import '../widgets/agent_trouble_card.dart';
 import 'agent_review_page.dart';
@@ -76,6 +78,33 @@ class _BodyState extends State<_Body> {
   void dispose() {
     _goal.dispose();
     super.dispose();
+  }
+
+  /// The rename and delete menu of [session], from a long press on its row.
+  Future<void> _sessionMenu(
+    BuildContext context,
+    AgentTasksBloc bloc,
+    AgentSession session,
+  ) async {
+    final size = MediaQuery.sizeOf(context);
+    final action = await showAgentSessionMenu(
+      context,
+      Offset(size.width / 2, size.height / 2),
+    );
+    if (action == null || !context.mounted) {
+      return;
+    }
+    switch (action) {
+      case AgentSessionAction.rename:
+        final title = await askAgentSessionTitle(context, session.title);
+        if (title != null) {
+          bloc.add(AgentTasksEvent.renamed(session.key, title));
+        }
+      case AgentSessionAction.delete:
+        if (await confirmDeleteAgentSession(context)) {
+          bloc.add(AgentTasksEvent.deleted(session.key));
+        }
+    }
   }
 
   Future<void> _send(BuildContext context) async {
@@ -231,6 +260,9 @@ class _BodyState extends State<_Body> {
                             builder: (_) =>
                                 AgentSessionPage(sessionKey: session.key),
                           ),
+                        ),
+                        onLongPress: () => unawaited(
+                          _sessionMenu(context, bloc, session),
                         ),
                         onStop: () =>
                             bloc.add(AgentTasksEvent.stopped(session.id)),

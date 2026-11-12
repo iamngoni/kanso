@@ -28,6 +28,11 @@ sealed class AgentTasksEvent with _$AgentTasksEvent {
 
   const factory AgentTasksEvent.dismissed(int id) = AgentTasksDismissedEvent;
 
+  const factory AgentTasksEvent.renamed(String key, String title) =
+      AgentTasksRenamedEvent;
+
+  const factory AgentTasksEvent.deleted(String key) = AgentTasksDeletedEvent;
+
   const factory AgentTasksEvent.troubleCleared() =
       AgentTasksTroubleClearedEvent;
 }

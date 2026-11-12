@@ -55,7 +55,7 @@ extension AgentSessionEventPatterns on AgentSessionEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AgentSessionStartedEvent value)?  started,TResult Function( AgentSessionPolledEvent value)?  polled,TResult Function( AgentSessionFollowUpSentEvent value)?  followUpSent,TResult Function( AgentSessionStoppedEvent value)?  stopped,TResult Function( AgentSessionEndedEvent value)?  ended,TResult Function( AgentSessionDismissedEvent value)?  dismissed,TResult Function( AgentSessionUndoneEvent value)?  undone,TResult Function( AgentSessionTroubleClearedEvent value)?  troubleCleared,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( AgentSessionStartedEvent value)?  started,TResult Function( AgentSessionPolledEvent value)?  polled,TResult Function( AgentSessionFollowUpSentEvent value)?  followUpSent,TResult Function( AgentSessionStoppedEvent value)?  stopped,TResult Function( AgentSessionEndedEvent value)?  ended,TResult Function( AgentSessionRenamedEvent value)?  renamed,TResult Function( AgentSessionDeletedEvent value)?  deleted,TResult Function( AgentSessionDismissedEvent value)?  dismissed,TResult Function( AgentSessionUndoneEvent value)?  undone,TResult Function( AgentSessionTroubleClearedEvent value)?  troubleCleared,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case AgentSessionStartedEvent() when started != null:
@@ -63,7 +63,9 @@ return started(_that);case AgentSessionPolledEvent() when polled != null:
 return polled(_that);case AgentSessionFollowUpSentEvent() when followUpSent != null:
 return followUpSent(_that);case AgentSessionStoppedEvent() when stopped != null:
 return stopped(_that);case AgentSessionEndedEvent() when ended != null:
-return ended(_that);case AgentSessionDismissedEvent() when dismissed != null:
+return ended(_that);case AgentSessionRenamedEvent() when renamed != null:
+return renamed(_that);case AgentSessionDeletedEvent() when deleted != null:
+return deleted(_that);case AgentSessionDismissedEvent() when dismissed != null:
 return dismissed(_that);case AgentSessionUndoneEvent() when undone != null:
 return undone(_that);case AgentSessionTroubleClearedEvent() when troubleCleared != null:
 return troubleCleared(_that);case _:
@@ -84,7 +86,7 @@ return troubleCleared(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AgentSessionStartedEvent value)  started,required TResult Function( AgentSessionPolledEvent value)  polled,required TResult Function( AgentSessionFollowUpSentEvent value)  followUpSent,required TResult Function( AgentSessionStoppedEvent value)  stopped,required TResult Function( AgentSessionEndedEvent value)  ended,required TResult Function( AgentSessionDismissedEvent value)  dismissed,required TResult Function( AgentSessionUndoneEvent value)  undone,required TResult Function( AgentSessionTroubleClearedEvent value)  troubleCleared,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( AgentSessionStartedEvent value)  started,required TResult Function( AgentSessionPolledEvent value)  polled,required TResult Function( AgentSessionFollowUpSentEvent value)  followUpSent,required TResult Function( AgentSessionStoppedEvent value)  stopped,required TResult Function( AgentSessionEndedEvent value)  ended,required TResult Function( AgentSessionRenamedEvent value)  renamed,required TResult Function( AgentSessionDeletedEvent value)  deleted,required TResult Function( AgentSessionDismissedEvent value)  dismissed,required TResult Function( AgentSessionUndoneEvent value)  undone,required TResult Function( AgentSessionTroubleClearedEvent value)  troubleCleared,}){
 final _that = this;
 switch (_that) {
 case AgentSessionStartedEvent():
@@ -92,7 +94,9 @@ return started(_that);case AgentSessionPolledEvent():
 return polled(_that);case AgentSessionFollowUpSentEvent():
 return followUpSent(_that);case AgentSessionStoppedEvent():
 return stopped(_that);case AgentSessionEndedEvent():
-return ended(_that);case AgentSessionDismissedEvent():
+return ended(_that);case AgentSessionRenamedEvent():
+return renamed(_that);case AgentSessionDeletedEvent():
+return deleted(_that);case AgentSessionDismissedEvent():
 return dismissed(_that);case AgentSessionUndoneEvent():
 return undone(_that);case AgentSessionTroubleClearedEvent():
 return troubleCleared(_that);}
@@ -109,7 +113,7 @@ return troubleCleared(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AgentSessionStartedEvent value)?  started,TResult? Function( AgentSessionPolledEvent value)?  polled,TResult? Function( AgentSessionFollowUpSentEvent value)?  followUpSent,TResult? Function( AgentSessionStoppedEvent value)?  stopped,TResult? Function( AgentSessionEndedEvent value)?  ended,TResult? Function( AgentSessionDismissedEvent value)?  dismissed,TResult? Function( AgentSessionUndoneEvent value)?  undone,TResult? Function( AgentSessionTroubleClearedEvent value)?  troubleCleared,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( AgentSessionStartedEvent value)?  started,TResult? Function( AgentSessionPolledEvent value)?  polled,TResult? Function( AgentSessionFollowUpSentEvent value)?  followUpSent,TResult? Function( AgentSessionStoppedEvent value)?  stopped,TResult? Function( AgentSessionEndedEvent value)?  ended,TResult? Function( AgentSessionRenamedEvent value)?  renamed,TResult? Function( AgentSessionDeletedEvent value)?  deleted,TResult? Function( AgentSessionDismissedEvent value)?  dismissed,TResult? Function( AgentSessionUndoneEvent value)?  undone,TResult? Function( AgentSessionTroubleClearedEvent value)?  troubleCleared,}){
 final _that = this;
 switch (_that) {
 case AgentSessionStartedEvent() when started != null:
@@ -117,7 +121,9 @@ return started(_that);case AgentSessionPolledEvent() when polled != null:
 return polled(_that);case AgentSessionFollowUpSentEvent() when followUpSent != null:
 return followUpSent(_that);case AgentSessionStoppedEvent() when stopped != null:
 return stopped(_that);case AgentSessionEndedEvent() when ended != null:
-return ended(_that);case AgentSessionDismissedEvent() when dismissed != null:
+return ended(_that);case AgentSessionRenamedEvent() when renamed != null:
+return renamed(_that);case AgentSessionDeletedEvent() when deleted != null:
+return deleted(_that);case AgentSessionDismissedEvent() when dismissed != null:
 return dismissed(_that);case AgentSessionUndoneEvent() when undone != null:
 return undone(_that);case AgentSessionTroubleClearedEvent() when troubleCleared != null:
 return troubleCleared(_that);case _:
@@ -137,14 +143,16 @@ return troubleCleared(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String key)?  started,TResult Function()?  polled,TResult Function( String text)?  followUpSent,TResult Function()?  stopped,TResult Function()?  ended,TResult Function()?  dismissed,TResult Function()?  undone,TResult Function()?  troubleCleared,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String key)?  started,TResult Function()?  polled,TResult Function( String text)?  followUpSent,TResult Function()?  stopped,TResult Function()?  ended,TResult Function( String title)?  renamed,TResult Function()?  deleted,TResult Function()?  dismissed,TResult Function()?  undone,TResult Function()?  troubleCleared,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case AgentSessionStartedEvent() when started != null:
 return started(_that.key);case AgentSessionPolledEvent() when polled != null:
 return polled();case AgentSessionFollowUpSentEvent() when followUpSent != null:
 return followUpSent(_that.text);case AgentSessionStoppedEvent() when stopped != null:
 return stopped();case AgentSessionEndedEvent() when ended != null:
-return ended();case AgentSessionDismissedEvent() when dismissed != null:
+return ended();case AgentSessionRenamedEvent() when renamed != null:
+return renamed(_that.title);case AgentSessionDeletedEvent() when deleted != null:
+return deleted();case AgentSessionDismissedEvent() when dismissed != null:
 return dismissed();case AgentSessionUndoneEvent() when undone != null:
 return undone();case AgentSessionTroubleClearedEvent() when troubleCleared != null:
 return troubleCleared();case _:
@@ -165,14 +173,16 @@ return troubleCleared();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String key)  started,required TResult Function()  polled,required TResult Function( String text)  followUpSent,required TResult Function()  stopped,required TResult Function()  ended,required TResult Function()  dismissed,required TResult Function()  undone,required TResult Function()  troubleCleared,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String key)  started,required TResult Function()  polled,required TResult Function( String text)  followUpSent,required TResult Function()  stopped,required TResult Function()  ended,required TResult Function( String title)  renamed,required TResult Function()  deleted,required TResult Function()  dismissed,required TResult Function()  undone,required TResult Function()  troubleCleared,}) {final _that = this;
 switch (_that) {
 case AgentSessionStartedEvent():
 return started(_that.key);case AgentSessionPolledEvent():
 return polled();case AgentSessionFollowUpSentEvent():
 return followUpSent(_that.text);case AgentSessionStoppedEvent():
 return stopped();case AgentSessionEndedEvent():
-return ended();case AgentSessionDismissedEvent():
+return ended();case AgentSessionRenamedEvent():
+return renamed(_that.title);case AgentSessionDeletedEvent():
+return deleted();case AgentSessionDismissedEvent():
 return dismissed();case AgentSessionUndoneEvent():
 return undone();case AgentSessionTroubleClearedEvent():
 return troubleCleared();}
@@ -189,14 +199,16 @@ return troubleCleared();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String key)?  started,TResult? Function()?  polled,TResult? Function( String text)?  followUpSent,TResult? Function()?  stopped,TResult? Function()?  ended,TResult? Function()?  dismissed,TResult? Function()?  undone,TResult? Function()?  troubleCleared,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String key)?  started,TResult? Function()?  polled,TResult? Function( String text)?  followUpSent,TResult? Function()?  stopped,TResult? Function()?  ended,TResult? Function( String title)?  renamed,TResult? Function()?  deleted,TResult? Function()?  dismissed,TResult? Function()?  undone,TResult? Function()?  troubleCleared,}) {final _that = this;
 switch (_that) {
 case AgentSessionStartedEvent() when started != null:
 return started(_that.key);case AgentSessionPolledEvent() when polled != null:
 return polled();case AgentSessionFollowUpSentEvent() when followUpSent != null:
 return followUpSent(_that.text);case AgentSessionStoppedEvent() when stopped != null:
 return stopped();case AgentSessionEndedEvent() when ended != null:
-return ended();case AgentSessionDismissedEvent() when dismissed != null:
+return ended();case AgentSessionRenamedEvent() when renamed != null:
+return renamed(_that.title);case AgentSessionDeletedEvent() when deleted != null:
+return deleted();case AgentSessionDismissedEvent() when dismissed != null:
 return dismissed();case AgentSessionUndoneEvent() when undone != null:
 return undone();case AgentSessionTroubleClearedEvent() when troubleCleared != null:
 return troubleCleared();case _:
@@ -427,6 +439,104 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'AgentSessionEvent.ended()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class AgentSessionRenamedEvent implements AgentSessionEvent {
+  const AgentSessionRenamedEvent(this.title);
+  
+
+ final  String title;
+
+/// Create a copy of AgentSessionEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AgentSessionRenamedEventCopyWith<AgentSessionRenamedEvent> get copyWith => _$AgentSessionRenamedEventCopyWithImpl<AgentSessionRenamedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AgentSessionRenamedEvent&&(identical(other.title, title) || other.title == title));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,title);
+
+@override
+String toString() {
+  return 'AgentSessionEvent.renamed(title: $title)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AgentSessionRenamedEventCopyWith<$Res> implements $AgentSessionEventCopyWith<$Res> {
+  factory $AgentSessionRenamedEventCopyWith(AgentSessionRenamedEvent value, $Res Function(AgentSessionRenamedEvent) _then) = _$AgentSessionRenamedEventCopyWithImpl;
+@useResult
+$Res call({
+ String title
+});
+
+
+
+
+}
+/// @nodoc
+class _$AgentSessionRenamedEventCopyWithImpl<$Res>
+    implements $AgentSessionRenamedEventCopyWith<$Res> {
+  _$AgentSessionRenamedEventCopyWithImpl(this._self, this._then);
+
+  final AgentSessionRenamedEvent _self;
+  final $Res Function(AgentSessionRenamedEvent) _then;
+
+/// Create a copy of AgentSessionEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? title = null,}) {
+  return _then(AgentSessionRenamedEvent(
+null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class AgentSessionDeletedEvent implements AgentSessionEvent {
+  const AgentSessionDeletedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AgentSessionDeletedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'AgentSessionEvent.deleted()';
 }
 
 

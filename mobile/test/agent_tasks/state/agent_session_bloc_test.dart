@@ -59,6 +59,20 @@ void main() {
       );
     });
 
+    test('rename and delete reach the core with the session key', () async {
+      bloc
+        ..add(const AgentSessionEvent.renamed('Lisbon, done'))
+        ..add(const AgentSessionEvent.deleted());
+      await pumpEventQueue();
+      expect(
+        repo.calls,
+        containsAllInOrder(<String>[
+          'renameSession:session-1:Lisbon, done',
+          'deleteSession:session-1',
+        ]),
+      );
+    });
+
     test('dismissing discards the task', () async {
       bloc.add(const AgentSessionEvent.dismissed());
       await bloc.stream.firstWhere((s) => s.gone);

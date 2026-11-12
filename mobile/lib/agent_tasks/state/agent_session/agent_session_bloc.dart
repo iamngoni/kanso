@@ -43,6 +43,11 @@ class AgentSessionBloc extends Bloc<AgentSessionEvent, AgentSessionState> {
     AgentSessionFollowUpSentEvent() => _onFollowUp(event.text, emit),
     AgentSessionStoppedEvent() => _onStopped(emit),
     AgentSessionEndedEvent() => _then(_tasks.endSession(_key), emit),
+    AgentSessionRenamedEvent() => _then(
+      _tasks.renameSession(_key, event.title),
+      emit,
+    ),
+    AgentSessionDeletedEvent() => _onDeleted(emit),
     AgentSessionDismissedEvent() => _onDismissed(emit),
     AgentSessionUndoneEvent() => _onUndone(emit),
     AgentSessionTroubleClearedEvent() => Future<void>.sync(
@@ -80,6 +85,11 @@ class AgentSessionBloc extends Bloc<AgentSessionEvent, AgentSessionState> {
     if (id != null) {
       await _tasks.stop(id);
     }
+    await _refresh(emit);
+  }
+
+  Future<void> _onDeleted(Emitter<AgentSessionState> emit) async {
+    await _tasks.deleteSession(_key);
     await _refresh(emit);
   }
 
