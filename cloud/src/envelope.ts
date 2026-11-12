@@ -21,7 +21,8 @@ export const HEADER_BYTES = 1 + 1 + 4 + 2 + 34 + 2 + 34 + 8;
 export const MIN_ENVELOPE = HEADER_BYTES + NONCE_BYTES + TAG_BYTES + SIGNATURE_BYTES;
 
 export type Kind = "u" | "s" | "c" | "p";
-export type Role = "owner" | "edit" | "comment" | "view";
+/** `manager` is for shared notebooks only; a shared note's member list refuses it (collab.ts). */
+export type Role = "owner" | "manager" | "edit" | "comment" | "view";
 
 /** The most bytes a whole envelope of each kind may have. */
 export const MAX_ENVELOPE: Record<Kind, number> = {
@@ -33,10 +34,10 @@ export const MAX_ENVELOPE: Record<Kind, number> = {
 
 /** Who may write each kind: updates and snapshots need edit, comments comment, presence any member. */
 export const ROLES_FOR: Record<Kind, readonly Role[]> = {
-	u: ["edit", "owner"],
-	s: ["edit", "owner"],
-	c: ["comment", "edit", "owner"],
-	p: ["view", "comment", "edit", "owner"],
+	u: ["edit", "manager", "owner"],
+	s: ["edit", "manager", "owner"],
+	c: ["comment", "edit", "manager", "owner"],
+	p: ["view", "comment", "edit", "manager", "owner"],
 };
 
 export const mayWrite = (role: string, kind: Kind): boolean => (ROLES_FOR[kind] as readonly string[]).includes(role);

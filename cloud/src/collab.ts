@@ -36,11 +36,11 @@ import { type NoteRoom, ROOM_HEADERS, type RoomRefusal } from "./room";
 import { isShareId } from "./shares";
 import { PUBLIC_HEADERS } from "./viewer";
 
-type Handler = (request: Request, env: Env, now: number) => Promise<Response>;
-type SessionHandler = (request: Request, env: Env, now: number, session: Session) => Promise<Response>;
+export type Handler = (request: Request, env: Env, now: number) => Promise<Response>;
+export type SessionHandler = (request: Request, env: Env, now: number, session: Session) => Promise<Response>;
 
 /** withSession, looked up when a request arrives (auth.ts imports this module for account deletion). */
-const route =
+export const route =
 	(handler: SessionHandler): Handler =>
 	(request, env, now) =>
 		withSession(handler)(request, env, now);
@@ -64,19 +64,19 @@ const MAX_SHARE_BODY = 6 * 1024 * 1024;
 export const COLLAB_PURGE_BATCH = 100;
 
 const ROLES: readonly Role[] = ["owner", "edit", "comment", "view"];
-const LINK_ROLES: readonly Role[] = ["edit", "comment", "view"];
+export const LINK_ROLES: readonly Role[] = ["edit", "comment", "view"];
 
 export const roomOf = (env: Env, shareId: string): DurableObjectStub<NoteRoom> => env.NOTE_ROOM.get(env.NOTE_ROOM.idFromName(shareId));
 
 /** Binds `values` up to the highest `?N` the statement uses (D1 refuses extra bindings). */
-function bound(db: D1Database, sql: string, values: unknown[]): D1PreparedStatement {
+export function bound(db: D1Database, sql: string, values: unknown[]): D1PreparedStatement {
 	const highest = Math.max(0, ...[...sql.matchAll(/\?(\d+)/g)].map((m) => Number(m[1])));
 	return db.prepare(sql).bind(...values.slice(0, highest));
 }
 
-const noContent = (): Response => new Response(null, { status: 204 });
-const forbiddenRole = (): Response => error(403, "forbidden_role", "Your role in this note doesn't allow that.");
-const identityRequired = (): Response => error(403, "identity_required", "Set up this account's identity keys first.");
+export const noContent = (): Response => new Response(null, { status: 204 });
+export const forbiddenRole = (): Response => error(403, "forbidden_role", "Your role in this note doesn't allow that.");
+export const identityRequired = (): Response => error(403, "identity_required", "Set up this account's identity keys first.");
 
 // ------------------------------------------------------------------ the list
 
@@ -181,7 +181,7 @@ function checkWraps(wraps: unknown, members: ListMember[], epoch: number, earlie
  * the account's own. Otherwise anyone could list someone else's account under
  * their own keys and have members pin them. Null when all match.
  */
-async function checkMemberKeys(env: Env, members: ListMember[]): Promise<Response | null> {
+export async function checkMemberKeys(env: Env, members: ListMember[]): Promise<Response | null> {
 	const { results } = await env.DB.prepare(
 		`SELECT i.account_id, i.sign_pub, i.box_pub, a.username FROM identities i JOIN accounts a ON a.id = i.account_id
   WHERE i.account_id IN (SELECT value FROM json_each(?1))`,
@@ -1040,6 +1040,25 @@ export function invitePage(linkId: string): Handler {
 // ------------------------------------------------------ deletion and the cron
 
 /**
+ * The statements that take an account out of shared notebooks (an account
+ * deletion), bound as the share route binds them: ?1 account, ?2 guard value,
+ * ?3 now. Its own notebooks are stopped (`stopped_at` is what lets their lists
+ * go; deleting the row retires the ID), and its place in others' goes.
+ */
+function bookAccountStatements(bind: (sql: string) => D1PreparedStatement, guardSql: string): D1PreparedStatement[] {
+	const owned = "(SELECT id FROM book_shares WHERE owner_id = ?1)";
+	return [
+		bind(`UPDATE book_shares SET stopped_at = ?3 WHERE owner_id = ?1 AND ${guardSql}`),
+		bind(`DELETE FROM book_wraps WHERE (account_id = ?1 OR share_id IN ${owned}) AND ${guardSql}`),
+		bind(`DELETE FROM book_epochs WHERE share_id IN ${owned} AND ${guardSql}`),
+		bind(`DELETE FROM book_lists WHERE share_id IN ${owned} AND ${guardSql}`),
+		bind(`DELETE FROM book_links WHERE share_id IN ${owned} AND ${guardSql}`),
+		bind(`DELETE FROM book_members WHERE (account_id = ?1 OR share_id IN ${owned}) AND ${guardSql}`),
+		bind(`DELETE FROM book_shares WHERE owner_id = ?1 AND ${guardSql}`),
+	];
+}
+
+/**
  * The statements that take an account out of sharing (an account deletion),
  * guarded by `guardSql` (bound as ?1 account, ?2 guard value, ?3 now): its
  * own shares are stopped (rows gone, IDs retired, rooms queued for purging),
@@ -1060,6 +1079,7 @@ export function accountCollabStatements(db: D1Database, accountId: string, guard
 		bind(`DELETE FROM collab_links WHERE share_id IN ${owned} AND ${guardSql}`),
 		bind(`DELETE FROM collab_members WHERE (account_id = ?1 OR share_id IN ${owned}) AND ${guardSql}`),
 		bind(`DELETE FROM collab_shares WHERE owner_id = ?1 AND ${guardSql}`),
+		...bookAccountStatements(bind, guardSql),
 		bind(`DELETE FROM identities WHERE account_id = ?1 AND ${guardSql}`),
 	];
 }
@@ -1084,6 +1104,7 @@ export async function afterAccountDeleted(env: Env, accountId: string, shares: s
  */
 export async function runCollabPurges(env: Env, now: number, limit = COLLAB_PURGE_BATCH): Promise<number> {
 	await env.DB.prepare("DELETE FROM collab_links WHERE expires_at <= ?1").bind(now).run();
+	await env.DB.prepare("DELETE FROM book_links WHERE expires_at <= ?1").bind(now).run();
 	const { results } = await env.DB.prepare("SELECT id FROM collab_purges ORDER BY requested_at, id LIMIT ?1").bind(limit).all<{ id: string }>();
 	let purged = 0;
 	for (const { id } of results) if (await purgeRoom(env, id)) purged += 1;

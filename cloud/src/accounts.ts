@@ -588,6 +588,15 @@ export async function admin(args: string[], io: AdminIO, now: number = Date.now(
 				`DELETE FROM collab_links WHERE share_id IN (SELECT id FROM collab_shares WHERE owner_id = ${id})`,
 				`DELETE FROM collab_members WHERE account_id = ${id} OR share_id IN (SELECT id FROM collab_shares WHERE owner_id = ${id})`,
 				`DELETE FROM collab_shares WHERE owner_id = ${id}`,
+				// Shared notebooks: its own are stopped (stopped_at lets their lists go; a trigger retires the ID),
+				// and its place in others' goes.
+				`UPDATE book_shares SET stopped_at = ${now} WHERE owner_id = ${id}`,
+				`DELETE FROM book_wraps WHERE account_id = ${id} OR share_id IN (SELECT id FROM book_shares WHERE owner_id = ${id})`,
+				`DELETE FROM book_epochs WHERE share_id IN (SELECT id FROM book_shares WHERE owner_id = ${id})`,
+				`DELETE FROM book_lists WHERE share_id IN (SELECT id FROM book_shares WHERE owner_id = ${id})`,
+				`DELETE FROM book_links WHERE share_id IN (SELECT id FROM book_shares WHERE owner_id = ${id})`,
+				`DELETE FROM book_members WHERE account_id = ${id} OR share_id IN (SELECT id FROM book_shares WHERE owner_id = ${id})`,
+				`DELETE FROM book_shares WHERE owner_id = ${id}`,
 				`DELETE FROM identities WHERE account_id = ${id}`,
 				// The sign-in rows reference the account, so they go before it, as in the Worker's deletion.
 				`DELETE FROM device_approvals WHERE account_id = ${id}`,
@@ -596,7 +605,7 @@ export async function admin(args: string[], io: AdminIO, now: number = Date.now(
 				`DELETE FROM auth_flows WHERE account_id = ${id}`,
 				`DELETE FROM sessions WHERE account_id = ${id}`,
 				`DELETE FROM limits WHERE key IN ('login-user:' || ${id}, 'password-account:' || ${id}, 'writes-account:' || ${id},
-  'uploads-account:' || ${id}, 'lookup-account:' || ${id}, 'join-account:' || ${id}, 'notify-account:' || ${id},
+  'uploads-account:' || ${id}, 'lookup-account:' || ${id}, 'join-account:' || ${id}, 'notify-account:' || ${id}, 'book-read-account:' || ${id}, 'book-write-account:' || ${id},
   'proof-account:' || ${id}, 'passkey-manage:' || ${id},
   'approval-create:' || ${id}, 'approval-poll:' || ${id}, 'approval-respond:' || ${id})
   OR (key > 'password-account:' || ${id} || ':' AND key < 'password-account:' || ${id} || ';')

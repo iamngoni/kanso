@@ -18,7 +18,7 @@ function random(n: number): Uint8Array {
 }
 const encoder = new TextEncoder();
 
-export type Role = "owner" | "edit" | "comment" | "view";
+export type Role = "owner" | "manager" | "edit" | "comment" | "view";
 export type Kind = "u" | "s" | "c" | "p";
 
 export const newShareId = (): string => base64url(random(16));

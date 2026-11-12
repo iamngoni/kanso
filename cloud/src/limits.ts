@@ -33,6 +33,8 @@ export type Rule =
 	| "lookup-account"
 	| "join-account"
 	| "notify-account"
+	| "book-read-account"
+	| "book-write-account"
 	| "proof-account"
 	| "provider-poll"
 	| "approval-create"
@@ -59,6 +61,9 @@ export type Rule =
  * `lookup-account` every public-key lookup by username, `join-account` every
  * request to join through a link (each one is a guess at a link's proof), and
  * `notify-account` every notification sent.
+ *
+ * Shared notebooks count per account: `book-read-account` every read of a notebook, `book-write-account`
+ * every create, new list, link, accept, leave and stop.
  *
  * Sign-in methods (docs/ACCOUNTS.md › Rate limits): `proof-account` counts every
  * provider flow started for a link or a proof, per account; `provider-poll` every
@@ -104,6 +109,8 @@ export const RULES: Record<Rule, { window: number; max: number | null }> = {
 	"lookup-account": { window: HOUR, max: 120 },
 	"join-account": { window: HOUR, max: 20 },
 	"notify-account": { window: DAY, max: 500 },
+	"book-read-account": { window: HOUR, max: 600 },
+	"book-write-account": { window: HOUR, max: 120 },
 	"provider-poll": { window: 15 * 60_000, max: 300 },
 	"approval-create": { window: HOUR, max: 10 },
 	"approval-poll": { window: HOUR, max: 900 },

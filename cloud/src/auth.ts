@@ -855,7 +855,7 @@ export function deletionStatements(db: D1Database, accountId: string, now: numbe
 		bind(`DELETE FROM sessions WHERE account_id = ?1 AND ${where}`),
 		bind(
 			`DELETE FROM limits WHERE (key IN ('login-user:' || ?1, 'password-account:' || ?1, 'writes-account:' || ?1, 'uploads-account:' || ?1,
-  'lookup-account:' || ?1, 'join-account:' || ?1, 'notify-account:' || ?1, 'proof-account:' || ?1, 'passkey-manage:' || ?1,
+  'lookup-account:' || ?1, 'join-account:' || ?1, 'notify-account:' || ?1, 'book-read-account:' || ?1, 'book-write-account:' || ?1, 'proof-account:' || ?1, 'passkey-manage:' || ?1,
   'approval-create:' || ?1, 'approval-poll:' || ?1, 'approval-respond:' || ?1, 'feedback-account:' || ?1)
   OR ${sessionLimitKeys(1)})
   AND ${where}`,
