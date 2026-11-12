@@ -2,6 +2,8 @@
 //! and the due dates tasks carry (`@2026-10-25`, `@2026-10-25T09:00`).
 
 use crate::dates::{Date, DateTime};
+use crate::repeat::repeat_token;
+use crate::repeat_model::Repeat;
 
 /// Counts of GitHub-style task-list items (`- [ ]` / `- [x]`) outside code fences.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -34,6 +36,9 @@ pub struct TaskItem {
     /// `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM`, from an `@2026-10-25` (or
     /// `@2026-10-25T09:00`) in the text.
     pub due: Option<String>,
+    /// The `every …` words right after the due date, when there are any
+    /// (see [`crate::repeat`]).
+    pub repeat: Option<Repeat>,
 }
 
 /// The task-list items in a markdown body, outside code fences, in order.
@@ -60,6 +65,7 @@ pub fn task_items(body: &str) -> Vec<TaskItem> {
                 line: ix as u32,
                 checked,
                 due: due_date(&text),
+                repeat: repeat_token(&text).map(|(_, repeat)| repeat),
                 text,
             });
         }

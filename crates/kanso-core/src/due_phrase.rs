@@ -84,6 +84,7 @@ pub fn parse(text: &str, now: DateTime, order: DateOrder) -> Option<Parsed> {
     Some(Parsed {
         span: words[pos].start..words[words.len() - 1].end,
         due: Due { date, time },
+        repeat: None,
     })
 }
 

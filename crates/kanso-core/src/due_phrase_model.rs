@@ -2,6 +2,7 @@
 
 use std::ops::Range;
 
+use crate::repeat_model::Repeat;
 use crate::tasks::Due;
 
 /// How a date written as two numbers with a slash reads: `14/11` is the
@@ -17,8 +18,7 @@ pub enum DateOrder {
 
 /// A date and time found at the end of a line of text.
 ///
-/// Repeats ("every week") are not part of it yet: they arrive with the
-/// repeat grammar in `tasks.rs`.
+/// A repeat ("every week") comes with it once the parser reads one.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Parsed {
     /// The bytes of the phrase in the input, from its first word to its
@@ -26,4 +26,6 @@ pub struct Parsed {
     pub span: Range<usize>,
     /// The day, and the time of day when the phrase named one.
     pub due: Due,
+    /// How often it comes round, when the phrase said so.
+    pub repeat: Option<Repeat>,
 }
