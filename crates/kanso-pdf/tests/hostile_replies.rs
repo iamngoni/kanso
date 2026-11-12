@@ -58,17 +58,30 @@ fn launch(dir: &Path, body: &str) -> Worker {
     )
     .unwrap();
     std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let worker = Worker::start_with(
-        &WorkerPaths {
-            exe: script,
-            library: None,
-        },
-        Deadlines {
-            open: DEADLINE,
-            request: DEADLINE,
-        },
-    )
-    .unwrap();
+    // On Linux, running a file while another thread of this process still has
+    // it open for writing (a test thread that forked at the wrong moment holds
+    // a copy of the descriptor) fails with "Text file busy" until that copy is
+    // closed, a few microseconds later. That is the harness, not the client.
+    let mut tries = 0;
+    let worker = loop {
+        let started = Worker::start_with(
+            &WorkerPaths {
+                exe: script.clone(),
+                library: None,
+            },
+            Deadlines {
+                open: DEADLINE,
+                request: DEADLINE,
+            },
+        );
+        match started {
+            Err(WorkerError::Unavailable(why)) if why.contains("busy") && tries < 200 => {
+                tries += 1;
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            other => break other.unwrap(),
+        }
+    };
     let waiting = Instant::now();
     while !ready.exists() {
         assert!(

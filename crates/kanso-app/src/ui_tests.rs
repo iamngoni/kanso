@@ -69,6 +69,14 @@ fn setup(cx: &mut TestAppContext) -> Fixture {
             config: AppConfig::default(),
         });
         cx.set_global(Services::default());
+        // No notices unless a test puts some in. Left alone the app falls back
+        // to the shipped list, whose "library is encrypted" notice applies to
+        // any library not signed in to sync: a banner (with buttons in the Tab
+        // order) that these tests are not about.
+        cx.set_global(crate::notices::NoticeBoard {
+            list: &[],
+            previous: None,
+        });
         gpui_kit::open_window(Default::default(), cx, |window, cx| {
             cx.new(|cx| Workspace::new(window, cx))
         })

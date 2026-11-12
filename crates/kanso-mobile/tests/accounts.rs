@@ -1130,6 +1130,17 @@ fn a_locked_session_survives_closing_and_reopening_the_library() {
     let path = b.path();
     let secrets = b.secrets.clone();
     let before = account(&b).state().unwrap();
+    // The launch check that `state` started reads the saved sign-in and may
+    // write it back; a request saved while it runs can be written over (on a
+    // slow runner it is). The request is made once that thread has ended and
+    // let go of the library, as the app would have it across a restart.
+    drop(b.library);
+    let end = Instant::now() + Duration::from_secs(10);
+    while Library::existing(&path).is_some() {
+        assert!(Instant::now() < end, "the library did not close");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+
     // A request made before the restart, as the app would have left it.
     {
         let id = kanso_sync::new_approval_request_id();
@@ -1150,14 +1161,6 @@ fn a_locked_session_survives_closing_and_reopening_the_library() {
         )
         .unwrap();
     }
-    drop(b.library);
-    // The launch check's thread lets go of the library as it ends.
-    let end = Instant::now() + Duration::from_secs(10);
-    while Library::existing(&path).is_some() {
-        assert!(Instant::now() < end, "the library did not close");
-        std::thread::sleep(Duration::from_millis(20));
-    }
-
     let reopened = Library::open_for_test(&path, secrets.clone(), server.clone()).unwrap();
     let after = reopened.account().state().unwrap();
     let (before, after) = (locked_info(&before), locked_info(&after));
