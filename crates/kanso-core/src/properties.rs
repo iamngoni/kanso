@@ -11,6 +11,7 @@
 //! after it belong to no entry and are never touched.
 
 use crate::dates::Date;
+use crate::properties_model::FrontEntry;
 
 /// A property's value.
 #[derive(Clone, Debug, PartialEq)]
@@ -159,6 +160,42 @@ pub fn parse_front(front: &str) -> Vec<(String, Value)> {
         .into_iter()
         .map(|entry| (entry.key, entry.value))
         .collect()
+}
+
+/// The entries of front-matter text (the lines between the delimiters) as
+/// source, in the order written, or `None` when they are not the whole of it:
+/// a comment or blank line between entries, a CRLF line ending, or a key
+/// written twice would be lost or ambiguous if kept one key at a time.
+/// [`render_front`] of the result gives `front` back exactly.
+pub fn entry_sources(front: &str) -> Option<Vec<FrontEntry>> {
+    if front.contains('\r') {
+        return None;
+    }
+    let mut out: Vec<FrontEntry> = Vec::new();
+    for entry in entries(front) {
+        if out.iter().any(|seen| seen.key == entry.key) {
+            return None;
+        }
+        out.push(FrontEntry {
+            key: entry.key.clone(),
+            rest: front[entry.rest_start..entry.end].to_owned(),
+        });
+    }
+    (render_front(&out) == front).then_some(out)
+}
+
+/// One entry as a line (or lines) of front matter.
+pub fn render_entry(entry: &FrontEntry) -> String {
+    let mut line = format!("{}:{}", quote_key(&entry.key), entry.rest);
+    if !line.ends_with('\n') {
+        line.push('\n');
+    }
+    line
+}
+
+/// The front-matter text of `entries`, in order.
+pub fn render_front(entries: &[FrontEntry]) -> String {
+    entries.iter().map(render_entry).collect()
 }
 
 /// The value of property `key`, ignoring case; the last one written wins.
@@ -840,6 +877,24 @@ mod tests {
     use proptest::prelude::*;
     use proptest::test_runner::FileFailurePersistence;
     use saphyr::LoadableYamlNode as _;
+
+    #[test]
+    fn entry_sources_give_the_front_matter_back_or_none() {
+        let front = "stage: Idea # note\ntags:\n  - a\n  - b\nodd key: 1\n";
+        let found = entry_sources(front).unwrap();
+        assert_eq!(found.len(), 3);
+        assert_eq!(found[0].key, "stage");
+        assert_eq!(found[0].rest, " Idea # note\n");
+        assert_eq!(render_front(&found), front);
+        for lossy in [
+            "# c\nstage: a\n",
+            "stage: a\n\nb: 1\n",
+            "stage: a\nstage: b\n",
+            "stage: a\r\n",
+        ] {
+            assert_eq!(entry_sources(lossy), None, "{lossy:?}");
+        }
+    }
 
     #[test]
     fn reads_the_yaml_notes_use() {

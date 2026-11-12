@@ -24,6 +24,7 @@ pub mod outline;
 pub mod page_cache;
 pub mod passages;
 pub mod properties;
+pub mod properties_model;
 pub mod query;
 pub mod query_view;
 pub mod reminders;
