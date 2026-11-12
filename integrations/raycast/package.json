@@ -1,0 +1,59 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "kanso",
+  "title": "Kanso",
+  "description": "Capture notes and tasks into Kanso, and find your notes, from Raycast.",
+  "icon": "extension-icon.png",
+  "author": "iamngoni",
+  "categories": ["Productivity", "Applications"],
+  "license": "MIT",
+  "platforms": ["macOS", "Windows"],
+  "commands": [
+    {
+      "name": "connect",
+      "title": "Connect to Kanso",
+      "subtitle": "Kanso",
+      "description": "Pair Raycast with Kanso, or paste a key by hand.",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "port",
+      "type": "textfield",
+      "required": false,
+      "title": "Local API Port",
+      "description": "The port under Kanso > Settings > Local API.",
+      "default": "19840",
+      "placeholder": "19840"
+    },
+    {
+      "name": "key",
+      "type": "password",
+      "required": false,
+      "title": "Key (Optional)",
+      "description": "A kcl_ key made by hand under Kanso > Settings > Local API > API keys. It wins over a paired key.",
+      "placeholder": "kcl_..."
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.104.0",
+    "@raycast/utils": "^1.19.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.2.0"
+  },
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "test": "vitest run"
+  }
+}
