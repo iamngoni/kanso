@@ -4,6 +4,7 @@
 //! ```text
 //! kanso-release keygen --secret-out <file>
 //! kanso-release feed --version <v> --notes <file> --dist <dir> --pub-date <rfc3339> --out <latest.json>
+//!                    [--whats-new <file.webp>] [--changelog <CHANGELOG.md>]
 //! kanso-release sign --feed <latest.json> [--key-env KANSO_UPDATE_SIGNING_KEY]
 //! kanso-release verify --feed <latest.json> [--sig <file>] [--key <base64>]...
 //! kanso-release notes --changelog <CHANGELOG.md> --version <v> --out <file>
@@ -16,7 +17,10 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use kanso_update::feed::{generate_signing_key, parse_signing_key, public_key_text};
-use kanso_update::{Asset, Feed, Platform, SCHEMA, sign_feed, trusted_keys, verify_signature};
+use kanso_update::whats_new::{MAX_EARLIER, MAX_MEDIA_BYTES, looks_like_webp, media_name};
+use kanso_update::{
+    Asset, Earlier, Feed, Platform, SCHEMA, sign_feed, trusted_keys, verify_signature,
+};
 use sha2::{Digest, Sha256};
 
 const USAGE: &str = "\
@@ -27,7 +31,11 @@ Usage:
   kanso-release feed --version <v> --notes <file> --dist <dir>
                      --pub-date <rfc3339> --out <latest.json>
                      [--base-url <url>] [--release-url <url>]
-      Writes latest.json for the update archives in <dir>.
+                     [--whats-new <file.webp>] [--changelog <CHANGELOG.md>]
+      Writes latest.json for the update archives in <dir>. --whats-new adds
+      the release's What's new video (an animated WebP up to 8 MB, uploaded
+      as Kanso-<v>-whats-new.webp); --changelog adds the notes of the
+      releases before <v>, for people who skipped some.
   kanso-release sign --feed <latest.json> [--key-env <NAME>] [--allow-untrusted]
       Signs it with the base64 secret in $NAME (KANSO_UPDATE_SIGNING_KEY),
       writing <latest.json>.sig. Refuses a key the app doesn't trust.
@@ -166,6 +174,46 @@ fn feed(flags: &Flags) -> Result<(), String> {
             },
         );
     }
+    let whats_new = match flags.get("whats-new") {
+        None => None,
+        Some(path) => {
+            let path = Path::new(path);
+            let mut head = [0u8; 12];
+            std::fs::File::open(path)
+                .and_then(|mut f| f.read_exact(&mut head))
+                .map_err(|e| format!("{}: {e}", path.display()))?;
+            if !looks_like_webp(&head) {
+                return Err(format!("{} isn't a WebP file", path.display()));
+            }
+            let (sha256, size) = hash_file(path).map_err(|e| format!("{}: {e}", path.display()))?;
+            if size > MAX_MEDIA_BYTES {
+                return Err(format!(
+                    "{} is {size} bytes; the app takes up to {MAX_MEDIA_BYTES}",
+                    path.display()
+                ));
+            }
+            Some(Asset {
+                url: format!("{}/{}", base.trim_end_matches('/'), media_name(&version)),
+                sha256,
+                size,
+            })
+        }
+    };
+    let earlier = match flags.get("changelog") {
+        None => Vec::new(),
+        Some(path) => {
+            let changelog =
+                std::fs::read_to_string(path).map_err(|e| format!("reading {path}: {e}"))?;
+            kanso_update::notes::earlier_sections(&changelog, &version, MAX_EARLIER)
+                .into_iter()
+                .map(|(version, pub_date, notes)| Earlier {
+                    version,
+                    pub_date,
+                    notes: kanso_update::notes::for_app(&notes),
+                })
+                .collect()
+        }
+    };
     let feed = Feed {
         schema: SCHEMA,
         version,
@@ -173,6 +221,8 @@ fn feed(flags: &Flags) -> Result<(), String> {
         release_url,
         notes: notes.trim().to_owned(),
         platforms,
+        whats_new,
+        earlier: kanso_update::whats_new::checked_earlier(earlier),
     };
     let mut bytes = serde_json::to_vec_pretty(&feed).map_err(|e| e.to_string())?;
     bytes.push(b'\n');

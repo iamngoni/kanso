@@ -26,6 +26,7 @@ import '../../../core/views/widgets/kanso_swipe_host.dart';
 import '../../../notebook_home/views/widgets/notebook_home_card.dart';
 import '../../../notices/views/widgets/notice_card_host.dart';
 import '../../../tabs/state/tabs/tabs_bloc.dart';
+import '../../../whats_new/views/widgets/whats_new_host.dart';
 import '../../models/data/note_list_entry.dart';
 import '../../state/note_list/note_list_bloc.dart';
 import 'note_list_row.dart';
@@ -103,6 +104,8 @@ class NoteListView extends StatelessWidget {
             // An update that changed something to fix: under the title, so
             // it scrolls away with it.
             const SliverToBoxAdapter(child: NoticeCardHost()),
+            // What's new, once after an update: opens a sheet, draws nothing.
+            const SliverToBoxAdapter(child: WhatsNewHost()),
             // The notebook's card, above its first note.
             if (state.place case ListPlace_Notebook(:final id))
               SliverToBoxAdapter(

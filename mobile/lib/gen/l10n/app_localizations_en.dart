@@ -7799,6 +7799,30 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get whatsNewSheetTitle => 'What\'s new';
+
+  @override
+  String whatsNewTitle(String version) {
+    return 'Kanso $version';
+  }
+
+  @override
+  String whatsNewEarlier(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Also since your last update: $count releases',
+      one: 'Also since your last update: 1 release',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String whatsNewEarlierVersion(String version) {
+    return 'Kanso $version';
+  }
+
+  @override
   String get agentSessionAsking => 'Has a question';
 
   @override

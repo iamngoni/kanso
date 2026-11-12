@@ -790,6 +790,7 @@ fn run_app(
         updates::register_app_actions(cx);
         services::apply_server_settings(cx);
         services::start_control(cx);
+        services::start_agent_sessions(cx);
         crate::settings_gallery::init(cx);
         crate::settings_gallery::set_log_dir(&cx.global::<AppState>().data_dir);
         crate::settings_gallery::schedule(cx);

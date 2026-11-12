@@ -824,3 +824,109 @@ proptest! {
         prop_assert_eq!(transcript.agent_said(), streamed);
     }
 }
+
+/// An idle driver whose agent session has an id, as an ACP agent's does.
+struct Sessioned(&'static str);
+
+impl kanso_engine::agent_task::runner::TaskDriver for Sessioned {
+    fn first_prompt(&self, task: &agent_task::OpenTask) -> Prompt {
+        Idle.first_prompt(task)
+    }
+    fn reply_prompt(&self, task: &agent_task::OpenTask, t: &Transcript, r: &str) -> Prompt {
+        Idle.reply_prompt(task, t, r)
+    }
+    fn begin(
+        &self,
+        prompt: &Prompt,
+        task: &agent_task::OpenTask,
+        store: Arc<Store>,
+        progress: Box<dyn FnMut() + Send>,
+        cancel: Arc<AtomicBool>,
+    ) -> Result<Box<dyn Iterator<Item = Event> + Send>, String> {
+        Idle.begin(prompt, task, store, progress, cancel)
+    }
+    fn session_id(&self) -> Option<String> {
+        Some(self.0.to_owned())
+    }
+}
+
+/// Every kind of answer, including a tool that was allowed without the
+/// sheet, lands in the transcript of the task whose session asked, and a
+/// session nobody runs finds no task.
+#[test]
+fn each_permission_answer_is_recorded_in_the_task_of_its_session() {
+    use kanso_engine::agent_task::blocks::{self, Block};
+    use kanso_engine::agent_task::runner::Tasks;
+    use kanso_engine::agent_task::session::{Item, PermissionAnswer, ToolKind};
+    let lib = lib();
+    let tokens = TokenStore::new();
+    let tasks = Tasks::default();
+    let start = |session: &'static str| {
+        tasks
+            .start(&lib.store, &tokens, &spec(&lib), "x", |_| {
+                Ok(Arc::new(Sessioned(session)) as _)
+            })
+            .unwrap()
+    };
+    let first = start("sess-1");
+    let second = start("sess-2");
+    assert_eq!(tasks.by_session("sess-1"), Some(first));
+    assert_eq!(tasks.by_session("sess-2"), Some(second));
+    assert_eq!(tasks.by_session("sess-3"), None);
+
+    let answers = [
+        PermissionAnswer::AllowedOnce,
+        PermissionAnswer::AllowedForSession,
+        PermissionAnswer::AllowedAlways,
+        PermissionAnswer::Rejected,
+    ];
+    let before = tasks.transcript(first).unwrap().version;
+    for answer in answers {
+        tasks.note_permission(first, "Read /tmp/a", Some("read"), answer);
+    }
+    let transcript = tasks.transcript(first).unwrap();
+    assert!(transcript.version > before);
+    let recorded: Vec<_> = transcript
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Permission {
+                title,
+                kind,
+                answer,
+            } => Some((title.as_str(), *kind, *answer)),
+            _ => None,
+        })
+        .collect();
+    let expected: Vec<_> = answers
+        .iter()
+        .map(|answer| ("Read /tmp/a", ToolKind::Read, *answer))
+        .collect();
+    assert_eq!(recorded, expected);
+    let said: Vec<String> = blocks::fold(&transcript.items, None)
+        .into_iter()
+        .filter_map(|block| match block {
+            Block::Permission { text } => Some(text),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        said,
+        [
+            "Allowed once: Read /tmp/a",
+            "Allowed for this session: Read /tmp/a",
+            "Always allowed: Read /tmp/a",
+            "Rejected: Read /tmp/a",
+        ]
+    );
+    // The other task heard nothing.
+    assert!(
+        !tasks
+            .transcript(second)
+            .unwrap()
+            .items
+            .iter()
+            .any(|item| matches!(item, Item::Permission { .. }))
+    );
+    tasks.shutdown();
+}

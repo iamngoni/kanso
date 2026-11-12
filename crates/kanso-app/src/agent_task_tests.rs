@@ -480,3 +480,115 @@ fn a_session_is_unread_until_it_is_seen_and_can_be_found_and_renamed() {
     tasks.rename(id, "   ");
     assert_eq!(row(&tasks, id).title, "Trips, tidied");
 }
+
+#[test]
+fn an_unreviewed_proposal_survives_a_restart_and_can_be_reviewed() {
+    let lib = library();
+    let tokens = TokenStore::new();
+    let saved_in = lib.dir.path().join("agent-sessions");
+    let tasks = Tasks::default();
+    tasks.save_in(saved_in.clone());
+    let secret = Arc::new(Mutex::new(String::new()));
+    let provider = Scripted::provider(vec![Run {
+        calls: vec![move_call(&lib)],
+        says: "Proposed an edit.".into(),
+        hang: false,
+    }]);
+    let id = {
+        let secret = secret.clone();
+        tasks
+            .start(
+                &lib.store,
+                &tokens,
+                &spec(&lib, "Tidy"),
+                "Anthropic",
+                move |open| {
+                    *secret.lock().unwrap() = open.secret.as_ref().clone();
+                    Ok(Arc::new(ApiDriver(provider)))
+                },
+            )
+            .unwrap()
+    };
+    wait_until("the end", || !row(&tasks, id).is_active());
+    assert_eq!(row(&tasks, id).phase, Phase::Ready);
+    tasks.rename(id, "Trips, tidied");
+    let key = row(&tasks, id).key;
+    tasks.shutdown();
+
+    let file = saved_in.join(format!("{}.json", key.0));
+    let json = std::fs::read_to_string(&file).unwrap();
+    let secret = secret.lock().unwrap().clone();
+    assert!(!secret.is_empty());
+    assert!(!json.contains(&secret), "the token is in the file");
+    assert!(json.contains("\"version\":1"));
+
+    // A new launch: its own token store and task list.
+    let tokens = TokenStore::new();
+    let again = Tasks::default();
+    again.save_in(saved_in.clone());
+    again.restore(
+        &lib.store,
+        &tokens,
+        kanso_engine::agent_task::store::load_all(&saved_in),
+    );
+    assert_eq!(again.saved_count(), 1);
+    let restored = again.by_key(&key).expect("the session is back");
+    let r = row(&again, restored);
+    assert_eq!(r.title, "Trips, tidied");
+    assert_eq!(r.phase, Phase::Ready);
+    assert!(r.can_review());
+    assert_eq!(r.counts.edits, 1);
+    assert!(!tokens.is_live(again.token(restored)));
+    let set = again.changes(restored).expect("the proposal is back");
+    assert_eq!(set.ops.len(), 1);
+    // Review works: the edit applies.
+    again.apply(restored, &Selection::all(1), 5).unwrap();
+    assert_eq!(
+        lib.store.note(&lib.notes[0].0).unwrap().unwrap().body,
+        "new text"
+    );
+    assert_eq!(row(&again, restored).phase, Phase::Applied { changes: 1 });
+
+    // Delete Session removes the file.
+    again.dismiss(restored);
+    assert!(!file.exists());
+    assert_eq!(again.saved_count(), 0);
+}
+
+#[test]
+fn a_session_that_was_working_when_kanso_quit_comes_back_stopped() {
+    let lib = library();
+    let tokens = TokenStore::new();
+    let saved_in = lib.dir.path().join("agent-sessions");
+    let tasks = Tasks::default();
+    tasks.save_in(saved_in.clone());
+    let id = start_api(
+        &lib,
+        &tasks,
+        &tokens,
+        &spec(&lib, "Tidy"),
+        vec![Run {
+            calls: vec![move_call(&lib)],
+            says: "Working".into(),
+            hang: true,
+        }],
+    );
+    wait_until("a proposal", || row(&tasks, id).counts.edits == 1);
+    tasks.shutdown();
+    let again = Tasks::default();
+    again.restore(
+        &lib.store,
+        &TokenStore::new(),
+        kanso_engine::agent_task::store::load_all(&saved_in),
+    );
+    let rows = again.rows();
+    assert_eq!(rows.len(), 1);
+    assert!(!rows[0].is_active());
+    // Its proposal can still be reviewed.
+    assert!(rows[0].can_review());
+    // Delete All clears the files and the list.
+    again.save_in(saved_in.clone());
+    assert_eq!(again.delete_all_saved(), 1);
+    assert!(again.rows().is_empty());
+    assert_eq!(again.saved_count(), 0);
+}

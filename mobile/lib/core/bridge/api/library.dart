@@ -39,6 +39,7 @@ import 'triage.dart';
 import 'types.dart';
 import 'voice.dart';
 import 'voice_capture.dart';
+import 'whats_new_types.dart';
 
 /// What the Replace button says, or nothing when there is nothing to do.
 String? replaceApplyLabel({required int matches, required int notes}) =>
@@ -243,6 +244,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   /// Hides the card because the person fixed what it said.
   Future<void> markUpdateNoticeFixed({required String id});
+
+  /// Notes that this version's What's new was shown.
+  Future<void> markWhatsNewSeen();
 
   /// The anonymous usage count and its notice state for this library.
   KansoMetrics metrics();
@@ -608,6 +612,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   /// Voice dictation settings saved beside the library database.
   Future<VoiceSettings> voiceSettings();
+
+  /// The What's new sheet to show now, or none. Reads the release's
+  /// signed feed and fetches its video into `cache_dir`.
+  Future<PhoneWhatsNew?> whatsNew({required String cacheDir});
 
   /// The word-goal presets offered by the desktop app.
   static Future<Uint32List> wordGoalPresets() =>

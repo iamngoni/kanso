@@ -9425,6 +9425,37 @@
       }
     }
   },
+  "whatsNewSheetTitle": "What's new",
+  "@whatsNewSheetTitle": {
+    "description": "The title of the sheet shown once after an update, with the release's video and notes."
+  },
+  "whatsNewTitle": "Kanso {version}",
+  "@whatsNewTitle": {
+    "description": "The release's name at the top of the What's new sheet.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "whatsNewEarlier": "{count, plural, =1{Also since your last update: 1 release} other{Also since your last update: {count} releases}}",
+  "@whatsNewEarlier": {
+    "description": "Folds the notes of releases skipped since the last update, on the What's new sheet.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "whatsNewEarlierVersion": "Kanso {version}",
+  "@whatsNewEarlierVersion": {
+    "description": "A skipped release's name, above its notes on the What's new sheet.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "agentSessionAsking": "Has a question",
   "@agentSessionAsking": {
     "description": "A session list row: the AI asked something."

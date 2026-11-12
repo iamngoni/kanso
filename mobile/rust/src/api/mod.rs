@@ -63,4 +63,6 @@ pub mod types;
 pub mod voice;
 pub mod voice_capture;
 pub mod voice_capture_types;
+pub mod whats_new;
+pub mod whats_new_types;
 pub mod word_goal;

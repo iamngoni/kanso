@@ -284,6 +284,8 @@ fn restart_from_the_update_pill_quits_and_saves(cx: &mut TestAppContext) {
             pub_date: String::new(),
             release_url: String::new(),
             notes: String::new(),
+            whats_new: None,
+            earlier: Vec::new(),
             seal: Default::default(),
         });
         cx.set_global(updates);

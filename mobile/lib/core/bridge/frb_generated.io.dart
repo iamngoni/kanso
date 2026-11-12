@@ -53,6 +53,7 @@ import 'api/types.dart';
 import 'api/voice.dart';
 import 'api/voice_capture.dart';
 import 'api/voice_capture_types.dart';
+import 'api/whats_new_types.dart';
 import 'api/word_goal.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -1257,6 +1258,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PhoneNotice dco_decode_box_autoadd_phone_notice(dynamic raw);
 
   @protected
+  PhoneWhatsNew dco_decode_box_autoadd_phone_whats_new(dynamic raw);
+
+  @protected
   PreviewCanvasShown dco_decode_box_autoadd_preview_canvas_shown(dynamic raw);
 
   @protected
@@ -2033,6 +2037,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PeopleSuggestion> dco_decode_list_people_suggestion(dynamic raw);
 
   @protected
+  List<PhoneWhatsNewEarlier> dco_decode_list_phone_whats_new_earlier(
+    dynamic raw,
+  );
+
+  @protected
+  List<PhoneWhatsNewSection> dco_decode_list_phone_whats_new_section(
+    dynamic raw,
+  );
+
+  @protected
   ListPlace dco_decode_list_place(dynamic raw);
 
   @protected
@@ -2536,6 +2550,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PhoneNotice? dco_decode_opt_box_autoadd_phone_notice(dynamic raw);
 
   @protected
+  PhoneWhatsNew? dco_decode_opt_box_autoadd_phone_whats_new(dynamic raw);
+
+  @protected
   PreviewTaskBox? dco_decode_opt_box_autoadd_preview_task_box(dynamic raw);
 
   @protected
@@ -2809,6 +2826,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PhoneNotices dco_decode_phone_notices(dynamic raw);
+
+  @protected
+  PhoneWhatsNew dco_decode_phone_whats_new(dynamic raw);
+
+  @protected
+  PhoneWhatsNewEarlier dco_decode_phone_whats_new_earlier(dynamic raw);
+
+  @protected
+  PhoneWhatsNewSection dco_decode_phone_whats_new_section(dynamic raw);
 
   @protected
   PlannedNote dco_decode_planned_note(dynamic raw);
@@ -4432,6 +4458,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PhoneNotice sse_decode_box_autoadd_phone_notice(SseDeserializer deserializer);
 
   @protected
+  PhoneWhatsNew sse_decode_box_autoadd_phone_whats_new(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PreviewCanvasShown sse_decode_box_autoadd_preview_canvas_shown(
     SseDeserializer deserializer,
   );
@@ -5338,6 +5369,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<PhoneWhatsNewEarlier> sse_decode_list_phone_whats_new_earlier(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PhoneWhatsNewSection> sse_decode_list_phone_whats_new_section(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ListPlace sse_decode_list_place(SseDeserializer deserializer);
 
   @protected
@@ -5967,6 +6008,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  PhoneWhatsNew? sse_decode_opt_box_autoadd_phone_whats_new(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PreviewTaskBox? sse_decode_opt_box_autoadd_preview_task_box(
     SseDeserializer deserializer,
   );
@@ -6274,6 +6320,19 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PhoneNotices sse_decode_phone_notices(SseDeserializer deserializer);
+
+  @protected
+  PhoneWhatsNew sse_decode_phone_whats_new(SseDeserializer deserializer);
+
+  @protected
+  PhoneWhatsNewEarlier sse_decode_phone_whats_new_earlier(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PhoneWhatsNewSection sse_decode_phone_whats_new_section(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlannedNote sse_decode_planned_note(SseDeserializer deserializer);
@@ -8211,6 +8270,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_phone_whats_new(
+    PhoneWhatsNew self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_preview_canvas_shown(
     PreviewCanvasShown self,
     SseSerializer serializer,
@@ -9402,6 +9467,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_phone_whats_new_earlier(
+    List<PhoneWhatsNewEarlier> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_phone_whats_new_section(
+    List<PhoneWhatsNewSection> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_place(ListPlace self, SseSerializer serializer);
 
   @protected
@@ -10216,6 +10293,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_phone_whats_new(
+    PhoneWhatsNew? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_preview_task_box(
     PreviewTaskBox? self,
     SseSerializer serializer,
@@ -10601,6 +10684,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_phone_notices(PhoneNotices self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_phone_whats_new(PhoneWhatsNew self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_phone_whats_new_earlier(
+    PhoneWhatsNewEarlier self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_phone_whats_new_section(
+    PhoneWhatsNewSection self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_planned_note(PlannedNote self, SseSerializer serializer);

@@ -44,6 +44,10 @@ impl TaskDriver for AcpDriver {
             .map_err(|e| e.to_string())
     }
 
+    fn session_id(&self) -> Option<String> {
+        self.0.session_id()
+    }
+
     fn queues(&self) -> bool {
         true
     }

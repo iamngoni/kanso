@@ -12904,6 +12904,30 @@ abstract class AppLocalizations {
   /// **'Couldn\'t rename the speakers. {reason}'**
   String recordingSpeakersFailed(String reason);
 
+  /// The title of the sheet shown once after an update, with the release's video and notes.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s new'**
+  String get whatsNewSheetTitle;
+
+  /// The release's name at the top of the What's new sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso {version}'**
+  String whatsNewTitle(String version);
+
+  /// Folds the notes of releases skipped since the last update, on the What's new sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Also since your last update: 1 release} other{Also since your last update: {count} releases}}'**
+  String whatsNewEarlier(int count);
+
+  /// A skipped release's name, above its notes on the What's new sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso {version}'**
+  String whatsNewEarlierVersion(String version);
+
   /// A session list row: the AI asked something.
   ///
   /// In en, this message translates to:

@@ -95,6 +95,11 @@ pub struct Pending {
     pub pub_date: String,
     pub release_url: String,
     pub notes: String,
+    /// The release's checked What's new video, if any.
+    #[serde(default)]
+    pub whats_new: Option<crate::feed::Asset>,
+    #[serde(default)]
+    pub earlier: Vec<crate::feed::Earlier>,
     /// What was checked when it was staged. Never written to disk: a
     /// `Pending` read back from anywhere has an empty seal and is refused.
     #[serde(skip)]
@@ -170,6 +175,8 @@ pub fn prepare(
         pub_date: update.pub_date.clone(),
         release_url: update.release_url.clone(),
         notes: update.notes.clone(),
+        whats_new: update.whats_new.clone(),
+        earlier: update.earlier.clone(),
         seal: Seal {
             digest: Some(digest),
             host_digest,
@@ -961,6 +968,8 @@ mod tests {
             release_url: String::new(),
             notes: String::new(),
             asset,
+            whats_new: None,
+            earlier: Vec::new(),
         };
         let install = Install {
             target: dir.join("kanso"),
@@ -1078,6 +1087,8 @@ mod tests {
             pub_date: "2026-10-20".into(),
             release_url: "https://github.com/iamngoni/kanso/releases/tag/v0.2.0".into(),
             notes: "- New".into(),
+            whats_new: None,
+            earlier: Vec::new(),
             seal: Seal {
                 digest: Some("ab".repeat(32)),
                 host_digest: Some("cd".repeat(32)),
