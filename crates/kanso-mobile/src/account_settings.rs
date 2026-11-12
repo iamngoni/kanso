@@ -344,6 +344,7 @@ impl AccountSettings {
             server: session.server.clone(),
             devices: device_rows(devices),
             storage_line: fetched.usage.as_ref().map(words::storage_line),
+            cost: kanso_engine::account::cost::cost_summary(fetched.usage.as_ref()),
             has_password: methods.has_password,
             providers: provider_rows(&methods),
             passkeys: passkey_rows(&methods.passkeys),
