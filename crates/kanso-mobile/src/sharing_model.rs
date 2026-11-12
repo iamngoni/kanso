@@ -23,7 +23,8 @@ impl From<Role> for ShareRole {
     fn from(role: Role) -> ShareRole {
         match role {
             Role::Owner => ShareRole::Owner,
-            Role::Edit => ShareRole::Editor,
+            // Managers exist in shared notebooks only; a note shows one as an editor.
+            Role::Edit | Role::Manager => ShareRole::Editor,
             Role::Comment => ShareRole::Commenter,
             Role::View => ShareRole::Viewer,
         }

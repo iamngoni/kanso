@@ -12,6 +12,8 @@
 
 pub mod api;
 pub mod book;
+pub mod book_members;
+pub mod book_members_model;
 pub mod book_model;
 pub mod canvas_doc;
 pub mod codec;
@@ -28,6 +30,7 @@ pub mod model;
 pub mod shared_doc;
 
 pub use api::{Caller, CollabApi, CollabError};
+pub use book_members_model::{BookChainHead, BookListError, BookMemberList, SignedBookList};
 pub use book_model::{BookHistory, BookKey};
 pub use canvas_doc::CanvasDoc;
 pub use doc::{CollabDoc, Field, Merged, apply_splices, remap, splices};

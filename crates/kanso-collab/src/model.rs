@@ -11,11 +11,21 @@ pub enum Role {
     View,
     Comment,
     Edit,
+    /// Notebooks only: edits like an editor and, in a shared notebook, may
+    /// invite, remove and change roles below Manager. Declared between Edit
+    /// and Owner so the derived order is the rank.
+    Manager,
     Owner,
 }
 
 impl Role {
-    pub const ALL: [Role; 4] = [Role::View, Role::Comment, Role::Edit, Role::Owner];
+    pub const ALL: [Role; 5] = [
+        Role::View,
+        Role::Comment,
+        Role::Edit,
+        Role::Manager,
+        Role::Owner,
+    ];
 
     /// As the wire and the member list write it.
     pub fn as_str(self) -> &'static str {
@@ -23,6 +33,7 @@ impl Role {
             Role::View => "view",
             Role::Comment => "comment",
             Role::Edit => "edit",
+            Role::Manager => "manager",
             Role::Owner => "owner",
         }
     }
@@ -31,19 +42,26 @@ impl Role {
         Role::ALL.into_iter().find(|role| role.as_str() == text)
     }
 
-    /// The byte a note-key wrap binds: `o`, `e`, `c` or `v`.
+    /// The byte a note-key wrap binds: `o`, `m`, `e`, `c` or `v`.
     pub fn byte(self) -> u8 {
         match self {
             Role::View => b'v',
             Role::Comment => b'c',
             Role::Edit => b'e',
+            Role::Manager => b'm',
             Role::Owner => b'o',
         }
     }
 
     /// Whether this role may change the note's text.
     pub fn may_edit(self) -> bool {
-        matches!(self, Role::Edit | Role::Owner)
+        matches!(self, Role::Edit | Role::Manager | Role::Owner)
+    }
+
+    /// Whether this role may invite, remove and change the roles of people
+    /// below Manager in a shared notebook.
+    pub fn may_manage(self) -> bool {
+        matches!(self, Role::Manager | Role::Owner)
     }
 
     /// Whether this role may write comments, and resolve or reopen them.
@@ -57,6 +75,7 @@ impl Role {
             Role::View => "Can view",
             Role::Comment => "Can comment",
             Role::Edit => "Can edit",
+            Role::Manager => "Manager",
             Role::Owner => "Owner",
         }
     }
