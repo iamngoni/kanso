@@ -208,6 +208,14 @@ fn normalize_book(id: &str, f: &mut Map<String, Value>, now: i64, refs: Refs) ->
     {
         return invalid("The notebook has an invalid order.".into());
     }
+    // Only the shape is checked here: a list written by a newer version, with
+    // a type this one does not know, must still sync in whole.
+    if let Some(properties) = f.get(kanso_core::schema::FIELD)
+        && !properties.is_null()
+        && !properties.is_array()
+    {
+        return invalid("The notebook has an invalid property list.".into());
+    }
     let updated_at = timestamp(f, "updatedAt")?.unwrap_or(now);
     f.insert("updatedAt".into(), updated_at.into());
     Ok(())
