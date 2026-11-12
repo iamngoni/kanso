@@ -16,6 +16,8 @@ use kanso_pdf::fixtures::{REPORT_BARS, encrypted_pdf, report_pdf, sample_pdf as 
 use kanso_pdf::protocol::{ErrorKind, MAX_LONG_EDGE_PX, MAX_PAGE_BYTES, MAX_PAGES};
 
 mod common;
+#[cfg(unix)]
+mod stand_in;
 
 use common::{WORKER, library, paths};
 
@@ -183,12 +185,7 @@ fn worker_pid(worker: &Worker) -> u32 {
 fn a_worker_that_hangs_is_killed_at_the_deadline() {
     let dir = tempfile::tempdir().unwrap();
     let script = dir.path().join("hang");
-    std::fs::write(&script, "#!/bin/sh\nexec sleep 30\n").unwrap();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
-    }
+    stand_in::write_script(&script, "exec sleep 30");
     let fake = WorkerPaths {
         exe: script,
         library: None,
