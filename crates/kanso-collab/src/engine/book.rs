@@ -313,6 +313,16 @@ impl Engine {
         Ok(())
     }
 
+    /// Pins another member's keys. Only keys that differ from the ones pinned
+    /// stop a sync: someone whose account is gone, or who can't be looked up
+    /// now, doesn't (the signed chain vouches for the keys).
+    fn pin_other(&self, member: &Member) -> Result<()> {
+        match self.pin_member(member) {
+            Err(err @ CollabError::KeyChanged(_)) => Err(err),
+            _ => Ok(()),
+        }
+    }
+
     /// Brings the notebook's chain up to the server's: checked against the
     /// head this device trusts (an older chain keeps it; a forked one is an
     /// error), with the keys of any new epoch. Marks the notebook removed
@@ -343,7 +353,7 @@ impl Engine {
         }
         for member in &chain.head.list.members {
             if member.account != me {
-                self.pin_member(member)?;
+                self.pin_other(member)?;
             }
         }
         ctx.row.epoch = epoch;
@@ -399,7 +409,7 @@ impl Engine {
             .ok_or_else(|| CollabError::Refused("You aren't in that notebook.".into()))?;
         for member in &early.head.list.members {
             if member.account != caller.account_id {
-                self.pin_member(member)?;
+                self.pin_other(member)?;
             }
         }
         if info.status == "invited" {
