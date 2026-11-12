@@ -64,6 +64,10 @@ const TICK: Duration = Duration::from_secs(60);
 /// The sheet's width and its notes' height.
 pub const SHEET_WIDTH: f32 = 600.;
 const NOTES_HEIGHT: f32 = 320.;
+/// With a video above them, the notes take less height.
+const NOTES_HEIGHT_WITH_VIDEO: f32 = 220.;
+/// The video card's height: 16:9 at the sheet's inner width.
+const VIDEO_HEIGHT: f32 = (SHEET_WIDTH - 48.) * 9. / 16.;
 
 /// Store meta keys: the version that ran last, and the notes of the newest
 /// release Kanso has heard of.
@@ -82,6 +86,14 @@ pub struct ReleaseNotes {
     pub pub_date: String,
     pub release_url: String,
     pub notes: String,
+    /// The release's What's new video (an animated WebP), checked against
+    /// the signed feed; notes saved before it existed read as none.
+    #[serde(default)]
+    pub whats_new: Option<kanso_update::Asset>,
+    /// The notes of the releases before it, for "Also since your last
+    /// update".
+    #[serde(default)]
+    pub earlier: Vec<kanso_update::Earlier>,
 }
 
 impl From<&Update> for ReleaseNotes {
@@ -91,6 +103,8 @@ impl From<&Update> for ReleaseNotes {
             pub_date: update.pub_date.clone(),
             release_url: update.release_url.clone(),
             notes: update.notes.clone(),
+            whats_new: update.whats_new.clone(),
+            earlier: update.earlier.clone(),
         }
     }
 }
@@ -102,6 +116,8 @@ impl From<&Pending> for ReleaseNotes {
             pub_date: pending.pub_date.clone(),
             release_url: pending.release_url.clone(),
             notes: pending.notes.clone(),
+            whats_new: pending.whats_new.clone(),
+            earlier: pending.earlier.clone(),
         }
     }
 }
@@ -216,6 +232,15 @@ pub struct Updates {
     pub installed_notes: Option<ReleaseNotes>,
     /// Shown once after an update: "Updated to …".
     pub just_updated: Option<ReleaseNotes>,
+    /// The version that ran before the last update: the sheet's "Also
+    /// since your last update" lists the releases after it.
+    pub previous: Option<semver::Version>,
+    /// Where What's new videos are cached: `<data folder>/whats-new`.
+    pub media_dir: Option<std::path::PathBuf>,
+    /// Videos checked and cached, by version.
+    pub media: std::collections::HashMap<String, std::path::PathBuf>,
+    /// Versions whose video is being fetched.
+    media_fetching: std::collections::HashSet<String>,
     /// The network's seam: `HttpTransport` in the app; tests leave it out.
     pub transport: Option<Arc<dyn Transport>>,
     pub feed_url: String,
@@ -241,6 +266,10 @@ impl Default for Updates {
             install: Err(NotInstallable::DevBuild),
             installed_notes: None,
             just_updated: None,
+            previous: None,
+            media_dir: None,
+            media: Default::default(),
+            media_fetching: Default::default(),
             transport: None,
             feed_url: kanso_update::FEED_URL.to_owned(),
             policy: UrlPolicy::RELEASE,
@@ -296,6 +325,8 @@ pub fn just_updated(
             version,
             pub_date: String::new(),
             notes: String::new(),
+            whats_new: None,
+            earlier: Vec::new(),
         },
     })
 }
@@ -371,11 +402,17 @@ pub fn after_launch(cx: &mut App) {
             .set_meta(crate::notices::META_PREVIOUS, &previous.to_string())
             .ok();
     }
-    crate::notices::init(previous, cx);
+    crate::notices::init(previous.clone(), cx);
     let announce = just_updated(last_run.as_deref(), &current, known.clone());
+    let media_dir = cx
+        .global::<AppState>()
+        .data_dir
+        .join(kanso_update::whats_new::CACHE_DIR);
     store.set_meta(META_LAST_RUN, &current.to_string()).ok();
     let off = {
         let updates = cx.global_mut::<Updates>();
+        updates.previous = previous;
+        updates.media_dir = Some(media_dir);
         updates.installed_notes = known.filter(|n| n.version == current.to_string());
         if let Some(notes) = announce {
             log_line(&format!("updated to {}", notes.version));
@@ -392,7 +429,121 @@ pub fn after_launch(cx: &mut App) {
     };
     if !off {
         schedule(cx);
+        let updates = cx.global::<Updates>();
+        let fresh = updates.just_updated.is_some();
+        match updates.installed_notes.clone() {
+            // Just updated: this release's own feed has its video and the
+            // notes of releases skipped, which the copy that downloaded
+            // the update may not have known to keep.
+            _ if fresh && current.pre.is_empty() => refresh_installed(cx),
+            Some(notes) => fetch_media(&notes, cx),
+            None => {}
+        }
     }
+}
+
+/// Reads the running release's own signed feed (by its tag) for its notes,
+/// video and earlier releases, keeps them as this version's notes, and
+/// fetches the video.
+// no-prop-test: wiring to a thread; `kanso_update::whats_new` is tested.
+fn refresh_installed(cx: &mut App) {
+    let updates = cx.global::<Updates>();
+    let Some(transport) = updates.transport.clone() else {
+        return;
+    };
+    let (policy, keys, current) = (updates.policy, updates.keys.clone(), current_version());
+    let (tx, rx) = async_channel::bounded(1);
+    let spawned = std::thread::Builder::new()
+        .name("kanso-whats-new".into())
+        .spawn(move || {
+            let result = kanso_update::whats_new::fetch_release(
+                transport.as_ref(),
+                &policy,
+                &keys,
+                &current,
+            );
+            tx.try_send(result).ok();
+        });
+    if spawned.is_err() {
+        return;
+    }
+    cx.spawn(async move |cx| {
+        let Ok(result) = rx.recv().await else {
+            return;
+        };
+        cx.update(|cx| match result {
+            Ok(release) => {
+                let notes = ReleaseNotes {
+                    version: release.version,
+                    pub_date: release.pub_date,
+                    release_url: release.release_url,
+                    notes: release.notes,
+                    whats_new: release.whats_new,
+                    earlier: release.earlier,
+                };
+                if let Ok(json) = serde_json::to_string(&notes) {
+                    cx.global::<AppState>()
+                        .store
+                        .set_meta(META_NOTES, &json)
+                        .ok();
+                }
+                cx.global_mut::<Updates>().installed_notes = Some(notes.clone());
+                fetch_media(&notes, cx);
+                cx.refresh_windows();
+            }
+            Err(err) => log_line(&format!("what's new: {err}")),
+        });
+    })
+    .detach();
+}
+
+/// Fetches, checks and caches `notes`' video in the background, when it
+/// has one Kanso doesn't have yet. The sheet shows it once it's in.
+// no-prop-test: wiring to a thread; `kanso_update::whats_new` is tested.
+pub fn fetch_media(notes: &ReleaseNotes, cx: &mut App) {
+    let Some(media) = notes.whats_new.clone() else {
+        return;
+    };
+    let updates = cx.global_mut::<Updates>();
+    let version = notes.version.clone();
+    if updates.media.contains_key(&version) || updates.media_fetching.contains(&version) {
+        return;
+    }
+    let (Some(transport), Some(dir)) = (updates.transport.clone(), updates.media_dir.clone())
+    else {
+        return;
+    };
+    let policy = updates.policy;
+    updates.media_fetching.insert(version.clone());
+    let (tx, rx) = async_channel::bounded(1);
+    let v = version.clone();
+    let spawned = std::thread::Builder::new()
+        .name("kanso-whats-new-video".into())
+        .spawn(move || {
+            let result =
+                kanso_update::whats_new::fetch_media(transport.as_ref(), &policy, &dir, &v, &media);
+            tx.try_send(result).ok();
+        });
+    if spawned.is_err() {
+        updates.media_fetching.remove(&version);
+        return;
+    }
+    cx.spawn(async move |cx| {
+        let result = rx.recv().await;
+        cx.update(|cx| {
+            let updates = cx.global_mut::<Updates>();
+            updates.media_fetching.remove(&version);
+            match result {
+                Ok(Ok(path)) => {
+                    updates.media.insert(version, path);
+                    cx.refresh_windows();
+                }
+                Ok(Err(err)) => log_line(&format!("what's new video for {version}: {err}")),
+                Err(_) => {}
+            }
+        });
+    })
+    .detach();
 }
 
 /// Checks a few seconds from now, then whenever [`check_due`] says so.
@@ -533,9 +684,12 @@ fn finish_check(result: Option<Result<Check, CheckError>>, cx: &mut App) {
         }
         Some(Ok(Check::Available(update))) => {
             log_line(&format!("{} is available", update.version));
-            if let Ok(json) = serde_json::to_string(&ReleaseNotes::from(&update)) {
+            let notes = ReleaseNotes::from(&update);
+            if let Ok(json) = serde_json::to_string(&notes) {
                 store.set_meta(META_NOTES, &json).ok();
             }
+            fetch_media(&notes, cx);
+            let updates = cx.global_mut::<Updates>();
             if auto && updates.install.is_ok() {
                 start_download(update, cx);
                 return;
@@ -1054,9 +1208,25 @@ pub fn open_sheet(window: &mut Window, cx: &mut App) {
 }
 
 /// A release's notes in a sheet: its version and date, the changelog with
-/// its commit links, and the buttons for `kind`.
-// no-prop-test: drawing and buttons; the snapshots show each kind.
+/// its commit links, and the buttons for `kind`. With a What's new video
+/// (checked and cached), the video leads, then the title, a version chip
+/// and the date, a one-line summary and the notes. Releases skipped since
+/// the last update follow, folded.
+// no-prop-test: drawing and buttons; the snapshots show each kind, and
+// `summary`, `without_heading` and `whats_new::since` are tested.
 pub fn open_notes(notes: ReleaseNotes, kind: SheetKind, window: &mut Window, cx: &mut App) {
+    // The notes Kanso holds now may be fuller than the ones a notice kept
+    // (the release's own feed is read after an update).
+    let notes = match cx
+        .try_global::<Updates>()
+        .and_then(|u| u.installed_notes.clone())
+    {
+        Some(known) if kind == SheetKind::Installed && known.version == notes.version => known,
+        _ => notes,
+    };
+    if cx.has_global::<Updates>() {
+        fetch_media(&notes, cx);
+    }
     let title = match kind {
         SheetKind::Ready => format!("Kanso {} is ready", notes.version),
         SheetKind::Available => format!("Kanso {} is available", notes.version),
@@ -1065,32 +1235,170 @@ pub fn open_notes(notes: ReleaseNotes, kind: SheetKind, window: &mut Window, cx:
     let body = kanso_update::notes::for_app(&notes.notes);
     let date = release_date(&notes.pub_date);
     let release_url = notes.release_url.clone();
+    let after = match kind {
+        SheetKind::Installed => cx.try_global::<Updates>().and_then(|u| u.previous.clone()),
+        _ => Some(current_version()),
+    };
+    let earlier: Vec<(String, String)> =
+        kanso_update::whats_new::since(&notes.earlier, after.as_ref(), &notes.version)
+            .into_iter()
+            .map(|e| {
+                (
+                    e.version.clone(),
+                    without_heading(&kanso_update::notes::for_app(&e.notes)),
+                )
+            })
+            .collect();
+    let version = notes.version.clone();
+    let earlier_open = std::rc::Rc::new(std::cell::Cell::new(false));
     window.open_alert_dialog(cx, move |alert, _, cx| {
         let colors = Colors::get(cx);
-        let dark = cx.theme().is_dark();
+        let video = cx
+            .try_global::<Updates>()
+            .and_then(|u| u.media.get(&version).cloned());
         let lead = match (kind, &date) {
-            (SheetKind::Ready, Some(date)) => format!(
+            (SheetKind::Ready, Some(date)) if video.is_none() => format!(
                 "Released {date}. It's downloaded and checked; restart Kanso to start using it."
             ),
-            (SheetKind::Ready, None) => {
+            (SheetKind::Ready, _) => {
                 "It's downloaded and checked; restart Kanso to start using it.".to_owned()
             }
-            (_, Some(date)) => format!("Released {date}."),
-            (_, None) => String::new(),
+            (_, Some(date)) if video.is_none() => format!("Released {date}."),
+            (_, _) => String::new(),
         };
         let attention = match kind {
             SheetKind::Installed => crate::notice_views::attention_section(cx),
             _ => None,
         };
-        let shown = if body.is_empty() {
+        let shown_body = if video.is_some() {
+            without_heading(&body)
+        } else {
+            body.clone()
+        };
+        let shown = if shown_body.is_empty() {
             "This release's notes are on its page.".to_owned()
         } else {
-            crate::preview_chunks::showable(&body).into_owned()
+            crate::preview_chunks::showable(&shown_body).into_owned()
         };
-        let release_url = release_url.clone();
         let page = release_url.clone();
+        let header = video.as_ref().map(|path| {
+            let summary = summary(&body);
+            v_flex()
+                .gap(px(10.))
+                .child(
+                    div()
+                        .w_full()
+                        .h(px(VIDEO_HEIGHT))
+                        .rounded(px(10.))
+                        .overflow_hidden()
+                        .border_1()
+                        .border_color(colors.divider)
+                        .bg(colors.editor)
+                        .child(
+                            img(path.clone())
+                                .id("whats-new-video")
+                                .size_full()
+                                .object_fit(ObjectFit::Cover),
+                        ),
+                )
+                .child(
+                    div()
+                        .pt(px(4.))
+                        .text_size(px(18.))
+                        .font_semibold()
+                        .text_color(colors.text)
+                        .child(title.clone()),
+                )
+                .child(
+                    h_flex()
+                        .gap(px(8.))
+                        .items_center()
+                        .child(
+                            div()
+                                .px(px(8.))
+                                .py(px(2.))
+                                .rounded(px(999.))
+                                .bg(colors.editor)
+                                .border_1()
+                                .border_color(colors.divider)
+                                .text_size(px(12.))
+                                .text_color(colors.text)
+                                .child(format!("v{version}")),
+                        )
+                        .when_some(date.clone(), |el, date| {
+                            el.child(
+                                div()
+                                    .text_size(px(12.5))
+                                    .text_color(colors.text_secondary)
+                                    .child(date),
+                            )
+                        }),
+                )
+                .when(!summary.is_empty(), |el| {
+                    el.child(
+                        div()
+                            .text_size(px(13.))
+                            .line_height(px(19.))
+                            .text_color(colors.text_secondary)
+                            .child(summary),
+                    )
+                })
+        });
+        let toggle = earlier_open.clone();
+        let open = earlier_open.get();
+        let also = (!earlier.is_empty()).then(|| {
+            let count = earlier.len();
+            let label = if count == 1 {
+                "Also since your last update: 1 release".to_owned()
+            } else {
+                format!("Also since your last update: {count} releases")
+            };
+            v_flex()
+                .pt(px(8.))
+                .gap(px(8.))
+                .child(
+                    h_flex().child(
+                        Button::new("whats-new-earlier")
+                            .ghost()
+                            .small()
+                            .icon(if open {
+                                Lucide::ChevronDown
+                            } else {
+                                Lucide::ChevronRight
+                            })
+                            .label(label)
+                            .on_click(move |_, window, _| {
+                                toggle.set(!toggle.get());
+                                window.refresh();
+                            }),
+                    ),
+                )
+                .when(open, |el| {
+                    el.children(earlier.iter().enumerate().map(|(ix, (v, text))| {
+                        v_flex()
+                            .gap(px(4.))
+                            .child(
+                                div()
+                                    .text_size(px(13.))
+                                    .font_semibold()
+                                    .text_color(colors.text)
+                                    .child(format!("Kanso {v}")),
+                            )
+                            .child(notes_text(
+                                SharedString::from(format!("whats-new-earlier-{ix}")),
+                                if text.is_empty() {
+                                    "Its notes are on its release page.".to_owned()
+                                } else {
+                                    crate::preview_chunks::showable(text).into_owned()
+                                },
+                                cx,
+                            ))
+                    }))
+                })
+        });
         let content = v_flex()
             .gap(px(12.))
+            .children(header)
             .children(attention)
             .when(!lead.is_empty(), |el| {
                 el.child(
@@ -1104,7 +1412,11 @@ pub fn open_notes(notes: ReleaseNotes, kind: SheetKind, window: &mut Window, cx:
             .child(
                 div()
                     .id("update-notes")
-                    .max_h(px(NOTES_HEIGHT))
+                    .max_h(px(if video.is_some() {
+                        NOTES_HEIGHT_WITH_VIDEO
+                    } else {
+                        NOTES_HEIGHT
+                    }))
                     .overflow_y_scrollbar()
                     .border_1()
                     .border_color(colors.divider)
@@ -1112,22 +1424,8 @@ pub fn open_notes(notes: ReleaseNotes, kind: SheetKind, window: &mut Window, cx:
                     .bg(colors.editor)
                     .px(px(16.))
                     .py(px(12.))
-                    .child(
-                        TextView::markdown("update-notes-text", shown)
-                            .style(crate::preview::text_style(
-                                colors,
-                                &crate::themes::preview_colors(cx),
-                                dark,
-                            ))
-                            .text_size(px(13.5))
-                            .line_height(relative(1.55))
-                            .text_color(colors.text)
-                            .on_link_click(|url, _, _, cx| {
-                                if crate::preview::is_openable(url) {
-                                    cx.open_url(url);
-                                }
-                            }),
-                    ),
+                    .child(notes_text("update-notes-text".into(), shown, cx))
+                    .children(also),
             )
             .child(
                 h_flex().child(
@@ -1139,10 +1437,13 @@ pub fn open_notes(notes: ReleaseNotes, kind: SheetKind, window: &mut Window, cx:
                         .on_click(move |_, _, cx| open_release_page(&page, cx)),
                 ),
             );
-        let alert = alert
-            .title(title.clone())
-            .width(px(SHEET_WIDTH))
-            .child(content);
+        let alert = if video.is_some() {
+            alert
+        } else {
+            alert.title(title.clone())
+        }
+        .width(px(SHEET_WIDTH))
+        .child(content);
         match kind {
             SheetKind::Ready => alert
                 .show_cancel(true)
@@ -1165,6 +1466,28 @@ pub fn open_notes(notes: ReleaseNotes, kind: SheetKind, window: &mut Window, cx:
         }
     });
 }
+
+/// A release's notes as Markdown, with their commit links.
+fn notes_text(id: SharedString, text: String, cx: &App) -> TextView {
+    let colors = Colors::get(cx);
+    let dark = cx.theme().is_dark();
+    TextView::markdown(id, text)
+        .style(crate::preview::text_style(
+            colors,
+            &crate::themes::preview_colors(cx),
+            dark,
+        ))
+        .text_size(px(13.5))
+        .line_height(relative(1.55))
+        .text_color(colors.text)
+        .on_link_click(|url, _, _, cx| {
+            if crate::preview::is_openable(url) {
+                cx.open_url(url);
+            }
+        })
+}
+
+pub use kanso_update::notes::{summary, without_heading};
 
 /// After an update, once: "Updated to Kanso 0.2.0", with What's new. When
 /// the person has sent feedback, the server is asked (for a few seconds at
@@ -1450,6 +1773,27 @@ mod tests {
     use proptest::prelude::*;
 
     #[test]
+    fn notes_saved_before_the_video_still_read() {
+        // What Kanso up to 0.10.6 kept in the store.
+        let json = r####"{"version":"0.10.6","pub_date":"2026-11-11T10:00:00Z","release_url":"https://github.com/iamngoni/kanso/releases/tag/v0.10.6","notes":"### Fixed\n\n- A"}"####;
+        let notes: ReleaseNotes = serde_json::from_str(json).unwrap();
+        assert_eq!(notes.whats_new, None);
+        assert!(notes.earlier.is_empty());
+        // And the video and earlier notes carry through from an update.
+        let mut u = update("0.10.7");
+        u.whats_new = Some(Asset {
+            url: "https://github.com/iamngoni/kanso/releases/download/v0.10.7/Kanso-0.10.7-whats-new.webp".into(),
+            sha256: "ab".repeat(32),
+            size: 10,
+        });
+        let notes = ReleaseNotes::from(&u);
+        let back: ReleaseNotes =
+            serde_json::from_str(&serde_json::to_string(&notes).unwrap()).unwrap();
+        assert_eq!(back, notes);
+        assert!(back.whats_new.is_some());
+    }
+
+    #[test]
     fn whats_new_opens_the_versions_release() {
         let page = |v: &str| super::release_page(&semver::Version::parse(v).unwrap());
         assert_eq!(
@@ -1476,6 +1820,8 @@ mod tests {
                 sha256: "ab".repeat(32),
                 size: 100,
             },
+            whats_new: None,
+            earlier: Vec::new(),
         }
     }
 
@@ -1487,6 +1833,8 @@ mod tests {
             pub_date: String::new(),
             release_url: String::new(),
             notes: String::new(),
+            whats_new: None,
+            earlier: Vec::new(),
             seal: Default::default(),
         }
     }

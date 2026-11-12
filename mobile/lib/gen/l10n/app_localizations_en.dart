@@ -7797,4 +7797,173 @@ class AppLocalizationsEn extends AppLocalizations {
   String recordingSpeakersFailed(String reason) {
     return 'Couldn\'t rename the speakers. $reason';
   }
+
+  @override
+  String get whatsNewSheetTitle => 'What\'s new';
+
+  @override
+  String whatsNewTitle(String version) {
+    return 'Kanso $version';
+  }
+
+  @override
+  String whatsNewEarlier(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Also since your last update: $count releases',
+      one: 'Also since your last update: 1 release',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String whatsNewEarlierVersion(String version) {
+    return 'Kanso $version';
+  }
+
+  @override
+  String get agentSessionAsking => 'Has a question';
+
+  @override
+  String get agentSessionDone => 'Done';
+
+  @override
+  String get agentSessionFailed => 'Failed';
+
+  @override
+  String get agentSessionDiscarded => 'Discarded';
+
+  @override
+  String agentSessionLine(String agent, String status, String when) {
+    return '$agent · $status · $when';
+  }
+
+  @override
+  String get agentSessionWhenNow => 'now';
+
+  @override
+  String agentSessionWhenMinutes(int count) {
+    return '${count}m ago';
+  }
+
+  @override
+  String agentSessionWhenHours(int count) {
+    return '${count}h ago';
+  }
+
+  @override
+  String get agentSessionWhenYesterday => 'yesterday';
+
+  @override
+  String agentSessionWhenDays(int count) {
+    return '${count}d ago';
+  }
+
+  @override
+  String get agentSessionUnread => 'New activity';
+
+  @override
+  String get agentSessionEnd => 'End session';
+
+  @override
+  String get agentSessionEndTitle => 'End this session?';
+
+  @override
+  String get agentSessionEndBody =>
+      'The AI stops and the transcript stays. Changes it proposed stay for you to review.';
+
+  @override
+  String get agentSessionComposerHint => 'Ask for more…';
+
+  @override
+  String get agentSessionComposerWorking =>
+      'The AI is working. You can write when it asks.';
+
+  @override
+  String get agentSessionComposerEnded => 'This session has ended.';
+
+  @override
+  String get agentSessionComposerSend => 'Send message';
+
+  @override
+  String agentSessionThought(int seconds) {
+    return 'Thought for ${seconds}s';
+  }
+
+  @override
+  String get agentSessionThoughtShort => 'Thought';
+
+  @override
+  String agentSessionTools(int count) {
+    return 'Used $count tools';
+  }
+
+  @override
+  String agentSessionAllowedOnce(String title) {
+    return 'Allowed once: $title';
+  }
+
+  @override
+  String agentSessionAllowedSession(String title) {
+    return 'Allowed for this session: $title';
+  }
+
+  @override
+  String agentSessionAllowedAlways(String title) {
+    return 'Always allowed: $title';
+  }
+
+  @override
+  String agentSessionRejected(String title) {
+    return 'Rejected: $title';
+  }
+
+  @override
+  String agentSessionRound(int round, String counts) {
+    return 'Round $round · $counts';
+  }
+
+  @override
+  String agentSessionRoundApplied(String counts) {
+    return 'Applied $counts';
+  }
+
+  @override
+  String agentSessionRoundDiscarded(String counts) {
+    return 'Discarded $counts';
+  }
+
+  @override
+  String agentSessionRoundUndone(String counts) {
+    return 'Undone $counts';
+  }
+
+  @override
+  String agentSessionRoundLost(String counts) {
+    return '$counts are no longer available';
+  }
+
+  @override
+  String get agentSessionUndo => 'Undo';
+
+  @override
+  String get agentSessionGone => 'This session is no longer here.';
+
+  @override
+  String get agentSessionToolDone => 'Done';
+
+  @override
+  String get agentSessionToolFailed => 'Failed';
+
+  @override
+  String get agentSessionToolRunning => 'Running';
+
+  @override
+  String get agentSessionYou => 'You';
+
+  @override
+  String agentSessionAgentSaid(String agent) {
+    return '$agent said';
+  }
 }

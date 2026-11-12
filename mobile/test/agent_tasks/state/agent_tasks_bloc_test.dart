@@ -29,9 +29,9 @@ void main() {
       bloc.add(
         const AgentTasksEvent.goalSent('Merge', noteIds: <String>['n1']),
       );
-      await bloc.stream.firstWhere((s) => s.tasks.length == 1);
+      await bloc.stream.firstWhere((s) => s.sessions.length == 1);
       expect(repo.calls, contains('start:Merge:n1'));
-      expect(bloc.state.tasks.single.phase, AgentTaskPhase.running);
+      expect(bloc.state.sessions.single.phase, AgentTaskPhase.running);
       expect(bloc.state.starting, isFalse);
       expect(bloc.state.started, 1);
     });
@@ -44,7 +44,7 @@ void main() {
           confirmedAll: true,
         ),
       );
-      await bloc.stream.firstWhere((s) => s.tasks.length == 1);
+      await bloc.stream.firstWhere((s) => s.sessions.length == 1);
       expect(repo.started.single, (book: 'book:x', confirmedAll: true));
     });
 
@@ -61,15 +61,13 @@ void main() {
       bloc
         ..add(const AgentTasksEvent.goalSent('One'))
         ..add(const AgentTasksEvent.stopped(1))
-        ..add(const AgentTasksEvent.replied(1, 'yes'))
         ..add(const AgentTasksEvent.dismissed(1));
       await bloc.stream.firstWhere(
-        (s) => s.tasks.isEmpty && repo.calls.length == 4,
+        (s) => s.sessions.isEmpty && repo.calls.length == 3,
       );
       expect(repo.calls, <String>[
         'start:One:',
         'stop:1',
-        'reply:1:yes',
         'discard:1',
       ]);
     });
@@ -79,7 +77,7 @@ void main() {
         const AgentTask(id: 7, goal: 'g', phase: AgentTaskPhase.running),
       ];
       bloc.add(const AgentTasksEvent.polled());
-      await bloc.stream.firstWhere((s) => s.tasks.isNotEmpty);
+      await bloc.stream.firstWhere((s) => s.sessions.isNotEmpty);
       repo.rows = <AgentTask>[
         const AgentTask(
           id: 7,
@@ -92,7 +90,7 @@ void main() {
         ..add(const AgentTasksEvent.polled())
         ..add(const AgentTasksEvent.polled());
       await bloc.stream.firstWhere(
-        (s) => s.tasks.any((t) => t.phase == AgentTaskPhase.ready),
+        (s) => s.sessions.any((t) => t.phase == AgentTaskPhase.ready),
       );
       await _settle();
       expect(notifier.paused_, <int>[7]);

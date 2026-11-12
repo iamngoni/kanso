@@ -19,7 +19,8 @@ Every release carries, beside the downloads:
 | `Kanso-<v>-windows-x64.zip` | `kanso.exe`, the download and the update |
 | `Kanso-<v>-windows-x64-setup.exe` | the per-user installer (`packaging/windows/kanso.iss`, Inno Setup 6.7.3), for first installs |
 | `Kanso-<v>-linux-x64.tar.gz`, `…-linux-arm64.tar.gz` | the folder with `kanso`, the download and the update |
-| `latest.json` | the feed: schema 1, version, date, release page, notes, and for each platform the update's URL, SHA-256 and size |
+| `latest.json` | the feed: schema 1, version, date, release page, notes, and for each platform the update's URL, SHA-256 and size; optionally `whats_new` (the video's URL, SHA-256 and size) and `earlier` (the notes of up to 12 releases before) |
+| `Kanso-<v>-whats-new.webp` | optional: the release's What's new video ([below](#whats-new-video)) |
 | `latest.json.sig` | an Ed25519 signature over the feed's exact bytes, base64 |
 | `kanso_<v>-1_amd64.deb`, `…_arm64.deb` | the Debian packages, for apt ([apt repository](#the-apt-repository)) |
 | `apt-stable-*` | the apt repository's signed index: `Packages` per architecture, `Release`, `InRelease`, `Release.gpg` (once the apt key is set up) |
@@ -63,7 +64,9 @@ The app (`crates/kanso-app/src/updates.rs`, with the logic in
    force-quit, say) is deleted at the next start and downloaded again,
    never installed from disk.
 5. The first start of the new version shows **Updated to Kanso <v>** once,
-   with What's new.
+   with What's new. It reads the release's own feed by tag
+   (`releases/download/v<v>/latest.json`, signature checked the same way)
+   for its What's new video and the notes of any releases skipped.
 
 With automatic updates off, the sidebar says **Update available ·
 Download** and Download fetches and stages it the same way. A copy that
@@ -84,6 +87,48 @@ need a person (a failed check, a full disk). Each step is logged to
 `KANSO_UPDATE_FEED=<url>` points a **debug** build at another feed (it may be
 `http://127.0.0.1:<port>/…`). Release builds ignore it, and the feed must
 still be signed by a trusted key.
+
+## What's new video
+
+From 0.10.7 a release may carry a short video that leads the What's new
+sheet (desktop and phones), above the notes. No video, and the sheet is as
+it was.
+
+**Format: animated WebP, one file, at most 8 MB.** GPUI has no video
+player, but its `img` decodes and loops animated WebP (and GIF) frames;
+Flutter's `Image` plays the same file on iOS and Android, so there is no
+second rendition (no MP4). WebP is far smaller than GIF at the same
+quality, and has no sound track, so the video is always muted; it loops.
+Both apps decode every frame into memory, so keep it short and small:
+about 960x540, 12-15 fps, under 10 seconds. For example, from a screen
+recording:
+
+```sh
+ffmpeg -i demo.mov -vf "fps=12,scale=960:-2:flags=lanczos" -loop 0 \
+  -c:v libwebp_anim -quality 70 -compression_level 6 -an whats-new.webp
+```
+
+To ship one with release `<v>`:
+
+1. Commit it at **`release-media/<v>/whats-new.webp`** (nothing else in
+   that folder) on master before cutting the release. `scripts/release.sh`
+   refuses a file that isn't WebP or is over 8 MB.
+2. Cut the release as usual. The feed job copies it to
+   `Kanso-<v>-whats-new.webp`, and `kanso-release feed --whats-new` adds
+   its URL, SHA-256 and size to `latest.json` as `whats_new`, under the
+   feed's signature; the publish job uploads it with the other assets.
+
+The apps fetch it only from this repository's releases, with every
+redirect hop held to the same rules as an update, check its size and
+SHA-256 against the signed feed before showing it, and keep it in
+`<data folder>/whats-new/` (one release's at a time). A video that fails a
+check is dropped and the notes show alone. Kanso up to 0.10.6 ignores the
+`whats_new` and `earlier` fields: serde skips fields it doesn't know, and
+the signature covers the bytes either way.
+
+The feed also carries `earlier`, the app's notes of up to 12 releases
+before (from `CHANGELOG.md`, `--changelog`), so the sheet can list the
+releases someone skipped under a folded **Also since your last update**.
 
 ## Changelog
 

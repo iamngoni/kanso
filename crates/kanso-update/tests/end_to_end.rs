@@ -176,6 +176,8 @@ fn publish(
             },
         )]
         .into(),
+        whats_new: None,
+        earlier: Vec::new(),
     };
     let mut archive = archive;
     tamper(&mut feed, &mut archive);

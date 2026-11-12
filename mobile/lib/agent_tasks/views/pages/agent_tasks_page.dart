@@ -17,19 +17,22 @@ import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_check_row.dart';
 import '../../../core/views/widgets/kanso_dialog.dart';
+import '../../../core/views/widgets/kanso_divider.dart';
 import '../../../core/views/widgets/kanso_empty_state.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_page.dart';
+import '../../../core/views/widgets/kanso_page_route.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../../core/views/widgets/kanso_text_field.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
 import '../../../injection.dart';
 import '../../state/agent_tasks/agent_tasks_bloc.dart';
-import '../widgets/agent_task_tile.dart';
+import '../widgets/agent_session_tile.dart';
 import '../widgets/agent_trouble_card.dart';
 import 'agent_review_page.dart';
+import 'agent_session_page.dart';
 
 /// Agent tasks: a goal, the AI at work, and the changes it proposes. With
 /// [noteIds] the AI may read only those notes.
@@ -212,27 +215,33 @@ class _BodyState extends State<_Body> {
                               context.push(KansoRoutes.settingsAi),
                         ),
                       )
-                    else if (state.tasks.isEmpty)
+                    else if (state.sessions.isEmpty)
                       KansoEmptyState(
                         title: l10n.agentTasksEmptyTitle,
                         message: l10n.agentTasksEmptyMessage,
                       ),
-                    for (final task in state.tasks.reversed)
-                      AgentTaskTile(
-                        key: ValueKey<int>(task.id),
-                        task: task,
+                    // Latest activity first: the core sorts them.
+                    for (final session in state.sessions) ...<Widget>[
+                      AgentSessionTile(
+                        key: ValueKey<String>(session.key),
+                        session: session,
+                        nowMs: DateTime.now().millisecondsSinceEpoch,
+                        onOpen: () => Navigator.of(context).push<void>(
+                          KansoPageRoute<void>(
+                            builder: (_) =>
+                                AgentSessionPage(sessionKey: session.key),
+                          ),
+                        ),
                         onStop: () =>
-                            bloc.add(AgentTasksEvent.stopped(task.id)),
-                        onDismiss: () =>
-                            bloc.add(AgentTasksEvent.dismissed(task.id)),
-                        onReply: (text) =>
-                            bloc.add(AgentTasksEvent.replied(task.id, text)),
+                            bloc.add(AgentTasksEvent.stopped(session.id)),
                         onReview: () => Navigator.of(context).push<void>(
-                          MaterialPageRoute<void>(
-                            builder: (_) => AgentReviewPage(task: task.id),
+                          KansoPageRoute<void>(
+                            builder: (_) => AgentReviewPage(task: session.id),
                           ),
                         ),
                       ),
+                      const KansoDivider(),
+                    ],
                   ],
                 ),
               ),
