@@ -579,7 +579,11 @@ fn get_properties(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolR
 fn property_value(value: &kanso_core::properties::Value) -> Value {
     use kanso_core::properties::Value as Property;
     match value {
-        Property::Text(value) | Property::Date(value) | Property::Raw(value) => json!(value),
+        Property::Text(value)
+        | Property::Date(value)
+        | Property::DateTime(value)
+        | Property::DateTimeZone(value)
+        | Property::Raw(value) => json!(value),
         Property::Number(value) => json!(value),
         Property::Bool(value) => json!(value),
         Property::List(values) => Value::Array(values.iter().map(property_value).collect()),

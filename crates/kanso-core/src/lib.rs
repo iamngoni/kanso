@@ -35,6 +35,8 @@ pub mod rev;
 pub mod review_doc;
 pub mod revisit;
 pub mod roles;
+pub mod schema;
+pub mod schema_model;
 pub mod slides;
 pub mod srs;
 pub mod tags;
@@ -42,6 +44,8 @@ pub mod tasks;
 pub mod template;
 pub mod when;
 pub mod writing;
+pub mod zoned;
+pub mod zoned_model;
 
 pub use excerpt::excerpt;
 pub use id::{DocType, new_id};

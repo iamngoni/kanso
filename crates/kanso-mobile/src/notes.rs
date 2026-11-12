@@ -744,7 +744,8 @@ fn view(note: Note, state: LockView) -> NoteView {
 pub(crate) fn property_row(key: String, value: &kanso_core::properties::Value) -> Property {
     use kanso_core::properties::Value as V;
     let (kind, items) = match value {
-        V::Text(_) => (PropertyKind::Text, Vec::new()),
+        // Date-times show as text on the phone until its typed rows (slice 25).
+        V::Text(_) | V::DateTime(_) | V::DateTimeZone(_) => (PropertyKind::Text, Vec::new()),
         V::Number(_) => (PropertyKind::Number, Vec::new()),
         V::Bool(_) => (PropertyKind::Bool, Vec::new()),
         V::Date(_) => (PropertyKind::Date, Vec::new()),

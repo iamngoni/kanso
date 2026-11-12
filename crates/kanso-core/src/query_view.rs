@@ -670,13 +670,39 @@ fn ordered(a: &Option<Value>, b: &Option<Value>, descending: bool) -> Ordering {
     }
 }
 
+/// Where a date, date-time or date-time-with-zone falls on one line, in
+/// milliseconds: a zoned time at its real moment, the others as written.
+fn moment_key(value: &Value) -> i64 {
+    let local = |text: &str| {
+        crate::zoned::parse_local(text)
+            .or_else(|| {
+                crate::dates::Date::parse_iso(text).map(crate::dates::DateTime::at_midnight)
+            })
+            .map(|at| {
+                (at.date.to_days() * 86_400
+                    + i64::from(at.hour) * 3600
+                    + i64::from(at.minute) * 60
+                    + i64::from(at.second))
+                    * 1000
+            })
+            .unwrap_or_default()
+    };
+    match value {
+        Value::DateTimeZone(text) => crate::zoned::parse_zoned(text)
+            .and_then(|at| at.utc_ms())
+            .unwrap_or_default(),
+        Value::Date(text) | Value::DateTime(text) => local(text),
+        _ => 0,
+    }
+}
+
 fn compare(a: Option<&Value>, b: Option<&Value>) -> Ordering {
     let (Some(a), Some(b)) = (a, b) else {
         return Ordering::Equal;
     };
     let rank = |value: &Value| match value {
         Value::Number(_) => 0,
-        Value::Date(_) => 1,
+        Value::Date(_) | Value::DateTime(_) | Value::DateTimeZone(_) => 1,
         Value::Bool(_) => 2,
         Value::Text(_) => 3,
         Value::List(_) => 4,
@@ -685,6 +711,10 @@ fn compare(a: Option<&Value>, b: Option<&Value>) -> Ordering {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => a.partial_cmp(b).unwrap_or(Ordering::Equal),
         (Value::Date(a), Value::Date(b)) => a.cmp(b),
+        (
+            Value::Date(_) | Value::DateTime(_) | Value::DateTimeZone(_),
+            Value::Date(_) | Value::DateTime(_) | Value::DateTimeZone(_),
+        ) => moment_key(a).cmp(&moment_key(b)),
         (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
         (Value::Text(a), Value::Text(b)) => a.to_lowercase().cmp(&b.to_lowercase()),
         (Value::List(a), Value::List(b)) => a
