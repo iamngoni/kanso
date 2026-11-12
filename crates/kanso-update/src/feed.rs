@@ -39,6 +39,27 @@ pub struct Feed {
     pub notes: String,
     /// By [`Platform::key`].
     pub platforms: BTreeMap<String, Asset>,
+    /// The release's short What's new video, an animated WebP
+    /// ([`crate::whats_new`]). Optional: a feed without it reads as before,
+    /// and an app older than the field skips it (serde ignores fields it
+    /// doesn't know, and the signature covers the bytes either way).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub whats_new: Option<Asset>,
+    /// The notes of the releases before this one, newest first, for "Also
+    /// since your last update" when someone skipped some. Optional too.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub earlier: Vec<Earlier>,
+}
+
+/// An earlier release's notes, carried in a later feed.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Earlier {
+    pub version: String,
+    /// RFC 3339 or a bare date; may be empty.
+    #[serde(default)]
+    pub pub_date: String,
+    /// Its changelog section, in Markdown.
+    pub notes: String,
 }
 
 /// One system's update.
@@ -58,10 +79,16 @@ pub struct Update {
     pub release_url: String,
     pub notes: String,
     pub asset: Asset,
+    /// The checked What's new video, when the release has one.
+    #[serde(default)]
+    pub whats_new: Option<Asset>,
+    #[serde(default)]
+    pub earlier: Vec<Earlier>,
 }
 
 /// What a checked feed says.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(clippy::large_enum_variant)]
 pub enum Check {
     /// The feed's release is this one or older: nothing to do. An older
     /// feed is how a replayed or rolled-back feed looks, and is never
@@ -228,6 +255,8 @@ pub fn check_feed(
         release_url: feed.release_url,
         notes: feed.notes,
         asset,
+        whats_new: crate::whats_new::checked_media(feed.whats_new, policy),
+        earlier: crate::whats_new::checked_earlier(feed.earlier),
     }))
 }
 
@@ -267,6 +296,8 @@ mod tests {
                 .into_iter()
                 .map(|p| (p.key().to_owned(), asset(p, version)))
                 .collect(),
+            whats_new: None,
+            earlier: Vec::new(),
         }
     }
 

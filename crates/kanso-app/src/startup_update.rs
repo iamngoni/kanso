@@ -38,6 +38,7 @@ impl Way {
 
 /// Where the window's update section is.
 #[derive(Clone, Debug, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum Phase {
     Checking,
     Available(Update),
