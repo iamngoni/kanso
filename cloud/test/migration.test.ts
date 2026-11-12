@@ -20,7 +20,15 @@ async function emptyDatabase(): Promise<void> {
 	for (const { type, name } of results.filter((r) => r.type === "view")) await db.exec(`DROP VIEW "${name}"`);
 	// Children before parents, so foreign keys never point at a dropped table.
 	const order = [
+		"book_wraps",
+		"book_epochs",
+		"book_seen_keys",
+		"book_lists",
+		"book_links",
+		"book_members",
+		"book_shares",
 		"collab_notifications",
+		"collab_left",
 		"collab_wraps",
 		"collab_lists",
 		"collab_requests",

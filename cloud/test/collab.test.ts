@@ -239,6 +239,45 @@ describe("membership", () => {
 		expect((await collab(carol.token).leave(invited)).status).toBe(204);
 		expect((await collab(carol.token).shares()).body.shares).toEqual([]);
 	});
+
+	it("someone who left stays out: the next epoch, which still lists them, gives no row or wrap; accept and reads are 404; the owner sees them as left", async () => {
+		const id = await shareWith(alice, [
+			{ account: bob, role: "edit" },
+			{ account: carol, role: "view" },
+		]);
+		expect((await collab(bob.token).leave(id)).status).toBe(204);
+		// The owner's next list still names bob (they don't know yet): bob is not brought back.
+		const both = [
+			{ account: bob, role: "edit" as const },
+			{ account: carol, role: "view" as const },
+		];
+		expect((await collab(alice.token).epoch(id, epochBody(id, 2, alice, both))).status).toBe(200);
+		expect((await collab(bob.token).accept(id)).status).toBe(404);
+		expect((await collab(bob.token).log(id)).status).toBe(404);
+		expect((await collab(bob.token).shares()).body.shares).toEqual([]);
+		const left = (a: Account) => env.DB.prepare("SELECT count(*) AS n FROM collab_wraps WHERE account_id = ?1").bind(a.creds.accountId).first("n");
+		expect(await left(bob)).toBe(0);
+		expect(await env.DB.prepare("SELECT count(*) AS n FROM collab_members WHERE account_id = ?1").bind(bob.creds.accountId).first("n")).toBe(0);
+		expect(await left(carol)).toBe(2);
+		const owned = (await collab(alice.token).shares()).body.shares[0];
+		expect(owned.members).toContainEqual({ account: bob.creds.accountId, status: "left" });
+		// Epochs that keep naming them keep them out; one that drops them clears the record, and a later list may invite them afresh.
+		expect((await collab(alice.token).epoch(id, epochBody(id, 3, alice, both))).status).toBe(200);
+		expect(await left(bob)).toBe(0);
+		expect((await collab(alice.token).epoch(id, epochBody(id, 4, alice, [{ account: carol, role: "view" }]))).status).toBe(200);
+		expect(await env.DB.prepare("SELECT count(*) AS n FROM collab_left").first("n")).toBe(0);
+		expect((await collab(alice.token).epoch(id, epochBody(id, 5, alice, both))).status).toBe(200);
+		expect((await collab(bob.token).shares()).body.shares[0]).toMatchObject({ status: "invited" });
+	});
+
+	it("leaving in the same epoch, a role change for the leaver gives them nothing either", async () => {
+		const id = await shareWith(alice, [{ account: bob, role: "view" }]);
+		await collab(bob.token).leave(id);
+		const raised = [{ account: bob, role: "edit" as const }];
+		expect((await collab(alice.token).epoch(id, epochBody(id, 2, alice, raised))).status).toBe(200);
+		expect((await collab(bob.token).log(id)).status).toBe(404);
+		expect(await env.DB.prepare("SELECT count(*) AS n FROM collab_wraps WHERE account_id = ?1").bind(bob.creds.accountId).first("n")).toBe(0);
+	});
 });
 
 describe("envelopes by role", () => {

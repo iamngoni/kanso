@@ -26,6 +26,8 @@ export const EXPECTED_MIGRATIONS: readonly string[] = [
 	"0016_feedback.sql",
 	"0017_pdf_file_size.sql",
 	"0018_device_pairings.sql",
+	"0019_book_shares.sql",
+	"0020_collab_left.sql",
 ];
 
 export const SCHEMA_ISSUE_TITLE = "Server database is missing migrations";

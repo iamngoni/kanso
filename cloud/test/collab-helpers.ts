@@ -8,6 +8,7 @@
 // can't appear in it, and the tests check that it never appears anywhere the
 // server keeps anything.
 
+import { env } from "cloudflare:workers";
 import { type Account, base64url, call, callJson } from "./helpers";
 
 /** Random bytes, in 64 KiB pieces (getRandomValues' limit). */
@@ -18,7 +19,7 @@ function random(n: number): Uint8Array {
 }
 const encoder = new TextEncoder();
 
-export type Role = "owner" | "edit" | "comment" | "view";
+export type Role = "owner" | "manager" | "edit" | "comment" | "view";
 export type Kind = "u" | "s" | "c" | "p";
 
 export const newShareId = (): string => base64url(random(16));
@@ -209,6 +210,13 @@ export function collab(token: string) {
 }
 
 export type Collab = ReturnType<typeof collab>;
+
+/** Replaces `a`'s identity with fresh keys (a deleted-and-recreated account's, as far as the server can tell). */
+export async function rekeyIdentity(a: Account): Promise<Identity> {
+	await env.DB.prepare("DELETE FROM identities WHERE account_id = ?1").bind(a.creds.accountId).run();
+	identities.delete(a.creds.accountId);
+	return ensureIdentity(a);
+}
 
 /** Shares a note from `owner` with `others` (identities set first) and has everyone accept; the share ID. */
 export async function shareWith(owner: Account, others: Listed[], accept = true): Promise<string> {

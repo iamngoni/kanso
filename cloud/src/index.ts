@@ -45,6 +45,14 @@
 //   DELETE /v2/collab/shares/<id>/links/<link> cancel it                             (session)
 //   DELETE /v2/collab/shares/<id>/requests/<account>  decline a request to join      (session)
 //   POST   /v2/collab/join/<link_id>    ask to join through a link                    (session)
+//   POST   /v2/collab/books             share a notebook                              (session)
+//   GET    /v2/collab/books/<id>        its member-list chain, your wraps, epochs     (session)
+//   DELETE /v2/collab/books/<id>        stop sharing it                               (session)
+//   POST   /v2/collab/books/<id>/accept        accept an invitation                   (session)
+//   DELETE /v2/collab/books/<id>/membership    leave, or decline                      (session)
+//   POST   /v2/collab/books/<id>/epoch         the next signed member list + wraps    (session)
+//   POST   /v2/collab/books/<id>/links         make an invite link                    (session)
+//   DELETE /v2/collab/books/<id>/links/<link>  cancel it                              (session)
 //   POST   /v2/collab/notifications     notify a member (sealed)                      (session)
 //   GET    /v2/collab/notifications     your notifications                            (session)
 //   DELETE /v2/collab/notifications/<id> dismiss one                                  (session)
@@ -98,6 +106,7 @@
 
 import * as approvals from "./approvals";
 import * as auth from "./auth";
+import * as book from "./book";
 import * as collab from "./collab";
 import * as crashReports from "./crash_reports";
 import * as feedback from "./feedback";
@@ -183,6 +192,7 @@ const ROUTES: Record<string, Route> = {
 	"/v2/changes": { name: "changes", methods: { GET: { handler: sync.changes } } },
 	"/v2/account/identity": { name: "identity", methods: { PUT: json(identity.putIdentity), GET: { handler: identity.getIdentity } } },
 	"/v2/collab/shares": { name: "collab_shares", methods: { POST: json(collab.createShare), GET: { handler: collab.listShares } } },
+	"/v2/collab/books": { name: "collab_books", methods: { POST: json(book.createBook) } },
 	"/v2/collab/notifications": { name: "collab_notifications", methods: { POST: json(collab.notify), GET: { handler: collab.listNotifications } } },
 	"/v2/auth/apple/start": { name: "apple_start", binding: true, methods: { POST: json(providers.start("apple"), true) } },
 	"/v2/auth/apple/poll": { name: "apple_poll", binding: true, methods: { POST: json(providers.applePoll, true) } },
@@ -242,6 +252,18 @@ function collabShareRoute(id: string, rest: string): Route | null {
 	return null;
 }
 
+/** The routes under /v2/collab/books/<id>/, by what follows the ID. */
+function collabBookRoute(id: string, rest: string): Route | null {
+	if (rest === "") return { name: "collab_book", methods: { GET: { handler: book.getBook(id) }, DELETE: { handler: book.stopBook(id) } } };
+	if (rest === "/accept") return { name: "collab_book_accept", methods: { POST: { handler: book.accept(id) } } };
+	if (rest === "/membership") return { name: "collab_book_membership", methods: { DELETE: { handler: book.leave(id) } } };
+	if (rest === "/epoch") return { name: "collab_book_epoch", methods: { POST: json(book.newList(id)) } };
+	if (rest === "/links") return { name: "collab_book_links", methods: { POST: json(book.createLink(id)) } };
+	const link = /^\/links\/([^/]+)$/.exec(rest);
+	if (link) return { name: "collab_book_link", methods: { DELETE: { handler: book.deleteLink(id, segment(link[1])) } } };
+	return null;
+}
+
 /** A path segment, percent-decoded; "" (which no handler accepts) when it can't be. */
 function segment(raw: string): string {
 	try {
@@ -288,6 +310,8 @@ function match(path: string): Route | null {
 	if (user) return { name: "user", methods: { GET: { handler: identity.getUser(segment(user[1])) } } };
 	const collabShare = /^\/v2\/collab\/shares\/([^/]+)((?:\/[^/]+)*)$/.exec(path);
 	if (collabShare) return collabShareRoute(segment(collabShare[1]), collabShare[2]);
+	const collabBook = /^\/v2\/collab\/books\/([^/]+)((?:\/[^/]+)*)$/.exec(path);
+	if (collabBook) return collabBookRoute(segment(collabBook[1]), collabBook[2]);
 	const joinLink = /^\/v2\/collab\/join\/([^/]+)$/.exec(path);
 	if (joinLink) return { name: "collab_join", methods: { POST: json(collab.join(segment(joinLink[1]))) } };
 	const identityRoute = /^\/v2\/account\/sign-in\/identities\/([^/]+)\/(start|unlink)$/.exec(path);
