@@ -113,6 +113,15 @@ pub fn on_stickies(sink: StickySink) {
     STICKIES.set(sink).ok();
 }
 
+/// The app's open-link queue, set once it can show links.
+static LINKS: std::sync::OnceLock<crate::open_link::LinkSender> = std::sync::OnceLock::new();
+
+/// Makes `sender` take the `kanso://open/…` links forwarders send from now
+/// on.
+pub fn on_links(sender: crate::open_link::LinkSender) {
+    LINKS.set(sender).ok();
+}
+
 /// Where the app adds the notes a forwarder asks for: the new note's ID, or
 /// why it didn't, which goes back to the forwarder.
 pub type CaptureSink = Arc<dyn Fn(CaptureRequest) -> Result<String, String> + Send + Sync>;
@@ -466,6 +475,21 @@ fn serve(
             }
             None => false,
         }
+    } else if crate::open_link::is_open_url(kind.trim_end()) {
+        // An open link only navigates; the sign-in router never sees it. A
+        // link that isn't one Kanso opens is refused and says why.
+        let answer = match crate::open_link::parse(kind.trim_end()) {
+            Err(reason) => format!("no {reason}"),
+            Ok(link) => match LINKS.get() {
+                // Still starting: the forwarder tries again.
+                None => "no".to_owned(),
+                Some(links) => {
+                    links.send(link);
+                    "ok".to_owned()
+                }
+            },
+        };
+        return writer.write_all(format!("{answer}\n").as_bytes());
     } else {
         kind.len() as u64 <= MAX_MESSAGE && router.deliver(kind.trim_end()) == Delivery::Delivered
     };
@@ -619,6 +643,16 @@ pub fn forward(data_dir: &Path, url: &str) -> Result<(), ForwardError> {
             ForwardError::Refused => ForwardError::NotWaiting,
             other => other,
         })
+}
+
+/// Asks the Kanso running with `data_dir` to open `link`. The link goes in
+/// its canonical form, so only what [`crate::open_link::parse`] accepts
+/// leaves this process. `NotRunning` means no Kanso holds the folder.
+pub fn forward_link(
+    data_dir: &Path,
+    link: &crate::open_link::OpenLink,
+) -> Result<(), ForwardError> {
+    send(data_dir, &format!("{}\n", link.to_url())).map(|_| ())
 }
 
 /// Asks the Kanso running with `data_dir` to open `paths` (absolute), in
@@ -1078,6 +1112,36 @@ mod tests {
         let path = dir.join(name);
         std::fs::write(&path, "# note").unwrap();
         path
+    }
+
+    /// A second `kanso kanso://open/…` hands its link to the running app,
+    /// which queues it to be shown; a link that isn't an open link is
+    /// refused, says why, and queues nothing.
+    #[test]
+    fn forwarded_open_links_reach_the_running_app() {
+        use crate::open_link::OpenLink;
+        let (dir, _, _) = running_with_files();
+        let (sender, queue) = crate::open_link::channel();
+        on_links(sender);
+        let link = OpenLink::Note("abc-123".into());
+        assert_eq!(forward_link(dir.path(), &link), Ok(()));
+        assert_eq!(queue.try_recv(), Ok(link));
+        let said = send(dir.path(), "kanso://open/delete/x\n").unwrap_err();
+        match said {
+            ForwardError::Said(reason) => assert!(reason.contains("did nothing"), "{reason}"),
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(
+            send(dir.path(), "kanso://auth/apple?flow=x&s=y\n"),
+            Err(ForwardError::Refused)
+        );
+        assert!(queue.try_recv().is_err());
+        // No Kanso running: the forwarder can tell, to start one.
+        let empty = tempfile::tempdir().unwrap();
+        assert_eq!(
+            forward_link(empty.path(), &OpenLink::New),
+            Err(ForwardError::NotRunning)
+        );
     }
 
     /// Never the fixed port the local API uses.

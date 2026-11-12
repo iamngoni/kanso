@@ -84,6 +84,7 @@ gpui-kit.workspace = true
 gpui-component = "=0.7.3"
 # Parses a provider's page before the system opener sees it.
 url = "2.5"
+percent-encoding = "2.3"
 # Pasted images the API doesn't take (TIFF, WebP, BMP) are stored as PNG.
 # GPUI already builds these decoders.
 image = { version = "0.25", default-features = false, features = ["png", "tiff", "webp", "bmp", "ico"] }

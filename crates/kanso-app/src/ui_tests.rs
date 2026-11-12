@@ -2742,6 +2742,106 @@ fn open_test_window(cx: &mut gpui_kit::App) {
     .unwrap();
 }
 
+fn start_with_links(
+    cx: &mut TestAppContext,
+    dir: &tempfile::TempDir,
+    store: &Arc<Store>,
+    with_window: bool,
+    receiver: async_channel::Receiver<crate::open_link::OpenLink>,
+) {
+    let (data_dir, app_store) = (dir.path().to_path_buf(), store.clone());
+    cx.update(|cx| {
+        gpui_kit::init(cx);
+        cx.set_global(AppState {
+            store: app_store,
+            data_dir,
+            config: AppConfig::default(),
+        });
+        cx.set_global(Services::default());
+        if with_window {
+            open_test_window(cx);
+        }
+        crate::open_link::serve(receiver, open_test_window, cx);
+    });
+}
+
+fn link_fixture_note(store: &Store, book: &str, title: &str, body: &str) -> String {
+    store
+        .put(
+            DocType::Note,
+            json!({"title": title, "body": body, "bookId": book}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id
+}
+
+/// A `kanso://open/note/<id>` link opens that note: one that arrived at
+/// launch, before any window (the cold start), and one that arrives while
+/// running. Links for a note that isn't here, and ones that aren't open
+/// links, change nothing and write nothing.
+#[gpui_kit::test]
+fn an_open_link_shows_the_note_and_never_writes(cx: &mut TestAppContext) {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
+    let book = store
+        .put(DocType::Book, json!({"name": "B"}), Put::Upsert, Origin::Ui)
+        .unwrap()
+        .id;
+    let first = link_fixture_note(&store, &book, "First", "from the launch link");
+    let second = link_fixture_note(&store, &book, "Second", "from the running link");
+    let (sender, receiver) = crate::open_link::channel();
+    // The cold start: the link was queued before the window existed.
+    sender
+        .url(&format!("kanso://open/note/{first}"))
+        .expect("an open link");
+    start_with_links(cx, &dir, &store, true, receiver);
+    cx.run_until_parked();
+    let (shown, body) = shown_note(cx);
+    assert_eq!(shown.as_deref(), Some(first.as_str()));
+    assert!(body.contains("from the launch link"));
+
+    // While running.
+    sender
+        .url(&format!("kanso://open/note/{second}"))
+        .expect("an open link");
+    cx.run_until_parked();
+    let (shown, body) = shown_note(cx);
+    assert_eq!(shown.as_deref(), Some(second.as_str()));
+    assert!(body.contains("from the running link"));
+
+    // A note that isn't here, and links that aren't open links: nothing
+    // changes, and nothing is written.
+    let count = |store: &Store| store.counts().unwrap()[&DocType::Note];
+    let before = count(&store);
+    sender.url("kanso://open/note/not-a-note").unwrap();
+    assert!(sender.url("kanso://open/note/a/b").is_err());
+    assert!(sender.url("kanso://auth/apple?flow=x&s=y").is_err());
+    assert!(sender.url("kanso://open/delete/x").is_err());
+    cx.run_until_parked();
+    assert_eq!(shown_note(cx).0.as_deref(), Some(second.as_str()));
+    assert_eq!(count(&store), before);
+    assert_eq!(note_body(&store, &second), "from the running link");
+}
+
+/// The main window was closed: a link opens it again, on its note.
+#[gpui_kit::test]
+fn an_open_link_with_no_window_opens_the_window(cx: &mut TestAppContext) {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
+    let book = store
+        .put(DocType::Book, json!({"name": "B"}), Put::Upsert, Origin::Ui)
+        .unwrap()
+        .id;
+    let id = link_fixture_note(&store, &book, "Late", "late body");
+    let (sender, receiver) = crate::open_link::channel();
+    start_with_links(cx, &dir, &store, false, receiver);
+    sender.url(&format!("kanso://open/note/{id}")).unwrap();
+    cx.run_until_parked();
+    assert_eq!(shown_note(cx).0.as_deref(), Some(id.as_str()));
+}
+
 /// What the main window's editor shows, and that note's text.
 fn shown_note(cx: &mut TestAppContext) -> (Option<String>, String) {
     cx.update(|cx| {

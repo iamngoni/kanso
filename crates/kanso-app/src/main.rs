@@ -143,6 +143,7 @@ mod notices;
 mod notify_support;
 mod ocr;
 mod open_documents;
+mod open_link;
 mod origin;
 mod page_chrome;
 mod page_view;
@@ -475,8 +476,15 @@ fn main() -> Result<()> {
         None if forwarded_files(&args.data_dir, &args.files) => Ok(()),
         None => {
             let safe_mode = plugins::safe_mode_requested(&args.rest);
-            run_app(args.data_dir, args.after_update, safe_mode, args.files)
+            run_app(
+                args.data_dir,
+                args.after_update,
+                safe_mode,
+                args.files,
+                Vec::new(),
+            )
         }
+        Some(url) if open_link::is_open_url(url) => open_from_link(args.data_dir, url),
         Some(url) if url_callback::is_callback_argument(url) => {
             forward_callback(&args.data_dir, url);
             Ok(())
@@ -502,6 +510,32 @@ fn main() -> Result<()> {
             Ok(())
         }
         Some(other) => bail!("unknown command `{other}`\n\n{USAGE}{DATA_DIR_NOTE}"),
+    }
+}
+
+/// The system started this process with a `kanso://open/…` link (a click in
+/// another app, `open`, `xdg-open`, `start`). A link that isn't one Kanso
+/// opens is said so and does nothing. Otherwise it goes to the Kanso that is
+/// running, which brings the note forward; when none is, this process starts
+/// the app and opens the link once its window is up. The link only opens or
+/// navigates.
+fn open_from_link(data_dir: PathBuf, url: &str) -> Result<()> {
+    let link = match open_link::parse(url) {
+        Ok(link) => link,
+        Err(reason) => {
+            eprintln!("kanso: {reason}");
+            return Ok(());
+        }
+    };
+    match url_callback::forward_link(&data_dir, &link) {
+        Ok(()) => Ok(()),
+        Err(url_callback::ForwardError::NotRunning) => {
+            run_app(data_dir, false, false, Vec::new(), vec![link])
+        }
+        Err(error) => {
+            eprintln!("kanso: couldn't pass the link to Kanso: {error}");
+            Ok(())
+        }
     }
 }
 
@@ -641,6 +675,7 @@ fn run_app(
     after_update: bool,
     safe_mode: bool,
     files: Vec<PathBuf>,
+    links: Vec<open_link::OpenLink>,
 ) -> Result<()> {
     // What can stop Kanso before any window opens is shown in a window of
     // its own: launched from the Finder or the dock there is no terminal to
@@ -673,6 +708,14 @@ fn run_app(
     // here until the main window exists.
     let (opener, opened) = open_documents::channel();
     opener.paths(files);
+    // `kanso://open/…` links: from the command line now, from the system's
+    // open events (macOS) and from a second `kanso <link>` later. Like
+    // files, they wait for the main window.
+    let (link_sender, link_queue) = open_link::channel();
+    for link in links {
+        link_sender.send(link);
+    }
+    url_callback::on_links(link_sender.clone());
     // Stickies a second `kanso sticky` asks for: saved as they arrive,
     // shown once the windows are open.
     let (sticky_sender, stickies) = async_channel::unbounded();
@@ -729,7 +772,10 @@ fn run_app(
     // open in windows of their own.
     app.on_open_urls({
         let opener = opener.clone();
-        move |urls| opener.urls(&urls)
+        move |urls| {
+            opener.urls(&urls);
+            link_sender.urls(&urls);
+        }
     });
     app.on_reopen(|cx| {
         if workspace::main_workspace(cx).is_none() {
@@ -832,6 +878,7 @@ fn run_app(
         open_main_window(cx);
         note_window::restore(cx);
         open_documents::serve(opened, open_main_window, cx);
+        open_link::serve(link_queue, open_main_window, cx);
         note_window::serve_stickies(stickies, cx);
         cx.activate(true);
         // Held until the process exits so no second Kanso opens this folder.
