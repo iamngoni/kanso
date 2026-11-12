@@ -135,11 +135,7 @@ impl Engine {
             // The front matter stays in the body: the people invited have
             // apps that may not read properties as entries. The note moves
             // over once every one who edits says theirs does.
-            SharedKind::Text => {
-                let doc = CollabDoc::from_text(&note.title, &note.body);
-                doc.ack_parts(&self.account.caller.account_id);
-                SharedDoc::Text(doc)
-            }
+            SharedKind::Text => SharedDoc::Text(CollabDoc::from_text(&note.title, &note.body)),
             SharedKind::Canvas => {
                 let canvas = if note.body.trim().is_empty() {
                     Canvas::default()
@@ -155,6 +151,15 @@ impl Engine {
         };
         let caller = &self.account.caller;
         let share_id = new_id();
+        if let Some(text) = doc.text() {
+            text.ack_parts(
+                &caller.account_id,
+                &identity.sign(&crate::doc_props::parts_ack_message(
+                    &share_id,
+                    &caller.account_id,
+                )),
+            );
+        }
         let key = NoteKey::generate();
         let me = Verified {
             account_id: caller.account_id.clone(),

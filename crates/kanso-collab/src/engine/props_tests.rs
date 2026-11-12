@@ -164,6 +164,73 @@ fn people_who_only_read_dont_hold_a_note_back_and_a_new_one_starts_as_text() {
 }
 
 #[test]
+fn an_editor_cant_say_an_older_app_reads_properties_for_it() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let id = note(&a.store, "note:shared", "Plan", NOTE);
+    a.engine.person("user2").unwrap();
+    let share = a
+        .engine
+        .share(&id, &[("user2".to_owned(), Role::Edit)])
+        .unwrap();
+    // B hasn't opened it (its app is an older one). A writes B's word with
+    // A's own key: it doesn't count, and the note stays text.
+    {
+        let loaded = a.engine.loaded(&share).unwrap();
+        let guard = super::lock(&loaded);
+        let b_id = b.engine.caller().account_id.clone();
+        let forged = a
+            .engine
+            .identity()
+            .unwrap()
+            .sign(&crate::doc_props::parts_ack_message(&share, &b_id));
+        guard.doc.text().unwrap().ack_parts(&b_id, &forged);
+    }
+    write_body(&a.store, &id, &NOTE.replace("Idea", "Editing")).unwrap();
+    sync(&[&a], &share);
+    assert_eq!(props_len(&a, &share), 0);
+    assert_eq!(body_field(&a, &share), NOTE.replace("Idea", "Editing"));
+}
+
+#[test]
+fn half_typed_front_matter_in_the_editor_holds_across_keystrokes_and_wipes_nothing() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared(&a, &b, NOTE);
+    b.engine.attach(&share).unwrap();
+    // Keystroke 1: a property typed without its colon yet.
+    let half = NOTE.replace("due:", "sta\ndue:");
+    let merge = b.engine.sync_editor(&share, "Plan", &half).unwrap();
+    assert!(merge.body.is_empty());
+    assert_eq!(merge.body_text, half);
+    // Another device changes a key meanwhile.
+    write_body(
+        &a.store,
+        &id_of(&a, &share),
+        &NOTE.replace("Idea", "Shooting"),
+    )
+    .unwrap();
+    sync(&[&a], &share);
+    // Keystroke 2: still half typed, with a body edit.
+    let more = format!("{half}More\n");
+    let merge = b.engine.sync_editor(&share, "Plan", &more).unwrap();
+    assert!(merge.body.is_empty());
+    assert_eq!(merge.body_text, more);
+    sync(&[&b, &a], &share);
+    assert_eq!(props_len(&a, &share), 2);
+    assert_eq!(props_len(&b, &share), 2);
+    assert_eq!(body_of(&a, &share), NOTE.replace("Idea", "Shooting"));
+    // The property is finished: everything typed lands, once.
+    let done = format!("{}More\n", NOTE.replace("due:", "sta: x\ndue:"));
+    b.engine.sync_editor(&share, "Plan", &done).unwrap();
+    sync(&[&b, &a], &share);
+    let want = "---\nstage: Shooting\nsta: x\ndue: 2026-01-01\n---\nBrief for the shoot\nMore\n";
+    assert_eq!(body_of(&a, &share), want);
+    assert_eq!(body_of(&b, &share), want);
+    b.engine.detach(&share);
+}
+
+#[test]
 fn the_editors_caret_and_a_comment_stay_on_their_words_when_the_front_matter_changes() {
     let server = MemoryCollab::new();
     let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));

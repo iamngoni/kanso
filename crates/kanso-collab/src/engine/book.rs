@@ -104,6 +104,11 @@ pub(crate) fn book_mark(row: &SharedBook, stream: &str) -> Value {
     })
 }
 
+/// The `meta` key holding a notebook's unpinned members.
+fn unpinned_key(share_id: &str) -> String {
+    format!("collab.book.unpinned.{share_id}")
+}
+
 fn signed(entries: &[BookListEntry]) -> Vec<SignedBookList> {
     entries
         .iter()
@@ -318,13 +323,50 @@ impl Engine {
     /// chain vouches for the keys meanwhile). Keys that differ from the ones
     /// pinned, keys that aren't the ones the account published, and a failed
     /// binding check all stop the sync.
-    fn pin_other(&self, member: &Member) -> Result<()> {
+    /// `Ok(false)` for one that was forgiven, left unpinned: see
+    /// [`Engine::pin_members`].
+    fn pin_other(&self, member: &Member) -> Result<bool> {
         match self.pin_member(member) {
-            Ok(_) => Ok(()),
-            Err(CollabError::NoSuchUser(_) | CollabError::Transport(_)) => Ok(()),
-            Err(CollabError::Api { status, .. }) if status >= 500 || status == 429 => Ok(()),
+            Ok(_) => Ok(true),
+            Err(CollabError::NoSuchUser(_) | CollabError::Transport(_)) => Ok(false),
+            Err(CollabError::Api { status, .. }) if status >= 500 || status == 429 => Ok(false),
             Err(err) => Err(err),
         }
+    }
+
+    /// Pins every member but this account. Those forgiven (their account is
+    /// gone, or can't be looked up now) are remembered for the notebook and
+    /// tried again at every sync, the chain changed or not.
+    fn pin_members(&self, share_id: &str, members: &[Member]) -> Result<()> {
+        let me = &self.account.caller.account_id;
+        let mut unpinned = Vec::new();
+        for member in members {
+            if member.account != *me && !self.pin_other(member)? {
+                unpinned.push(member.account.clone());
+            }
+        }
+        let key = unpinned_key(share_id);
+        if unpinned.is_empty() {
+            if self.store.meta(&key)?.is_some() {
+                self.store.set_meta(&key, "[]")?;
+            }
+        } else {
+            self.store.set_meta(
+                &key,
+                &serde_json::to_string(&unpinned).expect("a list serializes"),
+            )?;
+        }
+        Ok(())
+    }
+
+    /// The accounts of a notebook's members left unpinned at the last sync.
+    pub fn unpinned_members(&self, share_id: &str) -> Vec<String> {
+        self.store
+            .meta(&unpinned_key(share_id))
+            .ok()
+            .flatten()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default()
     }
 
     /// Brings the notebook's chain up to the server's: checked against the
@@ -343,7 +385,9 @@ impl Engine {
         let pin = ctx.chain.head.pin();
         let Some(chain) = self.check_chain(&share_id, &lists, &owner_pub, Some(&pin), log_head)?
         else {
-            return Ok(());
+            // The server's chain is behind the head this device trusts: it
+            // keeps it, and still tries again those it couldn't pin.
+            return self.pin_members(&share_id, &ctx.chain.head.list.members);
         };
         let me = self.account.caller.account_id.clone();
         if chain.head.list.member(&me).is_none() {
@@ -358,11 +402,7 @@ impl Engine {
                 "this device has no key for the notebook's newest epoch".into(),
             ));
         }
-        for member in &chain.head.list.members {
-            if member.account != me {
-                self.pin_other(member)?;
-            }
-        }
+        self.pin_members(&share_id, &chain.head.list.members)?;
         ctx.row.epoch = epoch;
         ctx.row.role = chain
             .head
@@ -432,11 +472,7 @@ impl Engine {
             .list
             .role_of(&caller.account_id)
             .ok_or_else(|| CollabError::Refused("You aren't in that notebook.".into()))?;
-        for member in &early.head.list.members {
-            if member.account != caller.account_id {
-                self.pin_other(member)?;
-            }
-        }
+        self.pin_members(share_id, &early.head.list.members)?;
         if info.status == "invited" {
             self.api.accept_book(caller, share_id)?;
         }

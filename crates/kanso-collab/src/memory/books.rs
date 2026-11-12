@@ -156,6 +156,24 @@ impl MemoryCollab {
         book.history = links;
     }
 
+    /// Takes an account's published identity away, as if the account were
+    /// gone (tests); [`MemoryCollab::put_identity`] gives it back.
+    pub fn take_identity(&self, account: &str) -> Option<(String, crate::identity::Published)> {
+        self.state
+            .lock()
+            .expect("poisoned")
+            .identities
+            .remove(account)
+    }
+
+    pub fn put_identity(&self, account: &str, identity: (String, crate::identity::Published)) {
+        self.state
+            .lock()
+            .expect("poisoned")
+            .identities
+            .insert(account.to_owned(), identity);
+    }
+
     /// Stops the server checking that a list's members' keys are their
     /// accounts' own (tests).
     pub fn skip_book_member_checks(&self) {

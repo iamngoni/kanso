@@ -63,11 +63,12 @@ fn deliver(to: &CollabDoc, updates: &[Vec<u8>]) {
 proptest! {
     #![proptest_config(config(64))]
 
-    /// Typing inside the front matter, so that it reads as properties for a
-    /// moment no more (a line without its colon yet, or a block whose
-    /// closing line is gone), while another device changes a key, never
-    /// loses a property, never writes a second block, and the body edit
-    /// made with it lands.
+    /// A person typing a property: clean, then half typed (a line without
+    /// its colon yet, the block closed or not), then more typed in the body,
+    /// then the property finished, while another device changes a key. The
+    /// edit is held while the front matter doesn't read, nobody's properties
+    /// are lost, no second block is written, and once it reads everything
+    /// typed lands.
     #[test]
     fn prop_half_typed_front_matter_never_loses_properties_or_doubles_the_block(
         entries in gen_entries(),
@@ -85,25 +86,36 @@ proptest! {
         let mut other = entries.clone();
         other[j].1 = rest(0, &format!("{word_b}b"));
         deliver(&mine, &edit(&theirs, &note(&other, &body)));
-        // The half-typed text: the word on a line of its own among the keys.
         let line = at.index(entries.len() + 1);
-        let mut front: Vec<String> = entries
-            .iter()
-            .map(|(key, rest)| format!("{key}:{rest}"))
-            .collect();
-        front.insert(line, format!("{typed}\n"));
+        let front = |last: &str| -> String {
+            let mut rows: Vec<String> = entries
+                .iter()
+                .map(|(key, rest)| format!("{key}:{rest}"))
+                .collect();
+            rows.insert(line, last.to_owned());
+            rows.concat()
+        };
         let closing = if unclosed { "" } else { "---\n" };
-        let local = format!("---\n{}{closing}{body}{tail}", front.concat());
-        let sent = mine.edit_note_in_parts(&base, &local, PART, true);
-        if unclosed {
-            // Nothing of it is taken until the block closes.
-            prop_assert!(sent.is_empty());
-            prop_assert_eq!(mine.note_text(), note(&other, &body));
-        } else {
+        let half = format!("---\n{}{closing}{body}", front(&format!("{typed}\n")));
+        let half_more = format!("---\n{}{closing}{body}{tail}", front(&format!("{typed}\n")));
+        let done = format!("---\n{}---\n{body}{tail}", front(&format!("{typed}: v\n")));
+        let held = note(&other, &body);
+        // What the engine does: `base` moves only when the edit was taken.
+        let at_base = base.clone();
+        for local in [&half, &half_more] {
+            prop_assert!(mine.set_note_text_in_parts(local, PART).is_empty());
+            let taken = mine.try_edit_note_in_parts(&at_base, local, PART, true);
+            prop_assert!(taken.is_none());
             prop_assert_eq!(mine.props().len(), entries.len());
-            prop_assert_eq!(mine.note_text(), note(&other, &format!("{body}{tail}")));
+            prop_assert_eq!(mine.note_text(), held.clone());
         }
-        prop_assert_eq!(mine.note_text().matches("---\n").count() % 2, 0);
+        let sent = mine
+            .try_edit_note_in_parts(&at_base, &done, PART, true)
+            .expect("it reads now");
+        let mut want = other.clone();
+        want.insert(line, (typed.clone(), " v\n".to_owned()));
+        prop_assert_eq!(mine.note_text(), note(&want, &format!("{body}{tail}")));
+        prop_assert_eq!(mine.note_text().matches("---\n").count(), 2);
         deliver(&theirs, &sent);
         prop_assert_eq!(theirs.note_text(), mine.note_text());
     }
@@ -239,6 +251,42 @@ fn a_property_removed_by_someone_else_stays_removed_when_the_edit_left_it_alone(
     assert_eq!(mine.note_text(), "---\na: 1\n---\nx\nmore\n");
 }
 
+fn identity(n: u8) -> crate::identity::Identity {
+    crate::identity::Identity::from_secrets([n; 32], [n.wrapping_add(50); 32])
+}
+
+/// What `who` signs to say their app keeps properties as entries.
+fn ack(who: &crate::identity::Identity, share: &str, account: &str) -> [u8; 64] {
+    who.sign(&crate::doc_props::parts_ack_message(share, account))
+}
+
+#[test]
+fn an_editor_cant_say_it_for_another_member_or_for_another_note() {
+    let (one, two, other) = (identity(1), identity(2), identity(3));
+    let members = [("a_1", one.sign_pub()), ("a_2", two.sign_pub())];
+    let doc = CollabDoc::from_text("T", "x");
+    // Member 2's word, signed by someone else (even a member), by 2 for
+    // another note, or for another account, doesn't count.
+    for forged in [
+        ack(&other, "s", "a_2"),
+        ack(&one, "s", "a_2"),
+        ack(&two, "other-note", "a_2"),
+        ack(&two, "s", "a_1"),
+    ] {
+        let fresh = CollabDoc::from_text("T", "x");
+        fresh.ack_parts("a_1", &ack(&one, "s", "a_1"));
+        fresh.ack_parts("a_2", &forged);
+        assert!(!fresh.acked_parts("s", &members));
+    }
+    doc.ack_parts("a_1", &ack(&one, "s", "a_1"));
+    doc.ack_parts("a_2", &ack(&two, "s", "a_2"));
+    assert!(doc.acked_parts("s", &members));
+    // Having a property isn't having moved over.
+    let props = CollabDoc::from_text("T", "x");
+    props.set_note_text_in_parts("---\na: 1\n---\nx\n", PART);
+    assert!(!props.in_parts());
+}
+
 #[test]
 fn a_text_note_moves_to_properties_only_when_told_and_each_apps_word_is_counted() {
     let base = "---\na: 1\n---\nx\n";
@@ -251,13 +299,15 @@ fn a_text_note_moves_to_properties_only_when_told_and_each_apps_word_is_counted(
     assert!(!doc.in_parts());
     assert!(doc.props().is_empty());
     assert_eq!(doc.text(crate::doc::Field::Body), "---\na: 2\n---\nx\n");
-    // Each app that edits says so, once.
-    assert!(!doc.acked_parts(&["a_1", "a_2"]));
-    assert!(doc.ack_parts("a_1").is_some());
-    assert!(doc.ack_parts("a_1").is_none());
-    assert!(!doc.acked_parts(&["a_1", "a_2"]));
-    assert!(doc.ack_parts("a_2").is_some());
-    assert!(doc.acked_parts(&["a_1", "a_2"]));
+    // Each app that edits says so, once, signing it.
+    let (one, two) = (identity(1), identity(2));
+    let members = [("a_1", one.sign_pub()), ("a_2", two.sign_pub())];
+    assert!(!doc.acked_parts("s", &members));
+    assert!(doc.ack_parts("a_1", &ack(&one, "s", "a_1")).is_some());
+    assert!(doc.ack_parts("a_1", &ack(&one, "s", "a_1")).is_none());
+    assert!(!doc.acked_parts("s", &members));
+    assert!(doc.ack_parts("a_2", &ack(&two, "s", "a_2")).is_some());
+    assert!(doc.acked_parts("s", &members));
     // Then the next edit moves it over, and it stays over.
     let now = doc.note_text();
     let sent = doc.edit_note_in_parts(&now, "---\na: 3\n---\nx\n", PART, true);

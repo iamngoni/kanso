@@ -42,6 +42,16 @@ const PARTS_KEY: &str = "parts";
 /// The `caps` keys that say an account's app keeps properties as entries.
 const ACK_PREFIX: &str = "ack:";
 
+/// What an account signs to say its app keeps properties as entries in a
+/// shared note: bound to the share and the account.
+pub fn parts_ack_message(share_id: &str, account: &str) -> Vec<u8> {
+    let mut message = b"kanso-parts-ack\x01".to_vec();
+    message.extend_from_slice(share_id.as_bytes());
+    message.push(0);
+    message.extend_from_slice(account.as_bytes());
+    message
+}
+
 /// The line that opens and closes the front matter.
 const FENCE: &str = "---\n";
 
@@ -75,30 +85,18 @@ fn parts(text: &str) -> Option<(Vec<FrontEntry>, &str)> {
 }
 
 /// Whether `text` opens like a front-matter block (a `---` line) that
-/// [`parts`] can't keep key by key: half typed, or with something the
-/// entries can't hold. Inside is the body after the block's closing line;
-/// `None` there when the block isn't closed (yet).
-fn unkept_front(text: &str) -> Option<Option<&str>> {
-    if let Some(front) = properties::split(text) {
-        return split_note(text)
-            .is_none()
-            .then_some(Some(&text[front.body_start..]));
+/// doesn't read as front matter at all: half typed (a line without its
+/// colon yet, a closing line not there yet). Front matter that reads but
+/// can't be kept key by key is not this: it stays text, as the module
+/// documentation says.
+fn half_typed(text: &str) -> bool {
+    if properties::split(text).is_some() {
+        return false;
     }
     let rest = text.strip_prefix('\u{feff}').unwrap_or(text);
-    let mut lines = rest.split_inclusive('\n');
-    let first = lines.next()?;
-    if first.trim_end_matches(['\n', '\r', ' ', '\t']) != "---" || !first.ends_with('\n') {
-        return None;
-    }
-    let mut end = first.len();
-    for line in lines {
-        end += line.len();
-        let marker = line.trim_end_matches(['\n', '\r', ' ', '\t']);
-        if marker == "---" || marker == "..." {
-            return Some(Some(&rest[end..]));
-        }
-    }
-    Some(None)
+    rest.split_inclusive('\n').next().is_some_and(|first| {
+        first.ends_with('\n') && first.trim_end_matches(['\n', '\r', ' ', '\t']) == "---"
+    })
 }
 
 /// Puts `key` into `order` after the nearest earlier key of `before` that is
@@ -266,6 +264,11 @@ impl CollabDoc {
         if self.note_text() == new {
             return Vec::new();
         }
+        // Text that doesn't read as front matter yet doesn't clear the
+        // properties it was meant to become.
+        if half_typed(new) && !self.props().is_empty() {
+            return Vec::new();
+        }
         let (entries, body) = split_note(new).unwrap_or_else(|| (Vec::new(), new));
         let mut updates = Vec::new();
         if let Some(update) = self.write_props(&entries) {
@@ -331,9 +334,17 @@ impl CollabDoc {
 
     /// Whether the note keeps its front matter as properties (entries) and
     /// not as text in the body: it was moved over, or made so.
+    ///
+    /// Only the note's record of the move says so ([`CollabDoc::mark_parts`]),
+    /// never the presence of a property: the move is decided once every app
+    /// that edits has said it reads them. The record itself is a plain entry
+    /// any editor could write, so it is best-effort against an editor
+    /// forcing the move early (who could damage the note in any case); it
+    /// can't make an editor appear to have said anything: see
+    /// [`CollabDoc::ack_parts`].
     pub fn in_parts(&self) -> bool {
         let txn = self.doc().transact();
-        self.caps.get(&txn, PARTS_KEY).is_some() || self.props.len(&txn) > 0
+        self.caps.get(&txn, PARTS_KEY).is_some()
     }
 
     /// Records that the note keeps its properties as entries, from now on.
@@ -349,24 +360,37 @@ impl CollabDoc {
 
     /// Says that `account`'s app keeps properties as entries: it can edit
     /// a note that does. An app that can't says nothing, which is how the
-    /// others know. Returns the update, if `account` hadn't said it.
-    pub fn ack_parts(&self, account: &str) -> Option<Vec<u8>> {
+    /// others know. The word is `signature`, the account's own signature
+    /// over [`parts_ack_message`] (its share and its account), so nobody can
+    /// say it for another: [`CollabDoc::acked_parts`] counts only words that
+    /// verify against the member's key. Returns the update, if `account`
+    /// hadn't said it.
+    pub fn ack_parts(&self, account: &str, signature: &[u8; 64]) -> Option<Vec<u8>> {
         let key = format!("{ACK_PREFIX}{account}");
         let mut txn = self.doc().transact_mut();
         if self.caps.get(&txn, &key).is_some() {
             return None;
         }
-        self.caps.insert(&mut txn, key.as_str(), 1);
+        self.caps
+            .insert(&mut txn, key.as_str(), crate::codec::b64(signature));
         Some(txn.encode_update_v1())
     }
 
-    /// Whether every one of `accounts` has said their app keeps properties
-    /// as entries ([`CollabDoc::ack_parts`]).
-    pub fn acked_parts(&self, accounts: &[&str]) -> bool {
+    /// Whether every one of `members` (account, sign key) has said their app
+    /// keeps properties as entries in this note's share, by a signature that
+    /// verifies ([`CollabDoc::ack_parts`]).
+    pub fn acked_parts(&self, share_id: &str, members: &[(&str, [u8; 32])]) -> bool {
         let txn = self.doc().transact();
-        accounts
-            .iter()
-            .all(|a| self.caps.get(&txn, &format!("{ACK_PREFIX}{a}")).is_some())
+        members.iter().all(|(account, sign_pub)| {
+            let Some(Out::Any(Any::String(word))) =
+                self.caps.get(&txn, &format!("{ACK_PREFIX}{account}"))
+            else {
+                return false;
+            };
+            crate::codec::unb64_array::<64>(&word).is_some_and(|signature| {
+                crate::identity::verify(sign_pub, &parts_ack_message(share_id, account), &signature)
+            })
+        })
     }
 
     /// How many bytes of [`CollabDoc::note_text`] come before the body.
@@ -416,40 +440,63 @@ impl CollabDoc {
         part: usize,
         migrate: bool,
     ) -> Vec<Vec<u8>> {
+        self.try_edit_note_in_parts(base, local, part, migrate)
+            .unwrap_or_default()
+    }
+
+    /// [`CollabDoc::edit_note_in_parts`], `None` when the edit is held back:
+    /// the person is in the middle of typing in the front matter of a note
+    /// that has properties (a line without its colon yet, a closing line not
+    /// there yet), so it doesn't read as properties, and taking it would wipe
+    /// them for everyone. Nothing is taken then, the caller keeps `base`
+    /// where it is and leaves the library's text alone, and the whole edit,
+    /// the body's included, is taken once the front matter reads again.
+    pub fn try_edit_note_in_parts(
+        &self,
+        base: &str,
+        local: &str,
+        part: usize,
+        migrate: bool,
+    ) -> Option<Vec<Vec<u8>>> {
         if base == local {
-            return Vec::new();
+            return Some(Vec::new());
         }
-        if !self.in_parts() {
-            if !migrate {
-                let body = crate::engine::rebase(base, local, &self.body_text());
-                return self.set_text_in_parts(Field::Body, &body, part);
-            }
-            let mut updates: Vec<Vec<u8>> = self.mark_parts().into_iter().collect();
-            updates.extend(self.edit_note_in_parts(base, local, part, true));
-            return updates;
+        let in_parts = self.in_parts();
+        // (Properties without the record of the move are only ever from a
+        // writer that wrote them directly: the note's text is still read
+        // with them, so such a note is edited as one that has them.)
+        if !in_parts && !migrate && self.props().is_empty() {
+            let body = crate::engine::rebase(base, local, &self.body_text());
+            return Some(self.set_text_in_parts(Field::Body, &body, part));
         }
         let now_props = self.props();
         let now_body = self.body_text();
         // A note that still has its front matter in the body (made before
         // properties had entries) moves it into them on this edit.
         let legacy = now_props.is_empty() && properties::split(&now_body).is_some();
-        // The person is in the middle of typing in the front matter (a line
-        // without its colon yet, an unclosed block): it doesn't read as
-        // properties, and must not be taken for a body that wiped them. Only
-        // what is after the block is theirs to give for now; the properties
-        // stay as they are until the block reads again. (A block that isn't
-        // closed has no body part: nothing is taken until it is.)
         if !legacy
-            && let Some((base_props, base_body)) = parts(base)
-            && !base_props.is_empty()
-            && let Some(after) = unkept_front(local)
+            && half_typed(local)
+            && (!now_props.is_empty() || parts(base).is_some_and(|(props, _)| !props.is_empty()))
         {
-            let Some(local_body) = after else {
-                return Vec::new();
-            };
-            let body = crate::engine::rebase(base_body, local_body, &now_body);
-            return self.set_text_in_parts(Field::Body, &body, part);
+            return None;
         }
+        let mut updates: Vec<Vec<u8>> = Vec::new();
+        if !in_parts {
+            updates.extend(self.mark_parts());
+        }
+        updates.extend(self.edit_taken(base, local, part, legacy, now_props, now_body));
+        Some(updates)
+    }
+
+    fn edit_taken(
+        &self,
+        base: &str,
+        local: &str,
+        part: usize,
+        legacy: bool,
+        now_props: Vec<FrontEntry>,
+        now_body: String,
+    ) -> Vec<Vec<u8>> {
         if !legacy
             && let (Some((base_props, base_body)), Some((props, body))) =
                 (parts(base), parts(local))

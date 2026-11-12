@@ -110,6 +110,9 @@ pub(crate) struct Loaded {
     pub(crate) pending_mentions: Vec<CommentEvent>,
     /// The note stopped being shared here: nothing writes for it again.
     pub(crate) ended: bool,
+    /// The last edit taken in was held back (front matter half typed): its
+    /// `base` didn't move, and the library and the editor keep their text.
+    pub(crate) held: bool,
     /// The note is starting again from the log: the library isn't written
     /// until the log has merged.
     pub(crate) reloading: bool,
@@ -150,14 +153,17 @@ impl Loaded {
         let Some(doc) = self.doc.text() else {
             return false;
         };
-        let editors: Vec<&str> = self
-            .current
-            .members
-            .iter()
-            .filter(|m| m.role.may_edit())
-            .map(|m| m.account.as_str())
-            .collect();
-        doc.in_parts() || doc.acked_parts(&editors)
+        // Only words signed by the member they are for count: an editor
+        // can't say it for another. (A member whose key doesn't decode
+        // can't have said it.)
+        let mut editors: Vec<(&str, [u8; 32])> = Vec::new();
+        for m in self.current.members.iter().filter(|m| m.role.may_edit()) {
+            let Some(sign_pub) = unb64_array::<32>(&m.sign_pub) else {
+                return false;
+            };
+            editors.push((m.account.as_str(), sign_pub));
+        }
+        doc.in_parts() || doc.acked_parts(&self.note.share_id, &editors)
     }
 
     /// The note as the library keeps it: the title, and the text with the
@@ -339,6 +345,7 @@ impl Engine {
             needs_refresh: false,
             pending_mentions: Vec::new(),
             ended: false,
+            held: false,
             reloading: false,
             canvas_base: None,
             canvas_dirty: false,
@@ -364,10 +371,15 @@ impl Engine {
         if !loaded.role().may_edit() || loaded.ended {
             return Ok(());
         }
+        let me = &self.account.caller.account_id;
+        let signature = self.identity()?.sign(&crate::doc_props::parts_ack_message(
+            &loaded.note.share_id,
+            me,
+        ));
         let Some(doc) = loaded.doc.text() else {
             return Ok(());
         };
-        if let Some(update) = doc.ack_parts(&self.account.caller.account_id) {
+        if let Some(update) = doc.ack_parts(me, &signature) {
             self.store
                 .push_outbox(&loaded.note.share_id, "u", &update)?;
             self.persist(loaded)?;
@@ -450,6 +462,11 @@ impl Engine {
             };
             if let Some(local) = &local {
                 self.take_local(loaded, local)?;
+                if loaded.held {
+                    // Half-typed front matter: the library keeps what was
+                    // typed until it reads.
+                    return self.persist(loaded);
+                }
             }
             let (title, body) = loaded.text();
             // The library holds a note's text up to its limits; what is
@@ -504,7 +521,9 @@ impl Engine {
     pub(crate) fn take_local(&self, loaded: &mut Loaded, local: &(String, String)) -> Result<bool> {
         let base = loaded.base.clone();
         let changed = self.take_edit(loaded, &base, local)?;
-        loaded.base = local.clone();
+        if !loaded.held {
+            loaded.base = local.clone();
+        }
         Ok(changed)
     }
 
@@ -515,7 +534,9 @@ impl Engine {
             .clone()
             .unwrap_or_else(|| loaded.base.clone());
         let changed = self.take_edit(loaded, &base, editor)?;
-        loaded.editor_base = Some(editor.clone());
+        if !loaded.held {
+            loaded.editor_base = Some(editor.clone());
+        }
         Ok(changed)
     }
 
@@ -525,6 +546,7 @@ impl Engine {
         base: &(String, String),
         local: &(String, String),
     ) -> Result<bool> {
+        loaded.held = false;
         if local == base || !loaded.role().may_edit() || loaded.doc.text().is_none() {
             return Ok(false);
         }
@@ -558,16 +580,22 @@ impl Engine {
         // The title is text, rebased onto what merged meanwhile. The note's
         // text is taken one property at a time and the body rebased, so a
         // change to another property made meanwhile is never undone.
+        let ready = loaded.parts_ready();
+        let Some(text_updates) =
+            loaded
+                .text_doc()
+                .try_edit_note_in_parts(&base.1, &local.1, UPDATE_PART, ready)
+        else {
+            // The front matter is half typed: nothing is taken, the title
+            // with it, and `base` stays until it reads.
+            loaded.held = true;
+            return Ok(false);
+        };
         let title = rebase(&base.0, &local.0, &loaded.text_doc().text(Field::Title));
         let mut updates = loaded
             .text_doc()
             .set_text_in_parts(Field::Title, &title, UPDATE_PART);
-        updates.extend(loaded.text_doc().edit_note_in_parts(
-            &base.1,
-            &local.1,
-            UPDATE_PART,
-            loaded.parts_ready(),
-        ));
+        updates.extend(text_updates);
         let mut changed = false;
         for update in &updates {
             self.store.push_outbox(&loaded.note.share_id, "u", update)?;
@@ -715,8 +743,20 @@ impl Engine {
         if !(from_library && library.as_ref() == Some(&editor)) {
             self.take_editor(&mut loaded, &editor)?;
         }
+        let held = loaded.held;
         let delivered = self.merge_delivered(&mut loaded)?;
         loaded.pending_mentions.extend(delivered.mentions);
+        if held {
+            // Half-typed front matter: the editor keeps its text as it is
+            // (the merge shows once the front matter reads), and the library
+            // is left alone.
+            return Ok(EditorMerge {
+                title: Vec::new(),
+                body: Vec::new(),
+                title_text: title.to_owned(),
+                body_text: body.to_owned(),
+            });
+        }
         let (title_text, body_text) = loaded.text();
         let merge = EditorMerge {
             title: splices(title, &title_text),
