@@ -32,6 +32,7 @@ import { identityOf, isB64 } from "./identity";
 import { BINDING_PERIOD_MS, accountKey, clientIp, count, ipGroup } from "./limits";
 import { DAY, base64url, fromBase64url, isAccountId, isObject, isSha256Hex, natParam, proof32 } from "./protocol";
 import { wakeShare } from "./push";
+import { closeBookSockets, purgeBookRoom } from "./book_room";
 import { type NoteRoom, ROOM_HEADERS, type RoomRefusal } from "./room";
 import { isShareId } from "./shares";
 import { PUBLIC_HEADERS } from "./viewer";
@@ -1048,6 +1049,10 @@ export function invitePage(linkId: string): Handler {
 function bookAccountStatements(bind: (sql: string) => D1PreparedStatement, guardSql: string): D1PreparedStatement[] {
 	const owned = "(SELECT id FROM book_shares WHERE owner_id = ?1)";
 	return [
+		bind(
+			`INSERT INTO book_purges (id, requested_at) SELECT id, ?3 FROM book_shares WHERE owner_id = ?1 AND ${guardSql}
+  ON CONFLICT (id) DO UPDATE SET requested_at = excluded.requested_at`,
+		),
 		bind(`UPDATE book_shares SET stopped_at = ?3 WHERE owner_id = ?1 AND ${guardSql}`),
 		bind(`DELETE FROM book_wraps WHERE (account_id = ?1 OR share_id IN ${owned}) AND ${guardSql}`),
 		bind(`DELETE FROM book_epochs WHERE share_id IN ${owned} AND ${guardSql}`),
@@ -1084,17 +1089,23 @@ export function accountCollabStatements(db: D1Database, accountId: string, guard
 	];
 }
 
+/** The shared notes and notebooks an account is in without owning them. */
+export interface Memberships {
+	notes: string[];
+	books: string[];
+}
+
 /** The shares an account is in without owning them: their rooms close its sockets once it is deleted. */
-export async function memberships(env: Env, accountId: string): Promise<string[]> {
-	const { results } = await env.DB.prepare("SELECT share_id FROM collab_members WHERE account_id = ?1 AND role != 'owner'")
-		.bind(accountId)
-		.all<{ share_id: string }>();
-	return results.map((r) => r.share_id);
+export async function memberships(env: Env, accountId: string): Promise<Memberships> {
+	const notes = await env.DB.prepare("SELECT share_id FROM collab_members WHERE account_id = ?1 AND role != 'owner'").bind(accountId).all<{ share_id: string }>();
+	const books = await env.DB.prepare("SELECT share_id FROM book_members WHERE account_id = ?1 AND role != 'owner'").bind(accountId).all<{ share_id: string }>();
+	return { notes: notes.results.map((r) => r.share_id), books: books.results.map((r) => r.share_id) };
 }
 
 /** After an account deletion: its sockets in others' rooms close, and its own rooms are purged. */
-export async function afterAccountDeleted(env: Env, accountId: string, shares: string[], now: number): Promise<void> {
-	await Promise.all(shares.map((id) => closeSockets(env, id, [accountId])));
+export async function afterAccountDeleted(env: Env, accountId: string, shared: Memberships, now: number): Promise<void> {
+	await Promise.all(shared.notes.map((id) => closeSockets(env, id, [accountId])));
+	await Promise.all(shared.books.map((id) => closeBookSockets(env, id, [accountId])));
 	await runCollabPurges(env, now);
 }
 
@@ -1108,5 +1119,7 @@ export async function runCollabPurges(env: Env, now: number, limit = COLLAB_PURG
 	const { results } = await env.DB.prepare("SELECT id FROM collab_purges ORDER BY requested_at, id LIMIT ?1").bind(limit).all<{ id: string }>();
 	let purged = 0;
 	for (const { id } of results) if (await purgeRoom(env, id)) purged += 1;
+	const books = await env.DB.prepare("SELECT id FROM book_purges ORDER BY requested_at, id LIMIT ?1").bind(limit).all<{ id: string }>();
+	for (const { id } of books.results) if (await purgeBookRoom(env, id)) purged += 1;
 	return purged;
 }

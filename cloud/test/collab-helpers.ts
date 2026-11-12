@@ -243,8 +243,8 @@ export interface Socket {
 }
 
 /** Opens `…/live` as `token`; the response when it isn't upgraded. */
-export async function openSocket(token: string, shareId: string): Promise<Socket | Response> {
-	const response = await call(`/v2/collab/shares/${shareId}/live`, { token, headers: { upgrade: "websocket" } });
+export async function openSocket(token: string, shareId: string, kind: "shares" | "books" = "shares"): Promise<Socket | Response> {
+	const response = await call(`/v2/collab/${kind}/${shareId}/live`, { token, headers: { upgrade: "websocket" } });
 	const ws = response.webSocket;
 	if (response.status !== 101 || !ws) return response;
 	const queue: Message[] = [];

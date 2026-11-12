@@ -25,13 +25,16 @@
 // follow the head, 413 `quota_exceeded` `{quota, used, limit}`, 429
 // `rate_limited` (`book-read-account`, `book-write-account`).
 
+import type { Session } from "./auth";
+import { BOOK_SHARE_HEADER, MANIFEST_ID, bookRoomOf, closeBookSockets, purgeBookRoom } from "./book_room";
 import { type Handler, LINK_ROLES, MAX_LINK_MS, MAX_LIST_CHARS, bound, checkMemberKeys, forbiddenRole, identityRequired, noContent, route } from "./collab";
-import type { Role } from "./envelope";
+import { type Header, type Kind, MAX_ENVELOPE, MAX_LOG_LIMIT, type Role, isManifest, mayWriteStream, parseEnvelope } from "./envelope";
 import type { Env } from "./env";
-import { badRequest, constraint, error, json, notFound, readJson, refusal } from "./http";
+import { badRequest, constraint, error, json, notFound, readBody, readJson, refusal, tooLarge } from "./http";
 import { identityOf, isB64 } from "./identity";
 import { accountKey, count } from "./limits";
-import { fromBase64url, isAccountId, isObject, isSha256Hex, natParam } from "./protocol";
+import { base64url, fromBase64url, isAccountId, isObject, isSha256Hex, natParam } from "./protocol";
+import { ROOM_HEADERS, type RoomRefusal } from "./room";
 import { isShareId } from "./shares";
 
 export const MAX_BOOK_MEMBERS = 25;
@@ -475,6 +478,8 @@ export function newList(shareId: string): Handler {
 			.first<{ list: string; list_sig: string; hash: string; signer: string }>();
 		if (!head) return notFound();
 		if (rev === s.headRev && b.list_sig === head.list_sig && b.list === head.list && head.signer === session.accountId) {
+			const again = await parseBookList(head.list, shareId);
+			if (typeof again !== "string") await tellRoom(env, shareId, s.epoch, again.members);
 			return json({ epoch: s.epoch, rev: s.headRev, hash: s.headHash });
 		}
 		if (rev !== s.headRev + 1) return conflict(s);
@@ -507,6 +512,12 @@ export function newList(shareId: string): Handler {
 		}
 		const wrong = epochRules(prev, next, cuts);
 		if (wrong) return badRequest(wrong);
+		// The list says from which seq on the old epoch's writers no longer count; it must be the
+		// notebook's real log head now, or the signer signs the list again with from_seq at the head.
+		if (next.epoch !== prev.epoch) {
+			const { head } = await bookRoomOf(env, shareId).state();
+			if (next.fromSeq !== head) return error(409, "head_moved", "The log moved on: sign the list again with from_seq at the head.", { head });
+		}
 		const members = next.members;
 		if (members.length > MAX_BOOK_MEMBERS) return error(413, "quota_exceeded", "Over quota.", { quota: "members", used: members.length, limit: MAX_BOOK_MEMBERS });
 		if (!isB64(b.list_sig, 64)) return badRequest("list_sig must be 86 base64url characters.");
@@ -572,6 +583,7 @@ export function newList(shareId: string): Handler {
 			const current = await standing(env, shareId, session.accountId);
 			return current ? conflict(current) : notFound();
 		}
+		await tellRoom(env, shareId, next.epoch, members);
 		return json({ epoch: next.epoch, rev, hash: next.hash });
 	});
 }
@@ -649,7 +661,9 @@ export function leave(shareId: string): Handler {
 			env.DB.prepare("DELETE FROM book_wraps WHERE share_id = ?1 AND account_id = ?2").bind(shareId, session.accountId),
 			env.DB.prepare("DELETE FROM book_members WHERE share_id = ?1 AND account_id = ?2 RETURNING account_id").bind(shareId, session.accountId),
 		]);
-		return results[1].results.length === 1 ? noContent() : notFound();
+		if (results[1].results.length !== 1) return notFound();
+		await closeBookSockets(env, shareId, [session.accountId]);
+		return noContent();
 	});
 }
 
@@ -661,6 +675,11 @@ export function stopBook(shareId: string): Handler {
 		const mine = "EXISTS (SELECT 1 FROM book_shares WHERE id = ?1 AND owner_id = ?3)";
 		const values = [shareId, now, session.accountId];
 		const results = await env.DB.batch([
+			bound(
+				env.DB,
+				`INSERT INTO book_purges (id, requested_at) SELECT ?1, ?2 WHERE ${mine} ON CONFLICT (id) DO UPDATE SET requested_at = excluded.requested_at`,
+				values,
+			),
 			bound(env.DB, "UPDATE book_shares SET stopped_at = ?2 WHERE id = ?1 AND owner_id = ?3", values),
 			bound(env.DB, `DELETE FROM book_wraps WHERE share_id = ?1 AND ${mine}`, values),
 			bound(env.DB, `DELETE FROM book_epochs WHERE share_id = ?1 AND ${mine}`, values),
@@ -669,6 +688,157 @@ export function stopBook(shareId: string): Handler {
 			bound(env.DB, `DELETE FROM book_members WHERE share_id = ?1 AND ${mine}`, values),
 			bound(env.DB, "DELETE FROM book_shares WHERE id = ?1 AND owner_id = ?3 RETURNING id", values),
 		]);
-		return results[results.length - 1].results.length === 1 ? noContent() : notFound();
+		if (results[results.length - 1].results.length !== 1) return notFound();
+		await purgeBookRoom(env, shareId);
+		return noContent();
+	});
+}
+
+// ------------------------------------------------------ the logs and the room
+
+/** Tells the room the notebook's epoch and everyone's role: sockets of accounts no longer listed close at once. */
+async function tellRoom(env: Env, shareId: string, epoch: number, members: BookMember[]): Promise<void> {
+	const roles = Object.fromEntries(members.map((m) => [m.account, m.role])) as Record<string, Role>;
+	try {
+		await bookRoomOf(env, shareId).setEpoch({ epoch, roles });
+	} catch (err) {
+		console.error(JSON.stringify({ route: "book", op: "set_epoch", outcome: (err as Error)?.name ?? typeof err }));
+	}
+}
+
+const roomRefusal = (r: RoomRefusal): Response => {
+	const extras = r.extras ?? {};
+	const headers: Record<string, string> = typeof extras.retry_after === "number" ? { "retry-after": String(extras.retry_after) } : {};
+	return error(r.status, r.error, `Refused by the room: ${r.error}.`, extras, headers);
+};
+
+/** A note's stream ID: its 16 bytes as 22 base64url characters; never the manifest's all-zero one. Null when it isn't. */
+function noteStream(raw: string): string | null {
+	const bytes = isShareId(raw) ? fromBase64url(raw) : null;
+	return bytes && bytes.length === 16 && !isManifest(bytes) ? raw : null;
+}
+
+/**
+ * The notebook for a log or socket route: counted per account (`book-log-account`), 400 for a bad ID,
+ * 404 for anyone who isn't an accepted member (an invitation, someone who left or was removed, a stranger).
+ */
+async function asLogMember(env: Env, shareId: string, session: Session, now: number): Promise<BookStanding | Response> {
+	const limited = await count(env.DB, "book-log-account", accountKey("book-log-account", session.accountId), now);
+	if (limited) return limited;
+	if (!isShareId(shareId)) return badRequest("Not a share ID.");
+	const s = await standing(env, shareId, session.accountId);
+	if (!s || s.role === null || s.status !== "member") return notFound();
+	return s;
+}
+
+/** The header of an envelope sent to a stream: format, kind for the route, epoch (409), author and device (403), role (403), size (413). */
+function checkEnvelope(bytes: Uint8Array, kinds: readonly Kind[], stream: string, s: BookStanding, session: Session): Header | Response {
+	const header = parseEnvelope(bytes);
+	if (!header) return badRequest("Not an envelope (0x01, kind, epoch, author, device, counter, nonce, sealed, signature).");
+	if (!kinds.includes(header.kind)) return badRequest(`This route takes ${kinds.join(" or ")} envelopes.`);
+	if (header.epoch !== s.epoch) return error(409, "epoch_changed", "The notebook has a newer epoch.", { epoch: s.epoch });
+	if (header.author !== session.accountId || header.device !== session.deviceId) {
+		return error(403, "forbidden_author", "The envelope's author and device must be this session's.");
+	}
+	if (!s.role || !mayWriteStream(s.role, header.kind, stream === MANIFEST_ID)) return forbiddenRole();
+	if (bytes.length > MAX_ENVELOPE[header.kind]) return tooLarge(`A ${header.kind} envelope is at most ${MAX_ENVELOPE[header.kind]} bytes.`);
+	return header;
+}
+
+/**
+ * `GET /v2/collab/books/<id>/manifest` and `/notes/<note>?since=&limit=`: `{head, stream_head,
+ * snapshot, entries, more}`, envelopes as base64url. `head` is the notebook's (every stream's seqs
+ * share one count), `stream_head` this log's last seq; `since` is a seq, `limit` is 1–1000 (500 by default).
+ */
+export function readStream(shareId: string, note: string | null): Handler {
+	return route(async (request, env, now, session) => {
+		const s = await asLogMember(env, shareId, session, now);
+		if (s instanceof Response) return s;
+		const stream = note === null ? MANIFEST_ID : noteStream(note);
+		if (stream === null) return badRequest("A note ID is 16 bytes of base64url (22 characters), and not all zeros.");
+		const params = new URL(request.url).searchParams;
+		const since = natParam(params.get("since"), 0);
+		const limit = natParam(params.get("limit"), 500);
+		if (since === null || limit === null || limit < 1 || limit > MAX_LOG_LIMIT) return badRequest(`since must be ≥ 0 and limit 1–${MAX_LOG_LIMIT}.`);
+		const page = await bookRoomOf(env, shareId).read({ stream, since, limit });
+		return json({
+			head: page.head,
+			stream_head: page.stream_head,
+			snapshot: page.snapshot ? { seq: page.snapshot.seq, base_seq: page.snapshot.base_seq, envelope: base64url(page.snapshot.envelope) } : null,
+			entries: page.entries.map((e) => ({ seq: e.seq, envelope: base64url(e.envelope) })),
+			more: page.more,
+		});
+	});
+}
+
+/**
+ * `POST /v2/collab/books/<id>/manifest` (an update) and `/notes/<note>` (an update or a comment),
+ * as bytes: 200 `{seq}`. The room refuses with 413 `quota_exceeded` past the owner's document bytes
+ * (`doc_bytes`), 2,000 notes (`notes`) or a note's 8 MiB of comments (`comment_bytes`).
+ */
+export function appendStream(shareId: string, note: string | null): Handler {
+	return route(async (request, env, now, session) => {
+		const s = await asLogMember(env, shareId, session, now);
+		if (s instanceof Response) return s;
+		const stream = note === null ? MANIFEST_ID : noteStream(note);
+		if (stream === null) return badRequest("A note ID is 16 bytes of base64url (22 characters), and not all zeros.");
+		const bytes = await readBody(request, MAX_ENVELOPE.u);
+		if (!bytes) return tooLarge(`An envelope here is at most ${MAX_ENVELOPE.u} bytes.`);
+		const header = checkEnvelope(bytes, note === null ? ["u"] : ["u", "c"], stream, s, session);
+		if (header instanceof Response) return header;
+		const result = await bookRoomOf(env, shareId).append({ shareId, stream, epoch: s.epoch, envelope: bytes, now });
+		if (!result.ok) return roomRefusal(result);
+		return json({ seq: result.seq });
+	});
+}
+
+/**
+ * `POST /v2/collab/books/<id>/manifest/snapshot` and `/notes/<note>/snapshot` with `x-kanso-base-seq`:
+ * taken only while the base is that log's last seq (409 `head_moved` `{head}`; 0 for a log with
+ * nothing). It replaces the log's updates up to the base; its seq is the base. 200 `{seq}`.
+ */
+export function postStreamSnapshot(shareId: string, note: string | null): Handler {
+	return route(async (request, env, now, session) => {
+		const s = await asLogMember(env, shareId, session, now);
+		if (s instanceof Response) return s;
+		const stream = note === null ? MANIFEST_ID : noteStream(note);
+		if (stream === null) return badRequest("A note ID is 16 bytes of base64url (22 characters), and not all zeros.");
+		const base = request.headers.get("x-kanso-base-seq");
+		const baseSeq = base === null ? null : natParam(base, 0);
+		if (baseSeq === null) return badRequest("x-kanso-base-seq must be the log's last seq the snapshot was made at.");
+		const bytes = await readBody(request, MAX_ENVELOPE.s);
+		if (!bytes) return tooLarge(`A snapshot is at most ${MAX_ENVELOPE.s} bytes.`);
+		const header = checkEnvelope(bytes, ["s"], stream, s, session);
+		if (header instanceof Response) return header;
+		const result = await bookRoomOf(env, shareId).snapshot({ shareId, stream, epoch: s.epoch, baseSeq, envelope: bytes, now });
+		if (!result.ok) return roomRefusal(result);
+		return json({ seq: result.seq });
+	});
+}
+
+/**
+ * `GET /v2/collab/books/<id>/live`: the WebSocket, one per open notebook, accepted by the room with
+ * the member's account, device, role and the epoch read here. A plain GET is 426 `upgrade_required`;
+ * a ninth socket of one account is 429 `rate_limited` with `limit: "sockets"`.
+ */
+export function live(shareId: string): Handler {
+	return route(async (request, env, now, session) => {
+		const s = await asLogMember(env, shareId, session, now);
+		if (s instanceof Response) return s;
+		if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+			return error(426, "upgrade_required", "Open this route as a WebSocket.", {}, { upgrade: "websocket" });
+		}
+		return bookRoomOf(env, shareId).fetch(
+			new Request("https://room/live", {
+				headers: {
+					upgrade: "websocket",
+					[ROOM_HEADERS.account]: session.accountId,
+					[ROOM_HEADERS.device]: session.deviceId,
+					[ROOM_HEADERS.role]: s.role ?? "view",
+					[ROOM_HEADERS.epoch]: String(s.epoch),
+					[BOOK_SHARE_HEADER]: shareId,
+				},
+			}),
+		);
 	});
 }

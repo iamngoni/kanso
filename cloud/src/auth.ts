@@ -10,7 +10,7 @@
 
 import { pendingMigrations } from "./schema";
 import { signOutSockets } from "./account_room";
-import { accountCollabStatements, afterAccountDeleted, memberships } from "./collab";
+import { type Memberships, accountCollabStatements, afterAccountDeleted, memberships } from "./collab";
 import { type PepperKeys, hashToken, hex, hmac16, newToken, proofMatches, randomHex, sha256Hex } from "./crypto";
 import type { Env } from "./env";
 import {
@@ -855,7 +855,7 @@ export function deletionStatements(db: D1Database, accountId: string, now: numbe
 		bind(`DELETE FROM sessions WHERE account_id = ?1 AND ${where}`),
 		bind(
 			`DELETE FROM limits WHERE (key IN ('login-user:' || ?1, 'password-account:' || ?1, 'writes-account:' || ?1, 'uploads-account:' || ?1,
-  'lookup-account:' || ?1, 'join-account:' || ?1, 'notify-account:' || ?1, 'book-read-account:' || ?1, 'book-write-account:' || ?1, 'proof-account:' || ?1, 'passkey-manage:' || ?1,
+  'lookup-account:' || ?1, 'join-account:' || ?1, 'notify-account:' || ?1, 'book-read-account:' || ?1, 'book-write-account:' || ?1, 'book-log-account:' || ?1, 'proof-account:' || ?1, 'passkey-manage:' || ?1,
   'approval-create:' || ?1, 'approval-poll:' || ?1, 'approval-respond:' || ?1, 'feedback-account:' || ?1)
   OR ${sessionLimitKeys(1)})
   AND ${where}`,
@@ -873,7 +873,7 @@ export function deletionStatements(db: D1Database, accountId: string, now: numbe
 }
 
 /** After the deletion batch: its R2 prefix, published notes, shared rooms and event sockets. */
-export async function afterDeletion(env: Env, accountId: string, shared: string[], now: number): Promise<void> {
+export async function afterDeletion(env: Env, accountId: string, shared: Memberships, now: number): Promise<void> {
 	await purgePrefix(env, accountPrefix(accountId), now, now, DELETE_PURGE_ROUNDS);
 	await runSharePurges(env, now);
 	await afterAccountDeleted(env, accountId, shared, now);

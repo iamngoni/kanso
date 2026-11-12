@@ -51,6 +51,13 @@
 //   POST   /v2/collab/books/<id>/accept        accept an invitation                   (session)
 //   DELETE /v2/collab/books/<id>/membership    leave, or decline                      (session)
 //   POST   /v2/collab/books/<id>/epoch         the next signed member list + wraps    (session)
+//   GET    /v2/collab/books/<id>/manifest      the manifest's snapshot and log        (session)
+//   POST   /v2/collab/books/<id>/manifest      append a manifest update               (session)
+//   POST   /v2/collab/books/<id>/manifest/snapshot   compact the manifest log         (session)
+//   GET    /v2/collab/books/<id>/notes/<note>  a note's snapshot and log              (session)
+//   POST   /v2/collab/books/<id>/notes/<note>  append an update or comment            (session)
+//   POST   /v2/collab/books/<id>/notes/<note>/snapshot   compact a note's log         (session)
+//   GET    /v2/collab/books/<id>/live          the notebook's live WebSocket          (session)
 //   POST   /v2/collab/books/<id>/links         make an invite link                    (session)
 //   DELETE /v2/collab/books/<id>/links/<link>  cancel it                              (session)
 //   POST   /v2/collab/notifications     notify a member (sealed)                      (session)
@@ -134,6 +141,7 @@ import * as sync from "./sync";
 export type { Env } from "./env";
 export { runCron } from "./purge";
 export { NoteRoom } from "./room";
+export { BookRoom } from "./book_room";
 export { AccountRoom } from "./account_room";
 
 type Handler = (request: Request, env: Env, now: number) => Promise<Response>;
@@ -259,8 +267,20 @@ function collabBookRoute(id: string, rest: string): Route | null {
 	if (rest === "/membership") return { name: "collab_book_membership", methods: { DELETE: { handler: book.leave(id) } } };
 	if (rest === "/epoch") return { name: "collab_book_epoch", methods: { POST: json(book.newList(id)) } };
 	if (rest === "/links") return { name: "collab_book_links", methods: { POST: json(book.createLink(id)) } };
+	if (rest === "/manifest") {
+		return { name: "collab_book_manifest", methods: { GET: { handler: book.readStream(id, null) }, POST: { handler: book.appendStream(id, null), body: "bytes" } } };
+	}
+	if (rest === "/manifest/snapshot") return { name: "collab_book_manifest_snapshot", methods: { POST: { handler: book.postStreamSnapshot(id, null), body: "bytes" } } };
+	if (rest === "/live") return { name: "collab_book_live", methods: { GET: { handler: book.live(id) } } };
+	const note = /^\/notes\/([^/]+)$/.exec(rest);
+	if (note) {
+		const n = segment(note[1]);
+		return { name: "collab_book_note", methods: { GET: { handler: book.readStream(id, n) }, POST: { handler: book.appendStream(id, n), body: "bytes" } } };
+	}
+	const noteSnapshot = /^\/notes\/([^/]+)\/snapshot$/.exec(rest);
+	if (noteSnapshot) return { name: "collab_book_note_snapshot", methods: { POST: { handler: book.postStreamSnapshot(id, segment(noteSnapshot[1])), body: "bytes" } } };
 	const link = /^\/links\/([^/]+)$/.exec(rest);
-	if (link) return { name: "collab_book_link", methods: { DELETE: { handler: book.deleteLink(id, segment(link[1])) } } };
+	if (link) return { name: "collab_book_link",methods: { DELETE: { handler: book.deleteLink(id, segment(link[1])) } } };
 	return null;
 }
 
