@@ -7,6 +7,9 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+# A date and time with a zone (`zoned.rs`), resolved through the tz database.
+chrono.workspace = true
+chrono-tz.workspace = true
 fastrand.workspace = true
 md-5.workspace = true
 # Query fences are found in the Markdown syntax tree, as the preview finds them.

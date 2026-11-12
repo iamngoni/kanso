@@ -246,6 +246,10 @@ fn call(
                 access: kanso_store::KeyAccess::Write,
                 ..
             } => Ok(json!({ "tools": schema::definitions() })),
+            Caller::Key {
+                access: kanso_store::KeyAccess::Capture,
+                ..
+            } => Ok(json!({ "tools": crate::agent_tools::definitions_for_capture() })),
             Caller::Key { scope, access, .. } => Ok(json!({
                 "tools": crate::agent_tools::definitions_for_key(scope, *access == kanso_store::KeyAccess::Write)
             })),

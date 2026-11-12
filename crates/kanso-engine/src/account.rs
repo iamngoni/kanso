@@ -26,6 +26,8 @@ use crate::Secrets;
 use words::{ErrorContext, Question};
 
 pub mod approval;
+pub mod cost;
+pub mod cost_model;
 #[cfg(test)]
 mod lab;
 pub mod provider;

@@ -27,7 +27,7 @@ use kanso_store::{ApiKeyRow, Store, lock_data_dir};
 use crate::capture_cli::pick_book_for;
 
 pub const USAGE: &str = "\
-Usage: kanso api-key create --name <name> [--access read|suggest|write]
+Usage: kanso api-key create --name <name> [--access read|suggest|write|capture]
                             [--scope <notebook name or id>]… [--data-dir <dir>]
        kanso api-key list [--data-dir <dir>]
        kanso api-key revoke <key id or name> [--data-dir <dir>]
@@ -121,7 +121,7 @@ fn parse_create(args: &[String]) -> Result<Command, String> {
         } else if let Some((value, took)) = value_of(args, ix, "--access")? {
             access = KeyAccess::parse(value.trim()).ok_or_else(|| {
                 format!(
-                    "--access is read, suggest or write, not “{}”.",
+                    "--access is read, suggest, write or capture, not “{}”.",
                     value.trim()
                 )
             })?;
@@ -485,7 +485,7 @@ mod tests {
         assert!(
             parse(&args(&["create", "--name", "x", "--access", "admin"]))
                 .unwrap_err()
-                .contains("read, suggest or write")
+                .contains("read, suggest, write or capture")
         );
         assert!(
             parse(&args(&["create", "--name"]))

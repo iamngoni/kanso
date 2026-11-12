@@ -13,6 +13,7 @@ class AccountDetails {
   final String server;
   final List<DeviceRow> devices;
   final String? storageLine;
+  final CostSummary cost;
   final bool hasPassword;
   final List<LinkedProviderRow> providers;
   final List<PasskeyRow> passkeys;
@@ -23,6 +24,7 @@ class AccountDetails {
     required this.server,
     required this.devices,
     this.storageLine,
+    required this.cost,
     required this.hasPassword,
     required this.providers,
     required this.passkeys,
@@ -35,6 +37,7 @@ class AccountDetails {
       server.hashCode ^
       devices.hashCode ^
       storageLine.hashCode ^
+      cost.hashCode ^
       hasPassword.hashCode ^
       providers.hashCode ^
       passkeys.hashCode ^
@@ -49,6 +52,7 @@ class AccountDetails {
           server == other.server &&
           devices == other.devices &&
           storageLine == other.storageLine &&
+          cost == other.cost &&
           hasPassword == other.hasPassword &&
           providers == other.providers &&
           passkeys == other.passkeys &&
@@ -914,6 +918,31 @@ class CopiedLink {
           runtimeType == other.runtimeType &&
           text == other.text &&
           message == other.message;
+}
+
+class CostSummary {
+  final String headline;
+  final String spaceLine;
+  final String learnMoreUrl;
+
+  const CostSummary({
+    required this.headline,
+    required this.spaceLine,
+    required this.learnMoreUrl,
+  });
+
+  @override
+  int get hashCode =>
+      headline.hashCode ^ spaceLine.hashCode ^ learnMoreUrl.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CostSummary &&
+          runtimeType == other.runtimeType &&
+          headline == other.headline &&
+          spaceLine == other.spaceLine &&
+          learnMoreUrl == other.learnMoreUrl;
 }
 
 class CursorMark {

@@ -1462,6 +1462,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CopiedLink dco_decode_copied_link(dynamic raw);
 
   @protected
+  CostSummary dco_decode_cost_summary(dynamic raw);
+
+  @protected
   CursorMark dco_decode_cursor_mark(dynamic raw);
 
   @protected
@@ -4694,6 +4697,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   CopiedLink sse_decode_copied_link(SseDeserializer deserializer);
+
+  @protected
+  CostSummary sse_decode_cost_summary(SseDeserializer deserializer);
 
   @protected
   CursorMark sse_decode_cursor_mark(SseDeserializer deserializer);
@@ -8577,6 +8583,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_copied_link(CopiedLink self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_cost_summary(CostSummary self, SseSerializer serializer);
 
   @protected
   void sse_encode_cursor_mark(CursorMark self, SseSerializer serializer);

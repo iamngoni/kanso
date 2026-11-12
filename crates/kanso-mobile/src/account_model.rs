@@ -252,6 +252,9 @@ pub struct AccountDetails {
     pub devices: Vec<DeviceRow>,
     /// "1.2 MB of 1 GB", when the server says.
     pub storage_line: Option<String>,
+    /// "What Kanso costs": free, and the sync space used (docs/ACCOUNTS.md
+    /// › Quotas and capacity).
+    pub cost: crate::CostSummary,
     pub has_password: bool,
     pub providers: Vec<LinkedProviderRow>,
     pub passkeys: Vec<PasskeyRow>,

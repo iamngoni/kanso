@@ -866,6 +866,31 @@ impl Store {
                 learned(tx, &remote.id, &remote.rev)?;
                 return Ok(ApplyOutcome::LocalWon { new_rev });
             }
+            // Two versions of a notebook made apart keep every property either
+            // defines (one device adding a property is never lost to another
+            // device's later rename); the loser's version is still history.
+            if !rules.legacy()
+                && local_dirty
+                && doc_type == DocType::Book
+                && !local.deleted
+                && !remote.deleted
+                && let Some(merged) = merge_book_fields(&local.fields, &fields)
+            {
+                if merged == fields {
+                    store_row(tx, &remote.id, doc_type, &remote.rev, false, &fields, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
+                    learned(tx, &remote.id, &remote.rev)?;
+                    return Ok(ApplyOutcome::RemoteWon);
+                }
+                let above = kanso_core::Rev {
+                    generation: local_rev.generation.max(remote_rev.generation),
+                    hash: String::new(),
+                };
+                let new_rev = kanso_core::Rev::next(Some(&above), &Value::Object(merged.clone())).to_string();
+                keep_remote(tx, &remote.id, &remote.rev, &fields)?;
+                store_row(tx, &remote.id, doc_type, &new_rev, false, &merged, Some(&local), Synced::Set(&remote.rev), Origin::Sync, changes)?;
+                learned(tx, &remote.id, &remote.rev)?;
+                return Ok(ApplyOutcome::LocalWon { new_rev });
+            }
             let remote_wins = !local_dirty
                 || match (local.deleted, remote.deleted) {
                     // A deleted note's answers stay deleted whichever side
@@ -968,6 +993,37 @@ fn merge_canvas_fields(
     if let Some(unioned) = union_loops_and_acks(&merged, other) {
         merged = unioned;
     }
+    Some(merged)
+}
+
+/// The fields of two notebook versions made apart: the newer side's, with
+/// the property lists united one property at a time
+/// ([`kanso_core::schema::merge`]). `None` when the lists are the same (then
+/// the usual last-writer-wins applies).
+fn merge_book_fields(
+    local: &Map<String, Value>,
+    remote: &Map<String, Value>,
+) -> Option<Map<String, Value>> {
+    use kanso_core::schema::{FIELD, merge};
+    let (mine, theirs) = (local.get(FIELD), remote.get(FIELD));
+    if mine == theirs {
+        return None;
+    }
+    let remote_newer = updated_at(remote) >= updated_at(local);
+    let united = merge(mine, theirs, remote_newer);
+    let mut merged = if remote_newer {
+        remote.clone()
+    } else {
+        local.clone()
+    };
+    match united {
+        Some(list) => merged.insert(FIELD.into(), list),
+        None => merged.remove(FIELD),
+    };
+    merged.insert(
+        "updatedAt".into(),
+        updated_at(remote).max(updated_at(local)).into(),
+    );
     Some(merged)
 }
 

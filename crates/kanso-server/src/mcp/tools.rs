@@ -137,6 +137,44 @@ pub(crate) fn call_write(
     result.unwrap_or_else(|ToolError(message)| error_result(message))
 }
 
+/// Runs `tools/call` for a Capture key: the reads of a Read key, and the
+/// three tools that add (`create-note`, `kanso-add-task`,
+/// `kanso-set-task-done` with `done: true`), saved at once. Every other
+/// tool, and any tool not yet decided, is refused (see
+/// [`crate::capture`]). The notes and notebooks an adding tool names are
+/// checked against what the key sees, as for a key that can write.
+pub(crate) fn call_capture(
+    state: &AppState,
+    key: &Key,
+    vis: &Visibility,
+    name: &str,
+    arguments: Option<&Value>,
+) -> Value {
+    use crate::capture::{self, Decision};
+    match capture::tool(name) {
+        Decision::Denied => error_result(keyed::cannot_write(key.access)),
+        Decision::Read => call(state, Some(vis), name, arguments),
+        Decision::Add => {
+            let Some(tool) = schema::tool(name) else {
+                return error_result(format!("MCP error -32602: Tool {name} not found"));
+            };
+            let args = match tool.validate(arguments) {
+                Ok(args) => args,
+                Err(issues) => {
+                    return error_result(format!(
+                        "MCP error -32602: Input validation error: Invalid arguments for tool {name}: {issues}"
+                    ));
+                }
+            };
+            let result = capture::check_tool(name, &args)
+                .map_err(ToolError::from)
+                .and_then(|()| guard_write(&state.store, key, vis, name, &args))
+                .and_then(|()| call_full(state, key, vis, name, args));
+            result.unwrap_or_else(|ToolError(message)| error_result(message))
+        }
+    }
+}
+
 /// Checks the notes and notebooks a writing tool names against what the
 /// key sees.
 fn guard_write(
@@ -579,7 +617,11 @@ fn get_properties(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolR
 fn property_value(value: &kanso_core::properties::Value) -> Value {
     use kanso_core::properties::Value as Property;
     match value {
-        Property::Text(value) | Property::Date(value) | Property::Raw(value) => json!(value),
+        Property::Text(value)
+        | Property::Date(value)
+        | Property::DateTime(value)
+        | Property::DateTimeZone(value)
+        | Property::Raw(value) => json!(value),
         Property::Number(value) => json!(value),
         Property::Bool(value) => json!(value),
         Property::List(values) => Value::Array(values.iter().map(property_value).collect()),

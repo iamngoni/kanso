@@ -12,6 +12,7 @@
 
 use crate::dates::Date;
 use crate::properties_model::FrontEntry;
+use crate::zoned;
 
 /// A property's value.
 #[derive(Clone, Debug, PartialEq)]
@@ -21,6 +22,12 @@ pub enum Value {
     Bool(bool),
     /// `YYYY-MM-DD`.
     Date(String),
+    /// `YYYY-MM-DDTHH:MM`, local wall-clock time, as written
+    /// ([`crate::zoned::parse_local`]).
+    DateTime(String),
+    /// `YYYY-MM-DDTHH:MM Zone/Name`, a wall-clock time and the IANA zone it
+    /// is in, as written ([`crate::zoned::parse_zoned`]).
+    DateTimeZone(String),
     List(Vec<Value>),
     /// Anything the parser doesn't understand: a nested map, a block scalar,
     /// a flow map, an anchor, an alias or a tag. Kept as written, and never
@@ -35,7 +42,7 @@ impl Value {
             Value::Text(text) => text.clone(),
             Value::Number(number) => number_text(*number),
             Value::Bool(on) => on.to_string(),
-            Value::Date(date) => date.clone(),
+            Value::Date(date) | Value::DateTime(date) | Value::DateTimeZone(date) => date.clone(),
             Value::List(items) => items
                 .iter()
                 .map(|item| item.text())
@@ -323,6 +330,12 @@ pub fn typed(text: &str, like: Option<&Value>) -> Value {
             .unwrap_or_else(|| Value::Text(text.to_owned())),
         Some(Value::Date(_)) => Date::parse_iso(text)
             .map(|date| Value::Date(date.iso()))
+            .unwrap_or_else(|| Value::Text(text.to_owned())),
+        Some(Value::DateTime(_)) => zoned::parse_local(text)
+            .map(|local| Value::DateTime(zoned::local_text(&local)))
+            .unwrap_or_else(|| Value::Text(text.to_owned())),
+        Some(Value::DateTimeZone(_)) => zoned::parse_zoned(text)
+            .map(|at| Value::DateTimeZone(at.text()))
             .unwrap_or_else(|| Value::Text(text.to_owned())),
         Some(Value::Bool(on)) => match text.to_ascii_lowercase().as_str() {
             "true" => Value::Bool(true),
@@ -644,6 +657,12 @@ fn scalar(text: &str) -> Value {
     if let Some(date) = Date::parse_iso(text) {
         return Value::Date(date.iso());
     }
+    if let Some(at) = zoned::parse_zoned(text) {
+        return Value::DateTimeZone(at.text());
+    }
+    if let Some(local) = zoned::parse_local(text) {
+        return Value::DateTime(zoned::local_text(&local));
+    }
     if let Ok(number) = text.parse::<i64>() {
         return Value::Number(number as f64);
     }
@@ -771,7 +790,7 @@ fn render(value: &Value) -> String {
         Value::Text(text) => quote(text),
         Value::Number(number) => number_text(*number),
         Value::Bool(on) => on.to_string(),
-        Value::Date(date) => date.clone(),
+        Value::Date(date) | Value::DateTime(date) | Value::DateTimeZone(date) => date.clone(),
         Value::List(items) => format!(
             "[{}]",
             items.iter().map(render).collect::<Vec<_>>().join(", ")
@@ -1244,9 +1263,29 @@ nested:
             any::<bool>().prop_map(Value::Bool),
             (2000i32..2100, 1u32..13, 1u32..29)
                 .prop_map(|(y, m, d)| { Value::Date(format!("{y:04}-{m:02}-{d:02}")) }),
+            local_datetime().prop_map(Value::DateTime),
+            (local_datetime(), zone_name())
+                .prop_map(|(at, zone)| Value::DateTimeZone(format!("{at} {zone}"))),
             prop::collection::vec(property_text().prop_map(Value::Text), 0..5)
                 .prop_map(Value::List),
         ]
+    }
+
+    /// `YYYY-MM-DDTHH:MM`, a real time.
+    fn local_datetime() -> impl Strategy<Value = String> {
+        (2000i32..2100, 1u32..13, 1u32..29, 0u32..24, 0u32..60)
+            .prop_map(|(y, mo, d, h, mi)| format!("{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}"))
+    }
+
+    fn zone_name() -> impl Strategy<Value = &'static str> {
+        prop::sample::select(vec![
+            "America/New_York",
+            "Europe/London",
+            "Asia/Kolkata",
+            "Africa/Harare",
+            "Australia/Lord_Howe",
+            "UTC",
+        ])
     }
 
     /// A front matter of keys unique ignoring case (a later `o` replaces an
@@ -1553,6 +1592,84 @@ nested:
     }
 
     #[test]
+    fn date_times_and_zoned_date_times_are_read_and_written_as_plain_yaml() {
+        let body = "---
+due: 2026-11-21T15:00
+embargo: 2026-11-18T09:00 America/New_York # lifts at 9
+seconds: 2026-11-21T15:00:30
+---
+";
+        let found = parse(body);
+        assert_eq!(
+            get(&found, "due"),
+            Some(&Value::DateTime("2026-11-21T15:00".into()))
+        );
+        assert_eq!(
+            get(&found, "embargo"),
+            Some(&Value::DateTimeZone(
+                "2026-11-18T09:00 America/New_York".into()
+            ))
+        );
+        assert_eq!(
+            get(&found, "seconds"),
+            Some(&Value::DateTime("2026-11-21T15:00:30".into()))
+        );
+        // Changing one leaves the other lines and the comment alone.
+        let moved = set_property(
+            body,
+            "embargo",
+            &Value::DateTimeZone("2026-11-19T10:00 America/New_York".into()),
+        );
+        assert_eq!(moved, body.replace("2026-11-18T09:00", "2026-11-19T10:00"));
+        // A typed field keeps its type, and what does not fit stays text.
+        assert_eq!(
+            typed("2026-12-01T08:30", Some(&Value::DateTime(String::new()))),
+            Value::DateTime("2026-12-01T08:30".into())
+        );
+        assert_eq!(
+            typed(
+                "2026-12-01T08:30",
+                Some(&Value::DateTimeZone(String::new()))
+            ),
+            Value::Text("2026-12-01T08:30".into())
+        );
+    }
+
+    #[test]
+    fn invalid_date_times_are_kept_as_text_and_never_dropped() {
+        for bad in [
+            "2026-11-18T25:00",
+            "2026-02-30T09:00",
+            "2026-11-18T09:00 Mars/Olympus",
+            "2026-11-18T09:00Z",
+            "2026-11-18T09:00+02:00",
+            "2026-11-18 09:00",
+            "T09:00",
+        ] {
+            let body = format!(
+                "---
+when: {bad}
+---
+"
+            );
+            assert_eq!(
+                get(&parse(&body), "when"),
+                Some(&Value::Text(bad.to_owned())),
+                "{bad}"
+            );
+            // Setting another property does not touch it.
+            let other = set_property(&body, "k", &Value::Bool(true));
+            assert!(other.contains(&format!("when: {bad}\n")), "{bad}");
+        }
+        // Text that merely looks like a date-time is quoted when written, so
+        // it reads back as the text it is.
+        let looks = Value::Text("2026-11-18T09:00".into());
+        let written = set_property("", "k", &looks);
+        assert!(written.contains("k: \"2026-11-18T09:00\""), "{written}");
+        assert_eq!(get(&parse(&written), "k"), Some(&looks));
+    }
+
+    #[test]
     fn unsupported_values_are_raw() {
         for text in [
             "nested:\n  a: 1\n",
@@ -1572,7 +1689,10 @@ nested:
 
     fn yaml_matches(found: &saphyr::Yaml<'_>, value: &Value) -> bool {
         match value {
-            Value::Text(text) | Value::Date(text) => found.as_str() == Some(text),
+            Value::Text(text)
+            | Value::Date(text)
+            | Value::DateTime(text)
+            | Value::DateTimeZone(text) => found.as_str() == Some(text),
             Value::Number(number) => {
                 found.as_integer() == Some(*number as i64)
                     || (number.fract() != 0.0
@@ -1648,6 +1768,9 @@ nested:
                     property_text().prop_map(Value::Text),
                     (-10_000i64..10_000).prop_map(|n| Value::Number(n as f64)),
                     any::<bool>().prop_map(Value::Bool),
+                    local_datetime().prop_map(Value::DateTime),
+                    (local_datetime(), zone_name())
+                        .prop_map(|(at, zone)| Value::DateTimeZone(format!("{at} {zone}"))),
                 ],
                 1..6,
             ),

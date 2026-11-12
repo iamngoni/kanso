@@ -21,6 +21,12 @@ import '../../../helpers/mock_repositories.dart';
 
 const String _password = 'correct horse battery';
 
+const CostSummary _cost = CostSummary(
+  headline: 'Free. No subscription.',
+  spaceLine: 'Sync space: 23 MiB of 100 MiB notes · 410 MiB of 1 GiB files.',
+  learnMoreUrl: 'https://kansoapp.app/price',
+);
+
 const AccountDetails _details = AccountDetails(
   username: 'ana',
   server: 'https://sync.example.invalid',
@@ -29,6 +35,7 @@ const AccountDetails _details = AccountDetails(
     DeviceRow(id: 'd2', title: 'Ana’s Mac', thisDevice: false, lastSeenMs: 2),
   ],
   storageLine: '850 items · 3.1 MB of 100 MB',
+  cost: _cost,
   hasPassword: true,
   providers: <LinkedProviderRow>[
     LinkedProviderRow(provider: ProviderKind.github, linked: false),
@@ -44,6 +51,7 @@ AccountDetails _withPasskeys(List<PasskeyRow> passkeys) => AccountDetails(
   server: _details.server,
   devices: _details.devices,
   storageLine: _details.storageLine,
+  cost: _details.cost,
   hasPassword: _details.hasPassword,
   providers: _details.providers,
   passkeys: passkeys,
@@ -152,6 +160,7 @@ void main() {
               server: _details.server,
               devices: <DeviceRow>[_details.devices.first],
               storageLine: _details.storageLine,
+              cost: _details.cost,
               hasPassword: true,
               providers: _details.providers,
               passkeys: _details.passkeys,

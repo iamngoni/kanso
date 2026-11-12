@@ -2839,6 +2839,14 @@
   "@accountStorage": {
     "description": "The row that says how much of the account's space is used."
   },
+  "accountCost": "What Kanso costs",
+  "@accountCost": {
+    "description": "The row that says Kanso is free and how much sync space is used."
+  },
+  "accountCostLearnMore": "Learn more",
+  "@accountCostLearnMore": {
+    "description": "Opens the Price page from the cost row."
+  },
   "accountDeleteAccount": "Delete account",
   "@accountDeleteAccount": {
     "description": "Deletes the account."

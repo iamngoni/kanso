@@ -436,6 +436,34 @@ fn sync_now_needs_an_account(cx: &mut TestAppContext) {
     assert!(!f.drawn(cx, "account-sign-in"));
 }
 
+/// Signed in, Settings › Account says what Kanso costs, with the space the
+/// server reports used and a link to the Price page; signed out it doesn't.
+#[gpui_kit::test]
+fn the_account_page_says_what_kanso_costs(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.dispatch(cx, Box::new(OpenAccountSettings));
+    assert!(!f.drawn(cx, "account-cost-learn"));
+    sign_in_as(cx, "ngoni");
+    cx.update(|cx| {
+        cx.global_mut::<Services>().details.usage = Some(kanso_sync::Usage {
+            docs: 850,
+            doc_bytes: 23 * 1024 * 1024,
+            files: 15,
+            file_bytes: 410 * 1024 * 1024,
+            writes_today: 0,
+            quota: kanso_sync::Quota {
+                docs: 50_000,
+                doc_bytes: 100 * 1024 * 1024,
+                files: 10_000,
+                file_bytes: 1024 * 1024 * 1024,
+                writes_per_day: 20_000,
+            },
+        });
+    });
+    f.dispatch(cx, Box::new(OpenAccountSettings));
+    assert!(f.drawn(cx, "account-cost-learn"));
+}
+
 fn open_test_window(cx: &mut App) {
     gpui_kit::open_window(Default::default(), cx, |window, cx| {
         cx.new(|cx| Workspace::new(window, cx))

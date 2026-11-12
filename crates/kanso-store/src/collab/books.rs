@@ -9,7 +9,7 @@ use super::books_model::{BookOutgoing, BookStream, SharedBook};
 use super::model::{SealedKey, SharedStatus};
 use crate::{Result, Store};
 
-/// Migration 27.
+/// Migration 28.
 pub(crate) const MIGRATION: &str = r#"
 CREATE TABLE collab_books (
     share_id TEXT PRIMARY KEY NOT NULL,

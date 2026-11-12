@@ -20,7 +20,7 @@ library (`kanso serve`) has no Settings; see [Headless](#headless).
 |---|---|---|
 | For | Claude Code, Claude Desktop, Codex, Cursor, VS Code, Gemini CLI, Windsurf, Zed, OpenCode, or **Script or other app** | |
 | Name | free text (a key needs a name) | the choice's name and "on this Mac", for example "Codex on this Mac" |
-| Can | **Read notes**, **Read and suggest edits** ("You review each edit before it's saved."), or **Read and write** ("Changes are saved right away.") | Read notes |
+| Can | **Read notes**, **Read and suggest edits** ("You review each edit before it's saved."), or **Read and write** ("Changes are saved right away."), or **Add and tick only** ("Can read, add notes and tasks, and tick tasks. It can't change or delete anything.") | Read notes |
 | Notebooks | **All notebooks**, or **Choose…** (at least one) | All notebooks |
 
 **Create key** replaces the sheet with the setup for that agent, with the key already
@@ -59,9 +59,11 @@ could be faked.
 |---|---|---|
 | Read notes | the read tools | `GET` and `HEAD` only |
 | Read and suggest edits | the read tools, and `patch-note`, `update-note` and `create-note`, which only stage a change for you to review (**Review** in the Ask panel; nothing is written until you press **Apply**) | `GET` and `HEAD` only |
+| Add and tick only | the read tools, and three that add, saved at once: `create-note` (a new note only: no `_id`, no `_rev`, not the trash or Templates), `kanso-add-task` (appends one task) and `kanso-set-task-done` with `done: true`. A tool added later is refused until it is decided | `GET` and `HEAD`, and `POST /notes` with a new note. Every other route is `403` |
 | Read and write | every tool | every route |
 
-Read and suggest keys have no access to attachments. A key that can write sees an
+Add-and-tick keys can't edit, move, untick or delete anything that is already written.
+Read, suggest and add-and-tick keys have no access to attachments. A key that can write sees an
 attachment only when it sees every note that holds it. A key is never given local
 file paths: `create-file` with `filePath` and `read-file` with `outputPath` are
 refused.
@@ -251,7 +253,7 @@ Each message says how to fix it, because a refused agent never shows Kanso's win
 | `kanso mcp` started with no `KANSO_MCP_TOKEN` | error `-32001` on the first request, then exit status 2: "Kanso needs a key for this agent. In Kanso, open Settings › Local API › API keys, choose New key…, and paste the setup it gives you into this agent's settings." | make a key and paste the setup |
 | Kanso answers 401 to the relay's key | error `-32001`: "Kanso doesn't recognise this key. It may have been revoked. Create a new one in Kanso › Settings › Local API › API keys." | make a new key |
 | Any HTTP request without a valid key | `401`, with `WWW-Authenticate: Basic realm="Kanso"` and `{"error":"unauthorized","reason":"Kanso needs an API key. Create one in Settings › Local API › API keys."}` | send `Authorization: Bearer <key>` |
-| A key that can't write tries to | `403` `forbidden` (REST), or a tool error (MCP): "This key can read your notes but not change them. In Kanso, open Settings › Local API › API keys and create a key that can read and write." (a suggest key says it "can suggest edits through MCP but not change notes directly") | make a key that can read and write |
+| A key that can't write tries to | `403` `forbidden` (REST), or a tool error (MCP): "This key can read your notes but not change them. In Kanso, open Settings › Local API › API keys and create a key that can read and write." (a suggest key says it "can suggest edits through MCP but not change notes directly"; an add-and-tick key says it "can add notes and tasks and tick tasks, but it can't change or delete what is already there") | make a key that can read and write |
 | A key without attachment access asks for one | "This key can read but has no access to attachments. In Kanso, open Settings › Local API › API keys and create a key that can read and write." | make a key that can read and write |
 | A key limited to some notebooks writes elsewhere | "This key is limited to some notebooks, and … is not one of them. In Kanso, open Settings › Local API › API keys and create a key for the notebooks you need." | make a key for those notebooks |
 | `kanso mcp` can't read `config.json` | error `-32000`: "Kanso's settings at … can't be read. Open Kanso once to repair them, then restart this agent." | open Kanso once |
@@ -323,7 +325,7 @@ library. Until a library has one, `kanso serve` and `kanso mcp` refuse every
 request, and `kanso serve` says so when it starts.
 
 ```sh
-kanso api-key create --name "Backup script" [--access read|suggest|write] [--scope <notebook>]…
+kanso api-key create --name "Backup script" [--access read|suggest|write|capture] [--scope <notebook>]…
 kanso api-key list
 kanso api-key revoke <key id or name>
 ```

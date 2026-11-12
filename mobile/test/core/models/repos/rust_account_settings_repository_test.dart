@@ -10,12 +10,15 @@ import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/repos/impl/rust_account_settings_repository.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../../helpers/fixture_account_settings_repository.dart';
+
 class _MockSettings extends Mock implements KansoAccountSettings {}
 
 const AccountDetails _details = AccountDetails(
   username: 'ana',
   server: 'https://sync.example.invalid',
   devices: <DeviceRow>[],
+  cost: sampleCost,
   hasPassword: true,
   providers: <LinkedProviderRow>[],
   passkeys: <PasskeyRow>[],

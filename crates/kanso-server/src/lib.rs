@@ -22,6 +22,7 @@ pub mod agent_tools;
 mod api;
 mod auth;
 mod canvas;
+mod capture;
 mod changeset;
 mod error;
 mod key_model;

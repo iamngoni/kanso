@@ -20,6 +20,7 @@ import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../state/account_details/account_details_bloc.dart';
 import '../../utils/account_actions.dart';
 import '../../utils/account_labels.dart';
+import 'account_cost_row.dart';
 import 'account_device_row.dart';
 import 'account_linking_card.dart';
 import 'account_passkey_row.dart';
@@ -209,6 +210,11 @@ class AccountPaneBody extends StatelessWidget {
               ],
             ),
           ],
+          const SizedBox(height: KansoSpacing.lg),
+          KansoGroupedSection(
+            dividerIndent: iconInset,
+            children: <Widget>[AccountCostRow(cost: details.cost)],
+          ),
           const SizedBox(height: KansoSpacing.lg),
           KansoGroupedSection(
             children: <Widget>[

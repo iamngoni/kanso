@@ -8,6 +8,7 @@
 mod api_keys;
 mod api_keys_model;
 mod backup;
+mod book_properties;
 mod cards;
 mod cards_model;
 pub mod collab;
