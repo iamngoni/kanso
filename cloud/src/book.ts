@@ -490,6 +490,21 @@ export function newList(shareId: string): Handler {
 		if (!signer || (signer.role !== "owner" && signer.role !== "manager")) return forbiddenRole();
 		const cuts = rankRules(prev, next, signer.role);
 		if (typeof cuts === "string") return error(403, "forbidden_role", cuts);
+		// Only the owner re-adds a removed account with keys other than the ones it last had (as the clients' `seen_keys`).
+		if (signer.role !== "owner") {
+			const { results } = await env.DB.prepare("SELECT list FROM book_lists WHERE share_id = ?1 AND rev <= ?2 ORDER BY rev").bind(shareId, s.headRev).all<{ list: string }>();
+			const seen = new Map<string, BookMember>();
+			for (const row of results) {
+				const earlier = await parseBookList(row.list, shareId);
+				if (typeof earlier !== "string") for (const m of earlier.members) seen.set(m.account, m);
+			}
+			const before = new Set(prev.members.map((m) => m.account));
+			const readded = next.members.find((m) => {
+				const old = seen.get(m.account);
+				return !before.has(m.account) && !!old && (old.sign_pub !== m.sign_pub || old.box_pub !== m.box_pub);
+			});
+			if (readded) return error(403, "forbidden_role", "Only the owner re-adds a removed account with keys other than the ones it last had.");
+		}
 		const wrong = epochRules(prev, next, cuts);
 		if (wrong) return badRequest(wrong);
 		const members = next.members;

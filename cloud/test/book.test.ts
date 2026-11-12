@@ -6,7 +6,7 @@
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { sha256Hex } from "../src/crypto";
-import { collab, ensureIdentity, newIdentity, shareBody } from "./collab-helpers";
+import { collab, ensureIdentity, newIdentity, rekeyIdentity, shareBody } from "./collab-helpers";
 import { type Account, base64url, callJson, clock, resetServer, setSetting, signUp } from "./helpers";
 import { advance, b64, bookList, books, commitOf, genesisBody, newShareId, nextBody, shareBook } from "./book-helpers";
 
@@ -330,6 +330,20 @@ describe("the chain of member lists", () => {
 		expect((await books(bob.token).get(book.id)).body).toMatchObject({ role: "edit", epoch: 2 });
 		// A demoted manager can't sign any more (the head no longer names them).
 		expect((await advance(book, bob, demoted, { wrapFor: [] })).status).toBe(403);
+	});
+
+	it("lets only the owner re-add a removed account with keys other than its last ones", async () => {
+		const book = await shareBook(alice, [
+			{ account: bob, role: "manager" },
+			{ account: carol, role: "edit" },
+		]);
+		const owner = { account: alice, role: "owner" as const };
+		const bobM = { account: bob, role: "manager" as const };
+		expect((await advance(book, alice, [owner, bobM], { newEpoch: true })).status).toBe(200);
+		const fresh = await rekeyIdentity(carol);
+		const swapped = { account: carol, role: "edit" as const, claims: { sign_pub: fresh.sign_pub, box_pub: fresh.box_pub } };
+		expect((await advance(book, bob, [owner, bobM, swapped], { wrapFor: [carol] })).status).toBe(403);
+		expect((await advance(book, alice, [owner, bobM, swapped], { wrapFor: [carol] })).status).toBe(200);
 	});
 
 	it("applies the epoch rules: a removal or demotion starts a new epoch with every wrap and a history link", async () => {
