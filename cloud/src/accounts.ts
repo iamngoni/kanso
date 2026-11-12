@@ -583,6 +583,7 @@ export async function admin(args: string[], io: AdminIO, now: number = Date.now(
 				`DELETE FROM collab_notifications WHERE recipient_id = ${id} OR sender_id = ${id}
   OR share_id IN (SELECT id FROM collab_shares WHERE owner_id = ${id})`,
 				`DELETE FROM collab_wraps WHERE account_id = ${id} OR share_id IN (SELECT id FROM collab_shares WHERE owner_id = ${id})`,
+				`DELETE FROM collab_left WHERE account_id = ${id} OR share_id IN (SELECT id FROM collab_shares WHERE owner_id = ${id})`,
 				`DELETE FROM collab_lists WHERE share_id IN (SELECT id FROM collab_shares WHERE owner_id = ${id})`,
 				`DELETE FROM collab_requests WHERE account_id = ${id} OR share_id IN (SELECT id FROM collab_shares WHERE owner_id = ${id})`,
 				`DELETE FROM collab_links WHERE share_id IN (SELECT id FROM collab_shares WHERE owner_id = ${id})`,
@@ -593,6 +594,7 @@ export async function admin(args: string[], io: AdminIO, now: number = Date.now(
 				`UPDATE book_shares SET stopped_at = ${now} WHERE owner_id = ${id}`,
 				`DELETE FROM book_wraps WHERE account_id = ${id} OR share_id IN (SELECT id FROM book_shares WHERE owner_id = ${id})`,
 				`DELETE FROM book_epochs WHERE share_id IN (SELECT id FROM book_shares WHERE owner_id = ${id})`,
+				`DELETE FROM book_seen_keys WHERE share_id IN (SELECT id FROM book_shares WHERE owner_id = ${id})`,
 				`DELETE FROM book_lists WHERE share_id IN (SELECT id FROM book_shares WHERE owner_id = ${id})`,
 				`DELETE FROM book_links WHERE share_id IN (SELECT id FROM book_shares WHERE owner_id = ${id})`,
 				`DELETE FROM book_members WHERE account_id = ${id} OR share_id IN (SELECT id FROM book_shares WHERE owner_id = ${id})`,

@@ -214,7 +214,7 @@ interface BookStanding {
 	headRev: number;
 	headHash: string;
 	role: Role | null;
-	status: "invited" | "member" | null;
+	status: "invited" | "member" | "left" | null;
 }
 
 async function standing(env: Env, shareId: string, accountId: string): Promise<BookStanding | null> {
@@ -223,7 +223,7 @@ async function standing(env: Env, shareId: string, accountId: string): Promise<B
   LEFT JOIN book_members m ON m.share_id = s.id AND m.account_id = ?2 WHERE s.id = ?1 AND s.stopped_at IS NULL`,
 	)
 		.bind(shareId, accountId)
-		.first<{ owner_id: string; epoch: number; head_rev: number; head_hash: string; role: Role | null; status: "invited" | "member" | null }>();
+		.first<{ owner_id: string; epoch: number; head_rev: number; head_hash: string; role: Role | null; status: "invited" | "member" | "left" | null }>();
 	return row ? { ownerId: row.owner_id, epoch: row.epoch, headRev: row.head_rev, headHash: row.head_hash, role: row.role, status: row.status } : null;
 }
 
@@ -241,7 +241,8 @@ async function asBook(env: Env, shareId: string, session: { accountId: string },
 	if (limited) return limited;
 	if (!isShareId(shareId)) return badRequest("Not a share ID.");
 	const s = await standing(env, shareId, session.accountId);
-	if (!s || s.role === null) return notFound();
+	// Someone who left or declined is not in the notebook, though the signed list may still name them.
+	if (!s || s.role === null || s.status === "left") return notFound();
 	if (need === "read") return s;
 	if (s.status !== "member") return notFound();
 	if (need === "owner" && s.ownerId !== session.accountId) return forbiddenRole();
@@ -364,6 +365,15 @@ export const createBook = route(async (request, env, now, session) => {
   ON CONFLICT (share_id, account_id, epoch) DO NOTHING`,
 				values,
 			),
+			bound(
+				env.DB,
+				`INSERT INTO book_seen_keys (share_id, account_id, sign_pub, box_pub)
+  SELECT ?1, json_extract(value, '$.account'), json_extract(value, '$.sign_pub'), json_extract(value, '$.box_pub') FROM json_each(?7)
+  WHERE EXISTS (SELECT 1 FROM book_lists WHERE share_id = ?1 AND rev = 1 AND hash = ?6)
+    AND EXISTS (SELECT 1 FROM book_shares WHERE id = ?1 AND owner_id = ?2 AND created_at = ?5)
+  ON CONFLICT (share_id, account_id) DO NOTHING`,
+				values,
+			),
 		],
 		session.accountId,
 		shareId,
@@ -406,7 +416,7 @@ export function getBook(shareId: string): Handler {
 		if (since === null || since < 1 || limit === null || limit < 1 || limit > MAX_LISTS_PAGE) {
 			return badRequest(`since_rev must be ≥ 1 and limit 1–${MAX_LISTS_PAGE}.`);
 		}
-		const manages = s.role === "owner" || s.role === "manager";
+		const manages = s.status === "member" && (s.role === "owner" || s.role === "manager");
 		const [lists, wraps, epochs, members, links] = await env.DB.batch([
 			env.DB.prepare("SELECT rev, epoch, signer, list, list_sig FROM book_lists WHERE share_id = ?1 AND rev >= ?2 ORDER BY rev LIMIT ?3").bind(shareId, since, limit + 1),
 			env.DB.prepare("SELECT epoch, wrapped FROM book_wraps WHERE share_id = ?1 AND account_id = ?2 ORDER BY epoch").bind(shareId, session.accountId),
@@ -492,18 +502,21 @@ export function newList(shareId: string): Handler {
 		if (typeof cuts === "string") return error(403, "forbidden_role", cuts);
 		// Only the owner re-adds a removed account with keys other than the ones it last had (as the clients' `seen_keys`).
 		if (signer.role !== "owner") {
-			const { results } = await env.DB.prepare("SELECT list FROM book_lists WHERE share_id = ?1 AND rev <= ?2 ORDER BY rev").bind(shareId, s.headRev).all<{ list: string }>();
-			const seen = new Map<string, BookMember>();
-			for (const row of results) {
-				const earlier = await parseBookList(row.list, shareId);
-				if (typeof earlier !== "string") for (const m of earlier.members) seen.set(m.account, m);
-			}
 			const before = new Set(prev.members.map((m) => m.account));
-			const readded = next.members.find((m) => {
-				const old = seen.get(m.account);
-				return !before.has(m.account) && !!old && (old.sign_pub !== m.sign_pub || old.box_pub !== m.box_pub);
-			});
-			if (readded) return error(403, "forbidden_role", "Only the owner re-adds a removed account with keys other than the ones it last had.");
+			const added = next.members.filter((m) => !before.has(m.account));
+			if (added.length > 0) {
+				const { results } = await env.DB.prepare(
+					"SELECT account_id, sign_pub, box_pub FROM book_seen_keys WHERE share_id = ?1 AND account_id IN (SELECT value FROM json_each(?2))",
+				)
+					.bind(shareId, JSON.stringify(added.map((m) => m.account)))
+					.all<{ account_id: string; sign_pub: string; box_pub: string }>();
+				const seen = new Map(results.map((r) => [r.account_id, r]));
+				const readded = added.find((m) => {
+					const old = seen.get(m.account);
+					return !!old && (old.sign_pub !== m.sign_pub || old.box_pub !== m.box_pub);
+				});
+				if (readded) return error(403, "forbidden_role", "Only the owner re-adds a removed account with keys other than the ones it last had.");
+			}
 		}
 		const wrong = epochRules(prev, next, cuts);
 		if (wrong) return badRequest(wrong);
@@ -526,7 +539,9 @@ export function newList(shareId: string): Handler {
 		if (newEpoch ? !isB64(link, HISTORY_LINK_BYTES) : link !== undefined && link !== null) {
 			return badRequest(newEpoch ? "history_link must be the previous epoch's key sealed under the new one (98 characters)." : "history_link is only for a new epoch.");
 		}
-		const mismatch = await checkMemberKeys(env, members);
+		// A member whose account was deleted since the last list: clients must cut them (409 member_gone), not retry.
+		const stayers = new Set(prev.members.map((m) => m.account));
+		const mismatch = await checkMemberKeys(env, members, (account) => (stayers.has(account) ? "member_gone" : "unknown_member"));
 		if (mismatch) return mismatch;
 
 		const values = [
@@ -554,10 +569,14 @@ export function newList(shareId: string): Handler {
 			`DELETE FROM book_members WHERE share_id = ?1 AND account_id NOT IN ${listed} AND ${mine}`,
 			`INSERT INTO book_members (share_id, account_id, role, status, invited_at, joined_at)
   SELECT ?1, json_extract(value, '$.account'), json_extract(value, '$.role'), 'invited', ?5, NULL FROM json_each(?7) WHERE ${mine}
-  ON CONFLICT (share_id, account_id) DO UPDATE SET role = excluded.role`,
+  ON CONFLICT (share_id, account_id) DO UPDATE SET role = excluded.role`, // a 'left' member stays left
 			`INSERT INTO book_wraps (share_id, account_id, epoch, wrapped)
   SELECT ?1, json_extract(value, '$.account'), ?9, json_extract(value, '$.wrapped') FROM json_each(?8) WHERE ${mine}
+    AND json_extract(value, '$.account') NOT IN (SELECT account_id FROM book_members WHERE share_id = ?1 AND status = 'left')
   ON CONFLICT (share_id, account_id, epoch) DO UPDATE SET wrapped = excluded.wrapped`,
+			`INSERT INTO book_seen_keys (share_id, account_id, sign_pub, box_pub)
+  SELECT ?1, json_extract(value, '$.account'), json_extract(value, '$.sign_pub'), json_extract(value, '$.box_pub') FROM json_each(?7) WHERE ${mine}
+  ON CONFLICT (share_id, account_id) DO UPDATE SET sign_pub = excluded.sign_pub, box_pub = excluded.box_pub`,
 			`INSERT INTO book_epochs (share_id, epoch, history_link) SELECT ?1, ?9, ?12 WHERE ?12 IS NOT NULL AND ${mine}`,
 		];
 		const results = await guarded(
@@ -639,15 +658,16 @@ export function accept(shareId: string): Handler {
 	});
 }
 
-/** `DELETE /v2/collab/books/<id>/membership`: leave, or decline an invitation, losing the wraps. The owner can't (403); they stop sharing. */
+/** `DELETE /v2/collab/books/<id>/membership`: leave, or decline an invitation, losing the wraps and staying out (status `left`, shown to managers) until a list stops naming them. The owner can't (403); they stop sharing. */
 export function leave(shareId: string): Handler {
 	return route(async (_request, env, now, session) => {
 		const s = await asBook(env, shareId, session, "read", now);
 		if (s instanceof Response) return s;
 		if (s.ownerId === session.accountId) return forbiddenRole();
+		// The signed list still names them until a manager cuts them: they stay as 'left', without wraps, so a later list can't bring them back.
 		const results = await env.DB.batch([
 			env.DB.prepare("DELETE FROM book_wraps WHERE share_id = ?1 AND account_id = ?2").bind(shareId, session.accountId),
-			env.DB.prepare("DELETE FROM book_members WHERE share_id = ?1 AND account_id = ?2 RETURNING account_id").bind(shareId, session.accountId),
+			env.DB.prepare("UPDATE book_members SET status = 'left' WHERE share_id = ?1 AND account_id = ?2 RETURNING account_id").bind(shareId, session.accountId),
 		]);
 		return results[1].results.length === 1 ? noContent() : notFound();
 	});
@@ -664,6 +684,7 @@ export function stopBook(shareId: string): Handler {
 			bound(env.DB, "UPDATE book_shares SET stopped_at = ?2 WHERE id = ?1 AND owner_id = ?3", values),
 			bound(env.DB, `DELETE FROM book_wraps WHERE share_id = ?1 AND ${mine}`, values),
 			bound(env.DB, `DELETE FROM book_epochs WHERE share_id = ?1 AND ${mine}`, values),
+			bound(env.DB, `DELETE FROM book_seen_keys WHERE share_id = ?1 AND ${mine}`, values),
 			bound(env.DB, `DELETE FROM book_lists WHERE share_id = ?1 AND ${mine}`, values),
 			bound(env.DB, `DELETE FROM book_links WHERE share_id = ?1 AND ${mine}`, values),
 			bound(env.DB, `DELETE FROM book_members WHERE share_id = ?1 AND ${mine}`, values),

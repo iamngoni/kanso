@@ -37,7 +37,9 @@ CREATE TABLE book_members (
     share_id TEXT NOT NULL REFERENCES book_shares (id),
     account_id TEXT NOT NULL REFERENCES accounts (id),
     role TEXT NOT NULL CHECK (role IN ('owner', 'manager', 'edit', 'comment', 'view')),
-    status TEXT NOT NULL CHECK (status IN ('invited', 'member')),
+    -- 'left': the member left or declined, but the signed list still names them. The row stays so a later list
+    -- that still names them neither re-invites them nor wraps a key to them; it goes when a list stops naming them.
+    status TEXT NOT NULL CHECK (status IN ('invited', 'member', 'left')),
     invited_at INTEGER NOT NULL,
     joined_at INTEGER,
     PRIMARY KEY (share_id, account_id)
@@ -110,3 +112,14 @@ CREATE INDEX book_links_by_share ON book_links (share_id, expires_at);
 CREATE TRIGGER book_links_cap BEFORE INSERT ON book_links
 WHEN (SELECT count(*) FROM book_links WHERE share_id = NEW.share_id AND expires_at > NEW.created_at) >= 10
 BEGIN SELECT RAISE(ABORT, 'quota_exceeded:links'); END;
+
+-- The keys each account was last listed with in this notebook's chain, kept after it is removed, so
+-- a manager can't re-add a removed account with other keys (only the owner can). One lookup, not a
+-- scan of the chain. No foreign key on the account: it outlives a deleted account's rows.
+CREATE TABLE book_seen_keys (
+    share_id TEXT NOT NULL REFERENCES book_shares (id),
+    account_id TEXT NOT NULL CHECK (length(account_id) = 34 AND account_id GLOB 'a_*'),
+    sign_pub TEXT NOT NULL CHECK (length(sign_pub) = 43 AND sign_pub NOT GLOB '*[^A-Za-z0-9_-]*'),
+    box_pub TEXT NOT NULL CHECK (length(box_pub) = 43 AND box_pub NOT GLOB '*[^A-Za-z0-9_-]*'),
+    PRIMARY KEY (share_id, account_id)
+);
