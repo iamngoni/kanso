@@ -30731,6 +30731,7 @@ const _: fn() = || {
         let _: String = AccountDetails.server;
         let _: Vec<crate::api::types::DeviceRow> = AccountDetails.devices;
         let _: Option<String> = AccountDetails.storage_line;
+        let _: crate::api::types::CostSummary = AccountDetails.cost;
         let _: bool = AccountDetails.has_password;
         let _: Vec<crate::api::types::LinkedProviderRow> = AccountDetails.providers;
         let _: Vec<crate::api::types::PasskeyRow> = AccountDetails.passkeys;
@@ -31089,6 +31090,12 @@ const _: fn() = || {
         let CopiedLink = None::<crate::api::types::CopiedLink>.unwrap();
         let _: String = CopiedLink.text;
         let _: String = CopiedLink.message;
+    }
+    {
+        let CostSummary = None::<crate::api::types::CostSummary>.unwrap();
+        let _: String = CostSummary.headline;
+        let _: String = CostSummary.space_line;
+        let _: String = CostSummary.learn_more_url;
     }
     {
         let CursorMark = None::<crate::api::types::CursorMark>.unwrap();
@@ -34737,6 +34744,7 @@ impl SseDecode for crate::api::types::AccountDetails {
         let mut var_server = <String>::sse_decode(deserializer);
         let mut var_devices = <Vec<crate::api::types::DeviceRow>>::sse_decode(deserializer);
         let mut var_storageLine = <Option<String>>::sse_decode(deserializer);
+        let mut var_cost = <crate::api::types::CostSummary>::sse_decode(deserializer);
         let mut var_hasPassword = <bool>::sse_decode(deserializer);
         let mut var_providers =
             <Vec<crate::api::types::LinkedProviderRow>>::sse_decode(deserializer);
@@ -34747,6 +34755,7 @@ impl SseDecode for crate::api::types::AccountDetails {
             server: var_server,
             devices: var_devices,
             storage_line: var_storageLine,
+            cost: var_cost,
             has_password: var_hasPassword,
             providers: var_providers,
             passkeys: var_passkeys,
@@ -36008,6 +36017,20 @@ impl SseDecode for crate::api::types::CopiedLink {
         return crate::api::types::CopiedLink {
             text: var_text,
             message: var_message,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::CostSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_headline = <String>::sse_decode(deserializer);
+        let mut var_spaceLine = <String>::sse_decode(deserializer);
+        let mut var_learnMoreUrl = <String>::sse_decode(deserializer);
+        return crate::api::types::CostSummary {
+            headline: var_headline,
+            space_line: var_spaceLine,
+            learn_more_url: var_learnMoreUrl,
         };
     }
 }
@@ -49233,6 +49256,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::AccountDeta
             self.0.server.into_into_dart().into_dart(),
             self.0.devices.into_into_dart().into_dart(),
             self.0.storage_line.into_into_dart().into_dart(),
+            self.0.cost.into_into_dart().into_dart(),
             self.0.has_password.into_into_dart().into_dart(),
             self.0.providers.into_into_dart().into_dart(),
             self.0.passkeys.into_into_dart().into_dart(),
@@ -50811,6 +50835,28 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::CopiedLink>
     for crate::api::types::CopiedLink
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::CopiedLink> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::CostSummary> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.headline.into_into_dart().into_dart(),
+            self.0.space_line.into_into_dart().into_dart(),
+            self.0.learn_more_url.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::CostSummary>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::CostSummary>>
+    for crate::api::types::CostSummary
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::CostSummary> {
         self.into()
     }
 }
@@ -60966,6 +61012,7 @@ impl SseEncode for crate::api::types::AccountDetails {
         <String>::sse_encode(self.server, serializer);
         <Vec<crate::api::types::DeviceRow>>::sse_encode(self.devices, serializer);
         <Option<String>>::sse_encode(self.storage_line, serializer);
+        <crate::api::types::CostSummary>::sse_encode(self.cost, serializer);
         <bool>::sse_encode(self.has_password, serializer);
         <Vec<crate::api::types::LinkedProviderRow>>::sse_encode(self.providers, serializer);
         <Vec<crate::api::types::PasskeyRow>>::sse_encode(self.passkeys, serializer);
@@ -61879,6 +61926,15 @@ impl SseEncode for crate::api::types::CopiedLink {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.text, serializer);
         <String>::sse_encode(self.message, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::CostSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.headline, serializer);
+        <String>::sse_encode(self.space_line, serializer);
+        <String>::sse_encode(self.learn_more_url, serializer);
     }
 }
 

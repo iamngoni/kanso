@@ -2181,6 +2181,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountStorage => 'Storage';
 
   @override
+  String get accountCost => 'What Kanso costs';
+
+  @override
+  String get accountCostLearnMore => 'Learn more';
+
+  @override
   String get accountDeleteAccount => 'Delete account';
 
   @override

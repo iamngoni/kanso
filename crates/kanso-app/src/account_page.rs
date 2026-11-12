@@ -24,6 +24,8 @@ use gpui_kit::component::{
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::DocType;
+use kanso_engine::account::cost::{self, cost_summary};
+use kanso_engine::account::cost_model::CostSummary;
 use kanso_sync::{DeviceInfo, RecoveryKey, SignupState};
 
 use crate::account_flow;
@@ -1746,6 +1748,7 @@ impl AccountPage {
             });
 
         let storage = storage_detail(&details);
+        let cost = cost_row(&details);
         let devices = device_rows(&details, busy, cx);
         let sign_in_methods =
             sign_in_methods_rows(&account_methods, |at| Clock::edited_label(cx, at), busy, cx);
@@ -1766,6 +1769,7 @@ impl AccountPage {
                     Row::new(Lucide::CircleUser, username.to_owned())
                         .value(server_label(server.as_deref())),
                     Row::new(Lucide::HardDrive, "Storage").detail(storage),
+                    cost,
                 ],
                 colors,
             ),
@@ -2021,6 +2025,28 @@ fn provider_wait_view(
             )
         })
         .into_any_element()
+}
+
+/// The "What Kanso costs" row: free, the sync space used, and a link to the
+/// Price page (issue #390, slice 43). The words are the phone's too.
+fn cost_row(details: &AccountDetails) -> Row {
+    let summary = cost_summary(details.usage.as_ref());
+    let url = summary.learn_more_url.clone();
+    Row::new(Lucide::Coins, cost::TITLE)
+        .detail(cost_detail(&summary))
+        .trailing(
+            Button::new("account-cost-learn")
+                .outline()
+                .small()
+                .label(cost::LEARN_MORE)
+                .debug_selector(|| "account-cost-learn".into())
+                .on_click(move |_, _, cx| cx.open_url(&url)),
+        )
+}
+
+/// The cost row's two lines.
+pub fn cost_detail(summary: &CostSummary) -> String {
+    format!("{}\n{}", summary.headline, summary.space_line)
 }
 
 /// The Storage row's line, or why it isn't there yet.
@@ -2866,6 +2892,12 @@ mod tests {
         assert_eq!(
             storage_detail(&details),
             "850 items · 3.1 MB of 100 MB · attachments 14 MB of 500 MB (15 of 10,000)"
+        );
+        assert_eq!(
+            super::cost_detail(&kanso_engine::account::cost::cost_summary(
+                details.usage.as_ref()
+            )),
+            "Free. No subscription.\nSync space: 3 MiB of 100 MiB notes · 14 MiB of 500 MiB files."
         );
         assert_eq!(
             device_detail(&device(true, 0), |_| "now".into()),

@@ -13,6 +13,12 @@ import 'fixture_account_repository.dart';
 
 /// An account that is signed in on two devices, with a password, a passkey
 /// and GitHub not linked.
+const CostSummary sampleCost = CostSummary(
+  headline: 'Free. No subscription.',
+  spaceLine: 'Sync space: 23 MiB of 100 MiB notes · 410 MiB of 1 GiB files.',
+  learnMoreUrl: 'https://kansoapp.app/price',
+);
+
 const AccountDetails sampleDetails = AccountDetails(
   username: 'ana',
   server: 'https://sync.kansoapp.app',
@@ -31,6 +37,7 @@ const AccountDetails sampleDetails = AccountDetails(
     ),
   ],
   storageLine: '850 items · 3.1 MB of 100 MB · attachments 14 MB of 500 MB',
+  cost: sampleCost,
   hasPassword: true,
   providers: <LinkedProviderRow>[
     LinkedProviderRow(provider: ProviderKind.apple, linked: true),

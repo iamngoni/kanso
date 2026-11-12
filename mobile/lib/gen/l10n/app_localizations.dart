@@ -3898,6 +3898,18 @@ abstract class AppLocalizations {
   /// **'Storage'**
   String get accountStorage;
 
+  /// The row that says Kanso is free and how much sync space is used.
+  ///
+  /// In en, this message translates to:
+  /// **'What Kanso costs'**
+  String get accountCost;
+
+  /// Opens the Price page from the cost row.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn more'**
+  String get accountCostLearnMore;
+
   /// Deletes the account.
   ///
   /// In en, this message translates to:
