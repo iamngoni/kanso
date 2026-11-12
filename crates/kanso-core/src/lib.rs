@@ -8,6 +8,8 @@ pub mod canvas;
 pub mod capture_mark;
 pub mod cards;
 pub mod dates;
+pub mod due_phrase;
+pub mod due_phrase_model;
 pub mod entities;
 pub mod excerpt;
 pub mod home;
