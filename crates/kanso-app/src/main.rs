@@ -147,6 +147,8 @@ mod origin;
 mod page_chrome;
 mod page_view;
 mod pairing;
+mod pairing_model;
+mod pairing_sheet;
 mod palette;
 mod passkey_accounts;
 mod passkey_ceremony;
