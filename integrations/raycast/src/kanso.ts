@@ -14,5 +14,16 @@ export const parseWhen = (env: Env, port: number, key: string, text: string) =>
 
 export const listNotebooks = (env: Env, port: number, key: string) => callTool(env, port, key, "list-notebooks", {});
 
+// Search Notes and Open Note: reads only.
+export const searchNotes = (
+  env: Env,
+  port: number,
+  key: string,
+  request: { tool: "search-notes" | "list-notes"; args: object },
+) => callTool(env, port, key, request.tool, request.args);
+
+export const readNote = (env: Env, port: number, key: string, noteId: string) =>
+  callTool(env, port, key, "read-note", { noteId });
+
 export const listRecentNotes = (env: Env, port: number, key: string) =>
   callTool(env, port, key, "list-notes", { sort: "updatedAt", limit: 30 });
