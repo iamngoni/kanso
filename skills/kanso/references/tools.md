@@ -196,6 +196,17 @@ Add a PDF highlight by page and exact text quote. The quote is resolved to page 
 | `comment` | `string` | no | Comment text for the highlight; empty text clears it. |
 | `includeQuote` | `boolean` | no | Whether to add the page quote to the note body. (default `true`) |
 
+### `kanso-add-task`
+
+Add one task to a note, as a `- [ ] …` line after the note's last line. Nothing else in the note changes. A date and repeat at the end of the text are written as Kanso's own tokens: `film Pixel review fri 3pm every week` becomes `- [ ] film Pixel review @2026-11-13T15:00 every week`. Text that ends in no date is added as it is. Say where it goes with `noteId` (that note), or `target` (`daily`: today's daily note, made when missing, which is the default; `inbox`: the note titled Tasks in the Inbox, made when missing), not both. Returns the note's ID, the task's 0-based line, the line written, and its due date, repeat and a short label when it has them. A locked note is refused.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `text` | `string` | yes | The task, on one line, with its date and repeat at the end if it has any, such as `call Sam tomorrow 9am` or `water plants every 3 days after done`. |
+| `noteId` | `string` | no | The note to add the task to. Leave it out to use `target`. |
+| `target` | `daily` \| `inbox` | no | Where the task goes when there is no noteId: today's daily note (the default), or the Inbox's task list. |
+| `dateOrder` | `dmy` \| `mdy` | no | How a date written with a slash reads: `14/11` is the 14th of November in dmy (the default), and `11/14` is in mdy. |
+
 ### `kanso-ask-read-lines`
 
 Read lines of one note for Ask. Returns the lines written `L12\| text`, under the note's number, so you can cite them as `[number:L12-14]`. At most 200 lines. A note that cannot be read is reported as not found.
@@ -406,7 +417,7 @@ No parameters.
 
 ### `kanso-list-tasks`
 
-List the task-list items (`- [ ] …` and `- [x] …`) in notes outside the trash, with the note each is in. A task's due date is an `@YYYY-MM-DD` (or `@YYYY-MM-DDTHH:MM`, which also sets a reminder) in its text. Dated tasks come first, soonest first, then tasks without a date. Each task has its text, whether it is done, its due date, its 0-based line in the note's body, and the note's ID, title, notebook and link. To tick a task off, change its `[ ]` to `[x]` on that line with patch-note.
+List the task-list items (`- [ ] …` and `- [x] …`) in notes outside the trash, with the note each is in. A task's due date is an `@YYYY-MM-DD` (or `@YYYY-MM-DDTHH:MM`, which also sets a reminder) in its text. Dated tasks come first, soonest first, then tasks without a date. Each task has its text, whether it is done, its due date, its repeat (the `every …` words after the date, or null), its 0-based line in the note's body, and the note's ID, title, notebook and link. To tick a task off, change its `[ ]` to `[x]` on that line with patch-note.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -432,6 +443,15 @@ Move one note to an explicitly named notebook. The store enforces notebook and l
 |---|---|---|---|
 | `noteId` | `string` | yes | The note to move. |
 | `bookId` | `string` | yes | The destination notebook ID. |
+
+### `kanso-parse-when`
+
+Read the date, time and repeat at the end of a line of task text, the way kanso-add-task does, without writing anything. `film Pixel review fri 3pm every week` gives the words `film Pixel review`, the due date `2026-11-13T15:00`, the repeat `every week` and a label for a person to read. A line that does not end in a date gives its text back with due, repeat and label null. A repeat with no date before it is not read.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `text` | `string` | yes | A line of task text. |
+| `dateOrder` | `dmy` \| `mdy` | no | How a date written with a slash reads: `14/11` is the 14th of November in dmy (the default), and `11/14` is in mdy. |
 
 ### `kanso-read-attachment`
 

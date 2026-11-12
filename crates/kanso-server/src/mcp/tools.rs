@@ -83,6 +83,7 @@ pub(crate) fn call(
         ("list-notebooks", Some(vis)) => list_visible_books(store, vis),
         ("kanso-get-outline", vis) => get_outline(store, vis, &args),
         ("kanso-list-tasks", vis) => list_tasks(store, vis, &args),
+        ("kanso-parse-when", _) => parse_when(&args),
         ("kanso-list-open-loops", vis) => list_open_loops(store, vis, &args),
         ("kanso-related-notes", vis) => related_notes(store, vis, &args),
         ("kanso-sync-status", _) => Ok(state.sync_status.value()),
@@ -223,6 +224,40 @@ fn guard_write(
             }
             keyed::check_write(store, key, vis, DocType::Note, None, args)?;
         }
+        "kanso-add-task" => match (opt_str(args, "noteId"), opt_str(args, "target")) {
+            (Some(_), Some(_)) => {
+                return Err(ToolError(
+                    "Pass `noteId` or `target`, not both: a task goes in one place.".into(),
+                ));
+            }
+            (Some(_), None) => {
+                let id = note("noteId");
+                keyed::check_write(store, key, vis, DocType::Note, Some(&id), &Args::new())?;
+                sees(&id)?;
+            }
+            (None, target) => {
+                let (role, existing) = match target {
+                    Some("inbox") => (kanso_core::roles::Role::Inbox, None),
+                    _ => (
+                        kanso_core::roles::Role::Journal,
+                        Some(kanso_core::roles::daily_id(local_now().date)),
+                    ),
+                };
+                let book = store
+                    .find_role_book(role)
+                    .ok()
+                    .flatten()
+                    .unwrap_or_else(|| role.book_id().to_owned());
+                dest(&book)?;
+                // Today's note may already be there, locked or hidden from
+                // this key.
+                if let Some(id) = existing
+                    && store.note(&id).ok().flatten().is_some()
+                {
+                    sees(&id)?;
+                }
+            }
+        },
         "kanso-set-task-done"
         | "kanso-attach-file"
         | "kanso-list-attachments"
@@ -286,6 +321,7 @@ fn call_full(state: &AppState, key: &Key, vis: &Visibility, name: &str, args: Ar
         "kanso-create-from-template" => create_from_template(store, &args),
         "kanso-export-html" => export_html(store, &args, &file_shown),
         "kanso-set-task-done" => set_task_done(store, &args),
+        "kanso-add-task" => add_task(store, &args),
         "kanso-move-note" => move_note(store, &args),
         "kanso-attach-file" => attach_file(store, &args),
         "kanso-list-attachments" => list_attachments(store, &args, &file_shown),
@@ -715,6 +751,82 @@ fn set_task_done(store: &Store, args: &Args) -> ToolResult {
             "The task changed or could not be identified; no note was changed.".into(),
         )),
     }
+}
+
+/// The date order a tool's `dateOrder` names; day first by default.
+fn date_order(args: &Args) -> kanso_core::due_phrase_model::DateOrder {
+    match opt_str(args, "dateOrder") {
+        Some("mdy") => kanso_core::due_phrase_model::DateOrder::MonthDay,
+        _ => kanso_core::due_phrase_model::DateOrder::DayMonth,
+    }
+}
+
+/// `kanso-parse-when`: the words, due date and repeat at the end of a line
+/// of task text, as `kanso-add-task` reads them. Writes nothing.
+fn parse_when(args: &Args) -> ToolResult {
+    let input = str_arg(args, "text");
+    let now = local_now();
+    let answer = match kanso_core::due_phrase::parse(input, now, date_order(args)) {
+        Some(parsed) => json!({
+            "text": input[..parsed.span.start].trim(),
+            "due": parsed.due.format(),
+            "repeat": parsed.repeat.map(|repeat| repeat.to_string()),
+            "label": kanso_core::due_phrase::label(&parsed, now.date),
+        }),
+        None => json!({
+            "text": input.trim(),
+            "due": null,
+            "repeat": null,
+            "label": null,
+        }),
+    };
+    result(vec![text(pretty(&answer))])
+}
+
+/// `kanso-add-task`: one task line at the end of a note, today's daily note
+/// or the Inbox's task list.
+fn add_task(store: &Store, args: &Args) -> ToolResult {
+    let input = str_arg(args, "text").trim();
+    if input.contains(['\n', '\r']) {
+        return Err(ToolError(
+            "A task is one line: send each task in its own call.".into(),
+        ));
+    }
+    let now = local_now();
+    let parsed = kanso_core::due_phrase::parse(input, now, date_order(args));
+    let (words, token) = match &parsed {
+        Some(parsed) => (
+            input[..parsed.span.start].trim(),
+            Some(kanso_core::due_phrase::canonical(parsed)),
+        ),
+        None => (input, None),
+    };
+    if words.is_empty() {
+        return Err(ToolError(
+            "Say what the task is, as well as when: the text is only a date.".into(),
+        ));
+    }
+    let line = match &token {
+        Some(token) => format!("- [ ] {words} {token}"),
+        None => format!("- [ ] {words}"),
+    };
+    let target = match (opt_str(args, "noteId"), opt_str(args, "target")) {
+        (Some(id), _) => kanso_store::TaskTarget::Note(with_prefix(DocType::Note, id)),
+        (None, Some("inbox")) => kanso_store::TaskTarget::Inbox,
+        (None, _) => kanso_store::TaskTarget::Daily,
+    };
+    let added = store
+        .add_task(&target, &line, now, now_ms(), kanso_store::Origin::Api)
+        .map_err(|err| ToolError(err.to_string()))?;
+    result(vec![text(pretty(&json!({
+        "noteId": added.note_id,
+        "line": added.line,
+        "task": line,
+        "due": parsed.as_ref().map(|p| p.due.format()),
+        "repeat": parsed.as_ref().and_then(|p| p.repeat).map(|r| r.to_string()),
+        "label": parsed.as_ref().map(|p| kanso_core::due_phrase::label(p, now.date)),
+        "uri": note_uri(&added.note_id),
+    })))])
 }
 
 /// Moves a note to an explicitly named notebook.
@@ -1226,6 +1338,7 @@ fn list_tasks(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResul
                 "text": t.text,
                 "done": t.checked,
                 "due": t.due,
+                "repeat": kanso_core::repeat::repeat_token(&t.text).map(|(_, repeat)| repeat.to_string()),
                 "line": t.line,
                 "noteId": t.note_id,
                 "noteTitle": t.note_title,

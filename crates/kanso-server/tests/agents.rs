@@ -367,6 +367,10 @@ fn write_calls(ids: &[String], books: &[String]) -> Vec<(&'static str, Value)> {
             json!({ "noteId": note, "line": 0, "text": "task", "done": true }),
         ),
         (
+            "kanso-add-task",
+            json!({ "noteId": note, "text": "task fri 3pm every week" }),
+        ),
+        (
             "kanso-add-pdf-highlight",
             json!({ "noteId": note, "fileId": "file:pdf", "page": 1, "quote": "quoted text" }),
         ),

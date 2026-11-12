@@ -136,6 +136,25 @@ pub fn canonical(parsed: &Parsed) -> String {
     }
 }
 
+/// How a parsed phrase reads to a person, as the hint under a field shows
+/// it: `Fri 14 Nov, 15:00 · every week`. The year follows the month when it
+/// is not `today`'s. Pure.
+pub fn label(parsed: &Parsed, today: Date) -> String {
+    let pattern = if parsed.due.date.year == today.year {
+        "%a %e %b"
+    } else {
+        "%a %e %b %Y"
+    };
+    let mut out = crate::dates::format(&DateTime::at_midnight(parsed.due.date), pattern);
+    if let Some((hour, minute)) = parsed.due.time {
+        out.push_str(&format!(", {hour:02}:{minute:02}"));
+    }
+    if let Some(repeat) = &parsed.repeat {
+        out.push_str(&format!(" \u{b7} {repeat}"));
+    }
+    out
+}
+
 struct Ctx {
     now: DateTime,
     order: DateOrder,
