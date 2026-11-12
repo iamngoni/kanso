@@ -20,17 +20,19 @@ export default function Command() {
   return <Gate>{(session) => <TaskForm session={session} />}</Gate>;
 }
 
-function TaskForm({ session }: { session: Session }) {
+/** The form. `note` preselects one note in "Put it in" (Search Notes: Add Task Here). */
+export function TaskForm({ session, note }: { session: Session; note?: NoteChoice }) {
   const [text, setText] = useState("");
   const [when, setWhen] = useState<When | undefined>();
   const [pending, setPending] = useState(false);
-  const [notes, setNotes] = useState<NoteChoice[]>([]);
+  const [recent, setRecent] = useState<NoteChoice[]>([]);
+  const notes = note ? [note, ...recent.filter((n) => n.id !== note.id)] : recent;
   const [error, setError] = useState<string | undefined>();
   const latest = useRef(0);
 
   useEffect(() => {
     void listRecentNotes(env, session.port, session.key)
-      .then((docs) => setNotes(noteChoices(docs)))
+      .then((docs) => setRecent(noteChoices(docs)))
       .catch((e) => session.reconnect(e));
   }, [session]);
 
@@ -110,7 +112,7 @@ function TaskForm({ session }: { session: Session }) {
         autoFocus
       />
       <Form.Description title="When" text={previewLine(text, when, pending)} />
-      <Form.Dropdown id="destination" title="Put it in" defaultValue="daily">
+      <Form.Dropdown id="destination" title="Put it in" defaultValue={note ? note.id : "daily"}>
         <Form.Dropdown.Item value="daily" title="Today's daily note" />
         <Form.Dropdown.Item value="inbox" title="Inbox task list" />
         {notes.length > 0 && (

@@ -24,6 +24,20 @@
       "mode": "view"
     },
     {
+      "name": "search-notes",
+      "title": "Search Notes",
+      "subtitle": "Kanso",
+      "description": "Search your notes. Enter opens the note in Kanso.",
+      "mode": "view"
+    },
+    {
+      "name": "open-note",
+      "title": "Open Note",
+      "subtitle": "Kanso",
+      "description": "Recently updated notes. Enter opens one in Kanso.",
+      "mode": "view"
+    },
+    {
       "name": "connect",
       "title": "Connect to Kanso",
       "subtitle": "Kanso",
