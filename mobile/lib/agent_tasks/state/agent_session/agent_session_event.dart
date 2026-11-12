@@ -22,6 +22,13 @@ sealed class AgentSessionEvent with _$AgentSessionEvent {
   /// End the session.
   const factory AgentSessionEvent.ended() = AgentSessionEndedEvent;
 
+  /// Name the session [title].
+  const factory AgentSessionEvent.renamed(String title) =
+      AgentSessionRenamedEvent;
+
+  /// Delete the session and its transcript.
+  const factory AgentSessionEvent.deleted() = AgentSessionDeletedEvent;
+
   /// Take the finished session off the list.
   const factory AgentSessionEvent.dismissed() = AgentSessionDismissedEvent;
 

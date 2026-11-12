@@ -176,6 +176,21 @@ class FixtureAgentTasksRepository implements AgentTasksRepository {
   }
 
   @override
+  Future<Either<ApplicationError, Unit>> renameSession(
+    String key,
+    String title,
+  ) async {
+    calls.add('renameSession:$key:$title');
+    return const Right<ApplicationError, Unit>(unit);
+  }
+
+  @override
+  Future<Either<ApplicationError, Unit>> deleteSession(String key) async {
+    calls.add('deleteSession:$key');
+    return const Right<ApplicationError, Unit>(unit);
+  }
+
+  @override
   Future<Either<ApplicationError, Unit>> stop(int id) async {
     calls.add('stop:$id');
     return const Right<ApplicationError, Unit>(unit);

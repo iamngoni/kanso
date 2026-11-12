@@ -394,7 +394,7 @@ fn a_finished_task_is_a_session_row_that_needs_the_person() {
     assert_eq!(row.phase, "ready");
     assert_eq!(row.status, "1 change to review");
     assert_eq!(row.dot, "needs_you");
-    assert!(row.can_review && !row.can_stop && !row.can_follow_up);
+    assert!(row.can_review && !row.can_stop && row.can_follow_up);
     assert!(row.unread, "nobody has opened it yet");
     assert!(!row.key.is_empty());
 }
@@ -431,15 +431,42 @@ fn a_session_that_is_not_listed_has_no_transcript_and_refuses_calls() {
     assert!(tasks.end_session("NOPE").is_err());
 }
 
-// no-prop-test: until step 4 only a question can be answered.
+// no-prop-test: one scripted session, the calls on it in order.
 #[test]
-fn a_message_to_a_session_that_is_not_asking_is_refused() {
+fn a_message_goes_into_the_session_and_an_ended_session_takes_none() {
     let (_phone, tasks) = finished_edit();
     let key = tasks.sessions(0)[0].key.clone();
-    let before = tasks.transcript(&key, 0).unwrap().items.len();
-    let refused = tasks.follow_up(&key, "and the rest?").unwrap_err();
-    assert!(refused.to_string().contains("isn't waiting"), "{refused}");
-    assert_eq!(tasks.transcript(&key, 0).unwrap().items.len(), before);
+    assert!(tasks.follow_up(&key, "   ").is_err(), "a blank message");
+    tasks.follow_up(&key, "and the rest?").unwrap();
+    let said = tasks.transcript(&key, 0).unwrap();
+    assert!(
+        said.items
+            .iter()
+            .any(|item| item.kind == "user" && item.text == "and the rest?"),
+        "the message is in the transcript"
+    );
+    wait_for_end(&tasks);
+    tasks.end_session(&key).unwrap();
+    let refused = tasks.follow_up(&key, "once more").unwrap_err();
+    assert!(
+        refused.to_string().contains("can't take a message"),
+        "{refused}"
+    );
+}
+
+// no-prop-test: rename and delete are one call each on the session.
+#[test]
+fn a_session_is_renamed_and_deleted() {
+    let (_phone, tasks) = finished_edit();
+    let key = tasks.sessions(0)[0].key.clone();
+    tasks.rename_session(&key, "  Pricing, done  ").unwrap();
+    assert_eq!(tasks.sessions(0)[0].title, "Pricing, done");
+    tasks.rename_session(&key, "   ").unwrap();
+    assert_eq!(tasks.sessions(0)[0].title, "Pricing, done");
+    tasks.delete_session(&key).unwrap();
+    assert!(tasks.sessions(0).is_empty());
+    assert!(tasks.delete_session(&key).is_err());
+    assert!(tasks.rename_session(&key, "x").is_err());
 }
 
 // no-prop-test: ending a finished session leaves what it proposed to review.

@@ -30,7 +30,7 @@ pub struct TaskView {
     pub id: u64,
     pub goal: String,
     pub agent: String,
-    /// `waiting`, `running`, `asking`, `ready`, `nothing`, `failed`,
+    /// `waiting`, `running`, `idle`, `asking`, `ready`, `nothing`, `failed`,
     /// `applied`, `undone` or `discarded`.
     pub phase: String,
     /// The question, the error or the number of changes, by phase.
@@ -48,6 +48,7 @@ impl TaskView {
         let (phase, detail) = match &row.phase {
             Phase::Waiting => ("waiting", String::new()),
             Phase::Running => ("running", String::new()),
+            Phase::Idle => ("idle", String::new()),
             Phase::Asking { question } => ("asking", question.clone()),
             Phase::Ready => ("ready", String::new()),
             Phase::Nothing => ("nothing", String::new()),
@@ -155,10 +156,7 @@ impl SessionView {
             changes: task.changes,
             can_stop: row.can_stop(),
             can_review: row.can_review(),
-            // Only a question can be answered for now.
-            // TODO(#375 step 4): also when the session is idle, once
-            // `Tasks::follow_up` and `Phase::Idle` are in master.
-            can_follow_up: matches!(row.phase, Phase::Asking { .. }),
+            can_follow_up: row.can_follow_up(),
         }
     }
 }

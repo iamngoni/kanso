@@ -12,11 +12,17 @@ import 'types.dart';
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAgentTasks>>
 abstract class KansoAgentTasks implements RustOpaqueInterface {
+  /// Deletes session `key` from this phone; applied changes stay.
+  Future<void> agentDeleteSession({required String key});
+
   /// Ends session `key`; what it did stays.
   Future<void> agentEndSession({required String key});
 
   /// Sends a message into session `key`.
   Future<void> agentFollowUp({required String key, required String text});
+
+  /// Renames session `key`; a blank name changes nothing.
+  Future<void> agentRenameSession({required String key, required String title});
 
   /// The sessions, latest activity first.
   Future<List<SessionView>> agentSessions();

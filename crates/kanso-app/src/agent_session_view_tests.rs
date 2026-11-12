@@ -128,6 +128,8 @@ fn a_transcript_draws_in_order_with_tool_runs_folded(cx: &mut TestAppContext) {
 /// it, or "Continue in a new session" when it can't be resumed.
 #[gpui_kit::test]
 fn a_restored_session_offers_to_resume_or_to_continue_in_a_new_one(cx: &mut TestAppContext) {
+    let mut config = AppConfig::default();
+    config.ai.enabled = true;
     let dir = tempfile::tempdir().unwrap();
     let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
     let data_dir = dir.path().to_path_buf();
@@ -136,7 +138,7 @@ fn a_restored_session_offers_to_resume_or_to_continue_in_a_new_one(cx: &mut Test
         cx.set_global(AppState {
             store,
             data_dir,
-            config: AppConfig::default(),
+            config,
         });
         cx.set_global(Services::default());
         gpui_kit::open_window(Default::default(), cx, |_, cx| {
@@ -160,11 +162,89 @@ fn a_restored_session_offers_to_resume_or_to_continue_in_a_new_one(cx: &mut Test
             window.draw(cx).clear(cx);
         });
         (
-            vcx.debug_bounds("session-resume-bar").is_some(),
-            vcx.debug_bounds("session-continue-bar").is_some(),
+            vcx.debug_bounds("session-input").is_some(),
+            vcx.debug_bounds("session-continue").is_some(),
         )
     };
     assert_eq!(show(&mut vcx, true, true), (true, false));
     assert_eq!(show(&mut vcx, true, false), (false, true));
-    assert_eq!(show(&mut vcx, false, false), (false, false));
+    // A live session has the same box, and nothing to continue.
+    assert_eq!(show(&mut vcx, false, false), (true, false));
+}
+
+/// The composer is a box that sends, a Stop while a turn runs, or the
+/// reason it can't send, and for an ended session a way to carry on.
+#[gpui_kit::test]
+fn the_composer_follows_the_session(cx: &mut TestAppContext) {
+    use kanso_engine::agent_task::model::{Phase, TaskRow};
+
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
+    let data_dir = dir.path().to_path_buf();
+    let mut config = AppConfig::default();
+    config.ai.enabled = true;
+    let (window, view) = cx.update(|cx| {
+        gpui_kit::init(cx);
+        cx.set_global(AppState {
+            store,
+            data_dir,
+            config,
+        });
+        cx.set_global(Services::default());
+        gpui_kit::open_window(Default::default(), cx, |_, cx| {
+            cx.new(|cx| AgentSessionView::from_items(&transcript(), true, cx))
+        })
+        .unwrap()
+    });
+    let draw = |cx: &mut TestAppContext, row: TaskRow| {
+        view.update(cx, |view, cx| {
+            view.change_row(|current| *current = row);
+            cx.notify();
+        });
+        cx.run_until_parked();
+        window
+            .update(cx, |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+            })
+            .unwrap();
+        VisualTestContext::from_window(window, cx)
+    };
+    let base = || TaskRow::new(kanso_server::TaskId(1), "Merge my trips", "Claude Agent");
+
+    let mut vcx = draw(
+        cx,
+        TaskRow {
+            phase: Phase::Idle,
+            ..base()
+        },
+    );
+    assert!(vcx.debug_bounds("session-input").is_some(), "idle: a box");
+    assert!(vcx.debug_bounds("session-composer-off").is_none());
+
+    let mut vcx = draw(
+        cx,
+        TaskRow {
+            phase: Phase::Running,
+            ..base()
+        },
+    );
+    assert!(
+        vcx.debug_bounds("session-input").is_some(),
+        "running: typing waits"
+    );
+
+    let mut vcx = draw(
+        cx,
+        TaskRow {
+            phase: Phase::Idle,
+            live: false,
+            ..base()
+        },
+    );
+    assert!(vcx.debug_bounds("session-input").is_none());
+    assert!(
+        vcx.debug_bounds("session-composer-off").is_some(),
+        "an ended session says why"
+    );
 }

@@ -62,6 +62,14 @@ void agentTasksSuite(OpenLibrary open) {
         throwsA(anything),
       );
       await expectLater(tasks.agentEndSession(key: 'NOPE'), throwsA(anything));
+      await expectLater(
+        tasks.agentRenameSession(key: 'NOPE', title: 'x'),
+        throwsA(anything),
+      );
+      await expectLater(
+        tasks.agentDeleteSession(key: 'NOPE'),
+        throwsA(anything),
+      );
     });
 
     test('a task that is not there has nothing to review or undo', () async {

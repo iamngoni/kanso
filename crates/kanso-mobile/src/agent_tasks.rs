@@ -10,7 +10,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
-use kanso_engine::agent_task::model::{Phase, by_activity};
+use kanso_engine::agent_task::model::by_activity;
 use kanso_engine::agent_task::review::{self, CardDetail, CardState, LineKind};
 use kanso_engine::agent_task::runner::{ApiDriver, Tasks};
 use kanso_engine::agent_task::session::SessionKey;
@@ -35,7 +35,9 @@ pub const CONFIRM_ALL: &str = "Confirm that this task may read all your notebook
 pub const NO_SESSION: &str = "That session is no longer here.";
 
 /// What a message to a session that isn't waiting for one says.
-pub const NOT_ASKING: &str = "The agent isn't waiting for a message yet.";
+/// What a message to a session that can't take one says.
+pub const CANNOT_FOLLOW_UP: &str =
+    "This session can't take a message now. Wait for the turn to end, or start a new session.";
 
 /// The file the preferences are kept in, beside the library.
 const PREFS_FILE: &str = "agent-tasks.json";
@@ -251,43 +253,58 @@ impl AgentTasks {
         Some(SessionTranscript::from_parts(&row, &transcript, now_ms))
     }
 
-    /// Sends `text` into session `key`.
-    ///
-    /// TODO(#375 step 4): call `Tasks::follow_up` when it is in master. Until
-    /// then the only way into a session is answering a question, so this
-    /// refuses unless the agent asked one.
+    /// Sends `text` into session `key`: it goes to the same agent
+    /// conversation, as a new round of proposals.
     pub fn follow_up(&self, key: &str, text: &str) -> Result<(), KansoError> {
         let runtime = self.runtime();
         let id = runtime
             .tasks
             .by_key(&SessionKey(key.to_owned()))
             .ok_or_else(|| KansoError::invalid(NO_SESSION))?;
-        let asking = runtime
-            .tasks
-            .row(id)
-            .is_some_and(|row| matches!(row.phase, Phase::Asking { .. }));
-        if !asking {
-            return Err(KansoError::invalid(NOT_ASKING));
-        }
         if text.trim().is_empty() {
             return Err(KansoError::invalid("Write a message first."));
         }
-        runtime.tasks.reply(id, text);
-        Ok(())
+        if runtime.tasks.follow_up(id, text) {
+            Ok(())
+        } else {
+            Err(KansoError::invalid(CANNOT_FOLLOW_UP))
+        }
     }
 
-    /// Ends session `key`: stops its turn and keeps what it did.
-    ///
-    /// TODO(#375 step 4): call `Tasks::end_session` (closes the agent
-    /// conversation, revokes the token) when it is in master; until then a
-    /// session ends by being stopped.
+    /// Ends session `key`: its conversation closes and its token ends. The
+    /// transcript and anything to review stay.
     pub fn end_session(&self, key: &str) -> Result<(), KansoError> {
         let runtime = self.runtime();
         let id = runtime
             .tasks
             .by_key(&SessionKey(key.to_owned()))
             .ok_or_else(|| KansoError::invalid(NO_SESSION))?;
-        runtime.tasks.stop(id);
+        runtime.tasks.end_session(id);
+        Ok(())
+    }
+
+    /// Renames session `key`. A blank name changes nothing.
+    pub fn rename_session(&self, key: &str, title: &str) -> Result<(), KansoError> {
+        let runtime = self.runtime();
+        let id = runtime
+            .tasks
+            .by_key(&SessionKey(key.to_owned()))
+            .ok_or_else(|| KansoError::invalid(NO_SESSION))?;
+        runtime.tasks.rename(id, title);
+        Ok(())
+    }
+
+    /// Deletes session `key`: its transcript is removed from this phone;
+    /// changes already applied stay. A session still working is ended first
+    /// and goes once its turn has stopped.
+    pub fn delete_session(&self, key: &str) -> Result<(), KansoError> {
+        let runtime = self.runtime();
+        let id = runtime
+            .tasks
+            .by_key(&SessionKey(key.to_owned()))
+            .ok_or_else(|| KansoError::invalid(NO_SESSION))?;
+        runtime.tasks.end_session(id);
+        runtime.tasks.dismiss(id);
         Ok(())
     }
 
@@ -298,7 +315,7 @@ impl AgentTasks {
 
     /// Answers a question the agent asked.
     pub fn reply(&self, id: u64, text: &str) {
-        self.runtime().tasks.reply(TaskId(id), text);
+        self.runtime().tasks.follow_up(TaskId(id), text);
     }
 
     /// Forgets a task and what it proposed.

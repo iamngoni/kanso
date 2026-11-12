@@ -825,6 +825,139 @@ proptest! {
     }
 }
 
+#[derive(Clone, Debug)]
+enum R {
+    Create(usize),
+    Update(usize),
+    Move(usize, usize),
+    Merge(Vec<usize>, usize),
+    /// A call while the token is paused between turns.
+    WhilePaused(usize),
+}
+
+fn round_calls() -> impl Strategy<Value = Vec<R>> {
+    prop::collection::vec(
+        prop_oneof![
+            (0usize..4).prop_map(R::Create),
+            (0usize..5).prop_map(R::Update),
+            (0usize..5, 0usize..4).prop_map(|(n, b)| R::Move(n, b)),
+            (prop::collection::vec(0usize..5, 0..4), 0usize..4).prop_map(|(n, b)| R::Merge(n, b)),
+            (0usize..4).prop_map(R::WhilePaused),
+        ],
+        0..6,
+    )
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        rng_seed: proptest::test_runner::RngSeed::Fixed(0x0066_6f6c_6c6f),
+        ..ProptestConfig::with_cases(48)
+    })]
+
+    /// Invariant: in no round of a session is an op accepted that writes
+    /// outside the notebooks the task may write to, or touches a note outside
+    /// its notes. Whatever rounds are reviewed in between, and whatever is
+    /// ticked, nothing outside reaches the store.
+    #[test]
+    fn prop_no_op_outside_write_books_is_accepted_in_any_round(
+        rounds in prop::collection::vec((round_calls(), any::<bool>()), 1..5),
+    ) {
+        let lib = lib();
+        let book = |name: &str| lib.store
+            .put(DocType::Book, json!({ "name": name }), Put::Upsert, Origin::Ui)
+            .unwrap()
+            .id;
+        let vault = book("Vault");
+        let secret = lib.store
+            .put(
+                DocType::Note,
+                json!({ "bookId": vault, "title": "Secret", "body": "keep out" }),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+        let books = [lib.trips.clone(), lib.archive.clone(), vault.clone(), "no-such-book".to_owned()];
+        let mut notes = lib.notes.clone();
+        notes.push((secret.id.clone(), secret.rev.clone()));
+        let before_secret = lib.store.get(&secret.id).unwrap().unwrap().fields;
+
+        let tokens = TokenStore::new();
+        let task = agent_task::open(&lib.store, &tokens, &spec(&lib), "A").unwrap();
+        let writable = std::collections::HashSet::from([lib.trips.clone()]);
+        let in_scope: std::collections::HashSet<String> =
+            lib.notes.iter().map(|(id, _)| id.clone()).collect();
+        let call = |name: &str, args: Value| {
+            agent_tools::call(&lib.store, &tokens, task.token, &task.scope, name, Some(&args))
+        };
+        let mut applied_all = Vec::new();
+        for (round, (calls, review_after)) in rounds.iter().enumerate() {
+            let round = u32::try_from(round).unwrap() + 1;
+            if round > 1 {
+                task.open_round(round);
+                prop_assert!(task.resume());
+            }
+            for c in calls {
+                match c {
+                    R::Create(b) => {
+                        call("create-note", json!({"bookId": books[*b], "title": "t", "body": "b"}));
+                    }
+                    R::Update(n) => {
+                        call("update-note", json!({"_id": notes[*n].0, "_rev": notes[*n].1, "body": "x"}));
+                    }
+                    R::Move(n, b) => {
+                        call("kanso-propose-move", json!({"_id": notes[*n].0, "_rev": notes[*n].1, "bookId": books[*b]}));
+                    }
+                    R::Merge(ix, b) => {
+                        call("kanso-propose-merge", json!({
+                            "sources": ix.iter().map(|i| json!({"_id": notes[*i].0, "_rev": notes[*i].1})).collect::<Vec<_>>(),
+                            "bookId": books[*b], "title": "M", "body": "m",
+                        }));
+                    }
+                    R::WhilePaused(b) => {
+                        // Between turns the token refuses everything.
+                        task.pause();
+                        let before = task.changes().map(|s| s.ops.len());
+                        let answer = call("create-note", json!({"bookId": books[*b], "title": "p", "body": "p"}));
+                        prop_assert_eq!(answer["isError"].clone(), json!(true));
+                        prop_assert_eq!(task.changes().map(|s| s.ops.len()), before);
+                        prop_assert!(task.resume());
+                    }
+                }
+            }
+            task.tokens.changesets().with(task.id, |set| set.stamp_round());
+            let set = task.changes().unwrap();
+            for op in &set.ops {
+                for target in op.target_books() {
+                    prop_assert!(writable.contains(target), "round {round}: wrote to {target}");
+                }
+                for (id, _) in op.touched() {
+                    prop_assert!(in_scope.contains(id), "round {round}: touched {id}");
+                }
+                prop_assert!(set.round_of(op) <= round);
+            }
+            task.pause();
+            if *review_after {
+                let applied = set.apply(&lib.store, &Selection::all(set.ops.len()), 10 + i64::from(round));
+                task.tokens.changesets().remove(task.id);
+                applied_all.extend(applied.ok());
+            }
+        }
+        if let Some(set) = task.changes() {
+            applied_all.extend(set.apply(&lib.store, &Selection::all(set.ops.len()), 90).ok());
+        }
+        for applied in &applied_all {
+            for id in &applied.changed {
+                prop_assert!(in_scope.contains(id), "changed {id}");
+            }
+            for id in &applied.created {
+                let f = lib.store.get(id).unwrap().unwrap().fields;
+                prop_assert_eq!(f.get("bookId").and_then(Value::as_str), Some(lib.trips.as_str()));
+            }
+        }
+        prop_assert_eq!(lib.store.get(&secret.id).unwrap().unwrap().fields, before_secret);
+    }
+}
+
 /// An idle driver whose agent session has an id, as an ACP agent's does.
 struct Sessioned(&'static str);
 

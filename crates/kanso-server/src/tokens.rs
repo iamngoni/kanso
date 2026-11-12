@@ -21,7 +21,7 @@ use subtle::ConstantTimeEq as _;
 
 use crate::changeset::{ChangeSets, TaskId};
 use crate::review::ReviewQueue;
-use crate::scope::{AgentScope, Caller};
+use crate::scope::{AgentScope, Caller, TaskLimits};
 
 /// How long a token lasts after it is minted (or renewed).
 pub const LIFETIME: Duration = Duration::from_secs(15 * 60);
@@ -91,10 +91,17 @@ struct Entry {
     calls: usize,
     /// The lines shown since the question began, numbered.
     shown: Vec<ShownNote>,
+    /// Between turns of an agent session: live, but every call is refused.
+    paused: bool,
 }
 
 impl Entry {
     fn live_at(&self, now: Instant) -> bool {
+        // A paused token waits for the next turn of its session; the app
+        // ends it (idle close, End Session) or the store evicts it.
+        if self.paused {
+            return true;
+        }
         // A task's token lives for the task's time limit and is never idle:
         // an agent may think a long while between calls.
         let (lifetime, idle) = match &self.scope.task_limits {
@@ -201,11 +208,13 @@ impl TokenStore {
         let mut inner = self.lock();
         Self::prune(&mut inner, now);
         while inner.entries.len() >= MAX_LIVE {
+            // The oldest idle (paused) session's token goes first: nobody is
+            // waiting on it. Then the one used longest ago.
             let oldest = inner
                 .entries
                 .iter()
                 .enumerate()
-                .min_by_key(|(_, entry)| entry.last_used)
+                .min_by_key(|(_, entry)| (!entry.paused, entry.last_used))
                 .map(|(at, _)| at)
                 .unwrap_or(0);
             inner.entries.remove(oldest);
@@ -222,6 +231,7 @@ impl TokenStore {
             reads: Vec::new(),
             calls: 0,
             shown: Vec::new(),
+            paused: false,
         });
         Minted { id, token }
     }
@@ -245,6 +255,75 @@ impl TokenStore {
             token: entry.id,
             scope: entry.scope.clone(),
         })
+    }
+
+    /// Between turns, token `id` refuses every call but stays live, so the
+    /// agent's session (and the bearer it was started with) stays valid.
+    pub fn pause(&self, id: TokenId) {
+        if let Some(entry) = self.lock().entries.iter_mut().find(|entry| entry.id == id) {
+            entry.paused = true;
+        }
+    }
+
+    /// Pauses every token of task `task` (a session that started again has
+    /// more than one over its life).
+    pub fn pause_task(&self, task: TaskId) {
+        for entry in &mut self.lock().entries {
+            if entry.scope.task == Some(task) {
+                entry.paused = true;
+            }
+        }
+    }
+
+    /// Whether token `id` is paused.
+    pub fn is_paused(&self, id: TokenId) -> bool {
+        self.lock()
+            .entries
+            .iter()
+            .any(|entry| entry.id == id && entry.paused)
+    }
+
+    /// A new turn begins on paused token `id`: it accepts calls again with
+    /// `limits` as its own lifetime and call budget, and its clock, renewal
+    /// and call counter start over. `false` when the token is gone.
+    pub fn resume(&self, id: TokenId, limits: TaskLimits) -> bool {
+        let now = (self.clock)();
+        let mut inner = self.lock();
+        let Some(at) = inner.entries.iter().position(|entry| entry.id == id) else {
+            return false;
+        };
+        Self::resume_entry(&mut inner.entries[at], limits, now);
+        if let Some(task) = inner.entries[at].scope.task {
+            inner.task_calls.remove(&task);
+        }
+        true
+    }
+
+    /// [`TokenStore::resume`] for every token of task `task`. `false` when
+    /// it has none left.
+    pub fn resume_task(&self, task: TaskId, limits: TaskLimits) -> bool {
+        let now = (self.clock)();
+        let mut inner = self.lock();
+        let mut any = false;
+        for entry in &mut inner.entries {
+            if entry.scope.task == Some(task) {
+                Self::resume_entry(entry, limits, now);
+                any = true;
+            }
+        }
+        inner.task_calls.remove(&task);
+        any
+    }
+
+    fn resume_entry(entry: &mut Entry, limits: TaskLimits, now: Instant) {
+        let mut scope = (*entry.scope).clone();
+        scope.task_limits = Some(limits);
+        entry.scope = Arc::new(scope);
+        entry.paused = false;
+        entry.minted = now;
+        entry.last_used = now;
+        entry.renewed = false;
+        entry.calls = 0;
     }
 
     /// Whether token `id` would still be accepted.
@@ -353,6 +432,9 @@ impl TokenStore {
         let Some(entry) = inner.entries.iter_mut().find(|entry| entry.id == id) else {
             return false;
         };
+        if entry.paused {
+            return false;
+        }
         entry.calls += 1;
         let max = entry
             .scope
@@ -440,6 +522,13 @@ impl TokenStore {
     /// Ends token `id` now.
     pub fn revoke(&self, id: TokenId) {
         self.lock().entries.retain(|entry| entry.id != id);
+    }
+
+    /// Ends every token of task `task`.
+    pub fn revoke_task(&self, task: TaskId) {
+        self.lock()
+            .entries
+            .retain(|entry| entry.scope.task != Some(task));
     }
 
     /// Ends every token: AI was turned off, the agent changed, or Kanso is
@@ -548,6 +637,115 @@ mod tests {
         assert!(!store.charge(minted.id));
         store.begin_turn(minted.id);
         assert!(store.charge(minted.id));
+    }
+
+    fn task_limits(calls: usize) -> TaskLimits {
+        TaskLimits {
+            lifetime: Duration::from_secs(120),
+            calls,
+            max_notes: 10,
+        }
+    }
+
+    fn task_token(store: &TokenStore, calls: usize) -> (TaskId, Minted) {
+        let id = store.changesets().next_id();
+        let scope = AgentScope::task(
+            None,
+            None,
+            "Agent",
+            id,
+            crate::scope::TaskOps::default(),
+            task_limits(calls),
+        );
+        (id, store.mint(scope))
+    }
+
+    #[test]
+    fn a_paused_token_stays_live_past_its_lifetime_and_refuses_calls() {
+        let (now, store) = clock();
+        let (_, minted) = task_token(&store, 3);
+        assert!(store.charge(minted.id));
+        store.pause(minted.id);
+        assert!(store.is_paused(minted.id));
+        assert!(!store.charge(minted.id), "a paused token is not charged");
+        advance(&now, Duration::from_secs(3600));
+        assert!(store.is_live(minted.id), "an idle session's token waits");
+        assert!(store.verify(&minted.token).is_some());
+    }
+
+    #[test]
+    fn resume_starts_the_turns_budget_clock_and_renewal_over() {
+        let (now, store) = clock();
+        let (task, minted) = task_token(&store, 2);
+        assert!(store.charge(minted.id));
+        assert!(store.charge(minted.id));
+        assert!(!store.charge(minted.id), "the turn's calls are used up");
+        assert!(store.renew(minted.id));
+        store.pause(minted.id);
+        advance(&now, Duration::from_secs(1000));
+        assert!(store.resume(minted.id, task_limits(2)));
+        assert!(!store.is_paused(minted.id));
+        assert_eq!(store.calls(minted.id), 0);
+        assert_eq!(store.task_calls(task), 0);
+        assert!(store.charge(minted.id));
+        assert!(store.charge(minted.id));
+        assert!(!store.charge(minted.id));
+        // Its lifetime started over, and it may be renewed once more.
+        store.pause(minted.id);
+        assert!(store.resume(minted.id, task_limits(2)));
+        advance(&now, Duration::from_secs(100));
+        assert!(store.is_live(minted.id));
+        assert!(store.renew(minted.id));
+        // A gone token doesn't resume.
+        store.revoke(minted.id);
+        assert!(!store.resume(minted.id, task_limits(2)));
+        assert!(!store.resume_task(task, task_limits(2)));
+    }
+
+    #[test]
+    fn a_full_store_evicts_the_oldest_paused_token_first() {
+        let (now, store) = clock();
+        let mut minted = Vec::new();
+        for _ in 0..MAX_LIVE {
+            minted.push(store.mint(AgentScope::ask(None)));
+            advance(&now, Duration::from_secs(1));
+        }
+        // The first is the longest unused, the third is paused.
+        store.pause(minted[2].id);
+        let fresh = store.mint(AgentScope::ask(None));
+        let live = store.live();
+        assert!(!live.contains(&minted[2].id), "the idle session's token");
+        assert!(live.contains(&minted[0].id));
+        assert!(live.contains(&fresh.id));
+        assert_eq!(store.live_count(), MAX_LIVE);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(128))]
+
+        /// Whatever happens between turns, a paused token is never charged
+        /// and resumes with the full budget it was given.
+        #[test]
+        fn prop_a_resumed_token_has_the_full_budget(
+            before in 0usize..8,
+            calls in 1usize..8,
+            waited in 0u64..5000,
+        ) {
+            let (now, store) = clock();
+            let (task, minted) = task_token(&store, calls);
+            for _ in 0..before {
+                store.charge(minted.id);
+            }
+            store.pause(minted.id);
+            advance(&now, Duration::from_secs(waited));
+            prop_assert!(!store.charge(minted.id));
+            prop_assert!(store.resume(minted.id, task_limits(calls)));
+            prop_assert_eq!(store.task_calls(task), 0);
+            for _ in 0..calls {
+                prop_assert!(store.charge(minted.id));
+            }
+            prop_assert!(!store.charge(minted.id));
+        }
     }
 
     proptest! {

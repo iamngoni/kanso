@@ -733,3 +733,66 @@ async fn an_agent_tool_never_returns_a_locked_or_out_of_scope_note() {
         assert!(!when.contains(title), "{title} in {when}");
     }
 }
+
+/// A task token between turns of its session is live but refuses every
+/// call, on every method of `/mcp` and on both listeners, until it resumes.
+#[tokio::test]
+async fn a_paused_token_is_refused_on_every_mcp_route_until_it_resumes() {
+    let agents = agents();
+    let id = agents.tokens.changesets().next_id();
+    let limits = kanso_server::TaskLimits {
+        lifetime: Duration::from_secs(600),
+        calls: 5,
+        max_notes: 50,
+    };
+    let scope = AgentScope::task(
+        None,
+        None,
+        "Claude Agent",
+        id,
+        kanso_server::TaskOps::default(),
+        limits,
+    );
+    let minted = agents.tokens.mint(scope);
+    let header = format!("Bearer {}", minted.token);
+    let with_method = |method: Method| {
+        Request::builder()
+            .method(method)
+            .uri("/mcp")
+            .header(header::AUTHORIZATION, header.clone())
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                json!({ "jsonrpc": "2.0", "id": 1, "method": "ping", "params": {} }).to_string(),
+            ))
+            .unwrap()
+    };
+    let check = |paused: bool| {
+        let (agents, minted, with_method) = (&agents, &minted, &with_method);
+        async move {
+            for router in [&agents.api, &agents.private] {
+                for method in ["initialize", "ping", "tools/list", "tools/call", "no-such"] {
+                    let (status, _) = agent_rpc(router, &minted.token, method, json!({})).await;
+                    assert_eq!(
+                        status == StatusCode::UNAUTHORIZED,
+                        paused,
+                        "{method} paused={paused}"
+                    );
+                }
+                for method in [Method::GET, Method::DELETE] {
+                    let status = send(router, with_method(method.clone())).await.status;
+                    assert_eq!(
+                        status == StatusCode::UNAUTHORIZED,
+                        paused,
+                        "{method} paused={paused}"
+                    );
+                }
+            }
+        }
+    };
+    check(false).await;
+    agents.tokens.pause(minted.id);
+    assert!(agents.tokens.is_live(minted.id), "paused is still live");
+    check(true).await;
+    assert!(agents.tokens.resume(minted.id, limits));
+    check(false).await;
+}

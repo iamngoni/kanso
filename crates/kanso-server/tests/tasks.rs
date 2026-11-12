@@ -905,3 +905,41 @@ fn undo_leaves_a_note_in_a_notebook_locked_since() {
         trips
     );
 }
+
+/// A follow-up opens a new round: ops already proposed keep the round they
+/// came in, a re-proposed op moves to the new one, and the finished flag
+/// starts over.
+#[test]
+fn ops_are_labelled_with_the_round_they_came_in() {
+    let t = in_trips();
+    let notes = notes_of(&t);
+    let edit = |ix: usize, body: &str| {
+        t.call(
+            "update-note",
+            json!({"_id": notes[ix].0, "_rev": notes[ix].1, "body": body}),
+        )
+    };
+    edit(0, "one");
+    t.call("kanso-task-done", json!({"summary": "done"}));
+    let tokens = &t.tokens;
+    tokens.changesets().with(t.id, |set| set.stamp_round());
+    assert_eq!(t.set().rounds(), [1]);
+
+    tokens.changesets().with(t.id, |set| set.begin_round(2));
+    assert!(!t.set().done, "the agent may finish again");
+    edit(1, "two");
+    // The same note again, in round 2, replaces round 1's edit.
+    edit(0, "three");
+    let set = t.set();
+    assert_eq!(set.round, 2);
+    assert_eq!(set.rounds(), [2], "both edits are round 2's now");
+    assert_eq!(set.counts_in(2).edits, 2);
+    assert_eq!(set.counts_in(1).total(), 0);
+
+    tokens.changesets().with(t.id, |set| set.begin_round(3));
+    edit(2, "four");
+    let set = t.set();
+    assert_eq!(set.rounds(), [2, 3]);
+    assert_eq!(set.counts_in(2).edits, 2);
+    assert_eq!(set.counts_in(3).edits, 1);
+}

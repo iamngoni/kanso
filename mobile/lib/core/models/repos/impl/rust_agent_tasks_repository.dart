@@ -170,6 +170,22 @@ class RustAgentTasksRepository implements AgentTasksRepository {
       });
 
   @override
+  Future<Either<ApplicationError, Unit>> renameSession(
+    String key,
+    String title,
+  ) => attempt(() async {
+    await _tasks.agentRenameSession(key: key, title: title);
+    return unit;
+  });
+
+  @override
+  Future<Either<ApplicationError, Unit>> deleteSession(String key) =>
+      attempt(() async {
+        await _tasks.agentDeleteSession(key: key);
+        return unit;
+      });
+
+  @override
   Future<Either<ApplicationError, Unit>> stop(int id) => attempt(() async {
     await _tasks.stop(id: id);
     return unit;

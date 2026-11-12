@@ -283,6 +283,16 @@ impl KansoAgentTasks {
         self.0.end_session(&key)
     }
 
+    /// Renames session `key`; a blank name changes nothing.
+    pub fn agent_rename_session(&self, key: String, title: String) -> Result<(), KansoError> {
+        self.0.rename_session(&key, &title)
+    }
+
+    /// Deletes session `key` from this phone; applied changes stay.
+    pub fn agent_delete_session(&self, key: String) -> Result<(), KansoError> {
+        self.0.delete_session(&key)
+    }
+
     pub fn stop(&self, id: u64) {
         self.0.stop(id)
     }

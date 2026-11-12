@@ -172,15 +172,23 @@ proptest! {
         items in prop::collection::vec(item(), 0..12),
         ops in prop::collection::vec(op(), 0..5),
         round in 1u32..9,
-        failed in any::<bool>(),
+        phase in 0u8..3,
     ) {
         let dir = tempfile::tempdir().unwrap();
-        let set = (!ops.is_empty()).then(|| pending(ops));
+        let set = (!ops.is_empty()).then(|| {
+            // Ops from earlier rounds keep their label across the file.
+            let mut set = pending(ops);
+            set.begin_round(1);
+            set.begin_round(round);
+            set
+        });
         let mut saved = session("01ARZ3NDEKTSV4RRFFQ69G5FAV", items, set);
         saved.round = round;
-        if failed {
-            saved.phase = Phase::Failed { message: "boom".into() };
-        }
+        saved.phase = match phase {
+            0 => Phase::Idle,
+            1 => Phase::Ready,
+            _ => Phase::Failed { message: "boom".into() },
+        };
         save(dir.path(), &saved).unwrap();
         let loaded = load_all(dir.path());
         prop_assert_eq!(loaded.len(), 1);
@@ -189,6 +197,11 @@ proptest! {
             serde_json::to_value(&saved).unwrap()
         );
         prop_assert_eq!(&loaded[0].items, &saved.items);
+        prop_assert_eq!(&loaded[0].phase, &saved.phase);
+        prop_assert_eq!(
+            loaded[0].pending.as_ref().map(|set| (set.round, set.rounds())),
+            saved.pending.as_ref().map(|set| (set.round, set.rounds()))
+        );
         prop_assert_eq!(&loaded[0].spec, &saved.spec);
         prop_assert_eq!(
             loaded[0].pending.as_ref().map(|set| set.ops.clone()),

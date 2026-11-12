@@ -9530,6 +9530,38 @@
   "@agentSessionEnd": {
     "description": "The button that ends a session."
   },
+  "agentSessionRename": "Rename",
+  "@agentSessionRename": {
+    "description": "The menu item and button that rename a session."
+  },
+  "agentSessionRenameTitle": "Rename session",
+  "@agentSessionRenameTitle": {
+    "description": "The title of the box that asks for a session's new name."
+  },
+  "agentSessionRenameHint": "Session name",
+  "@agentSessionRenameHint": {
+    "description": "The hint in the box that asks for a session's new name."
+  },
+  "agentSessionRenameSave": "Save",
+  "@agentSessionRenameSave": {
+    "description": "The button that saves a session's new name."
+  },
+  "agentSessionDelete": "Delete session",
+  "@agentSessionDelete": {
+    "description": "The menu item and button that delete a session."
+  },
+  "agentSessionDeleteTitle": "Delete this session?",
+  "@agentSessionDeleteTitle": {
+    "description": "The title of the question before a session is deleted."
+  },
+  "agentSessionDeleteBody": "Its transcript is removed from this phone. Changes already applied stay.",
+  "@agentSessionDeleteBody": {
+    "description": "The body of the question before a session is deleted."
+  },
+  "agentSessionMore": "Session actions",
+  "@agentSessionMore": {
+    "description": "Spoken for the button that opens a session's actions."
+  },
   "agentSessionEndTitle": "End this session?",
   "@agentSessionEndTitle": {
     "description": "The title of the question before a session ends."

@@ -13000,6 +13000,54 @@ abstract class AppLocalizations {
   /// **'End session'**
   String get agentSessionEnd;
 
+  /// The menu item and button that rename a session.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get agentSessionRename;
+
+  /// The title of the box that asks for a session's new name.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename session'**
+  String get agentSessionRenameTitle;
+
+  /// The hint in the box that asks for a session's new name.
+  ///
+  /// In en, this message translates to:
+  /// **'Session name'**
+  String get agentSessionRenameHint;
+
+  /// The button that saves a session's new name.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get agentSessionRenameSave;
+
+  /// The menu item and button that delete a session.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete session'**
+  String get agentSessionDelete;
+
+  /// The title of the question before a session is deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this session?'**
+  String get agentSessionDeleteTitle;
+
+  /// The body of the question before a session is deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Its transcript is removed from this phone. Changes already applied stay.'**
+  String get agentSessionDeleteBody;
+
+  /// Spoken for the button that opens a session's actions.
+  ///
+  /// In en, this message translates to:
+  /// **'Session actions'**
+  String get agentSessionMore;
+
   /// The title of the question before a session ends.
   ///
   /// In en, this message translates to:

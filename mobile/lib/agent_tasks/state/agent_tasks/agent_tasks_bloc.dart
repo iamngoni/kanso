@@ -44,6 +44,11 @@ class AgentTasksBloc extends Bloc<AgentTasksEvent, AgentTasksState> {
     AgentTasksPolledEvent() => _refresh(emit),
     AgentTasksGoalSentEvent() => _onGoalSent(event, emit),
     AgentTasksStoppedEvent() => _then(_tasks.stop(event.id), emit),
+    AgentTasksRenamedEvent() => _then(
+      _tasks.renameSession(event.key, event.title),
+      emit,
+    ),
+    AgentTasksDeletedEvent() => _then(_tasks.deleteSession(event.key), emit),
     AgentTasksDismissedEvent() => _then(_tasks.discard(event.id), emit),
     AgentTasksTroubleClearedEvent() => Future<void>.sync(
       () => emit(state.copyWith(trouble: null)),

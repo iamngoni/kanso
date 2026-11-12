@@ -23,6 +23,7 @@ import '../../../injection.dart';
 import '../../state/agent_session/agent_session_bloc.dart';
 import '../../utils/session_text.dart';
 import '../widgets/agent_composer.dart';
+import '../widgets/agent_session_actions.dart';
 import '../widgets/agent_transcript_view.dart';
 import 'agent_review_page.dart';
 
@@ -106,6 +107,29 @@ class _BodyState extends State<_Body> {
     }
   }
 
+  Future<void> _menu(
+    BuildContext context,
+    AgentSession session,
+    Offset at,
+  ) async {
+    final bloc = context.read<AgentSessionBloc>();
+    final action = await showAgentSessionMenu(context, at);
+    if (action == null || !context.mounted) {
+      return;
+    }
+    switch (action) {
+      case AgentSessionAction.rename:
+        final title = await askAgentSessionTitle(context, session.title);
+        if (title != null) {
+          bloc.add(AgentSessionEvent.renamed(title));
+        }
+      case AgentSessionAction.delete:
+        if (await confirmDeleteAgentSession(context)) {
+          bloc.add(const AgentSessionEvent.deleted());
+        }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -140,6 +164,21 @@ class _BodyState extends State<_Body> {
                       DateTime.now().millisecondsSinceEpoch,
                     ),
               trailing: <Widget>[
+                if (session != null)
+                  Builder(
+                    builder: (buttonContext) => KansoIconButton(
+                      icon: KansoIcons.ellipsis,
+                      semanticLabel: l10n.agentSessionMore,
+                      onPressed: () {
+                        final box =
+                            buttonContext.findRenderObject()! as RenderBox;
+                        final at = box.localToGlobal(
+                          Offset(0, box.size.height),
+                        );
+                        unawaited(_menu(context, session, at));
+                      },
+                    ),
+                  ),
                 if (session != null && session.canStop)
                   KansoIconButton(
                     icon: KansoIcons.close,

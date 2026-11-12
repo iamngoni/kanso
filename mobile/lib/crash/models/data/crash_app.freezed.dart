@@ -18,8 +18,10 @@ mixin _$CrashApp {
 /// `0.9.0`.
  String get version;/// `57`.
  String get build;/// Shorebird's patch number; null without Shorebird or before the first
-/// patch.
- int? get patch;
+/// patch. Always written, `null` included: the server requires the key
+/// (the build.yaml default, `include_if_null: false`, would drop it and
+/// the server would answer 400 for `app.patch`).
+@JsonKey(includeIfNull: true) int? get patch;
 /// Create a copy of CrashApp
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -52,7 +54,7 @@ abstract mixin class $CrashAppCopyWith<$Res>  {
   factory $CrashAppCopyWith(CrashApp value, $Res Function(CrashApp) _then) = _$CrashAppCopyWithImpl;
 @useResult
 $Res call({
- String version, String build, int? patch
+ String version, String build,@JsonKey(includeIfNull: true) int? patch
 });
 
 
@@ -159,7 +161,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String version,  String build,  int? patch)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String version,  String build, @JsonKey(includeIfNull: true)  int? patch)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CrashApp() when $default != null:
 return $default(_that.version,_that.build,_that.patch);case _:
@@ -180,7 +182,7 @@ return $default(_that.version,_that.build,_that.patch);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String version,  String build,  int? patch)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String version,  String build, @JsonKey(includeIfNull: true)  int? patch)  $default,) {final _that = this;
 switch (_that) {
 case _CrashApp():
 return $default(_that.version,_that.build,_that.patch);case _:
@@ -200,7 +202,7 @@ return $default(_that.version,_that.build,_that.patch);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String version,  String build,  int? patch)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String version,  String build, @JsonKey(includeIfNull: true)  int? patch)?  $default,) {final _that = this;
 switch (_that) {
 case _CrashApp() when $default != null:
 return $default(_that.version,_that.build,_that.patch);case _:
@@ -215,7 +217,7 @@ return $default(_that.version,_that.build,_that.patch);case _:
 @JsonSerializable()
 
 class _CrashApp implements CrashApp {
-  const _CrashApp({required this.version, required this.build, required this.patch});
+  const _CrashApp({required this.version, required this.build, @JsonKey(includeIfNull: true) required this.patch});
   factory _CrashApp.fromJson(Map<String, dynamic> json) => _$CrashAppFromJson(json);
 
 /// `0.9.0`.
@@ -223,8 +225,10 @@ class _CrashApp implements CrashApp {
 /// `57`.
 @override final  String build;
 /// Shorebird's patch number; null without Shorebird or before the first
-/// patch.
-@override final  int? patch;
+/// patch. Always written, `null` included: the server requires the key
+/// (the build.yaml default, `include_if_null: false`, would drop it and
+/// the server would answer 400 for `app.patch`).
+@override@JsonKey(includeIfNull: true) final  int? patch;
 
 /// Create a copy of CrashApp
 /// with the given fields replaced by the non-null parameter values.
@@ -259,7 +263,7 @@ abstract mixin class _$CrashAppCopyWith<$Res> implements $CrashAppCopyWith<$Res>
   factory _$CrashAppCopyWith(_CrashApp value, $Res Function(_CrashApp) _then) = __$CrashAppCopyWithImpl;
 @override @useResult
 $Res call({
- String version, String build, int? patch
+ String version, String build,@JsonKey(includeIfNull: true) int? patch
 });
 
 

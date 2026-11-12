@@ -7867,6 +7867,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentSessionEnd => 'End session';
 
   @override
+  String get agentSessionRename => 'Rename';
+
+  @override
+  String get agentSessionRenameTitle => 'Rename session';
+
+  @override
+  String get agentSessionRenameHint => 'Session name';
+
+  @override
+  String get agentSessionRenameSave => 'Save';
+
+  @override
+  String get agentSessionDelete => 'Delete session';
+
+  @override
+  String get agentSessionDeleteTitle => 'Delete this session?';
+
+  @override
+  String get agentSessionDeleteBody =>
+      'Its transcript is removed from this phone. Changes already applied stay.';
+
+  @override
+  String get agentSessionMore => 'Session actions';
+
+  @override
   String get agentSessionEndTitle => 'End this session?';
 
   @override

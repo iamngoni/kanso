@@ -23,6 +23,8 @@ pub enum Script {
     Env,
     /// Never answers; stops when cancelled.
     Hang,
+    /// Says "working", then never answers; stops when cancelled.
+    Busy,
     /// Never answers and ignores cancel.
     IgnoreCancel,
     /// Sends one piece, then exits with code 3.
@@ -59,6 +61,10 @@ pub enum Script {
     /// Thinks, starts a tool call, reports it completed in an update that
     /// has no title, then answers "done".
     Tools,
+    /// Answers "session=<id> turn=<n> sessions=<count>": the session the
+    /// prompt came in, how many prompts it has had, and how many sessions
+    /// `session/new` has made so far.
+    Session,
     /// An agent task: searches the MCP server for the task's last word,
     /// proposes merging the notes found into one new note in the first
     /// one's notebook (`kanso-propose-merge`), calls `kanso-task-done` and
@@ -85,6 +91,7 @@ impl Script {
             "echo-init" => Script::EchoInit,
             "env" => Script::Env,
             "hang" => Script::Hang,
+            "busy" => Script::Busy,
             "ignore-cancel" => Script::IgnoreCancel,
             "crash" => Script::Crash,
             "permission" => Script::Permission,
@@ -100,6 +107,7 @@ impl Script {
             "notes" => Script::Notes,
             "notes-stdio" => Script::NotesStdio,
             "task" => Script::Task,
+            "session" => Script::Session,
             "tools" => Script::Tools,
             "report" => Script::Report,
             "report-no-load" => Script::ReportNoLoad,
@@ -421,6 +429,13 @@ impl<W: Write> Fake<W> {
                 self.answer(&id, &session, &answer);
             }
             Script::Answer(answer) => self.answer(&id, &session, &answer),
+            Script::Session => {
+                let answer = format!(
+                    "session={session} turn={turn} sessions={}",
+                    self.sessions.len()
+                );
+                self.answer(&id, &session, &answer);
+            }
             Script::Tools => {
                 let update = |this: &mut Self, update: Value| {
                     this.send(json!({
@@ -469,6 +484,10 @@ impl<W: Write> Fake<W> {
                 self.answer(&id, &session, &text);
             }
             Script::Hang | Script::IgnoreCancel => self.open_prompt = Some(id),
+            Script::Busy => {
+                self.chunk(&session, "working");
+                self.open_prompt = Some(id);
+            }
             Script::Crash => {
                 self.chunk(&session, "partial ");
                 std::process::exit(3);

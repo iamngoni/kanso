@@ -207,4 +207,28 @@ void main() {
       expect(sessionStatus(l10n, session), '2 changes to review');
     });
   });
+
+  testWidgets('a long press offers rename and delete for that row', (
+    tester,
+  ) async {
+    final repo = await _open(tester, <AgentSession>[
+      _session(id: 1, title: 'Tidy the inbox', phase: AgentTaskPhase.nothing),
+    ]);
+    await tester.longPress(find.text('Tidy the inbox'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rename'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(EditableText).last, 'Inbox, tidy');
+    await tester.pump();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(repo.calls, contains('renameSession:k1:Inbox, tidy'));
+    await tester.longPress(find.text('Tidy the inbox'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete session'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete session').last);
+    await tester.pumpAndSettle();
+    expect(repo.calls, contains('deleteSession:k1'));
+  });
 }

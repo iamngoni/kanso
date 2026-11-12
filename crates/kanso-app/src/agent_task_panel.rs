@@ -253,6 +253,7 @@ impl AgentTasksPanel {
         let working = row.dot() == Dot::Working;
         let panel = cx.entity().downgrade();
         let title = row.title.clone();
+        let ends = row.can_end();
         let menu = {
             let (panel, tasks, key, title) =
                 (panel.clone(), tasks.clone(), key.clone(), title.clone());
@@ -284,7 +285,11 @@ impl AgentTasksPanel {
                         move |value, _, _| tasks.rename(id, &value),
                     );
                 }))
-                .item(PopupMenuItem::new("End Session").on_click(move |_, _, _| end_tasks.stop(id)))
+                .item(
+                    PopupMenuItem::new("End Session")
+                        .disabled(!ends)
+                        .on_click(move |_, _, _| end_tasks.end_session(id)),
+                )
                 .item(
                     PopupMenuItem::new("Delete Session…").on_click(move |_, window, cx| {
                         let tasks = delete_tasks.clone();
@@ -295,7 +300,7 @@ impl AgentTasksPanel {
                             window,
                             cx,
                             move |_, _| {
-                                tasks.stop(id);
+                                tasks.end_session(id);
                                 tasks.dismiss(id);
                             },
                         );

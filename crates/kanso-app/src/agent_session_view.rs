@@ -3,10 +3,12 @@
 //! proposed. It reads the runner's transcript and draws it; the folding of
 //! tool rows and the words are `kanso_engine::agent_task::blocks`.
 //!
-//! No composer yet: a question from the agent still gets its one-off reply
-//! box here. A session read back after a restart has a box of its own, which
-//! picks the agent's conversation up again, or "Continue in a new session"
-//! when it can't, and links to the session it carries on from or in.
+//! The composer under the transcript sends a message to the same agent
+//! conversation ([`Tasks::follow_up`]). While a turn runs it offers Stop, and
+//! what is typed waits as the next message. A session read back after a
+//! restart has the same box, which picks the agent's conversation up again,
+//! or "Continue in a new session" when it can't, and links to the session it
+//! carries on from or in.
 
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
@@ -14,15 +16,16 @@ use std::time::Duration;
 use gpui_component::scroll::ScrollableElement as _;
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::base::text::TextView;
+use gpui_kit::component::Disableable as _;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::input::{Input, InputState};
-use gpui_kit::component::{Disableable as _, Icon, Sizable as _, StyledExt as _, h_flex, v_flex};
+use gpui_kit::component::input::{InputEvent, Textarea, TextareaState};
+use gpui_kit::component::{Icon, Sizable as _, StyledExt as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_engine::agent_task::blocks::{self, Block, Offer, ToolLine};
-use kanso_engine::agent_task::model::{TaskRow, elapsed_label, reads_label, scope_line};
+use kanso_engine::agent_task::model::{Composer, TaskRow, elapsed_label, reads_label, scope_line};
 use kanso_engine::agent_task::runner::{TaskEvent, Tasks};
-use kanso_engine::agent_task::session::{Item, RoundState, SessionKey, ToolKind, ToolStatus};
+use kanso_engine::agent_task::session::{RoundState, SessionKey, ToolKind, ToolStatus};
 use kanso_server::TaskId;
 
 use crate::chat_parts::watch;
@@ -63,14 +66,16 @@ pub struct AgentSessionView {
     /// Whether the view follows the end of the transcript: until the person
     /// scrolls up.
     stick: bool,
-    reply: Option<Entity<InputState>>,
-    /// The box that picks a restored session up again.
-    resume: Option<Entity<InputState>>,
+    /// The composer's text box, made with the first drawing.
+    composer: Option<Entity<TextareaState>>,
+    /// What was typed while a turn ran: it goes out when the turn ends.
+    queued: Option<String>,
     /// Why resuming or continuing didn't start.
     problem: Option<String>,
     /// A resume or a continue is starting.
     busy: bool,
     _watch: Task<()>,
+    _subscriptions: Vec<Subscription>,
 }
 
 impl AgentSessionView {
@@ -130,11 +135,12 @@ impl AgentSessionView {
             reads_open: false,
             scroll: ScrollHandle::new(),
             stick: true,
-            reply: None,
-            resume: None,
+            composer: None,
+            queued: None,
             problem: None,
             busy: false,
             _watch: watching,
+            _subscriptions: Vec::new(),
         };
         view.refresh(cx);
         view
@@ -157,24 +163,38 @@ impl AgentSessionView {
         {
             // Follow the end, unless the person scrolled up from it.
             self.stick = self.stick_now();
-            let undoable = if self.tasks.can_undo(id) {
-                transcript.items.iter().rev().find_map(|item| match item {
-                    Item::Proposed {
-                        round,
-                        state: RoundState::Applied,
-                        ..
-                    } => Some(*round),
-                    _ => None,
-                })
-            } else {
-                None
-            };
-            self.blocks = blocks::fold(&transcript.items, undoable);
+            self.blocks = blocks::fold(&transcript.items, self.tasks.undo_round(id));
             self.version = transcript.version;
         }
+        self.send_queued(id);
         // Looking at it is reading it.
         self.tasks.mark_seen(id);
         cx.notify();
+    }
+
+    /// Sends what was typed during the turn, now that it has ended. An
+    /// ended session drops it.
+    fn send_queued(&mut self, id: TaskId) {
+        let Some(row) = self.row.as_ref() else { return };
+        if self.queued.is_none() || row.is_active() {
+            return;
+        }
+        let text = self.queued.take().unwrap_or_default();
+        if row.can_follow_up() && self.tasks.follow_up(id, &text) {
+            self.stick = true;
+            self.row = self.tasks.row(id);
+        }
+    }
+
+    fn ai_on(cx: &App) -> bool {
+        cx.global::<AppState>().config.ai.enabled
+    }
+
+    fn composer_state(&self, cx: &App) -> Composer {
+        match &self.row {
+            Some(row) => Composer::of(row, Self::ai_on(cx)),
+            None => Composer::Off("This session is no longer listed."),
+        }
     }
 
     /// Whether the transcript is scrolled to its end (or has nothing to
@@ -185,44 +205,75 @@ impl AgentSessionView {
         max <= px(1.) || at >= max - px(24.)
     }
 
-    fn reply_box(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Entity<InputState> {
-        self.reply
-            .get_or_insert_with(|| {
-                cx.new(|cx| InputState::new(window, cx).placeholder("Reply to the agent"))
-            })
-            .clone()
+    fn composer_box(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Entity<TextareaState> {
+        if let Some(composer) = &self.composer {
+            return composer.clone();
+        }
+        let composer = cx.new(|cx| {
+            TextareaState::new(window, cx)
+                .placeholder("Ask for more…")
+                .submit_on_enter(true)
+        });
+        // Enter sends, Shift-Enter starts a new line.
+        self._subscriptions.push(cx.subscribe_in(
+            &composer,
+            window,
+            |this: &mut AgentSessionView, _, event: &InputEvent, window, cx| match event {
+                InputEvent::PressEnter { shift: false, .. } => this.submit(window, cx),
+                InputEvent::Change => cx.notify(),
+                _ => {}
+            },
+        ));
+        self.composer = Some(composer.clone());
+        composer
     }
 
-    fn send_reply(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let (Some(id), Some(input)) = (self.id(), self.reply.clone()) else {
+    /// Enter in the composer: sent now, or queued while a turn runs.
+    fn submit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let (Some(id), Some(input)) = (self.id(), self.composer.clone()) else {
             return;
         };
         let text = input.read(cx).value().to_string();
-        if text.trim().is_empty() {
+        let text = text.trim();
+        if text.is_empty() {
             return;
         }
-        self.tasks.reply(id, &text);
-        input.update(cx, |input, cx| input.set_value("", window, cx));
-        self.stick = true;
+        let restored = self.row.as_ref().is_some_and(|row| row.restored);
+        match self.composer_state(cx) {
+            Composer::Send if restored => {
+                let text = text.to_owned();
+                self.send_resume(text, window, cx);
+            }
+            Composer::Send => {
+                if self.tasks.follow_up(id, text) {
+                    self.stick = true;
+                    input.update(cx, |input, cx| input.set_value("", window, cx));
+                }
+            }
+            Composer::Stop => {
+                let next = match self.queued.take() {
+                    Some(earlier) => format!("{earlier}\n{text}"),
+                    None => text.to_owned(),
+                };
+                self.queued = Some(next);
+                input.update(cx, |input, cx| input.set_value("", window, cx));
+            }
+            Composer::Off(_) => {}
+        }
         cx.notify();
     }
 
-    fn resume_box(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Entity<InputState> {
-        self.resume
-            .get_or_insert_with(|| {
-                cx.new(|cx| InputState::new(window, cx).placeholder("Ask for more…"))
-            })
-            .clone()
-    }
-
-    /// Sends the message in the resume box: the agent's conversation is
-    /// picked up again where it left off.
-    fn send_resume(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let (Some(id), Some(input)) = (self.id(), self.resume.clone()) else {
+    /// Sends `text` to a session read back after a restart: the agent's
+    /// conversation is picked up again where it left off.
+    fn send_resume(&mut self, text: String, window: &mut Window, cx: &mut Context<Self>) {
+        let (Some(id), Some(input)) = (self.id(), self.composer.clone()) else {
             return;
         };
-        let text = input.read(cx).value().to_string();
-        if text.trim().is_empty() || self.busy {
+        if self.busy {
             return;
         }
         self.problem = None;
@@ -354,6 +405,7 @@ impl AgentSessionView {
         let (can_stop, can_review, can_discard) = row.as_ref().map_or((false, false, false), |r| {
             (r.can_stop(), r.can_review(), r.can_discard())
         });
+        let can_end = row.as_ref().is_some_and(TaskRow::can_end);
         let can_undo = id.is_some_and(|id| self.tasks.can_undo(id));
         let links = self.links(cx);
         let tasks = self.tasks.clone();
@@ -524,6 +576,20 @@ impl AgentSessionView {
                                 .on_click(move |_, _, _| {
                                     if let Some(id) = id {
                                         tasks.stop(id);
+                                    }
+                                }),
+                        )
+                    })
+                    .when(can_end, |el| {
+                        let tasks = tasks.clone();
+                        el.child(
+                            Button::new("session-end")
+                                .outline()
+                                .small()
+                                .label("End Session")
+                                .on_click(move |_, _, _| {
+                                    if let Some(id) = id {
+                                        tasks.end_session(id);
                                     }
                                 }),
                         )
@@ -815,19 +881,15 @@ fn tool_row(id: (&'static str, usize), tool: &ToolLine, colors: &Colors) -> impl
 impl Render for AgentSessionView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = Colors::get(cx);
-        let asking = matches!(
-            self.row.as_ref().map(|row| &row.phase),
-            Some(kanso_engine::agent_task::model::Phase::Asking { .. })
-        );
-        let reply = asking.then(|| self.reply_box(window, cx));
-        let resumable = self
-            .row
-            .as_ref()
-            .is_some_and(|row| row.restored && row.resumable && !row.is_active());
-        let resume = resumable.then(|| self.resume_box(window, cx));
+        let composer = self.composer_state(cx);
+        let input = matches!(composer, Composer::Send | Composer::Stop)
+            .then(|| self.composer_box(window, cx));
         let can_continue = self.row.as_ref().is_some_and(TaskRow::can_continue);
         let problem = self.problem.clone();
         let busy = self.busy;
+        let queued = self.queued.clone();
+        let id = self.id();
+        let tasks = self.tasks.clone();
         if self.stick {
             self.scroll.scroll_to_bottom();
         }
@@ -874,85 +936,106 @@ impl Render for AgentSessionView {
                             .children(items),
                     ),
             )
-            .when_some(problem, |el, problem| {
-                el.child(
-                    div()
-                        .flex_none()
-                        .px(px(12.))
-                        .py(px(6.))
-                        .text_size(px(12.))
-                        .text_color(colors.danger)
-                        .child(problem),
-                )
-            })
-            .when(can_continue, |el| {
-                el.child(
-                    h_flex()
-                        .debug_selector(|| "session-continue-bar".into())
-                        .flex_none()
-                        .gap(px(8.))
-                        .p(px(12.))
-                        .border_t_1()
-                        .border_color(colors.divider)
-                        .child(
-                            div()
-                                .flex_1()
-                                .text_size(px(12.))
-                                .text_color(colors.text_muted)
-                                .child("This session can't be picked up again."),
-                        )
-                        .child(
-                            Button::new("session-continue")
-                                .small()
-                                .primary()
-                                .disabled(busy)
-                                .label("Continue in a new session")
-                                .on_click(cx.listener(|this, _, _, cx| this.continue_in_new(cx))),
-                        ),
-                )
-            })
-            .when_some(resume, |el, input| {
-                el.child(
-                    h_flex()
-                        .debug_selector(|| "session-resume-bar".into())
-                        .flex_none()
-                        .gap(px(8.))
-                        .p(px(12.))
-                        .border_t_1()
-                        .border_color(colors.divider)
-                        .child(div().flex_1().child(Input::new(&input)))
-                        .child(
-                            Button::new("session-resume")
-                                .small()
-                                .primary()
-                                .disabled(busy)
-                                .label("Send")
-                                .on_click(
-                                    cx.listener(|this, _, window, cx| this.send_resume(window, cx)),
+            .child(
+                v_flex()
+                    .id("session-composer")
+                    .debug_selector(|| "session-composer".into())
+                    .flex_none()
+                    .gap(px(6.))
+                    .p(px(12.))
+                    .border_t_1()
+                    .border_color(colors.divider)
+                    .when_some(queued, |el, text| {
+                        el.child(
+                            h_flex()
+                                .gap(px(6.))
+                                .child(
+                                    div()
+                                        .flex_1()
+                                        .min_w_0()
+                                        .truncate()
+                                        .text_size(px(12.))
+                                        .text_color(colors.text_muted)
+                                        .child(format!(
+                                            "Next: {}",
+                                            text.lines().next().unwrap_or_default()
+                                        )),
+                                )
+                                .child(
+                                    Button::new("session-unqueue")
+                                        .ghost()
+                                        .xsmall()
+                                        .label("Cancel")
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.queued = None;
+                                            cx.notify();
+                                        })),
                                 ),
-                        ),
-                )
-            })
-            .when_some(reply, |el, input| {
-                el.child(
-                    h_flex()
-                        .flex_none()
-                        .gap(px(8.))
-                        .p(px(12.))
-                        .border_t_1()
-                        .border_color(colors.divider)
-                        .child(div().flex_1().child(Input::new(&input)))
-                        .child(
+                        )
+                    })
+                    .when_some(input, |el, input| {
+                        let running = composer == Composer::Stop;
+                        el.child(
+                            div()
+                                .debug_selector(|| "session-input".into())
+                                .child(Textarea::new(&input).h(px(64.))),
+                        )
+                        .child(h_flex().justify_end().child(if running {
+                            Button::new("session-composer-stop")
+                                .outline()
+                                .small()
+                                .label("Stop")
+                                .on_click(move |_, _, _| {
+                                    if let Some(id) = id {
+                                        tasks.stop(id);
+                                    }
+                                })
+                        } else {
                             Button::new("session-send")
                                 .small()
                                 .primary()
                                 .label("Send")
                                 .on_click(
-                                    cx.listener(|this, _, window, cx| this.send_reply(window, cx)),
-                                ),
-                        ),
-                )
-            })
+                                    cx.listener(|this, _, window, cx| this.submit(window, cx)),
+                                )
+                        }))
+                    })
+                    .when_some(
+                        match composer {
+                            Composer::Off(why) => Some(why),
+                            _ => None,
+                        },
+                        |el, why| {
+                            el.child(
+                                div()
+                                    .debug_selector(|| "session-composer-off".into())
+                                    .text_size(px(12.5))
+                                    .line_height(px(18.))
+                                    .text_color(colors.text_muted)
+                                    .child(why),
+                            )
+                        },
+                    )
+                    .when_some(problem, |el, problem| {
+                        el.child(
+                            div()
+                                .text_size(px(12.))
+                                .text_color(colors.danger)
+                                .child(problem),
+                        )
+                    })
+                    .when(can_continue, |el| {
+                        el.child(
+                            Button::new("session-continue")
+                                .debug_selector(|| "session-continue".into())
+                                .outline()
+                                .small()
+                                .disabled(busy)
+                                .label("Continue in a new session")
+                                .on_click(cx.listener(|this, _, _, cx| this.continue_in_new(cx))),
+                        )
+                    }),
+            )
     }
 }
 
@@ -986,7 +1069,7 @@ pub fn open_in_window(key: SessionKey, cx: &mut App) {
 impl AgentSessionView {
     /// A view of `items` with no runner behind it.
     pub(crate) fn from_items(
-        items: &[Item],
+        items: &[kanso_engine::agent_task::session::Item],
         in_panel: bool,
         cx: &mut Context<Self>,
     ) -> AgentSessionView {

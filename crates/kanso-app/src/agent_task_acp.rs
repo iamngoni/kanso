@@ -44,6 +44,10 @@ impl TaskDriver for AcpDriver {
             .map_err(|e| e.to_string())
     }
 
+    fn end(&self) {
+        self.0.end();
+    }
+
     fn resume_session(&self, acp_session_id: &str) -> Result<(), String> {
         self.0.resume(acp_session_id).map_err(|e| e.to_string())
     }

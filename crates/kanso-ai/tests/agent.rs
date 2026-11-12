@@ -520,6 +520,31 @@ fn a_report_after_three_failed_starts_says_starts_are_blocked() {
     );
 }
 
+/// A conversation keeps one agent session across questions, so a follow-up
+/// is the session's second prompt; ending it closes the session, and the
+/// next question starts another.
+#[test]
+fn a_conversation_keeps_its_session_until_it_is_ended() {
+    let _serial = serial();
+    let starts = Arc::new(AtomicUsize::new(0));
+    let conversation = agent::conversation_with(
+        &settings("session-kept"),
+        limits(),
+        starter(Script::Session, starts.clone()),
+        Some(grant_with("kmcp-kept".to_owned())),
+    );
+    let first = text(&converse(&conversation, "one"));
+    assert_eq!(first, "session=fake-session-1 turn=1 sessions=1");
+    assert!(conversation.has_session());
+    let second = text(&converse(&conversation, "two"));
+    assert_eq!(second, "session=fake-session-1 turn=2 sessions=1");
+    conversation.end();
+    assert!(!conversation.has_session());
+    let third = text(&converse(&conversation, "three"));
+    assert_eq!(third, "session=fake-session-2 turn=1 sessions=2");
+    assert_eq!(starts.load(Ordering::Relaxed), 1, "one agent process");
+}
+
 #[test]
 fn a_conversation_picks_a_saved_session_up_and_goes_on_in_it() {
     let _serial = serial();
