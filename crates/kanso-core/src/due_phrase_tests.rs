@@ -466,7 +466,7 @@ proptest! {
         order in arb_order(),
         lead in "[a-z ]{0,12}",
     ) {
-        let parsed = Parsed { span: 0..0, due: due(date, time) };
+        let parsed = Parsed { span: 0..0, due: due(date, time), repeat: None };
         let token = canonical(&parsed);
         let again = parse(&token, now, order).expect("canonical parses");
         prop_assert_eq!(again.due, parsed.due);

@@ -27,6 +27,8 @@ pub mod properties;
 pub mod query;
 pub mod query_view;
 pub mod reminders;
+pub mod repeat;
+pub mod repeat_model;
 pub mod replace;
 pub mod rev;
 pub mod review_doc;
