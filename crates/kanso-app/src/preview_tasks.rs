@@ -13,7 +13,9 @@
 //! so a box in a code fence, in front matter or in indented code is never
 //! another task's. A box that can't be placed with certainty is left alone.
 
-use kanso_core::tasks::{task_items, toggle_task};
+use kanso_core::dates::Date;
+use kanso_core::tasks::task_items;
+use kanso_core::tick::tick_task_at;
 use kanso_render::html::{TaskSlot, task_boxes};
 
 use crate::preview_chunks::parse_options;
@@ -55,16 +57,25 @@ pub fn tick_at(note: &str, offset: usize) -> Option<TaskTick> {
 
 /// `body` with the task of `tick` toggled, or `None` when `body` no longer
 /// has that task at that place: the note changed since the click was read.
-pub fn toggled(body: &str, tick: &TaskTick) -> Option<String> {
+pub fn toggled(body: &str, tick: &TaskTick, today: Date) -> Option<String> {
     let item = task_items(body).into_iter().nth(tick.index)?;
     let same = item.line == tick.line && item.checked == tick.checked;
-    same.then(|| toggle_task(body, tick.index)).flatten()
+    // The one engine function: an open repeating task writes its next one.
+    same.then(|| tick_task_at(body, tick.index, today))
+        .flatten()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kanso_core::dates::Date;
     use proptest::prelude::*;
+
+    const TODAY: Date = Date {
+        year: 2026,
+        month: 11,
+        day: 14,
+    };
     use proptest::test_runner::FileFailurePersistence;
 
     /// The offset of the `n`-th occurrence of `needle` in `text`.
@@ -91,7 +102,7 @@ mod tests {
         let note = "---\ntags:\n  - [ ] yaml\n---\n\npara\n\n    - [ ] code\n\n- [ ] real\n";
         let tick = tick_at(note, nth(note, "- [ ] real", 0)).unwrap();
         assert_eq!((tick.index, tick.line), (2, 9));
-        let after = toggled(note, &tick).unwrap();
+        let after = toggled(note, &tick, TODAY).unwrap();
         assert_eq!(after, note.replace("- [ ] real", "- [x] real"));
     }
 
@@ -101,7 +112,7 @@ mod tests {
         let tick = tick_at(note, nth(note, "- [ ] c\r\n", 0)).unwrap();
         assert_eq!(tick.index, 2);
         assert_eq!(
-            toggled(note, &tick).unwrap(),
+            toggled(note, &tick, TODAY).unwrap(),
             "- [ ] a\r\n- [ ] b\r\n```\r\n- [ ] code\r\n```\r\n- [x] c\r\n"
         );
     }
@@ -118,12 +129,12 @@ mod tests {
         let note = "- [ ] a\n- [ ] b\n";
         let tick = tick_at(note, nth(note, "- [ ] b", 0)).unwrap();
         // Typed above, ticked elsewhere, or gone since the click.
-        assert_eq!(toggled("new\n- [ ] a\n- [ ] b\n", &tick), None);
-        assert_eq!(toggled("- [x] a\n- [x] b\n", &tick), None);
-        assert_eq!(toggled("- [ ] a\n", &tick), None);
+        assert_eq!(toggled("new\n- [ ] a\n- [ ] b\n", &tick, TODAY), None);
+        assert_eq!(toggled("- [x] a\n- [x] b\n", &tick, TODAY), None);
+        assert_eq!(toggled("- [ ] a\n", &tick, TODAY), None);
         // Reworded in place, it is still that task.
-        assert!(toggled("- [ ] a\n- [ ] bb\n", &tick).is_some());
-        assert!(toggled(note, &tick).is_some());
+        assert!(toggled("- [ ] a\n- [ ] bb\n", &tick, TODAY).is_some());
+        assert!(toggled(note, &tick, TODAY).is_some());
     }
 
     /// A box written with an uppercase `X` comes back with a lowercase one,
@@ -132,10 +143,10 @@ mod tests {
     fn an_uppercase_x_comes_back_lowercase() {
         let note = "1. [X] done\n";
         let tick = tick_at(note, 0).unwrap();
-        let once = toggled(note, &tick).unwrap();
+        let once = toggled(note, &tick, TODAY).unwrap();
         assert_eq!(once, "1. [ ] done\n");
         let again = tick_at(&once, 0).unwrap();
-        assert_eq!(toggled(&once, &again).unwrap(), "1. [x] done\n");
+        assert_eq!(toggled(&once, &again, TODAY).unwrap(), "1. [x] done\n");
     }
 
     /// Note lines, with the awkward ones: fences, quotes, indented code,
@@ -177,7 +188,7 @@ mod tests {
             let note: String = lines.iter().map(|line| format!("{line}{eol}")).collect();
             for (offset, _) in note.match_indices(['-', '1']) {
                 let Some(first) = tick_at(&note, offset) else { continue };
-                let once = toggled(&note, &first).unwrap();
+                let once = toggled(&note, &first, TODAY).unwrap();
                 // Only the one box's mark changed.
                 prop_assert_eq!(once.len(), note.len());
                 prop_assert_eq!(
@@ -187,7 +198,7 @@ mod tests {
                 let again = tick_at(&once, offset).unwrap();
                 prop_assert_eq!((again.index, again.line), (first.index, first.line));
                 prop_assert_eq!(again.checked, !first.checked);
-                prop_assert_eq!(toggled(&once, &again).unwrap(), note.clone());
+                prop_assert_eq!(toggled(&once, &again, TODAY).unwrap(), note.clone());
             }
         }
 
@@ -200,7 +211,7 @@ mod tests {
             for (ix, line) in note.split('\n').enumerate() {
                 if let Some(tick) = tick_at(&note, line_start) {
                     prop_assert_eq!(tick.line as usize, ix, "{:?}", note);
-                    let after = toggled(&note, &tick).unwrap();
+                    let after = toggled(&note, &tick, TODAY).unwrap();
                     let changed: Vec<usize> = note
                         .split('\n')
                         .zip(after.split('\n'))

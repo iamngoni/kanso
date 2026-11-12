@@ -2,7 +2,8 @@
 //! Tasks view and its overdue count, ticking a task off from there, and
 //! the timed tasks reminders come from.
 
-use kanso_core::dates::DateTime;
+use chrono::{Datelike as _, Local, TimeZone as _};
+use kanso_core::dates::{Date, DateTime};
 use kanso_core::reminders::{ACK_FIELD, Acks, acknowledge, acks_value, read_acks, task_key};
 use kanso_core::tasks::{TaskEdit, set_task_checked, task_items};
 use rusqlite::params;
@@ -54,6 +55,34 @@ pub enum CheckOff {
     Unchanged,
     /// The task isn't in the note any more (or is ambiguous now).
     Missing,
+}
+
+/// What puts back the body a tick that wrote a repeating task's next one
+/// changed: the body before, and the body the tick made. The undo writes
+/// `before` only while the note still is `after`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TickUndo {
+    pub before: String,
+    pub after: String,
+}
+
+/// What [`Store::tick_task`] did.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TickResult {
+    pub off: CheckOff,
+    /// Set when the tick wrote the next one of a repeating task: the way
+    /// to take both changes back in one write ([`Store::undo_tick`]).
+    pub undo: Option<TickUndo>,
+}
+
+/// The local calendar day of `now_ms`, in this device's zone.
+pub fn local_today(now_ms: i64) -> Date {
+    let day = Local
+        .timestamp_millis_opt(now_ms)
+        .earliest()
+        .map(|t| t.date_naive())
+        .unwrap_or_default();
+    Date::new(day.year(), day.month(), day.day()).unwrap_or(Date::from_days(0))
 }
 
 /// An open timed task that may remind, with the acks of its note.
@@ -155,9 +184,11 @@ impl Store {
     }
 
     /// Ticks (or clears) the task with `text` on `line` of note `id`, in one
-    /// write: the body changes only in its box, and the note's edit time
-    /// becomes `now_ms`. When the line moved, the one task with that text
-    /// is changed; when the task is gone, nothing is written.
+    /// write: the body changes only in its box (and, for an open repeating
+    /// task, gets its next one above it, see [`kanso_core::tick`]), and the
+    /// note's edit time becomes `now_ms`. When the line moved, the one task
+    /// with that text is changed; when the task is gone, nothing is written.
+    /// Every place that ticks a task comes through here.
     pub fn set_task_checked(
         &self,
         id: &str,
@@ -167,23 +198,77 @@ impl Store {
         now_ms: i64,
         origin: Origin,
     ) -> Result<CheckOff> {
+        Ok(self
+            .tick_task(id, line, text, checked, local_today(now_ms), now_ms, origin)?
+            .off)
+    }
+
+    /// [`Store::set_task_checked`] on the local day `today`, with what takes
+    /// a repeating task's tick back.
+    #[allow(clippy::too_many_arguments)]
+    pub fn tick_task(
+        &self,
+        id: &str,
+        line: u32,
+        text: &str,
+        checked: bool,
+        today: Date,
+        now_ms: i64,
+        origin: Origin,
+    ) -> Result<TickResult> {
         self.write(|tx, changes| {
             let row = load_row(tx, id)?
                 .filter(|r| !r.deleted)
                 .ok_or(StoreError::NotFound)?;
             let body = row.fields.get("body").and_then(Value::as_str).unwrap_or("");
-            match set_task_checked(body, line, text, checked) {
-                TaskEdit::Missing => Ok(CheckOff::Missing),
-                TaskEdit::Unchanged => Ok(CheckOff::Unchanged),
-                TaskEdit::Changed(body) => {
+            let plain = |off| TickResult { off, undo: None };
+            match set_task_checked(body, line, text, checked, today) {
+                TaskEdit::Missing => Ok(plain(CheckOff::Missing)),
+                TaskEdit::Unchanged => Ok(plain(CheckOff::Unchanged)),
+                TaskEdit::Changed(after) => {
+                    let wrote_next = after.lines().count() > body.lines().count();
+                    let undo = wrote_next.then(|| TickUndo {
+                        before: body.to_owned(),
+                        after: after.clone(),
+                    });
                     rewrite_note(tx, id, origin, changes, |fields| {
-                        fields.insert("body".into(), body.into());
+                        fields.insert("body".into(), after.into());
                         fields.insert("updatedAt".into(), now_ms.into());
                     })?;
                     let rev = load_row(tx, id)?.map(|r| r.rev).unwrap_or_default();
-                    Ok(CheckOff::Changed { rev })
+                    Ok(TickResult {
+                        off: CheckOff::Changed { rev },
+                        undo,
+                    })
                 }
             }
+        })
+    }
+
+    /// Takes a tick back in one write: the note's body becomes the one it
+    /// was before, provided it still is the one the tick made.
+    /// [`CheckOff::Unchanged`] when the note was edited since, and
+    /// [`CheckOff::Missing`] when it is gone.
+    pub fn undo_tick(
+        &self,
+        id: &str,
+        undo: &TickUndo,
+        now_ms: i64,
+        origin: Origin,
+    ) -> Result<CheckOff> {
+        self.write(|tx, changes| {
+            let Some(row) = load_row(tx, id)?.filter(|r| !r.deleted) else {
+                return Ok(CheckOff::Missing);
+            };
+            if row.fields.get("body").and_then(Value::as_str) != Some(undo.after.as_str()) {
+                return Ok(CheckOff::Unchanged);
+            }
+            rewrite_note(tx, id, origin, changes, |fields| {
+                fields.insert("body".into(), undo.before.clone().into());
+                fields.insert("updatedAt".into(), now_ms.into());
+            })?;
+            let rev = load_row(tx, id)?.map(|r| r.rev).unwrap_or_default();
+            Ok(CheckOff::Changed { rev })
         })
     }
 

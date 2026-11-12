@@ -30,6 +30,7 @@ mod keyed;
 mod keys;
 mod lease;
 mod mcp;
+mod pair;
 mod pdf_tools;
 mod proposal;
 mod rest;
@@ -60,6 +61,7 @@ pub use changeset::{
 pub use kanso_store::KeyAccess;
 pub use key_model::{KEY_LEN, KEY_PREFIX, KeyId, MintedKey, NewKey};
 pub use keys::{KeyStore, key_from_header};
+pub use pair::{PairError, PairEvent, Pairing, PendingPair};
 pub use proposal::{Applied, ApplyError, ChangeId, NewChange, ProposedChange};
 pub use review::{EXPIRY as REVIEW_EXPIRY, ReviewEvent, ReviewQueue};
 pub use scope::{
@@ -271,6 +273,7 @@ pub fn router_with_sync_status(
         canvases,
         sync_status,
     };
+    let pairing = keys.pairing();
     let gate = auth::Gate {
         keys: Some(keys),
         tokens,
@@ -287,6 +290,8 @@ pub fn router_with_sync_status(
         .layer(middleware::from_fn(body_limit))
         .layer(middleware::from_fn(rest::write_gate))
         .layer(middleware::from_fn_with_state(gate, auth::require_auth))
+        // The only routes that take no key, and so sit outside the gate.
+        .merge(pair::routes(pairing))
 }
 
 /// The agents' private listener: `/mcp` alone, opened by a token in
@@ -342,7 +347,11 @@ async fn serve_on(
     let stopped = |mut rx: tokio::sync::watch::Receiver<bool>| async move {
         let _ = rx.wait_for(|stopping| *stopping).await;
     };
-    let graceful = axum::serve(listener, app).with_graceful_shutdown(stopped(stopping.clone()));
+    let graceful = axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(stopped(stopping.clone()));
     let deadline = async {
         stopped(stopping).await;
         tokio::time::sleep(SHUTDOWN_GRACE).await;

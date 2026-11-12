@@ -3733,8 +3733,9 @@ impl NoteEditor {
             return;
         }
         let mut ticked = false;
+        let today = kanso_core::dates::Date::from_local_ms(Clock::local_ms(cx, Clock::now_ms(cx)));
         self.smart_edit(window, cx, |_, text, selection| {
-            let toggled = preview_tasks::toggled(text, tick)?;
+            let toggled = preview_tasks::toggled(text, tick, today)?;
             ticked = true;
             body_edit(text, &toggled, selection)
         });
@@ -8429,6 +8430,37 @@ mod writing_tests {
         // The fence's line has no box at all.
         assert!(!click_task_box(&open, cx, "- [ ] code"));
         assert_eq!(open.text(cx).0, TICK_NOTE);
+    }
+
+    /// A click on the box of a repeating task ticks it and writes the next
+    /// one above it, in one edit, and one undo step puts back the text it
+    /// was. (The due date is far ahead, so the next one is a week on
+    /// whatever day the test runs.)
+    // no-prop-test: drives the preview through clicks; `kanso_core::tick`
+    // has the properties.
+    #[gpui_kit::test]
+    fn ticking_a_repeating_task_writes_the_next_one_and_undo_restores(cx: &mut TestAppContext) {
+        const REPEAT_NOTE: &str =
+            "- [ ] film Pixel review @2099-11-14T15:00 every week\n- [ ] edit\n";
+        let open = Open::new(cx, REPEAT_NOTE);
+        let end = REPEAT_NOTE.len();
+        open.select(cx, end..end);
+        show_preview(&open, cx);
+
+        assert!(click_task_box(&open, cx, "- [ ] film"));
+        assert_eq!(
+            open.text(cx).0,
+            "- [ ] film Pixel review @2099-11-21T15:00 every week\n\
+             - [x] film Pixel review @2099-11-14T15:00\n- [ ] edit\n"
+        );
+        open.with(cx, |editor, _, cx| editor.flush(cx));
+        let saved = open.store.note(&open.id).unwrap().unwrap();
+        assert_eq!(saved.num_of_checked_tasks, 1);
+
+        // One undo step takes both lines back.
+        open.with(cx, |editor, window, cx| editor.focus_body(window, cx));
+        open.keys(cx, "cmd-z");
+        assert_eq!(open.text(cx).0, REPEAT_NOTE);
     }
 
     /// Nothing is written when the editor takes no typing.
