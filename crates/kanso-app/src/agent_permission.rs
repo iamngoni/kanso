@@ -29,6 +29,8 @@ use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{WindowExt as _, h_flex, v_flex};
 use gpui_kit::*;
 use kanso_acp::{PermissionPolicy, PermissionReply, PermissionRequest};
+use kanso_engine::agent_task::runner::Tasks;
+use kanso_engine::agent_task::session::PermissionAnswer;
 
 use crate::config::AllowedTool;
 use crate::dialogs::FORM_WIDTH;
@@ -81,6 +83,41 @@ pub fn choice(input: Input) -> Choice {
         Input::ClickAlwaysAllow => Choice::AlwaysAllow,
         Input::ClickReject | Input::Enter | Input::Escape | Input::Dismiss => Choice::Reject,
     }
+}
+
+impl Choice {
+    /// How the transcript records this answer.
+    pub fn answer(self) -> PermissionAnswer {
+        match self {
+            Choice::Reject => PermissionAnswer::Rejected,
+            Choice::AllowOnce => PermissionAnswer::AllowedOnce,
+            Choice::AllowSession => PermissionAnswer::AllowedForSession,
+            Choice::AlwaysAllow => PermissionAnswer::AllowedAlways,
+        }
+    }
+}
+
+/// Whether the request needs no sheet.
+#[cfg(test)]
+pub fn is_allowed(
+    request: &PermissionRequest,
+    session: &SessionGrants,
+    always: &[AllowedTool],
+) -> bool {
+    standing(request, session, always).is_some()
+}
+
+/// Records `answer` to `request` in the transcript of the task whose agent
+/// session asked, if one did.
+pub fn note(tasks: &Tasks, request: &PermissionRequest, answer: PermissionAnswer) {
+    let Some(id) = request
+        .session
+        .as_deref()
+        .and_then(|session| tasks.by_session(session))
+    else {
+        return;
+    };
+    tasks.note_permission(id, &tool_line(request), request.kind.as_deref(), answer);
 }
 
 /// The sheet's title.
@@ -149,14 +186,20 @@ impl SessionGrants {
     }
 }
 
-/// Whether the request needs no sheet: its tool is allowed for this session
-/// or always.
-pub fn is_allowed(
+/// How a request needs no sheet: its tool is allowed for this session or
+/// always. `None` when the person has to be asked.
+pub fn standing(
     request: &PermissionRequest,
     session: &SessionGrants,
     always: &[AllowedTool],
-) -> bool {
-    session.covers(request) || always.contains(&tool_of(request))
+) -> Option<PermissionAnswer> {
+    if session.covers(request) {
+        Some(PermissionAnswer::AllowedForSession)
+    } else if always.contains(&tool_of(request)) {
+        Some(PermissionAnswer::AllowedAlways)
+    } else {
+        None
+    }
 }
 
 /// A request waiting for the person.
@@ -187,13 +230,19 @@ pub(crate) fn start(cx: &mut App) -> PermissionPolicy {
         while let Ok((request, reply)) = waiting.recv().await {
             // A tool already allowed is answered without the sheet, when its
             // turn comes, so one allowed while others waited covers them.
-            let allowed = cx.update(|cx| {
+            let (standing, tasks) = cx.update(|cx| {
                 let always = &cx.global::<AppState>().config.ai.agent.always_allowed;
                 let session = grants.lock().unwrap_or_else(|e| e.into_inner());
-                is_allowed(&request, &session, always)
+                (
+                    standing(&request, &session, always),
+                    crate::agent_task_panel::tasks(cx),
+                )
             });
-            if allowed {
+            if let Some(answer) = standing {
                 reply.allow_once();
+                if let Some(tasks) = &tasks {
+                    note(tasks, &request, answer);
+                }
                 continue;
             }
             present(Ask { request, reply }, grants.clone(), cx).await;
@@ -208,6 +257,8 @@ struct Sheet {
     request: PermissionRequest,
     grants: Arc<Mutex<SessionGrants>>,
     reply: RefCell<Option<PermissionReply>>,
+    /// The agent tasks, to record the answer in.
+    tasks: Option<Tasks>,
     done: async_channel::Sender<()>,
     /// The dialog's own focus, taken when it first draws, so the sheet
     /// closes itself only when it is the dialog in front.
@@ -223,6 +274,9 @@ impl Sheet {
         };
         let chosen = choice(input);
         if !reply.is_settled() {
+            if let Some(tasks) = &self.tasks {
+                note(tasks, &self.request, chosen.answer());
+            }
             match chosen {
                 Choice::AllowSession => self
                     .grants
@@ -266,9 +320,11 @@ async fn present(ask: Ask, grants: Arc<Mutex<SessionGrants>>, cx: &mut AsyncApp)
     }
     let (done, finished) = async_channel::bounded(1);
     let request = ask.request;
+    let tasks = cx.update(|cx| crate::agent_task_panel::tasks(cx));
     let sheet = Rc::new(Sheet {
         request: request.clone(),
         grants,
+        tasks,
         reply: RefCell::new(Some(ask.reply)),
         done,
         focus: RefCell::new(None),
