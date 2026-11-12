@@ -89,6 +89,7 @@ import 'core/models/repos/abs/sync_repository.dart' as _i601;
 import 'core/models/repos/abs/system_share_repository.dart' as _i202;
 import 'core/models/repos/abs/templates_repository.dart' as _i460;
 import 'core/models/repos/abs/themes_repository.dart' as _i40;
+import 'core/models/repos/abs/whats_new_repository.dart' as _i435;
 import 'core/models/repos/abs/widget_colors_repository.dart' as _i978;
 import 'core/models/repos/impl/channel_reminder_notifier.dart' as _i740;
 import 'core/models/repos/impl/file_google_font_repository.dart' as _i8;
@@ -122,6 +123,7 @@ import 'core/models/repos/impl/rust_session_repository.dart' as _i899;
 import 'core/models/repos/impl/rust_shared_notes_repository.dart' as _i628;
 import 'core/models/repos/impl/rust_sync_repository.dart' as _i564;
 import 'core/models/repos/impl/rust_templates_repository.dart' as _i213;
+import 'core/models/repos/impl/rust_whats_new_repository.dart' as _i420;
 import 'core/models/repos/impl/shorebird_patch_repository.dart' as _i989;
 import 'core/models/repos/impl/system_agent_task_notifier.dart' as _i238;
 import 'core/models/repos/impl/system_file_picker_repository.dart' as _i448;
@@ -291,6 +293,7 @@ import 'voice_settings/models/repos/abs/voice_settings_repository.dart'
 import 'voice_settings/models/repos/impl/rust_voice_settings_repository.dart'
     as _i759;
 import 'voice_settings/state/voice_settings/voice_settings_bloc.dart' as _i64;
+import 'whats_new/state/whats_new_cubit.dart' as _i594;
 import 'window/models/repos/abs/note_window_repository.dart' as _i612;
 import 'window/models/repos/impl/platform_note_window_repository.dart' as _i271;
 import 'window/state/note_window/note_window_bloc.dart' as _i973;
@@ -591,6 +594,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i242.ImportRepository>(
       () => _i903.RustImportRepository(gh<_i455.KansoLibrary>()),
     );
+    gh.lazySingleton<_i435.WhatsNewRepository>(
+      () => _i420.RustWhatsNewRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.factory<_i380.TabsBloc>(
       () => _i380.TabsBloc(
         gh<_i38.LibraryRepository>(),
@@ -878,6 +884,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i279.DeviceLockRepository>(),
         gh<_i384.PreferencesRepository>(),
       ),
+    );
+    gh.factory<_i594.WhatsNewCubit>(
+      () => _i594.WhatsNewCubit(gh<_i435.WhatsNewRepository>()),
     );
     gh.lazySingleton<_i40.ThemesRepository>(
       () => _i48.ThemesRepositoryImpl(gh<_i737.KansoThemes>()),

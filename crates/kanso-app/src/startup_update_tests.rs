@@ -17,6 +17,8 @@ fn update(version: &str) -> Update {
             size: 1000,
             sha256: "00".repeat(32),
         },
+        whats_new: None,
+        earlier: Vec::new(),
     }
 }
 

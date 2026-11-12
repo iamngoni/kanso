@@ -40,6 +40,7 @@ import 'shell/state/library_pane/library_pane_bloc.dart';
 import 'shell/state/note_creation/note_creation_bloc.dart';
 import 'tabs/state/tabs/tabs_bloc.dart';
 import 'voice_capture/state/voice_drops/voice_drops_bloc.dart';
+import 'whats_new/state/whats_new_cubit.dart';
 
 /// The BLoCs the whole app shares, above the [child].
 ///
@@ -149,6 +150,7 @@ class AppProviders extends StatelessWidget {
           create: (_) => getIt<NoteCreationBloc>(),
         ),
         BlocProvider<NoticesCubit>(create: (_) => getIt<NoticesCubit>()),
+        BlocProvider<WhatsNewCubit>(create: (_) => getIt<WhatsNewCubit>()),
         BlocProvider<TabsBloc>(
           create: (_) => getIt<TabsBloc>()..add(const TabsEvent.started()),
         ),
