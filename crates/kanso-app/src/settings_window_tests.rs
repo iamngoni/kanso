@@ -1539,3 +1539,211 @@ fn a_key_made_in_settings_opens_the_server_and_revoking_it_closes_it_even_after_
     assert!(cx.read(|cx| page.read(cx).rows().is_empty()));
     cx.update(crate::services::stop_server);
 }
+
+// MARK: Pairing (issue #390, step 13)
+
+const PAIR_SECRET: &str = "abcdefghijklmnopqrstuvwxyz012345";
+const PAIR_NOW: i64 = 1_780_000_000_000;
+
+/// A running local API whose keys use a clock the test moves.
+struct PairingApi {
+    f: Fixture,
+    base: String,
+    clock: Arc<std::sync::atomic::AtomicI64>,
+}
+
+fn pairing_api(cx: &mut TestAppContext) -> PairingApi {
+    let f = setup(cx);
+    let clock = Arc::new(std::sync::atomic::AtomicI64::new(PAIR_NOW));
+    cx.update(|cx| {
+        cx.set_reduce_motion(true);
+        let store = cx.global::<AppState>().store.clone();
+        let at = clock.clone();
+        let keys = kanso_server::KeyStore::with_clock(
+            store,
+            Arc::new(move || at.load(std::sync::atomic::Ordering::SeqCst)),
+        )
+        .unwrap();
+        crate::services::set_keys_for_test(keys, cx);
+        AppState::update_config(cx, |config| {
+            config.server.enabled = true;
+            config.server.bind_address = "127.0.0.1".into();
+            config.server.port = 0;
+        });
+        crate::services::apply_server_settings(cx);
+    });
+    let addr = cx
+        .read(crate::services::server_addr)
+        .expect("the local API is listening");
+    PairingApi {
+        f,
+        base: format!("http://{addr}"),
+        clock,
+    }
+}
+
+fn pair_agent() -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .http_status_as_error(false)
+        .build()
+        .into()
+}
+
+/// POST /pair as Raycast: the status and the answer.
+fn pair_post(base: &str) -> (u16, serde_json::Value) {
+    let body = json!({"client": "raycast", "name": "Raycast", "access": "capture",
+        "books": null, "secret": PAIR_SECRET})
+    .to_string();
+    let mut response = pair_agent()
+        .post(format!("{base}/pair"))
+        .header("Content-Type", "application/json")
+        .send(body)
+        .expect("the local API answers");
+    let status = response.status().as_u16();
+    let text = response.body_mut().read_to_string().unwrap();
+    (status, serde_json::from_str(&text).unwrap_or_default())
+}
+
+/// GET /pair/<request> as the poller that holds the secret.
+fn pair_poll(base: &str, request: &str) -> (u16, serde_json::Value) {
+    let mut response = pair_agent()
+        .get(format!("{base}/pair/{request}"))
+        .header("X-Kanso-Pair-Secret", PAIR_SECRET)
+        .call()
+        .expect("the local API answers");
+    let status = response.status().as_u16();
+    let text = response.body_mut().read_to_string().unwrap();
+    (status, serde_json::from_str(&text).unwrap_or_default())
+}
+
+impl PairingApi {
+    /// Raycast asks; the sheet shows. Returns the request id and code.
+    fn ask(&self, cx: &mut TestAppContext) -> (String, String) {
+        let (status, answer) = pair_post(&self.base);
+        assert_eq!(status, 202, "{answer}");
+        cx.run_until_parked();
+        self.f.draw(cx);
+        (
+            answer["request"].as_str().unwrap().to_owned(),
+            answer["code"].as_str().unwrap().to_owned(),
+        )
+    }
+
+    fn sheet_open(&self, cx: &mut TestAppContext) -> bool {
+        cx.read(|cx| crate::pairing_sheet::open_for_test(cx).is_some())
+    }
+}
+
+/// A request makes the sheet appear with the app's name and the code the
+/// app was given, and Allow hands the poller a Capture key that works.
+// no-prop-test: drives one window and a live server through clicks.
+#[gpui_kit::test]
+fn the_sheet_appears_on_a_request_and_allow_approves_it(cx: &mut TestAppContext) {
+    let api = pairing_api(cx);
+    assert!(!api.sheet_open(cx));
+    let (request, code) = api.ask(cx);
+    assert!(api.sheet_open(cx), "the sheet appears");
+    let shown = cx.read(|cx| {
+        let sheet = crate::pairing_sheet::open_for_test(cx).unwrap();
+        let pending = sheet.read(cx).request().clone();
+        (pending.name, pending.code)
+    });
+    assert_eq!(shown, ("Raycast".to_owned(), code));
+    assert_eq!(pair_poll(&api.base, &request).0, 202, "it waits");
+
+    api.f.click(cx, "pair-allow");
+    assert!(!api.sheet_open(cx), "Allow closes the sheet");
+    let (status, answer) = pair_poll(&api.base, &request);
+    assert_eq!(status, 200, "{answer}");
+    let key = answer["key"].as_str().unwrap().to_owned();
+    assert_eq!(
+        http_status(&format!("{}/notes", api.base), Some(&key)),
+        200,
+        "the key works"
+    );
+    cx.update(crate::services::stop_server);
+}
+
+/// Don't Allow tells the poller no, and no key is made.
+// no-prop-test: drives one window and a live server through clicks.
+#[gpui_kit::test]
+fn deny_denies_the_request(cx: &mut TestAppContext) {
+    let api = pairing_api(cx);
+    let (request, _) = api.ask(cx);
+    api.f.click(cx, "pair-deny");
+    assert!(!api.sheet_open(cx));
+    let (status, answer) = pair_poll(&api.base, &request);
+    assert_eq!(status, 403, "{answer}");
+    assert_eq!(answer["state"], "denied");
+    let keys = cx.update(|cx| crate::services::key_store(cx).unwrap());
+    assert!(keys.list().unwrap().is_empty());
+    cx.update(crate::services::stop_server);
+}
+
+/// The sheet goes with the request, two minutes on.
+// no-prop-test: drives one window and a live server.
+#[gpui_kit::test]
+fn the_sheet_closes_when_the_request_expires(cx: &mut TestAppContext) {
+    let api = pairing_api(cx);
+    let (request, _) = api.ask(cx);
+    assert!(api.sheet_open(cx));
+    api.clock.fetch_add(
+        121 * 1000, // the request waits 120 s
+        std::sync::atomic::Ordering::SeqCst,
+    );
+    let sheet = cx.read(|cx| crate::pairing_sheet::open_for_test(cx).unwrap());
+    api.f
+        .window
+        .update(cx, |_, window, cx| {
+            sheet.update(cx, |sheet, cx| sheet.sync(window, cx))
+        })
+        .unwrap();
+    api.f.draw(cx);
+    drop(sheet);
+    assert!(!api.sheet_open(cx), "the sheet closed");
+    assert_eq!(pair_poll(&api.base, &request).0, 410);
+    cx.update(crate::services::stop_server);
+}
+
+/// A paired app is listed under Paired apps, and Revoke asks, then stops
+/// its key at once.
+// no-prop-test: drives one window and a live server through clicks.
+#[gpui_kit::test]
+fn revoking_a_paired_app_revokes_its_key(cx: &mut TestAppContext) {
+    let api = pairing_api(cx);
+    let (request, _) = api.ask(cx);
+    api.f.click(cx, "pair-allow");
+    let key = pair_poll(&api.base, &request).1["key"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let url = format!("{}/notes", api.base);
+    assert_eq!(http_status(&url, Some(&key)), 200);
+
+    api.f
+        .window
+        .update(cx, |_, window, cx| {
+            api.f.workspace.update(cx, |workspace, cx| {
+                workspace.open_settings(Some(SettingsPage::LocalApi), window, cx)
+            })
+        })
+        .unwrap();
+    api.f.draw(cx);
+    let page = cx.read(|cx| api.f.workspace.read(cx).settings.read(cx).api_keys.clone());
+    assert_eq!(cx.read(|cx| page.read(cx).paired().len()), 1);
+    assert!(cx.read(|cx| page.read(cx).rows().is_empty()));
+
+    api.f.click(cx, "revoke-paired-0");
+    use gpui_kit::component::WindowExt as _;
+    let asking = api
+        .f
+        .window
+        .update(cx, |_, window, cx| window.has_active_dialog(cx))
+        .unwrap();
+    assert!(asking, "Revoke asks first");
+    assert_eq!(http_status(&url, Some(&key)), 200);
+    api.f.keys(cx, "enter");
+    assert_eq!(http_status(&url, Some(&key)), 401);
+    assert!(cx.read(|cx| page.read(cx).paired().is_empty()));
+    cx.update(crate::services::stop_server);
+}

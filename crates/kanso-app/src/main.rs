@@ -208,6 +208,8 @@ mod services;
 mod settings;
 mod settings_ai;
 mod settings_api_keys;
+mod pairing_model;
+mod pairing_sheet;
 mod settings_briefs;
 mod settings_capture;
 mod settings_discovery;

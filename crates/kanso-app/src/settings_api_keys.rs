@@ -32,6 +32,7 @@ use crate::api_keys_model::{
 };
 use crate::clock::Clock;
 use crate::mcp_setup::Setup;
+use crate::pairing_model;
 use crate::settings::{Row, mcp_endpoint, section};
 use crate::theme::Colors;
 use crate::workspace::AppState;
@@ -51,6 +52,8 @@ pub struct ApiKeysPage {
     keys: Option<KeyStore>,
     /// The live keys, newest first.
     rows: Vec<ApiKeyRow>,
+    /// The live keys made by pairing, newest first.
+    paired: Vec<ApiKeyRow>,
     /// Notebook names, for the notebooks each key may read.
     book_names: HashMap<String, String>,
     /// Why the keys can't be listed or changed.
@@ -74,6 +77,7 @@ impl ApiKeysPage {
         ApiKeysPage {
             keys: None,
             rows: Vec::new(),
+            paired: Vec::new(),
             book_names: HashMap::new(),
             error: None,
             seen: 0,
@@ -135,6 +139,9 @@ impl ApiKeysPage {
                             .into_iter()
                             .filter(|row| row.revoked_at.is_none())
                             .collect();
+                        // Paired apps have a group of their own.
+                        (self.paired, self.rows) =
+                            self.rows.drain(..).partition(pairing_model::is_paired);
                     }
                     Err(err) => self.error = Some(format!("Couldn't list the API keys: {err}")),
                 }
@@ -170,11 +177,41 @@ impl ApiKeysPage {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.ask(id, revoke_question(&name), REVOKE_DETAIL, "Revoke", window, cx);
+    }
+
+    /// Asks before disconnecting a paired app.
+    fn ask_disconnect(
+        &mut self,
+        id: String,
+        name: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.ask(
+            id,
+            pairing_model::disconnect_question(&name),
+            pairing_model::DISCONNECT_DETAIL,
+            "Disconnect",
+            window,
+            cx,
+        );
+    }
+
+    fn ask(
+        &mut self,
+        id: String,
+        question: String,
+        detail: &'static str,
+        ok: &'static str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let page = cx.entity();
         dialogs::confirm(
-            revoke_question(&name),
-            REVOKE_DETAIL,
-            "Revoke",
+            question,
+            detail,
+            ok,
             window,
             cx,
             move |_, cx| {
@@ -200,6 +237,18 @@ impl ApiKeysPage {
     #[cfg(test)]
     pub(crate) fn rows(&self) -> &[ApiKeyRow] {
         &self.rows
+    }
+
+    /// The paired apps shown, for tests.
+    #[cfg(test)]
+    pub(crate) fn paired(&self) -> &[ApiKeyRow] {
+        &self.paired
+    }
+
+    /// Reads the keys again, for tests that moved the clock or the keys.
+    #[cfg(test)]
+    pub(crate) fn refresh_for_test(&mut self, cx: &mut Context<Self>) {
+        self.refresh(cx);
     }
 }
 
@@ -287,7 +336,33 @@ impl Render for ApiKeysPage {
                     ),
             );
         }
-        section("API keys", rows, colors)
+        let mut paired = Vec::new();
+        if self.paired.is_empty() {
+            paired.push(
+                Row::new(Lucide::Info, "No paired apps yet")
+                    .detail("Run a Kanso command in Raycast to connect it."),
+            );
+        }
+        for (ix, row) in self.paired.iter().enumerate() {
+            let (id, name) = (row.id.clone(), row.name.clone());
+            paired.push(
+                Row::new(Lucide::Link, pairing_model::shown_name(&row.name))
+                    .detail(pairing_model::row_line(row, now, local))
+                    .trailing(
+                        Button::new(ElementId::NamedInteger("revoke-paired".into(), ix as u64))
+                            .debug_selector(move || format!("revoke-paired-{ix}"))
+                            .outline()
+                            .small()
+                            .label("Revoke")
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                this.ask_disconnect(id.clone(), name.clone(), window, cx);
+                            })),
+                    ),
+            );
+        }
+        v_flex()
+            .child(section("API keys", rows, colors))
+            .child(section(pairing_model::GROUP_TITLE, paired, colors))
     }
 }
 
