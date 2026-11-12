@@ -35,6 +35,7 @@ export type Rule =
 	| "notify-account"
 	| "book-read-account"
 	| "book-write-account"
+	| "book-log-account"
 	| "proof-account"
 	| "provider-poll"
 	| "approval-create"
@@ -111,6 +112,7 @@ export const RULES: Record<Rule, { window: number; max: number | null }> = {
 	"notify-account": { window: DAY, max: 500 },
 	"book-read-account": { window: HOUR, max: 600 },
 	"book-write-account": { window: HOUR, max: 120 },
+	"book-log-account": { window: HOUR, max: 30_000 },
 	"provider-poll": { window: 15 * 60_000, max: 300 },
 	"approval-create": { window: HOUR, max: 10 },
 	"approval-poll": { window: HOUR, max: 900 },

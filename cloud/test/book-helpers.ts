@@ -84,6 +84,8 @@ export interface NextOptions {
 	wrapFor?: Account[];
 	history?: boolean;
 	extra?: Record<string, unknown>;
+	/** The log head a new epoch names (0 by default). */
+	fromSeq?: number;
 }
 
 /** The next list's body after `book`, signed by `signer`, with `members` listed. */
@@ -96,7 +98,7 @@ export async function nextBody(book: Book, signer: Account, members: Listed[], o
 		owner: book.owner,
 		signer,
 		prev: book.hash,
-		fromSeq: opts.newEpoch || book.epoch > 1 ? 0 : null,
+		fromSeq: opts.newEpoch || book.epoch > 1 ? (opts.fromSeq ?? 0) : null,
 		members,
 		extra: opts.extra,
 	});

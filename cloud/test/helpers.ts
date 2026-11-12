@@ -38,7 +38,7 @@ export const clock = { now: START };
 
 /** The Worker's bindings without AUTH_LIMITER and SESSION_LIMITER, as the fixtures run. */
 export function testEnv(overrides: Partial<Env> = {}): Env {
-	return { DB: env.DB, FILES: env.FILES, NOTE_ROOM: env.NOTE_ROOM, ACCOUNT_ROOM: env.ACCOUNT_ROOM, AUTH_PEPPER: env.AUTH_PEPPER, ...overrides };
+	return { DB: env.DB, FILES: env.FILES, NOTE_ROOM: env.NOTE_ROOM, BOOK_ROOM: env.BOOK_ROOM, ACCOUNT_ROOM: env.ACCOUNT_ROOM, AUTH_PEPPER: env.AUTH_PEPPER, ...overrides };
 }
 
 export interface Call {
@@ -248,6 +248,8 @@ export async function resetServer(settings: Record<string, string> = { signup: "
 		// Shared notes first: their rows point at accounts. Rooms keyed by old share IDs are left
 		// alone; tests use fresh IDs.
 		env.DB.prepare("UPDATE book_shares SET stopped_at = 0"),
+		env.DB.prepare("DELETE FROM book_purges"),
+		env.DB.prepare("DELETE FROM book_room_sync"),
 		env.DB.prepare("DELETE FROM book_wraps"),
 		env.DB.prepare("DELETE FROM book_epochs"),
 		env.DB.prepare("DELETE FROM book_seen_keys"),

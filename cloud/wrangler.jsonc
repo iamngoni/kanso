@@ -53,12 +53,14 @@
   "durable_objects": {
     "bindings": [
       { "name": "NOTE_ROOM", "class_name": "NoteRoom" },
+      { "name": "BOOK_ROOM", "class_name": "BookRoom" },
       { "name": "ACCOUNT_ROOM", "class_name": "AccountRoom" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["NoteRoom"] },
-    { "tag": "v2", "new_classes": ["AccountRoom"] }
+    { "tag": "v2", "new_classes": ["AccountRoom"] },
+    { "tag": "v3", "new_sqlite_classes": ["BookRoom"] }
   ],
   "r2_buckets": [
     {

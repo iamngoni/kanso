@@ -240,7 +240,8 @@ export class NoteRoom extends DurableObject<Env> {
 		const id = this.shareId();
 		if (id === null) return refuse(404, "not_found");
 		const row = await this.env.DB.prepare(
-			`SELECT a.doc_bytes + coalesce((SELECT sum(o.bytes) FROM collab_shares o WHERE o.owner_id = s.owner_id AND o.id != s.id), 0) AS others,
+			`SELECT a.doc_bytes + coalesce((SELECT sum(o.bytes) FROM collab_shares o WHERE o.owner_id = s.owner_id AND o.id != s.id), 0)
+  + coalesce((SELECT sum(b.bytes) FROM book_shares b WHERE b.owner_id = s.owner_id), 0) AS others,
   coalesce(a.quota_doc_bytes, d.doc_bytes, 0) AS quota
   FROM collab_shares s JOIN accounts a ON a.id = s.owner_id, defaults d WHERE s.id = ?1`,
 		)

@@ -126,3 +126,36 @@ export function frame(seq: number, envelope: Uint8Array): Uint8Array {
 	out.set(envelope, 8);
 	return out;
 }
+
+// ------------------------------------------------------------- notebook rooms
+//
+// A shared notebook's room multiplexes many logs (the notebook's manifest and
+// each of its notes) over one set of sockets. A log is named by a 16-byte
+// stream ID: all zeros for the manifest, the note's own 16 bytes otherwise.
+// A frame to the room is `stream || envelope`; a frame from it is
+// `stream || u64(seq) || envelope` (seq 0 for presence). `seq` counts every
+// stored entry of the notebook, across its streams, so it orders them all and
+// is what a new epoch's `from_seq` names.
+
+export const STREAM_BYTES = 16;
+export const MANIFEST_STREAM = new Uint8Array(STREAM_BYTES);
+/** Notes per shared notebook (the manifest is not one). */
+export const MAX_BOOK_NOTES = 2000;
+/** Notes one socket may have open at a time (the manifest is always open). */
+export const MAX_OPEN_STREAMS = 32;
+/** Bytes a notebook's room stores per UTC day. */
+export const BOOK_BYTES_PER_DAY = 256 * 1024 * 1024;
+
+export const isManifest = (stream: Uint8Array): boolean => stream.every((b) => b === 0);
+
+/** The manifest takes updates, snapshots and presence, never comments; notes take every kind their role allows. */
+export const mayWriteStream = (role: string, kind: Kind, manifest: boolean): boolean => (!manifest || kind !== "c") && mayWrite(role, kind);
+
+/** `stream || u64(seq) || envelope`. */
+export function bookFrame(stream: Uint8Array, seq: number, envelope: Uint8Array): Uint8Array {
+	const out = new Uint8Array(STREAM_BYTES + 8 + envelope.length);
+	out.set(stream, 0);
+	new DataView(out.buffer).setBigUint64(STREAM_BYTES, BigInt(seq));
+	out.set(envelope, STREAM_BYTES + 8);
+	return out;
+}
