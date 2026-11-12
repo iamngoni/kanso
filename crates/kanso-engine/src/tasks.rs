@@ -18,6 +18,7 @@ use std::ops::Range;
 
 use kanso_core::dates::{Date, DateTime};
 use kanso_core::links::{code_ranges, plain_line};
+use kanso_core::repeat::repeat_token;
 use kanso_core::tasks::{Due, TaskGroup, due_label, due_spans, due_token, task_group, task_items};
 use kanso_store::TaskRow;
 
@@ -265,8 +266,14 @@ pub fn date_choices(query: &str, today: Date) -> Vec<(String, String)> {
 /// A task's words as the list shows them: plain, without its due date
 /// (the chip beside it says that). Pure.
 pub fn display_text(text: &str) -> String {
+    // The `every …` words go with the date: the chip says both.
+    let end = repeat_token(text).map(|(range, _)| range.end);
     let without = match due_token(text) {
-        Some(range) => format!("{}{}", &text[..range.start], &text[range.end..]),
+        Some(range) => format!(
+            "{}{}",
+            &text[..range.start],
+            &text[end.unwrap_or(range.end)..]
+        ),
         None => text.to_owned(),
     };
     let plain = plain_line(&without);
@@ -377,6 +384,20 @@ mod tests {
             &("Tue 1 Dec 08:30".into(), "2026-12-01T08:30".into())
         );
         assert!(date_choices("zz", today).is_empty());
+    }
+
+    #[test]
+    fn display_text_drops_the_repeat_with_the_date() {
+        assert_eq!(display_text("film @2026-11-14T15:00 every week"), "film");
+        assert_eq!(
+            display_text("film @2026-11-14 every 2 weeks on mon and thu now"),
+            "film now"
+        );
+        assert_eq!(
+            display_text("film @2026-11-14 every blue moon"),
+            "film every blue moon"
+        );
+        assert_eq!(display_text("every week"), "every week");
     }
 
     #[test]
