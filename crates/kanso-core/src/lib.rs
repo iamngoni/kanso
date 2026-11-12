@@ -42,6 +42,7 @@ pub mod srs;
 pub mod tags;
 pub mod tasks;
 pub mod template;
+pub mod tick;
 pub mod when;
 pub mod writing;
 pub mod zoned;

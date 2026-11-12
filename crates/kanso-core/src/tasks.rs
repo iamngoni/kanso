@@ -318,8 +318,9 @@ pub enum TaskEdit {
 
 /// Ticks (or clears) the task with text `text`, looked for on `line`
 /// (0-based) first, then on any one other line that has it. The text is
-/// what [`task_items`] gives.
-pub fn set_task_checked(body: &str, line: u32, text: &str, checked: bool) -> TaskEdit {
+/// what [`task_items`] gives. `today` is the local day: ticking an open
+/// repeating task writes its next one ([`crate::tick`]).
+pub fn set_task_checked(body: &str, line: u32, text: &str, checked: bool, today: Date) -> TaskEdit {
     let items = task_items(body);
     let target = items
         .iter()
@@ -337,7 +338,13 @@ pub fn set_task_checked(body: &str, line: u32, text: &str, checked: bool) -> Tas
     if items[index].checked == checked {
         return TaskEdit::Unchanged;
     }
-    match toggle_task(body, index) {
+    // Clearing only flips the box; ticking is the one engine function.
+    let edited = if checked {
+        crate::tick::tick_task_at(body, index, today)
+    } else {
+        toggle_task(body, index)
+    };
+    match edited {
         Some(body) => TaskEdit::Changed(body),
         None => TaskEdit::Missing,
     }
@@ -649,6 +656,12 @@ mod tests {
 #[cfg(test)]
 mod due_tests {
     use super::*;
+
+    const TODAY: Date = Date {
+        year: 2026,
+        month: 11,
+        day: 12,
+    };
     use proptest::prelude::*;
 
     fn at(y: i32, m: u32, d: u32, h: u32, min: u32) -> DateTime {
@@ -708,28 +721,32 @@ mod due_tests {
         assert!(!spans[0].checked);
         assert_eq!(&body[spans[1].range.clone()], "@2026-10-25T09:30");
         assert!(spans[1].checked);
-        let TaskEdit::Changed(done) = set_task_checked(body, 1, "Pay rent @2026-11-01 soon", true)
+        let TaskEdit::Changed(done) =
+            set_task_checked(body, 1, "Pay rent @2026-11-01 soon", true, TODAY)
         else {
             panic!("not changed");
         };
         assert!(done.contains("- [x] Pay rent"));
         assert_eq!(
-            set_task_checked(&done, 1, "Pay rent @2026-11-01 soon", true),
+            set_task_checked(&done, 1, "Pay rent @2026-11-01 soon", true, TODAY),
             TaskEdit::Unchanged
         );
         // Moved down a line, it is still found by its words.
         let moved = format!("intro\n{body}");
         assert!(matches!(
-            set_task_checked(&moved, 1, "Pay rent @2026-11-01 soon", true),
+            set_task_checked(&moved, 1, "Pay rent @2026-11-01 soon", true, TODAY),
             TaskEdit::Changed(_)
         ));
         assert_eq!(
-            set_task_checked(body, 1, "Pay the rent", true),
+            set_task_checked(body, 1, "Pay the rent", true, TODAY),
             TaskEdit::Missing
         );
         // The same words on two other lines: which one is meant is unknown.
         let twice = "- [ ] a\n- [ ] a\n";
-        assert_eq!(set_task_checked(twice, 5, "a", true), TaskEdit::Missing);
+        assert_eq!(
+            set_task_checked(twice, 5, "a", true, TODAY),
+            TaskEdit::Missing
+        );
     }
 
     proptest! {
@@ -776,13 +793,13 @@ mod due_tests {
         #[test]
         fn prop_check_off_round_trips(body in "([-*] \\[ \\] [a-z@0-9-]{1,12}\n|```\n|[a-z ]{0,8}\n){0,12}") {
             for item in task_items(&body) {
-                let TaskEdit::Changed(done) = set_task_checked(&body, item.line, &item.text, true) else {
+                let TaskEdit::Changed(done) = set_task_checked(&body, item.line, &item.text, true, TODAY) else {
                     prop_assert!(false, "an open task wasn't ticked");
                     unreachable!();
                 };
                 prop_assert_eq!(done.len(), body.len());
                 prop_assert_eq!(count_tasks(&done).checked, count_tasks(&body).checked + 1);
-                prop_assert_eq!(set_task_checked(&done, item.line, &item.text, false), TaskEdit::Changed(body.clone()));
+                prop_assert_eq!(set_task_checked(&done, item.line, &item.text, false, TODAY), TaskEdit::Changed(body.clone()));
             }
         }
     }
