@@ -4888,3 +4888,60 @@ fn the_api_keys_notice_shows_only_after_a_login_existed(cx: &mut TestAppContext)
         [kanso_core::notices::API_KEYS_ID]
     );
 }
+
+/// A box with only a maximum height (the update sheet's notes, say) scrolls
+/// to its end. The scroll wrapper sized its scroll area to 100% of a box
+/// with no definite height, so the area grew to the content, never
+/// scrolled, and the box only cut the content off.
+// no-prop-test: one layout; the sizes are fixed by the test.
+#[gpui_kit::test]
+fn a_box_with_only_a_max_height_scrolls_to_its_end(cx: &mut TestAppContext) {
+    use gpui_component::scroll::ScrollableElement as _;
+    use gpui_kit::{
+        Context, InteractiveElement as _, IntoElement, Modifiers, ParentElement as _, Render,
+        ScrollDelta, ScrollWheelEvent, Styled as _, TouchPhase, Window, div, point, px,
+    };
+
+    struct Notes;
+    impl Render for Notes {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(100.)).child(
+                div()
+                    .id("max-h-notes")
+                    .max_h(px(100.))
+                    .overflow_y_scrollbar()
+                    .children((0..10).map(|ix| {
+                        div()
+                            .h(px(30.))
+                            .flex_shrink_0()
+                            .debug_selector(move || format!("max-h-row-{ix}"))
+                    })),
+            )
+        }
+    }
+
+    cx.update(gpui_component::init);
+    let (_, vcx) = cx.add_window_view(|_, _| Notes);
+    let draw = |vcx: &mut gpui_kit::VisualTestContext| {
+        vcx.run_until_parked();
+        vcx.update(|window, cx| {
+            _ = window.draw(cx);
+            window.refresh();
+        });
+        vcx.run_until_parked();
+    };
+    draw(vcx);
+    assert_eq!(vcx.debug_bounds("max-h-row-0").unwrap().top(), px(0.));
+
+    vcx.simulate_event(ScrollWheelEvent {
+        position: point(px(10.), px(10.)),
+        delta: ScrollDelta::Pixels(point(px(0.), px(-1000.))),
+        modifiers: Modifiers::none(),
+        touch_phase: TouchPhase::Moved,
+    });
+    draw(vcx);
+    // Ten 30 px rows in a 100 px box: at the end the first row is 200 px up
+    // and the last one ends at the box's bottom.
+    assert_eq!(vcx.debug_bounds("max-h-row-0").unwrap().top(), px(-200.));
+    assert_eq!(vcx.debug_bounds("max-h-row-9").unwrap().bottom(), px(100.));
+}

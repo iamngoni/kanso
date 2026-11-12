@@ -162,6 +162,20 @@ where
                 ScrollbarAxis::Vertical => this.h_auto().min_h_full(),
                 ScrollbarAxis::Horizontal => this.w_auto().min_w_full(),
                 ScrollbarAxis::Both => this.size_auto().min_size_full(),
+            })
+            // The caller's maximum belongs to the wrapper and the area (it is
+            // copied to both). Left on the content too, it caps the content
+            // at the box's height, the rest spills out of it, and the area
+            // sees nothing to scroll.
+            .map(|mut this| {
+                let max = &mut this.style().max_size;
+                if self.axis.has_vertical() {
+                    max.height = None;
+                }
+                if self.axis.has_horizontal() {
+                    max.width = None;
+                }
+                this
             });
 
         // Keep the scroll area in the normal flow: its content size must
@@ -181,6 +195,14 @@ where
             // On a single-axis area gpui otherwise remaps the other axis' delta
             // onto ours, so a purely horizontal swipe scrolls this vertically.
             .lock_scroll_axis()
+            // `size_full` is 100% of the wrapper, which is nothing definite
+            // when the caller set only a maximum: the area would grow to the
+            // content while the wrapper cut it off. The area takes the
+            // caller's maximum too, so it overflows and scrolls.
+            .map(|mut this| {
+                this.style().max_size = root_style.max_size.clone();
+                this
+            })
             .child(content);
 
         div()
