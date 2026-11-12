@@ -26,7 +26,7 @@
 // `rate_limited` (`book-read-account`, `book-write-account`).
 
 import type { Session } from "./auth";
-import { BOOK_SHARE_HEADER, MANIFEST_ID, bookRoomOf, closeBookSockets, purgeBookRoom } from "./book_room";
+import { BOOK_SHARE_HEADER, MANIFEST_ID, bookRoomOf, purgeBookRoom, queueSync, syncRoom } from "./book_room";
 import { type Handler, LINK_ROLES, MAX_LINK_MS, MAX_LIST_CHARS, bound, checkMemberKeys, forbiddenRole, identityRequired, noContent, route } from "./collab";
 import { type Header, type Kind, MAX_ENVELOPE, MAX_LOG_LIMIT, type Role, isManifest, mayWriteStream, parseEnvelope } from "./envelope";
 import type { Env } from "./env";
@@ -34,7 +34,7 @@ import { badRequest, constraint, error, json, notFound, readBody, readJson, refu
 import { identityOf, isB64 } from "./identity";
 import { accountKey, count } from "./limits";
 import { base64url, fromBase64url, isAccountId, isObject, isSha256Hex, natParam } from "./protocol";
-import { ROOM_HEADERS, type RoomRefusal } from "./room";
+import { ROOM_HEADERS, type RoomRefusal, type RoomResult } from "./room";
 import { isShareId } from "./shares";
 
 export const MAX_BOOK_MEMBERS = 25;
@@ -377,6 +377,14 @@ export const createBook = route(async (request, env, now, session) => {
   ON CONFLICT (share_id, account_id) DO NOTHING`,
 				values,
 			),
+			bound(
+				env.DB,
+				`INSERT INTO book_room_sync (id, requested_at, version) SELECT ?1, ?5, 1
+  WHERE EXISTS (SELECT 1 FROM book_lists WHERE share_id = ?1 AND rev = 1 AND hash = ?6)
+    AND EXISTS (SELECT 1 FROM book_shares WHERE id = ?1 AND owner_id = ?2 AND created_at = ?5)
+  ON CONFLICT (id) DO UPDATE SET requested_at = excluded.requested_at, version = version + 1`,
+				values,
+			),
 		],
 		session.accountId,
 		shareId,
@@ -396,6 +404,7 @@ export const createBook = route(async (request, env, now, session) => {
 				: error(409, "share_id_taken", "That share ID can't be used; share under a new one.");
 		}
 	}
+	await syncRoom(env, shareId);
 	return json({ share_id: shareId, epoch: 1, rev: 1 }, 201);
 });
 
@@ -488,8 +497,7 @@ export function newList(shareId: string): Handler {
 			.first<{ list: string; list_sig: string; hash: string; signer: string }>();
 		if (!head) return notFound();
 		if (rev === s.headRev && b.list_sig === head.list_sig && b.list === head.list && head.signer === session.accountId) {
-			const again = await parseBookList(head.list, shareId);
-			if (typeof again !== "string") await tellRoom(env, shareId, s.epoch, again.members);
+			await syncRoom(env, shareId);
 			return json({ epoch: s.epoch, rev: s.headRev, hash: s.headHash });
 		}
 		if (rev !== s.headRev + 1) return conflict(s);
@@ -525,12 +533,6 @@ export function newList(shareId: string): Handler {
 		}
 		const wrong = epochRules(prev, next, cuts);
 		if (wrong) return badRequest(wrong);
-		// The list says from which seq on the old epoch's writers no longer count; it must be the
-		// notebook's real log head now, or the signer signs the list again with from_seq at the head.
-		if (next.epoch !== prev.epoch) {
-			const { head } = await bookRoomOf(env, shareId).state();
-			if (next.fromSeq !== head) return error(409, "head_moved", "The log moved on: sign the list again with from_seq at the head.", { head });
-		}
 		const members = next.members;
 		if (members.length > MAX_BOOK_MEMBERS) return error(413, "quota_exceeded", "Over quota.", { quota: "members", used: members.length, limit: MAX_BOOK_MEMBERS });
 		if (!isB64(b.list_sig, 64)) return badRequest("list_sig must be 86 base64url characters.");
@@ -590,19 +592,58 @@ export function newList(shareId: string): Handler {
   ON CONFLICT (share_id, account_id) DO UPDATE SET sign_pub = excluded.sign_pub, box_pub = excluded.box_pub`,
 			`INSERT INTO book_epochs (share_id, epoch, history_link) SELECT ?1, ?9, ?12 WHERE ?12 IS NOT NULL AND ${mine}`,
 		];
-		const results = await guarded(
-			env,
-			sql.map((q) => bound(env.DB, q, values)),
-			s.ownerId,
-			shareId,
-			now,
-		);
-		if (results instanceof Response) return results;
+		sql.push(`INSERT INTO book_room_sync (id, requested_at, version) SELECT ?1, ?5, 1 WHERE ${mine}
+  ON CONFLICT (id) DO UPDATE SET requested_at = excluded.requested_at, version = version + 1`);
+		// A new epoch's list says from which seq on the old epoch's writers no longer count. The room checks
+		// that this is its real log head and raises its epoch in one step, before D1 commits the list: from
+		// then on nothing at the old epoch is accepted and the head can't move under the list.
+		let began = false;
+		if (newEpoch) {
+			const left = await env.DB.prepare("SELECT account_id FROM book_members WHERE share_id = ?1 AND status = 'left'").bind(shareId).all<{ account_id: string }>();
+			const gone = new Set(left.results.map((l) => l.account_id));
+			const roles = Object.fromEntries(members.filter((m) => !gone.has(m.account)).map((m) => [m.account, m.role])) as Record<string, Role>;
+			const r = await bookRoomOf(env, shareId).beginEpoch({ expectedHead: next.fromSeq as number, epoch: next.epoch, roles });
+			if (!r.ok) {
+				return r.error === "head_moved"
+					? error(409, "head_moved", "The log moved on: sign the list again with from_seq at the head.", r.extras)
+					: roomRefusal(r);
+			}
+			began = true;
+		}
+		// If D1 doesn't take the list, the room's raised epoch goes back, unless another list took the epoch.
+		const undo = async (): Promise<void> => {
+			if (!began) return;
+			const current = await standing(env, shareId, session.accountId);
+			try {
+				if (current && current.epoch === prev.epoch) await bookRoomOf(env, shareId).abortEpoch({ epoch: next.epoch, previous: prev.epoch });
+				else await syncRoom(env, shareId);
+			} catch (err) {
+				console.error(JSON.stringify({ route: "book", op: "abort_epoch", outcome: (err as Error)?.name ?? typeof err }));
+			}
+		};
+		let results: D1Result[] | Response;
+		try {
+			results = await guarded(
+				env,
+				sql.map((q) => bound(env.DB, q, values)),
+				s.ownerId,
+				shareId,
+				now,
+			);
+		} catch (err) {
+			await undo();
+			throw err;
+		}
+		if (results instanceof Response) {
+			await undo();
+			return results;
+		}
 		if (results[0].results.length !== 1) {
+			await undo();
 			const current = await standing(env, shareId, session.accountId);
 			return current ? conflict(current) : notFound();
 		}
-		await tellRoom(env, shareId, next.epoch, members);
+		await syncRoom(env, shareId);
 		return json({ epoch: next.epoch, rev, hash: next.hash });
 	});
 }
@@ -680,9 +721,10 @@ export function leave(shareId: string): Handler {
 		const results = await env.DB.batch([
 			env.DB.prepare("DELETE FROM book_wraps WHERE share_id = ?1 AND account_id = ?2").bind(shareId, session.accountId),
 			env.DB.prepare("UPDATE book_members SET status = 'left' WHERE share_id = ?1 AND account_id = ?2 RETURNING account_id").bind(shareId, session.accountId),
+			queueSync(env.DB, shareId, now),
 		]);
 		if (results[1].results.length !== 1) return notFound();
-		await closeBookSockets(env, shareId, [session.accountId]);
+		await syncRoom(env, shareId);
 		return noContent();
 	});
 }
@@ -717,17 +759,17 @@ export function stopBook(shareId: string): Handler {
 
 // ------------------------------------------------------ the logs and the room
 
-/** Tells the room the notebook's epoch and everyone's role: sockets of accounts no longer listed close at once. */
-async function tellRoom(env: Env, shareId: string, epoch: number, members: BookMember[]): Promise<void> {
-	// Someone who left may still be named by the list; they are out of the room all the same.
-	const left = await env.DB.prepare("SELECT account_id FROM book_members WHERE share_id = ?1 AND status = 'left'").bind(shareId).all<{ account_id: string }>();
-	const gone = new Set(left.results.map((r) => r.account_id));
-	const roles = Object.fromEntries(members.filter((m) => !gone.has(m.account)).map((m) => [m.account, m.role])) as Record<string, Role>;
-	try {
-		await bookRoomOf(env, shareId).setEpoch({ epoch, roles });
-	} catch (err) {
-		console.error(JSON.stringify({ route: "book", op: "set_epoch", outcome: (err as Error)?.name ?? typeof err }));
-	}
+/**
+ * A call to the room that writes, with one refresh: the room enforces its own roster, so when it says
+ * `roster_stale` (not synced yet, or it doesn't list the caller) the Worker gives it the roster from D1
+ * and asks once more. Still stale means D1 doesn't list the caller either: 404.
+ */
+async function withRoster<T>(env: Env, shareId: string, call: () => Promise<unknown>): Promise<RoomResult<T>> {
+	const first = (await call()) as RoomResult<T>;
+	if (first.ok || first.error !== "roster_stale") return first;
+	await syncRoom(env, shareId);
+	const second = (await call()) as RoomResult<T>;
+	return !second.ok && second.error === "roster_stale" ? { ok: false, status: 404, error: "not_found" } : second;
 }
 
 const roomRefusal = (r: RoomRefusal): Response => {
@@ -810,7 +852,7 @@ export function appendStream(shareId: string, note: string | null): Handler {
 		if (!bytes) return tooLarge(`An envelope here is at most ${MAX_ENVELOPE.u} bytes.`);
 		const header = checkEnvelope(bytes, note === null ? ["u"] : ["u", "c"], stream, s, session);
 		if (header instanceof Response) return header;
-		const result = await bookRoomOf(env, shareId).append({ shareId, stream, epoch: s.epoch, envelope: bytes, now });
+		const result = await withRoster<{ seq: number }>(env, shareId, () => bookRoomOf(env, shareId).append({ shareId, stream, account: session.accountId, epoch: s.epoch, envelope: bytes, now }));
 		if (!result.ok) return roomRefusal(result);
 		return json({ seq: result.seq });
 	});
@@ -834,7 +876,9 @@ export function postStreamSnapshot(shareId: string, note: string | null): Handle
 		if (!bytes) return tooLarge(`A snapshot is at most ${MAX_ENVELOPE.s} bytes.`);
 		const header = checkEnvelope(bytes, ["s"], stream, s, session);
 		if (header instanceof Response) return header;
-		const result = await bookRoomOf(env, shareId).snapshot({ shareId, stream, epoch: s.epoch, baseSeq, envelope: bytes, now });
+		const result = await withRoster<{ seq: number }>(env, shareId, () =>
+			bookRoomOf(env, shareId).snapshot({ shareId, stream, account: session.accountId, epoch: s.epoch, baseSeq, envelope: bytes, now }),
+		);
 		if (!result.ok) return roomRefusal(result);
 		return json({ seq: result.seq });
 	});
@@ -842,7 +886,7 @@ export function postStreamSnapshot(shareId: string, note: string | null): Handle
 
 /**
  * `GET /v2/collab/books/<id>/live`: the WebSocket, one per open notebook, accepted by the room with
- * the member's account, device, role and the epoch read here. A plain GET is 426 `upgrade_required`;
+ * the account, device and the epoch read here. A plain GET is 426 `upgrade_required`;
  * a ninth socket of one account is 429 `rate_limited` with `limit: "sockets"`.
  */
 export function live(shareId: string): Handler {
@@ -852,17 +896,29 @@ export function live(shareId: string): Handler {
 		if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
 			return error(426, "upgrade_required", "Open this route as a WebSocket.", {}, { upgrade: "websocket" });
 		}
-		return bookRoomOf(env, shareId).fetch(
-			new Request("https://room/live", {
-				headers: {
-					upgrade: "websocket",
-					[ROOM_HEADERS.account]: session.accountId,
-					[ROOM_HEADERS.device]: session.deviceId,
-					[ROOM_HEADERS.role]: s.role ?? "view",
-					[ROOM_HEADERS.epoch]: String(s.epoch),
-					[BOOK_SHARE_HEADER]: shareId,
-				},
-			}),
-		);
+		// Only who is asking and the epoch D1 says: the room takes the role from its own roster.
+		const open = () =>
+			bookRoomOf(env, shareId).fetch(
+				new Request("https://room/live", {
+					headers: {
+						upgrade: "websocket",
+						[ROOM_HEADERS.account]: session.accountId,
+						[ROOM_HEADERS.device]: session.deviceId,
+						[ROOM_HEADERS.epoch]: String(s.epoch),
+						[BOOK_SHARE_HEADER]: shareId,
+					},
+				}),
+			);
+		let response = await open();
+		let refused = response.status === 409 ? ((await response.clone().json()) as { error?: string; epoch?: number }) : null;
+		if (refused?.error === "roster_stale") {
+			await syncRoom(env, shareId);
+			response = await open();
+			refused = response.status === 409 ? ((await response.clone().json()) as { error?: string; epoch?: number }) : null;
+			if (refused?.error === "roster_stale") return notFound();
+		}
+		if (refused?.error === "epoch_changed") return error(409, "epoch_changed", "The notebook has a newer epoch.", { epoch: refused.epoch ?? 0 });
+		if (response.status === 404) return notFound();
+		return response;
 	});
 }

@@ -78,11 +78,10 @@ export interface BookLogPage {
 interface Attachment {
 	account: string;
 	device: string;
-	role: Role;
 	sock: string;
 }
 
-type Meta = "head" | "epoch" | "day" | "day_bytes" | "log_bytes" | "flushed_bytes";
+type Meta = "purged" | "synced" | "head" | "epoch" | "day" | "day_bytes" | "log_bytes" | "flushed_bytes";
 
 const refuse = (status: number, error: string, extras?: Record<string, number | string>): RoomRefusal => ({ ok: false, status, error, extras });
 const blob = (bytes: Uint8Array): ArrayBuffer => bytes.slice().buffer;
@@ -108,6 +107,7 @@ export class BookRoom extends DurableObject<Env> {
 		this.sql.exec(`CREATE TABLE IF NOT EXISTS streams (
   stream TEXT PRIMARY KEY, head INTEGER NOT NULL, entries_since INTEGER NOT NULL, bytes_since INTEGER NOT NULL, comment_bytes INTEGER NOT NULL)`);
 		this.sql.exec("CREATE TABLE IF NOT EXISTS subs (sock TEXT NOT NULL, stream TEXT NOT NULL, PRIMARY KEY (sock, stream))");
+		this.sql.exec("CREATE TABLE IF NOT EXISTS roster (account TEXT PRIMARY KEY, role TEXT NOT NULL)");
 		this.sql.exec("CREATE TABLE IF NOT EXISTS meta (name TEXT PRIMARY KEY, value INTEGER NOT NULL)");
 		this.sql.exec("CREATE TABLE IF NOT EXISTS info (id INTEGER PRIMARY KEY CHECK (id = 1), share_id TEXT NOT NULL)");
 	}
@@ -222,31 +222,56 @@ export class BookRoom extends DurableObject<Env> {
 		await this.flush(0);
 	}
 
+	/**
+	 * What every write must pass, from what the room itself holds (never from what the Worker or a
+	 * socket claimed): not purged, the account is on the roster with a role that may write the kind
+	 * (an unsynced roster, or an account not on it, is 409 `roster_stale`: the Worker refreshes it from
+	 * D1 and tries once more), the envelope's epoch is the room's now, and the limits. Synchronous, so
+	 * it can be run again after an await.
+	 */
+	private admit(input: { account: string; stream: string; kind: Kind; epoch: number; size: number; now: number; baseSeq?: number }): RoomRefusal | null {
+		if (this.get("purged") === 1) return refuse(404, "not_found");
+		if (this.get("synced") !== 1) return refuse(409, "roster_stale");
+		const role = this.sql.exec<{ role: Role }>("SELECT role FROM roster WHERE account = ?", input.account).toArray()[0]?.role;
+		if (role === undefined) return refuse(409, "roster_stale");
+		if (!mayWriteStream(role, input.kind, input.stream === MANIFEST_ID)) return refuse(403, "forbidden_role");
+		const epoch = this.get("epoch");
+		if (input.epoch !== epoch) return refuse(409, "epoch_changed", { epoch });
+		const row = this.streamRow(input.stream);
+		if (input.baseSeq !== undefined) {
+			if (input.baseSeq !== (row?.head ?? 0)) return refuse(409, "head_moved", { head: row?.head ?? 0 });
+		} else {
+			if (row && (row.entries_since >= COMPACT_ENTRIES || row.bytes_since >= COMPACT_BYTES)) return refuse(409, "compact_first");
+			if (input.kind === "c" && (row?.comment_bytes ?? 0) + input.size > MAX_COMMENT_BYTES) {
+				return refuse(413, "quota_exceeded", { quota: "comment_bytes", used: row?.comment_bytes ?? 0, limit: MAX_COMMENT_BYTES });
+			}
+		}
+		const over = this.overDay(input.now, input.size);
+		if (over) return over;
+		return this.noteCapRefusal(input.stream, row !== null);
+	}
+
 	/** Appends an update or comment the Worker has checked, then sends it to the sockets that have the stream open. */
-	async append(input: { shareId: string; stream: string; epoch: number; envelope: Uint8Array; now: number }): Promise<RoomResult<{ seq: number }>> {
+	async append(input: { shareId: string; stream: string; account: string; epoch: number; envelope: Uint8Array; now: number }): Promise<RoomResult<{ seq: number }>> {
 		this.schema();
 		const header = parseEnvelope(input.envelope);
 		if (!header || (header.kind !== "u" && header.kind !== "c")) return refuse(400, "bad_request");
-		const epoch = this.adoptEpoch(input.epoch);
-		if (header.epoch !== epoch) return refuse(409, "epoch_changed", { epoch });
+		if (header.author !== input.account) return refuse(403, "forbidden_author");
 		const stored = await this.store(input.shareId, input.stream, header.kind, header.epoch, header.author, input.envelope, input.now);
 		if (!stored.ok) return stored;
 		this.broadcast(input.stream, bookFrame(fromBase64url(input.stream) as Uint8Array, stored.seq, input.envelope));
 		return stored;
 	}
 
+	/** The checks, the quota (an await, during which a new epoch or roster can land), the checks again, then the write with no await between. */
 	private async store(shareId: string, stream: string, kind: Kind, epoch: number, author: string, envelope: Uint8Array, now: number): Promise<RoomResult<{ seq: number }>> {
-		const row = this.streamRow(stream);
-		if (row && (row.entries_since >= COMPACT_ENTRIES || row.bytes_since >= COMPACT_BYTES)) return refuse(409, "compact_first");
-		const over = this.overDay(now, envelope.length);
-		if (over) return over;
-		if (kind === "c" && (row?.comment_bytes ?? 0) + envelope.length > MAX_COMMENT_BYTES) {
-			return refuse(413, "quota_exceeded", { quota: "comment_bytes", used: row?.comment_bytes ?? 0, limit: MAX_COMMENT_BYTES });
-		}
-		const notes = this.noteCapRefusal(stream, row !== null);
-		if (notes) return notes;
+		const check = { account: author, stream, kind, epoch, size: envelope.length, now };
+		const early = this.admit(check);
+		if (early) return early;
 		const quota = await this.overQuota(shareId, envelope.length);
 		if (quota) return quota;
+		const late = this.admit(check);
+		if (late) return late;
 		this.sql.exec("INSERT INTO info (id, share_id) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET share_id = excluded.share_id", shareId);
 		const seq = this.get("head") + 1;
 		this.sql.exec("INSERT INTO log (seq, stream, kind, epoch, author, envelope, at) VALUES (?, ?, ?, ?, ?, ?, ?)", seq, stream, kind, epoch, author, blob(envelope), now);
@@ -278,21 +303,18 @@ export class BookRoom extends DurableObject<Env> {
 	 * nothing). It replaces the stream's old snapshot and its updates up to
 	 * `baseSeq`; comments stay. Its seq is `baseSeq`, and nothing's head moves.
 	 */
-	async snapshot(input: { shareId: string; stream: string; epoch: number; baseSeq: number; envelope: Uint8Array; now: number }): Promise<RoomResult<{ seq: number; bytes: number }>> {
+	async snapshot(input: { shareId: string; stream: string; account: string; epoch: number; baseSeq: number; envelope: Uint8Array; now: number }): Promise<RoomResult<{ seq: number; bytes: number }>> {
 		this.schema();
 		const header = parseEnvelope(input.envelope);
 		if (!header || header.kind !== "s") return refuse(400, "bad_request");
-		const epoch = this.adoptEpoch(input.epoch);
-		if (header.epoch !== epoch) return refuse(409, "epoch_changed", { epoch });
-		const row = this.streamRow(input.stream);
-		const head = row?.head ?? 0;
-		if (input.baseSeq !== head) return refuse(409, "head_moved", { head });
-		const over = this.overDay(input.now, input.envelope.length);
-		if (over) return over;
-		const notes = this.noteCapRefusal(input.stream, row !== null);
-		if (notes) return notes;
+		if (header.author !== input.account) return refuse(403, "forbidden_author");
+		const check = { account: header.author, stream: input.stream, kind: "s" as const, epoch: header.epoch, size: input.envelope.length, now: input.now, baseSeq: input.baseSeq };
+		const early = this.admit(check);
+		if (early) return early;
 		const quota = await this.overQuota(input.shareId, input.envelope.length - this.snapshotBytes(input.stream));
 		if (quota) return quota;
+		const late = this.admit(check);
+		if (late) return late;
 		this.sql.exec("INSERT INTO info (id, share_id) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET share_id = excluded.share_id", input.shareId);
 		this.sql.exec(
 			`INSERT INTO snapshot (stream, seq, base_seq, epoch, author, envelope, at) VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6)
@@ -359,41 +381,81 @@ export class BookRoom extends DurableObject<Env> {
 	}
 
 	/**
-	 * A new epoch or a role change: the sockets of accounts no longer in
-	 * `roles` (removed, or having left) get `{"type":"closed","reason":
-	 * "removed"}` and are closed; the others take their role and get
-	 * `{"type":"epoch","epoch"}`.
+	 * The first half of a new epoch, called before D1 commits the list that starts it: checks the log's
+	 * head is `expectedHead` (the list's `from_seq`; 409 `head_moved` with the head otherwise) and raises
+	 * the room's epoch in the same step, so from then on every write at an older epoch is refused and
+	 * the head can't move under the list. Calling it again for the same epoch and head (a retried list)
+	 * is fine. Returns the epoch it replaced, for `abortEpoch`.
 	 */
-	async setEpoch(input: { epoch: number; roles: Record<string, Role> }): Promise<void> {
+	async beginEpoch(input: { expectedHead: number; epoch: number; roles: Record<string, Role> }): Promise<RoomResult<{ previous: number }>> {
 		this.schema();
-		const epoch = this.adoptEpoch(input.epoch);
+		if (this.get("purged") === 1) return refuse(404, "not_found");
+		const head = this.get("head");
+		if (head !== input.expectedHead) return refuse(409, "head_moved", { head });
+		const previous = this.get("epoch");
+		if (input.epoch < previous) return refuse(409, "epoch_changed", { epoch: previous });
+		// The new list's roster goes in with the epoch, so a removed or demoted member loses their place
+		// in the same step that closes the old epoch, whether or not a later sync gets through.
+		this.applyRoster(input.epoch, input.roles);
+		return { ok: true, previous };
+	}
+
+	/** Takes back `beginEpoch` when D1 refused the list (still at `epoch`, so nothing wrote in between: the head can't have moved). */
+	async abortEpoch(input: { epoch: number; previous: number }): Promise<void> {
+		this.schema();
+		if (this.get("epoch") === input.epoch && input.previous < input.epoch) this.set("epoch", input.previous);
+	}
+
+	/**
+	 * The roster, from D1: who is in the notebook and at what role, at `epoch`. It replaces the stored
+	 * one, which every write and every socket is checked against; the sockets of accounts no longer in
+	 * `roles` (removed, having left, or deleted) get `{"type":"closed","reason":"removed"}` and are
+	 * closed, the others get `{"type":"epoch","epoch"}`. A roster older than the room's epoch is ignored
+	 * (false): D1 has not caught up with a list the room already began, and the sync that follows its
+	 * commit will bring the current one.
+	 */
+	async setEpoch(input: { epoch: number; roles: Record<string, Role> }): Promise<boolean> {
+		this.schema();
+		if (this.get("purged") === 1) return true;
+		if (input.epoch < this.get("epoch")) return false;
+		this.applyRoster(input.epoch, input.roles);
+		return true;
+	}
+
+	private applyRoster(newEpoch: number, roles: Record<string, Role>): void {
+		const input = { roles };
+		const epoch = this.adoptEpoch(newEpoch);
+		this.sql.exec("DELETE FROM roster");
+		for (const [account, role] of Object.entries(input.roles)) this.sql.exec("INSERT INTO roster (account, role) VALUES (?, ?)", account, role);
+		this.set("synced", 1);
 		for (const ws of this.ctx.getWebSockets()) {
 			const attachment = ws.deserializeAttachment() as Attachment;
-			const role = Object.hasOwn(input.roles, attachment.account) ? input.roles[attachment.account] : undefined;
-			if (role === undefined) {
+			if (!Object.hasOwn(input.roles, attachment.account)) {
 				this.close(ws, "removed");
 				continue;
 			}
-			ws.serializeAttachment({ ...attachment, role } satisfies Attachment);
 			this.send(ws, JSON.stringify({ type: "epoch", epoch }));
 		}
 	}
 
-	/** Closes the sockets of accounts that left or were deleted. */
+	/** Takes accounts off the roster and closes their sockets. */
 	async removeMembers(accounts: string[]): Promise<void> {
 		this.schema();
 		for (const account of accounts) {
+			this.sql.exec("DELETE FROM roster WHERE account = ?", account);
 			for (const ws of this.ctx.getWebSockets(account)) this.close(ws, "removed");
 		}
 	}
 
-	/** Sharing stopped: every socket hears so and is closed, and everything the room stores is deleted. */
+	/** Sharing stopped: every socket hears so and is closed, everything the room stores is deleted, and a tombstone stays so nothing can attach or write again. */
 	async purge(): Promise<void> {
 		for (const ws of this.ctx.getWebSockets()) this.close(ws, "stopped");
 		this.buckets.clear();
 		this.presence.clear();
 		await this.ctx.storage.deleteAlarm();
 		await this.ctx.storage.deleteAll();
+		this.schema();
+		this.set("purged", 1);
 	}
 
 	private close(ws: WebSocket, reason: "removed" | "stopped"): void {
@@ -413,25 +475,40 @@ export class BookRoom extends DurableObject<Env> {
 
 	// ------------------------------------------------------------ the sockets
 
+	/**
+	 * The WebSocket upgrade, from the Worker, with the account, device and the epoch it read. The room
+	 * trusts none of it beyond who is asking: the account must be on the room's own roster (409
+	 * `roster_stale` when the roster is unsynced or doesn't list it: the Worker refreshes it from D1 and
+	 * tries once more), the epoch can't be older than the room's (409 `epoch_changed`), and the role is
+	 * always the stored one.
+	 */
 	override async fetch(request: Request): Promise<Response> {
 		this.schema();
+		const refused = (status: number, error: string, extras: Record<string, number> = {}) =>
+			new Response(JSON.stringify({ error, ...extras }), { status, headers: { "content-type": "application/json" } });
 		if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") return new Response(null, { status: 426 });
+		if (this.get("purged") === 1) return refused(404, "not_found");
 		const account = request.headers.get(ROOM_HEADERS.account) ?? "";
 		const device = request.headers.get(ROOM_HEADERS.device) ?? "";
-		const role = (request.headers.get(ROOM_HEADERS.role) ?? "") as Role;
 		const known = Number(request.headers.get(ROOM_HEADERS.epoch) ?? "0");
-		if (this.ctx.getWebSockets(account).length >= MAX_SOCKETS_PER_ACCOUNT) return rateLimited("sockets", SOCKETS_RETRY_MS);
 		const share = request.headers.get(BOOK_SHARE_HEADER) ?? "";
-		if (share === "") return new Response(null, { status: 400 });
+		if (share === "" || account === "") return refused(400, "bad_request");
+		if (this.get("synced") !== 1 || this.rosterRole(account) === null) return refused(409, "roster_stale");
+		if (!Number.isSafeInteger(known) || known < this.get("epoch")) return refused(409, "epoch_changed", { epoch: this.get("epoch") });
+		if (this.ctx.getWebSockets(account).length >= MAX_SOCKETS_PER_ACCOUNT) return rateLimited("sockets", SOCKETS_RETRY_MS);
 		this.sql.exec("INSERT INTO info (id, share_id) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET share_id = excluded.share_id", share);
-		const epoch = this.adoptEpoch(Number.isSafeInteger(known) ? known : 0);
 		const pair = new WebSocketPair();
 		const [client, server] = Object.values(pair);
 		this.ctx.acceptWebSocket(server, [account]);
 		const sock = base64url(crypto.getRandomValues(new Uint8Array(12)));
-		server.serializeAttachment({ account, device, role, sock } satisfies Attachment);
-		server.send(JSON.stringify({ type: "hello", head: this.get("head"), epoch }));
+		server.serializeAttachment({ account, device, sock } satisfies Attachment);
+		server.send(JSON.stringify({ type: "hello", head: this.get("head"), epoch: this.get("epoch") }));
 		return new Response(null, { status: 101, webSocket: client });
+	}
+
+	/** The account's role on the room's own roster; null when it isn't on it. */
+	private rosterRole(account: string): Role | null {
+		return this.sql.exec<{ role: Role }>("SELECT role FROM roster WHERE account = ?", account).toArray()[0]?.role ?? null;
 	}
 
 	private take<K>(buckets: Map<K, { tokens: number; at: number }>, key: K, now: number, rate: number, burst: number): boolean {
@@ -481,8 +558,12 @@ export class BookRoom extends DurableObject<Env> {
 	override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
 		const now = Date.now();
 		this.schema();
+		if (this.get("purged") === 1) return this.close(ws, "stopped");
 		if (!this.take(this.buckets, ws, now, SOCKET_RATE, SOCKET_BURST)) return this.refuseFrame(ws, "rate_limited", { limit: "socket", retry_after: 1 });
 		const attachment = ws.deserializeAttachment() as Attachment;
+		// Who may do what is the room's own roster, read on every frame; a socket that was never told
+		// otherwise (a lost call) stops here once the roster no longer lists it.
+		if (this.get("synced") === 1 && this.rosterRole(attachment.account) === null) return this.close(ws, "removed");
 		if (typeof message === "string") return this.control(ws, attachment, message);
 		const all = new Uint8Array(message);
 		if (all.length <= STREAM_BYTES) return this.refuseFrame(ws, "bad_request");
@@ -495,12 +576,12 @@ export class BookRoom extends DurableObject<Env> {
 		if (stream !== MANIFEST_ID && !this.sql.exec("SELECT 1 FROM subs WHERE sock = ? AND stream = ?", attachment.sock, stream).toArray().length) {
 			return this.refuseFrame(ws, "not_open", which);
 		}
-		const epoch = this.get("epoch");
-		if (header.epoch !== epoch) return this.refuseFrame(ws, "epoch_changed", { ...which, epoch });
 		if (header.author !== attachment.account || header.device !== attachment.device) return this.refuseFrame(ws, "forbidden_author", which);
-		if (!mayWriteStream(attachment.role, header.kind, isManifest(streamBytes))) return this.refuseFrame(ws, "forbidden_role", which);
 		if (bytes.length > MAX_ENVELOPE[header.kind]) return this.refuseFrame(ws, "too_large", which);
 		if (header.kind === "p") {
+			const epoch = this.get("epoch");
+			if (header.epoch !== epoch) return this.refuseFrame(ws, "epoch_changed", { ...which, epoch });
+			if (this.rosterRole(attachment.account) === null) return this.refuseFrame(ws, "roster_stale", which);
 			if (!this.take(this.presence, attachment.account, now, PRESENCE_RATE, PRESENCE_BURST)) {
 				return this.refuseFrame(ws, "rate_limited", { ...which, limit: "presence", retry_after: 1 });
 			}
@@ -536,14 +617,49 @@ export class BookRoom extends DurableObject<Env> {
 
 export const bookRoomOf = (env: Env, shareId: string): DurableObjectStub<BookRoom> => env.BOOK_ROOM.get(env.BOOK_ROOM.idFromName(shareId));
 
-/** Tells a notebook's room to close some accounts' sockets; a room that can't be reached closes them when they next fail. */
-export async function closeBookSockets(env: Env, shareId: string, accounts: string[]): Promise<void> {
-	if (accounts.length === 0) return;
-	try {
-		await bookRoomOf(env, shareId).removeMembers(accounts);
-	} catch (err) {
-		console.error(JSON.stringify({ route: "book", op: "remove_members", outcome: (err as Error)?.name ?? typeof err }));
+/**
+ * The statement that queues a roster sync for a notebook, put in the D1 batch that changes who is in it
+ * (create, a new list, leaving, an account's deletion). The room's roster is what it enforces, so a
+ * change that doesn't reach it must not be lost: the row stays until a sync that started after it
+ * succeeds, and the cron retries (`runBookSyncs`).
+ */
+export const queueSync = (db: D1Database, shareId: string, now: number): D1PreparedStatement =>
+	db
+		.prepare("INSERT INTO book_room_sync (id, requested_at, version) VALUES (?1, ?2, 1) ON CONFLICT (id) DO UPDATE SET requested_at = excluded.requested_at, version = version + 1")
+		.bind(shareId, now);
+
+/**
+ * Gives the room the notebook's current roster from D1: everyone in `book_members` who hasn't left, at
+ * their role, and the notebook's epoch (the room closes sockets of anyone else). Idempotent; drops the
+ * queued row only if no newer change was queued while it ran. False when the room couldn't be reached
+ * or is ahead of D1 (a new epoch begun and not yet committed): the row stays for the cron.
+ */
+export async function syncRoom(env: Env, shareId: string): Promise<boolean> {
+	const queued = await env.DB.prepare("SELECT version FROM book_room_sync WHERE id = ?1").bind(shareId).first<{ version: number }>();
+	const book = await env.DB.prepare("SELECT epoch FROM book_shares WHERE id = ?1 AND stopped_at IS NULL").bind(shareId).first<{ epoch: number }>();
+	if (!book) {
+		// Stopped or never was: the purge queue owns the room.
+		await env.DB.prepare("DELETE FROM book_room_sync WHERE id = ?1").bind(shareId).run();
+		return true;
 	}
+	const members = await env.DB.prepare("SELECT account_id, role FROM book_members WHERE share_id = ?1 AND status != 'left'").bind(shareId).all<{ account_id: string; role: Role }>();
+	const roles = Object.fromEntries(members.results.map((m) => [m.account_id, m.role])) as Record<string, Role>;
+	try {
+		if (!(await bookRoomOf(env, shareId).setEpoch({ epoch: book.epoch, roles }))) return false;
+	} catch (err) {
+		console.error(JSON.stringify({ route: "book", op: "sync_room", outcome: (err as Error)?.name ?? typeof err }));
+		return false;
+	}
+	if (queued) await env.DB.prepare("DELETE FROM book_room_sync WHERE id = ?1 AND version = ?2").bind(shareId, queued.version).run();
+	return true;
+}
+
+/** Re-applies the queued roster syncs, oldest first; the number that went through. */
+export async function runBookSyncs(env: Env, limit: number): Promise<number> {
+	const { results } = await env.DB.prepare("SELECT id FROM book_room_sync ORDER BY requested_at, id LIMIT ?1").bind(limit).all<{ id: string }>();
+	let done = 0;
+	for (const { id } of results) if (await syncRoom(env, id)) done += 1;
+	return done;
 }
 
 /** Purges one notebook's room and drops its purge row; false when the room couldn't be reached (the cron tries again). */

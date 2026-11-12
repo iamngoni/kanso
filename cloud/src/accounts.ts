@@ -591,6 +591,8 @@ export async function admin(args: string[], io: AdminIO, now: number = Date.now(
 				`DELETE FROM collab_shares WHERE owner_id = ${id}`,
 				// Shared notebooks: its own are stopped (stopped_at lets their lists go; a trigger retires the ID),
 				// and its place in others' goes.
+				`INSERT INTO book_room_sync (id, requested_at, version) SELECT share_id, ${now}, 1 FROM book_members WHERE account_id = ${id} AND role != 'owner'
+  ON CONFLICT (id) DO UPDATE SET requested_at = excluded.requested_at, version = version + 1`,
 				`INSERT INTO book_purges (id, requested_at) SELECT id, ${now} FROM book_shares WHERE owner_id = ${id}
   ON CONFLICT (id) DO UPDATE SET requested_at = excluded.requested_at`,
 				`UPDATE book_shares SET stopped_at = ${now} WHERE owner_id = ${id}`,

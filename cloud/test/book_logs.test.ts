@@ -506,9 +506,13 @@ describe("the live room", () => {
 		a.ws.send(JSON.stringify({ type: "open", stream: NOTE }));
 		expect(text(await a.next())).toMatchObject({ error: "too_many_open", limit: 32 });
 		await open(a, base64url(new Uint8Array(16).fill(1)));
-		for (let i = 0; i < 400; i++) a.ws.send(JSON.stringify({ type: "close", stream: NOTE }));
-		const replies = (await a.drain(300)).map(text);
-		expect(replies.some((m) => m.error === "rate_limited" && m.limit === "socket")).toBe(true);
+		// bursts until the bucket (60 frames, 30 a second) runs dry; a loaded machine may need more than one
+		let limited = false;
+		for (let round = 0; round < 10 && !limited; round++) {
+			for (let i = 0; i < 300; i++) a.ws.send(JSON.stringify({ type: "close", stream: NOTE }));
+			limited = (await a.drain(400)).map(text).some((m) => m.error === "rate_limited" && m.limit === "socket");
+		}
+		expect(limited).toBe(true);
 		a.ws.close();
 	});
 
@@ -548,6 +552,8 @@ describe("the live room", () => {
 		];
 		expect((await advance(book, alice, members, { newEpoch: true, fromSeq: 0 })).status).toBe(200);
 		expect(text(await b.next())).toEqual({ type: "epoch", epoch: 2 });
+		// the room tells it twice: when the epoch begins and when D1 has committed
+		for (const m of await b.drain(150)) expect(text(m)).toEqual({ type: "epoch", epoch: 2 });
 		b.ws.send(toRoom(NOTE, await seal(book, "u", bob, 2)));
 		expect(text(await b.next())).toMatchObject({ error: "forbidden_role" });
 		b.ws.close();

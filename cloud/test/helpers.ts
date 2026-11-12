@@ -249,6 +249,7 @@ export async function resetServer(settings: Record<string, string> = { signup: "
 		// alone; tests use fresh IDs.
 		env.DB.prepare("UPDATE book_shares SET stopped_at = 0"),
 		env.DB.prepare("DELETE FROM book_purges"),
+		env.DB.prepare("DELETE FROM book_room_sync"),
 		env.DB.prepare("DELETE FROM book_wraps"),
 		env.DB.prepare("DELETE FROM book_epochs"),
 		env.DB.prepare("DELETE FROM book_seen_keys"),

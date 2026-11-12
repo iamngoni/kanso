@@ -32,7 +32,7 @@ import { identityOf, isB64 } from "./identity";
 import { BINDING_PERIOD_MS, accountKey, clientIp, count, ipGroup } from "./limits";
 import { DAY, base64url, fromBase64url, isAccountId, isObject, isSha256Hex, natParam, proof32 } from "./protocol";
 import { wakeShare } from "./push";
-import { closeBookSockets, purgeBookRoom } from "./book_room";
+import { purgeBookRoom, runBookSyncs, syncRoom } from "./book_room";
 import { type NoteRoom, ROOM_HEADERS, type RoomRefusal } from "./room";
 import { isShareId } from "./shares";
 import { PUBLIC_HEADERS } from "./viewer";
@@ -1061,6 +1061,11 @@ export function invitePage(linkId: string): Handler {
 function bookAccountStatements(bind: (sql: string) => D1PreparedStatement, guardSql: string): D1PreparedStatement[] {
 	const owned = "(SELECT id FROM book_shares WHERE owner_id = ?1)";
 	return [
+		// Notebooks the account is only a member of: their rooms drop it from their rosters.
+		bind(
+			`INSERT INTO book_room_sync (id, requested_at, version) SELECT share_id, ?3, 1 FROM book_members WHERE account_id = ?1 AND role != 'owner' AND ${guardSql}
+  ON CONFLICT (id) DO UPDATE SET requested_at = excluded.requested_at, version = version + 1`,
+		),
 		bind(
 			`INSERT INTO book_purges (id, requested_at) SELECT id, ?3 FROM book_shares WHERE owner_id = ?1 AND ${guardSql}
   ON CONFLICT (id) DO UPDATE SET requested_at = excluded.requested_at`,
@@ -1119,7 +1124,7 @@ export async function memberships(env: Env, accountId: string): Promise<Membersh
 /** After an account deletion: its sockets in others' rooms close, and its own rooms are purged. */
 export async function afterAccountDeleted(env: Env, accountId: string, shared: Memberships, now: number): Promise<void> {
 	await Promise.all(shared.notes.map((id) => closeSockets(env, id, [accountId])));
-	await Promise.all(shared.books.map((id) => closeBookSockets(env, id, [accountId])));
+	await Promise.all(shared.books.map((id) => syncRoom(env, id)));
 	await runCollabPurges(env, now);
 }
 
@@ -1135,5 +1140,6 @@ export async function runCollabPurges(env: Env, now: number, limit = COLLAB_PURG
 	for (const { id } of results) if (await purgeRoom(env, id)) purged += 1;
 	const books = await env.DB.prepare("SELECT id FROM book_purges ORDER BY requested_at, id LIMIT ?1").bind(limit).all<{ id: string }>();
 	for (const { id } of books.results) if (await purgeBookRoom(env, id)) purged += 1;
+	await runBookSyncs(env, limit);
 	return purged;
 }
