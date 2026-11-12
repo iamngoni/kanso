@@ -661,7 +661,13 @@ mod tests {
                 .expect("the export has front matter");
             let meta = kanso_import::library::frontmatter::meta(front);
             prop_assert_eq!(meta.title.as_deref(), Some(title.as_str()));
-            prop_assert!(meta.tags.iter().any(|t| t == &tag), "{:?}", meta.tags);
+            // Tags are case-insensitive: the export keeps the user's spelling
+            // of `B` and does not add a second `b`.
+            prop_assert!(
+                meta.tags.iter().any(|t| t.eq_ignore_ascii_case(&tag)),
+                "{:?}",
+                meta.tags
+            );
             // YAML types some tag text: an all-digit tag such as `00` reads
             // as the number zero, and `true` as a boolean. The parser is the
             // desktop's, so the contract here is that every tag as Kanso
