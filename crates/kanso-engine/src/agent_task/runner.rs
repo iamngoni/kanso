@@ -44,6 +44,9 @@ pub struct Notice {
     pub at: Instant,
 }
 
+/// What [`Tasks::set_agent_ref`] is given for a model with an API key.
+pub const API_AGENT_KEY: &str = "api";
+
 /// The least time between two writes of one session's file.
 const SAVE_EVERY: Duration = Duration::from_secs(1);
 
@@ -106,6 +109,14 @@ pub trait TaskDriver: Send + Sync {
     /// It is what a permission request names ([`Tasks::by_session`]).
     fn session_id(&self) -> Option<String> {
         None
+    }
+
+    /// Picks the agent's saved conversation `acp_session_id` up again, so the
+    /// next prompt continues it. `Err` says why it can't (the agent doesn't
+    /// keep conversations, or no longer has this one). A driver with no
+    /// session of its own has nothing to pick up.
+    fn resume_session(&self, _acp_session_id: &str) -> Result<(), String> {
+        Ok(())
     }
 
     /// Whether tasks on this driver wait their turn for it (an ACP agent
@@ -310,7 +321,10 @@ impl Tasks {
             title: row.title,
             agent: row.agent,
             agent_key: lock(&entry.agent_key).clone(),
-            acp_session_id: lock(&entry.acp_session_id).clone(),
+            // The agent's id is known once its session has opened.
+            acp_session_id: lock(&entry.acp_session_id)
+                .clone()
+                .or_else(|| entry.backend.session_id()),
             spec: entry.open.spec.clone(),
             created_ms: entry.created_ms,
             last_activity_ms: entry.last_activity_ms.load(Ordering::Relaxed),
@@ -318,6 +332,8 @@ impl Tasks {
             round: entry.round.load(Ordering::Relaxed),
             items: lock(&entry.transcript).items.clone(),
             pending,
+            continued_from: row.continued_from,
+            continued_in: row.continued_in,
         }
     }
 
@@ -472,6 +488,21 @@ impl Tasks {
         agent: &str,
         backend: impl FnOnce(&OpenTask) -> Result<Backend, String>,
     ) -> Result<TaskId, CannotStart> {
+        self.start_from(store, tokens, spec, agent, None, backend)
+    }
+
+    /// Starts a task, as [`Tasks::start`], that carries on from an earlier
+    /// session: `from` is that session's key and what it said, which goes in
+    /// front of the new first message.
+    fn start_from(
+        &self,
+        store: &Arc<Store>,
+        tokens: &TokenStore,
+        spec: &TaskSpec,
+        agent: &str,
+        from: Option<(SessionKey, String, String)>,
+        backend: impl FnOnce(&OpenTask) -> Result<Backend, String>,
+    ) -> Result<TaskId, CannotStart> {
         let gate = lock(&self.starting);
         if self.active() >= MAX_ACTIVE {
             return Err(CannotStart::TooMany);
@@ -488,6 +519,7 @@ impl Tasks {
         let mut row = TaskRow::new(id, &spec.goal, agent);
         let key = SessionKey::new(now_ms());
         row.key = key.clone();
+        row.continued_from = from.as_ref().map(|(old, _, _)| old.clone());
         let started_ms = now_ms();
         row.last_activity_ms = started_ms;
         if backend.queues() && self.active() > 0 {
@@ -514,7 +546,12 @@ impl Tasks {
             acp_session_id: Mutex::new(None),
             last_saved: Mutex::new(None),
         });
-        entry.record(|transcript, now| transcript.user(&spec.goal, now));
+        entry.record(|transcript, now| {
+            transcript.user(&spec.goal, now);
+            if let Some((_, title, _)) = &from {
+                transcript.notice(&format!("Continued from {title}"), now);
+            }
+        });
         // The goal is the person's own: only what comes after is unread.
         entry
             .seen
@@ -523,9 +560,211 @@ impl Tasks {
         drop(gate);
         self.tell(TaskEvent::Changed(Some(id)));
         self.watch(entry.clone(), spec.time_limit);
-        let prompt = entry.backend.first_prompt(&entry.open);
+        let mut prompt = entry.backend.first_prompt(&entry.open);
+        if let Some((_, title, said)) = &from
+            && !said.is_empty()
+        {
+            prompt.user = format!(
+                "This task carries on from an earlier session, \"{title}\". What was said there, most recent last:\n{said}\n\n{}",
+                prompt.user
+            );
+        }
         self.segment(entry, prompt);
         Ok(id)
+    }
+
+    /// Starts a new session with the same scope as session `id`, whose first
+    /// message carries a capped summary of what `id` said and did
+    /// ([`super::session::summary`]). The two are linked both ways
+    /// ([`TaskRow::continued_from`], [`TaskRow::continued_in`]). This is what
+    /// a session that can't be resumed offers.
+    pub fn continue_in_new_session(
+        &self,
+        id: TaskId,
+        store: &Arc<Store>,
+        tokens: &TokenStore,
+        agent: &str,
+        backend: impl FnOnce(&OpenTask) -> Result<Backend, String>,
+    ) -> Result<TaskId, CannotStart> {
+        let old = self.entry(id).ok_or_else(|| {
+            CannotStart::Ai("The session you're continuing is no longer listed.".to_owned())
+        })?;
+        let (old_key, old_title, active) = {
+            let row = lock(&old.row);
+            (row.key.clone(), row.title.clone(), row.is_active())
+        };
+        if active {
+            return Err(CannotStart::Ai(
+                "This session is still working. Stop it first.".to_owned(),
+            ));
+        }
+        let said = super::session::summary(&lock(&old.transcript).items);
+        let spec = old.open.spec.clone();
+        let new = self.start_from(
+            store,
+            tokens,
+            &spec,
+            agent,
+            Some((old_key, old_title, said)),
+            backend,
+        )?;
+        if let Some(key) = self.row(new).map(|row| row.key) {
+            lock(&old.row).continued_in = Some(key);
+        }
+        self.save(&old, true);
+        self.tell(TaskEvent::Changed(Some(id)));
+        Ok(new)
+    }
+
+    /// Sends `text` to a session read back after a restart, picking the
+    /// agent's conversation up again where it left off. `backend` is given
+    /// the reopened task (with a new token: the old one ended at the
+    /// restart), which agent ran it (`agent_key`, as [`Tasks::set_agent_ref`]
+    /// kept it) and its own session id, and builds whoever runs it now.
+    ///
+    /// Returns once the work is started; the agent is reached on a thread of
+    /// its own. If it can't pick the conversation up (it doesn't keep them, or
+    /// no longer has this one) the transcript says so, and the session offers
+    /// [`Tasks::continue_in_new_session`] instead.
+    pub fn resume(
+        &self,
+        id: TaskId,
+        text: &str,
+        backend: impl FnOnce(&OpenTask, &str, Option<&str>) -> Result<Backend, String>,
+    ) -> Result<(), CannotStart> {
+        let text = text.trim();
+        let gate = lock(&self.starting);
+        let old = self
+            .entry(id)
+            .ok_or_else(|| CannotStart::Ai("This session is no longer listed.".to_owned()))?;
+        let before = lock(&old.row).clone();
+        if text.is_empty() || !before.restored || !before.resumable || before.is_active() {
+            return Err(CannotStart::Ai(
+                "This session can't be picked up again. Continue in a new session to keep going."
+                    .to_owned(),
+            ));
+        }
+        if self.active() >= MAX_ACTIVE {
+            return Err(CannotStart::TooMany);
+        }
+        let agent_key = lock(&old.agent_key).clone();
+        let acp_id = lock(&old.acp_session_id).clone();
+        let minted = old.open.tokens.mint((*old.open.scope).clone());
+        let open = OpenTask {
+            token: minted.id,
+            secret: Arc::new(minted.token),
+            ..old.open.clone()
+        };
+        let backend = match backend(&open, &agent_key, acp_id.as_deref()) {
+            Ok(backend) => backend,
+            Err(message) => {
+                open.end();
+                return Err(CannotStart::Ai(message));
+            }
+        };
+        // A proposal that was reviewed has no change set to add to: a new
+        // round starts one.
+        let mut round = old.round.load(Ordering::Relaxed);
+        let sets = open.tokens.changesets();
+        if sets.get(id).is_none() {
+            sets.open(ChangeSet::new(
+                id,
+                &open.spec.goal,
+                &open.agent,
+                open.scope.clone(),
+                super::named_books(&open.spec),
+            ));
+            if lock(&old.transcript)
+                .items
+                .iter()
+                .any(|item| matches!(item, Item::Proposed { .. }))
+            {
+                round += 1;
+            }
+        }
+        let mut row = before.clone();
+        row.phase = if backend.queues() && self.active() > 0 {
+            Phase::Waiting
+        } else {
+            Phase::Running
+        };
+        row.line.clear();
+        row.ended_by = None;
+        let entry = Arc::new(Entry {
+            row: Mutex::new(row),
+            open,
+            store: old.store.clone(),
+            backend,
+            started: Instant::now(),
+            cancel: Arc::new(AtomicBool::new(false)),
+            reason: Mutex::new(None),
+            asked_at: Mutex::new(None),
+            applied: Mutex::new(None),
+            said: Mutex::new(String::new()),
+            transcript: Mutex::new(lock(&old.transcript).clone()),
+            key: old.key.clone(),
+            seen: AtomicU64::new(old.seen.load(Ordering::Relaxed)),
+            round: AtomicU32::new(round),
+            last_activity_ms: AtomicI64::new(old.last_activity_ms.load(Ordering::Relaxed)),
+            created_ms: old.created_ms,
+            agent_key: Mutex::new(agent_key),
+            acp_session_id: Mutex::new(acp_id.clone()),
+            last_saved: Mutex::new(None),
+        });
+        {
+            let mut entries = lock(&self.entries);
+            match entries.iter_mut().find(|have| have.open.id == id) {
+                Some(slot) => *slot = entry.clone(),
+                None => entries.push(entry.clone()),
+            }
+        }
+        drop(gate);
+        self.tell(TaskEvent::Changed(Some(id)));
+        let tasks = self.clone();
+        let text = text.to_owned();
+        std::thread::Builder::new()
+            .name("kanso-agent-resume".into())
+            .spawn(move || {
+                match entry.backend.resume_session(acp_id.as_deref().unwrap_or_default()) {
+                    Ok(()) => {
+                        entry.record(|transcript, now| {
+                            transcript.notice("Continued after Kanso restarted", now);
+                            transcript.user(&text, now);
+                        });
+                        {
+                            let mut row = lock(&entry.row);
+                            row.restored = false;
+                            row.resumable = false;
+                        }
+                        tasks.tell(TaskEvent::Changed(Some(id)));
+                        tasks.watch(entry.clone(), entry.open.spec.time_limit);
+                        let transcript = lock(&entry.transcript).clone();
+                        let prompt = entry.backend.reply_prompt(&entry.open, &transcript, &text);
+                        tasks.segment(entry, prompt);
+                    }
+                    Err(message) => {
+                        entry.open.end();
+                        {
+                            let mut row = lock(&entry.row);
+                            row.phase = before.phase.clone();
+                            row.resumable = false;
+                        }
+                        entry.record(|transcript, now| {
+                            transcript.notice(
+                                &format!(
+                                    "Couldn't pick the conversation up again: {}. Continue in a new session to keep going.",
+                                    message.trim().trim_end_matches('.')
+                                ),
+                                now,
+                            );
+                        });
+                        tasks.save(&entry, true);
+                        tasks.tell(TaskEvent::Changed(Some(id)));
+                    }
+                }
+            })
+            .map_err(|_| CannotStart::Ai("Couldn't start the work.".to_owned()))?;
+        Ok(())
     }
 
     /// The watchdog: ends the task at its time limit or tool-call limit, and
@@ -946,7 +1185,10 @@ impl TaskDriver for Restored {
         _: Box<dyn FnMut() + Send>,
         _: Arc<AtomicBool>,
     ) -> Result<Box<dyn Iterator<Item = Event> + Send>, String> {
-        Err("This session was saved when Kanso quit and can't continue yet.".to_owned())
+        Err(
+            "This session was saved when Kanso quit. Send a message to pick it up again."
+                .to_owned(),
+        )
     }
 }
 
@@ -980,6 +1222,13 @@ fn restored_entry(store: &Arc<Store>, tokens: &TokenStore, session: SavedSession
     row.phase = phase;
     row.counts = counts;
     row.last_activity_ms = session.last_activity_ms;
+    row.restored = true;
+    // An agent can be asked for its conversation by the id it gave; a model
+    // with an API key has none, and goes on from the transcript.
+    row.resumable = !session.agent_key.is_empty()
+        && (session.acp_session_id.is_some() || session.agent_key == API_AGENT_KEY);
+    row.continued_from = session.continued_from.clone();
+    row.continued_in = session.continued_in.clone();
     if let Some(Item::Agent { text, .. }) = session
         .items
         .iter()

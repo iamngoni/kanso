@@ -70,6 +70,15 @@ pub struct TaskRow {
     pub last_activity_ms: i64,
     /// New items since the session was last opened.
     pub unread: bool,
+    /// Read back from disk after a restart: nothing runs it until it is
+    /// resumed or continued.
+    pub restored: bool,
+    /// A message sent to it can pick the agent's conversation up again.
+    pub resumable: bool,
+    /// The session this one carries on from.
+    pub continued_from: Option<SessionKey>,
+    /// The session that carries this one on.
+    pub continued_in: Option<SessionKey>,
 }
 
 /// The colour of a row's status dot.
@@ -140,6 +149,10 @@ impl TaskRow {
             elapsed: Duration::ZERO,
             last_activity_ms: 0,
             unread: false,
+            restored: false,
+            resumable: false,
+            continued_from: None,
+            continued_in: None,
         }
     }
 
@@ -190,6 +203,12 @@ impl TaskRow {
             self.phase,
             Phase::Waiting | Phase::Running | Phase::Asking { .. }
         )
+    }
+
+    /// Whether "Continue in a new session" is the way on: it ended (or was
+    /// read back after a restart), can't be resumed, and has no successor.
+    pub fn can_continue(&self) -> bool {
+        !self.is_active() && !self.resumable && self.continued_in.is_none() && self.restored
     }
 
     pub fn can_stop(&self) -> bool {

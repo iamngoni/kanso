@@ -154,6 +154,8 @@ fn session(key: &str, items: Vec<Item>, pending: Option<ChangeSet>) -> SavedSess
         round: 2,
         items,
         pending,
+        continued_from: Some(SessionKey("from".into())),
+        continued_in: None,
     }
 }
 

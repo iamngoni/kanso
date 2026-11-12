@@ -18,6 +18,8 @@ pub mod model;
 pub mod review;
 pub mod runner;
 pub mod session;
+#[cfg(test)]
+mod session_tests;
 pub mod settings;
 pub mod store;
 #[cfg(test)]
