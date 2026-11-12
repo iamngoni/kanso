@@ -17,6 +17,8 @@ use kanso_store::{Origin, Put, SearchParams, Store};
 use serde_json::json;
 
 mod common;
+#[cfg(unix)]
+mod stand_in;
 
 use common::paths;
 
@@ -215,10 +217,8 @@ fn turning_pdf_search_off_forgets_the_words_and_on_reads_them_again() {
 /// A stand-in for the worker: a shell script in `dir` that runs `body`.
 #[cfg(unix)]
 fn stand_in(dir: &std::path::Path, body: &str) -> WorkerText {
-    use std::os::unix::fs::PermissionsExt;
     let script = dir.join("worker");
-    std::fs::write(&script, format!("#!/bin/sh\n{body}\n")).unwrap();
-    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    stand_in::write_script(&script, body);
     WorkerText::new(kanso_pdf::client::WorkerPaths {
         exe: script,
         library: Some(common::library()),
