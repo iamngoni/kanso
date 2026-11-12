@@ -71,6 +71,7 @@ AccountDetails _without({bool password = true, bool unsaved = false}) =>
       server: sampleDetails.server,
       devices: sampleDetails.devices,
       storageLine: sampleDetails.storageLine,
+      cost: sampleDetails.cost,
       hasPassword: password,
       providers: sampleDetails.providers,
       passkeys: sampleDetails.passkeys,
@@ -103,6 +104,19 @@ void main() {
       );
       expect(find.text('Sign out'), findsNWidgets(2));
       expect(find.text('Delete account'), findsOneWidget);
+    });
+
+    testWidgets('says what Kanso costs, with the space used', (tester) async {
+      await _pump(tester);
+      expect(find.text('What Kanso costs'), findsOneWidget);
+      expect(
+        find.text(
+          'Free. No subscription.\n'
+          'Sync space: 23 MiB of 100 MiB notes · 410 MiB of 1 GiB files.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Learn more'), findsOneWidget);
     });
 
     testWidgets('another device is signed out only once confirmed', (

@@ -506,6 +506,25 @@ CREATE TABLE IF NOT EXISTS note_events (
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS note_events_uid_start ON note_events (uid, instance_start);
 "#,
+    // Capture keys (issue #390): `access` may now be 'capture'. SQLite cannot
+    // change a CHECK, so the table is rebuilt with every row kept as it is.
+    r#"
+CREATE TABLE api_keys_capture (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    client TEXT NOT NULL,
+    token_hash BLOB NOT NULL UNIQUE,
+    access TEXT NOT NULL CHECK (access IN ('read', 'suggest', 'write', 'capture')),
+    books TEXT,
+    created_at INTEGER NOT NULL,
+    last_used_at INTEGER,
+    revoked_at INTEGER
+) WITHOUT ROWID;
+INSERT INTO api_keys_capture (id, name, client, token_hash, access, books, created_at, last_used_at, revoked_at)
+    SELECT id, name, client, token_hash, access, books, created_at, last_used_at, revoked_at FROM api_keys;
+DROP TABLE api_keys;
+ALTER TABLE api_keys_capture RENAME TO api_keys;
+"#,
     // Shared notebooks (`collab/books.rs`, issue #390): local to this device,
     // never synced, like shared notes'.
     crate::collab::books::MIGRATION,
@@ -826,6 +845,54 @@ mod tests {
         assert!(has_column(&conn, "note_embeddings", "vector"));
         assert!(has_column(&conn, "file_text", "text"));
         assert_eq!(get_meta(&conn, "kept").unwrap().as_deref(), Some("yes"));
+    }
+
+    /// A library from before Capture keys moves to a table that accepts
+    /// 'capture', keeping every key it had, and still refuses an access
+    /// nobody defined (issue #390).
+    #[test]
+    fn the_capture_migration_keeps_keys_and_accepts_capture() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = connect(&dir.path().join("k.db"), None).unwrap();
+        let before = MIGRATIONS.len() - 1;
+        for (index, sql) in MIGRATIONS.iter().take(before).enumerate() {
+            conn.execute_batch(&format!(
+                "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",
+                index + 1
+            ))
+            .unwrap();
+        }
+        let insert = "INSERT INTO api_keys (id, name, client, token_hash, access, books, created_at, last_used_at, revoked_at) \
+                      VALUES (?1, 'n', 'other', ?2, ?3, '[\"book:a\"]', 7, 8, NULL)";
+        for (id, access) in [("a", "read"), ("b", "suggest"), ("c", "write")] {
+            conn.execute(insert, params![id, id.as_bytes(), access])
+                .unwrap();
+        }
+        assert!(conn.execute(insert, params!["d", b"d", "capture"]).is_err());
+        migrate(&conn).unwrap();
+        assert_eq!(version(&conn), MIGRATIONS.len() as i64);
+        let rows: Vec<(String, String, String, i64, i64)> = conn
+            .prepare("SELECT id, access, books, created_at, last_used_at FROM api_keys ORDER BY id")
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            })
+            .unwrap()
+            .map(|row| row.unwrap())
+            .collect();
+        assert_eq!(rows.len(), 3);
+        assert_eq!(
+            rows[2],
+            ("c".into(), "write".into(), "[\"book:a\"]".into(), 7, 8)
+        );
+        conn.execute(insert, params!["d", b"d", "capture"]).unwrap();
+        assert!(conn.execute(insert, params!["e", b"e", "root"]).is_err());
     }
 
     /// A database pinned at version 12 (resurfacing) moves to 13 (Inbox

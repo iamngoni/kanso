@@ -91,6 +91,9 @@ impl State {
 
     /// A listed member's keys and username must be their account's own.
     fn check_book_members(&self, list: &BookMemberList) -> Result<()> {
+        if self.lax_book_members {
+            return Ok(());
+        }
         for member in &list.members {
             match self.identities.get(&member.account) {
                 None => return Err(bad()),
@@ -137,6 +140,42 @@ impl MemoryCollab {
             }
         }
         out
+    }
+
+    /// Takes every history link away, as a server that lost them would
+    /// (tests); [`MemoryCollab::put_book_history`] gives them back.
+    pub fn take_book_history(&self, share_id: &str) -> BTreeMap<u32, String> {
+        let mut state = self.state.lock().expect("poisoned");
+        let book = state.books.get_mut(share_id).expect("a notebook");
+        std::mem::take(&mut book.history)
+    }
+
+    pub fn put_book_history(&self, share_id: &str, links: BTreeMap<u32, String>) {
+        let mut state = self.state.lock().expect("poisoned");
+        let book = state.books.get_mut(share_id).expect("a notebook");
+        book.history = links;
+    }
+
+    /// Stops the server checking that a list's members' keys are their
+    /// accounts' own (tests).
+    pub fn skip_book_member_checks(&self) {
+        self.state.lock().expect("poisoned").lax_book_members = true;
+    }
+
+    /// Makes the server name `account` as the notebook's owner in what it
+    /// answers (tests).
+    pub fn set_book_owner(&self, share_id: &str, account: &str) {
+        let mut state = self.state.lock().expect("poisoned");
+        let book = state.books.get_mut(share_id).expect("a notebook");
+        book.owner = account.to_owned();
+    }
+
+    /// Makes the server claim `by` more log entries than it has, as a
+    /// server lying about its head would (tests).
+    pub fn inflate_book_head(&self, share_id: &str, by: u64) {
+        let mut state = self.state.lock().expect("poisoned");
+        let book = state.books.get_mut(share_id).expect("a notebook");
+        book.head += by;
     }
 
     /// Replaces a stored list, as a server serving another history would

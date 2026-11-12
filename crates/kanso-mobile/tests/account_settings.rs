@@ -76,6 +76,9 @@ fn the_page_lists_the_devices_with_this_phone_first() {
             .as_deref()
             .is_some_and(|line| line.contains("items"))
     );
+    assert_eq!(from_a.cost.headline, "Free. No subscription.");
+    assert!(from_a.cost.space_line.starts_with("Sync space: "));
+    assert!(from_a.cost.learn_more_url.ends_with("/price"));
     // The setup device, Phone A and Phone B.
     assert_eq!(from_a.devices.len(), 3, "{:?}", from_a.devices);
     assert!(from_a.devices[0].this_device);

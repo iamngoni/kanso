@@ -313,13 +313,17 @@ impl Engine {
         Ok(())
     }
 
-    /// Pins another member's keys. Only keys that differ from the ones pinned
-    /// stop a sync: someone whose account is gone, or who can't be looked up
-    /// now, doesn't (the signed chain vouches for the keys).
+    /// Pins another member's keys. Only two things are forgiven: someone whose
+    /// account is gone, and a lookup that can't be made right now (the signed
+    /// chain vouches for the keys meanwhile). Keys that differ from the ones
+    /// pinned, keys that aren't the ones the account published, and a failed
+    /// binding check all stop the sync.
     fn pin_other(&self, member: &Member) -> Result<()> {
         match self.pin_member(member) {
-            Err(err @ CollabError::KeyChanged(_)) => Err(err),
-            _ => Ok(()),
+            Ok(_) => Ok(()),
+            Err(CollabError::NoSuchUser(_) | CollabError::Transport(_)) => Ok(()),
+            Err(CollabError::Api { status, .. }) if status >= 500 || status == 429 => Ok(()),
+            Err(err) => Err(err),
         }
     }
 
@@ -331,8 +335,11 @@ impl Engine {
         let share_id = ctx.row.share_id.clone();
         let (info, lists) = self.fetch_chain(&share_id)?;
         let owner_pub = self.owner_sign_pub(&ctx.row.owner_id)?;
+        // The server's head bounds where a new epoch may begin for this
+        // check only. It is not kept: the head this device holds grows
+        // with the entries it has received, so a server that claims a huge
+        // head can't loosen the bound for later checks.
         let log_head = self.log_head(&share_id, ctx.row.head)?;
-        ctx.row.head = ctx.row.head.max(log_head);
         let pin = ctx.chain.head.pin();
         let Some(chain) = self.check_chain(&share_id, &lists, &owner_pub, Some(&pin), log_head)?
         else {
@@ -396,11 +403,29 @@ impl Engine {
             .iter()
             .find(|m| m.role == Role::Owner)
             .ok_or(BookListError::Malformed)?;
+        // The owner is the one the signed genesis list names; the server's
+        // word for who owns the notebook must agree with it.
+        if info.owner != genesis.owner || genesis.owner != owner_entry.account {
+            return Err(BookListError::Malformed.into());
+        }
         let owner = self.pin_member(owner_entry)?;
+        // A notebook this device was removed from (or left) is joined again
+        // against the head it trusted then: history can't be rewritten.
+        let old_pin = self
+            .store
+            .shared_book(share_id)?
+            .and_then(|row| serde_json::from_str::<StoredChain>(&row.chain).ok())
+            .map(|chain| chain.head.pin());
         // The whole chain first, without the log bound a member could read:
         // nothing is accepted for a notebook whose chain doesn't hold.
         let early = self
-            .check_chain(share_id, &lists, &owner.sign_pub, None, u64::MAX)?
+            .check_chain(
+                share_id,
+                &lists,
+                &owner.sign_pub,
+                old_pin.as_ref(),
+                u64::MAX,
+            )?
             .ok_or(BookListError::Empty)?;
         let role = early
             .head
@@ -417,7 +442,7 @@ impl Engine {
         }
         let head = self.log_head(share_id, 0)?;
         let chain = self
-            .check_chain(share_id, &lists, &owner.sign_pub, None, head)?
+            .check_chain(share_id, &lists, &owner.sign_pub, old_pin.as_ref(), head)?
             .ok_or(BookListError::Empty)?;
         let mut keys = BTreeMap::new();
         self.take_keys(share_id, &info, &chain, &mut keys)?;
@@ -440,13 +465,15 @@ impl Engine {
             row: SharedBook {
                 share_id: share_id.to_owned(),
                 book_id: book_id.clone(),
-                owner_id: info.owner.clone(),
+                owner_id: genesis.owner.clone(),
                 owner_name: owner.username.clone(),
                 role: role.as_str().to_owned(),
                 status: SharedStatus::Active,
                 epoch,
                 chain: String::new(),
-                head,
+                // Only what this device has received counts; the sync that
+                // follows raises it.
+                head: 0,
                 counter: 0,
                 uploading: false,
                 updated_at: now_ms(),
@@ -812,6 +839,11 @@ impl Engine {
         for batch in pending.chunks(SHARE_BATCH) {
             for stream in batch {
                 let mut stream = stream.clone();
+                // Since a crash (or between batches) the note may have been
+                // moved out, deleted or locked: it doesn't go up then.
+                if !self.still_shareable(&ctx, &stream)? {
+                    continue;
+                }
                 self.upload_snapshot(&mut ctx, &mut stream)?;
                 listed.push((stream.stream.clone(), now_ms()));
             }
@@ -834,6 +866,44 @@ impl Engine {
         // the way any member reads them, so the sequence numbers are known.
         self.sync_book(share_id)?;
         Ok(())
+    }
+
+    /// Whether a note whose log hasn't gone up is still in the notebook and
+    /// can be shared. If not, its log is forgotten and its share mark taken
+    /// off, so it is an ordinary note again.
+    fn still_shareable(&self, ctx: &Ctx, stream: &BookStream) -> Result<bool> {
+        let Some(note_id) = &stream.note_id else {
+            return Ok(true);
+        };
+        let note = self.store.note(note_id)?;
+        let fine = note.as_ref().is_some_and(|n| {
+            n.book_id == ctx.row.book_id && !self.store.note_is_locked(&n.id).unwrap_or(true)
+        });
+        if fine {
+            return Ok(true);
+        }
+        self.store
+            .drop_book_stream(&ctx.row.share_id, &stream.stream)?;
+        if let Some(n) = note {
+            let marked_here = n
+                .extra
+                .get(kanso_core::model::SHARE_FIELD)
+                .and_then(|m| m.get("stream"))
+                .and_then(Value::as_str)
+                == Some(stream.stream.as_str());
+            if marked_here {
+                self.store.write_shared_text(&SharedText {
+                    note_id: &n.id,
+                    title: &n.title,
+                    body: &n.body,
+                    mark: None,
+                    new_in: &n.book_id,
+                    expected_rev: None,
+                    authors: &[],
+                })?;
+            }
+        }
+        Ok(false)
     }
 
     /// The notebook's fields as the library has them.

@@ -258,7 +258,7 @@ fn keep_local_state(staged: &Path, db: &Path, key: &LibraryKey) -> Result<()> {
             name TEXT NOT NULL,
             client TEXT NOT NULL,
             token_hash BLOB NOT NULL UNIQUE,
-            access TEXT NOT NULL CHECK (access IN ('read', 'suggest', 'write')),
+            access TEXT NOT NULL CHECK (access IN ('read', 'suggest', 'write', 'capture')),
             books TEXT,
             created_at INTEGER NOT NULL,
             last_used_at INTEGER,

@@ -27570,17 +27570,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   AccountDetails dco_decode_account_details(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return AccountDetails(
       username: dco_decode_String(arr[0]),
       server: dco_decode_String(arr[1]),
       devices: dco_decode_list_device_row(arr[2]),
       storageLine: dco_decode_opt_String(arr[3]),
-      hasPassword: dco_decode_bool(arr[4]),
-      providers: dco_decode_list_linked_provider_row(arr[5]),
-      passkeys: dco_decode_list_passkey_row(arr[6]),
-      recoveryKeyUnsaved: dco_decode_bool(arr[7]),
+      cost: dco_decode_cost_summary(arr[4]),
+      hasPassword: dco_decode_bool(arr[5]),
+      providers: dco_decode_list_linked_provider_row(arr[6]),
+      passkeys: dco_decode_list_passkey_row(arr[7]),
+      recoveryKeyUnsaved: dco_decode_bool(arr[8]),
     );
   }
 
@@ -29231,6 +29232,19 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     return CopiedLink(
       text: dco_decode_String(arr[0]),
       message: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  CostSummary dco_decode_cost_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return CostSummary(
+      headline: dco_decode_String(arr[0]),
+      spaceLine: dco_decode_String(arr[1]),
+      learnMoreUrl: dco_decode_String(arr[2]),
     );
   }
 
@@ -37615,6 +37629,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     var var_server = sse_decode_String(deserializer);
     var var_devices = sse_decode_list_device_row(deserializer);
     var var_storageLine = sse_decode_opt_String(deserializer);
+    var var_cost = sse_decode_cost_summary(deserializer);
     var var_hasPassword = sse_decode_bool(deserializer);
     var var_providers = sse_decode_list_linked_provider_row(deserializer);
     var var_passkeys = sse_decode_list_passkey_row(deserializer);
@@ -37624,6 +37639,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       server: var_server,
       devices: var_devices,
       storageLine: var_storageLine,
+      cost: var_cost,
       hasPassword: var_hasPassword,
       providers: var_providers,
       passkeys: var_passkeys,
@@ -39441,6 +39457,19 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     var var_text = sse_decode_String(deserializer);
     var var_message = sse_decode_String(deserializer);
     return CopiedLink(text: var_text, message: var_message);
+  }
+
+  @protected
+  CostSummary sse_decode_cost_summary(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_headline = sse_decode_String(deserializer);
+    var var_spaceLine = sse_decode_String(deserializer);
+    var var_learnMoreUrl = sse_decode_String(deserializer);
+    return CostSummary(
+      headline: var_headline,
+      spaceLine: var_spaceLine,
+      learnMoreUrl: var_learnMoreUrl,
+    );
   }
 
   @protected
@@ -50020,6 +50049,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_String(self.server, serializer);
     sse_encode_list_device_row(self.devices, serializer);
     sse_encode_opt_String(self.storageLine, serializer);
+    sse_encode_cost_summary(self.cost, serializer);
     sse_encode_bool(self.hasPassword, serializer);
     sse_encode_list_linked_provider_row(self.providers, serializer);
     sse_encode_list_passkey_row(self.passkeys, serializer);
@@ -51745,6 +51775,14 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.text, serializer);
     sse_encode_String(self.message, serializer);
+  }
+
+  @protected
+  void sse_encode_cost_summary(CostSummary self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.headline, serializer);
+    sse_encode_String(self.spaceLine, serializer);
+    sse_encode_String(self.learnMoreUrl, serializer);
   }
 
   @protected

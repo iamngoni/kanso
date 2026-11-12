@@ -223,6 +223,7 @@ pub use feedback::MobileFeedback;
 pub use feedback_model::*;
 pub use gallery::Gallery;
 pub use gallery_model::*;
+pub use kanso_engine::account::cost_model::CostSummary;
 pub use kanso_engine::text_stats::{format_count, word_count};
 pub use kanso_engine::word_goal::{
     MAX_GOAL, PRESETS, effective_goal, goal_label, note_goal, parse_goal, progress, set_note_goal,

@@ -405,6 +405,7 @@ extension on AccountDetails {
       server: server,
       devices: devices,
       storageLine: storageLine,
+      cost: cost,
       hasPassword: hasPassword,
       providers: providers,
       passkeys: passkeys,

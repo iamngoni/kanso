@@ -94,6 +94,12 @@ pub fn access_choice(access: KeyAccess) -> (&'static str, Option<&'static str>) 
             Some("You review each edit before it's saved."),
         ),
         KeyAccess::Write => ("Read and write", Some("Changes are saved right away.")),
+        KeyAccess::Capture => (
+            "Add and tick only",
+            Some(
+                "Can read, add notes and tasks, and tick tasks. It can't change or delete anything.",
+            ),
+        ),
     }
 }
 
@@ -103,6 +109,7 @@ pub fn access_short(access: KeyAccess) -> &'static str {
         KeyAccess::Read => "Read notes",
         KeyAccess::Suggest => "Suggest edits",
         KeyAccess::Write => "Read and write",
+        KeyAccess::Capture => "Add and tick only",
     }
 }
 

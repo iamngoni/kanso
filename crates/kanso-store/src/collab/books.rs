@@ -9,7 +9,7 @@ use super::books_model::{BookOutgoing, BookStream, SharedBook};
 use super::model::{SealedKey, SharedStatus};
 use crate::{Result, Store};
 
-/// Migration 27.
+/// Migration 28.
 pub(crate) const MIGRATION: &str = r#"
 CREATE TABLE collab_books (
     share_id TEXT PRIMARY KEY NOT NULL,
@@ -284,6 +284,18 @@ impl Store {
                     stream.on_server,
                     stream.base,
                 ],
+            )?;
+            Ok(())
+        })
+    }
+
+    /// Forgets a log that never went up (its note left the notebook, was
+    /// deleted or locked before it did).
+    pub fn drop_book_stream(&self, share_id: &str, stream: &str) -> Result<()> {
+        self.write(|tx, _| {
+            tx.execute(
+                "DELETE FROM collab_book_streams WHERE share_id = ?1 AND stream = ?2",
+                params![share_id, stream],
             )?;
             Ok(())
         })

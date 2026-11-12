@@ -22,6 +22,23 @@ fn key(id: &str, hash: u8, access: KeyAccess) -> NewApiKey {
 }
 
 #[test]
+fn every_access_is_saved_and_read_back_as_it_was() {
+    let (_d, store) = temp_store();
+    for (ix, access) in KeyAccess::ALL.into_iter().enumerate() {
+        store
+            .api_key_insert(&key(&format!("k{ix}"), ix as u8 + 1, access))
+            .unwrap();
+    }
+    let live = store.api_keys_live().unwrap();
+    let got: Vec<KeyAccess> = live.iter().map(|key| key.row.access).collect();
+    assert_eq!(got, KeyAccess::ALL);
+    assert_eq!(KeyAccess::parse("capture"), Some(KeyAccess::Capture));
+    for access in KeyAccess::ALL {
+        assert_eq!(KeyAccess::parse(access.as_str()), Some(access));
+    }
+}
+
+#[test]
 fn a_key_is_saved_listed_touched_and_revoked() {
     let (_d, store) = temp_store();
     let mut new = key("a", 1, KeyAccess::Write);
