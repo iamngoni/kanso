@@ -26,9 +26,6 @@ sealed class AgentTasksEvent with _$AgentTasksEvent {
 
   const factory AgentTasksEvent.stopped(int id) = AgentTasksStoppedEvent;
 
-  const factory AgentTasksEvent.replied(int id, String text) =
-      AgentTasksRepliedEvent;
-
   const factory AgentTasksEvent.dismissed(int id) = AgentTasksDismissedEvent;
 
   const factory AgentTasksEvent.troubleCleared() =

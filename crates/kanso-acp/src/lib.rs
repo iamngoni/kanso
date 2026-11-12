@@ -188,10 +188,14 @@ pub enum AcpError {
     CancelIgnored,
     /// The agent wrote faster than Kanso could take its words.
     Stuck,
+    /// The agent can't pick a saved conversation up again (`loadSession`).
+    NoLoadSession,
 }
 
 /// JSON-RPC's code for a method nobody offers.
 pub const METHOD_NOT_FOUND: i64 = -32601;
+/// JSON-RPC's code for parameters the agent can't use (an unknown session).
+pub const INVALID_PARAMS: i64 = -32602;
 /// ACP's code for "authentication required".
 pub const AUTH_REQUIRED: i64 = -32000;
 
@@ -225,6 +229,9 @@ impl AcpError {
             AcpError::CancelIgnored => "Stopped. The agent did not finish cancelling.".to_owned(),
             AcpError::Stuck => {
                 format!("{label} sent more than Kanso could take, so it was stopped.")
+            }
+            AcpError::NoLoadSession => {
+                format!("{label} can't pick an earlier conversation up again.")
             }
         }
     }

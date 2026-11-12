@@ -48,6 +48,14 @@ impl TaskDriver for AcpDriver {
         self.0.end();
     }
 
+    fn resume_session(&self, acp_session_id: &str) -> Result<(), String> {
+        self.0.resume(acp_session_id).map_err(|e| e.to_string())
+    }
+
+    fn session_id(&self) -> Option<String> {
+        self.0.session_id()
+    }
+
     fn queues(&self) -> bool {
         true
     }

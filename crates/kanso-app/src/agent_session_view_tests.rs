@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use gpui_kit::{AppContext as _, TestAppContext, VisualTestContext};
+use kanso_engine::agent_task::model::Phase;
 use kanso_engine::agent_task::session::{Item, PermissionAnswer, RoundState, ToolKind, ToolStatus};
 use kanso_server::Counts;
 use kanso_store::Store;
@@ -118,6 +119,57 @@ fn a_transcript_draws_in_order_with_tool_runs_folded(cx: &mut TestAppContext) {
     assert!(vcx.debug_bounds("session-tool-2").is_none());
     assert!(vcx.debug_bounds("session-tool-3").is_none());
     assert!(vcx.debug_bounds("session-header").is_some());
+    // A session that is not read back from disk offers neither.
+    assert!(vcx.debug_bounds("session-resume-bar").is_none());
+    assert!(vcx.debug_bounds("session-continue-bar").is_none());
+}
+
+/// What a restored session offers under its transcript: a box that resumes
+/// it, or "Continue in a new session" when it can't be resumed.
+#[gpui_kit::test]
+fn a_restored_session_offers_to_resume_or_to_continue_in_a_new_one(cx: &mut TestAppContext) {
+    let mut config = AppConfig::default();
+    config.ai.enabled = true;
+    let dir = tempfile::tempdir().unwrap();
+    let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
+    let data_dir = dir.path().to_path_buf();
+    let (window, view) = cx.update(|cx| {
+        gpui_kit::init(cx);
+        cx.set_global(AppState {
+            store,
+            data_dir,
+            config,
+        });
+        cx.set_global(Services::default());
+        gpui_kit::open_window(Default::default(), cx, |_, cx| {
+            cx.new(|cx| AgentSessionView::from_items(&transcript(), true, cx))
+        })
+        .unwrap()
+    });
+    let mut vcx = VisualTestContext::from_window(window, cx);
+    let show = |vcx: &mut VisualTestContext, restored: bool, resumable: bool| {
+        view.update(vcx, |view, cx| {
+            view.change_row(|row| {
+                row.phase = Phase::Nothing;
+                row.restored = restored;
+                row.resumable = resumable;
+            });
+            cx.notify();
+        });
+        vcx.run_until_parked();
+        vcx.update(|window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        });
+        (
+            vcx.debug_bounds("session-input").is_some(),
+            vcx.debug_bounds("session-continue").is_some(),
+        )
+    };
+    assert_eq!(show(&mut vcx, true, true), (true, false));
+    assert_eq!(show(&mut vcx, true, false), (false, true));
+    // A live session has the same box, and nothing to continue.
+    assert_eq!(show(&mut vcx, false, false), (true, false));
 }
 
 /// The composer is a box that sends, a Stop while a turn runs, or the
@@ -146,7 +198,7 @@ fn the_composer_follows_the_session(cx: &mut TestAppContext) {
     });
     let draw = |cx: &mut TestAppContext, row: TaskRow| {
         view.update(cx, |view, cx| {
-            view.set_row(row);
+            view.change_row(|current| *current = row);
             cx.notify();
         });
         cx.run_until_parked();

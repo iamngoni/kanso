@@ -8,7 +8,7 @@ abstract class AgentTasksState with _$AgentTasksState {
   const factory AgentTasksState({
     @Default(LoadStatus.loading) LoadStatus status,
     @Default(AgentTaskPrefs()) AgentTaskPrefs prefs,
-    @Default(<AgentTask>[]) List<AgentTask> tasks,
+    @Default(<AgentSession>[]) List<AgentSession> sessions,
 
     /// A start is on its way.
     @Default(false) bool starting,

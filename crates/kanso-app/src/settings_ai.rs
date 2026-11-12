@@ -1065,6 +1065,44 @@ impl AiPage {
         ]
     }
 
+    /// "Agent sessions: 12 on this Mac · Delete All…": the sessions kept in
+    /// the data folder, with the way to remove them all.
+    fn sessions_row(view: Entity<Self>, cx: &App) -> Row {
+        let tasks = cx
+            .try_global::<Services>()
+            .map(|services| services.tasks.clone());
+        let count = tasks.as_ref().map_or(0, |tasks| tasks.saved_count());
+        let button = Button::new("ai-sessions-delete")
+            .debug_selector(|| "ai-sessions-delete".into())
+            .outline()
+            .small()
+            .label("Delete All…")
+            .disabled(count == 0)
+            .on_click(move |_, window, cx| {
+                let (Some(tasks), count) = (tasks.clone(), count) else {
+                    return;
+                };
+                let view = view.clone();
+                crate::dialogs::confirm(
+                    "Delete all agent sessions?",
+                    format!(
+                        "{count} session{} and their transcripts are removed from this Mac. Changes you already applied stay.",
+                        if count == 1 { "" } else { "s" }
+                    ),
+                    "Delete All",
+                    window,
+                    cx,
+                    move |_, cx| {
+                        tasks.delete_all_saved();
+                        view.update(cx, |_, cx| cx.notify());
+                    },
+                );
+            });
+        Row::new(gpui_kit::assets::IconName::Trash, "Agent sessions")
+            .detail(format!("{count} on this Mac"))
+            .trailing(button)
+    }
+
     /// Settings > AI > Agent tasks: what a task may propose by default, how
     /// long it may run, how many notes it may read.
     fn agent_task_rows(&self, ai: &AiSettings) -> Vec<Row> {
@@ -1510,9 +1548,11 @@ impl Render for AiPage {
                 self.ask_rows(&ai),
                 colors,
             )));
+            let mut task_rows = self.agent_task_rows(&ai);
+            task_rows.push(Self::sessions_row(view.clone(), cx));
             page = page.child(v_flex().mt(px(12.)).child(section(
                 "Agent tasks",
-                self.agent_task_rows(&ai),
+                task_rows,
                 colors,
             )));
         }

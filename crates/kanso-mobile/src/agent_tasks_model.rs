@@ -1,7 +1,10 @@
 //! The plain data of agent tasks on the phone: a task's row and the cards
 //! to review. No logic beyond building a row from the engine's.
 
-use kanso_engine::agent_task::model::{Phase, TaskRow};
+use kanso_engine::agent_task::model::{Dot, Phase, TaskRow, when_label};
+use kanso_engine::agent_task::session::{
+    Item, PermissionAnswer, RoundState, ToolKind, ToolStatus, Transcript,
+};
 
 /// Settings > AI > Agent tasks on the phone.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -94,4 +97,227 @@ pub struct TaskReview {
     pub from_agent: String,
     pub warnings: Vec<String>,
     pub cards: Vec<TaskCard>,
+}
+
+/// One session in the list (issue #375): a task as a row.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SessionView {
+    /// The task's id for this launch (Review, Stop and Apply take it).
+    pub id: u64,
+    /// The session's own id, which a restart keeps.
+    pub key: String,
+    /// The goal cut to one line, or the name the person gave.
+    pub title: String,
+    pub agent: String,
+    /// `waiting`, `running`, `asking`, `ready`, `nothing`, `failed`,
+    /// `applied`, `undone` or `discarded`.
+    pub phase: String,
+    /// The question, the error or the number of changes, by phase.
+    pub detail: String,
+    /// "4 changes to review".
+    pub status: String,
+    /// "now", "2m ago", "yesterday".
+    pub when: String,
+    /// `working`, `needs_you`, `idle` or `failed`.
+    pub dot: String,
+    /// New items since the session was last opened.
+    pub unread: bool,
+    pub last_activity_ms: i64,
+    pub notes_read: u32,
+    pub changes: u32,
+    pub can_stop: bool,
+    pub can_review: bool,
+    /// Whether the composer can send now.
+    pub can_follow_up: bool,
+}
+
+impl SessionView {
+    pub(crate) fn from_row(row: &TaskRow, now_ms: i64) -> SessionView {
+        let task = TaskView::from_row(row);
+        SessionView {
+            id: task.id,
+            key: row.key.0.clone(),
+            title: row.title.clone(),
+            agent: task.agent,
+            phase: task.phase,
+            detail: task.detail,
+            status: row.list_status(),
+            when: when_label(now_ms, row.last_activity_ms),
+            dot: match row.dot() {
+                Dot::Working => "working",
+                Dot::NeedsYou => "needs_you",
+                Dot::Idle => "idle",
+                Dot::Failed => "failed",
+            }
+            .to_owned(),
+            unread: row.unread,
+            last_activity_ms: row.last_activity_ms,
+            notes_read: task.notes_read,
+            changes: task.changes,
+            can_stop: row.can_stop(),
+            can_review: row.can_review(),
+            can_follow_up: row.can_follow_up(),
+        }
+    }
+}
+
+/// One thing in a session's transcript, flat so the bridge carries it as
+/// plain data. Which fields mean something depends on `kind`.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TranscriptItemView {
+    /// `user`, `agent`, `thought`, `tool`, `permission`, `proposed` or
+    /// `notice`.
+    pub kind: String,
+    /// The words of a user, agent, thought or notice item.
+    pub text: String,
+    /// A tool's or permission's title.
+    pub title: String,
+    /// A tool's kind: `read`, `edit`, `delete`, `move`, `search`, `execute`,
+    /// `think`, `fetch`, `switch_mode` or `other`.
+    pub tool_kind: String,
+    /// A tool's state: `pending`, `in_progress`, `completed` or `failed`.
+    pub status: String,
+    /// A permission's answer: `allowed_once`, `allowed_for_session`,
+    /// `allowed_always` or `rejected`.
+    pub answer: String,
+    /// A proposal's round.
+    pub round: u32,
+    /// A proposal's counts: "3 new notes, 1 edit".
+    pub counts: String,
+    /// A proposal's state: `to_review`, `applied`, `undone`, `discarded` or
+    /// `lost`.
+    pub state: String,
+    pub at_ms: i64,
+    /// Seconds spent thinking.
+    pub thought_secs: u32,
+}
+
+impl TranscriptItemView {
+    fn of(item: &Item) -> TranscriptItemView {
+        let base = TranscriptItemView::default();
+        match item {
+            Item::User { text, at_ms } => TranscriptItemView {
+                kind: "user".into(),
+                text: text.clone(),
+                at_ms: *at_ms,
+                ..base
+            },
+            Item::Agent { text, at_ms } => TranscriptItemView {
+                kind: "agent".into(),
+                text: text.clone(),
+                at_ms: *at_ms,
+                ..base
+            },
+            Item::Thought { text, ms } => TranscriptItemView {
+                kind: "thought".into(),
+                text: text.clone(),
+                thought_secs: u32::try_from(ms / 1000).unwrap_or(u32::MAX),
+                ..base
+            },
+            Item::Tool {
+                title,
+                kind,
+                status,
+                ..
+            } => TranscriptItemView {
+                kind: "tool".into(),
+                title: title.clone(),
+                tool_kind: tool_kind_word(*kind).into(),
+                status: tool_status_word(*status).into(),
+                ..base
+            },
+            Item::Permission {
+                title,
+                kind,
+                answer,
+            } => TranscriptItemView {
+                kind: "permission".into(),
+                title: title.clone(),
+                tool_kind: tool_kind_word(*kind).into(),
+                answer: match answer {
+                    PermissionAnswer::AllowedOnce => "allowed_once",
+                    PermissionAnswer::AllowedForSession => "allowed_for_session",
+                    PermissionAnswer::AllowedAlways => "allowed_always",
+                    PermissionAnswer::Rejected => "rejected",
+                }
+                .into(),
+                ..base
+            },
+            Item::Proposed {
+                round,
+                counts,
+                state,
+            } => TranscriptItemView {
+                kind: "proposed".into(),
+                round: *round,
+                counts: counts.describe(),
+                state: match state {
+                    RoundState::ToReview => "to_review",
+                    RoundState::Applied => "applied",
+                    RoundState::Undone => "undone",
+                    RoundState::Discarded => "discarded",
+                    RoundState::Lost => "lost",
+                }
+                .into(),
+                ..base
+            },
+            Item::Notice { text, at_ms } => TranscriptItemView {
+                kind: "notice".into(),
+                text: text.clone(),
+                at_ms: *at_ms,
+                ..base
+            },
+        }
+    }
+}
+
+fn tool_kind_word(kind: ToolKind) -> &'static str {
+    match kind {
+        ToolKind::Read => "read",
+        ToolKind::Edit => "edit",
+        ToolKind::Delete => "delete",
+        ToolKind::Move => "move",
+        ToolKind::Search => "search",
+        ToolKind::Execute => "execute",
+        ToolKind::Think => "think",
+        ToolKind::Fetch => "fetch",
+        ToolKind::SwitchMode => "switch_mode",
+        ToolKind::Other => "other",
+    }
+}
+
+fn tool_status_word(status: ToolStatus) -> &'static str {
+    match status {
+        ToolStatus::Pending => "pending",
+        ToolStatus::InProgress => "in_progress",
+        ToolStatus::Completed => "completed",
+        ToolStatus::Failed => "failed",
+    }
+}
+
+/// A session and everything said in it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SessionTranscript {
+    pub session: SessionView,
+    /// Moves with every change, so the screen can tell whether to redraw.
+    pub version: u64,
+    pub items: Vec<TranscriptItemView>,
+}
+
+impl SessionTranscript {
+    pub(crate) fn from_parts(
+        row: &TaskRow,
+        transcript: &Transcript,
+        now_ms: i64,
+    ) -> SessionTranscript {
+        SessionTranscript {
+            session: SessionView::from_row(row, now_ms),
+            version: transcript.version,
+            items: transcript
+                .items
+                .iter()
+                .map(TranscriptItemView::of)
+                .collect(),
+        }
+    }
 }

@@ -544,10 +544,30 @@ jobs:
           target/release/kanso-release check-notices --changelog CHANGELOG.md \
             --version "${GITHUB_REF_NAME#v}"
 
-      - name: Update feed
+      # The release's What's new video, when one was committed at
+      # release-media/<v>/whats-new.webp before tagging (docs/RELEASING.md ›
+      # What's new video). It goes up as Kanso-<v>-whats-new.webp and into
+      # the signed feed; without one, nothing here changes.
+      - name: What's new video
+        id: video
         run: |
+          v=${GITHUB_REF_NAME#v}
+          src="release-media/$v/whats-new.webp"
+          if [ -f "$src" ]; then
+            cp "$src" "dist/Kanso-$v-whats-new.webp"
+            echo "args=--whats-new dist/Kanso-$v-whats-new.webp" >>"$GITHUB_OUTPUT"
+            echo "Found $src ($(wc -c <"$src") bytes)"
+          else
+            echo "No $src: the release has no What's new video"
+          fi
+
+      - name: Update feed
+        env:
+          VIDEO_ARGS: ${{ steps.video.outputs.args }}
+        run: |
+          # shellcheck disable=SC2086 # VIDEO_ARGS is empty or two words.
           target/release/kanso-release feed --version "${GITHUB_REF_NAME#v}" \
-            --notes notes/notes.md --dist dist \
+            --notes notes/notes.md --dist dist --changelog CHANGELOG.md $VIDEO_ARGS \
             --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --out dist/latest.json
 
       # The one step with the key. Without it the release stops here, since
@@ -573,6 +593,7 @@ jobs:
             dist/latest.json
             dist/latest.json.sig
             dist/SHA256SUMS
+            dist/Kanso-*-whats-new.webp
             notes/notes.md
           if-no-files-found: error
 
@@ -684,6 +705,10 @@ jobs:
       - name: Check every file against SHA256SUMS
         run: |
           cp feed/dist/latest.json feed/dist/latest.json.sig feed/dist/SHA256SUMS dist/
+          # The What's new video, when the release has one.
+          for f in feed/dist/Kanso-*-whats-new.webp; do
+            if [ -f "$f" ]; then cp "$f" dist/; fi
+          done
           cd dist && sha256sum --check --strict SHA256SUMS
 
       - name: Publish

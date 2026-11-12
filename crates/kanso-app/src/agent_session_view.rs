@@ -5,7 +5,10 @@
 //!
 //! The composer under the transcript sends a message to the same agent
 //! conversation ([`Tasks::follow_up`]). While a turn runs it offers Stop, and
-//! what is typed waits as the next message.
+//! what is typed waits as the next message. A session read back after a
+//! restart has the same box, which picks the agent's conversation up again,
+//! or "Continue in a new session" when it can't, and links to the session it
+//! carries on from or in.
 
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
@@ -35,6 +38,8 @@ use crate::zoom::px;
 pub enum SessionEvent {
     /// "‹ Tasks": back to the list.
     Back,
+    /// Show another session in its place (a linked one).
+    Open(SessionKey),
 }
 
 impl EventEmitter<SessionEvent> for AgentSessionView {}
@@ -65,6 +70,10 @@ pub struct AgentSessionView {
     composer: Option<Entity<TextareaState>>,
     /// What was typed while a turn ran: it goes out when the turn ends.
     queued: Option<String>,
+    /// Why resuming or continuing didn't start.
+    problem: Option<String>,
+    /// A resume or a continue is starting.
+    busy: bool,
     _watch: Task<()>,
     _subscriptions: Vec<Subscription>,
 }
@@ -128,6 +137,8 @@ impl AgentSessionView {
             stick: true,
             composer: None,
             queued: None,
+            problem: None,
+            busy: false,
             _watch: watching,
             _subscriptions: Vec::new(),
         };
@@ -231,7 +242,12 @@ impl AgentSessionView {
         if text.is_empty() {
             return;
         }
+        let restored = self.row.as_ref().is_some_and(|row| row.restored);
         match self.composer_state(cx) {
+            Composer::Send if restored => {
+                let text = text.to_owned();
+                self.send_resume(text, window, cx);
+            }
             Composer::Send => {
                 if self.tasks.follow_up(id, text) {
                     self.stick = true;
@@ -251,6 +267,71 @@ impl AgentSessionView {
         cx.notify();
     }
 
+    /// Sends `text` to a session read back after a restart: the agent's
+    /// conversation is picked up again where it left off.
+    fn send_resume(&mut self, text: String, window: &mut Window, cx: &mut Context<Self>) {
+        let (Some(id), Some(input)) = (self.id(), self.composer.clone()) else {
+            return;
+        };
+        if self.busy {
+            return;
+        }
+        self.problem = None;
+        self.busy = true;
+        let job = crate::agent_task_panel::resume_job(id, text, cx);
+        input.update(cx, |input, cx| input.set_value("", window, cx));
+        self.stick = true;
+        cx.spawn(async move |this, cx| {
+            let result = job.await;
+            this.update(cx, |this, cx| {
+                this.busy = false;
+                if let Err(message) = result {
+                    this.problem = Some(message);
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        cx.notify();
+    }
+
+    /// "Continue in a new session": the same scope, with a summary of this
+    /// one, linked both ways; the new session opens in place of this one.
+    fn continue_in_new(&mut self, cx: &mut Context<Self>) {
+        let Some(id) = self.id() else { return };
+        if self.busy {
+            return;
+        }
+        self.problem = None;
+        self.busy = true;
+        let job = crate::agent_task_panel::continue_job(id, cx);
+        cx.spawn(async move |this, cx| {
+            let result = job.await;
+            this.update(cx, |this, cx| {
+                this.busy = false;
+                match result {
+                    Ok(key) => this.go_to(key, cx),
+                    Err(message) => this.problem = Some(message),
+                }
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+        cx.notify();
+    }
+
+    /// Shows session `key`: in the panel in place of this one, from a window
+    /// in a window of its own.
+    fn go_to(&mut self, key: SessionKey, cx: &mut Context<Self>) {
+        if self.in_panel {
+            cx.emit(SessionEvent::Open(key));
+        } else {
+            open_in_window(key, cx);
+        }
+    }
+
     fn toggle(&mut self, ix: usize, cx: &mut Context<Self>) {
         if !self.opened.remove(&ix) {
             self.opened.insert(ix);
@@ -267,6 +348,42 @@ impl AgentSessionView {
     }
 
     // ------------------------------------------------------------ drawing
+
+    /// "Continued from …" and "Continued in …", as buttons that open the
+    /// other session (plain words once it is no longer listed).
+    fn links(&mut self, cx: &mut Context<Self>) -> Option<Vec<AnyElement>> {
+        let colors = Colors::get(cx);
+        let row = self.row.clone()?;
+        let mut links = Vec::new();
+        for (ix, (word, key)) in [
+            ("Continued from", row.continued_from),
+            ("Continued in", row.continued_in),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let Some(key) = key else { continue };
+            let title = self
+                .tasks
+                .by_key(&key)
+                .and_then(|id| self.tasks.row(id))
+                .map(|row| row.title);
+            links.push(match title {
+                Some(title) => Button::new(("session-link", ix))
+                    .ghost()
+                    .xsmall()
+                    .label(format!("{word} {title} ›"))
+                    .on_click(cx.listener(move |this, _, _, cx| this.go_to(key.clone(), cx)))
+                    .into_any_element(),
+                None => div()
+                    .text_size(px(12.))
+                    .text_color(colors.text_muted)
+                    .child(format!("{word} a session that was deleted"))
+                    .into_any_element(),
+            });
+        }
+        (!links.is_empty()).then_some(links)
+    }
 
     fn header(&mut self, ix_base: &'static str, cx: &mut Context<Self>) -> AnyElement {
         let colors = Colors::get(cx);
@@ -290,6 +407,7 @@ impl AgentSessionView {
         });
         let can_end = row.as_ref().is_some_and(TaskRow::can_end);
         let can_undo = id.is_some_and(|id| self.tasks.can_undo(id));
+        let links = self.links(cx);
         let tasks = self.tasks.clone();
         let open_window = {
             let key = self.key.clone();
@@ -355,6 +473,9 @@ impl AgentSessionView {
                         )
                     }),
             )
+            .when_some(links, |el, links| {
+                el.child(h_flex().gap(px(6.)).flex_wrap().children(links))
+            })
             .child(
                 h_flex()
                     .gap(px(6.))
@@ -763,7 +884,9 @@ impl Render for AgentSessionView {
         let composer = self.composer_state(cx);
         let input = matches!(composer, Composer::Send | Composer::Stop)
             .then(|| self.composer_box(window, cx));
-        let ended = self.row.as_ref().is_some_and(|row| !row.live);
+        let can_continue = self.row.as_ref().is_some_and(TaskRow::can_continue);
+        let problem = self.problem.clone();
+        let busy = self.busy;
         let queued = self.queued.clone();
         let id = self.id();
         let tasks = self.tasks.clone();
@@ -893,15 +1016,23 @@ impl Render for AgentSessionView {
                             )
                         },
                     )
-                    // Starting a new session from this one comes with
-                    // resuming (issue #375, step 7).
-                    .when(ended, |el| {
+                    .when_some(problem, |el, problem| {
+                        el.child(
+                            div()
+                                .text_size(px(12.))
+                                .text_color(colors.danger)
+                                .child(problem),
+                        )
+                    })
+                    .when(can_continue, |el| {
                         el.child(
                             Button::new("session-continue")
+                                .debug_selector(|| "session-continue".into())
                                 .outline()
                                 .small()
+                                .disabled(busy)
                                 .label("Continue in a new session")
-                                .disabled(true),
+                                .on_click(cx.listener(|this, _, _, cx| this.continue_in_new(cx))),
                         )
                     }),
             )
@@ -948,8 +1079,10 @@ impl AgentSessionView {
         view
     }
 
-    /// Shows `row` as the session's, for tests of the composer.
-    pub(crate) fn set_row(&mut self, row: TaskRow) {
-        self.row = Some(row);
+    /// Changes the row the view shows, to draw a session in another state.
+    pub(crate) fn change_row(&mut self, change: impl FnOnce(&mut TaskRow)) {
+        if let Some(row) = self.row.as_mut() {
+            change(row);
+        }
     }
 }

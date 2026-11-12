@@ -18,7 +18,12 @@ pub mod model;
 pub mod review;
 pub mod runner;
 pub mod session;
+#[cfg(test)]
+mod session_tests;
 pub mod settings;
+pub mod store;
+#[cfg(test)]
+mod store_tests;
 
 use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -31,6 +36,7 @@ use kanso_server::{
     readable_notes,
 };
 use kanso_store::Store;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// The default time a task may run.
@@ -47,7 +53,7 @@ pub const MAX_NOTES_CHOICES: [usize; 3] = [50, 200, 1000];
 pub const IDLE_CLOSE: Duration = Duration::from_secs(30 * 60);
 
 /// What the agent may read.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReadScope {
     /// These notes, by ID.
     Notes(Vec<String>),
@@ -60,7 +66,7 @@ pub enum ReadScope {
 }
 
 /// The New agent task sheet, as a value.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskSpec {
     pub goal: String,
     pub read: ReadScope,

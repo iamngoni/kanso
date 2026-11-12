@@ -70,6 +70,16 @@ pub enum Script {
     /// one's notebook (`kanso-propose-merge`), calls `kanso-task-done` and
     /// answers "Done. <what the server said>".
     Task,
+    /// Answers each prompt with a report of where it is: "session=<id>
+    /// turn=<n> saw=<text>". It offers `session/load`: a session it doesn't
+    /// know yet, but whose id is of its own kind, is picked up after the two
+    /// messages of its history are replayed, and its turns go on from 2.
+    Report,
+    /// As [`Script::Report`], but without `loadSession`.
+    ReportNoLoad,
+    /// As [`Script::Report`], but it no longer has the conversation:
+    /// `session/load` fails with "Session not found".
+    ReportGone,
 }
 
 impl Script {
@@ -99,6 +109,9 @@ impl Script {
             "task" => Script::Task,
             "session" => Script::Session,
             "tools" => Script::Tools,
+            "report" => Script::Report,
+            "report-no-load" => Script::ReportNoLoad,
+            "report-gone" => Script::ReportGone,
             "sleep" => {
                 std::thread::sleep(Duration::from_secs(600));
                 Script::Hang
@@ -589,7 +602,53 @@ impl<W: Write> Fake<W> {
                 self.reply(&id, json!({ "stopReason": "end_turn" }));
             }
             Script::Auth | Script::V2 => self.answer(&id, &session, "OK"),
+            Script::Report | Script::ReportNoLoad | Script::ReportGone => {
+                let report = format!("session={session} turn={turn} saw={text}");
+                self.answer(&id, &session, &report);
+            }
         }
+    }
+
+    /// `session/load`: replays the history, then answers like `session/new`.
+    fn load(&mut self, id: &Value, params: &Value) {
+        let session = params
+            .get("sessionId")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_owned();
+        if self.script != Script::Report || !session.starts_with("fake-session-") {
+            self.error(id, crate::INVALID_PARAMS, "Session not found");
+            return;
+        }
+        let servers = params.get("mcpServers").cloned().unwrap_or(json!([]));
+        // Its history is one turn old.
+        self.sessions.retain(|(have, _, _)| *have != session);
+        self.sessions.push((session.clone(), servers, 1));
+        for (kind, text) in [
+            ("user_message_chunk", "old question"),
+            ("agent_message_chunk", "old answer"),
+        ] {
+            self.send(json!({
+                "jsonrpc": "2.0",
+                "method": "session/update",
+                "params": {
+                    "sessionId": session,
+                    "update": { "sessionUpdate": kind, "content": { "type": "text", "text": text } },
+                },
+            }));
+        }
+        self.reply(
+            id,
+            json!({
+                "modes": {
+                    "currentModeId": "code",
+                    "availableModes": [
+                        { "id": "code", "name": "Code" },
+                        { "id": "read-only", "name": "Read only" },
+                    ],
+                },
+            }),
+        );
     }
 
     fn handle<R: BufRead>(&mut self, input: &mut R, message: Value) {
@@ -616,6 +675,7 @@ impl<W: Write> Fake<W> {
                         "agentCapabilities": {
                             "mcpCapabilities": { "http": self.script != Script::NotesStdio },
                             "sessionCapabilities": { "close": {} },
+                            "loadSession": matches!(self.script, Script::Report | Script::ReportGone),
                         },
                         "agentInfo": { "name": "fake-agent", "title": "Fake Agent", "version": "1.2.3" },
                         "authMethods": [{ "id": "fake-login", "name": "Log in", "description": "Opens a browser" }],
@@ -649,6 +709,7 @@ impl<W: Write> Fake<W> {
                     }),
                 );
             }
+            "session/load" => self.load(&id, &params),
             "session/set_mode" | "session/close" => self.reply(&id, json!({})),
             "session/prompt" => self.prompt(input, id, &params),
             _ => self.error(&id, crate::METHOD_NOT_FOUND, "Unknown method"),

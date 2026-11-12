@@ -53,6 +53,7 @@ import 'api/types.dart';
 import 'api/voice.dart';
 import 'api/voice_capture.dart';
 import 'api/voice_capture_types.dart';
+import 'api/whats_new_types.dart';
 import 'api/word_goal.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -1257,6 +1258,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PhoneNotice dco_decode_box_autoadd_phone_notice(dynamic raw);
 
   @protected
+  PhoneWhatsNew dco_decode_box_autoadd_phone_whats_new(dynamic raw);
+
+  @protected
   PreviewCanvasShown dco_decode_box_autoadd_preview_canvas_shown(dynamic raw);
 
   @protected
@@ -1294,6 +1298,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   SearchScope dco_decode_box_autoadd_search_scope(dynamic raw);
+
+  @protected
+  SessionTranscript dco_decode_box_autoadd_session_transcript(dynamic raw);
 
   @protected
   Share dco_decode_box_autoadd_share(dynamic raw);
@@ -2030,6 +2037,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<PeopleSuggestion> dco_decode_list_people_suggestion(dynamic raw);
 
   @protected
+  List<PhoneWhatsNewEarlier> dco_decode_list_phone_whats_new_earlier(
+    dynamic raw,
+  );
+
+  @protected
+  List<PhoneWhatsNewSection> dco_decode_list_phone_whats_new_section(
+    dynamic raw,
+  );
+
+  @protected
   ListPlace dco_decode_list_place(dynamic raw);
 
   @protected
@@ -2140,6 +2157,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<RevisitOption> dco_decode_list_revisit_option(dynamic raw);
 
   @protected
+  List<SessionView> dco_decode_list_session_view(dynamic raw);
+
+  @protected
   ListShape dco_decode_list_shape(dynamic raw);
 
   @protected
@@ -2219,6 +2239,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<ThemedIcon> dco_decode_list_themed_icon(dynamic raw);
+
+  @protected
+  List<TranscriptItem> dco_decode_list_transcript_item(dynamic raw);
 
   @protected
   List<TriageCard> dco_decode_list_triage_card(dynamic raw);
@@ -2527,6 +2550,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PhoneNotice? dco_decode_opt_box_autoadd_phone_notice(dynamic raw);
 
   @protected
+  PhoneWhatsNew? dco_decode_opt_box_autoadd_phone_whats_new(dynamic raw);
+
+  @protected
   PreviewTaskBox? dco_decode_opt_box_autoadd_preview_task_box(dynamic raw);
 
   @protected
@@ -2549,6 +2575,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Saved? dco_decode_opt_box_autoadd_saved(dynamic raw);
+
+  @protected
+  SessionTranscript? dco_decode_opt_box_autoadd_session_transcript(dynamic raw);
 
   @protected
   ShareInfo? dco_decode_opt_box_autoadd_share_info(dynamic raw);
@@ -2799,6 +2828,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PhoneNotices dco_decode_phone_notices(dynamic raw);
 
   @protected
+  PhoneWhatsNew dco_decode_phone_whats_new(dynamic raw);
+
+  @protected
+  PhoneWhatsNewEarlier dco_decode_phone_whats_new_earlier(dynamic raw);
+
+  @protected
+  PhoneWhatsNewSection dco_decode_phone_whats_new_section(dynamic raw);
+
+  @protected
   PlannedNote dco_decode_planned_note(dynamic raw);
 
   @protected
@@ -3030,6 +3068,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   ServerMethods dco_decode_server_methods(dynamic raw);
 
   @protected
+  SessionTranscript dco_decode_session_transcript(dynamic raw);
+
+  @protected
+  SessionView dco_decode_session_view(dynamic raw);
+
+  @protected
   Share dco_decode_share(dynamic raw);
 
   @protected
@@ -3220,6 +3264,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   TidyOutcome dco_decode_tidy_outcome(dynamic raw);
+
+  @protected
+  TranscriptItem dco_decode_transcript_item(dynamic raw);
 
   @protected
   TriageCard dco_decode_triage_card(dynamic raw);
@@ -4411,6 +4458,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PhoneNotice sse_decode_box_autoadd_phone_notice(SseDeserializer deserializer);
 
   @protected
+  PhoneWhatsNew sse_decode_box_autoadd_phone_whats_new(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PreviewCanvasShown sse_decode_box_autoadd_preview_canvas_shown(
     SseDeserializer deserializer,
   );
@@ -4460,6 +4512,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   SearchScope sse_decode_box_autoadd_search_scope(SseDeserializer deserializer);
+
+  @protected
+  SessionTranscript sse_decode_box_autoadd_session_transcript(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Share sse_decode_box_autoadd_share(SseDeserializer deserializer);
@@ -5312,6 +5369,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<PhoneWhatsNewEarlier> sse_decode_list_phone_whats_new_earlier(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PhoneWhatsNewSection> sse_decode_list_phone_whats_new_section(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ListPlace sse_decode_list_place(SseDeserializer deserializer);
 
   @protected
@@ -5460,6 +5527,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<SessionView> sse_decode_list_session_view(SseDeserializer deserializer);
+
+  @protected
   ListShape sse_decode_list_shape(SseDeserializer deserializer);
 
   @protected
@@ -5559,6 +5629,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<ThemedIcon> sse_decode_list_themed_icon(SseDeserializer deserializer);
+
+  @protected
+  List<TranscriptItem> sse_decode_list_transcript_item(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<TriageCard> sse_decode_list_triage_card(SseDeserializer deserializer);
@@ -5933,6 +6008,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  PhoneWhatsNew? sse_decode_opt_box_autoadd_phone_whats_new(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PreviewTaskBox? sse_decode_opt_box_autoadd_preview_task_box(
     SseDeserializer deserializer,
   );
@@ -5967,6 +6047,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Saved? sse_decode_opt_box_autoadd_saved(SseDeserializer deserializer);
+
+  @protected
+  SessionTranscript? sse_decode_opt_box_autoadd_session_transcript(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ShareInfo? sse_decode_opt_box_autoadd_share_info(
@@ -6237,6 +6322,19 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PhoneNotices sse_decode_phone_notices(SseDeserializer deserializer);
 
   @protected
+  PhoneWhatsNew sse_decode_phone_whats_new(SseDeserializer deserializer);
+
+  @protected
+  PhoneWhatsNewEarlier sse_decode_phone_whats_new_earlier(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PhoneWhatsNewSection sse_decode_phone_whats_new_section(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PlannedNote sse_decode_planned_note(SseDeserializer deserializer);
 
   @protected
@@ -6486,6 +6584,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   ServerMethods sse_decode_server_methods(SseDeserializer deserializer);
 
   @protected
+  SessionTranscript sse_decode_session_transcript(SseDeserializer deserializer);
+
+  @protected
+  SessionView sse_decode_session_view(SseDeserializer deserializer);
+
+  @protected
   Share sse_decode_share(SseDeserializer deserializer);
 
   @protected
@@ -6680,6 +6784,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   TidyOutcome sse_decode_tidy_outcome(SseDeserializer deserializer);
+
+  @protected
+  TranscriptItem sse_decode_transcript_item(SseDeserializer deserializer);
 
   @protected
   TriageCard sse_decode_triage_card(SseDeserializer deserializer);
@@ -8163,6 +8270,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_phone_whats_new(
+    PhoneWhatsNew self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_preview_canvas_shown(
     PreviewCanvasShown self,
     SseSerializer serializer,
@@ -8231,6 +8344,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_search_scope(
     SearchScope self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_session_transcript(
+    SessionTranscript self,
     SseSerializer serializer,
   );
 
@@ -9348,6 +9467,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_phone_whats_new_earlier(
+    List<PhoneWhatsNewEarlier> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_phone_whats_new_section(
+    List<PhoneWhatsNewSection> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_place(ListPlace self, SseSerializer serializer);
 
   @protected
@@ -9549,6 +9680,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_session_view(
+    List<SessionView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_shape(ListShape self, SseSerializer serializer);
 
   @protected
@@ -9683,6 +9820,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_themed_icon(
     List<ThemedIcon> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_transcript_item(
+    List<TranscriptItem> self,
     SseSerializer serializer,
   );
 
@@ -10150,6 +10293,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_phone_whats_new(
+    PhoneWhatsNew? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_preview_task_box(
     PreviewTaskBox? self,
     SseSerializer serializer,
@@ -10193,6 +10342,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_saved(Saved? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_session_transcript(
+    SessionTranscript? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_share_info(
@@ -10531,6 +10686,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_phone_notices(PhoneNotices self, SseSerializer serializer);
 
   @protected
+  void sse_encode_phone_whats_new(PhoneWhatsNew self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_phone_whats_new_earlier(
+    PhoneWhatsNewEarlier self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_phone_whats_new_section(
+    PhoneWhatsNewSection self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_planned_note(PlannedNote self, SseSerializer serializer);
 
   @protected
@@ -10840,6 +11010,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_server_methods(ServerMethods self, SseSerializer serializer);
 
   @protected
+  void sse_encode_session_transcript(
+    SessionTranscript self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_session_view(SessionView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_share(Share self, SseSerializer serializer);
 
   @protected
@@ -11069,6 +11248,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_tidy_outcome(TidyOutcome self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_transcript_item(
+    TranscriptItem self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_triage_card(TriageCard self, SseSerializer serializer);

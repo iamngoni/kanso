@@ -156,11 +156,12 @@ impl AgentTasksPanel {
         let back = cx.subscribe_in(
             &view,
             window,
-            |this, _, event: &SessionEvent, _, cx| match event {
+            |this, _, event: &SessionEvent, window, cx| match event {
                 SessionEvent::Back => {
                     this.open = None;
                     cx.notify();
                 }
+                SessionEvent::Open(key) => this.open_session(key.clone(), window, cx),
             },
         );
         self.open = Some(OpenSession {
@@ -809,6 +810,44 @@ impl NewTaskSheet {
     }
 }
 
+/// Sends `text` to a session read back after a restart, picking its
+/// conversation up again. The job's error is one sentence for the person.
+pub(crate) fn resume_job(id: TaskId, text: String, cx: &mut App) -> Task<Result<(), String>> {
+    let maker = StartMaker::capture(cx);
+    let tasks = tasks(cx).unwrap_or_default();
+    let url = if maker.is_agent {
+        crate::services::agent_mcp_endpoint(cx)
+    } else {
+        None
+    };
+    cx.background_executor().spawn(async move {
+        maker
+            .resume(&tasks, id, &text, url)
+            .map_err(|error| error.message())
+    })
+}
+
+/// Starts a new session that carries on from session `id` (what a session
+/// that can't be resumed offers). The job gives the new session's key.
+pub(crate) fn continue_job(id: TaskId, cx: &mut App) -> Task<Result<SessionKey, String>> {
+    let maker = StartMaker::capture(cx);
+    let tasks = tasks(cx).unwrap_or_default();
+    let url = if maker.is_agent {
+        crate::services::agent_mcp_endpoint(cx)
+    } else {
+        None
+    };
+    cx.background_executor().spawn(async move {
+        let new = maker
+            .continue_session(&tasks, id, url)
+            .map_err(|error| error.message())?;
+        tasks
+            .row(new)
+            .map(|row| row.key)
+            .ok_or_else(|| "The new session didn't start.".to_owned())
+    })
+}
+
 /// What a task needs from the app to start, captured on the UI thread so the
 /// rest can run on a worker (the Keychain and the provider's client are
 /// never built on the UI thread).
@@ -843,52 +882,112 @@ impl StartMaker {
         }
     }
 
+    /// Which AI runs the sessions now, for a resume to check it is the one
+    /// that ran the session before.
+    fn agent_key(&self) -> String {
+        match self.ai.backend {
+            AiBackend::Api => kanso_engine::agent_task::runner::API_AGENT_KEY.to_owned(),
+            AiBackend::Agent => format!(
+                "acp:{:?}:{}",
+                self.ai.agent.kind,
+                self.ai.agent.command.as_deref().unwrap_or_default()
+            ),
+        }
+    }
+
+    /// Whoever runs `open` now: the chosen agent, or a model with an API key.
+    fn driver(
+        &self,
+        open: &kanso_engine::agent_task::OpenTask,
+        url: Option<String>,
+    ) -> Result<kanso_engine::agent_task::runner::Backend, String> {
+        match self.ai.backend {
+            AiBackend::Agent => {
+                let url = url.ok_or_else(|| {
+                    "Kanso can't start its notes server, so the agent can't read your notes."
+                        .to_owned()
+                })?;
+                let settings = crate::ai_agent::agent_settings(&self.ai.agent, &self.data_dir);
+                let access =
+                    task_access(open, url, self.tokens.clone(), std::env::current_exe().ok());
+                Ok(Arc::new(crate::agent_task_acp::AcpDriver(
+                    kanso_ai::agent::task_conversation(&settings, access, open.spec.time_limit),
+                )) as _)
+            }
+            AiBackend::Api => {
+                let saved = self
+                    .secrets
+                    .as_deref()
+                    .and_then(|secrets| crate::settings_ai::read_from(secrets, self.ai.provider));
+                let settings = kanso_ai::ClientSettings {
+                    provider: self.ai.provider,
+                    base_url: self.ai.base_url.clone(),
+                    model: self.ai.model.clone(),
+                    api_key: saved,
+                    region: self.ai.provider.default_region().to_owned(),
+                };
+                kanso_ai::cached_client(&settings)
+                    .map(|provider| Arc::new(ApiDriver(provider)) as _)
+                    .map_err(|err| err.to_string())
+            }
+        }
+    }
+
     fn start(
         &self,
         tasks: &Tasks,
         spec: &TaskSpec,
         url: Option<String>,
     ) -> Result<TaskId, CannotStart> {
-        let label = self.label();
-        let ai = self.ai.clone();
-        let data_dir = self.data_dir.clone();
-        let secrets = self.secrets.clone();
-        let tokens = self.tokens.clone();
-        let time_limit = spec.time_limit;
-        tasks.start(
+        let id = tasks.start(
             &self.store,
             &self.tokens,
             spec,
-            &label,
-            move |open| match ai.backend {
-                AiBackend::Agent => {
-                    let url = url.ok_or_else(|| {
-                        "Kanso can't start its notes server, so the agent can't read your notes."
-                            .to_owned()
-                    })?;
-                    let settings = crate::ai_agent::agent_settings(&ai.agent, &data_dir);
-                    let access = task_access(open, url, tokens, std::env::current_exe().ok());
-                    Ok(Arc::new(crate::agent_task_acp::AcpDriver(
-                        kanso_ai::agent::task_conversation(&settings, access, time_limit),
-                    )) as _)
-                }
-                AiBackend::Api => {
-                    let saved = secrets
-                        .as_deref()
-                        .and_then(|secrets| crate::settings_ai::read_from(secrets, ai.provider));
-                    let settings = kanso_ai::ClientSettings {
-                        provider: ai.provider,
-                        base_url: ai.base_url.clone(),
-                        model: ai.model.clone(),
-                        api_key: saved,
-                        region: ai.provider.default_region().to_owned(),
-                    };
-                    kanso_ai::cached_client(&settings)
-                        .map(|provider| Arc::new(ApiDriver(provider)) as _)
-                        .map_err(|err| err.to_string())
-                }
-            },
-        )
+            &self.label(),
+            move |open| self.driver(open, url),
+        )?;
+        // So the session can be picked up again after a restart.
+        tasks.set_agent_ref(id, &self.agent_key(), None);
+        Ok(id)
+    }
+
+    /// A new session that carries on from `from` (see
+    /// [`Tasks::continue_in_new_session`]).
+    fn continue_session(
+        &self,
+        tasks: &Tasks,
+        from: TaskId,
+        url: Option<String>,
+    ) -> Result<TaskId, CannotStart> {
+        let id = tasks.continue_in_new_session(
+            from,
+            &self.store,
+            &self.tokens,
+            &self.label(),
+            move |open| self.driver(open, url),
+        )?;
+        tasks.set_agent_ref(id, &self.agent_key(), None);
+        Ok(id)
+    }
+
+    /// Sends `text` to a session read back after a restart, picking its
+    /// conversation up again (see [`Tasks::resume`]).
+    fn resume(
+        &self,
+        tasks: &Tasks,
+        id: TaskId,
+        text: &str,
+        url: Option<String>,
+    ) -> Result<(), CannotStart> {
+        let now = self.agent_key();
+        tasks.resume(id, text, move |open, ran_on, _| {
+            if ran_on != now {
+                return Err(
+                    "It ran on another AI than the one chosen in Settings › AI now".to_owned(),
+                );
+            }
+            self.driver(open, url)
+        })
     }
 }
 

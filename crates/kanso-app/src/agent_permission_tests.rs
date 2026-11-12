@@ -15,7 +15,7 @@ use gpui_kit::{
     TestAppContext, VisualTestContext,
 };
 use kanso_acp::fake::{self, Script};
-use kanso_acp::{AcpEvent, AgentProcess, Limits, PermissionPolicy};
+use kanso_acp::{AcpEvent, AgentProcess, Limits, PermissionPolicy, PermissionRequest};
 
 use crate::agent_permission;
 use crate::config::AppConfig;
@@ -418,4 +418,42 @@ fn a_request_that_times_out_under_another_dialog_leaves_that_dialog_open(cx: &mu
     assert!(!f.sheet_open(cx));
     // The agent was told no once, and nothing more after the late click.
     assert!(asking.still_waiting(cx));
+}
+
+#[test]
+fn each_choice_is_recorded_as_its_own_answer() {
+    use agent_permission::Choice;
+    use kanso_engine::agent_task::session::PermissionAnswer as A;
+    assert_eq!(Choice::AllowOnce.answer(), A::AllowedOnce);
+    assert_eq!(Choice::AllowSession.answer(), A::AllowedForSession);
+    assert_eq!(Choice::AlwaysAllow.answer(), A::AllowedAlways);
+    assert_eq!(Choice::Reject.answer(), A::Rejected);
+}
+
+#[test]
+fn a_tool_allowed_without_the_sheet_is_recorded_as_how_it_was_allowed() {
+    use crate::config::AllowedTool;
+    use kanso_engine::agent_task::session::PermissionAnswer as A;
+    let request = PermissionRequest {
+        agent: "Claude Agent".to_owned(),
+        title: "Read  a".to_owned(),
+        kind: Some("read".to_owned()),
+        session: Some("s1".to_owned()),
+    };
+    let mut grants = agent_permission::SessionGrants::default();
+    assert_eq!(agent_permission::standing(&request, &grants, &[]), None);
+    grants.allow(&request);
+    assert_eq!(
+        agent_permission::standing(&request, &grants, &[]),
+        Some(A::AllowedForSession)
+    );
+    let always = [AllowedTool {
+        agent: "Claude Agent".to_owned(),
+        kind: Some("read".to_owned()),
+        title: "Read a".to_owned(),
+    }];
+    assert_eq!(
+        agent_permission::standing(&request, &Default::default(), &always),
+        Some(A::AllowedAlways)
+    );
 }

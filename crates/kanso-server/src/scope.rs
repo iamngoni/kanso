@@ -90,7 +90,7 @@ pub const TASK_TOOLS: [&str; 4] = [
 
 /// What an agent task may propose, set by the person on the New agent task
 /// sheet.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TaskOps {
     pub create: bool,
     pub edit: bool,

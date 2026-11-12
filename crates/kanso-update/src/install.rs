@@ -840,6 +840,8 @@ mod tests {
             pub_date: String::new(),
             release_url: String::new(),
             notes: String::new(),
+            whats_new: None,
+            earlier: Vec::new(),
         };
         (install, pending)
     }

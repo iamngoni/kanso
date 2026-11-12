@@ -4475,6 +4475,8 @@ fn demo_update() -> kanso_update::Update {
             sha256: "ab".repeat(32),
             size: 18_400_000,
         },
+        whats_new: None,
+        earlier: Vec::new(),
     }
 }
 
@@ -4487,6 +4489,8 @@ fn demo_pending() -> kanso_update::Pending {
         pub_date: update.pub_date,
         release_url: update.release_url,
         notes: update.notes,
+        whats_new: None,
+        earlier: Vec::new(),
         seal: Default::default(),
     }
 }

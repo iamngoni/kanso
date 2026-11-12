@@ -133,6 +133,28 @@ cut() {
 		die "$version isn't released: fix the notices above (docs/RELEASING.md › Breaking changes), then run this again. CHANGELOG.md, Cargo.toml and Cargo.lock are as they were."
 	fi
 
+	# The What's new video, if this release has one (docs/RELEASING.md ›
+	# What's new video): committed at release-media/<v>/whats-new.webp, an
+	# animated WebP up to 8 MB. Anything else there is refused now rather than
+	# left out of the release by the workflow.
+	local media="release-media/$version"
+	if [[ -d "$media" ]]; then
+		local video="$media/whats-new.webp" bad
+		bad=$(find "$media" -type f ! -path "$video" -print -quit)
+		if [[ -n "$bad" || ! -f "$video" ]]; then
+			git checkout -q -- CHANGELOG.md Cargo.toml Cargo.lock
+			die "$media should hold whats-new.webp and nothing else (found ${bad:-no whats-new.webp})"
+		fi
+		local size head
+		size=$(wc -c <"$video" | tr -d ' ')
+		head=$(head -c 12 "$video" | LC_ALL=C tr -c 'A-Z' '.')
+		if ((size > 8388608)) || [[ "$head" != RIFF....WEBP ]]; then
+			git checkout -q -- CHANGELOG.md Cargo.toml Cargo.lock
+			die "$video must be a WebP of at most 8 MB (it is $size bytes)"
+		fi
+		echo "What's new video: $video ($size bytes)"
+	fi
+
 	git add Cargo.toml Cargo.lock CHANGELOG.md
 	# The first release may change nothing (0.1.0 is already the version and
 	# its section is written): the commit still marks where it was cut.

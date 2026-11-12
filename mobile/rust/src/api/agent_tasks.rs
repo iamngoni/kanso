@@ -4,9 +4,103 @@
 
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    AgentTaskPrefs as CoreAgentTaskPrefs, AgentTasks, KansoError, TaskCard as CoreTaskCard,
-    TaskReview as CoreTaskReview, TaskView as CoreTaskView,
+    AgentTaskPrefs as CoreAgentTaskPrefs, AgentTasks, KansoError,
+    SessionTranscript as CoreSessionTranscript, SessionView as CoreSessionView,
+    TaskCard as CoreTaskCard, TaskReview as CoreTaskReview, TaskView as CoreTaskView,
+    TranscriptItemView as CoreTranscriptItemView,
 };
+
+/// One session in the list: a task as a row.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SessionView {
+    pub id: u64,
+    pub key: String,
+    pub title: String,
+    pub agent: String,
+    pub phase: String,
+    pub detail: String,
+    pub dot: String,
+    pub unread: bool,
+    pub last_activity_ms: i64,
+    pub notes_read: u32,
+    pub changes: u32,
+    pub can_stop: bool,
+    pub can_review: bool,
+    pub can_follow_up: bool,
+}
+
+impl From<CoreSessionView> for SessionView {
+    fn from(s: CoreSessionView) -> Self {
+        SessionView {
+            id: s.id,
+            key: s.key,
+            title: s.title,
+            agent: s.agent,
+            phase: s.phase,
+            detail: s.detail,
+            dot: s.dot,
+            unread: s.unread,
+            last_activity_ms: s.last_activity_ms,
+            notes_read: s.notes_read,
+            changes: s.changes,
+            can_stop: s.can_stop,
+            can_review: s.can_review,
+            can_follow_up: s.can_follow_up,
+        }
+    }
+}
+
+/// One thing said in a session; `kind` says which fields mean something.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TranscriptItem {
+    pub kind: String,
+    pub text: String,
+    pub title: String,
+    pub tool_kind: String,
+    pub status: String,
+    pub answer: String,
+    pub round: u32,
+    pub counts: String,
+    pub state: String,
+    pub at_ms: i64,
+    pub thought_secs: u32,
+}
+
+impl From<CoreTranscriptItemView> for TranscriptItem {
+    fn from(i: CoreTranscriptItemView) -> Self {
+        TranscriptItem {
+            kind: i.kind,
+            text: i.text,
+            title: i.title,
+            tool_kind: i.tool_kind,
+            status: i.status,
+            answer: i.answer,
+            round: i.round,
+            counts: i.counts,
+            state: i.state,
+            at_ms: i.at_ms,
+            thought_secs: i.thought_secs,
+        }
+    }
+}
+
+/// A session and everything said in it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SessionTranscript {
+    pub session: SessionView,
+    pub version: u64,
+    pub items: Vec<TranscriptItem>,
+}
+
+impl From<CoreSessionTranscript> for SessionTranscript {
+    fn from(t: CoreSessionTranscript) -> Self {
+        SessionTranscript {
+            session: t.session.into(),
+            version: t.version,
+            items: t.items.into_iter().map(TranscriptItem::from).collect(),
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AgentTaskPrefs {
@@ -114,6 +208,15 @@ impl From<CoreTaskReview> for TaskReview {
     }
 }
 
+/// Unix milliseconds now.
+fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| {
+            i64::try_from(since.as_millis()).unwrap_or(i64::MAX)
+        })
+}
+
 #[frb(opaque)]
 pub struct KansoAgentTasks(pub(super) AgentTasks);
 
@@ -151,6 +254,33 @@ impl KansoAgentTasks {
 
     pub fn tasks(&self) -> Vec<TaskView> {
         self.0.tasks().into_iter().map(TaskView::from).collect()
+    }
+
+    /// The sessions, latest activity first.
+    pub fn agent_sessions(&self) -> Vec<SessionView> {
+        self.0
+            .sessions(now_ms())
+            .into_iter()
+            .map(SessionView::from)
+            .collect()
+    }
+
+    /// What was said in session `key`; opening it clears its unread dot.
+    /// `None` when the session is no longer listed.
+    pub fn agent_transcript(&self, key: String) -> Option<SessionTranscript> {
+        self.0
+            .transcript(&key, now_ms())
+            .map(SessionTranscript::from)
+    }
+
+    /// Sends a message into session `key`.
+    pub fn agent_follow_up(&self, key: String, text: String) -> Result<(), KansoError> {
+        self.0.follow_up(&key, &text)
+    }
+
+    /// Ends session `key`; what it did stays.
+    pub fn agent_end_session(&self, key: String) -> Result<(), KansoError> {
+        self.0.end_session(&key)
     }
 
     pub fn stop(&self, id: u64) {

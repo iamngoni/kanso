@@ -626,8 +626,9 @@ impl TurnEvents {
 /// questions, so a follow-up continues where the last answer left off, and
 /// that session's notes token. Dropping it closes the session and revokes
 /// the token: the panel was cleared or closed, a note it used was locked,
-/// or AI was turned off. Nothing of it is saved, and `session/load` is
-/// never used.
+/// or AI was turned off. The agent's session id can be kept by whoever
+/// holds the conversation, and [`Conversation::resume`] picks that session up
+/// again in a new one.
 pub struct Conversation {
     host: Arc<Host>,
     notes: Option<NotesAccess>,
@@ -635,6 +636,10 @@ pub struct Conversation {
     /// agent task's.
     answer: Option<Duration>,
     state: Mutex<ConversationState>,
+    /// The agent's id for the session now open, kept apart from `state`
+    /// (held for a whole turn) so a permission request, which arrives in the
+    /// middle of one, can be matched to its conversation.
+    session_id: Mutex<Option<String>>,
 }
 
 #[derive(Default)]
@@ -667,6 +672,7 @@ pub fn conversation(settings: &AgentSettings, notes: Option<NotesAccess>) -> Arc
         notes,
         answer: None,
         state: Mutex::default(),
+        session_id: Mutex::default(),
     })
 }
 
@@ -685,6 +691,7 @@ pub fn task_conversation(
         notes: Some(notes),
         answer: Some(time_limit + Duration::from_secs(60)),
         state: Mutex::default(),
+        session_id: Mutex::default(),
     })
 }
 
@@ -702,6 +709,7 @@ pub fn task_conversation_with(
         notes: Some(notes),
         answer: Some(time_limit + Duration::from_secs(60)),
         state: Mutex::default(),
+        session_id: Mutex::default(),
     })
 }
 
@@ -718,6 +726,7 @@ pub fn conversation_with(
         notes,
         answer: None,
         state: Mutex::default(),
+        session_id: Mutex::default(),
     })
 }
 
@@ -784,9 +793,52 @@ impl Conversation {
         lock(&self.state).end();
     }
 
+    /// The agent's id for this conversation's session, once one has opened.
+    /// It is the `session` of the permission requests the agent makes.
+    pub fn session_id(&self) -> Option<String> {
+        lock(&self.session_id).clone()
+    }
+
     /// Whether the conversation has a session open now, for tests.
     pub fn has_session(&self) -> bool {
         lock(&self.state).session.is_some()
+    }
+
+    /// Picks the agent's saved conversation `acp_session_id` up again
+    /// (`session/load`), so the next [`Conversation::ask`] continues it with
+    /// everything the agent already read and said. The notes server is given
+    /// again, with a fresh token from the notes access. Starts the agent if
+    /// it isn't running. Fails, leaving no session open, when the agent can't
+    /// load conversations or no longer has this one.
+    pub fn resume(&self, acp_session_id: &str) -> Result<(), AiError> {
+        let host = &self.host;
+        let label = host.settings.label();
+        let mut host_state = lock(&host.state);
+        host.process(&mut host_state, || {})?;
+        let generation = host_state.generation;
+        let Some(process) = host_state.process.as_ref() else {
+            return Err(AiError::Agent(format!("{label} isn't running.")));
+        };
+        let mut state = lock(&self.state);
+        state.end();
+        let grant = self.notes.as_ref().and_then(|notes| notes());
+        let server = grant
+            .as_ref()
+            .and_then(|grant| notes_server(grant, process.info().mcp_http));
+        let servers: Vec<McpServer> = server.into_iter().collect();
+        match process.load_session(acp_session_id, &host.settings.workspace, &servers) {
+            Ok(session) => {
+                *lock(&self.session_id) = Some(session.id().to_owned());
+                state.session = Some(session);
+                state.generation = generation;
+                let grant = grant.filter(|_| !servers.is_empty());
+                state.suggest = grant.as_ref().is_some_and(|grant| grant.suggest);
+                state.lease = grant.map(|grant| grant.lease);
+                Ok(())
+            }
+            // The grant is dropped with the error, which revokes its token.
+            Err(err) => Err(AiError::Agent(turn_error(&host.settings, process, &err))),
+        }
     }
 
     fn run(
@@ -837,6 +889,7 @@ impl Conversation {
             let servers: Vec<McpServer> = server.into_iter().collect();
             match process.new_session_with(&host.settings.workspace, &servers) {
                 Ok(session) => {
+                    *lock(&self.session_id) = Some(session.id().to_owned());
                     state.session = Some(session);
                     state.generation = generation;
                     // A grant the agent can't reach is revoked right away.

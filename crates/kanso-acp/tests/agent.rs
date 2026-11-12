@@ -673,3 +673,42 @@ fn a_tool_call_and_its_titleless_update_name_the_same_call() {
     assert!(events.contains(&AcpEvent::Thought("hmm".to_owned())));
     assert_eq!(text_of(&events), "done");
 }
+
+#[test]
+fn a_saved_conversation_is_picked_up_without_its_history_reaching_the_turn() {
+    let agent = connect(Script::Report, quick(), reject_all());
+    assert!(agent.info().load_session);
+    let dir = workspace();
+    // The agent never saw this session, as after a restart; it replays two
+    // messages before answering, and none of them is the turn's.
+    let session = agent
+        .load_session("fake-session-7", dir.path(), &[])
+        .unwrap();
+    assert_eq!(session.id(), "fake-session-7");
+    let events = collect(session.prompt("and then?", None).unwrap());
+    assert_eq!(
+        text_of(&events),
+        "session=fake-session-7 turn=2 saw=and then?"
+    );
+}
+
+#[test]
+fn an_agent_without_load_session_says_so_and_a_gone_conversation_fails() {
+    let agent = connect(Script::ReportNoLoad, quick(), reject_all());
+    assert!(!agent.info().load_session);
+    let dir = workspace();
+    assert!(matches!(
+        agent.load_session("fake-session-1", dir.path(), &[]),
+        Err(AcpError::NoLoadSession)
+    ));
+    let agent = connect(Script::ReportGone, quick(), reject_all());
+    assert!(agent.info().load_session);
+    assert!(
+        agent
+            .load_session("fake-session-1", dir.path(), &[])
+            .is_err()
+    );
+    // It still works for a new conversation after the failed load.
+    let session = agent.new_session(dir.path()).unwrap();
+    assert!(session.prompt("hi", None).is_ok());
+}

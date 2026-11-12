@@ -9,7 +9,7 @@ use super::session::SessionKey;
 use super::{ReadScope, TaskSpec};
 
 /// Where a task is.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Phase {
     /// Another task is using the agent.
     Waiting,
@@ -80,6 +80,15 @@ pub struct TaskRow {
     pub live: bool,
     /// The round of proposals the session is in; 1 until a follow-up.
     pub round: u32,
+    /// Read back from disk after a restart: nothing runs it until it is
+    /// resumed or continued.
+    pub restored: bool,
+    /// A message sent to it can pick the agent's conversation up again.
+    pub resumable: bool,
+    /// The session this one carries on from.
+    pub continued_from: Option<SessionKey>,
+    /// The session that carries this one on.
+    pub continued_in: Option<SessionKey>,
 }
 
 /// What the composer under a transcript does now.
@@ -99,6 +108,16 @@ impl Composer {
     pub fn of(row: &TaskRow, ai_on: bool) -> Composer {
         if !ai_on {
             Composer::Off("AI is off in Settings.")
+        } else if row.restored {
+            // Read back after a restart: a message picks the conversation up
+            // again, when the agent can.
+            if row.resumable && !row.is_active() {
+                Composer::Send
+            } else {
+                Composer::Off(
+                    "This session can't be picked up again. Continue in a new session to keep going.",
+                )
+            }
         } else if !row.live {
             Composer::Off("This session ended. Continue in a new session to keep going.")
         } else if row.is_active() {
@@ -181,6 +200,10 @@ impl TaskRow {
             unread: false,
             live: true,
             round: 1,
+            restored: false,
+            resumable: false,
+            continued_from: None,
+            continued_in: None,
         }
     }
 
@@ -244,6 +267,15 @@ impl TaskRow {
     /// Whether End Session does anything.
     pub fn can_end(&self) -> bool {
         self.live
+    }
+
+    /// Whether "Continue in a new session" is the way on: it ended (or was
+    /// read back after a restart), can't be resumed, and has no successor.
+    pub fn can_continue(&self) -> bool {
+        !self.is_active()
+            && !self.resumable
+            && self.continued_in.is_none()
+            && (self.restored || !self.live)
     }
 
     pub fn can_stop(&self) -> bool {

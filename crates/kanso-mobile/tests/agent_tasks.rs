@@ -361,3 +361,119 @@ fn ticking_a_card_that_changed_since_applies_over_it() {
     // Undo reports from what it did.
     assert!(tasks.undo(task, 200).is_ok());
 }
+
+/// A task that proposed one edit, finished, with the phone it ran on.
+fn finished_edit() -> (Phone, kanso_mobile::AgentTasks) {
+    let phone = lone_phone();
+    let id = note(&phone.library, "Pricing", "quokka one");
+    let store = Store::open(phone.path()).unwrap();
+    let rev = store.get(&id).unwrap().unwrap().rev;
+    let calls = vec![(
+        "update_note",
+        json!({"_id": id, "_rev": rev, "body": "quokka two"}).to_string(),
+    )];
+    let model = Scripted::with("Done.", calls, Ending::Complete);
+    let ai = ai_on(&phone.library, &model);
+    let tasks = ai.agent_tasks();
+    tasks
+        .start("Edit the pricing note", vec![id], "", false)
+        .unwrap();
+    wait_for_end(&tasks);
+    (phone, tasks)
+}
+
+// no-prop-test: one scripted run, read back through the session calls.
+#[test]
+fn a_finished_task_is_a_session_row_that_needs_the_person() {
+    let (_phone, tasks) = finished_edit();
+    let rows = tasks.sessions(i64::MAX / 4);
+    assert_eq!(rows.len(), 1);
+    let row = &rows[0];
+    assert_eq!(row.title, "Edit the pricing note");
+    assert_eq!(row.agent, "Kanso AI");
+    assert_eq!(row.phase, "ready");
+    assert_eq!(row.status, "1 change to review");
+    assert_eq!(row.dot, "needs_you");
+    assert!(row.can_review && !row.can_stop && row.can_follow_up);
+    assert!(row.unread, "nobody has opened it yet");
+    assert!(!row.key.is_empty());
+}
+
+// no-prop-test: opening is seeing; the transcript starts with the goal.
+#[test]
+fn opening_a_session_reads_its_transcript_and_clears_the_unread_dot() {
+    let (_phone, tasks) = finished_edit();
+    let key = tasks.sessions(0)[0].key.clone();
+    let opened = tasks.transcript(&key, 0).expect("the session is listed");
+    let first = &opened.items[0];
+    assert_eq!(
+        (first.kind.as_str(), first.text.as_str()),
+        ("user", "Edit the pricing note")
+    );
+    assert!(opened.items.iter().any(|item| item.kind == "agent"));
+    let proposed = opened
+        .items
+        .iter()
+        .find(|item| item.kind == "proposed")
+        .expect("the round's proposal is in the transcript");
+    assert_eq!((proposed.round, proposed.state.as_str()), (1, "to_review"));
+    assert_eq!(proposed.counts, "1 edit");
+    assert!(!tasks.sessions(0)[0].unread);
+    assert_eq!(tasks.transcript(&key, 0).unwrap().version, opened.version);
+}
+
+// no-prop-test: a key nobody has is the same answer whatever it says.
+#[test]
+fn a_session_that_is_not_listed_has_no_transcript_and_refuses_calls() {
+    let (_phone, tasks) = finished_edit();
+    assert!(tasks.transcript("NOPE", 0).is_none());
+    assert!(tasks.follow_up("NOPE", "hi").is_err());
+    assert!(tasks.end_session("NOPE").is_err());
+}
+
+// no-prop-test: one scripted session, the calls on it in order.
+#[test]
+fn a_message_goes_into_the_session_and_an_ended_session_takes_none() {
+    let (_phone, tasks) = finished_edit();
+    let key = tasks.sessions(0)[0].key.clone();
+    assert!(tasks.follow_up(&key, "   ").is_err(), "a blank message");
+    tasks.follow_up(&key, "and the rest?").unwrap();
+    let said = tasks.transcript(&key, 0).unwrap();
+    assert!(
+        said.items
+            .iter()
+            .any(|item| item.kind == "user" && item.text == "and the rest?"),
+        "the message is in the transcript"
+    );
+    wait_for_end(&tasks);
+    tasks.end_session(&key).unwrap();
+    let refused = tasks.follow_up(&key, "once more").unwrap_err();
+    assert!(
+        refused.to_string().contains("can't take a message"),
+        "{refused}"
+    );
+}
+
+// no-prop-test: rename and delete are one call each on the session.
+#[test]
+fn a_session_is_renamed_and_deleted() {
+    let (_phone, tasks) = finished_edit();
+    let key = tasks.sessions(0)[0].key.clone();
+    tasks.rename_session(&key, "  Pricing, done  ").unwrap();
+    assert_eq!(tasks.sessions(0)[0].title, "Pricing, done");
+    tasks.rename_session(&key, "   ").unwrap();
+    assert_eq!(tasks.sessions(0)[0].title, "Pricing, done");
+    tasks.delete_session(&key).unwrap();
+    assert!(tasks.sessions(0).is_empty());
+    assert!(tasks.delete_session(&key).is_err());
+    assert!(tasks.rename_session(&key, "x").is_err());
+}
+
+// no-prop-test: ending a finished session leaves what it proposed to review.
+#[test]
+fn ending_a_session_keeps_its_changes_for_review() {
+    let (_phone, tasks) = finished_edit();
+    let session = tasks.sessions(0).remove(0);
+    tasks.end_session(&session.key).unwrap();
+    assert!(tasks.review(session.id).is_ok());
+}

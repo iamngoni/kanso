@@ -544,3 +544,43 @@ fn a_conversation_keeps_its_session_until_it_is_ended() {
     assert_eq!(third, "session=fake-session-2 turn=1 sessions=2");
     assert_eq!(starts.load(Ordering::Relaxed), 1, "one agent process");
 }
+
+#[test]
+fn a_conversation_picks_a_saved_session_up_and_goes_on_in_it() {
+    let _serial = serial();
+    let conversation = agent::conversation_with(
+        &settings("resume"),
+        limits(),
+        starter(Script::Report, Arc::new(AtomicUsize::new(0))),
+        Some(grant_with("kmcp-x".to_owned())),
+    );
+    conversation.resume("fake-session-4").unwrap();
+    assert_eq!(conversation.session_id().as_deref(), Some("fake-session-4"));
+    assert!(conversation.has_session());
+    let said = text(&converse(&conversation, "Question: and then?"));
+    assert!(said.starts_with("session=fake-session-4 turn=2 "), "{said}");
+}
+
+#[test]
+fn a_session_that_cannot_be_picked_up_fails_and_the_conversation_still_starts_fresh() {
+    let _serial = serial();
+    for (name, script) in [
+        ("resume-none", Script::ReportNoLoad),
+        ("resume-gone", Script::ReportGone),
+    ] {
+        let conversation = agent::conversation_with(
+            &settings(name),
+            limits(),
+            starter(script, Arc::new(AtomicUsize::new(0))),
+            None,
+        );
+        assert!(conversation.resume("fake-session-4").is_err(), "{name}");
+        assert!(!conversation.has_session(), "{name}");
+        // A question after the failure opens a new session.
+        let said = text(&converse(&conversation, "hello"));
+        assert!(
+            said.starts_with("session=fake-session-1 turn=1 "),
+            "{name}: {said}"
+        );
+    }
+}
