@@ -1,0 +1,643 @@
+//! The Worker's shared-notebook routes in memory (`cloud/src/book.ts`,
+//! `cloud/src/book_room.ts`): the chain of signed lists, the wraps and
+//! history links, and the logs, whose sequence numbers share one count for
+//! the whole notebook. Like the Worker it reads envelope headers and lists
+//! and nothing else; the clients check the chain's signatures.
+
+use std::collections::BTreeMap;
+
+use serde_json::json;
+
+use super::*;
+use crate::api::{
+    BookCreated, BookEpochLink, BookInfo, BookListEntry, BookLogPage, MANIFEST_STREAM, NewBook,
+    NewBookList,
+};
+use crate::book_members::{MAX_BOOK_MEMBERS, is_well_formed as list_well_formed, link_hash};
+use crate::book_members_model::BookMemberList;
+
+/// A shared notebook may hold this many notes.
+pub const MAX_BOOK_NOTES: usize = 2_000;
+const PAGE_LISTS: usize = 200;
+
+#[derive(Debug, Default)]
+struct Stream {
+    head: u64,
+    /// `(seq, kind, envelope)`.
+    log: Vec<(u64, Kind, Vec<u8>)>,
+    /// `(base_seq, envelope)`.
+    snapshot: Option<(u64, Vec<u8>)>,
+}
+
+#[derive(Debug)]
+pub(super) struct Book {
+    owner: String,
+    epoch: u32,
+    head_rev: u32,
+    head_hash: String,
+    /// `(epoch, signer, list, list_sig)` by position: rev - 1.
+    lists: Vec<(u32, String, String, String)>,
+    /// account → (role, status): `member`, `invited` or `left`.
+    members: BTreeMap<String, (Role, &'static str)>,
+    wraps: BTreeMap<(String, u32), String>,
+    history: BTreeMap<u32, String>,
+    /// The log's head: every stream's sequences share this count.
+    head: u64,
+    streams: BTreeMap<String, Stream>,
+}
+
+fn parse(list: &str) -> Option<(BookMemberList, Vec<u8>)> {
+    let bytes = unb64(list)?;
+    let parsed: BookMemberList = serde_json::from_slice(&bytes).ok()?;
+    list_well_formed(&parsed).then_some((parsed, bytes))
+}
+
+fn conflict(book: &Book) -> CollabError {
+    CollabError::api(
+        409,
+        "rev_conflict",
+        json!({ "error": "rev_conflict", "rev": book.head_rev, "hash": book.head_hash }),
+    )
+}
+
+impl State {
+    fn book(&mut self, id: &str) -> Result<&mut Book> {
+        self.books.get_mut(id).ok_or_else(not_found)
+    }
+
+    /// The caller's role in a notebook, with `status` (`member` only unless
+    /// `read`, which also takes an invitation).
+    fn book_role(&self, id: &str, caller: &Caller, read: bool) -> Result<(Role, &'static str)> {
+        let book = self.books.get(id).ok_or_else(not_found)?;
+        match book.members.get(&caller.account_id) {
+            Some((role, status)) if *status == "member" || (read && *status == "invited") => {
+                Ok((*role, status))
+            }
+            _ => Err(not_found()),
+        }
+    }
+
+    /// The wraps a list needs, as account → count, checked against `needed`.
+    fn check_book_wraps(
+        wraps: &[crate::api::AccountWrap],
+        needed: &[&str],
+    ) -> std::result::Result<(), CollabError> {
+        let ok = wraps.len() == needed.len()
+            && needed
+                .iter()
+                .all(|a| wraps.iter().filter(|w| w.account == *a).count() == 1);
+        if ok { Ok(()) } else { Err(bad()) }
+    }
+
+    /// A listed member's keys and username must be their account's own.
+    fn check_book_members(&self, list: &BookMemberList) -> Result<()> {
+        if self.lax_book_members {
+            return Ok(());
+        }
+        for member in &list.members {
+            match self.identities.get(&member.account) {
+                None => return Err(bad()),
+                Some((username, published))
+                    if *username != member.username
+                        || published.sign_pub != member.sign_pub
+                        || published.box_pub != member.box_pub =>
+                {
+                    return Err(CollabError::api(
+                        409,
+                        "member_keys_mismatch",
+                        json!({ "error": "member_keys_mismatch", "account": member.account }),
+                    ));
+                }
+                Some(_) => {}
+            }
+        }
+        Ok(())
+    }
+}
+
+impl MemoryCollab {
+    /// A notebook's log head and how many streams it has (tests).
+    pub fn book_room(&self, share_id: &str) -> Option<(u64, usize)> {
+        let state = self.state.lock().expect("poisoned");
+        let book = state.books.get(share_id)?;
+        Some((book.head, book.streams.len()))
+    }
+
+    /// Every byte the server holds for notebooks: lists, wraps, history
+    /// links, logs and snapshots. Tests look for plaintext in it.
+    pub fn book_bytes(&self) -> Vec<Vec<u8>> {
+        let state = self.state.lock().expect("poisoned");
+        let mut out = Vec::new();
+        for book in state.books.values() {
+            out.extend(book.lists.iter().map(|l| unb64(&l.2).unwrap_or_default()));
+            out.extend(book.wraps.values().map(|w| unb64(w).unwrap_or_default()));
+            out.extend(book.history.values().map(|w| unb64(w).unwrap_or_default()));
+            for stream in book.streams.values() {
+                out.extend(stream.log.iter().map(|(_, _, e)| e.clone()));
+                if let Some((_, snapshot)) = &stream.snapshot {
+                    out.push(snapshot.clone());
+                }
+            }
+        }
+        out
+    }
+
+    /// Takes every history link away, as a server that lost them would
+    /// (tests); [`MemoryCollab::put_book_history`] gives them back.
+    pub fn take_book_history(&self, share_id: &str) -> BTreeMap<u32, String> {
+        let mut state = self.state.lock().expect("poisoned");
+        let book = state.books.get_mut(share_id).expect("a notebook");
+        std::mem::take(&mut book.history)
+    }
+
+    pub fn put_book_history(&self, share_id: &str, links: BTreeMap<u32, String>) {
+        let mut state = self.state.lock().expect("poisoned");
+        let book = state.books.get_mut(share_id).expect("a notebook");
+        book.history = links;
+    }
+
+    /// Takes an account's published identity away, as if the account were
+    /// gone (tests); [`MemoryCollab::put_identity`] gives it back.
+    pub fn take_identity(&self, account: &str) -> Option<(String, crate::identity::Published)> {
+        self.state
+            .lock()
+            .expect("poisoned")
+            .identities
+            .remove(account)
+    }
+
+    pub fn put_identity(&self, account: &str, identity: (String, crate::identity::Published)) {
+        self.state
+            .lock()
+            .expect("poisoned")
+            .identities
+            .insert(account.to_owned(), identity);
+    }
+
+    /// Stops the server checking that a list's members' keys are their
+    /// accounts' own (tests).
+    pub fn skip_book_member_checks(&self) {
+        self.state.lock().expect("poisoned").lax_book_members = true;
+    }
+
+    /// Makes the server name `account` as the notebook's owner in what it
+    /// answers (tests).
+    pub fn set_book_owner(&self, share_id: &str, account: &str) {
+        let mut state = self.state.lock().expect("poisoned");
+        let book = state.books.get_mut(share_id).expect("a notebook");
+        book.owner = account.to_owned();
+    }
+
+    /// Makes the server claim `by` more log entries than it has, as a
+    /// server lying about its head would (tests).
+    pub fn inflate_book_head(&self, share_id: &str, by: u64) {
+        let mut state = self.state.lock().expect("poisoned");
+        let book = state.books.get_mut(share_id).expect("a notebook");
+        book.head += by;
+    }
+
+    /// Replaces a stored list, as a server serving another history would
+    /// (tests): the chain a client checked before no longer matches.
+    pub fn replace_book_list(&self, share_id: &str, rev: u32, list: &str, sig: &str) {
+        let mut state = self.state.lock().expect("poisoned");
+        let book = state.books.get_mut(share_id).expect("a notebook");
+        let at = rev as usize - 1;
+        let hash = parse(list)
+            .map(|(_, bytes)| link_hash(&bytes))
+            .expect("a list");
+        book.lists[at].2 = list.to_owned();
+        book.lists[at].3 = sig.to_owned();
+        if rev == book.head_rev {
+            book.head_hash = hash;
+        }
+    }
+
+    /// Drops every list after `rev`, as a server rolled back to an older
+    /// state would (tests).
+    pub fn truncate_book_chain(&self, share_id: &str, rev: u32) {
+        let mut state = self.state.lock().expect("poisoned");
+        let book = state.books.get_mut(share_id).expect("a notebook");
+        book.lists.truncate(rev as usize);
+        book.head_rev = rev;
+        let (_, bytes) = parse(&book.lists[rev as usize - 1].2).expect("a list");
+        book.head_hash = link_hash(&bytes);
+        book.epoch = book.lists[rev as usize - 1].0;
+    }
+
+    pub(super) fn create_book_impl(&self, caller: &Caller, new: &NewBook) -> Result<BookCreated> {
+        let mut state = self.lock()?;
+        if !state.has_identity(&caller.account_id) || !is_id(&new.share_id) {
+            return Err(bad());
+        }
+        let (list, bytes) = parse(&new.list).ok_or_else(bad)?;
+        if list.share != new.share_id
+            || list.rev != 1
+            || list.epoch != 1
+            || list.owner != caller.account_id
+            || list.signer != caller.account_id
+        {
+            return Err(bad());
+        }
+        if list.members.len() > MAX_BOOK_MEMBERS {
+            return Err(quota("members"));
+        }
+        let hash = link_hash(&bytes);
+        // The same notebook sent again (a lost answer) is answered again.
+        if let Some(existing) = state.books.get(&new.share_id) {
+            let same = existing.owner == caller.account_id
+                && existing.lists.first().is_some_and(|l| l.3 == new.list_sig)
+                && existing.head_hash.len() == 64
+                && existing.lists[0].2 == new.list;
+            return if same {
+                Ok(BookCreated {
+                    share_id: new.share_id.clone(),
+                    epoch: 1,
+                    rev: 1,
+                })
+            } else {
+                Err(refused(409, "share_id_taken"))
+            };
+        }
+        if state.shares.contains_key(&new.share_id) || state.retired.contains(&new.share_id) {
+            return Err(refused(409, "share_id_taken"));
+        }
+        let owned = state
+            .books
+            .values()
+            .filter(|b| b.owner == caller.account_id)
+            .count();
+        if owned >= 50 {
+            return Err(quota("books"));
+        }
+        state.check_book_members(&list)?;
+        let accounts: Vec<&str> = list.members.iter().map(|m| m.account.as_str()).collect();
+        State::check_book_wraps(&new.wraps, &accounts)?;
+        let members = list
+            .members
+            .iter()
+            .map(|m| {
+                let status = if m.account == caller.account_id {
+                    "member"
+                } else {
+                    "invited"
+                };
+                (m.account.clone(), (m.role, status))
+            })
+            .collect();
+        let wraps = new
+            .wraps
+            .iter()
+            .map(|w| ((w.account.clone(), 1), w.wrapped.clone()))
+            .collect();
+        state.books.insert(
+            new.share_id.clone(),
+            Book {
+                owner: caller.account_id.clone(),
+                epoch: 1,
+                head_rev: 1,
+                head_hash: hash,
+                lists: vec![(
+                    1,
+                    caller.account_id.clone(),
+                    new.list.clone(),
+                    new.list_sig.clone(),
+                )],
+                members,
+                wraps,
+                history: BTreeMap::new(),
+                head: 0,
+                streams: BTreeMap::new(),
+            },
+        );
+        Ok(BookCreated {
+            share_id: new.share_id.clone(),
+            epoch: 1,
+            rev: 1,
+        })
+    }
+
+    pub(super) fn book_impl(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        since_rev: u32,
+    ) -> Result<BookInfo> {
+        let state = self.lock()?;
+        let (role, status) = state.book_role(share_id, caller, true)?;
+        let book = &state.books[share_id];
+        let since = since_rev.max(1) as usize;
+        let rows: Vec<&(u32, String, String, String)> = book
+            .lists
+            .iter()
+            .skip(since - 1)
+            .take(PAGE_LISTS + 1)
+            .collect();
+        let lists = rows
+            .iter()
+            .take(PAGE_LISTS)
+            .enumerate()
+            .map(|(i, (epoch, signer, list, sig))| BookListEntry {
+                rev: (since + i) as u32,
+                epoch: *epoch,
+                signer: signer.clone(),
+                list: list.clone(),
+                list_sig: sig.clone(),
+            })
+            .collect();
+        Ok(BookInfo {
+            share_id: share_id.to_owned(),
+            owner: book.owner.clone(),
+            role,
+            status: status.to_owned(),
+            epoch: book.epoch,
+            rev: book.head_rev,
+            hash: book.head_hash.clone(),
+            lists,
+            more: rows.len() > PAGE_LISTS,
+            wraps: book
+                .wraps
+                .iter()
+                .filter(|((account, _), _)| *account == caller.account_id)
+                .map(|((_, epoch), wrapped)| EpochWrap {
+                    epoch: *epoch,
+                    wrapped: wrapped.clone(),
+                })
+                .collect(),
+            epochs: book
+                .history
+                .iter()
+                .map(|(epoch, link)| BookEpochLink {
+                    epoch: *epoch,
+                    history_link: link.clone(),
+                })
+                .collect(),
+        })
+    }
+
+    pub(super) fn accept_book_impl(&self, caller: &Caller, share_id: &str) -> Result<()> {
+        let mut state = self.lock()?;
+        state.book_role(share_id, caller, true)?;
+        let book = state.book(share_id)?;
+        if let Some(entry) = book.members.get_mut(&caller.account_id) {
+            entry.1 = "member";
+        }
+        Ok(())
+    }
+
+    pub(super) fn new_book_list_impl(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        new: &NewBookList,
+    ) -> Result<()> {
+        let mut state = self.lock()?;
+        let (role, _) = state.book_role(share_id, caller, false)?;
+        if !role.may_manage() {
+            return Err(refused(403, "forbidden_role"));
+        }
+        let book = state.books.get(share_id).ok_or_else(not_found)?;
+        if new.rev != book.head_rev + 1 {
+            return Err(conflict(book));
+        }
+        let (list, bytes) = parse(&new.list).ok_or_else(bad)?;
+        if list.share != share_id || list.rev != new.rev || list.owner != book.owner {
+            return Err(bad());
+        }
+        if list.prev.as_deref() != Some(book.head_hash.as_str()) {
+            return Err(conflict(book));
+        }
+        if list.signer != caller.account_id {
+            return Err(refused(403, "forbidden_author"));
+        }
+        let (prev_list, _) = parse(&book.lists[book.head_rev as usize - 1].2).ok_or_else(bad)?;
+        let new_epoch = list.epoch != prev_list.epoch;
+        if new_epoch {
+            if list.epoch != prev_list.epoch + 1
+                || list.key_commit == prev_list.key_commit
+                || list.from_seq < prev_list.from_seq
+                || list.from_seq.is_none()
+            {
+                return Err(bad());
+            }
+            // The room checks that the list's position is its real head.
+            if list.from_seq != Some(book.head) {
+                return Err(CollabError::api(
+                    409,
+                    "head_moved",
+                    json!({ "error": "head_moved", "head": book.head }),
+                ));
+            }
+            if new.history_link.is_none() {
+                return Err(bad());
+            }
+        } else if list.key_commit != prev_list.key_commit
+            || list.from_seq != prev_list.from_seq
+            || new.history_link.is_some()
+        {
+            return Err(bad());
+        }
+        if list.members.len() > MAX_BOOK_MEMBERS {
+            return Err(quota("members"));
+        }
+        state.check_book_members(&list)?;
+        let needed: Vec<&str> = list
+            .members
+            .iter()
+            .filter(|m| {
+                new_epoch
+                    || prev_list
+                        .member(&m.account)
+                        .is_none_or(|old| old.role != m.role)
+            })
+            .map(|m| m.account.as_str())
+            .collect();
+        State::check_book_wraps(&new.wraps, &needed)?;
+        let hash = link_hash(&bytes);
+        let book = state.book(share_id)?;
+        for account in book.members.keys().cloned().collect::<Vec<_>>() {
+            if list.member(&account).is_none() {
+                book.members.remove(&account);
+                book.wraps.retain(|(a, _), _| *a != account);
+            }
+        }
+        for member in &list.members {
+            let entry = book
+                .members
+                .entry(member.account.clone())
+                .or_insert((member.role, "invited"));
+            entry.0 = member.role;
+        }
+        for wrap in &new.wraps {
+            if book
+                .members
+                .get(&wrap.account)
+                .is_some_and(|m| m.1 != "left")
+            {
+                book.wraps
+                    .insert((wrap.account.clone(), list.epoch), wrap.wrapped.clone());
+            }
+        }
+        if let Some(link) = &new.history_link {
+            book.history.insert(list.epoch, link.clone());
+        }
+        book.epoch = list.epoch;
+        book.head_rev = new.rev;
+        book.head_hash = hash;
+        book.lists.push((
+            list.epoch,
+            caller.account_id.clone(),
+            new.list.clone(),
+            new.list_sig.clone(),
+        ));
+        Ok(())
+    }
+
+    pub(super) fn book_log_impl(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        since: u64,
+        limit: usize,
+    ) -> Result<BookLogPage> {
+        let state = self.lock()?;
+        state.book_role(share_id, caller, false)?;
+        if !is_id(stream) {
+            return Err(bad());
+        }
+        let book = &state.books[share_id];
+        let empty = Stream::default();
+        let stream = book.streams.get(stream).unwrap_or(&empty);
+        let snapshot = stream
+            .snapshot
+            .as_ref()
+            .filter(|(base, _)| since == 0 || since < *base)
+            .map(|(base, envelope)| SnapshotEntry {
+                seq: *base,
+                base_seq: *base,
+                envelope: b64(envelope),
+            });
+        let limit = limit.clamp(1, 1000);
+        let candidates: Vec<&(u64, Kind, Vec<u8>)> = stream
+            .log
+            .iter()
+            .filter(|(seq, _, _)| *seq > since)
+            .collect();
+        let more = candidates.len() > limit;
+        Ok(BookLogPage {
+            head: book.head,
+            stream_head: stream.head,
+            snapshot,
+            entries: candidates
+                .into_iter()
+                .take(limit)
+                .map(|(seq, _, e)| LogEntry {
+                    seq: *seq,
+                    envelope: b64(e),
+                })
+                .collect(),
+            more,
+        })
+    }
+
+    /// What a write to a stream must pass: the caller a member with a role
+    /// that may write the kind, the envelope its own and of the notebook's
+    /// epoch, and the size.
+    fn admit_book_write(
+        state: &State,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        envelope: &[u8],
+        snapshot: bool,
+    ) -> Result<(Kind, bool)> {
+        let (role, _) = state.book_role(share_id, caller, false)?;
+        if !is_id(stream) {
+            return Err(bad());
+        }
+        let (header, _) = parse_header(envelope).ok_or_else(bad)?;
+        let manifest = stream == MANIFEST_STREAM;
+        let allowed = match header.kind {
+            Kind::Update => !snapshot && role.may_edit(),
+            Kind::Snapshot => snapshot && role.may_edit(),
+            Kind::Comment => !snapshot && !manifest && role.may_comment(),
+            Kind::Presence => return Err(bad()),
+        };
+        if (header.kind == Kind::Snapshot) != snapshot {
+            return Err(bad());
+        }
+        if header.author_account != caller.account_id || header.author_device != caller.device_id {
+            return Err(refused(403, "forbidden_author"));
+        }
+        if !allowed {
+            return Err(refused(403, "forbidden_role"));
+        }
+        if envelope.len() > max_size(header.kind) {
+            return Err(refused(413, "too_large"));
+        }
+        let book = &state.books[share_id];
+        if header.epoch != book.epoch {
+            return Err(CollabError::api(
+                409,
+                "epoch_changed",
+                json!({ "error": "epoch_changed", "epoch": book.epoch }),
+            ));
+        }
+        if !manifest
+            && !book.streams.contains_key(stream)
+            && book.streams.len() - usize::from(book.streams.contains_key(MANIFEST_STREAM))
+                >= MAX_BOOK_NOTES
+        {
+            return Err(quota("notes"));
+        }
+        Ok((header.kind, manifest))
+    }
+
+    pub(super) fn book_append_impl(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        envelope: &[u8],
+    ) -> Result<u64> {
+        let mut state = self.lock()?;
+        MemoryCollab::admit_book_write(&state, caller, share_id, stream, envelope, false)?;
+        let (kind, _) = parse_header(envelope)
+            .map(|(h, _)| (h.kind, ()))
+            .ok_or_else(bad)?;
+        let book = state.book(share_id)?;
+        book.head += 1;
+        let seq = book.head;
+        let entry = book.streams.entry(stream.to_owned()).or_default();
+        entry.head = seq;
+        entry.log.push((seq, kind, envelope.to_vec()));
+        Ok(seq)
+    }
+
+    pub(super) fn book_snapshot_impl(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        base_seq: u64,
+        envelope: &[u8],
+    ) -> Result<u64> {
+        let mut state = self.lock()?;
+        MemoryCollab::admit_book_write(&state, caller, share_id, stream, envelope, true)?;
+        let book = state.book(share_id)?;
+        let head = book.streams.get(stream).map_or(0, |s| s.head);
+        if base_seq != head {
+            return Err(CollabError::api(
+                409,
+                "head_moved",
+                json!({ "error": "head_moved", "head": head }),
+            ));
+        }
+        let entry = book.streams.entry(stream.to_owned()).or_default();
+        entry
+            .log
+            .retain(|(seq, kind, _)| *kind == Kind::Comment || *seq > base_seq);
+        entry.snapshot = Some((base_seq, envelope.to_vec()));
+        Ok(base_seq)
+    }
+}

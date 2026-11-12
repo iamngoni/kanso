@@ -12,15 +12,20 @@ use serde_json::json;
 
 use crate::api::Caller;
 use crate::api::{
-    CollabApi, CollabError, Created, EpochList, EpochWrap, JoinRequest, Joined, LinkInfo,
-    LiveEvent, LiveLink, LogEntry, LogPage, MemberState, NewEpoch, NewLink, NewShare, NoticeIn,
-    NoticeOut, Result, ShareInfo, SnapshotEntry,
+    BookCreated, BookInfo, BookLogPage, CollabApi, CollabError, Created, EpochList, EpochWrap,
+    JoinRequest, Joined, LinkInfo, LiveEvent, LiveLink, LogEntry, LogPage, MemberState, NewBook,
+    NewBookList, NewEpoch, NewLink, NewShare, NoticeIn, NoticeOut, Result, ShareInfo,
+    SnapshotEntry,
 };
 use crate::codec::{b64, hex, is_id, sha256, unb64};
 use crate::envelope::{max_size, parse_header};
 use crate::identity::Published;
 use crate::members::{MAX_MEMBERS, is_well_formed};
 use crate::model::{Kind, MemberList, PublicIdentity, Role};
+
+mod books;
+
+pub use books::MAX_BOOK_NOTES;
 
 pub const MAX_SINCE_SNAPSHOT: u64 = 10_000;
 pub const MAX_BYTES_SINCE_SNAPSHOT: u64 = 16 * 1024 * 1024;
@@ -77,13 +82,19 @@ struct State {
     /// account → (username, identity).
     identities: HashMap<String, (String, Published)>,
     shares: BTreeMap<String, Share>,
+    books: BTreeMap<String, books::Book>,
     retired: HashSet<String>,
     /// (recipient, notice).
     notices: Vec<(String, NoticeOut)>,
     next_notice: u64,
     next_socket: u64,
     offline: usize,
+    /// Requests that succeed before `offline` begins.
+    grace: usize,
     now: i64,
+    /// Lists naming members whose keys aren't their account's are taken
+    /// (tests of a client against a server that doesn't check).
+    lax_book_members: bool,
 }
 
 /// The Worker's shared-note routes in memory.
@@ -122,7 +133,9 @@ impl MemoryCollab {
 
     fn lock(&self) -> Result<MutexGuard<'_, State>> {
         let mut state = self.state.lock().expect("memory server poisoned");
-        if state.offline > 0 {
+        if state.grace > 0 {
+            state.grace -= 1;
+        } else if state.offline > 0 {
             state.offline -= 1;
             return Err(CollabError::Transport("offline (test)".into()));
         }
@@ -143,7 +156,14 @@ impl MemoryCollab {
 
     /// The next `n` requests fail as if offline.
     pub fn go_offline(&self, n: usize) {
-        self.state.lock().expect("poisoned").offline = n;
+        self.go_offline_after(0, n);
+    }
+
+    /// The next `ok` requests succeed, then `n` fail as if offline.
+    pub fn go_offline_after(&self, ok: usize, n: usize) {
+        let mut state = self.state.lock().expect("poisoned");
+        state.grace = ok;
+        state.offline = n;
     }
 
     /// The server's clock, for link expiry (Unix ms).
@@ -906,6 +926,54 @@ impl CollabApi for MemoryCollab {
             socket: id,
             rx,
         }))
+    }
+
+    fn create_book(&self, caller: &Caller, book: &NewBook) -> Result<BookCreated> {
+        self.create_book_impl(caller, book)
+    }
+
+    fn book(&self, caller: &Caller, share_id: &str, since_rev: u32) -> Result<BookInfo> {
+        self.book_impl(caller, share_id, since_rev)
+    }
+
+    fn accept_book(&self, caller: &Caller, share_id: &str) -> Result<()> {
+        self.accept_book_impl(caller, share_id)
+    }
+
+    fn new_book_list(&self, caller: &Caller, share_id: &str, list: &NewBookList) -> Result<()> {
+        self.new_book_list_impl(caller, share_id, list)
+    }
+
+    fn book_log(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        since: u64,
+        limit: usize,
+    ) -> Result<BookLogPage> {
+        self.book_log_impl(caller, share_id, stream, since, limit)
+    }
+
+    fn book_append(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        envelope: &[u8],
+    ) -> Result<u64> {
+        self.book_append_impl(caller, share_id, stream, envelope)
+    }
+
+    fn book_snapshot(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        base_seq: u64,
+        envelope: &[u8],
+    ) -> Result<u64> {
+        self.book_snapshot_impl(caller, share_id, stream, base_seq, envelope)
     }
 }
 

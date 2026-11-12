@@ -1113,7 +1113,14 @@ pub(crate) fn words(err: &CollabError) -> String {
             "Your sync server gave an answer Kanso doesn't understand.".into()
         }
         CollabError::Store(_) => "The library couldn't be read or written.".into(),
-        CollabError::Identity(_) | CollabError::List(_) | CollabError::Crypto(_) => {
+        CollabError::BookList(kanso_collab::BookListError::Forked) => {
+            "The notebook's history forked: two different lists of people follow the same one, so Kanso didn't go on."
+                .into()
+        }
+        CollabError::Identity(_)
+        | CollabError::List(_)
+        | CollabError::BookList(_)
+        | CollabError::Crypto(_) => {
             "The note's keys couldn't be checked, so Kanso didn't go on.".into()
         }
     }

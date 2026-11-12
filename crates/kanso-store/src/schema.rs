@@ -525,6 +525,9 @@ INSERT INTO api_keys_capture (id, name, client, token_hash, access, books, creat
 DROP TABLE api_keys;
 ALTER TABLE api_keys_capture RENAME TO api_keys;
 "#,
+    // Shared notebooks (`collab/books.rs`, issue #390): local to this device,
+    // never synced, like shared notes'.
+    crate::collab::books::MIGRATION,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked
