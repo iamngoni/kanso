@@ -4,6 +4,7 @@ use proptest::test_runner::{Config, RngAlgorithm, RngSeed};
 use super::*;
 use crate::dates::{Date, DateTime, MONTHS, WEEKDAYS};
 use crate::due_phrase_model::DateOrder;
+use crate::repeat_model::{Every, MonthDay, Repeat, WeekdaySet};
 use crate::tasks::Due;
 
 /// Thursday 12 November 2026, 10:30.
@@ -345,6 +346,112 @@ fn corpus_of_phrases_at_a_pinned_now() {
     }
 }
 
+/// Each row: the line, the phrase the parser takes from its end, and the
+/// token it writes, repeat included.
+const REPEAT_CORPUS: &[(&str, &str, &str)] = &[
+    (
+        "film Pixel review fri 3pm every week",
+        "fri 3pm every week",
+        "@2026-11-13T15:00 every week",
+    ),
+    (
+        "film Pixel review fri 3pm weekly",
+        "fri 3pm weekly",
+        "@2026-11-13T15:00 every week",
+    ),
+    (
+        "back up cards 6pm every weekday",
+        "6pm every weekday",
+        "@2026-11-12T18:00 every weekday",
+    ),
+    (
+        "upload sponsor read mon every 2 weeks",
+        "mon every 2 weeks",
+        "@2026-11-16 every 2 weeks",
+    ),
+    (
+        "invoice 30 nov every month on the last day",
+        "30 nov every month on the last day",
+        "@2026-11-30 every month on the last day",
+    ),
+    (
+        "water plants today every 3 days after done",
+        "today every 3 days after done",
+        "@2026-11-12 every 3 days after done",
+    ),
+    (
+        "standup tomorrow 9am every mon and thu",
+        "tomorrow 9am every mon and thu",
+        "@2026-11-13T09:00 every mon and thu",
+    ),
+    (
+        "pay rent 1 dec every month on the 1st",
+        "1 dec every month on the 1st",
+        "@2026-12-01 every month on the 1st",
+    ),
+    (
+        "gym tonight every day",
+        "tonight every day",
+        "@2026-11-12T20:00 every day",
+    ),
+    (
+        "renew 2027-01-05 yearly",
+        "2027-01-05 yearly",
+        "@2027-01-05 every year",
+    ),
+    (
+        "sync @2026-11-14T15:00 every week",
+        "@2026-11-14T15:00 every week",
+        "@2026-11-14T15:00 every week",
+    ),
+    (
+        "call at 3pm tue EVERY WEEK",
+        "at 3pm tue EVERY WEEK",
+        "@2026-11-17T15:00 every week",
+    ),
+    // a repeat needs a date in front of it
+    ("every week", "", ""),
+    ("film every fri", "", ""),
+    ("film Pixel review every week", "", ""),
+    ("film fri every", "", ""),
+    ("film fri every week and more", "", ""),
+    ("film fri every fortnight", "", ""),
+];
+
+#[test]
+fn repeats_follow_the_date_and_are_written_back() {
+    for (text, phrase, token) in REPEAT_CORPUS {
+        let got = parse(text, now(), DateOrder::DayMonth);
+        if phrase.is_empty() {
+            assert_eq!(got, None, "{text:?} should not parse");
+            continue;
+        }
+        let got = got.unwrap_or_else(|| panic!("{text:?} should parse"));
+        assert_eq!(&text[got.span.clone()], *phrase, "phrase of {text:?}");
+        assert_eq!(canonical(&got), *token, "token of {text:?}");
+        assert_eq!(got.repeat.is_some(), token.contains("every"), "{text:?}");
+    }
+}
+
+#[test]
+fn the_headline_line_has_a_due_and_a_repeat() {
+    let text = "film Pixel review fri 3pm every week";
+    let got = parse(text, now(), DateOrder::DayMonth).unwrap();
+    assert_eq!(
+        got.due,
+        due(Date::new(2026, 11, 13).unwrap(), Some((15, 0)))
+    );
+    assert_eq!(
+        got.repeat,
+        Some(Repeat {
+            every: Every::Weeks(1, WeekdaySet::EMPTY),
+            after_done: false
+        })
+    );
+    let line = format!("{}{}", &text[..got.span.start], canonical(&got));
+    assert_eq!(line, "film Pixel review @2026-11-13T15:00 every week");
+}
+
 #[test]
 fn month_day_order_reads_the_slash_the_other_way() {
     let order = DateOrder::MonthDay;
@@ -445,6 +552,110 @@ fn arb_phrase_soup() -> impl Strategy<Value = String> {
         0..8,
     )
     .prop_map(|parts| parts.into_iter().map(|(w, s)| format!("{w}{s}")).collect())
+}
+
+fn arb_repeat() -> impl Strategy<Value = Repeat> {
+    let set = prop_oneof![Just(WeekdaySet::EMPTY), (1u8..128).prop_map(WeekdaySet)];
+    let month_day = prop_oneof![
+        Just(MonthDay::Same),
+        (1u8..=31).prop_map(MonthDay::Date),
+        Just(MonthDay::Last),
+        (prop_oneof![Just(-1i8), 1i8..=4], 0u8..7).prop_map(|(n, day)| MonthDay::Nth(n, day)),
+    ];
+    let every = prop_oneof![
+        (1u16..=400).prop_map(Every::Days),
+        (1u16..=60, set).prop_map(|(n, set)| Every::Weeks(n, set)),
+        (1u16..=48, month_day).prop_map(|(n, rule)| Every::Months(n, rule)),
+        (1u16..=60).prop_map(Every::Years),
+        Just(Every::Weekdays),
+    ];
+    (every, any::<bool>()).prop_map(|(every, after_done)| Repeat { every, after_done })
+}
+
+proptest! {
+    #![proptest_config(Config {
+        cases: 512,
+        rng_seed: RngSeed::Fixed(0x0064_7270_6174),
+        rng_algorithm: RngAlgorithm::ChaCha,
+        failure_persistence: None,
+        ..Config::default()
+    })]
+
+    /// A date and a repeat written by `canonical` parse back to the same
+    /// pair, alone or at the end of a line, and write the same token.
+    #[test]
+    fn canonical_with_a_repeat_round_trips(
+        date in arb_date(),
+        time in proptest::option::of((0u32..24, 0u32..60)),
+        repeat in arb_repeat(),
+        now in arb_now(),
+        order in arb_order(),
+        lead in "[a-z ]{0,12}",
+    ) {
+        let parsed = Parsed { span: 0..0, due: due(date, time), repeat: Some(repeat) };
+        let token = canonical(&parsed);
+        let again = parse(&token, now, order).expect("canonical parses");
+        prop_assert_eq!(again.due, parsed.due);
+        prop_assert_eq!(again.repeat, parsed.repeat);
+        prop_assert_eq!(&again.span, &(0..token.len()));
+        prop_assert_eq!(canonical(&again), token.clone());
+
+        let line = format!("{lead}x {token}");
+        let found = parse(&line, now, order).expect("canonical parses after text");
+        prop_assert_eq!(found.due, parsed.due);
+        prop_assert_eq!(found.repeat, parsed.repeat);
+        prop_assert_eq!(&line[found.span], token.as_str());
+    }
+
+    /// A phrase with a repeat on its end is the same phrase without it,
+    /// plus the repeat; the phrase without one never gains a repeat.
+    #[test]
+    fn a_repeat_adds_to_the_date_and_changes_nothing_else(
+        text in arb_phrase_soup(),
+        repeat in arb_repeat(),
+        now in arb_now(),
+        order in arb_order(),
+    ) {
+        let plain = parse(&text, now, order);
+        if let Some(p) = &plain {
+            prop_assert_eq!(p.repeat, None);
+        }
+        let line = format!("{text} {repeat}");
+        if let Some(with) = parse(&line, now, order) {
+            prop_assert_eq!(with.repeat, Some(repeat));
+            prop_assert!(line[with.span.clone()].ends_with(&repeat.to_string()));
+            // The date part alone is what the line without the repeat gives.
+            let date_end = with.span.end - repeat.to_string().len();
+            let alone = parse(line[..date_end].trim_end(), now, order)
+                .expect("the date part parses without the repeat");
+            prop_assert_eq!(alone.due, with.due);
+            prop_assert_eq!(alone.span.start, with.span.start);
+        }
+    }
+
+    /// Text built from date and repeat words, in any order, never panics
+    /// and gives a span that ends the line.
+    #[test]
+    fn repeat_soup_never_panics(
+        words in proptest::collection::vec(
+            prop_oneof![
+                Just("every"), Just("week"), Just("weeks"), Just("after"),
+                Just("done"), Just("on"), Just("the"), Just("and"), Just("mon"),
+                Just("last"), Just("day"), Just("2"), Just("15th"), Just("fri"),
+                Just("3pm"), Just("daily"), Just("weekly"), Just("@2026-11-14"),
+            ],
+            0..14,
+        ),
+        now in arb_now(),
+        order in arb_order(),
+    ) {
+        let text = words.join(" ");
+        if let Some(found) = parse(&text, now, order) {
+            prop_assert!(text.is_char_boundary(found.span.start));
+            prop_assert_eq!(found.span.end, text.len());
+            prop_assert!(parse(&text[found.span.clone()], now, order).is_some());
+        }
+    }
 }
 
 proptest! {
