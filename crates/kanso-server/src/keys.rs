@@ -14,7 +14,7 @@
 use std::collections::HashSet;
 use std::fmt;
 use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::{Duration, Instant};
 
 use base64::Engine as _;
@@ -116,6 +116,9 @@ pub struct KeyStore {
     /// Counts every change to the keys, by any handle: lets a page showing
     /// them tell that they moved.
     changes: Arc<AtomicU64>,
+    /// The pairing request that is waiting, if any (issue #390, step 12).
+    /// Shared by every clone, kept in memory only.
+    pairing: Arc<Mutex<crate::pair::PairState>>,
     clock: Clock,
 }
 
@@ -141,6 +144,7 @@ impl KeyStore {
             live: Arc::new(RwLock::new(Vec::new())),
             refused: Arc::new(AtomicI64::new(0)),
             changes: Arc::new(AtomicU64::new(0)),
+            pairing: Arc::new(Mutex::new(crate::pair::PairState::default())),
             clock,
         };
         keys.reload()?;
@@ -190,6 +194,16 @@ impl KeyStore {
         }
         self.changes.fetch_add(1, Ordering::Relaxed);
         result
+    }
+
+    /// The handle that pairing requests are made and answered through.
+    pub fn pairing(&self) -> crate::pair::Pairing {
+        crate::pair::Pairing::new(self.clone(), self.pairing.clone())
+    }
+
+    /// The time, in ms since the epoch, by this store's clock.
+    pub(crate) fn now(&self) -> i64 {
+        (self.clock)()
     }
 
     /// How many times the keys have changed since this handle was opened.

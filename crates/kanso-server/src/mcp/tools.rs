@@ -152,7 +152,8 @@ pub(crate) fn call_capture(
 ) -> Value {
     use crate::capture::{self, Decision};
     match capture::tool(name) {
-        Decision::Denied => error_result(keyed::cannot_write(key.access)),
+        // `Open` is for routes; a tool that is neither is refused.
+        Decision::Denied | Decision::Open => error_result(keyed::cannot_write(key.access)),
         Decision::Read => call(state, Some(vis), name, arguments),
         Decision::Add => {
             let Some(tool) = schema::tool(name) else {

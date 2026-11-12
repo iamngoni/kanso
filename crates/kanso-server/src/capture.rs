@@ -28,9 +28,12 @@ pub(crate) enum Decision {
     Add,
     /// Refused.
     Denied,
+    /// Takes no key at all, so no key's access applies: the pairing routes
+    /// (`crate::pair`), which sit outside the key gate.
+    Open,
 }
 
-use Decision::{Add, Denied, Read};
+use Decision::{Add, Denied, Open, Read};
 
 /// The decision for every MCP tool. A tool missing here is [`Denied`].
 pub(crate) const TOOLS: &[(&str, Decision)] = &[
@@ -171,6 +174,8 @@ pub(crate) const ROUTES: &[Route] = &[
         "/notes/note:a/pdf/file:b/highlights/h1",
         Denied,
     ),
+    route("POST", "/pair", "/pair", Open),
+    route("GET", "/pair/{request}", "/pair/abc", Open),
     route("GET", "/notes", "/notes", Read),
     route("POST", "/notes", "/notes", Add),
     route("GET", "/{collection}", "/books", Read),
@@ -191,6 +196,9 @@ pub(crate) const ROUTES: &[Route] = &[
 /// `POST /notes` is [`Denied`], whatever route it reaches, so a route added
 /// later is refused until it is decided here.
 pub(crate) fn rest(method: &Method, path: &str) -> Decision {
+    if path == "/pair" || path.starts_with("/pair/") {
+        return Open;
+    }
     if *method == Method::POST && path == "/notes" {
         return Add;
     }
@@ -323,7 +331,11 @@ mod tests {
     /// The route patterns the router is built with, read from the source.
     fn router_patterns() -> Vec<String> {
         let mut patterns = Vec::new();
-        for source in [include_str!("rest.rs"), include_str!("lib.rs")] {
+        for source in [
+            include_str!("rest.rs"),
+            include_str!("lib.rs"),
+            include_str!("pair.rs"),
+        ] {
             let production = source.split("#[cfg(test)]").next().unwrap();
             for chunk in production.split(".route(").skip(1) {
                 let chunk = chunk.trim_start();
