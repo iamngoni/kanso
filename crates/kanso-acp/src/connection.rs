@@ -125,6 +125,8 @@ pub struct AgentInfo {
     pub mcp_http: bool,
     /// It offers `session/close`.
     pub close_session: bool,
+    /// It can pick a saved conversation up again (`session/load`).
+    pub load_session: bool,
 }
 
 /// An MCP server a session may reach: Kanso's read-only notes server, over
@@ -236,6 +238,9 @@ struct Shared {
     /// without asking.
     cancelling: Mutex<HashSet<String>>,
     unknown_responses: AtomicU64,
+    /// Sessions being loaded: the updates that replay their history are
+    /// dropped (the transcript is already on disk).
+    loading: Mutex<HashSet<String>>,
     child: Mutex<Option<ChildGuard>>,
     stderr: Arc<Mutex<StderrRing>>,
 }
@@ -496,6 +501,10 @@ impl Shared {
         let Some(session) = params.get("sessionId").and_then(Value::as_str) else {
             return;
         };
+        if lock(&self.loading).contains(session) {
+            self.note("dropped a replayed update");
+            return;
+        }
         let update = params.get("update").cloned().unwrap_or(Value::Null);
         let kind = update
             .get("sessionUpdate")
@@ -876,6 +885,7 @@ impl AgentProcess {
             pending_permissions: Mutex::new(HashMap::new()),
             cancelling: Mutex::new(HashSet::new()),
             unknown_responses: AtomicU64::new(0),
+            loading: Mutex::new(HashSet::new()),
             child: Mutex::new(child),
             stderr,
         });
@@ -956,6 +966,42 @@ impl AgentProcess {
             .and_then(Value::as_str)
             .ok_or_else(|| AcpError::Protocol("a session without an id".to_owned()))?
             .to_owned();
+        self.open_session(id, &result)
+    }
+
+    /// Picks the conversation `id` up again, working in `cwd` and reaching
+    /// `mcp`, with `session/load`. The agent replays the conversation as
+    /// `session/update`s first; they are dropped, the transcript being
+    /// already on disk. Fails with [`AcpError::NoLoadSession`] when the agent
+    /// didn't say it can ([`AgentInfo::load_session`]), and with the agent's
+    /// own error when it no longer has the conversation.
+    pub fn load_session(
+        &self,
+        id: &str,
+        cwd: &Path,
+        mcp: &[McpServer],
+    ) -> Result<Session, AcpError> {
+        if !self.info.load_session {
+            return Err(AcpError::NoLoadSession);
+        }
+        let servers: Vec<Value> = mcp.iter().map(McpServer::to_json).collect();
+        lock(&self.shared.loading).insert(id.to_owned());
+        let result = self.shared.request(
+            "session/load",
+            json!({ "sessionId": id, "cwd": cwd, "mcpServers": servers }),
+            self.shared.limits.session_new,
+            Stage::SessionNew,
+        );
+        // The agent sends the whole history before its response, so the
+        // replay is over once it has answered.
+        lock(&self.shared.loading).remove(id);
+        let result = result?;
+        self.open_session(id.to_owned(), &result)
+    }
+
+    /// The [`Session`] for `id`, from the answer to `session/new` or
+    /// `session/load`, switched to the safest mode the agent offers.
+    fn open_session(&self, id: String, result: &Value) -> Result<Session, AcpError> {
         let modes: Vec<SessionMode> = result
             .pointer("/modes/availableModes")
             .and_then(Value::as_array)
@@ -1072,6 +1118,10 @@ fn agent_info(result: &Value) -> AgentInfo {
         close_session: result
             .pointer("/agentCapabilities/sessionCapabilities/close")
             .is_some_and(|close| !close.is_null()),
+        load_session: result
+            .pointer("/agentCapabilities/loadSession")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
     }
 }
 

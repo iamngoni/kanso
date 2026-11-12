@@ -299,4 +299,90 @@ pub struct SavedSession {
     pub items: Vec<Item>,
     /// The proposal nobody reviewed yet.
     pub pending: Option<ChangeSet>,
+    /// The session this one carries on from ("Continued from …").
+    #[serde(default)]
+    pub continued_from: Option<SessionKey>,
+    /// The session that carries this one on.
+    #[serde(default)]
+    pub continued_in: Option<SessionKey>,
+}
+
+/// The most messages of an old session a new one's first message carries.
+pub const SUMMARY_MESSAGES: usize = 20;
+/// The most bytes of that summary.
+pub const SUMMARY_BYTES: usize = 24 * 1024;
+
+/// `text` cut to at most `max` bytes, on a character boundary, with "…" when
+/// something went.
+fn cut(text: &str, max: usize) -> String {
+    if text.len() <= max {
+        return text.to_owned();
+    }
+    let room = max.saturating_sub('…'.len_utf8());
+    let mut end = room.min(text.len());
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}…", &text[..end])
+}
+
+/// What an old session says for a new one to start from: its last
+/// [`SUMMARY_MESSAGES`] messages (the person's and the agent's), with the
+/// tool calls and proposals between them as one line each, oldest first and
+/// at most [`SUMMARY_BYTES`]. When it doesn't fit, the oldest lines go first;
+/// a single line over the cap is cut.
+pub fn summary(items: &[Item]) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    let mut messages = 0;
+    for item in items.iter().rev() {
+        let line = match item {
+            Item::User { text, .. } => {
+                messages += 1;
+                format!("You: {}", text.trim())
+            }
+            Item::Agent { text, .. } => {
+                messages += 1;
+                format!("Agent: {}", text.trim())
+            }
+            Item::Tool { title, status, .. } => format!(
+                "Tool: {title}{}",
+                if *status == ToolStatus::Failed {
+                    " (failed)"
+                } else {
+                    ""
+                }
+            ),
+            Item::Proposed { counts, state, .. } => format!(
+                "Proposed {} change{} ({})",
+                counts.total(),
+                if counts.total() == 1 { "" } else { "s" },
+                match state {
+                    RoundState::ToReview => "not reviewed",
+                    RoundState::Applied => "applied",
+                    RoundState::Undone => "applied, then undone",
+                    RoundState::Discarded => "discarded",
+                    RoundState::Lost => "lost",
+                },
+            ),
+            Item::Thought { .. } | Item::Permission { .. } | Item::Notice { .. } => continue,
+        };
+        if messages > SUMMARY_MESSAGES {
+            break;
+        }
+        lines.push(line);
+    }
+    lines.reverse();
+    let mut kept: Vec<String> = Vec::new();
+    let mut size = 0;
+    for line in lines.into_iter().rev() {
+        let line = cut(&line, SUMMARY_BYTES - 1);
+        let cost = line.len() + 1;
+        if size + cost > SUMMARY_BYTES {
+            break;
+        }
+        size += cost;
+        kept.push(line);
+    }
+    kept.reverse();
+    kept.join("\n")
 }
