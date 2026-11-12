@@ -4112,7 +4112,7 @@
   "@lockRemoveNotebookTitle": {
     "description": "The title of the sheet that confirms removing a notebook's lock."
   },
-  "lockRemoveNotebookMessage": "Notes put in \u201c{name}\u201d from now on aren't locked. The notes in it now stay locked: remove a note's lock to keep its text as plain text again.",
+  "lockRemoveNotebookMessage": "Notes put in “{name}” from now on aren't locked. The notes in it now stay locked: remove a note's lock to keep its text as plain text again.",
   "@lockRemoveNotebookMessage": {
     "description": "Explains what removing a notebook's lock does.",
     "placeholders": {
@@ -9421,6 +9421,243 @@
     "description": "Said when renaming the speakers did not work; the reason follows.",
     "placeholders": {
       "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "agentSessionAsking": "Has a question",
+  "@agentSessionAsking": {
+    "description": "A session list row: the AI asked something."
+  },
+  "agentSessionDone": "Done",
+  "@agentSessionDone": {
+    "description": "A session list row: finished with nothing to change."
+  },
+  "agentSessionFailed": "Failed",
+  "@agentSessionFailed": {
+    "description": "A session list row: the AI stopped with an error."
+  },
+  "agentSessionDiscarded": "Discarded",
+  "@agentSessionDiscarded": {
+    "description": "A session list row: its changes were thrown away."
+  },
+  "agentSessionLine": "{agent} · {status} · {when}",
+  "@agentSessionLine": {
+    "description": "The line under a session's title: who, how it stands, and when.",
+    "placeholders": {
+      "agent": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "agentSessionWhenNow": "now",
+  "@agentSessionWhenNow": {
+    "description": "A session's last activity was just now."
+  },
+  "agentSessionWhenMinutes": "{count}m ago",
+  "@agentSessionWhenMinutes": {
+    "description": "A session's last activity, in minutes.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentSessionWhenHours": "{count}h ago",
+  "@agentSessionWhenHours": {
+    "description": "A session's last activity, in hours.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentSessionWhenYesterday": "yesterday",
+  "@agentSessionWhenYesterday": {
+    "description": "A session's last activity was yesterday."
+  },
+  "agentSessionWhenDays": "{count}d ago",
+  "@agentSessionWhenDays": {
+    "description": "A session's last activity, in days.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentSessionUnread": "New activity",
+  "@agentSessionUnread": {
+    "description": "Spoken for the dot on a session with new items."
+  },
+  "agentSessionEnd": "End session",
+  "@agentSessionEnd": {
+    "description": "The button that ends a session."
+  },
+  "agentSessionEndTitle": "End this session?",
+  "@agentSessionEndTitle": {
+    "description": "The title of the question before a session ends."
+  },
+  "agentSessionEndBody": "The AI stops and the transcript stays. Changes it proposed stay for you to review.",
+  "@agentSessionEndBody": {
+    "description": "The body of the question before a session ends."
+  },
+  "agentSessionComposerHint": "Ask for more…",
+  "@agentSessionComposerHint": {
+    "description": "The hint in a session's message field."
+  },
+  "agentSessionComposerWorking": "The AI is working. You can write when it asks.",
+  "@agentSessionComposerWorking": {
+    "description": "Shown in place of the message field while the AI works."
+  },
+  "agentSessionComposerEnded": "This session has ended.",
+  "@agentSessionComposerEnded": {
+    "description": "Shown in place of the message field once a session ended."
+  },
+  "agentSessionComposerSend": "Send message",
+  "@agentSessionComposerSend": {
+    "description": "Spoken for the button that sends a message."
+  },
+  "agentSessionThought": "Thought for {seconds}s",
+  "@agentSessionThought": {
+    "description": "A collapsed block of the AI's thinking.",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "agentSessionThoughtShort": "Thought",
+  "@agentSessionThoughtShort": {
+    "description": "A collapsed block of the AI's thinking that took under a second."
+  },
+  "agentSessionTools": "Used {count} tools",
+  "@agentSessionTools": {
+    "description": "Several tool calls folded into one row.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "agentSessionAllowedOnce": "Allowed once: {title}",
+  "@agentSessionAllowedOnce": {
+    "description": "What the person answered when asked for a tool.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "agentSessionAllowedSession": "Allowed for this session: {title}",
+  "@agentSessionAllowedSession": {
+    "description": "What the person answered when asked for a tool.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "agentSessionAllowedAlways": "Always allowed: {title}",
+  "@agentSessionAllowedAlways": {
+    "description": "What the person answered when asked for a tool.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "agentSessionRejected": "Rejected: {title}",
+  "@agentSessionRejected": {
+    "description": "What the person answered when asked for a tool.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "agentSessionRound": "Round {round} · {counts}",
+  "@agentSessionRound": {
+    "description": "The title of a proposal card.",
+    "placeholders": {
+      "round": {
+        "type": "int"
+      },
+      "counts": {
+        "type": "String"
+      }
+    }
+  },
+  "agentSessionRoundApplied": "Applied {counts}",
+  "@agentSessionRoundApplied": {
+    "description": "A proposal card after its changes were applied.",
+    "placeholders": {
+      "counts": {
+        "type": "String"
+      }
+    }
+  },
+  "agentSessionRoundDiscarded": "Discarded {counts}",
+  "@agentSessionRoundDiscarded": {
+    "description": "A proposal card after its changes were thrown away.",
+    "placeholders": {
+      "counts": {
+        "type": "String"
+      }
+    }
+  },
+  "agentSessionRoundUndone": "Undone {counts}",
+  "@agentSessionRoundUndone": {
+    "description": "A proposal card after its changes were taken back.",
+    "placeholders": {
+      "counts": {
+        "type": "String"
+      }
+    }
+  },
+  "agentSessionRoundLost": "{counts} are no longer available",
+  "@agentSessionRoundLost": {
+    "description": "A proposal card whose changes are gone.",
+    "placeholders": {
+      "counts": {
+        "type": "String"
+      }
+    }
+  },
+  "agentSessionUndo": "Undo",
+  "@agentSessionUndo": {
+    "description": "The button that takes back what a proposal applied."
+  },
+  "agentSessionGone": "This session is no longer here.",
+  "@agentSessionGone": {
+    "description": "Shown when an open session has been removed."
+  },
+  "agentSessionToolDone": "Done",
+  "@agentSessionToolDone": {
+    "description": "Spoken for a tool call that finished."
+  },
+  "agentSessionToolFailed": "Failed",
+  "@agentSessionToolFailed": {
+    "description": "Spoken for a tool call that failed."
+  },
+  "agentSessionToolRunning": "Running",
+  "@agentSessionToolRunning": {
+    "description": "Spoken for a tool call still going."
+  },
+  "agentSessionYou": "You",
+  "@agentSessionYou": {
+    "description": "Spoken before the person's own message."
+  },
+  "agentSessionAgentSaid": "{agent} said",
+  "@agentSessionAgentSaid": {
+    "description": "Spoken before the AI's message.",
+    "placeholders": {
+      "agent": {
         "type": "String"
       }
     }

@@ -7,10 +7,24 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'types.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These functions are ignored because they are not marked as `pub`: `now_ms`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoAgentTasks>>
 abstract class KansoAgentTasks implements RustOpaqueInterface {
+  /// Ends session `key`; what it did stays.
+  Future<void> agentEndSession({required String key});
+
+  /// Sends a message into session `key`.
+  Future<void> agentFollowUp({required String key, required String text});
+
+  /// The sessions, latest activity first.
+  Future<List<SessionView>> agentSessions();
+
+  /// What was said in session `key`; opening it clears its unread dot.
+  /// `None` when the session is no longer listed.
+  Future<SessionTranscript?> agentTranscript({required String key});
+
   /// Applies the ticked cards in one step; returns the sentence to show.
   Future<String> apply({
     required int id,
@@ -92,6 +106,103 @@ class AgentTaskPrefs {
           timeLimitMinutes == other.timeLimitMinutes &&
           maxNotes == other.maxNotes &&
           askBeforeReadingAll == other.askBeforeReadingAll;
+}
+
+/// A session and everything said in it.
+class SessionTranscript {
+  final SessionView session;
+  final int version;
+  final List<TranscriptItem> items;
+
+  const SessionTranscript({
+    required this.session,
+    required this.version,
+    required this.items,
+  });
+
+  @override
+  int get hashCode => session.hashCode ^ version.hashCode ^ items.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SessionTranscript &&
+          runtimeType == other.runtimeType &&
+          session == other.session &&
+          version == other.version &&
+          items == other.items;
+}
+
+/// One session in the list: a task as a row.
+class SessionView {
+  final int id;
+  final String key;
+  final String title;
+  final String agent;
+  final String phase;
+  final String detail;
+  final String dot;
+  final bool unread;
+  final int lastActivityMs;
+  final int notesRead;
+  final int changes;
+  final bool canStop;
+  final bool canReview;
+  final bool canFollowUp;
+
+  const SessionView({
+    required this.id,
+    required this.key,
+    required this.title,
+    required this.agent,
+    required this.phase,
+    required this.detail,
+    required this.dot,
+    required this.unread,
+    required this.lastActivityMs,
+    required this.notesRead,
+    required this.changes,
+    required this.canStop,
+    required this.canReview,
+    required this.canFollowUp,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      key.hashCode ^
+      title.hashCode ^
+      agent.hashCode ^
+      phase.hashCode ^
+      detail.hashCode ^
+      dot.hashCode ^
+      unread.hashCode ^
+      lastActivityMs.hashCode ^
+      notesRead.hashCode ^
+      changes.hashCode ^
+      canStop.hashCode ^
+      canReview.hashCode ^
+      canFollowUp.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SessionView &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          key == other.key &&
+          title == other.title &&
+          agent == other.agent &&
+          phase == other.phase &&
+          detail == other.detail &&
+          dot == other.dot &&
+          unread == other.unread &&
+          lastActivityMs == other.lastActivityMs &&
+          notesRead == other.notesRead &&
+          changes == other.changes &&
+          canStop == other.canStop &&
+          canReview == other.canReview &&
+          canFollowUp == other.canFollowUp;
 }
 
 class TaskCard {
@@ -226,4 +337,64 @@ class TaskView {
           notesRead == other.notesRead &&
           changes == other.changes &&
           elapsedSecs == other.elapsedSecs;
+}
+
+/// One thing said in a session; `kind` says which fields mean something.
+class TranscriptItem {
+  final String kind;
+  final String text;
+  final String title;
+  final String toolKind;
+  final String status;
+  final String answer;
+  final int round;
+  final String counts;
+  final String state;
+  final int atMs;
+  final int thoughtSecs;
+
+  const TranscriptItem({
+    required this.kind,
+    required this.text,
+    required this.title,
+    required this.toolKind,
+    required this.status,
+    required this.answer,
+    required this.round,
+    required this.counts,
+    required this.state,
+    required this.atMs,
+    required this.thoughtSecs,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      text.hashCode ^
+      title.hashCode ^
+      toolKind.hashCode ^
+      status.hashCode ^
+      answer.hashCode ^
+      round.hashCode ^
+      counts.hashCode ^
+      state.hashCode ^
+      atMs.hashCode ^
+      thoughtSecs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TranscriptItem &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          text == other.text &&
+          title == other.title &&
+          toolKind == other.toolKind &&
+          status == other.status &&
+          answer == other.answer &&
+          round == other.round &&
+          counts == other.counts &&
+          state == other.state &&
+          atMs == other.atMs &&
+          thoughtSecs == other.thoughtSecs;
 }

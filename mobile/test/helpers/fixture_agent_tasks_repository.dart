@@ -4,6 +4,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:kanso/core/models/data/agent_card.dart';
 import 'package:kanso/core/models/data/agent_review.dart';
+import 'package:kanso/core/models/data/agent_session.dart';
 import 'package:kanso/core/models/data/agent_task.dart';
 import 'package:kanso/core/models/data/agent_task_prefs.dart';
 import 'package:kanso/core/models/data/application_error.dart';
@@ -94,6 +95,85 @@ class FixtureAgentTasksRepository implements AgentTasksRepository {
   @override
   Future<Either<ApplicationError, List<AgentTask>>> tasks() async =>
       Right<ApplicationError, List<AgentTask>>(List<AgentTask>.of(rows));
+
+  /// The sessions to list; when null, one per task in [rows], newest first.
+  List<AgentSession>? sessionRows;
+
+  /// What each session's transcript says, by key.
+  final Map<String, AgentTranscript> transcripts = <String, AgentTranscript>{};
+
+  /// Why a follow-up is refused; null accepts it.
+  String? followUpError;
+
+  static AgentSession sessionOf(AgentTask task) => AgentSession(
+    id: task.id,
+    key: 'session-${task.id}',
+    title: task.goal,
+    phase: task.phase,
+    detail: task.detail,
+    dot: switch (task.phase) {
+      AgentTaskPhase.waiting ||
+      AgentTaskPhase.running => AgentSessionDot.working,
+      AgentTaskPhase.asking || AgentTaskPhase.ready => AgentSessionDot.needsYou,
+      AgentTaskPhase.failed => AgentSessionDot.failed,
+      _ => AgentSessionDot.idle,
+    },
+    lastActivityMs: task.id * 1000,
+    notesRead: task.notesRead,
+    changes: task.changes,
+    canStop: task.active || task.phase == AgentTaskPhase.asking,
+    canReview: task.reviewable,
+    canFollowUp: task.phase == AgentTaskPhase.asking,
+  );
+
+  List<AgentSession> get _sessions =>
+      sessionRows ??
+      <AgentSession>[for (final t in rows.reversed) sessionOf(t)];
+
+  @override
+  Future<Either<ApplicationError, List<AgentSession>>> sessions() async =>
+      Right<ApplicationError, List<AgentSession>>(_sessions);
+
+  @override
+  Future<Either<ApplicationError, AgentTranscript>> transcript(
+    String key,
+  ) async {
+    calls.add('transcript:$key');
+    final found = transcripts[key];
+    if (found != null) {
+      return Right<ApplicationError, AgentTranscript>(found);
+    }
+    final session = _sessions.where((s) => s.key == key).firstOrNull;
+    if (session == null) {
+      return const Left<ApplicationError, AgentTranscript>(
+        ApplicationError.notFound(message: 'Not found.'),
+      );
+    }
+    return Right<ApplicationError, AgentTranscript>(
+      AgentTranscript(session: session),
+    );
+  }
+
+  @override
+  Future<Either<ApplicationError, Unit>> followUp(
+    String key,
+    String text,
+  ) async {
+    calls.add('followUp:$key:$text');
+    final error = followUpError;
+    if (error != null) {
+      return Left<ApplicationError, Unit>(
+        ApplicationError.invalid(message: error),
+      );
+    }
+    return const Right<ApplicationError, Unit>(unit);
+  }
+
+  @override
+  Future<Either<ApplicationError, Unit>> endSession(String key) async {
+    calls.add('endSession:$key');
+    return const Right<ApplicationError, Unit>(unit);
+  }
 
   @override
   Future<Either<ApplicationError, Unit>> stop(int id) async {
