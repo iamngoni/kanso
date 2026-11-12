@@ -20,6 +20,11 @@
 //!   follow `at`.
 //! - the canonical token that [`canonical`] writes, `@2026-11-14T15:00`.
 //!
+//! - a repeat after them: `every week`, `weekly`, `every 2 weeks on mon and
+//!   thu`, `every month on the last day`, `every 3 days after done` (the
+//!   grammar is in [`crate::repeat`]). It comes last, and needs a day or
+//!   time before it.
+//!
 //! A day, a time, or both, in either order. A time with no day is today,
 //! or tomorrow when it has already passed.
 //!
@@ -28,11 +33,44 @@
 
 use crate::dates::{Date, DateTime, MONTHS};
 use crate::due_phrase_model::{DateOrder, Parsed};
+use crate::repeat::parse_repeat;
 use crate::tasks::Due;
 
-/// Finds the date and time at the end of `text`, or `None` when the text
-/// does not end in one.
+/// Finds the date and time at the end of `text`, with the repeat that
+/// follows them (`fri 3pm every week`), or `None` when the text does not
+/// end in one.
+///
+/// A repeat needs a date in front of it: `every week` alone, or after
+/// words that are no date, is no phrase, and the parser does not pick a
+/// first day for it.
 pub fn parse(text: &str, now: DateTime, order: DateOrder) -> Option<Parsed> {
+    let ws = words(text);
+    let last = ws.last()?;
+    // The longest repeat is some sixteen words; look no further back, so
+    // a long line costs no more than a short one.
+    let from = ws.len().saturating_sub(MAX_REPEAT_WORDS);
+    for (ix, word) in ws.iter().enumerate().skip(from) {
+        let Some((repeat, len)) = parse_repeat(&text[word.start..]) else {
+            continue;
+        };
+        if word.start + len != last.end {
+            continue;
+        }
+        // The date must end where the repeat starts, or there is no phrase.
+        let mut parsed = parse_date(&text[..ws[ix.checked_sub(1)?].end], now, order)?;
+        parsed.span.end = last.end;
+        parsed.repeat = Some(repeat);
+        return Some(parsed);
+    }
+    parse_date(text, now, order)
+}
+
+/// The most words a repeat takes: `every 2 weeks on mon, tue, wed, thu,
+/// fri, sat and sun after done`, with room to spare.
+const MAX_REPEAT_WORDS: usize = 20;
+
+/// The date and time at the end of `text`, with no repeat.
+fn parse_date(text: &str, now: DateTime, order: DateOrder) -> Option<Parsed> {
     let words = words(text);
     let ctx = Ctx { now, order };
     let mut pos = words.len();
@@ -88,9 +126,14 @@ pub fn parse(text: &str, now: DateTime, order: DateOrder) -> Option<Parsed> {
     })
 }
 
-/// The task token for a parsed phrase: `@2026-11-14T15:00`.
+/// The task token for a parsed phrase: `@2026-11-14T15:00`, or
+/// `@2026-11-14T15:00 every week` with a repeat, the words that
+/// [`crate::tasks::TaskItem`] reads back.
 pub fn canonical(parsed: &Parsed) -> String {
-    format!("@{}", parsed.due.format())
+    match &parsed.repeat {
+        Some(repeat) => format!("@{} {repeat}", parsed.due.format()),
+        None => format!("@{}", parsed.due.format()),
+    }
 }
 
 struct Ctx {
