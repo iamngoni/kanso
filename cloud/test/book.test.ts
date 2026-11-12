@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { sha256Hex } from "../src/crypto";
 import { collab, ensureIdentity, newIdentity, rekeyIdentity, shareBody } from "./collab-helpers";
 import { type Account, base64url, callJson, clock, resetServer, setSetting, signUp } from "./helpers";
-import { advance, b64, bookList, books, commitOf, genesisBody, newShareId, nextBody, shareBook } from "./book-helpers";
+import { advance, b64, bookList, books, commitOf, wraps, genesisBody, newShareId, nextBody, shareBook } from "./book-helpers";
 
 const DAY = 86_400_000;
 
@@ -465,6 +465,88 @@ describe("the chain of member lists", () => {
 		);
 		const { body } = await genesisBody(newShareId(), alice, []);
 		expect(await books(alice.token).create(body)).toMatchObject({ status: 413, body: { error: "quota_exceeded", quota: "books", used: 50, limit: 50 } });
+	});
+});
+
+describe("leaving", () => {
+	it("keeps a leaver out while the signed list still names them: no wrap, no way back, shown as left; a list that drops them removes the row", async () => {
+		const book = await shareBook(alice, [
+			{ account: bob, role: "view" },
+			{ account: carol, role: "view" },
+		]);
+		const owner = { account: alice, role: "owner" as const };
+		const bobE = { account: bob, role: "edit" as const };
+		const carolV = { account: carol, role: "view" as const };
+		expect((await books(bob.token).leave(book.id)).status).toBe(204);
+		const status = (a: Account) => env.DB.prepare("SELECT status FROM book_members WHERE share_id = ?1 AND account_id = ?2").bind(book.id, a.creds.accountId).first("status");
+		expect(await status(bob)).toBe("left");
+		expect(await count("book_wraps", "account_id = ?1", bob.creds.accountId)).toBe(0);
+		// The same epoch: a role change for the leaver re-wraps nobody, and they stay left.
+		expect((await advance(book, alice, [owner, { account: bob, role: "comment" }, carolV], { wrapFor: [bob] })).status).toBe(200);
+		expect(await status(bob)).toBe("left");
+		expect(await count("book_wraps", "account_id = ?1", bob.creds.accountId)).toBe(0);
+		// A new epoch that still lists them (every wrap sent): the server drops theirs.
+		expect((await advance(book, alice, [owner, bobE, carolV], { newEpoch: true })).status).toBe(200);
+		expect(await count("book_wraps", "account_id = ?1", bob.creds.accountId)).toBe(0);
+		expect(await count("book_wraps", "account_id = ?1", carol.creds.accountId)).toBe(2);
+		expect((await books(bob.token).get(book.id)).status).toBe(404);
+		expect((await books(bob.token).accept(book.id)).status).toBe(404);
+		expect((await books(bob.token).leave(book.id)).status).toBe(404);
+		expect((await books(alice.token).get(book.id)).body.members).toContainEqual({ account: bob.creds.accountId, role: "edit", status: "left" });
+		// A list that stops naming them removes the row; a later one invites them afresh.
+		expect((await advance(book, alice, [owner, carolV], { newEpoch: true })).status).toBe(200);
+		expect(await status(bob)).toBeNull();
+		expect((await advance(book, alice, [owner, bobE, carolV], { wrapFor: [bob] })).status).toBe(200);
+		expect(await status(bob)).toBe("invited");
+		expect((await books(bob.token).get(book.id)).body.wraps.map((w: { epoch: number }) => w.epoch)).toEqual([3]);
+	});
+
+	it("an invited manager sees the chain but not the members or links (only accepted managers do)", async () => {
+		const book = await shareBook(alice, [{ account: bob, role: "manager" }], false);
+		const r = await books(bob.token).get(book.id);
+		expect(r.body).toMatchObject({ role: "manager", status: "invited" });
+		expect(r.body.members).toBeUndefined();
+		expect(r.body.links).toBeUndefined();
+		await books(bob.token).accept(book.id);
+		expect((await books(bob.token).get(book.id)).body.members).toHaveLength(2);
+	});
+});
+
+describe("accounts that are gone", () => {
+	it("a list that still names a deleted account is 409 member_gone with its ID; a list without them goes in", async () => {
+		const book = await shareBook(alice, [
+			{ account: bob, role: "edit" },
+			{ account: carol, role: "view" },
+		]);
+		const members = [...book.members, { account: dave, role: "view" as const }];
+		await ensureIdentity(dave);
+		const withGone = await nextBody(book, alice, members, { wrapFor: [dave] });
+		const del = await callJson("/v2/account/delete", { token: carol.token, json: { auth_key: carol.creds.authKey, username: carol.creds.username } });
+		expect(del.status).toBe(200);
+		expect(await books(alice.token).list(book.id, withGone.body)).toMatchObject({ status: 409, body: { error: "member_gone", account: carol.creds.accountId } });
+		// Someone never known is still unknown_member.
+		const ghost = await signUp("ghost");
+		const withGhost = await bookList({ shareId: book.id, rev: 2, epoch: 2, owner: alice, signer: alice, prev: book.hash, members: [...book.members.filter((m) => m.account !== carol), { account: ghost, role: "view" }] });
+		await env.DB.prepare("DELETE FROM identities WHERE account_id = ?1").bind(ghost.creds.accountId).run();
+		expect(await books(alice.token).list(book.id, { rev: 2, list: withGhost.list, list_sig: b64(64), history_link: b64(73), wraps: wraps([alice, bob, ghost]) })).toMatchObject({
+			status: 409,
+			body: { error: "unknown_member", account: ghost.creds.accountId },
+		});
+		const without = [book.members[0], book.members[1]];
+		const cut = await nextBody(book, alice, without, { newEpoch: true });
+		expect((await books(alice.token).list(book.id, cut.body)).status).toBe(200);
+	});
+});
+
+describe("keys last seen", () => {
+	it("are one row per account, kept after removal and refreshed by each list", async () => {
+		const book = await shareBook(alice, [{ account: bob, role: "edit" }]);
+		const row = (a: Account) => env.DB.prepare("SELECT sign_pub FROM book_seen_keys WHERE share_id = ?1 AND account_id = ?2").bind(book.id, a.creds.accountId).first<{ sign_pub: string }>();
+		expect((await row(bob))!.sign_pub).toBe((await ensureIdentity(bob)).sign_pub);
+		expect((await advance(book, alice, [book.members[0]], { newEpoch: true })).status).toBe(200);
+		expect(await count("book_members", "account_id = ?1", bob.creds.accountId)).toBe(0);
+		expect((await row(bob))!.sign_pub).toBe((await ensureIdentity(bob)).sign_pub);
+		expect(await count("book_seen_keys", "share_id = ?1", book.id)).toBe(2);
 	});
 });
 

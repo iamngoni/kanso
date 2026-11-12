@@ -125,6 +125,8 @@ interface Model {
 	stopped: boolean;
 	epoch: number;
 	members: Map<string, ModelMember>;
+	/** Left while the list still names them: kept out until a list stops naming them. */
+	left: Set<string>;
 	head: number;
 	/** Stored updates and comments: seq and kind. */
 	log: { seq: number; kind: "u" | "c" }[];
@@ -179,6 +181,7 @@ describe("the routes follow the model", () => {
 						[ids[0], { role: "owner", status: "member" }],
 						[ids[1], { role: bobRole, status: accepted ? "member" : "invited" }],
 					]),
+					left: new Set<string>(),
 					head: 0,
 					log: [],
 					snapshot: { seq: 0, base: 0 },
@@ -215,10 +218,12 @@ describe("the routes follow the model", () => {
 							m.epoch += 1;
 							const next = new Map<string, ModelMember>([[ids[0], { role: "owner", status: "member" }]]);
 							for (const l of listed) {
+								if (m.left.has(l.account.creds.accountId)) continue;
 								const old = m.members.get(l.account.creds.accountId);
 								next.set(l.account.creds.accountId, { role: l.role, status: old?.status ?? "invited" });
 							}
 							m.members = next;
+							m.left = new Set([...m.left].filter((a) => listed.some((l) => l.account.creds.accountId === a)));
 							break;
 						}
 						case "accept": {
@@ -270,6 +275,7 @@ describe("the routes follow the model", () => {
 							else {
 								expect(r.status, label).toBe(204);
 								m.members.delete(ids[op.who]);
+								m.left.add(ids[op.who]);
 							}
 							break;
 						}

@@ -22,11 +22,13 @@ async function emptyDatabase(): Promise<void> {
 	const order = [
 		"book_wraps",
 		"book_epochs",
+		"book_seen_keys",
 		"book_lists",
 		"book_links",
 		"book_members",
 		"book_shares",
 		"collab_notifications",
+		"collab_left",
 		"collab_wraps",
 		"collab_lists",
 		"collab_requests",

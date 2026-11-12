@@ -182,7 +182,7 @@ function checkWraps(wraps: unknown, members: ListMember[], epoch: number, earlie
  * the account's own. Otherwise anyone could list someone else's account under
  * their own keys and have members pin them. Null when all match.
  */
-export async function checkMemberKeys(env: Env, members: ListMember[]): Promise<Response | null> {
+export async function checkMemberKeys(env: Env, members: ListMember[], missingCode: (account: string) => string = () => "unknown_member"): Promise<Response | null> {
 	const { results } = await env.DB.prepare(
 		`SELECT i.account_id, i.sign_pub, i.box_pub, a.username FROM identities i JOIN accounts a ON a.id = i.account_id
   WHERE i.account_id IN (SELECT value FROM json_each(?1))`,
@@ -192,7 +192,7 @@ export async function checkMemberKeys(env: Env, members: ListMember[]): Promise<
 	const known = new Map(results.map((r) => [r.account_id, r]));
 	const missing = members.find((m) => !known.has(m.account));
 	if (missing) {
-		return error(409, "unknown_member", "A listed account has no identity keys (unknown, deleted, or not set up).", { account: missing.account });
+		return error(409, missingCode(missing.account), "A listed account has no identity keys (unknown, deleted, or not set up).", { account: missing.account });
 	}
 	const wrong = members.find((m) => {
 		const k = known.get(m.account)!;
@@ -442,7 +442,10 @@ export const listShares = route(async (_request, env, now, session) => {
      OR EXISTS (SELECT 1 FROM collab_wraps w WHERE w.share_id = l.share_id AND w.account_id = ?1 AND w.epoch = l.epoch)
   ORDER BY l.share_id, l.epoch`,
 		).bind(session.accountId),
-		env.DB.prepare(`SELECT share_id, account_id, status FROM collab_members WHERE ${owned} ORDER BY share_id, account_id`).bind(session.accountId),
+		env.DB.prepare(
+			`SELECT share_id, account_id, status FROM collab_members WHERE ${owned}
+  UNION ALL SELECT share_id, account_id, 'left' FROM collab_left WHERE ${owned} ORDER BY share_id, account_id`,
+		).bind(session.accountId),
 		env.DB.prepare(`SELECT id, share_id, role, created_at, expires_at FROM collab_links WHERE ${owned} AND expires_at > ?2 ORDER BY share_id, created_at, id`).bind(
 			session.accountId,
 			now,
@@ -529,9 +532,12 @@ export function accept(shareId: string): Handler {
  * The statements that take `accountId` out of a share it doesn't own: its
  * member row, its wraps and the notifications it holds for the share.
  */
-function leaveStatements(db: D1Database, shareId: string, accountId: string): D1PreparedStatement[] {
+function leaveStatements(db: D1Database, shareId: string, accountId: string, now: number): D1PreparedStatement[] {
 	const notOwner = "NOT EXISTS (SELECT 1 FROM collab_shares WHERE id = ?1 AND owner_id = ?2)";
 	return [
+		// Recorded first: the signed list keeps naming them until the owner cuts them, and the next epoch must not bring them back.
+		db.prepare(`INSERT OR IGNORE INTO collab_left (share_id, account_id, left_at) SELECT ?1, ?2, ?3 WHERE ${notOwner}
+  AND EXISTS (SELECT 1 FROM collab_members WHERE share_id = ?1 AND account_id = ?2)`).bind(shareId, accountId, now),
 		db.prepare(`DELETE FROM collab_wraps WHERE share_id = ?1 AND account_id = ?2 AND ${notOwner}`).bind(shareId, accountId),
 		db.prepare(`DELETE FROM collab_notifications WHERE share_id = ?1 AND recipient_id = ?2 AND ${notOwner}`).bind(shareId, accountId),
 		db.prepare(`DELETE FROM collab_members WHERE share_id = ?1 AND account_id = ?2 AND ${notOwner} RETURNING account_id`).bind(shareId, accountId),
@@ -550,13 +556,13 @@ async function closeSockets(env: Env, shareId: string, accounts: string[]): Prom
 
 /** `DELETE /v2/collab/shares/<id>/membership`: leave, or decline an invitation. The owner can't (403); they stop sharing. */
 export function leave(shareId: string): Handler {
-	return route(async (_request, env, _now, session) => {
+	return route(async (_request, env, now, session) => {
 		if (!isShareId(shareId)) return badRequest("Not a share ID.");
 		const s = await standing(env, shareId, session.accountId);
 		if (!s || s.role === null) return notFound();
 		if (s.ownerId === session.accountId) return forbiddenRole();
-		const results = await env.DB.batch(leaveStatements(env.DB, shareId, session.accountId));
-		if (results[2].results.length !== 1) return notFound();
+		const results = await env.DB.batch(leaveStatements(env.DB, shareId, session.accountId, now));
+		if (results[3].results.length !== 1) return notFound();
 		await closeSockets(env, shareId, [session.accountId]);
 		return noContent();
 	});
@@ -606,6 +612,8 @@ export function newEpoch(shareId: string): Handler {
 		const values = [shareId, epoch, b.list_sig, b.list, now, session.accountId, accounts, JSON.stringify(members), JSON.stringify(wraps)];
 		const mine = "EXISTS (SELECT 1 FROM collab_shares WHERE id = ?1 AND epoch = ?2 AND list_sig = ?3)";
 		const listed = "(SELECT value FROM json_each(?7))";
+		// Someone who left stays out (no member row, no wrap) until a list stops naming them.
+		const notLeft = "json_extract(value, '$.account') NOT IN (SELECT account_id FROM collab_left WHERE share_id = ?1)";
 		const asked = "EXISTS (SELECT 1 FROM collab_requests r WHERE r.share_id = ?1 AND r.account_id = json_extract(value, '$.account'))";
 		const sql = [
 			`UPDATE collab_shares SET epoch = ?2, list = ?4, list_sig = ?3, updated_at = ?5
@@ -613,14 +621,15 @@ export function newEpoch(shareId: string): Handler {
 			`DELETE FROM collab_wraps WHERE share_id = ?1 AND account_id NOT IN ${listed} AND ${mine}`,
 			`DELETE FROM collab_notifications WHERE share_id = ?1 AND recipient_id NOT IN ${listed} AND ${mine}`,
 			`DELETE FROM collab_members WHERE share_id = ?1 AND account_id NOT IN ${listed} AND ${mine}`,
+			`DELETE FROM collab_left WHERE share_id = ?1 AND account_id NOT IN ${listed} AND ${mine}`,
 			`INSERT INTO collab_members (share_id, account_id, role, status, invited_at, joined_at)
   SELECT ?1, json_extract(value, '$.account'), json_extract(value, '$.role'),
     CASE WHEN ${asked} THEN 'member' ELSE 'invited' END, ?5, CASE WHEN ${asked} THEN ?5 END
-  FROM json_each(?8) WHERE ${mine}
+  FROM json_each(?8) WHERE ${mine} AND ${notLeft}
   ON CONFLICT (share_id, account_id) DO UPDATE SET role = excluded.role`,
 			`DELETE FROM collab_requests WHERE share_id = ?1 AND account_id IN ${listed} AND ${mine}`,
 			`INSERT INTO collab_wraps (share_id, account_id, epoch, wrapped)
-  SELECT ?1, json_extract(value, '$.account'), json_extract(value, '$.epoch'), json_extract(value, '$.wrapped') FROM json_each(?9) WHERE ${mine}
+  SELECT ?1, json_extract(value, '$.account'), json_extract(value, '$.epoch'), json_extract(value, '$.wrapped') FROM json_each(?9) WHERE ${mine} AND ${notLeft}
   ON CONFLICT (share_id, account_id, epoch) DO UPDATE SET wrapped = excluded.wrapped`,
 			`INSERT INTO collab_lists (share_id, epoch, list, list_sig) SELECT ?1, ?2, ?4, ?3 WHERE ${mine}
   ON CONFLICT (share_id, epoch) DO NOTHING`,
@@ -662,6 +671,7 @@ function stopStatements(db: D1Database, shareId: string, now: number, ownerSql: 
 			values,
 		),
 		bound(db, `DELETE FROM collab_wraps WHERE ${where}`, values),
+		bound(db, `DELETE FROM collab_left WHERE ${where}`, values),
 		bound(db, `DELETE FROM collab_lists WHERE ${where}`, values),
 		bound(db, `DELETE FROM collab_notifications WHERE ${where}`, values),
 		bound(db, `DELETE FROM collab_requests WHERE ${where}`, values),
@@ -876,6 +886,8 @@ export function join(linkId: string): Handler {
 		const results = await guarded(
 			env,
 			[
+				// Asking again through a link is a new, deliberate request: it ends an earlier leaving.
+				env.DB.prepare("DELETE FROM collab_left WHERE share_id = ?1 AND account_id = ?2").bind(link.share_id, session.accountId),
 				env.DB.prepare(
 					`INSERT INTO collab_requests (share_id, account_id, link_id, role, requested_at) VALUES (?1, ?2, ?3, ?4, ?5)
   ON CONFLICT (share_id, account_id) DO UPDATE SET link_id = excluded.link_id, role = excluded.role, requested_at = excluded.requested_at`,
@@ -1056,6 +1068,7 @@ function bookAccountStatements(bind: (sql: string) => D1PreparedStatement, guard
 		bind(`UPDATE book_shares SET stopped_at = ?3 WHERE owner_id = ?1 AND ${guardSql}`),
 		bind(`DELETE FROM book_wraps WHERE (account_id = ?1 OR share_id IN ${owned}) AND ${guardSql}`),
 		bind(`DELETE FROM book_epochs WHERE share_id IN ${owned} AND ${guardSql}`),
+		bind(`DELETE FROM book_seen_keys WHERE share_id IN ${owned} AND ${guardSql}`),
 		bind(`DELETE FROM book_lists WHERE share_id IN ${owned} AND ${guardSql}`),
 		bind(`DELETE FROM book_links WHERE share_id IN ${owned} AND ${guardSql}`),
 		bind(`DELETE FROM book_members WHERE (account_id = ?1 OR share_id IN ${owned}) AND ${guardSql}`),
@@ -1079,6 +1092,7 @@ export function accountCollabStatements(db: D1Database, accountId: string, guard
 		),
 		bind(`DELETE FROM collab_notifications WHERE (recipient_id = ?1 OR sender_id = ?1 OR share_id IN ${owned}) AND ${guardSql}`),
 		bind(`DELETE FROM collab_wraps WHERE (account_id = ?1 OR share_id IN ${owned}) AND ${guardSql}`),
+		bind(`DELETE FROM collab_left WHERE (account_id = ?1 OR share_id IN ${owned}) AND ${guardSql}`),
 		bind(`DELETE FROM collab_lists WHERE share_id IN ${owned} AND ${guardSql}`),
 		bind(`DELETE FROM collab_requests WHERE (account_id = ?1 OR share_id IN ${owned}) AND ${guardSql}`),
 		bind(`DELETE FROM collab_links WHERE share_id IN ${owned} AND ${guardSql}`),
