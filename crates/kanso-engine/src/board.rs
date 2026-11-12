@@ -4,10 +4,14 @@
 //! in its note: the note's status, or the task's box. The desktop draws it
 //! in `board_view.rs`, the mobile app in Flutter.
 
+use std::collections::HashMap;
+
+use kanso_core::properties::{self, Value};
 use kanso_core::{DocType, NoteStatus};
 use kanso_store::{CheckOff, NoteSummary, Origin, Put, Store, StoreError, TaskRow};
 use serde_json::json;
 
+pub use crate::board_model::{MoveUndo, PropertyBoard};
 use crate::tasks::TaskId;
 
 /// What a board lays out.
@@ -21,20 +25,33 @@ pub enum BoardKind {
 }
 
 /// A board's column.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Lane {
     Status(NoteStatus),
     Todo,
     Done,
+    /// On a board grouped by a property: the notes whose property has this
+    /// value.
+    Value(String),
+    /// On a board grouped by a property: the notes with no value.
+    Unset,
+    /// On a board grouped by a property: the notes whose value is none of
+    /// the lanes. They are shown here, as written, never dropped.
+    Unlisted,
 }
 
 impl Lane {
-    pub fn label(self) -> &'static str {
+    /// The lane's name. A property board words its own lanes
+    /// ([`PropertyBoard::label`]), which know the property's name.
+    pub fn label(&self) -> String {
         match self {
-            Lane::Status(NoteStatus::None) => "No status",
-            Lane::Status(status) => status.label(),
-            Lane::Todo => "To do",
-            Lane::Done => "Done",
+            Lane::Status(NoteStatus::None) => "No status".to_owned(),
+            Lane::Status(status) => status.label().to_owned(),
+            Lane::Todo => "To do".to_owned(),
+            Lane::Done => "Done".to_owned(),
+            Lane::Value(value) => value.clone(),
+            Lane::Unset => "No value".to_owned(),
+            Lane::Unlisted => "Unlisted value".to_owned(),
         }
     }
 }
@@ -105,6 +122,9 @@ pub struct Move {
     pub id: CardId,
     pub from: Lane,
     pub to: Lane,
+    /// The property the lanes are values of, on a board grouped by one:
+    /// the move writes it. `None` on a status or task board.
+    pub property: Option<String>,
 }
 
 /// The cards, their columns and the selection. Pure.
@@ -114,6 +134,11 @@ pub struct Board {
     pub cards: Vec<Card>,
     pub loaded: bool,
     pub selected: Option<CardId>,
+    /// What the notes are grouped by, when not by status.
+    pub group: Option<PropertyBoard>,
+    /// With a `group`: the lane each note is in, by note id (a note not here
+    /// is in no lane's value: [`Lane::Unset`]).
+    placed: HashMap<String, Lane>,
 }
 
 impl Board {
@@ -124,15 +149,69 @@ impl Board {
         }
     }
 
+    /// A board of notes grouped by a property. Give it the notes' lanes
+    /// with [`Board::set_placements`] (see [`placements`]).
+    pub fn grouped(group: PropertyBoard) -> Self {
+        Board {
+            group: Some(group),
+            ..Board::default()
+        }
+    }
+
+    /// Takes the lane each note is in, by id, on a grouped board.
+    pub fn set_placements(&mut self, placed: HashMap<String, Lane>) {
+        self.placed = placed;
+    }
+
+    /// The lane card `card` is in.
+    pub fn lane_of(&self, card: &Card) -> Lane {
+        match (&self.group, card) {
+            (Some(group), Card::Note(note)) => match self.placed.get(&note.id) {
+                Some(Lane::Value(value)) if !group.values.contains(value) => Lane::Unlisted,
+                Some(Lane::Value(value)) => Lane::Value(value.clone()),
+                Some(Lane::Unlisted) => Lane::Unlisted,
+                _ => Lane::Unset,
+            },
+            _ => card.lane(),
+        }
+    }
+
+    /// The columns, left to right. A status board has its five statuses, a
+    /// task board To do and Done. A board grouped by a property has a lane
+    /// per value in the order the property lists them, then "Unlisted" and
+    /// "No value" when a note is there (the last also when the board always
+    /// shows it).
+    pub fn lanes(&self) -> Vec<Lane> {
+        let Some(group) = &self.group else {
+            return self.kind.lanes();
+        };
+        let has = |lane: &Lane| self.cards.iter().any(|card| self.lane_of(card) == *lane);
+        let mut lanes: Vec<Lane> = group.values.iter().cloned().map(Lane::Value).collect();
+        if has(&Lane::Unlisted) {
+            lanes.push(Lane::Unlisted);
+        }
+        if group.show_unset || has(&Lane::Unset) {
+            lanes.push(Lane::Unset);
+        }
+        lanes
+    }
+
+    /// The words on `lane`'s head.
+    pub fn label(&self, lane: &Lane) -> String {
+        match &self.group {
+            Some(group) => group.label(lane),
+            None => lane.label(),
+        }
+    }
+
     /// Each column with its cards (indices into `cards`), in the order
     /// they came. Every card is in exactly one column: its own.
     pub fn columns(&self) -> Vec<(Lane, Vec<usize>)> {
-        self.kind
-            .lanes()
+        self.lanes()
             .into_iter()
             .map(|lane| {
                 let cards = (0..self.cards.len())
-                    .filter(|&ix| self.cards[ix].lane() == lane)
+                    .filter(|&ix| self.lane_of(&self.cards[ix]) == lane)
                     .collect();
                 (lane, cards)
             })
@@ -226,30 +305,37 @@ impl Board {
     /// empty or not. Nothing at the edge.
     pub fn move_selected(&mut self, delta: isize) -> Option<Move> {
         let id = self.selected.clone()?;
-        let lanes = self.kind.lanes();
+        let lanes = self.lanes();
         let (col, _) = self.position(&id)?;
-        let to = *lanes.get(col.checked_add_signed(delta)?)?;
+        let to = lanes.get(col.checked_add_signed(delta)?)?.clone();
         self.move_card(&id, to)
     }
 
     /// Puts card `id` in column `to`, and says what to write. Nothing when
-    /// the card isn't on the board, is in that column already, or the
-    /// column isn't this board's. The card stays selected.
+    /// the card isn't on the board, is in that column already, the column
+    /// isn't this board's, or it is the unlisted one (a note can be put
+    /// there only by typing a value). The card stays selected.
     pub fn move_card(&mut self, id: &CardId, to: Lane) -> Option<Move> {
-        if !self.kind.lanes().contains(&to) {
+        if !self.lanes().contains(&to) || to == Lane::Unlisted {
             return None;
         }
-        let card = self.cards.iter_mut().find(|card| card.id() == *id)?;
-        let from = card.lane();
+        let ix = self.cards.iter().position(|card| card.id() == *id)?;
+        let from = self.lane_of(&self.cards[ix]);
         if from == to {
             return None;
         }
-        card.set_lane(to);
-        self.selected = Some(card.id());
+        match (&self.group, &self.cards[ix]) {
+            (Some(_), Card::Note(note)) => {
+                self.placed.insert(note.id.clone(), to.clone());
+            }
+            _ => self.cards[ix].set_lane(to.clone()),
+        }
+        self.selected = Some(self.cards[ix].id());
         Some(Move {
             id: id.clone(),
             from,
             to,
+            property: self.group.as_ref().map(|group| group.key.clone()),
         })
     }
 }
@@ -267,7 +353,41 @@ pub enum Written {
 /// alone. The open note goes through the editor instead (the workspace
 /// sees to that), so its unsaved typing stays.
 pub fn write_move(store: &Store, mv: &Move, now_ms: i64) -> Result<Written, StoreError> {
-    match (&mv.id, mv.to) {
+    write_move_undoable(store, mv, now_ms).map(|(written, _)| written)
+}
+
+/// [`write_move`], and for a move on a board grouped by a property what
+/// puts the note back ([`undo_move`]): the move is one write to the note,
+/// and undoing it is one write too. `None` for a move that wrote nothing
+/// to undo (a status or task move, a note that already had the value).
+pub fn write_move_undoable(
+    store: &Store,
+    mv: &Move,
+    now_ms: i64,
+) -> Result<(Written, Option<MoveUndo>), StoreError> {
+    match (&mv.id, &mv.to, &mv.property) {
+        (CardId::Note(id), Lane::Value(_) | Lane::Unset, Some(key)) => {
+            // "No value" is the property left empty, as a template has it.
+            let value = match &mv.to {
+                Lane::Value(value) => Value::Text(value.clone()),
+                _ => Value::Text(String::new()),
+            };
+            let edit = store.set_note_property(id, key, &value, now_ms, Origin::Ui)?;
+            let undo = edit.changed.then_some(MoveUndo { edit });
+            Ok((Written::Done, undo))
+        }
+        _ => write_plain_move(store, mv, now_ms).map(|written| (written, None)),
+    }
+}
+
+/// Puts a note back as the move `undo` found it, in one write. `false`
+/// when the note was edited since: it keeps its newer words.
+pub fn undo_move(store: &Store, undo: &MoveUndo) -> Result<bool, StoreError> {
+    store.undo_note_property(&undo.edit, Origin::Ui)
+}
+
+fn write_plain_move(store: &Store, mv: &Move, now_ms: i64) -> Result<Written, StoreError> {
+    match (&mv.id, &mv.to) {
         (CardId::Note(id), Lane::Status(status)) => {
             store.put(
                 DocType::Note,
@@ -295,6 +415,57 @@ pub fn write_move(store: &Store, mv: &Move, now_ms: i64) -> Result<Written, Stor
         // A move is only ever made within its own kind of board.
         _ => Ok(Written::Done),
     }
+}
+
+/// The grouping notebook `book_id`'s board asks for (its `kansoBoard`, with
+/// the property's options from `kansoProperties`), or `None` when it has no
+/// board of its own: its notes are then laid out by status, as before.
+pub fn property_board(store: &Store, book_id: &str) -> Result<Option<PropertyBoard>, StoreError> {
+    let Some(spec) = store.notebook_board(book_id)? else {
+        return Ok(None);
+    };
+    let defs = store.notebook_properties(book_id)?;
+    Ok(Some(PropertyBoard::from_spec(&spec, &defs)))
+}
+
+/// The lane of each of `notes` on a board grouped by `group`, read from
+/// the notes' front matter. Every note has one: a note with a value no
+/// lane has, a sealed note (its properties are not read), or one that is
+/// gone since the list was read is not dropped but placed as written.
+pub fn placements(
+    store: &Store,
+    group: &PropertyBoard,
+    notes: &[NoteSummary],
+) -> Result<HashMap<String, Lane>, StoreError> {
+    let mut placed = HashMap::new();
+    for summary in notes {
+        let lane = if summary.locked {
+            Lane::Unset
+        } else {
+            match store.note(&summary.id)? {
+                Some(note) => {
+                    let all = properties::parse(&note.body);
+                    group.place(properties::get(&all, &group.key))
+                }
+                None => Lane::Unset,
+            }
+        };
+        placed.insert(summary.id.clone(), lane);
+    }
+    Ok(placed)
+}
+
+/// A board of `notes` grouped by `group`, with each note in its lane.
+pub fn grouped_board(
+    store: &Store,
+    group: PropertyBoard,
+    notes: Vec<NoteSummary>,
+) -> Result<Board, StoreError> {
+    let placed = placements(store, &group, &notes)?;
+    let mut board = Board::grouped(group);
+    board.set_placements(placed);
+    board.set_cards(notes.into_iter().map(Card::Note).collect());
+    Ok(board)
 }
 
 /// The board's cards: the notes, or every task in them, in the notes'
@@ -397,6 +568,7 @@ mod tests {
                 id: CardId::Note("note:n1".into()),
                 from: Lane::Status(NoteStatus::Completed),
                 to: Lane::Status(NoteStatus::OnHold),
+                property: None,
             }
         );
         assert_eq!(board.selected_position(), Some((2, 0)));
@@ -499,9 +671,9 @@ mod tests {
                 if let Some(mv) = &moved {
                     let CardId::Note(id) = &mv.id else { unreachable!() };
                     let ix: usize = id["note:n".len()..].parse().unwrap();
-                    prop_assert_eq!(mv.from, Lane::Status(model[ix]));
-                    prop_assert_ne!(mv.from, mv.to);
-                    let Lane::Status(to) = mv.to else { unreachable!() };
+                    prop_assert_eq!(&mv.from, &Lane::Status(model[ix]));
+                    prop_assert_ne!(&mv.from, &mv.to);
+                    let Lane::Status(to) = mv.to.clone() else { unreachable!() };
                     model[ix] = to;
                     prop_assert_eq!(write_move(&store, mv, 5).unwrap(), Written::Done);
                 }
@@ -512,7 +684,7 @@ mod tests {
                 prop_assert_eq!(seen, (0..statuses.len()).collect::<Vec<_>>());
                 for (lane, cards) in &columns {
                     for &ix in cards {
-                        prop_assert_eq!(board.cards[ix].lane(), *lane);
+                        prop_assert_eq!(&board.cards[ix].lane(), lane);
                     }
                 }
                 for (ix, status) in model.iter().enumerate() {
@@ -602,6 +774,7 @@ mod tests {
             id: CardId::Task(gone),
             from: Lane::Todo,
             to: Lane::Done,
+            property: None,
         };
         assert_eq!(write_move(&store, &mv, 1).unwrap(), Written::Moved);
     }

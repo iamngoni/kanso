@@ -7,7 +7,7 @@
 
 use kanso_core::DocType;
 use kanso_core::properties;
-use kanso_core::schema::{self, FIELD, Mismatch, PropertyDef, SchemaError};
+use kanso_core::schema::{self, BOARD_FIELD, BoardSpec, FIELD, Mismatch, PropertyDef, SchemaError};
 use serde_json::json;
 
 use crate::{Origin, Put, Result, Store, StoreError, WriteResult};
@@ -43,6 +43,41 @@ impl Store {
         self.put(
             DocType::Book,
             json!({"_id": book_id, FIELD: schema::to_json(defs)}),
+            Put::Merge,
+            origin,
+        )
+    }
+
+    /// The board notebook `book_id` is laid out as, `None` when it has none
+    /// (its notes are then laid out by status) or the notebook is not there.
+    pub fn notebook_board(&self, book_id: &str) -> Result<Option<BoardSpec>> {
+        Ok(self
+            .get(book_id)?
+            .filter(|doc| doc.doc_type == DocType::Book)
+            .and_then(|doc| schema::board_from_json(doc.fields.get(BOARD_FIELD))))
+    }
+
+    /// Makes `spec` notebook `book_id`'s board (`None` clears it). Saving it
+    /// never rewrites a note.
+    pub fn set_notebook_board(
+        &self,
+        book_id: &str,
+        spec: Option<&BoardSpec>,
+        origin: Origin,
+    ) -> Result<WriteResult> {
+        if let Some(spec) = spec {
+            schema::validate_board(spec)
+                .map_err(|err: SchemaError| StoreError::Invalid(err.to_string()))?;
+        }
+        if self
+            .get(book_id)?
+            .is_none_or(|doc| doc.doc_type != DocType::Book)
+        {
+            return Err(StoreError::NotFound);
+        }
+        self.put(
+            DocType::Book,
+            json!({"_id": book_id, BOARD_FIELD: schema::board_to_json(spec)}),
             Put::Merge,
             origin,
         )

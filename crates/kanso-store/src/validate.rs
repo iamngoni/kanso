@@ -216,6 +216,12 @@ fn normalize_book(id: &str, f: &mut Map<String, Value>, now: i64, refs: Refs) ->
     {
         return invalid("The notebook has an invalid property list.".into());
     }
+    if let Some(board) = f.get(kanso_core::schema::BOARD_FIELD)
+        && !board.is_null()
+        && !board.is_object()
+    {
+        return invalid("The notebook has an invalid board.".into());
+    }
     let updated_at = timestamp(f, "updatedAt")?.unwrap_or(now);
     f.insert("updatedAt".into(), updated_at.into());
     Ok(())
