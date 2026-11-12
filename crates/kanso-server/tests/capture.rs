@@ -201,6 +201,32 @@ async fn the_catalog_is_the_reads_and_the_three_that_add() {
 }
 
 #[tokio::test]
+async fn a_capture_key_is_gated_on_routes_that_only_look_like_pairing() {
+    let app = app();
+    let key = mint(&app, KeyAccess::Capture, None);
+    for (method, uri) in [
+        (Method::PATCH, "/pair/x/canvas"),
+        (Method::PATCH, "/pair/x/y/canvas"),
+    ] {
+        let (status, _) = call_as(&app.router, &key, method.clone(), uri, Some(&json!({}))).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{method} {uri}");
+    }
+    // `/pair/<id>` is the pairing route's own and answers GET only: any
+    // other method is refused there, key or no key.
+    for method in [Method::POST, Method::DELETE, Method::PATCH] {
+        let (status, _) = call_as(
+            &app.router,
+            &key,
+            method.clone(),
+            "/pair/x",
+            Some(&json!({})),
+        )
+        .await;
+        assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED, "{method}");
+    }
+}
+
+#[tokio::test]
 async fn a_capture_key_makes_a_note_over_rest_and_it_is_saved_at_once() {
     let app = app();
     let w = world(&app.store);

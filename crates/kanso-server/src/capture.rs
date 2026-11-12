@@ -196,7 +196,15 @@ pub(crate) const ROUTES: &[Route] = &[
 /// `POST /notes` is [`Denied`], whatever route it reaches, so a route added
 /// later is refused until it is decided here.
 pub(crate) fn rest(method: &Method, path: &str) -> Decision {
-    if path == "/pair" || path.starts_with("/pair/") {
+    // Exactly the two pairing routes; the router serves them without a key.
+    if *method == Method::POST && path == "/pair" {
+        return Open;
+    }
+    if *method == Method::GET
+        && path
+            .strip_prefix("/pair/")
+            .is_some_and(|rest| !rest.is_empty() && !rest.contains('/'))
+    {
         return Open;
     }
     if *method == Method::POST && path == "/notes" {
@@ -411,6 +419,20 @@ mod tests {
         assert_eq!(rest(&Method::POST, "/notes/note:a"), Denied);
         assert_eq!(rest(&Method::POST, "/books"), Denied);
         assert_eq!(rest(&Method::POST, "/notes/"), Denied);
+    }
+
+    #[test]
+    fn only_the_two_pairing_routes_are_open() {
+        assert_eq!(rest(&Method::POST, "/pair"), Open);
+        assert_eq!(rest(&Method::GET, "/pair/abc"), Open);
+        // Anything else under /pair is an ordinary route, so a Capture key
+        // is gated on it like on any other.
+        assert_eq!(rest(&Method::PATCH, "/pair/x/canvas"), Denied);
+        assert_eq!(rest(&Method::GET, "/pair/x/canvas"), Read);
+        assert_eq!(rest(&Method::POST, "/pair/x"), Denied);
+        assert_eq!(rest(&Method::DELETE, "/pair/x"), Denied);
+        assert_eq!(rest(&Method::PUT, "/pair"), Denied);
+        assert_eq!(rest(&Method::GET, "/pair/"), Read);
     }
 
     #[test]
