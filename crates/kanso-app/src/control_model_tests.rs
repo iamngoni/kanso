@@ -56,7 +56,7 @@ fn help_needs_no_process_and_a_bad_access_is_refused() {
     assert!(
         bad.command()
             .unwrap_err()
-            .contains("read, suggest or write")
+            .contains("read, suggest, write or capture")
     );
 }
 

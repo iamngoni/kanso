@@ -12,16 +12,26 @@ pub enum KeyAccess {
     Suggest,
     /// Read and write; changes are saved right away.
     Write,
+    /// Read, and add: create notes, append tasks and tick tasks, saved
+    /// right away. It can change or delete nothing already written
+    /// (issue #390).
+    Capture,
 }
 
 impl KeyAccess {
-    pub const ALL: [KeyAccess; 3] = [KeyAccess::Read, KeyAccess::Suggest, KeyAccess::Write];
+    pub const ALL: [KeyAccess; 4] = [
+        KeyAccess::Read,
+        KeyAccess::Suggest,
+        KeyAccess::Write,
+        KeyAccess::Capture,
+    ];
 
     pub fn as_str(self) -> &'static str {
         match self {
             KeyAccess::Read => "read",
             KeyAccess::Suggest => "suggest",
             KeyAccess::Write => "write",
+            KeyAccess::Capture => "capture",
         }
     }
 

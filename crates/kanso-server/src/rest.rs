@@ -282,11 +282,26 @@ pub(crate) async fn write_gate(
 ) -> axum::response::Response {
     use axum::http::Method;
     use axum::response::IntoResponse as _;
+    // A Capture key reads, and makes a new note; nothing else of REST.
+    if request.uri().path() != crate::auth::MCP_PATH
+        && let Some(Caller::Key {
+            access: kanso_store::KeyAccess::Capture,
+            ..
+        }) = request.extensions().get::<Caller>()
+        && crate::capture::rest(request.method(), request.uri().path())
+            == crate::capture::Decision::Denied
+    {
+        return ApiError::forbidden(crate::keyed::cannot_write(kanso_store::KeyAccess::Capture))
+            .into_response();
+    }
     let reads = matches!(*request.method(), Method::GET | Method::HEAD);
     if !reads
         && request.uri().path() != crate::auth::MCP_PATH
         && let Some(Caller::Key { access, .. }) = request.extensions().get::<Caller>()
-        && *access != kanso_store::KeyAccess::Write
+        && !matches!(
+            *access,
+            kanso_store::KeyAccess::Write | kanso_store::KeyAccess::Capture
+        )
     {
         return ApiError::forbidden(crate::keyed::cannot_write(*access)).into_response();
     }
@@ -461,11 +476,19 @@ async fn post_collection(
     body: Body,
     doc_type: DocType,
 ) -> JsonResult {
-    Key::of(&caller)?.require_write()?;
+    let adds = Key::of(&caller)?.access == kanso_store::KeyAccess::Capture;
+    if adds && doc_type == DocType::Note {
+        // `POST /notes` is a Capture key's one write: a new note.
+    } else {
+        Key::of(&caller)?.require_write()?;
+    }
     let body = json_body(body)?;
     blocking_as(&state, caller, move |store, key| {
         let vis = key.visibility(store)?;
         let fields = body.as_object().cloned().unwrap_or_default();
+        if adds {
+            crate::capture::check_new_note(&fields)?;
+        }
         let id = fields.get("_id").and_then(Value::as_str);
         keyed::check_write(store, key, &vis, doc_type, id, &fields)?;
         api::upsert(store, doc_type, body)
