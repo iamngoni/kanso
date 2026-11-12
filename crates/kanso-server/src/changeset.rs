@@ -38,11 +38,13 @@ pub const MERGE_SOURCES: std::ops::RangeInclusive<usize> = 2..=50;
 pub const WIDE_SET: usize = 50;
 
 /// Which agent task, for as long as the app runs.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct TaskId(pub u64);
 
 /// A merge's target note.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MergeTarget {
     /// A new note, in `book_id`.
     New { temp: String, book_id: String },
@@ -51,7 +53,7 @@ pub enum MergeTarget {
 }
 
 /// One thing the agent proposed.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ProposedOp {
     Create {
         /// The temporary ID later calls in the same set can target.
@@ -212,12 +214,17 @@ fn refused<T>(text: &str) -> Result<T, Refused> {
 }
 
 /// The change set of one task.
-#[derive(Clone, Debug)]
+///
+/// Saved with its session so a proposal can be reviewed after a restart. The
+/// scope is not saved: a set read back holds a scope that sees nothing, and
+/// whoever restores it gives it the real one ([`ChangeSet::with_scope`]).
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ChangeSet {
     pub task: TaskId,
     pub goal: String,
     /// What the person calls the agent.
     pub agent: String,
+    #[serde(skip, default = "no_scope")]
     pub scope: Arc<AgentScope>,
     pub ops: Vec<ProposedOp>,
     /// Text held, for the limit.
@@ -302,7 +309,32 @@ impl ApplyFailure {
     }
 }
 
+/// The scope of a set read back from disk: no notebook, no note, so nothing
+/// passes its checks until [`ChangeSet::with_scope`] replaces it.
+fn no_scope() -> Arc<AgentScope> {
+    let limits = crate::scope::TaskLimits {
+        lifetime: std::time::Duration::ZERO,
+        calls: 0,
+        max_notes: 0,
+    };
+    Arc::new(AgentScope::task(
+        Some(Default::default()),
+        None,
+        "",
+        TaskId(0),
+        crate::scope::TaskOps::default(),
+        limits,
+    ))
+}
+
 impl ChangeSet {
+    /// This set for task `task`, checked against `scope` from now on.
+    pub fn with_scope(mut self, task: TaskId, scope: Arc<AgentScope>) -> ChangeSet {
+        self.task = task;
+        self.scope = scope;
+        self
+    }
+
     pub fn new(
         task: TaskId,
         goal: &str,

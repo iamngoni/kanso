@@ -14,6 +14,7 @@
 //! reaches the change set through the notes server over MCP. Everything a
 //! window shows comes from [`TaskRow`]s.
 
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -26,8 +27,9 @@ use kanso_store::{Store, UndoReport};
 
 use super::model::{EndedBy, Phase, TaskRow, is_unread};
 use super::session::{
-    Item, PermissionAnswer, RoundState, SessionKey, ToolKind, ToolStatus, Transcript,
+    Item, PermissionAnswer, RoundState, SavedSession, SessionKey, ToolKind, ToolStatus, Transcript,
 };
+use super::store;
 use super::{OpenTask, REPLY_WAIT, StartError, TaskSpec};
 
 /// The most tasks working at once.
@@ -41,6 +43,9 @@ pub struct Notice {
     pub undoable: bool,
     pub at: Instant,
 }
+
+/// The least time between two writes of one session's file.
+const SAVE_EVERY: Duration = Duration::from_secs(1);
 
 /// How long the notice stays.
 pub const NOTICE_FOR: Duration = Duration::from_secs(30);
@@ -186,6 +191,14 @@ struct Entry {
     round: AtomicU32,
     /// When the transcript last grew, in Unix milliseconds.
     last_activity_ms: AtomicI64,
+    /// When the session started, in Unix milliseconds.
+    created_ms: i64,
+    /// Which agent runs it, for a resume (empty when not known).
+    agent_key: Mutex<String>,
+    /// The agent's own session id, for `session/load`.
+    acp_session_id: Mutex<Option<String>>,
+    /// When the file was last written, for the once-a-second throttle.
+    last_saved: Mutex<Option<Instant>>,
 }
 
 /// Unix milliseconds now.
@@ -223,6 +236,8 @@ pub struct Tasks {
     starting: Arc<Mutex<()>>,
     notice: Arc<Mutex<Option<Notice>>>,
     subscribers: Arc<Mutex<Vec<async_channel::Sender<TaskEvent>>>>,
+    /// Where sessions are kept (`store.rs`); none until the app says.
+    saved_in: Arc<Mutex<Option<PathBuf>>>,
 }
 
 impl Tasks {
@@ -239,6 +254,11 @@ impl Tasks {
     }
 
     fn tell(&self, event: TaskEvent) {
+        if let TaskEvent::Changed(Some(id)) = event
+            && let Some(entry) = self.entry(id)
+        {
+            self.save(&entry, false);
+        }
         lock(&self.subscribers).retain(|tx| tx.try_send(event).is_ok());
     }
 
@@ -258,6 +278,100 @@ impl Tasks {
                 row
             })
             .collect()
+    }
+
+    /// Keeps sessions in `dir` from now on: each is written when it changes
+    /// (at most once a second), when it ends and at [`Tasks::shutdown`].
+    pub fn save_in(&self, dir: PathBuf) {
+        *lock(&self.saved_in) = Some(dir);
+    }
+
+    /// The folder sessions are kept in, if [`Tasks::save_in`] set one.
+    pub fn saved_dir(&self) -> Option<PathBuf> {
+        lock(&self.saved_in).clone()
+    }
+
+    /// Says which agent runs the session and its own id for it, so a resume
+    /// after a restart can start the same one.
+    pub fn set_agent_ref(&self, id: TaskId, agent_key: &str, acp_session_id: Option<&str>) {
+        let Some(entry) = self.entry(id) else { return };
+        *lock(&entry.agent_key) = agent_key.to_owned();
+        *lock(&entry.acp_session_id) = acp_session_id.map(str::to_owned);
+        self.save(&entry, false);
+    }
+
+    /// The session as it would be written now.
+    fn snapshot(entry: &Entry) -> SavedSession {
+        let row = lock(&entry.row).clone();
+        let pending = entry.open.changes().filter(|set| !set.ops.is_empty());
+        SavedSession {
+            version: store::VERSION,
+            key: entry.key.clone(),
+            title: row.title,
+            agent: row.agent,
+            agent_key: lock(&entry.agent_key).clone(),
+            acp_session_id: lock(&entry.acp_session_id).clone(),
+            spec: entry.open.spec.clone(),
+            created_ms: entry.created_ms,
+            last_activity_ms: entry.last_activity_ms.load(Ordering::Relaxed),
+            phase: row.phase,
+            round: entry.round.load(Ordering::Relaxed),
+            items: lock(&entry.transcript).items.clone(),
+            pending,
+        }
+    }
+
+    /// Writes the session's file: at most once a second unless `force`. A
+    /// failed write is not an error the person can act on; the next one tries
+    /// again.
+    fn save(&self, entry: &Entry, force: bool) {
+        let Some(dir) = self.saved_dir() else { return };
+        {
+            let mut last = lock(&entry.last_saved);
+            if !force && last.is_some_and(|at| at.elapsed() < SAVE_EVERY) {
+                return;
+            }
+            *last = Some(Instant::now());
+        }
+        let _ = store::save(&dir, &Self::snapshot(entry));
+    }
+
+    /// How many sessions are kept on this computer.
+    pub fn saved_count(&self) -> usize {
+        self.saved_dir().map_or(0, |dir| store::count(&dir))
+    }
+
+    /// Deletes every kept session, and takes the finished ones off the
+    /// panel. A working task stays and is written again as it goes on.
+    pub fn delete_all_saved(&self) -> usize {
+        let had = self.saved_count();
+        let ids: Vec<TaskId> = self
+            .rows()
+            .iter()
+            .filter(|row| !row.is_active())
+            .map(|row| row.id)
+            .collect();
+        for id in ids {
+            self.dismiss(id);
+        }
+        if let Some(dir) = self.saved_dir() {
+            store::delete_all(&dir);
+        }
+        had
+    }
+
+    /// Lists the sessions kept in `dir` as read-only rows (resuming one is
+    /// separate work). A session that was working when Kanso quit is shown as
+    /// stopped; its proposal can still be reviewed.
+    pub fn restore(&self, store: &Arc<Store>, tokens: &TokenStore, saved: Vec<SavedSession>) {
+        for session in saved {
+            if self.by_key(&session.key).is_some() {
+                continue;
+            }
+            let entry = Arc::new(restored_entry(store, tokens, session));
+            lock(&self.entries).push(entry);
+        }
+        self.tell(TaskEvent::Changed(None));
     }
 
     /// The task of the session `key`, if it is listed.
@@ -395,6 +509,10 @@ impl Tasks {
             seen: AtomicU64::new(0),
             round: AtomicU32::new(1),
             last_activity_ms: AtomicI64::new(started_ms),
+            created_ms: started_ms,
+            agent_key: Mutex::new(String::new()),
+            acp_session_id: Mutex::new(None),
+            last_saved: Mutex::new(None),
         });
         entry.record(|transcript, now| transcript.user(&spec.goal, now));
         // The goal is the person's own: only what comes after is unread.
@@ -646,6 +764,7 @@ impl Tasks {
         });
         entry.open.end();
         entry.cancel.store(true, Ordering::Relaxed);
+        self.save(entry, true);
         self.tell(TaskEvent::Changed(Some(entry.open.id)));
         if finished {
             self.tell(TaskEvent::Finished(entry.open.id));
@@ -766,16 +885,21 @@ impl Tasks {
                     .set_round_state(entry.round.load(Ordering::Relaxed), RoundState::Discarded);
             });
         }
+        self.save(&entry, true);
         self.tell(TaskEvent::Changed(Some(id)));
     }
 
     /// Takes a finished row off the panel.
     pub fn dismiss(&self, id: TaskId) {
         let mut entries = lock(&self.entries);
+        let dir = self.saved_dir();
         entries.retain(|entry| {
             let keep = entry.open.id != id || lock(&entry.row).is_active();
             if !keep {
                 entry.open.discard();
+                if let Some(dir) = &dir {
+                    let _ = store::delete(dir, &entry.key);
+                }
             }
             keep
         });
@@ -784,10 +908,13 @@ impl Tasks {
     }
 
     /// Stops every task and revokes every token: AI was turned off or Kanso is
-    /// quitting. Change sets are lost with the app.
+    /// quitting. Sessions are written to disk first, change sets included.
     pub fn shutdown(&self) {
-        for entry in lock(&self.entries).iter() {
+        let entries: Vec<Arc<Entry>> = lock(&self.entries).clone();
+        for entry in entries {
             entry.cancel.store(true, Ordering::Relaxed);
+            // Written before the token ends, with the proposal as it stands.
+            self.save(&entry, true);
             entry.open.end();
         }
     }
@@ -795,6 +922,106 @@ impl Tasks {
     /// The prompt for quitting with unreviewed changes, if any.
     pub fn quit_prompt(&self) -> Option<String> {
         super::model::quit_prompt(&self.rows())
+    }
+}
+
+/// Runs nothing: the driver of a session read back from disk, which is only
+/// shown until it can be resumed.
+struct Restored;
+
+impl TaskDriver for Restored {
+    fn first_prompt(&self, task: &OpenTask) -> Prompt {
+        super::api_prompt(task)
+    }
+
+    fn reply_prompt(&self, task: &OpenTask, _: &Transcript, _: &str) -> Prompt {
+        super::api_prompt(task)
+    }
+
+    fn begin(
+        &self,
+        _: &Prompt,
+        _: &OpenTask,
+        _: Arc<Store>,
+        _: Box<dyn FnMut() + Send>,
+        _: Arc<AtomicBool>,
+    ) -> Result<Box<dyn Iterator<Item = Event> + Send>, String> {
+        Err("This session was saved when Kanso quit and can't continue yet.".to_owned())
+    }
+}
+
+/// An entry for a saved session: its token is already ended, its proposal is
+/// back in the change sets under a scope rebuilt from the saved sheet.
+fn restored_entry(store: &Arc<Store>, tokens: &TokenStore, session: SavedSession) -> Entry {
+    let sets = tokens.changesets();
+    let id = sets.next_id();
+    let scope = Arc::new(super::scope_for(store, &session.spec, &session.agent, id));
+    let minted = tokens.mint((*scope).clone());
+    tokens.revoke(minted.id);
+    let counts = match session.pending {
+        Some(set) if !set.ops.is_empty() => {
+            let set = set.with_scope(id, scope.clone());
+            let counts = set.counts();
+            sets.open(set);
+            counts
+        }
+        _ => Default::default(),
+    };
+    let phase = match session.phase {
+        Phase::Waiting | Phase::Running | Phase::Asking { .. } => Phase::Failed {
+            message: "Kanso quit while the agent was working".to_owned(),
+        },
+        Phase::Ready if counts.total() == 0 => Phase::Nothing,
+        other => other,
+    };
+    let mut row = TaskRow::new(id, &session.spec.goal, &session.agent);
+    row.key = session.key.clone();
+    row.title = session.title;
+    row.phase = phase;
+    row.counts = counts;
+    row.last_activity_ms = session.last_activity_ms;
+    if let Some(Item::Agent { text, .. }) = session
+        .items
+        .iter()
+        .rev()
+        .find(|item| matches!(item, Item::Agent { .. }))
+    {
+        row.last_message = text.trim().to_owned();
+    }
+    let version = session.items.len() as u64;
+    let transcript = Transcript {
+        items: session.items,
+        version,
+    };
+    Entry {
+        row: Mutex::new(row),
+        open: OpenTask {
+            id,
+            token: minted.id,
+            scope,
+            tokens: tokens.clone(),
+            spec: session.spec,
+            agent: session.agent,
+            readable: 0,
+            secret: Arc::new(String::new()),
+        },
+        store: store.clone(),
+        backend: Arc::new(Restored),
+        started: Instant::now(),
+        cancel: Arc::new(AtomicBool::new(true)),
+        reason: Mutex::new(None),
+        asked_at: Mutex::new(None),
+        applied: Mutex::new(None),
+        said: Mutex::new(String::new()),
+        transcript: Mutex::new(transcript),
+        key: session.key,
+        seen: AtomicU64::new(version),
+        round: AtomicU32::new(session.round.max(1)),
+        last_activity_ms: AtomicI64::new(session.last_activity_ms),
+        created_ms: session.created_ms,
+        agent_key: Mutex::new(session.agent_key),
+        acp_session_id: Mutex::new(session.acp_session_id),
+        last_saved: Mutex::new(None),
     }
 }
 
