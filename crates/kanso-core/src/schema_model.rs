@@ -4,6 +4,12 @@
 /// The notebook field that holds the property list.
 pub const FIELD: &str = "kansoProperties";
 
+/// The notebook field that holds the property its board is grouped by.
+pub const BOARD_FIELD: &str = "kansoBoard";
+
+/// Most lanes a notebook's board can name.
+pub const MAX_LANES: usize = 200;
+
 /// Most properties a notebook can define.
 pub const MAX_PROPERTIES: usize = 100;
 /// Most options one select property can have.
@@ -123,4 +129,17 @@ pub enum SchemaError {
     OptionsOnNonSelect(String),
     #[error("The notebook's properties are not a list of definitions.")]
     NotAList,
+}
+
+/// How a notebook's board is laid out (`kansoBoard`): the property its
+/// notes are grouped by, and the lanes it names. Saved with the notebook.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BoardSpec {
+    /// The property (a front-matter key) the lanes are values of.
+    pub by: String,
+    /// The lanes, left to right. Empty means the property's select options
+    /// in their order.
+    pub lanes: Vec<String>,
+    /// Whether the lane of notes with no value shows even when it is empty.
+    pub show_unset: bool,
 }

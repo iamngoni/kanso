@@ -32,6 +32,8 @@ mod library_key_model;
 mod library_key_words;
 mod loops;
 mod meaning;
+mod note_property;
+mod note_property_model;
 mod ocr;
 mod overview;
 mod passage_embed;
@@ -108,6 +110,7 @@ pub use meaning::rank::{
     DUPLICATE_SIMILARITY, MEANING_SIMILARITY, TAG_NEIGHBOUR_SIMILARITY, blend_meaning, merged_body,
     merged_tags, suggest_tags,
 };
+pub use note_property_model::PropertyEdit;
 pub use ocr::{OCR_TYPES, UnreadImage};
 pub use overview::{MeetingNote, RevisitRow, WaitingRow, WritingPlace};
 pub use passage_embed::{
@@ -133,7 +136,7 @@ pub use restore::{
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
 pub use task_add::{INBOX_TASKS_TITLE, TaskAdded, TaskTarget};
-pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow};
+pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow, TickResult, TickUndo, local_today};
 pub use trash_model::{Emptied, FileDrop, TrashCounts};
 pub use triage::{INBOX_TRIAGED_FIELD, InboxNote, TriagePool};
 pub use unseal_model::Unsealing;

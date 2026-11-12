@@ -210,6 +210,57 @@ async fn add_task_appends_a_line_and_list_tasks_reads_it_back() {
     assert_ne!(done["isError"], true, "{done}");
 }
 
+/// `kanso-set-task-done` is the store's one tick path (#390): ticking a
+/// repeating task writes the next one above it, a replay writes nothing more,
+/// and a task with no repeat only changes its box. The due date is far ahead,
+/// so the next one is a week on whatever day this runs.
+#[tokio::test]
+async fn set_task_done_writes_the_next_instance_of_a_repeating_task() {
+    let app = app();
+    let shelf = book(&app.store, "Work");
+    let plan = note(
+        &app.store,
+        &shelf,
+        "- [ ] film @2099-11-14T15:00 every week\n- [ ] edit\n",
+    );
+    let args = json!({
+        "noteId": plan, "line": 0, "text": "film @2099-11-14T15:00 every week", "done": true,
+    });
+    let done = tool(&app.router, "kanso-set-task-done", args.clone()).await;
+    assert_ne!(done["isError"], true, "{done}");
+    let ticked =
+        "- [ ] film @2099-11-21T15:00 every week\n- [x] film @2099-11-14T15:00\n- [ ] edit\n";
+    assert_eq!(body(&app.store, &plan), ticked);
+
+    // The same call again: the task it names is no longer there.
+    let replay = tool(&app.router, "kanso-set-task-done", args).await;
+    assert_eq!(replay["isError"], true, "{replay}");
+    assert_eq!(body(&app.store, &plan), ticked);
+
+    // The list shows the next one, repeating, and the log line, not.
+    let listed = tool_json(
+        &tool(
+            &app.router,
+            "kanso-list-tasks",
+            json!({ "noteId": plan, "includeDone": true }),
+        )
+        .await,
+    );
+    let rows = listed.as_array().unwrap();
+    assert_eq!(rows[0]["repeat"], "every week");
+    assert_eq!(rows[1]["repeat"], Value::Null);
+
+    // A task with no repeat only changes its box.
+    let plain = tool(
+        &app.router,
+        "kanso-set-task-done",
+        json!({ "noteId": plan, "line": 2, "text": "edit", "done": true }),
+    )
+    .await;
+    assert_ne!(plain["isError"], true, "{plain}");
+    assert!(body(&app.store, &plan).ends_with("- [x] edit\n"));
+}
+
 #[tokio::test]
 async fn a_task_with_no_date_is_added_as_written() {
     let app = app();

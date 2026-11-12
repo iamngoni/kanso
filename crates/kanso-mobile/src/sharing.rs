@@ -1133,8 +1133,16 @@ mod tests {
 
     use super::*;
 
+    /// The roles a shared note's members can hold. Manager exists in
+    /// shared notebooks only: a note's member list refuses it.
     fn roles() -> impl Strategy<Value = Role> {
-        prop::sample::select(Role::ALL.to_vec())
+        prop::sample::select(
+            Role::ALL
+                .iter()
+                .copied()
+                .filter(|r| *r != Role::Manager)
+                .collect::<Vec<_>>(),
+        )
     }
 
     fn person(n: u8) -> kanso_collab::Person {
@@ -1200,6 +1208,14 @@ mod tests {
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(64))]
+
+        /// A notebook's Manager shows on a note as an Editor: the one role
+        /// that doesn't come back as itself, since notes have no managers.
+        #[test]
+        fn a_manager_shows_as_an_editor(_x in Just(())) {
+            prop_assert_eq!(ShareRole::from(Role::Manager), ShareRole::Editor);
+            prop_assert_eq!(Role::from(ShareRole::Editor), Role::Edit);
+        }
 
         /// Every role survives the trip to the shell's role and back, and
         /// the shell's four roles are the engine's four.

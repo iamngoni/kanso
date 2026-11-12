@@ -365,3 +365,48 @@ proptest! {
         }
     }
 }
+
+#[test]
+fn a_notebooks_board_is_saved_read_and_cleared() {
+    use kanso_core::schema::BoardSpec;
+    let (_dir, store) = temp_store();
+    book(&store, "book:a", 1, None);
+    assert_eq!(store.notebook_board("book:a").unwrap(), None);
+    let spec = BoardSpec {
+        by: "stage".into(),
+        lanes: vec!["Idea".into(), "Editing".into()],
+        show_unset: false,
+    };
+    store
+        .set_notebook_board("book:a", Some(&spec), Origin::Ui)
+        .unwrap();
+    assert_eq!(store.notebook_board("book:a").unwrap(), Some(spec.clone()));
+    // A board naming no property, or a lane twice, is refused.
+    let blank = BoardSpec {
+        by: " ".into(),
+        ..spec.clone()
+    };
+    assert!(
+        store
+            .set_notebook_board("book:a", Some(&blank), Origin::Ui)
+            .is_err()
+    );
+    let twice = BoardSpec {
+        lanes: vec!["Idea".into(), "Idea".into()],
+        ..spec.clone()
+    };
+    assert!(
+        store
+            .set_notebook_board("book:a", Some(&twice), Origin::Ui)
+            .is_err()
+    );
+    assert!(
+        store
+            .set_notebook_board("book:missing", Some(&spec), Origin::Ui)
+            .is_err()
+    );
+    store
+        .set_notebook_board("book:a", None, Origin::Ui)
+        .unwrap();
+    assert_eq!(store.notebook_board("book:a").unwrap(), None);
+}

@@ -71,6 +71,11 @@ impl ApiError {
         Self::new(StatusCode::FORBIDDEN, "forbidden", reason)
     }
 
+    /// A 429: too many requests, or one already waiting.
+    pub fn too_many_requests(reason: impl Into<String>) -> Self {
+        Self::new(StatusCode::TOO_MANY_REQUESTS, "too_many_requests", reason)
+    }
+
     pub fn too_large() -> Self {
         Self::new(
             StatusCode::PAYLOAD_TOO_LARGE,

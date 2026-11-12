@@ -210,6 +210,62 @@ fn code_blocks_are_copied_by_place() {
     assert_eq!(r.code_block(&id, 2), Err(KansoError::NotFound));
 }
 
+/// The phone ticks a repeating task through the store's one path (#390):
+/// the next one is written above, the tick's Undo puts the text back in one
+/// write, and a plain task ticks as ever. The due date is far ahead, so the
+/// next one is a week on whatever day this runs.
+#[test]
+fn ticking_a_repeating_task_writes_the_next_one_and_undo_restores() {
+    let phone = lone_phone();
+    let library = &phone.library;
+    let original = "# Shoots\n- [ ] film Pixel review @2099-11-14T15:00 every week\n- [ ] edit\n";
+    let id = note(library, "Shoots", original);
+    let rev = library.note(&id).unwrap().rev;
+
+    // Task 0 as the page numbers them.
+    let Ticked::Changed { rev: new, undo, .. } = library.toggle_task_at(&id, 0, &rev).unwrap()
+    else {
+        panic!("not changed");
+    };
+    let ticked = "# Shoots\n- [ ] film Pixel review @2099-11-21T15:00 every week\n\
+                  - [x] film Pixel review @2099-11-14T15:00\n- [ ] edit\n";
+    assert_eq!(library.note(&id).unwrap().body.unwrap(), ticked);
+
+    // The same tap from a page drawn before is refused, so no second next
+    // line is written.
+    assert_eq!(
+        library.toggle_task_at(&id, 0, &rev),
+        Err(KansoError::Conflict { current_rev: new })
+    );
+    assert_eq!(library.note(&id).unwrap().body.unwrap(), ticked);
+
+    // Undo: both changes, one step, exactly the text it was.
+    assert_eq!(library.undo(undo).unwrap(), 1);
+    assert_eq!(library.note(&id).unwrap().body.unwrap(), original);
+
+    // The by-text path (the Tasks list) is the same path.
+    let Ticked::Changed { undo, .. } = library
+        .set_task(
+            &id,
+            1,
+            "film Pixel review @2099-11-14T15:00 every week",
+            true,
+        )
+        .unwrap()
+    else {
+        panic!("not changed");
+    };
+    assert_eq!(library.note(&id).unwrap().body.unwrap(), ticked);
+    // Edited since: the undo leaves the newer text alone.
+    let rev = library.note(&id).unwrap().rev;
+    library.save(&id, &rev, format!("{ticked}more\n")).unwrap();
+    assert_eq!(library.undo(undo).unwrap(), 0);
+    assert_eq!(
+        library.note(&id).unwrap().body.unwrap(),
+        format!("{ticked}more\n")
+    );
+}
+
 #[test]
 fn ticking_a_task_by_place() {
     let phone = lone_phone();

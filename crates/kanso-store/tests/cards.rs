@@ -346,8 +346,28 @@ fn review_documents_are_not_served_by_the_api() {
     assert_eq!(DocType::from_collection("reviews"), None);
     // A review log holds card keys and times, never a question or answer.
     let doc = store.get(&id).unwrap().unwrap();
-    let text = serde_json::to_string(&doc.fields).unwrap();
-    assert!(!text.contains("\"Q\"") && !text.contains("\"A\"") && !text.contains("B\""));
+    // Exactly: no string in the document, key or value, is the question or
+    // the answer. (A substring check would trip on a random card key.)
+    fn strings(value: &serde_json::Value, out: &mut Vec<String>) {
+        match value {
+            serde_json::Value::String(text) => out.push(text.clone()),
+            serde_json::Value::Array(items) => items.iter().for_each(|v| strings(v, out)),
+            serde_json::Value::Object(map) => {
+                for (key, v) in map {
+                    out.push(key.clone());
+                    strings(v, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut all = Vec::new();
+    strings(&serde_json::Value::Object(doc.fields.clone()), &mut all);
+    assert!(!all.is_empty());
+    assert!(
+        all.iter().all(|text| text != "Q" && text != "A"),
+        "the review log holds a question or answer: {all:?}"
+    );
 }
 
 #[test]

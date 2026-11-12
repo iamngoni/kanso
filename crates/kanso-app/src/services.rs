@@ -252,6 +252,8 @@ pub struct Services {
     /// server and Settings must share this one instance: a revoke from
     /// Settings then stops the server's next request (see [`key_store`]).
     keys: Option<(Arc<kanso_store::Store>, KeyStore)>,
+    /// Shows the pairing sheet when an app asks for a key (issue #390).
+    pairing_watch: Option<Task<()>>,
     /// The control channel `kanso api-key` uses to make and revoke keys while this
     /// Kanso runs (see `control.rs`), and the keys it works on.
     control: Option<crate::control::ControlServer>,
@@ -469,6 +471,8 @@ pub fn key_store(cx: &mut App) -> Result<KeyStore, String> {
         .map_err(|err| format!("couldn't read the API keys: {err}"))?;
     services.control_target.set(store.clone(), keys.clone());
     services.keys = Some((store, keys.clone()));
+    let watch = crate::pairing_sheet::watch(keys.pairing(), cx);
+    cx.global_mut::<Services>().pairing_watch = Some(watch);
     Ok(keys)
 }
 
@@ -510,7 +514,9 @@ pub(crate) fn set_keys_for_test(keys: KeyStore, cx: &mut App) {
     let store = cx.global::<AppState>().store.clone();
     let services = cx.global_mut::<Services>();
     services.control_target.set(store.clone(), keys.clone());
-    services.keys = Some((store, keys));
+    services.keys = Some((store, keys.clone()));
+    let watch = crate::pairing_sheet::watch(keys.pairing(), cx);
+    cx.global_mut::<Services>().pairing_watch = Some(watch);
 }
 
 /// Tests: where the local API listens, once it runs.

@@ -236,9 +236,11 @@ mod tests {
     }
 
     proptest! {
+        // `.` and `..` are not file names: a URL resolves them away, so a folder
+        // called `..` was never a path that could round-trip.
         #[test]
         fn prop_file_url_round_trips_to_the_same_path(
-            folder in "[a-zA-Z0-9 _%#?&+=;,.~\u{e9}\u{fc}\u{65e5}\u{672c}\u{1f600}-]{1,16}",
+            folder in "[a-zA-Z0-9 _%#?&+=;,.~\u{e9}\u{fc}\u{65e5}\u{672c}\u{1f600}-]{1,16}".prop_filter("not a dot segment", |s| s != "." && s != ".."),
             name in "[a-zA-Z0-9 _%#?&+=;,.~\u{e9}\u{fc}\u{65e5}\u{672c}\u{1f600}-]{1,16}",
         ) {
             let path = temp_path(&[&folder, &format!("{name}.md")]);
