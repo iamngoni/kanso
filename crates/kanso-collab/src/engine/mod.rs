@@ -17,6 +17,8 @@
 //! the CRDT's after every merge. While a shared note is open, the editor's
 //! text reaches the library through [`Engine::sync_editor`] only.
 
+pub mod book;
+mod book_sync;
 pub mod canvas;
 pub mod live;
 mod log;
@@ -974,6 +976,8 @@ pub fn rebase(base: &str, local: &str, current: &str) -> String {
     out
 }
 
+#[cfg(test)]
+mod book_tests;
 #[cfg(test)]
 mod canvas_tests;
 #[cfg(test)]

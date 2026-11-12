@@ -72,6 +72,10 @@ pub enum CollabError {
     Identity(#[from] crate::identity::IdentityError),
     #[error("{0}")]
     List(#[from] crate::members::ListError),
+    /// A notebook's chain of member lists didn't check out (a different
+    /// history than one seen before, a forged link, a bad signature).
+    #[error("{0}")]
+    BookList(#[from] crate::book_members_model::BookListError),
     /// There is no Kanso account with that username (or it has no identity
     /// keys yet: it never opened sharing).
     #[error("there's no Kanso user called {0}")]
@@ -303,6 +307,91 @@ pub struct LogPage {
     pub more: bool,
 }
 
+/// The manifest's stream id in a notebook's logs: 16 zero bytes as base64url.
+pub const MANIFEST_STREAM: &str = "AAAAAAAAAAAAAAAAAAAAAA";
+
+/// `POST /v2/collab/books`: a notebook at epoch 1, with the owner's signed
+/// genesis list and one wrap of the notebook key for each listed member.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NewBook {
+    pub share_id: String,
+    pub list: String,
+    pub list_sig: String,
+    pub wraps: Vec<AccountWrap>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BookCreated {
+    pub share_id: String,
+    pub epoch: u32,
+    pub rev: u32,
+}
+
+/// One list of a notebook's chain, as the server stores it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BookListEntry {
+    pub rev: u32,
+    pub epoch: u32,
+    pub signer: String,
+    pub list: String,
+    pub list_sig: String,
+}
+
+/// An epoch's history link: the key of the epoch before, sealed under the
+/// new one (base64url).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BookEpochLink {
+    pub epoch: u32,
+    pub history_link: String,
+}
+
+/// `GET /v2/collab/books/<id>`: the chain from `since_rev` (a page of it,
+/// `more` when further lists follow), the caller's wraps and every epoch's
+/// history link. Fields only the owner and managers get are ignored.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BookInfo {
+    pub share_id: String,
+    pub owner: String,
+    pub role: Role,
+    /// `member` or `invited`.
+    pub status: String,
+    pub epoch: u32,
+    pub rev: u32,
+    pub hash: String,
+    pub lists: Vec<BookListEntry>,
+    #[serde(default)]
+    pub more: bool,
+    pub wraps: Vec<EpochWrap>,
+    #[serde(default)]
+    pub epochs: Vec<BookEpochLink>,
+}
+
+/// `POST /v2/collab/books/<id>/epoch`: the next signed list. Within an epoch
+/// the wraps are for those added or given another role; a new epoch carries
+/// one for every listed member and a history link.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NewBookList {
+    pub rev: u32,
+    pub list: String,
+    pub list_sig: String,
+    pub wraps: Vec<AccountWrap>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history_link: Option<String>,
+}
+
+/// What a notebook's stream returns: `head` is the notebook's (every
+/// stream's sequences share one count), `stream_head` this log's last.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BookLogPage {
+    pub head: u64,
+    pub stream_head: u64,
+    #[serde(default)]
+    pub snapshot: Option<SnapshotEntry>,
+    pub entries: Vec<LogEntry>,
+    #[serde(default)]
+    pub more: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NewLink {
     pub link_id: String,
@@ -430,6 +519,46 @@ pub trait CollabApi: Send + Sync {
     fn delete_notification(&self, caller: &Caller, id: &str) -> Result<()>;
     /// Opens the note's live room.
     fn live(&self, caller: &Caller, share_id: &str) -> Result<Box<dyn LiveLink>>;
+
+    // Shared notebooks (`/v2/collab/books`).
+
+    /// Shares a notebook; 409 `share_id_taken`, `share_retired`.
+    fn create_book(&self, caller: &Caller, book: &NewBook) -> Result<BookCreated>;
+    /// The chain from `since_rev` (1 for all of it), the caller's wraps and
+    /// the epochs' history links; 404 for a notebook the caller isn't in.
+    fn book(&self, caller: &Caller, share_id: &str, since_rev: u32) -> Result<BookInfo>;
+    /// An invitation becomes membership.
+    fn accept_book(&self, caller: &Caller, share_id: &str) -> Result<()>;
+    /// The next signed list; 409 `rev_conflict`, `head_moved`.
+    fn new_book_list(&self, caller: &Caller, share_id: &str, list: &NewBookList) -> Result<()>;
+    /// A page of one stream (the manifest is [`MANIFEST_STREAM`]).
+    fn book_log(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        since: u64,
+        limit: usize,
+    ) -> Result<BookLogPage>;
+    /// Appends an update to a stream; its sequence. 409 `epoch_changed`,
+    /// `compact_first`.
+    fn book_append(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        envelope: &[u8],
+    ) -> Result<u64>;
+    /// A stream's snapshot, taken only while `base_seq` is that stream's
+    /// last sequence (0 for a stream with nothing); 409 `head_moved`.
+    fn book_snapshot(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        base_seq: u64,
+        envelope: &[u8],
+    ) -> Result<u64>;
 }
 
 #[cfg(test)]

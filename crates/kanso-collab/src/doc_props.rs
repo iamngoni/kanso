@@ -18,12 +18,23 @@
 //! order mark, an empty block) keeps it in the body as text, as every note
 //! did before this module: the same functions handle both, and an old
 //! document, which has no `props`, opens as one.
+//!
+//! A note's text is what the library keeps and the editor shows, front
+//! matter included, so offsets the editor and the live room speak in are
+//! offsets of [`CollabDoc::note_text`], while the CRDT's body starts after
+//! the front matter. [`CollabDoc::note_sticky`] and
+//! [`CollabDoc::note_resolve`] translate, and [`CollabDoc::edit_note_in_parts`]
+//! takes a local edit of the note's text and writes each property it
+//! changed as its own entry, so a concurrent change to another property,
+//! or to the body, is never undone by it.
+
+use std::collections::HashSet;
 
 use kanso_core::properties;
 use kanso_core::properties_model::FrontEntry;
 use yrs::{Any, Map as _, Number, Out, Transact};
 
-use crate::doc::CollabDoc;
+use crate::doc::{CollabDoc, Field};
 
 /// The line that opens and closes the front matter.
 const FENCE: &str = "---\n";
@@ -46,6 +57,100 @@ fn split_note(text: &str) -> Option<(Vec<FrontEntry>, &str)> {
     let entries = properties::entry_sources(front.front)?;
     let body = &text[front.body_start..];
     (!entries.is_empty() && render_note(&entries, body) == text).then_some((entries, body))
+}
+
+/// A note's text as properties and body, where it has none (an empty list)
+/// or can keep them key by key; `None` for front matter it can't keep so.
+fn parts(text: &str) -> Option<(Vec<FrontEntry>, &str)> {
+    if properties::split(text).is_none() {
+        return Some((Vec::new(), text));
+    }
+    split_note(text)
+}
+
+/// Puts `key` into `order` after the nearest earlier key of `before` that is
+/// already there, or first when none is (at the end for `fallback_end`).
+fn insert_after(order: &mut Vec<String>, key: &str, before: &[&str], fallback_end: bool) {
+    let at = before
+        .iter()
+        .rev()
+        .find_map(|k| order.iter().position(|o| o == k))
+        .map(|i| i + 1);
+    match (at, fallback_end) {
+        (Some(i), _) => order.insert(i, key.to_owned()),
+        (None, true) => order.push(key.to_owned()),
+        (None, false) => order.insert(0, key.to_owned()),
+    }
+}
+
+/// The properties a local edit leaves, over what the note has now: each key
+/// the person changed or added takes their value, each key they removed
+/// goes, and every key they left alone keeps whatever the note has for it
+/// now (a change made meanwhile, or its removal, stands). Keys added
+/// meanwhile stay. The order is the note's, unless the person reordered the
+/// keys, then theirs.
+fn merge_entries(base: &[FrontEntry], local: &[FrontEntry], now: &[FrontEntry]) -> Vec<FrontEntry> {
+    let in_base = |key: &str| base.iter().find(|e| e.key == key);
+    let in_now = |key: &str| now.iter().find(|e| e.key == key);
+    let in_local = |key: &str| local.iter().any(|e| e.key == key);
+    let mut values: Vec<FrontEntry> = Vec::new();
+    for entry in local {
+        if in_base(&entry.key).is_some_and(|b| b.rest == entry.rest) {
+            if let Some(current) = in_now(&entry.key) {
+                values.push(current.clone());
+            }
+        } else {
+            values.push(entry.clone());
+        }
+    }
+    for entry in now {
+        if in_base(&entry.key).is_none() && !in_local(&entry.key) {
+            values.push(entry.clone());
+        }
+    }
+    let kept: HashSet<&str> = values.iter().map(|e| e.key.as_str()).collect();
+    let common = |list: &[FrontEntry], other: &[FrontEntry]| -> Vec<String> {
+        list.iter()
+            .filter(|e| other.iter().any(|o| o.key == e.key))
+            .map(|e| e.key.clone())
+            .collect()
+    };
+    let reordered = common(base, local) != common(local, base);
+    let now_keys: Vec<&str> = now.iter().map(|e| e.key.as_str()).collect();
+    let local_keys: Vec<&str> = local.iter().map(|e| e.key.as_str()).collect();
+    let mut order: Vec<String> = if reordered {
+        local_keys
+            .iter()
+            .filter(|k| kept.contains(**k))
+            .map(|k| (*k).to_owned())
+            .collect()
+    } else {
+        now_keys
+            .iter()
+            .filter(|k| kept.contains(**k))
+            .map(|k| (*k).to_owned())
+            .collect()
+    };
+    let missing: Vec<&str> = values
+        .iter()
+        .map(|e| e.key.as_str())
+        .filter(|k| !order.iter().any(|o| o == k))
+        .collect();
+    for key in missing {
+        // A key the person has goes where their text has it; one only the
+        // note has goes where the note has it.
+        if in_local(key) {
+            let at = local_keys.iter().position(|k| *k == key).unwrap_or(0);
+            insert_after(&mut order, key, &local_keys[..at], reordered);
+        } else {
+            let at = now_keys.iter().position(|k| *k == key).unwrap_or(0);
+            insert_after(&mut order, key, &now_keys[..at], false);
+        }
+    }
+    order
+        .iter()
+        .filter_map(|key| values.iter().find(|e| e.key == *key).cloned())
+        .collect()
 }
 
 /// Positions for `keys` (in the order the note now has them) that keep the
@@ -176,5 +281,71 @@ impl CollabDoc {
             }
         }
         changed.then(|| txn.encode_update_v1())
+    }
+
+    /// A document holding `title` and a note's text, its front matter as
+    /// properties.
+    pub fn from_note_text(title: &str, text: &str) -> CollabDoc {
+        let doc = CollabDoc::new();
+        doc.set_text(Field::Title, title);
+        doc.set_note_text_in_parts(text, usize::MAX);
+        doc
+    }
+
+    /// How many bytes of [`CollabDoc::note_text`] come before the body.
+    pub fn front_len(&self) -> usize {
+        let entries = self.props();
+        if entries.is_empty() {
+            0
+        } else {
+            FENCE.len() * 2 + properties::render_front(&entries).len()
+        }
+    }
+
+    /// A position in the note's text (a byte offset of
+    /// [`CollabDoc::note_text`]) that follows the text around it through
+    /// every later edit, as base64url. One in the front matter sticks to
+    /// the start of the body.
+    pub fn note_sticky(&self, offset: usize) -> String {
+        self.sticky(Field::Body, offset.saturating_sub(self.front_len()))
+    }
+
+    /// Where a position made by [`CollabDoc::note_sticky`] is now, as a byte
+    /// offset of the note's text; `None` for one that isn't of the body.
+    pub fn note_resolve(&self, sticky: &str) -> Option<usize> {
+        match self.resolve_field(sticky)? {
+            (Field::Body, offset) => Some(offset + self.front_len()),
+            (Field::Title, _) => None,
+        }
+    }
+
+    /// Takes a local edit of the note's text, `base` to `local`, onto what
+    /// the note says now, as the updates to send. Each property the edit
+    /// changed is written on its own, so another person's change to a
+    /// different property, or the same one made meanwhile when the edit left
+    /// it alone, stands; the body is rebased onto what changed in it
+    /// meanwhile. A note whose text isn't kept key by key (see the module
+    /// documentation) is rebased as one text.
+    pub fn edit_note_in_parts(&self, base: &str, local: &str, part: usize) -> Vec<Vec<u8>> {
+        if base == local {
+            return Vec::new();
+        }
+        let now_props = self.props();
+        let now_body = self.body_text();
+        // A note that still has its front matter in the body (made before
+        // properties had entries) moves it into them on this edit.
+        let legacy = now_props.is_empty() && properties::split(&now_body).is_some();
+        if !legacy
+            && let (Some((base_props, base_body)), Some((props, body))) =
+                (parts(base), parts(local))
+        {
+            let merged = merge_entries(&base_props, &props, &now_props);
+            let mut updates: Vec<Vec<u8>> = self.write_props(&merged).into_iter().collect();
+            let body = crate::engine::rebase(base_body, body, &now_body);
+            updates.extend(self.set_text_in_parts(Field::Body, &body, part));
+            return updates;
+        }
+        let text = crate::engine::rebase(base, local, &self.note_text());
+        self.set_note_text_in_parts(&text, part)
     }
 }

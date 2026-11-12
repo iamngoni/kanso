@@ -67,6 +67,7 @@ pub use backup::{BackupName, BackupPolicy, backup_name};
 pub use cards_model::{
     CardCounts, CardScope, CardSettings, CardStats, DueCard, HardCard, NoteCard,
 };
+pub use collab::books_model::{BookOutgoing, BookStream, SharedBook};
 pub use collab::model::{
     CommentRecord, Contact, Outgoing, SealedKey, SharedKind, SharedNote, SharedStatus, StoredNotice,
 };

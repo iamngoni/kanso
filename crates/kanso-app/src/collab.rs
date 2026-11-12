@@ -340,6 +340,10 @@ pub fn error_text(err: &CollabError) -> String {
             format!("{name}'s keys changed since you last shared with them.")
         }
         CollabError::NotShareable(words) | CollabError::Refused(words) => words.clone(),
+        CollabError::BookList(kanso_collab::BookListError::Forked) => {
+            "The notebook's history forked: two different lists of people follow the same one, so Kanso stopped."
+                .into()
+        }
         CollabError::Transport(_) => {
             "Couldn't reach your sync server. Check your connection and try again.".into()
         }

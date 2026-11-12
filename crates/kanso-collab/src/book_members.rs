@@ -34,7 +34,7 @@ fn signed_message(share_id: &str, list_bytes: &[u8]) -> Vec<u8> {
     message
 }
 
-fn link_hash(list_bytes: &[u8]) -> String {
+pub(crate) fn link_hash(list_bytes: &[u8]) -> String {
     hex(&sha256(&[
         b"kanso-book-members-link",
         &[FORMAT_V1],

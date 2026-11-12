@@ -8,6 +8,8 @@
 //! the CRDT's state, keys, outbox and comments live in the `collab_*`
 //! tables, which never sync (each device rebuilds them from the server).
 
+pub mod books;
+pub mod books_model;
 pub mod model;
 
 use kanso_core::model::{LOCK_FIELD, SHARE_FIELD};

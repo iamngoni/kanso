@@ -247,6 +247,11 @@ impl CollabDoc {
     /// Where a sticky position is now, as a byte offset of its text, or
     /// `None` for one that isn't this document's.
     pub fn resolve(&self, sticky: &str) -> Option<usize> {
+        self.resolve_field(sticky).map(|(_, offset)| offset)
+    }
+
+    /// [`CollabDoc::resolve`], with the text the position is in.
+    pub(crate) fn resolve_field(&self, sticky: &str) -> Option<(Field, usize)> {
         let index = StickyIndex::decode_v1(&unb64(sticky)?).ok()?;
         let txn = self.doc.transact();
         let offset = index.get_offset(&txn)?;
@@ -255,7 +260,7 @@ impl CollabDoc {
             BranchPtr::from(branch) == offset.branch
         })?;
         let body = self.text_ref(field).get_string(&txn);
-        Some(byte_at_unit(&body, offset.index as usize))
+        Some((field, byte_at_unit(&body, offset.index as usize)))
     }
 }
 

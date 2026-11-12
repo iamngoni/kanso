@@ -506,6 +506,9 @@ CREATE TABLE IF NOT EXISTS note_events (
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS note_events_uid_start ON note_events (uid, instance_start);
 "#,
+    // Shared notebooks (`collab/books.rs`, issue #390): local to this device,
+    // never synced, like shared notes'.
+    crate::collab::books::MIGRATION,
 ];
 
 /// A note's body as everything but the app reads it: empty for a locked

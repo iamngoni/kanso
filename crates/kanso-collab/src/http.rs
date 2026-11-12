@@ -13,9 +13,9 @@ use tungstenite::protocol::WebSocket;
 use ureq::Agent;
 
 use crate::api::{
-    Caller, CollabApi, CollabError, Created, Joined, LiveEvent, LiveLink, LogPage, NewEpoch,
-    NewLink, NewShare, NoticeIn, NoticeOut, Result, ShareInfo, SharesPage, parse_control,
-    parse_frame,
+    BookCreated, BookInfo, BookLogPage, Caller, CollabApi, CollabError, Created, Joined, LiveEvent,
+    LiveLink, LogPage, MANIFEST_STREAM, NewBook, NewBookList, NewEpoch, NewLink, NewShare,
+    NoticeIn, NoticeOut, Result, ShareInfo, SharesPage, parse_control, parse_frame,
 };
 use crate::codec::b64;
 use crate::identity::Published;
@@ -291,6 +291,86 @@ impl CollabApi for HttpCollab {
 
     fn live(&self, caller: &Caller, share_id: &str) -> Result<Box<dyn LiveLink>> {
         Ok(Box::new(WsLink::connect(caller, share_id)?))
+    }
+
+    fn create_book(&self, caller: &Caller, book: &NewBook) -> Result<BookCreated> {
+        json_of(send_json(caller, "POST", "/v2/collab/books", book)?)
+    }
+
+    fn book(&self, caller: &Caller, share_id: &str, since_rev: u32) -> Result<BookInfo> {
+        json_of(get(
+            caller,
+            &format!(
+                "/v2/collab/books/{}?since_rev={}",
+                segment(share_id),
+                since_rev.max(1)
+            ),
+        )?)
+    }
+
+    fn accept_book(&self, caller: &Caller, share_id: &str) -> Result<()> {
+        send_json(
+            caller,
+            "POST",
+            &format!("/v2/collab/books/{}/accept", segment(share_id)),
+            &serde_json::json!({}),
+        )
+        .map(|_| ())
+    }
+
+    fn new_book_list(&self, caller: &Caller, share_id: &str, list: &NewBookList) -> Result<()> {
+        let path = format!("/v2/collab/books/{}/epoch", segment(share_id));
+        send_json(caller, "POST", &path, list).map(|_| ())
+    }
+
+    fn book_log(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        since: u64,
+        limit: usize,
+    ) -> Result<BookLogPage> {
+        json_of(get(
+            caller,
+            &format!(
+                "{}?since={since}&limit={limit}",
+                stream_path(share_id, stream)
+            ),
+        )?)
+    }
+
+    fn book_append(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        envelope: &[u8],
+    ) -> Result<u64> {
+        let path = stream_path(share_id, stream);
+        Ok(json_of::<Seq>(send_bytes(caller, &path, envelope, None)?)?.seq)
+    }
+
+    fn book_snapshot(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+        stream: &str,
+        base_seq: u64,
+        envelope: &[u8],
+    ) -> Result<u64> {
+        let path = format!("{}/snapshot", stream_path(share_id, stream));
+        Ok(json_of::<Seq>(send_bytes(caller, &path, envelope, Some(base_seq))?)?.seq)
+    }
+}
+
+/// A notebook's log route: `/manifest`, or `/notes/<id>`.
+fn stream_path(share_id: &str, stream: &str) -> String {
+    let base = format!("/v2/collab/books/{}", segment(share_id));
+    if stream == MANIFEST_STREAM {
+        format!("{base}/manifest")
+    } else {
+        format!("{base}/notes/{}", segment(stream))
     }
 }
 

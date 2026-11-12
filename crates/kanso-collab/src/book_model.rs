@@ -40,3 +40,54 @@ impl BookKey {
 pub struct BookHistory {
     pub keys: BTreeMap<u32, BookKey>,
 }
+
+/// What a device keeps of a notebook's member-list chain: the newest list
+/// checked back to the owner's genesis list, and the last list of every
+/// epoch (who held which role then, and where the next epoch began), which
+/// is what decides whether an entry written under that epoch counts.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct StoredChain {
+    pub head: crate::book_members_model::BookChainHead,
+    pub epochs: BTreeMap<u32, crate::book_members_model::BookMemberList>,
+}
+
+/// Progress of sharing a notebook: "Sharing Studio… 120 of 340".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BookProgress {
+    pub done: usize,
+    pub total: usize,
+}
+
+/// What sharing a notebook did.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BookShared {
+    pub share_id: String,
+    /// Notes now in the shared notebook.
+    pub shared: usize,
+    /// Locked notes moved to the private "<name> (locked)" notebook.
+    pub moved_locked: usize,
+    /// Titles of notes left out: ones already shared on their own, and
+    /// canvases (a shared notebook holds text notes for now).
+    pub left_out: Vec<String>,
+}
+
+/// What one sync of a notebook did.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct BookSync {
+    /// Log entries pulled and entries pushed.
+    pub pulled: usize,
+    pub pushed: usize,
+    /// Notes whose text the library took from the notebook.
+    pub notes_written: usize,
+    /// This account is no longer in the notebook.
+    pub removed: bool,
+}
+
+/// A notebook joined on this device.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JoinedBook {
+    pub share_id: String,
+    /// The notebook in this library.
+    pub book_id: String,
+    pub notes: usize,
+}
