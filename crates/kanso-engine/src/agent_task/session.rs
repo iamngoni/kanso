@@ -3,8 +3,11 @@
 //! that went, what it was allowed, what it proposed. A model file: values and
 //! the rules for adding to them, nothing that runs or draws.
 
-use kanso_server::Counts;
+use kanso_server::{ChangeSet, Counts};
 use serde::{Deserialize, Serialize};
+
+use super::TaskSpec;
+use super::model::Phase;
 
 /// A session's own id. A [`kanso_server::TaskId`] restarts with each launch;
 /// this one does not, so it can name a file on disk. 26 characters of
@@ -261,4 +264,30 @@ impl Transcript {
             })
             .collect()
     }
+}
+
+/// A session as it is kept on disk (`store.rs`): everything needed to show
+/// it again after a restart. Never holds a token or an API key.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SavedSession {
+    /// The file format; a file of another version is skipped.
+    pub version: u32,
+    pub key: SessionKey,
+    pub title: String,
+    /// What the person calls the agent.
+    pub agent: String,
+    /// Which agent runs it, so a resume starts the same one. Empty when not
+    /// known.
+    pub agent_key: String,
+    /// The agent's own session id, for `session/load`.
+    pub acp_session_id: Option<String>,
+    pub spec: TaskSpec,
+    pub created_ms: i64,
+    pub last_activity_ms: i64,
+    pub phase: Phase,
+    /// The round of proposals the task was in.
+    pub round: u32,
+    pub items: Vec<Item>,
+    /// The proposal nobody reviewed yet.
+    pub pending: Option<ChangeSet>,
 }

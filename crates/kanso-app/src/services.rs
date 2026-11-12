@@ -488,6 +488,22 @@ pub fn start_control(cx: &mut App) {
     }
 }
 
+/// Agent sessions are kept in the data folder from now on, and the ones kept
+/// before are listed again, read-only (`agent_task::store`).
+pub fn start_agent_sessions(cx: &mut App) {
+    let state = cx.global::<AppState>();
+    let (store, dir) = (
+        state.store.clone(),
+        kanso_engine::agent_task::store::dir(&state.data_dir),
+    );
+    let services = cx.global::<Services>();
+    let saved = kanso_engine::agent_task::store::load_all(&dir);
+    services.tasks.save_in(dir);
+    services
+        .tasks
+        .restore(&store, &services.agent_tokens, saved);
+}
+
 /// Tests and snapshots: the keys to use, with a clock of their own.
 #[cfg(test)]
 pub(crate) fn set_keys_for_test(keys: KeyStore, cx: &mut App) {

@@ -9,7 +9,7 @@ use super::session::SessionKey;
 use super::{ReadScope, TaskSpec};
 
 /// Where a task is.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Phase {
     /// Another task is using the agent.
     Waiting,
