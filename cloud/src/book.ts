@@ -597,26 +597,32 @@ export function newList(shareId: string): Handler {
 		// A new epoch's list says from which seq on the old epoch's writers no longer count. The room checks
 		// that this is its real log head and raises its epoch in one step, before D1 commits the list: from
 		// then on nothing at the old epoch is accepted and the head can't move under the list.
-		let began = false;
+		let began: string | null = null;
 		if (newEpoch) {
-			const left = await env.DB.prepare("SELECT account_id FROM book_members WHERE share_id = ?1 AND status = 'left'").bind(shareId).all<{ account_id: string }>();
-			const gone = new Set(left.results.map((l) => l.account_id));
+			const [leftRows, versionRows] = await env.DB.batch([
+				env.DB.prepare("SELECT account_id FROM book_members WHERE share_id = ?1 AND status = 'left'").bind(shareId),
+				env.DB.prepare("SELECT members_version FROM book_shares WHERE id = ?1").bind(shareId),
+			]);
+			const gone = new Set((leftRows.results as { account_id: string }[]).map((l) => l.account_id));
+			const version = (versionRows.results as { members_version: number }[])[0]?.members_version ?? 0;
 			const roles = Object.fromEntries(members.filter((m) => !gone.has(m.account)).map((m) => [m.account, m.role])) as Record<string, Role>;
-			const r = await bookRoomOf(env, shareId).beginEpoch({ expectedHead: next.fromSeq as number, epoch: next.epoch, roles });
+			const r = await bookRoomOf(env, shareId).beginEpoch({ expectedHead: next.fromSeq as number, epoch: next.epoch, roles, version });
 			if (!r.ok) {
 				return r.error === "head_moved"
 					? error(409, "head_moved", "The log moved on: sign the list again with from_seq at the head.", r.extras)
 					: roomRefusal(r);
 			}
-			began = true;
+			began = r.beginId;
 		}
 		// If D1 doesn't take the list, the room's raised epoch goes back, unless another list took the epoch.
 		const undo = async (): Promise<void> => {
 			if (!began) return;
 			const current = await standing(env, shareId, session.accountId);
 			try {
-				if (current && current.epoch === prev.epoch) await bookRoomOf(env, shareId).abortEpoch({ epoch: next.epoch, previous: prev.epoch });
-				else await syncRoom(env, shareId);
+				// The abort takes effect only while this list's begin is the latest (another list's begin
+				// owns the epoch otherwise); either way the roster is brought back from D1.
+				if (current && current.epoch === prev.epoch) await bookRoomOf(env, shareId).abortEpoch({ epoch: next.epoch, previous: prev.epoch, beginId: began });
+				await syncRoom(env, shareId);
 			} catch (err) {
 				console.error(JSON.stringify({ route: "book", op: "abort_epoch", outcome: (err as Error)?.name ?? typeof err }));
 			}

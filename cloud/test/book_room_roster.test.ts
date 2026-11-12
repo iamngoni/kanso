@@ -201,7 +201,7 @@ describe("fix 3: a write that raced a new epoch during the quota check is refuse
 			const real = room.overQuota.bind(room);
 			room.overQuota = async () => {
 				room.overQuota = real;
-				const r = await room.beginEpoch({ expectedHead: 1, epoch: 2, roles: { [alice.creds.accountId]: "owner", [bob.creds.accountId]: "edit" } });
+				const r = await room.beginEpoch({ expectedHead: 1, epoch: 2, roles: { [alice.creds.accountId]: "owner", [bob.creds.accountId]: "edit" }, version: 0 });
 				expect(r.ok).toBe(true);
 				return null;
 			};
@@ -230,7 +230,7 @@ describe("fix 3: a write that raced a new epoch during the quota check is refuse
 			});
 			room.overQuota = async () => {
 				room.overQuota = real;
-				await room.beginEpoch({ expectedHead: 2, epoch: 2, roles: { [alice.creds.accountId]: "owner", [bob.creds.accountId]: "edit" } });
+				await room.beginEpoch({ expectedHead: 2, epoch: 2, roles: { [alice.creds.accountId]: "owner", [bob.creds.accountId]: "edit" }, version: 0 });
 				return null;
 			};
 			expect(await room.snapshot({ shareId: book.id, stream: NOTE, account: bob.creds.accountId, epoch: 1, baseSeq: 2, envelope: snap, now: clock.now })).toMatchObject({
@@ -248,7 +248,7 @@ describe("fix 3: a write that raced a new epoch during the quota check is refuse
 			const real = room.overQuota.bind(room);
 			room.overQuota = async () => {
 				room.overQuota = real;
-				await room.setEpoch({ epoch: 1, roles: { [alice.creds.accountId]: "owner", [bob.creds.accountId]: "view" } });
+				await room.setEpoch({ epoch: 1, roles: { [alice.creds.accountId]: "owner", [bob.creds.accountId]: "view" }, version: 1_000_000 });
 				return null;
 			};
 			expect(await room.append({ shareId: book.id, stream: NOTE, account: bob.creds.accountId, epoch: 1, envelope: e, now: clock.now })).toMatchObject({ ok: false, error: "forbidden_role" });
@@ -262,15 +262,16 @@ describe("fix 4: the head check and the epoch raise are one step", () => {
 		expect((await append(bob, book.id, NOTE, await seal(book, "u", bob))).status).toBe(200);
 		const room = roomOf(book.id);
 		const roles = { [alice.creds.accountId]: "owner" as const, [bob.creds.accountId]: "edit" as const };
-		expect(await room.beginEpoch({ expectedHead: 0, epoch: 2, roles })).toMatchObject({ ok: false, error: "head_moved", extras: { head: 1 } });
+		expect(await room.beginEpoch({ expectedHead: 0, epoch: 2, roles, version: 0 })).toMatchObject({ ok: false, error: "head_moved", extras: { head: 1 } });
 		expect(await room.state()).toEqual({ head: 1, epoch: 1 });
-		expect(await room.beginEpoch({ expectedHead: 1, epoch: 2, roles })).toMatchObject({ ok: true, previous: 1 });
+		expect(await room.beginEpoch({ expectedHead: 1, epoch: 2, roles, version: 0 })).toMatchObject({ ok: true, previous: 1 });
 		// D1 still says epoch 1; the Worker passes it, and the room refuses
 		expect((await append(bob, book.id, NOTE, await seal(book, "u", bob, 1))).body).toMatchObject({ error: "epoch_changed", epoch: 2 });
 		expect(await room.state()).toEqual({ head: 1, epoch: 2 });
 		// the same list retried is fine; D1 refusing the list puts the epoch back
-		expect(await room.beginEpoch({ expectedHead: 1, epoch: 2, roles })).toMatchObject({ ok: true });
-		await room.abortEpoch({ epoch: 2, previous: 1 });
+		const retried = await room.beginEpoch({ expectedHead: 1, epoch: 2, roles, version: 0 });
+		expect(retried).toMatchObject({ ok: true });
+		await room.abortEpoch({ epoch: 2, previous: 1, beginId: (retried as { beginId: string }).beginId });
 		expect(await room.state()).toEqual({ head: 1, epoch: 1 });
 		expect((await append(bob, book.id, NOTE, await seal(book, "u", bob, 1))).status).toBe(200);
 	});
@@ -290,6 +291,73 @@ describe("fix 4: the head check and the epoch raise are one step", () => {
 	});
 });
 
+const versionOf = async (id: string) => (await env.DB.prepare("SELECT members_version AS v FROM book_shares WHERE id = ?1").bind(id).first<{ v: number }>())!.v;
+
+describe("a stale roster never puts anyone back", () => {
+	it("a sync read before a leave and arriving after the leave's own sync is ignored", async () => {
+		const book = await team();
+		const c = await joinedSocket(carol, book.id);
+		const everyone = { [alice.creds.accountId]: "owner" as const, [bob.creds.accountId]: "edit" as const, [carol.creds.accountId]: "comment" as const, [dave.creds.accountId]: "view" as const };
+		const before = await versionOf(book.id);
+		expect((await books(carol.token).leave(book.id)).status).toBe(204);
+		expect(await versionOf(book.id)).toBeGreaterThan(before);
+		expect(text(await c.next())).toEqual({ type: "closed", reason: "removed" });
+		// the older sync, which still lists her, arrives now: nothing changes
+		expect(await roomOf(book.id).setEpoch({ epoch: 1, roles: everyone, version: before })).toBe(true);
+		await inRoom(book.id, (room) => {
+			const rows = room.ctx.storage.sql.exec("SELECT account FROM roster").toArray().map((r: { account: string }) => r.account);
+			expect(rows).not.toContain(carol.creds.accountId);
+			expect(rows).toHaveLength(3);
+		});
+		// she can't reattach or write
+		const again = await upgrade(book, carol, { [ROOM_HEADERS.epoch]: "1" });
+		expect(again.status).toBe(409);
+		expect(await again.json()).toMatchObject({ error: "roster_stale" });
+		expect(await roomOf(book.id).append({ shareId: book.id, stream: NOTE, account: carol.creds.accountId, epoch: 1, envelope: await seal(book, "c", carol), now: clock.now })).toMatchObject({
+			ok: false,
+			error: "roster_stale",
+		});
+		// a roster as new as the room's is applied
+		expect(await roomOf(book.id).setEpoch({ epoch: 1, roles: everyone, version: await versionOf(book.id) })).toBe(true);
+		await inRoom(book.id, (room) => expect(room.ctx.storage.sql.exec("SELECT count(*) AS n FROM roster").one().n).toBe(4));
+	});
+
+	it("every membership change bumps the version in its own batch: create, accept, a new list, leave", async () => {
+		const book = await shareBook(alice, [{ account: bob, role: "edit" }], false);
+		const created = await versionOf(book.id);
+		expect(created).toBeGreaterThan(0);
+		await books(bob.token).accept(book.id);
+		const accepted = await versionOf(book.id);
+		expect(accepted).toBeGreaterThan(created);
+		expect((await advance(book, alice, members([alice, "owner"], [bob, "edit"], [carol, "view"]), { wrapFor: [carol] })).status).toBe(200);
+		const listed = await versionOf(book.id);
+		expect(listed).toBeGreaterThan(accepted);
+		await books(bob.token).leave(book.id);
+		expect(await versionOf(book.id)).toBeGreaterThan(listed);
+	});
+});
+
+describe("an abort only undoes its own begin", () => {
+	it("X aborting after Y began leaves the room on Y's epoch", async () => {
+		const book = await team();
+		expect((await append(bob, book.id, NOTE, await seal(book, "u", bob))).status).toBe(200);
+		const room = roomOf(book.id);
+		const roles = { [alice.creds.accountId]: "owner" as const, [bob.creds.accountId]: "edit" as const };
+		const x = (await room.beginEpoch({ expectedHead: 1, epoch: 2, roles, version: 0 })) as { ok: true; previous: number; beginId: string };
+		const y = (await room.beginEpoch({ expectedHead: 1, epoch: 2, roles, version: 0 })) as { ok: true; previous: number; beginId: string };
+		expect(x.beginId).not.toBe(y.beginId);
+		expect(y.previous).toBe(1);
+		expect(await room.abortEpoch({ epoch: 2, previous: x.previous, beginId: x.beginId })).toBe(false);
+		expect(await room.state()).toEqual({ head: 1, epoch: 2 });
+		expect(await room.abortEpoch({ epoch: 2, previous: y.previous, beginId: "not-a-begin" })).toBe(false);
+		expect(await room.state()).toEqual({ head: 1, epoch: 2 });
+		expect(await room.abortEpoch({ epoch: 2, previous: y.previous, beginId: y.beginId })).toBe(true);
+		expect(await room.state()).toEqual({ head: 1, epoch: 1 });
+		// and a begin can't be aborted twice
+		expect(await room.abortEpoch({ epoch: 2, previous: y.previous, beginId: y.beginId })).toBe(false);
+	});
+});
+
 describe("fix 5: a purged room stays purged", () => {
 	it("refuses an upgrade, an append, a snapshot and a roster after the notebook stopped", async () => {
 		const book = await team();
@@ -306,8 +374,8 @@ describe("fix 5: a purged room stays purged", () => {
 			ok: false,
 			error: "not_found",
 		});
-		await room.setEpoch({ epoch: 1, roles });
-		expect(await room.beginEpoch({ expectedHead: 0, epoch: 2, roles })).toMatchObject({ ok: false, error: "not_found" });
+		await room.setEpoch({ epoch: 1, roles, version: 0 });
+		expect(await room.beginEpoch({ expectedHead: 0, epoch: 2, roles, version: 0 })).toMatchObject({ ok: false, error: "not_found" });
 		expect((await upgrade(book, bob, { [ROOM_HEADERS.epoch]: "1" })).status).toBe(404);
 		expect(await room.state()).toEqual({ head: 0, epoch: 0 });
 	});
