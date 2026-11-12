@@ -132,7 +132,7 @@ impl Engine {
             SharedKind::Text
         };
         let doc = match kind {
-            SharedKind::Text => SharedDoc::Text(CollabDoc::from_text(&note.title, &note.body)),
+            SharedKind::Text => SharedDoc::Text(CollabDoc::from_note_text(&note.title, &note.body)),
             SharedKind::Canvas => {
                 let canvas = if note.body.trim().is_empty() {
                     Canvas::default()

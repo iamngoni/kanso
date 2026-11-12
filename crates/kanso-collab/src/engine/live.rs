@@ -13,7 +13,6 @@ use kanso_core::now_ms;
 
 use super::{Engine, lock};
 use crate::api::{LiveEvent, LiveLink, Result};
-use crate::doc::Field;
 use crate::model::{CanvasPointer, Kind, LiveNotice, PresenceMessage};
 
 /// What this device's presence last said: where the caret or the pointer
@@ -376,11 +375,11 @@ impl Engine {
                 cursor: guard
                     .doc
                     .text()
-                    .map_or_else(String::new, |d| d.sticky(Field::Body, *anchor)),
+                    .map_or_else(String::new, |d| d.note_sticky(*anchor)),
                 head: guard
                     .doc
                     .text()
-                    .map_or_else(String::new, |d| d.sticky(Field::Body, *head)),
+                    .map_or_else(String::new, |d| d.note_sticky(*head)),
                 name,
                 canvas: None,
             },

@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::doc::{CollabDoc, Field};
+use crate::doc::CollabDoc;
 use crate::model::{Comment, CommentEvent, CommentOp, CommentView, Placement, Role};
 
 /// The longest comment body, in characters.
@@ -105,8 +105,8 @@ pub fn fold(events: &[Logged]) -> BTreeMap<String, Comment> {
 /// comment is orphaned at that place. An anchor this document can't resolve
 /// is orphaned at the start.
 pub fn place(doc: &CollabDoc, comment: &Comment) -> Placement {
-    let start = doc.resolve(&comment.anchor.start);
-    let end = doc.resolve(&comment.anchor.end);
+    let start = doc.note_resolve(&comment.anchor.start);
+    let end = doc.note_resolve(&comment.anchor.end);
     match (start, end) {
         (Some(start), Some(end)) if start < end => Placement::Anchored(start..end),
         (Some(at), _) | (None, Some(at)) => {
@@ -122,7 +122,7 @@ pub fn place(doc: &CollabDoc, comment: &Comment) -> Placement {
 
 /// An anchor for the byte range `range` of the body.
 pub fn anchor(doc: &CollabDoc, range: std::ops::Range<usize>) -> crate::model::Anchor {
-    let body = doc.text(Field::Body);
+    let body = doc.note_text();
     let start = range.start.min(body.len());
     let end = range.end.clamp(start, body.len());
     let quote: String = body
@@ -132,8 +132,8 @@ pub fn anchor(doc: &CollabDoc, range: std::ops::Range<usize>) -> crate::model::A
         .take(MAX_QUOTE_CHARS)
         .collect();
     crate::model::Anchor {
-        start: doc.sticky(Field::Body, start),
-        end: doc.sticky(Field::Body, end),
+        start: doc.note_sticky(start),
+        end: doc.note_sticky(end),
         quote,
     }
 }
@@ -248,6 +248,7 @@ pub fn comments_summary(comments: &[CommentView]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::doc::Field;
     use crate::model::Anchor;
     use proptest::prelude::*;
 

@@ -142,9 +142,12 @@ impl Loaded {
         self.doc.text().expect("a text note")
     }
 
+    /// The note as the library keeps it: the title, and the text with the
+    /// properties as front matter before the body. The offsets the editor
+    /// speaks in are offsets of this text.
     fn text(&self) -> (String, String) {
         match self.doc.text() {
-            Some(doc) => (doc.text(Field::Title), doc.text(Field::Body)),
+            Some(doc) => (doc.text(Field::Title), doc.note_text()),
             None => (self.doc.title(), String::new()),
         }
     }
@@ -298,7 +301,7 @@ impl Engine {
             Some(local) if note.state.is_empty() => (local.title, local.body),
             _ => (
                 doc.title(),
-                doc.text().map(|d| d.text(Field::Body)).unwrap_or_default(),
+                doc.text().map(|d| d.note_text()).unwrap_or_default(),
             ),
         };
         let loaded = Arc::new(Mutex::new(Loaded {
@@ -414,7 +417,7 @@ impl Engine {
             if (title.len(), body.len())
                 != (
                     loaded.text_doc().text(Field::Title).len(),
-                    loaded.text_doc().text(Field::Body).len(),
+                    loaded.text_doc().note_text().len(),
                 )
             {
                 self.add_problem(
@@ -511,19 +514,22 @@ impl Engine {
             )?;
             return Ok(false);
         }
-        let (title_now, body_now) = loaded.text();
-        let title = rebase(&base.0, &local.0, &title_now);
-        let body = rebase(&base.1, &local.1, &body_now);
-        let mut changed = false;
-        for (field, text) in [(Field::Title, &title), (Field::Body, &body)] {
-            for update in loaded
+        // The title is text, rebased onto what merged meanwhile. The note's
+        // text is taken one property at a time and the body rebased, so a
+        // change to another property made meanwhile is never undone.
+        let title = rebase(&base.0, &local.0, &loaded.text_doc().text(Field::Title));
+        let mut updates = loaded
+            .text_doc()
+            .set_text_in_parts(Field::Title, &title, UPDATE_PART);
+        updates.extend(
+            loaded
                 .text_doc()
-                .set_text_in_parts(field, text, UPDATE_PART)
-            {
-                self.store
-                    .push_outbox(&loaded.note.share_id, "u", &update)?;
-                changed = true;
-            }
+                .edit_note_in_parts(&base.1, &local.1, UPDATE_PART),
+        );
+        let mut changed = false;
+        for update in &updates {
+            self.store.push_outbox(&loaded.note.share_id, "u", update)?;
+            changed = true;
         }
         if changed {
             self.store.add_shared_authors(
@@ -980,5 +986,7 @@ pub fn rebase(base: &str, local: &str, current: &str) -> String {
 mod book_tests;
 #[cfg(test)]
 mod canvas_tests;
+#[cfg(test)]
+mod props_tests;
 #[cfg(test)]
 mod tests;

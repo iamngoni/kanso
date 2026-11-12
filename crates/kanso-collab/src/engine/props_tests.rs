@@ -1,0 +1,199 @@
+//! Shared single notes with properties merged one key at a time, through
+//! the open editor: its caret and a comment's place stay on their words when
+//! another person's change to the front matter moves the body inside the
+//! note's text. Property tests run on the seed `PROPTEST_RNG_SEED` pins.
+
+use proptest::prelude::*;
+
+use super::tests::{Device, body_of, device, note, sync, write_body};
+use crate::doc::{Field, apply_splices, remap};
+use crate::memory::MemoryCollab;
+use crate::model::{Placement, Role};
+
+/// A shares a note with B (who edits) and B accepts; the share's id.
+fn shared(owner: &Device, other: &Device, body: &str) -> String {
+    let id = note(&owner.store, "note:shared", "Plan", body);
+    owner
+        .engine
+        .person(&other.engine.caller().username)
+        .unwrap();
+    let share = owner
+        .engine
+        .share(&id, &[(other.engine.caller().username.clone(), Role::Edit)])
+        .unwrap();
+    other.engine.refresh().unwrap();
+    other.engine.accept(&share).unwrap();
+    share
+}
+
+const NOTE: &str = "---\nstage: Idea\ndue: 2026-01-01\n---\nBrief for the shoot\n";
+
+fn id_of(d: &Device, share: &str) -> String {
+    d.store.shared_note(share).unwrap().unwrap().note_id
+}
+
+#[test]
+fn a_shared_notes_properties_are_entries_of_its_document_not_text() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared(&a, &b, NOTE);
+    for d in [&a, &b] {
+        let loaded = d.engine.loaded(&share).unwrap();
+        let guard = super::lock(&loaded);
+        let doc = guard.doc.text().unwrap();
+        assert_eq!(doc.props().len(), 2);
+        assert_eq!(doc.text(Field::Body), "Brief for the shoot\n");
+        assert_eq!(doc.note_text(), NOTE);
+    }
+    assert_eq!(body_of(&b, &share), NOTE);
+    // Two people change different properties offline: both stay, and moving
+    // the same card gives one whole stage.
+    write_body(
+        &a.store,
+        &id_of(&a, &share),
+        &NOTE.replace("Idea", "Shooting"),
+    )
+    .unwrap();
+    write_body(
+        &b.store,
+        &id_of(&b, &share),
+        &NOTE.replace("2026-01-01", "2026-02-02"),
+    )
+    .unwrap();
+    sync(&[&a, &b], &share);
+    let want = "---\nstage: Shooting\ndue: 2026-02-02\n---\nBrief for the shoot\n";
+    assert_eq!(body_of(&a, &share), want);
+    assert_eq!(body_of(&b, &share), want);
+    write_body(
+        &a.store,
+        &id_of(&a, &share),
+        &want.replace("Shooting", "Editing"),
+    )
+    .unwrap();
+    write_body(
+        &b.store,
+        &id_of(&b, &share),
+        &want.replace("Shooting", "Review"),
+    )
+    .unwrap();
+    sync(&[&a, &b], &share);
+    let (ta, tb) = (body_of(&a, &share), body_of(&b, &share));
+    assert_eq!(ta, tb);
+    assert!(
+        ta.contains("stage: Editing\n") || ta.contains("stage: Review\n"),
+        "{ta:?}"
+    );
+}
+
+#[test]
+fn the_editors_caret_and_a_comment_stay_on_their_words_when_the_front_matter_changes() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared(&a, &b, NOTE);
+    // B has the note open, the caret before "shoot".
+    b.engine.attach(&share).unwrap();
+    let mut editor = body_of(&b, &share);
+    let caret = editor.find("shoot").unwrap();
+    b.engine
+        .add_comment(&share, caret..caret + 5, "Which?")
+        .unwrap();
+    // A moves the card to a longer stage and adds a property.
+    let longer =
+        "---\nstage: In production\ndue: 2026-01-01\nowner: Dan\n---\nBrief for the shoot\n";
+    write_body(&a.store, &id_of(&a, &share), longer).unwrap();
+    sync(&[&a], &share);
+    sync(&[&b], &share);
+    let merge = b.engine.sync_editor(&share, "Plan", &editor).unwrap();
+    assert_eq!(merge.body_text, longer);
+    apply_splices(&mut editor, &merge.body);
+    assert_eq!(editor, longer);
+    let moved = remap(caret, &merge.body);
+    assert!(
+        editor[moved..].starts_with("shoot"),
+        "{editor:?} at {moved}"
+    );
+    // The comment sits on the same word.
+    let comments = b.engine.comments(&share).unwrap();
+    let Placement::Anchored(range) = &comments[0].placement else {
+        panic!("{:?}", comments[0].placement)
+    };
+    assert_eq!(&longer[range.clone()], "shoot");
+    assert_eq!(range.start, moved);
+}
+
+#[test]
+fn typing_in_the_editor_and_a_property_change_elsewhere_both_land() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared(&a, &b, NOTE);
+    b.engine.attach(&share).unwrap();
+    let mut editor = body_of(&b, &share);
+    // B types at the end of the body and in a property's value.
+    editor = editor.replace("Idea", "Idea, maybe") + "More\n";
+    let caret = editor.len();
+    // A changes another property.
+    write_body(
+        &a.store,
+        &id_of(&a, &share),
+        &NOTE.replace("2026-01-01", "2026-03-03"),
+    )
+    .unwrap();
+    sync(&[&a], &share);
+    b.engine.sync_editor(&share, "Plan", &editor).unwrap();
+    sync(&[&b, &a], &share);
+    let merge = b.engine.sync_editor(&share, "Plan", &editor).unwrap();
+    apply_splices(&mut editor, &merge.body);
+    let want = "---\nstage: Idea, maybe\ndue: 2026-03-03\n---\nBrief for the shoot\nMore\n";
+    assert_eq!(editor, want);
+    assert_eq!(remap(caret, &merge.body), want.len());
+    sync(&[&a, &b], &share);
+    assert_eq!(body_of(&a, &share), want);
+    b.engine.detach(&share);
+}
+
+proptest! {
+    #![proptest_config(crate::tests::config(24))]
+
+    /// The caret in the open editor stays on its character through any
+    /// changes another person makes to the properties, and the editor's text
+    /// ends as the library's and the document's.
+    #[test]
+    fn prop_the_caret_keeps_its_character_through_property_edits(
+        at in any::<prop::sample::Index>(),
+        rounds in prop::collection::vec((0u8..3, "[a-z0-9]{1,10}", any::<bool>()), 1..5),
+    ) {
+        let server = MemoryCollab::new();
+        let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+        let share = shared(&a, &b, NOTE);
+        b.engine.attach(&share).unwrap();
+        let mut editor = body_of(&b, &share);
+        let body_start = editor.find("Brief").unwrap();
+        let mut caret = body_start + at.index(editor.len() - body_start);
+        while !editor.is_char_boundary(caret) { caret -= 1; }
+        let wanted = editor[caret..].chars().next();
+        for (which, word, added) in rounds {
+            let now = body_of(&a, &share);
+            let next = match which {
+                0 => now.replacen("stage: ", &format!("stage: {word} "), 1),
+                1 => now.replacen("due: ", &format!("due: {word} "), 1),
+                _ if added => now.replacen("---\n", &format!("---\nextra{}: {word}\n", word.len()), 1),
+                _ => now.replacen("stage: Idea\n", "", 1),
+            };
+            write_body(&a.store, &id_of(&a, &share), &next).unwrap();
+            sync(&[&a], &share);
+            sync(&[&b], &share);
+            let merge = b.engine.sync_editor(&share, "Plan", &editor).unwrap();
+            apply_splices(&mut editor, &merge.body);
+            caret = remap(caret, &merge.body);
+            prop_assert_eq!(&editor, &merge.body_text);
+            prop_assert_eq!(&editor, &body_of(&b, &share));
+            prop_assert_eq!(editor[caret..].chars().next(), wanted);
+        }
+        // Everyone ends with the same note, and its text is the document's.
+        sync(&[&a, &b], &share);
+        prop_assert_eq!(body_of(&a, &share), body_of(&b, &share));
+        let loaded = b.engine.loaded(&share).unwrap();
+        let guard = super::lock(&loaded);
+        prop_assert_eq!(guard.doc.text().unwrap().note_text(), body_of(&b, &share));
+    }
+}
