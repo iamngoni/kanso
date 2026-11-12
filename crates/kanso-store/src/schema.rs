@@ -854,7 +854,11 @@ mod tests {
     fn the_capture_migration_keeps_keys_and_accepts_capture() {
         let dir = tempfile::tempdir().unwrap();
         let conn = connect(&dir.path().join("k.db"), None).unwrap();
-        let before = MIGRATIONS.len() - 1;
+        // Everything up to the capture migration (later ones may follow it).
+        let before = MIGRATIONS
+            .iter()
+            .position(|sql| sql.contains("CREATE TABLE api_keys_capture"))
+            .expect("the capture migration is listed");
         for (index, sql) in MIGRATIONS.iter().take(before).enumerate() {
             conn.execute_batch(&format!(
                 "BEGIN; {sql}; PRAGMA user_version = {}; COMMIT;",

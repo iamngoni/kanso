@@ -132,7 +132,14 @@ impl Engine {
             SharedKind::Text
         };
         let doc = match kind {
-            SharedKind::Text => SharedDoc::Text(CollabDoc::from_note_text(&note.title, &note.body)),
+            // The front matter stays in the body: the people invited have
+            // apps that may not read properties as entries. The note moves
+            // over once every one who edits says theirs does.
+            SharedKind::Text => {
+                let doc = CollabDoc::from_text(&note.title, &note.body);
+                doc.ack_parts(&self.account.caller.account_id);
+                SharedDoc::Text(doc)
+            }
             SharedKind::Canvas => {
                 let canvas = if note.body.trim().is_empty() {
                     Canvas::default()

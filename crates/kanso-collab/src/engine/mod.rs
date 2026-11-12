@@ -142,6 +142,24 @@ impl Loaded {
         self.doc.text().expect("a text note")
     }
 
+    /// Whether the note's properties may become entries now: they already
+    /// are, or every member who can edit it has said their app reads them so
+    /// ([`CollabDoc::ack_parts`]). Older apps keep a note's front matter in
+    /// its body and would lose the properties of one that moved before.
+    pub(crate) fn parts_ready(&self) -> bool {
+        let Some(doc) = self.doc.text() else {
+            return false;
+        };
+        let editors: Vec<&str> = self
+            .current
+            .members
+            .iter()
+            .filter(|m| m.role.may_edit())
+            .map(|m| m.account.as_str())
+            .collect();
+        doc.in_parts() || doc.acked_parts(&editors)
+    }
+
     /// The note as the library keeps it: the title, and the text with the
     /// properties as front matter before the body. The offsets the editor
     /// speaks in are offsets of this text.
@@ -328,10 +346,33 @@ impl Engine {
             canvas_full: false,
             pointer: None,
         }));
+        {
+            // Say this app keeps properties as entries, so the others'
+            // apps know the note can move over once everyone has.
+            let mut guard = lock(&loaded);
+            self.ack_parts(&mut guard)?;
+        }
         Ok(lock(&self.notes)
             .entry(share_id.to_owned())
             .or_insert(loaded)
             .clone())
+    }
+
+    /// Writes this account's word that its app keeps a text note's
+    /// properties as entries, when it may write and hasn't yet.
+    fn ack_parts(&self, loaded: &mut Loaded) -> Result<()> {
+        if !loaded.role().may_edit() || loaded.ended {
+            return Ok(());
+        }
+        let Some(doc) = loaded.doc.text() else {
+            return Ok(());
+        };
+        if let Some(update) = doc.ack_parts(&self.account.caller.account_id) {
+            self.store
+                .push_outbox(&loaded.note.share_id, "u", &update)?;
+            self.persist(loaded)?;
+        }
+        Ok(())
     }
 
     /// Forgets a loaded note (it stopped being shared, or its row changed
@@ -521,11 +562,12 @@ impl Engine {
         let mut updates = loaded
             .text_doc()
             .set_text_in_parts(Field::Title, &title, UPDATE_PART);
-        updates.extend(
-            loaded
-                .text_doc()
-                .edit_note_in_parts(&base.1, &local.1, UPDATE_PART),
-        );
+        updates.extend(loaded.text_doc().edit_note_in_parts(
+            &base.1,
+            &local.1,
+            UPDATE_PART,
+            loaded.parts_ready(),
+        ));
         let mut changed = false;
         for update in &updates {
             self.store.push_outbox(&loaded.note.share_id, "u", update)?;

@@ -94,7 +94,7 @@ proptest! {
         front.insert(line, format!("{typed}\n"));
         let closing = if unclosed { "" } else { "---\n" };
         let local = format!("---\n{}{closing}{body}{tail}", front.concat());
-        let sent = mine.edit_note_in_parts(&base, &local, PART);
+        let sent = mine.edit_note_in_parts(&base, &local, PART, true);
         if unclosed {
             // Nothing of it is taken until the block closes.
             prop_assert!(sent.is_empty());
@@ -133,7 +133,7 @@ proptest! {
         let mut local = entries.clone();
         local[i].1 = rest(0, &format!("{word_a}a"));
         let local_text = note(&local, &format!("{body}{tail}"));
-        let sent = mine.edit_note_in_parts(&base, &local_text, PART);
+        let sent = mine.edit_note_in_parts(&base, &local_text, PART, true);
         let mut want = entries.clone();
         want[i].1 = local[i].1.clone();
         want[j].1 = other[j].1.clone();
@@ -163,7 +163,7 @@ proptest! {
         deliver(&mine, &edit(&theirs, &note(&other, &body)));
         let mut local = entries.clone();
         local[i].1 = rest(kind_a, &format!("{word_a}a"));
-        let sent = mine.edit_note_in_parts(&base, &note(&local, &body), PART);
+        let sent = mine.edit_note_in_parts(&base, &note(&local, &body), PART, true);
         prop_assert_eq!(mine.note_text(), note(&local, &body));
         deliver(&theirs, &sent);
         prop_assert_eq!(theirs.note_text(), mine.note_text());
@@ -217,15 +217,15 @@ fn a_position_in_the_front_matter_sticks_to_the_start_of_the_body() {
 fn a_reordered_property_list_and_a_removed_property_are_taken() {
     let base = "---\na: 1\nb: 2\nc: 3\n---\nx\n";
     let doc = CollabDoc::from_note_text("", base);
-    let sent = doc.edit_note_in_parts(base, "---\nc: 3\nb: 2\na: 1\n---\nx\n", PART);
+    let sent = doc.edit_note_in_parts(base, "---\nc: 3\nb: 2\na: 1\n---\nx\n", PART, true);
     assert!(!sent.is_empty());
     assert_eq!(doc.note_text(), "---\nc: 3\nb: 2\na: 1\n---\nx\n");
     let before = doc.note_text();
-    doc.edit_note_in_parts(&before, "---\nc: 3\na: 1\n---\nx\n", PART);
+    doc.edit_note_in_parts(&before, "---\nc: 3\na: 1\n---\nx\n", PART, true);
     assert_eq!(doc.note_text(), "---\nc: 3\na: 1\n---\nx\n");
     // A person removing every property leaves the plain body.
     let before = doc.note_text();
-    doc.edit_note_in_parts(&before, "x\n", PART);
+    doc.edit_note_in_parts(&before, "x\n", PART, true);
     assert_eq!(doc.note_text(), "x\n");
     assert!(doc.props().is_empty());
 }
@@ -235,6 +235,38 @@ fn a_property_removed_by_someone_else_stays_removed_when_the_edit_left_it_alone(
     let base = "---\na: 1\nb: 2\n---\nx\n";
     let (mine, theirs) = pair(base);
     deliver(&mine, &edit(&theirs, "---\na: 1\n---\nx\n"));
-    mine.edit_note_in_parts(base, "---\na: 1\nb: 2\n---\nx\nmore\n", PART);
+    mine.edit_note_in_parts(base, "---\na: 1\nb: 2\n---\nx\nmore\n", PART, true);
     assert_eq!(mine.note_text(), "---\na: 1\n---\nx\nmore\n");
+}
+
+#[test]
+fn a_text_note_moves_to_properties_only_when_told_and_each_apps_word_is_counted() {
+    let base = "---\na: 1\n---\nx\n";
+    let doc = CollabDoc::from_text("T", base);
+    assert!(!doc.in_parts());
+    // Not yet: the whole text, front matter included, is the body, as an
+    // older app keeps it.
+    let sent = doc.edit_note_in_parts(base, "---\na: 2\n---\nx\n", PART, false);
+    assert!(!sent.is_empty());
+    assert!(!doc.in_parts());
+    assert!(doc.props().is_empty());
+    assert_eq!(doc.text(crate::doc::Field::Body), "---\na: 2\n---\nx\n");
+    // Each app that edits says so, once.
+    assert!(!doc.acked_parts(&["a_1", "a_2"]));
+    assert!(doc.ack_parts("a_1").is_some());
+    assert!(doc.ack_parts("a_1").is_none());
+    assert!(!doc.acked_parts(&["a_1", "a_2"]));
+    assert!(doc.ack_parts("a_2").is_some());
+    assert!(doc.acked_parts(&["a_1", "a_2"]));
+    // Then the next edit moves it over, and it stays over.
+    let now = doc.note_text();
+    let sent = doc.edit_note_in_parts(&now, "---\na: 3\n---\nx\n", PART, true);
+    assert!(!sent.is_empty());
+    assert!(doc.in_parts());
+    assert_eq!(doc.props().len(), 1);
+    assert_eq!(doc.text(crate::doc::Field::Body), "x\n");
+    let now = doc.note_text();
+    doc.edit_note_in_parts(&now, "---\na: 4\n---\nx\n", PART, false);
+    assert_eq!(doc.note_text(), "---\na: 4\n---\nx\n");
+    assert_eq!(doc.props().len(), 1);
 }

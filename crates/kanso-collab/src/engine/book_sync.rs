@@ -646,7 +646,7 @@ impl Engine {
         }
         let title = rebase(&base.0, &local.0, &doc.text(Field::Title));
         let mut updates = doc.set_text_in_parts(Field::Title, &title, UPDATE_PART);
-        updates.extend(doc.edit_note_in_parts(&base.1, &local.1, UPDATE_PART));
+        updates.extend(doc.edit_note_in_parts(&base.1, &local.1, UPDATE_PART, true));
         for update in &updates {
             self.store
                 .push_book_outbox(&ctx.row.share_id, &row.stream, update)?;

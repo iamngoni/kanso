@@ -20,7 +20,40 @@ pub use crate::notice_model::{
 /// Every notice this version knows about. A change that breaks something
 /// adds one here; it is never reused or removed while a version that shows it
 /// is supported.
-pub const NOTICES: &[Notice] = &[API_KEYS, LIBRARY_ENCRYPTED, LIBRARY_PLAIN];
+pub const NOTICES: &[Notice] = &[
+    API_KEYS,
+    LIBRARY_ENCRYPTED,
+    LIBRARY_PLAIN,
+    SHARED_PROPERTIES,
+];
+
+/// The ID of the shared notes' properties notice. Never reused.
+pub const SHARED_PROPERTIES_ID: &str = "shared-properties-0.10";
+
+/// Shared notes keep their properties one key at a time (issue #390), so two
+/// people changing different ones never undo each other. An older Kanso
+/// can't read a note kept that way: it shows the note without its
+/// properties. A shared note moves over only once everyone who can edit it
+/// has updated, so nothing is lost meanwhile, but the people who only read
+/// it can't say so. Only someone signed in to sync has shared notes.
+const SHARED_PROPERTIES: Notice = Notice {
+    id: SHARED_PROPERTIES_ID,
+    since: semver::Version::new(0, 10, 8),
+    title: "Update Kanso on every device for shared notes",
+    what_changed: "Shared notes now keep their properties one at a time, so two people changing different properties no longer undo each other. An older Kanso shows a shared note like that without its properties. A shared note only moves over once everyone who can edit it has updated.",
+    steps: &[
+        "Update Kanso on every computer and phone you use.",
+        "Ask the people you share notes with to update Kanso too, so they see the properties of notes you share.",
+        "Until everyone who can edit a shared note has updated, it keeps its properties in the text, as before.",
+    ],
+    action: None,
+    applies: signed_in_to_sync,
+    platforms: Platforms::Both,
+};
+
+fn signed_in_to_sync(ctx: &NoticeContext) -> bool {
+    ctx.signed_in_to_sync
+}
 
 /// The ID of the API keys notice. Never reused.
 pub const API_KEYS_ID: &str = "api-keys-0.10";
@@ -543,6 +576,30 @@ mod tests {
         assert!(steps.contains("MCP client"), "{steps}");
         assert!(steps.contains("REST"), "{steps}");
         assert!(steps.contains("Authorization: Bearer"), "{steps}");
+    }
+
+    #[test]
+    fn the_shared_properties_notice_says_to_update_every_device() {
+        let notice = NOTICES
+            .iter()
+            .find(|n| n.id == SHARED_PROPERTIES_ID)
+            .expect("listed");
+        assert_eq!(notice.platforms, Platforms::Both);
+        let steps = notice.steps.join("\n");
+        assert!(steps.contains("every computer and phone"), "{steps}");
+        assert!(steps.contains("people you share"), "{steps}");
+        // It is for someone who can have shared notes: signed in to sync.
+        let mut ctx = NoticeContext::new(Version::new(0, 10, 8));
+        for platform in [Platform::Desktop, Platform::Phones] {
+            assert!(!notice.applies_to(&ctx, platform));
+        }
+        ctx.signed_in_to_sync = true;
+        for platform in [Platform::Desktop, Platform::Phones] {
+            assert!(notice.applies_to(&ctx, platform));
+        }
+        // And only from the release that has the change.
+        ctx.current = Version::new(0, 10, 7);
+        assert!(!notice.applies_to(&ctx, Platform::Desktop));
     }
 
     proptest! {

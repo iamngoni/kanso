@@ -23,6 +23,14 @@ fn shared(owner: &Device, other: &Device, body: &str) -> String {
         .unwrap();
     other.engine.refresh().unwrap();
     other.engine.accept(&share).unwrap();
+    // Both apps say they keep properties as entries, and the note moves
+    // over with the owner's next edit.
+    sync(&[owner, other], &share);
+    let id = id_of(owner, &share);
+    write_body(&owner.store, &id, &format!("{body}\n")).unwrap();
+    sync(&[owner, other], &share);
+    write_body(&owner.store, &id, body).unwrap();
+    sync(&[owner, other], &share);
     share
 }
 
@@ -83,6 +91,76 @@ fn a_shared_notes_properties_are_entries_of_its_document_not_text() {
         ta.contains("stage: Editing\n") || ta.contains("stage: Review\n"),
         "{ta:?}"
     );
+}
+
+/// What an app that keeps a note's front matter in its body reads: the
+/// document's body text, whole.
+fn body_field(d: &Device, share: &str) -> String {
+    let loaded = d.engine.loaded(share).unwrap();
+    let guard = super::lock(&loaded);
+    guard.doc.text().unwrap().text(Field::Body)
+}
+
+fn props_len(d: &Device, share: &str) -> usize {
+    let loaded = d.engine.loaded(share).unwrap();
+    let guard = super::lock(&loaded);
+    guard.doc.text().unwrap().props().len()
+}
+
+#[test]
+fn a_shared_note_stays_text_until_everyone_who_edits_has_an_app_that_reads_properties() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let id = note(&a.store, "note:shared", "Plan", NOTE);
+    a.engine.person("user2").unwrap();
+    let share = a
+        .engine
+        .share(&id, &[("user2".to_owned(), Role::Edit)])
+        .unwrap();
+    // B hasn't opened it yet (its app may be an older one): the front matter
+    // stays in the body, where an older app reads it, through edits.
+    assert_eq!(body_field(&a, &share), NOTE);
+    write_body(&a.store, &id, &NOTE.replace("Idea", "Shooting")).unwrap();
+    sync(&[&a], &share);
+    assert_eq!(props_len(&a, &share), 0);
+    assert_eq!(
+        body_field(&a, &share),
+        NOTE.replace("Idea", "Shooting"),
+        "an older app still reads its properties"
+    );
+    // B's app opens it and says it keeps properties as entries; A's next
+    // edit moves the note over.
+    b.engine.refresh().unwrap();
+    b.engine.accept(&share).unwrap();
+    sync(&[&b, &a], &share);
+    write_body(&a.store, &id, &NOTE.replace("Idea", "Editing")).unwrap();
+    sync(&[&a, &b], &share);
+    assert_eq!(props_len(&a, &share), 2);
+    assert_eq!(body_field(&a, &share), "Brief for the shoot\n");
+    assert_eq!(body_of(&b, &share), NOTE.replace("Idea", "Editing"));
+}
+
+#[test]
+fn people_who_only_read_dont_hold_a_note_back_and_a_new_one_starts_as_text() {
+    let server = MemoryCollab::new();
+    let (a, c) = (device(&server, 1, 1), device(&server, 3, 1));
+    let id = note(&a.store, "note:shared", "Plan", NOTE);
+    a.engine.person("user3").unwrap();
+    let share = a
+        .engine
+        .share(&id, &[("user3".to_owned(), Role::View)])
+        .unwrap();
+    // New shares start with the front matter in the body.
+    assert_eq!(props_len(&a, &share), 0);
+    assert_eq!(body_field(&a, &share), NOTE);
+    c.engine.refresh().unwrap();
+    c.engine.accept(&share).unwrap();
+    // A reader can't say anything in the note and doesn't need to: the
+    // owner is the only one who edits, so the note moves over on its edit.
+    write_body(&a.store, &id, &NOTE.replace("Idea", "Editing")).unwrap();
+    sync(&[&a, &c], &share);
+    assert_eq!(props_len(&a, &share), 2);
+    assert_eq!(body_of(&c, &share), NOTE.replace("Idea", "Editing"));
 }
 
 #[test]
