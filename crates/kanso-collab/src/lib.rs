@@ -19,6 +19,7 @@ pub mod canvas_doc;
 pub mod codec;
 pub mod comments;
 pub mod doc;
+pub mod doc_props;
 pub mod engine;
 pub mod envelope;
 pub mod http;
@@ -44,6 +45,8 @@ pub use shared_doc::SharedDoc;
 
 #[cfg(test)]
 mod canvas_doc_tests;
+#[cfg(test)]
+mod doc_props_tests;
 
 #[cfg(test)]
 pub(crate) mod tests {

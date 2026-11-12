@@ -15,8 +15,8 @@ use yrs::branch::BranchPtr;
 use yrs::updates::decoder::Decode;
 use yrs::updates::encoder::Encode;
 use yrs::{
-    Assoc, ClientID, Doc, GetString, IndexedSequence, OffsetKind, Options, ReadTxn, StateVector,
-    StickyIndex, Text, TextRef, Transact, Update,
+    Assoc, ClientID, Doc, GetString, IndexedSequence, MapRef, OffsetKind, Options, ReadTxn,
+    StateVector, StickyIndex, Text, TextRef, Transact, Update,
 };
 
 use crate::codec::{b64, random, unb64};
@@ -43,6 +43,10 @@ pub struct CollabDoc {
     doc: Doc,
     title: TextRef,
     body: TextRef,
+    /// A note's properties, one entry per key ([`crate::doc_props`]).
+    pub(crate) props: MapRef,
+    /// Where each property goes among the others.
+    pub(crate) order: MapRef,
 }
 
 impl std::fmt::Debug for CollabDoc {
@@ -81,7 +85,15 @@ impl CollabDoc {
         });
         let title = doc.get_or_insert_text("title");
         let body = doc.get_or_insert_text("body");
-        CollabDoc { doc, title, body }
+        let props = doc.get_or_insert_map("props");
+        let order = doc.get_or_insert_map("order");
+        CollabDoc {
+            doc,
+            title,
+            body,
+            props,
+            order,
+        }
     }
 
     /// A document holding `title` and `body`, and the update that made it.
@@ -97,6 +109,14 @@ impl CollabDoc {
         let doc = CollabDoc::new();
         doc.apply(state)?;
         Ok(doc)
+    }
+
+    pub(crate) fn doc(&self) -> &Doc {
+        &self.doc
+    }
+
+    pub(crate) fn body_text(&self) -> String {
+        self.text(Field::Body)
     }
 
     fn text_ref(&self, field: Field) -> &TextRef {
@@ -191,6 +211,7 @@ impl CollabDoc {
         let update = Update::decode_v1(update).map_err(|_| DocError::Malformed)?;
         let before_title = self.text(Field::Title);
         let before_body = self.text(Field::Body);
+        let before_props = self.props();
         {
             let mut txn = self.doc.transact_mut();
             txn.apply_update(update).map_err(|_| DocError::Malformed)?;
@@ -200,6 +221,7 @@ impl CollabDoc {
         Ok(Merged {
             title: splices(&before_title, &after_title),
             body: splices(&before_body, &after_body),
+            props: self.props() != before_props,
         })
     }
 
@@ -264,11 +286,15 @@ pub const OP_COST: usize = 48;
 pub struct Merged {
     pub title: Vec<Splice>,
     pub body: Vec<Splice>,
+    /// Whether a property was added, changed, removed or moved. Properties
+    /// are not part of `body`, so the note's text ([`CollabDoc::note_text`])
+    /// changed even when `body` did not.
+    pub props: bool,
 }
 
 impl Merged {
     pub fn is_empty(&self) -> bool {
-        self.title.is_empty() && self.body.is_empty()
+        self.title.is_empty() && self.body.is_empty() && !self.props
     }
 }
 
