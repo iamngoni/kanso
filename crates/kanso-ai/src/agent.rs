@@ -635,6 +635,10 @@ pub struct Conversation {
     /// agent task's.
     answer: Option<Duration>,
     state: Mutex<ConversationState>,
+    /// The agent's id for the session now open, kept apart from `state`
+    /// (held for a whole turn) so a permission request, which arrives in the
+    /// middle of one, can be matched to its conversation.
+    session_id: Mutex<Option<String>>,
 }
 
 #[derive(Default)]
@@ -667,6 +671,7 @@ pub fn conversation(settings: &AgentSettings, notes: Option<NotesAccess>) -> Arc
         notes,
         answer: None,
         state: Mutex::default(),
+        session_id: Mutex::default(),
     })
 }
 
@@ -685,6 +690,7 @@ pub fn task_conversation(
         notes: Some(notes),
         answer: Some(time_limit + Duration::from_secs(60)),
         state: Mutex::default(),
+        session_id: Mutex::default(),
     })
 }
 
@@ -702,6 +708,7 @@ pub fn task_conversation_with(
         notes: Some(notes),
         answer: Some(time_limit + Duration::from_secs(60)),
         state: Mutex::default(),
+        session_id: Mutex::default(),
     })
 }
 
@@ -718,6 +725,7 @@ pub fn conversation_with(
         notes,
         answer: None,
         state: Mutex::default(),
+        session_id: Mutex::default(),
     })
 }
 
@@ -777,6 +785,12 @@ impl Conversation {
             .unwrap_or_default()
     }
 
+    /// The agent's id for this conversation's session, once one has opened.
+    /// It is the `session` of the permission requests the agent makes.
+    pub fn session_id(&self) -> Option<String> {
+        lock(&self.session_id).clone()
+    }
+
     /// Whether the conversation has a session open now, for tests.
     pub fn has_session(&self) -> bool {
         lock(&self.state).session.is_some()
@@ -830,6 +844,7 @@ impl Conversation {
             let servers: Vec<McpServer> = server.into_iter().collect();
             match process.new_session_with(&host.settings.workspace, &servers) {
                 Ok(session) => {
+                    *lock(&self.session_id) = Some(session.id().to_owned());
                     state.session = Some(session);
                     state.generation = generation;
                     // A grant the agent can't reach is revoked right away.
