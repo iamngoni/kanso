@@ -2,6 +2,8 @@
 //! forms back to the owner (issue #390 › Shared notebooks: keys). Logic
 //! lives in [`crate::book_members`].
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::model::Member;
@@ -45,11 +47,21 @@ pub struct SignedBookList {
 
 /// The newest list a client has checked all the way back to the owner's
 /// genesis list.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BookChainHead {
     pub list: BookMemberList,
+    /// The keys last seen for every account that was ever in the notebook,
+    /// removed ones too, so a re-added account can't return with others.
+    pub seen_keys: BTreeMap<String, SeenKeys>,
     /// Hex hash of the list's bytes: what the next list names as `prev`.
     pub hash: String,
+}
+
+/// An account's keys as the chain last listed them, base64url.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SeenKeys {
+    pub sign_pub: String,
+    pub box_pub: String,
 }
 
 /// The newest list a client trusts for a notebook, small enough to keep
