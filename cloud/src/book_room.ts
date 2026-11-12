@@ -81,7 +81,7 @@ interface Attachment {
 	sock: string;
 }
 
-type Meta = "purged" | "synced" | "head" | "epoch" | "day" | "day_bytes" | "log_bytes" | "flushed_bytes";
+type Meta = "purged" | "synced" | "version" | "head" | "epoch" | "day" | "day_bytes" | "log_bytes" | "flushed_bytes";
 
 const refuse = (status: number, error: string, extras?: Record<string, number | string>): RoomRefusal => ({ ok: false, status, error, extras });
 const blob = (bytes: Uint8Array): ArrayBuffer => bytes.slice().buffer;
@@ -108,6 +108,7 @@ export class BookRoom extends DurableObject<Env> {
   stream TEXT PRIMARY KEY, head INTEGER NOT NULL, entries_since INTEGER NOT NULL, bytes_since INTEGER NOT NULL, comment_bytes INTEGER NOT NULL)`);
 		this.sql.exec("CREATE TABLE IF NOT EXISTS subs (sock TEXT NOT NULL, stream TEXT NOT NULL, PRIMARY KEY (sock, stream))");
 		this.sql.exec("CREATE TABLE IF NOT EXISTS roster (account TEXT PRIMARY KEY, role TEXT NOT NULL)");
+		this.sql.exec("CREATE TABLE IF NOT EXISTS begun (id INTEGER PRIMARY KEY CHECK (id = 1), token TEXT NOT NULL, previous INTEGER NOT NULL)");
 		this.sql.exec("CREATE TABLE IF NOT EXISTS meta (name TEXT PRIMARY KEY, value INTEGER NOT NULL)");
 		this.sql.exec("CREATE TABLE IF NOT EXISTS info (id INTEGER PRIMARY KEY CHECK (id = 1), share_id TEXT NOT NULL)");
 	}
@@ -387,23 +388,40 @@ export class BookRoom extends DurableObject<Env> {
 	 * the head can't move under the list. Calling it again for the same epoch and head (a retried list)
 	 * is fine. Returns the epoch it replaced, for `abortEpoch`.
 	 */
-	async beginEpoch(input: { expectedHead: number; epoch: number; roles: Record<string, Role> }): Promise<RoomResult<{ previous: number }>> {
+	async beginEpoch(input: { expectedHead: number; epoch: number; roles: Record<string, Role>; version: number }): Promise<RoomResult<{ previous: number; beginId: string }>> {
 		this.schema();
 		if (this.get("purged") === 1) return refuse(404, "not_found");
 		const head = this.get("head");
 		if (head !== input.expectedHead) return refuse(409, "head_moved", { head });
-		const previous = this.get("epoch");
-		if (input.epoch < previous) return refuse(409, "epoch_changed", { epoch: previous });
+		const current = this.get("epoch");
+		if (input.epoch < current) return refuse(409, "epoch_changed", { epoch: current });
+		// A second begin for the epoch already begun keeps the epoch before the first one, so the latest
+		// begin's abort puts the room back where it was before any of them.
+		const begun = this.sql.exec<{ previous: number }>("SELECT previous FROM begun WHERE id = 1").toArray()[0];
+		const previous = begun !== undefined && current === input.epoch ? begun.previous : current;
 		// The new list's roster goes in with the epoch, so a removed or demoted member loses their place
-		// in the same step that closes the old epoch, whether or not a later sync gets through.
-		this.applyRoster(input.epoch, input.roles);
-		return { ok: true, previous };
+		// in the same step that closes the old epoch, whether or not a later sync gets through. It is the
+		// roster of D1's membership `version` read before the list; the commit bumps it and its sync wins.
+		this.applyRoster(input.epoch, input.roles, Math.max(input.version, this.get("version")));
+		// Each begin leaves its own id, so only the latest list to begin can take its epoch back.
+		const beginId = base64url(crypto.getRandomValues(new Uint8Array(12)));
+		this.sql.exec("INSERT INTO begun (id, token, previous) VALUES (1, ?, ?) ON CONFLICT (id) DO UPDATE SET token = excluded.token, previous = excluded.previous", beginId, previous);
+		return { ok: true, previous, beginId };
 	}
 
-	/** Takes back `beginEpoch` when D1 refused the list (still at `epoch`, so nothing wrote in between: the head can't have moved). */
-	async abortEpoch(input: { epoch: number; previous: number }): Promise<void> {
+	/**
+	 * Takes back `beginEpoch` when D1 refused the list (still at `epoch`, so nothing wrote in between: the
+	 * head can't have moved), but only if `beginId` is still the latest begin: another list that began
+	 * since owns the epoch now, and this one's abort does nothing.
+	 */
+	async abortEpoch(input: { epoch: number; previous: number; beginId: string }): Promise<boolean> {
 		this.schema();
-		if (this.get("epoch") === input.epoch && input.previous < input.epoch) this.set("epoch", input.previous);
+		const token = this.sql.exec<{ token: string }>("SELECT token FROM begun WHERE id = 1").toArray()[0]?.token;
+		if (token === undefined || token !== input.beginId) return false;
+		this.sql.exec("DELETE FROM begun");
+		if (this.get("epoch") !== input.epoch || input.previous >= input.epoch) return false;
+		this.set("epoch", input.previous);
+		return true;
 	}
 
 	/**
@@ -414,17 +432,22 @@ export class BookRoom extends DurableObject<Env> {
 	 * (false): D1 has not caught up with a list the room already began, and the sync that follows its
 	 * commit will bring the current one.
 	 */
-	async setEpoch(input: { epoch: number; roles: Record<string, Role> }): Promise<boolean> {
+	async setEpoch(input: { epoch: number; roles: Record<string, Role>; version: number }): Promise<boolean> {
 		this.schema();
 		if (this.get("purged") === 1) return true;
 		if (input.epoch < this.get("epoch")) return false;
-		this.applyRoster(input.epoch, input.roles);
+		// `version` is D1's membership counter when the roster was read. One older than the roster the
+		// room holds was read before a change the room has already applied (a leave, say), and arrived
+		// late: it must not put anyone back.
+		if (this.get("synced") === 1 && input.version < this.get("version")) return true;
+		this.applyRoster(input.epoch, input.roles, input.version);
 		return true;
 	}
 
-	private applyRoster(newEpoch: number, roles: Record<string, Role>): void {
+	private applyRoster(newEpoch: number, roles: Record<string, Role>, version: number): void {
 		const input = { roles };
 		const epoch = this.adoptEpoch(newEpoch);
+		this.set("version", version);
 		this.sql.exec("DELETE FROM roster");
 		for (const [account, role] of Object.entries(input.roles)) this.sql.exec("INSERT INTO roster (account, role) VALUES (?, ?)", account, role);
 		this.set("synced", 1);
@@ -636,16 +659,20 @@ export const queueSync = (db: D1Database, shareId: string, now: number): D1Prepa
  */
 export async function syncRoom(env: Env, shareId: string): Promise<boolean> {
 	const queued = await env.DB.prepare("SELECT version FROM book_room_sync WHERE id = ?1").bind(shareId).first<{ version: number }>();
-	const book = await env.DB.prepare("SELECT epoch FROM book_shares WHERE id = ?1 AND stopped_at IS NULL").bind(shareId).first<{ epoch: number }>();
+	// The epoch, the membership version and the members in one batch, so they are one moment's view.
+	const [bookRows, memberRows] = await env.DB.batch([
+		env.DB.prepare("SELECT epoch, members_version FROM book_shares WHERE id = ?1 AND stopped_at IS NULL").bind(shareId),
+		env.DB.prepare("SELECT account_id, role FROM book_members WHERE share_id = ?1 AND status != 'left'").bind(shareId),
+	]);
+	const book = (bookRows.results as { epoch: number; members_version: number }[])[0];
 	if (!book) {
 		// Stopped or never was: the purge queue owns the room.
 		await env.DB.prepare("DELETE FROM book_room_sync WHERE id = ?1").bind(shareId).run();
 		return true;
 	}
-	const members = await env.DB.prepare("SELECT account_id, role FROM book_members WHERE share_id = ?1 AND status != 'left'").bind(shareId).all<{ account_id: string; role: Role }>();
-	const roles = Object.fromEntries(members.results.map((m) => [m.account_id, m.role])) as Record<string, Role>;
+	const roles = Object.fromEntries((memberRows.results as { account_id: string; role: Role }[]).map((m) => [m.account_id, m.role])) as Record<string, Role>;
 	try {
-		if (!(await bookRoomOf(env, shareId).setEpoch({ epoch: book.epoch, roles }))) return false;
+		if (!(await bookRoomOf(env, shareId).setEpoch({ epoch: book.epoch, roles, version: book.members_version }))) return false;
 	} catch (err) {
 		console.error(JSON.stringify({ route: "book", op: "sync_room", outcome: (err as Error)?.name ?? typeof err }));
 		return false;
