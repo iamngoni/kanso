@@ -160,8 +160,18 @@ fn event_rows(
     let day_end = day_start + DAY_MS;
     let mut rows = Vec::new();
     let mut all_day = Vec::new();
+    // The same meeting on two calendars (work and personal, say) shows once.
+    let mut seen = std::collections::HashSet::new();
     for event in events {
         if event.declined || event.end <= day_start || event.start >= day_end {
+            continue;
+        }
+        if !seen.insert((
+            event.title.trim().to_lowercase(),
+            event.start,
+            event.end,
+            event.all_day,
+        )) {
             continue;
         }
         if event.all_day {

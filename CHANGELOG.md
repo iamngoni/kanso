@@ -3,6 +3,19 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.10.6](https://github.com/iamngoni/kanso/compare/v0.10.5...v0.10.6) - 2026-11-11
+
+### New
+
+- **app:** Allow a tool for the session or always, and start new agent tasks from the notebook and note in view ([d77bb14](https://github.com/iamngoni/kanso/commit/d77bb144d2120b711239fd3329a0737e49653968))
+- **engine:** Keep agent tasks as a structured transcript, with tool and thought events ([be8fafd](https://github.com/iamngoni/kanso/commit/be8fafd7c39458904b74668d592eeb408a0db1fc))
+
+### Fixed
+
+- **app:** Scroll the notebook lists in the new agent task sheet instead of drawing over what follows ([e6254df](https://github.com/iamngoni/kanso/commit/e6254df6b35c75842537cb1e560501e1dd0b2ac6))
+- **people:** A page titled with Mr, Miss, Dr and the like also answers to the bare name, so it isn't suggested again ([583038b](https://github.com/iamngoni/kanso/commit/583038b4483032b51bac8925474fc4e59e529c42))
+- **overview:** Times line up with the column, a meeting on two calendars shows once, and quotes drop Markdown markers ([b43181f](https://github.com/iamngoni/kanso/commit/b43181f500084e5ecb2c98ca04ce2f4248e55a2f))
+
 ## [0.10.5](https://github.com/iamngoni/kanso/compare/v0.10.4...v0.10.5) - 2026-11-11
 
 ### Fixed
