@@ -981,6 +981,68 @@ impl Workspace {
         });
     }
 
+    /// Goes where a `kanso://open/…` link says ([`crate::open_link`]). It
+    /// only opens or navigates: a note or notebook that isn't on this
+    /// device says so and nothing else happens, and the new-note link opens
+    /// the capture window, which saves only when someone writes.
+    pub(crate) fn open_link(
+        &mut self,
+        link: &crate::open_link::OpenLink,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        use crate::open_link::OpenLink;
+        match link {
+            OpenLink::Note(id) => {
+                let live = self
+                    .store
+                    .note(id)
+                    .ok()
+                    .flatten()
+                    .is_some_and(|note| !note.is_trashed());
+                if !live {
+                    self.notify_error("That note isn't on this device.", window, cx);
+                    return;
+                }
+                self.flush(cx);
+                self.library.update(cx, |library, cx| {
+                    if library.filter != Filter::All {
+                        library.set_filter(Filter::All, cx);
+                    }
+                });
+                self.open_note(id, window, cx);
+            }
+            OpenLink::Notebook(id) => {
+                let found = id != TRASH_BOOK_ID
+                    && self
+                        .store
+                        .books()
+                        .is_ok_and(|books| books.iter().any(|book| &book.id == id));
+                if !found {
+                    self.notify_error("That notebook isn't on this device.", window, cx);
+                    return;
+                }
+                self.flush(cx);
+                self.close_settings(window, cx);
+                self.library.update(cx, |library, cx| {
+                    library.set_filter(Filter::Book(id.clone()), cx)
+                });
+            }
+            OpenLink::Search(query) => {
+                self.close_settings(window, cx);
+                self.search_all_notes(window, cx);
+                if let Some(query) = query {
+                    let query = query.clone();
+                    self.note_list.update(cx, |list, cx| {
+                        list.search
+                            .update(cx, |input, cx| input.set_value(query, window, cx))
+                    });
+                }
+            }
+            OpenLink::New => crate::capture::open(cx),
+        }
+    }
+
     fn new_note(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.create_note(false, window, cx);
     }
