@@ -32,6 +32,8 @@ mod library_key_model;
 mod library_key_words;
 mod loops;
 mod meaning;
+mod note_property;
+mod note_property_model;
 mod ocr;
 mod overview;
 mod passage_embed;
@@ -107,6 +109,7 @@ pub use meaning::rank::{
     DUPLICATE_SIMILARITY, MEANING_SIMILARITY, TAG_NEIGHBOUR_SIMILARITY, blend_meaning, merged_body,
     merged_tags, suggest_tags,
 };
+pub use note_property_model::PropertyEdit;
 pub use ocr::{OCR_TYPES, UnreadImage};
 pub use overview::{MeetingNote, RevisitRow, WaitingRow, WritingPlace};
 pub use passage_embed::{

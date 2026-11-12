@@ -125,7 +125,7 @@ impl Library {
                     let done = match to {
                         Lane::Todo => false,
                         Lane::Done => true,
-                        Lane::Status(_) => {
+                        Lane::Status(_) | Lane::Value(_) | Lane::Unset | Lane::Unlisted => {
                             return Err(KansoError::invalid("A task goes in To do or Done."));
                         }
                     };
@@ -148,7 +148,16 @@ impl Library {
                     (CardId::Task(id), from)
                 }
             };
-            match board::write_move(store, &Move { id, from, to }, now_ms)? {
+            match board::write_move(
+                store,
+                &Move {
+                    id,
+                    from,
+                    to,
+                    property: None,
+                },
+                now_ms,
+            )? {
                 Written::Done => Ok(CardMoved::Changed),
                 Written::Moved => Ok(CardMoved::Missing),
             }
@@ -163,6 +172,11 @@ fn lane_of(lane: Lane) -> BoardLane {
         },
         Lane::Todo => BoardLane::Todo,
         Lane::Done => BoardLane::Done,
+        // The phone lays notes out by status until its property board (the
+        // engine's `Board::grouped`) is wired up; it never builds one.
+        Lane::Value(_) | Lane::Unset | Lane::Unlisted => BoardLane::Status {
+            status: NoteStatus::None.as_str().to_owned(),
+        },
     }
 }
 

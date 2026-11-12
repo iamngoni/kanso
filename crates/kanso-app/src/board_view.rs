@@ -371,14 +371,17 @@ impl BoardView {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let colors = Colors::get(cx);
-        let glyph = match lane {
-            Lane::Status(status) => status_glyph(status, colors, colors.text_muted),
+        let glyph = match &lane {
+            Lane::Status(status) => status_glyph(*status, colors, colors.text_muted),
             Lane::Todo => Some((Lucide::Circle, colors.text_muted)),
             Lane::Done => Some((Lucide::CircleCheck, colors.success)),
+            // Property lanes get their head in the property board (slice 22).
+            Lane::Value(_) | Lane::Unset | Lane::Unlisted => None,
         };
         let now = crate::journal::now(cx);
         let scroll = self.column_scrolls.get(col).cloned().unwrap_or_default();
         let accent = Hsla::from(colors.accent);
+        let drop_lane = lane.clone();
         v_flex()
             .id(SharedString::from(format!("board-column-{}", lane.label())))
             .w(px(COLUMN_WIDTH))
@@ -394,7 +397,7 @@ impl BoardView {
                     .bg(accent.opacity(0.06))
             })
             .on_drop(cx.listener(move |this, card: &DraggedCard, _, cx| {
-                this.drop_card(&card.id, lane, cx);
+                this.drop_card(&card.id, drop_lane.clone(), cx);
             }))
             .child(
                 h_flex()
@@ -668,7 +671,7 @@ impl Render for BoardView {
                 .overflow_x_scrollbar()
                 .track_scroll(&self.lanes_scroll)
                 .children(columns.iter().enumerate().map(|(col, (lane, cards))| {
-                    self.render_column(col, *lane, cards, selected, focused, cx)
+                    self.render_column(col, lane.clone(), cards, selected, focused, cx)
                 }))
                 .into_any_element()
         };
@@ -827,7 +830,7 @@ impl Workspace {
             self.reload_board(cx);
             return;
         }
-        if let (CardId::Note(id), Lane::Status(status)) = (&mv.id, mv.to)
+        if let (CardId::Note(id), Lane::Status(status)) = (&mv.id, mv.to.clone())
             && self.editor.read(cx).note_id() == Some(id.as_str())
         {
             self.editor

@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 41d4994175e9de8bb7ea67025b41b6706e35702ffa225b32ff075ed0f280bbe9 # shrinks to role = Manager
+cc b4e5cabae007f4caa5b4cba20f5fcaa2284db924b6946917ec8e6d5b3eed21ad # shrinks to (view, me) = (ShareView { share_id: "s_1", note_id: "note:1", role: View, owner: Person { account_id: "a_00", username: "user0", fingerprint: "fp 0", verified: true }, members: [MemberView { person: Person { account_id: "a_00", username: "user0", fingerprint: "fp 0", verified: true }, role: View, invited: false, left: false, unverified: false }], links: [LinkView { link_id: "l_0", role: Manager, expires_at: 0 }], requests: [], epoch: 1 }, 0)

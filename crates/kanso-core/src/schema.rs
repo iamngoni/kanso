@@ -13,7 +13,8 @@ use serde_json::{Map, Value as Json, json};
 use crate::dates::Date;
 use crate::properties::{self, Value};
 pub use crate::schema_model::{
-    FIELD, MAX_OPTIONS, MAX_PROPERTIES, Mismatch, PropertyDef, PropertyType, SchemaError,
+    BOARD_FIELD, BoardSpec, FIELD, MAX_LANES, MAX_OPTIONS, MAX_PROPERTIES, Mismatch, PropertyDef,
+    PropertyType, SchemaError,
 };
 use crate::zoned;
 
@@ -79,6 +80,64 @@ pub fn to_json(defs: &[PropertyDef]) -> Option<Json> {
             })
             .collect(),
     ))
+}
+
+/// The board a notebook's `kansoBoard` holds, or `None` when it names no
+/// property or is not a board this version can read. A blank or repeated
+/// lane is skipped.
+pub fn board_from_json(field: Option<&Json>) -> Option<BoardSpec> {
+    let field = field?.as_object()?;
+    let by = field.get("by")?.as_str()?.trim();
+    if by.is_empty() {
+        return None;
+    }
+    let mut lanes: Vec<String> = Vec::new();
+    for lane in field
+        .get("lanes")
+        .and_then(Json::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Json::as_str)
+    {
+        let lane = lane.trim();
+        if !lane.is_empty() && !lanes.iter().any(|l| l == lane) {
+            lanes.push(lane.to_owned());
+        }
+    }
+    Some(BoardSpec {
+        by: by.to_owned(),
+        lanes,
+        show_unset: field
+            .get("showUnset")
+            .and_then(Json::as_bool)
+            .unwrap_or(true),
+    })
+}
+
+/// The `kansoBoard` field for `spec`: `None` for no board.
+pub fn board_to_json(spec: Option<&BoardSpec>) -> Option<Json> {
+    let spec = spec?;
+    Some(json!({"by": spec.by, "lanes": spec.lanes, "showUnset": spec.show_unset}))
+}
+
+/// Whether `spec` can be saved as a notebook's board.
+pub fn validate_board(spec: &BoardSpec) -> Result<(), SchemaError> {
+    if spec.by.trim().is_empty() {
+        return Err(SchemaError::EmptyKey);
+    }
+    if spec.lanes.len() > MAX_LANES {
+        return Err(SchemaError::TooManyOptions(spec.by.clone()));
+    }
+    let mut seen = HashSet::new();
+    for lane in &spec.lanes {
+        if lane.trim().is_empty() {
+            return Err(SchemaError::EmptyOption(spec.by.clone()));
+        }
+        if !seen.insert(lane.as_str()) {
+            return Err(SchemaError::DuplicateOption(spec.by.clone(), lane.clone()));
+        }
+    }
+    Ok(())
 }
 
 /// Whether `defs` can be saved as a notebook's property list.
