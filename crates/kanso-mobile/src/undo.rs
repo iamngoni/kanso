@@ -15,7 +15,7 @@ use std::collections::VecDeque;
 use kanso_core::DocType;
 use kanso_core::tasks::TaskEdit;
 use kanso_engine::batch;
-use kanso_store::{CheckOff, Origin};
+use kanso_store::{CheckOff, Origin, TickUndo};
 
 use crate::boundary::{guard, held};
 use crate::errors::KansoError;
@@ -42,6 +42,9 @@ pub(crate) enum Undoable {
         line: u32,
         text: String,
         checked: bool,
+        /// Set when the tick wrote a repeating task's next one: the body to
+        /// put back, which takes both lines away in one write.
+        restore: Option<TickUndo>,
     },
 }
 
@@ -87,7 +90,7 @@ impl Library {
         guard(|| {
             let ticked = self.write_task(note_id, line, text, checked)?;
             Ok(match ticked {
-                Written::Changed(rev) => Ticked::Changed {
+                Written::Changed(rev, restore) => Ticked::Changed {
                     rev,
                     message: {
                         let name = kanso_engine::tasks::display_text(text);
@@ -102,6 +105,7 @@ impl Library {
                         line,
                         text: text.to_owned(),
                         checked: !checked,
+                        restore,
                     }),
                 },
                 Written::Unchanged => Ticked::Unchanged,
@@ -155,10 +159,16 @@ impl Library {
                     line,
                     text,
                     checked,
-                } => Ok(match self.write_task(&note_id, line, &text, checked)? {
-                    Written::Changed(_) => 1,
-                    Written::Unchanged | Written::Missing => 0,
-                }),
+                    restore,
+                } => {
+                    if let Some(restore) = restore {
+                        return self.restore_tick(&note_id, &restore);
+                    }
+                    Ok(match self.write_task(&note_id, line, &text, checked)? {
+                        Written::Changed(..) => 1,
+                        Written::Unchanged | Written::Missing => 0,
+                    })
+                }
             }
         })
     }
@@ -166,6 +176,24 @@ impl Library {
     /// Keeps `change` for [`Library::undo`] and returns its ticket.
     pub(crate) fn keep_undo(&self, change: Undoable) -> u64 {
         held(&self.inner.undo).keep(change)
+    }
+
+    /// Puts back the body before a repeating task's tick, as one write,
+    /// while the note still is what the tick made; a sealed note has to be
+    /// open. Returns how many notes it wrote.
+    fn restore_tick(&self, note_id: &str, restore: &TickUndo) -> Result<u32, KansoError> {
+        let store = &self.inner.store;
+        if !store.note_is_locked(note_id)? {
+            let off = store.undo_tick(note_id, restore, kanso_core::now_ms(), Origin::Ui)?;
+            return Ok(u32::from(matches!(off, CheckOff::Changed { .. })));
+        }
+        let (note, body) = self.readable_text(note_id)?.ok_or(KansoError::Locked)?;
+        if body != restore.after {
+            return Ok(0);
+        }
+        let rev = note.rev.unwrap_or_default();
+        self.save(note_id, &rev, restore.before.clone())?;
+        Ok(1)
     }
 
     /// The write behind [`Library::set_task`], without a ticket.
@@ -178,28 +206,37 @@ impl Library {
     ) -> Result<Written, KansoError> {
         let store = &self.inner.store;
         if !store.note_is_locked(note_id)? {
-            return Ok(
-                match store.set_task_checked(
-                    note_id,
-                    line,
-                    text,
-                    checked,
-                    kanso_core::now_ms(),
-                    Origin::Ui,
-                )? {
-                    CheckOff::Changed { rev } => Written::Changed(rev),
-                    CheckOff::Unchanged => Written::Unchanged,
-                    CheckOff::Missing => Written::Missing,
-                },
-            );
+            let now = kanso_core::now_ms();
+            let tick = store.tick_task(
+                note_id,
+                line,
+                text,
+                checked,
+                kanso_store::local_today(now),
+                now,
+                Origin::Ui,
+            )?;
+            return Ok(match tick.off {
+                CheckOff::Changed { rev } => Written::Changed(rev, tick.undo),
+                CheckOff::Unchanged => Written::Unchanged,
+                CheckOff::Missing => Written::Missing,
+            });
         }
         // A sealed note: its text is only readable with the lock open, and
         // saving seals it again.
         let (note, body) = self.readable_text(note_id)?.ok_or(KansoError::Locked)?;
-        match kanso_core::tasks::set_task_checked(&body, line, text, checked) {
-            TaskEdit::Changed(body) => {
+        let today = kanso_store::local_today(kanso_core::now_ms());
+        match kanso_core::tasks::set_task_checked(&body, line, text, checked, today) {
+            TaskEdit::Changed(after) => {
                 let rev = note.rev.unwrap_or_default();
-                Ok(Written::Changed(self.save(note_id, &rev, body)?.rev))
+                let restore = (after.lines().count() > body.lines().count()).then(|| TickUndo {
+                    before: body.clone(),
+                    after: after.clone(),
+                });
+                Ok(Written::Changed(
+                    self.save(note_id, &rev, after)?.rev,
+                    restore,
+                ))
             }
             TaskEdit::Unchanged => Ok(Written::Unchanged),
             TaskEdit::Missing => Ok(Written::Missing),
@@ -209,7 +246,8 @@ impl Library {
 
 /// What a task write did.
 enum Written {
-    Changed(String),
+    /// The new revision, and what takes a repeating task's tick back.
+    Changed(String, Option<TickUndo>),
     Unchanged,
     Missing,
 }
@@ -226,6 +264,7 @@ mod tests {
             line: n,
             text: "t".into(),
             checked: false,
+            restore: None,
         }
     }
 

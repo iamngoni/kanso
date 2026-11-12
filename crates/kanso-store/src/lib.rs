@@ -8,6 +8,7 @@
 mod api_keys;
 mod api_keys_model;
 mod backup;
+mod book_properties;
 mod cards;
 mod cards_model;
 pub mod collab;
@@ -131,7 +132,7 @@ pub use restore::{
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
 pub use task_add::{INBOX_TASKS_TITLE, TaskAdded, TaskTarget};
-pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow};
+pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow, TickResult, TickUndo, local_today};
 pub use trash_model::{Emptied, FileDrop, TrashCounts};
 pub use triage::{INBOX_TRIAGED_FIELD, InboxNote, TriagePool};
 pub use unseal_model::Unsealing;

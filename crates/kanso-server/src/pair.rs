@@ -82,6 +82,9 @@ pub struct PendingPair {
     pub books: Option<Vec<String>>,
     /// Whole seconds left to answer.
     pub expires_in: i64,
+    /// Another app asked while this one waited. The sheet warns: it may be
+    /// a program holding the slot to be the one a hurried person allows.
+    pub contested: bool,
 }
 
 /// What the app learns without polling.
@@ -138,6 +141,8 @@ struct PairRequest {
     name: String,
     books: Option<Vec<String>>,
     created: i64,
+    /// Another request was refused while this one waited.
+    contested: bool,
     phase: Phase,
 }
 
@@ -308,7 +313,6 @@ impl Pairing {
                 "Too many pairing requests. Wait a minute and try again.",
             ));
         }
-        state.attempts.push(now);
         let blocking = state.current.as_ref().is_some_and(|r| {
             matches!(
                 r.phase,
@@ -316,6 +320,11 @@ impl Pairing {
             )
         });
         if blocking {
+            // A refused attempt costs the person nothing, so it does not
+            // count against the limit; it does mark the waiting request.
+            if let Some(current) = state.current.as_mut() {
+                current.contested = true;
+            }
             return Err(ApiError::too_many_requests(
                 "A request is already waiting in Kanso.",
             ));
@@ -328,8 +337,10 @@ impl Pairing {
             name: new.name,
             books: new.books,
             created: now,
+            contested: false,
             phase: Phase::Waiting,
         };
+        state.attempts.push(now);
         let started = Started {
             request: request.id.clone(),
             code: request.code.clone(),
@@ -383,6 +394,7 @@ impl Pairing {
             code: request.code.clone(),
             books: request.books.clone(),
             expires_in: (EXPIRY - (now - request.created) / 1000).max(0),
+            contested: request.contested,
         })
     }
 
@@ -521,6 +533,16 @@ struct Asked {
     secret: String,
 }
 
+/// Characters that draw nothing or change how text runs (Unicode format
+/// characters and the bidi controls), which could make a name on the sheet
+/// read as another.
+fn is_invisible(c: char) -> bool {
+    matches!(c as u32,
+        0x00AD | 0x0600..=0x0605 | 0x061C | 0x06DD | 0x070F | 0x180E
+        | 0x200B..=0x200F | 0x2028..=0x202E | 0x2060..=0x206F
+        | 0xFEFF | 0xFFF9..=0xFFFB | 0xE0000..=0xE007F)
+}
+
 fn is_secret(text: &str) -> bool {
     text.len() == 32
         && text
@@ -554,9 +576,12 @@ fn check(asked: Asked) -> Result<NewPair, ApiError> {
         ));
     }
     let name = asked.name.trim().to_owned();
-    if name.is_empty() || name.chars().count() > 60 || name.chars().any(char::is_control) {
+    if name.is_empty()
+        || name.chars().count() > 60
+        || name.chars().any(|c| c.is_control() || is_invisible(c))
+    {
         return Err(ApiError::bad_request(
-            "`name` must be 1 to 60 characters, with no control characters.",
+            "`name` must be 1 to 60 characters, with no control or invisible characters.",
         ));
     }
     if let Some(books) = &asked.books
@@ -910,6 +935,96 @@ mod tests {
         assert!(f.pairing.deny(&first.request));
         let (id, _) = pair(&f, OTHER_SECRET).await;
         assert_ne!(id, first.request);
+    }
+
+    #[tokio::test]
+    async fn a_second_app_marks_the_waiting_request_contested() {
+        let f = fixture();
+        pair(&f, SECRET).await;
+        assert!(!f.pairing.pending().unwrap().contested);
+        let (status, _) = send(
+            &f.app,
+            post_req("localhost"),
+            Some(peer("127.0.0.1")),
+            Some(body(OTHER_SECRET)),
+        )
+        .await;
+        assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+        assert!(f.pairing.pending().unwrap().contested);
+        // The next request starts clean.
+        let id = f.pairing.pending().unwrap().request;
+        f.pairing.deny(&id);
+        pair(&f, SECRET).await;
+        assert!(!f.pairing.pending().unwrap().contested);
+    }
+
+    #[tokio::test]
+    async fn refused_attempts_do_not_burn_the_rate_limit() {
+        let f = fixture();
+        let (id, _) = pair(&f, SECRET).await;
+        for _ in 0..20 {
+            let (status, _) = send(
+                &f.app,
+                post_req("localhost"),
+                Some(peer("127.0.0.1")),
+                Some(body(OTHER_SECRET)),
+            )
+            .await;
+            assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+        }
+        f.pairing.deny(&id);
+        // Four more accepted requests fit in the minute: 5 in all.
+        for _ in 0..MAX_PER_MINUTE - 1 {
+            let (id, _) = pair(&f, SECRET).await;
+            f.pairing.deny(&id);
+        }
+        let (status, json) = send(
+            &f.app,
+            post_req("localhost"),
+            Some(peer("127.0.0.1")),
+            Some(body(SECRET)),
+        )
+        .await;
+        assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+        assert!(json["reason"].as_str().unwrap().contains("Too many"));
+    }
+
+    #[tokio::test]
+    async fn a_name_with_invisible_or_bidi_characters_is_refused() {
+        let f = fixture();
+        // "Raycast" reversed by a right-to-left override.
+        for name in [
+            "\u{202E}tsacyaR",
+            "Ray\u{200B}cast",
+            "Ray\u{200F}cast",
+            "\u{2066}Raycast\u{2069}",
+            "\u{FEFF}Raycast",
+            "Ray\u{00AD}cast",
+            "Ray\u{2028}cast",
+        ] {
+            let mut asked = body(SECRET);
+            asked["name"] = json!(name);
+            let (status, _) = send(
+                &f.app,
+                post_req("localhost"),
+                Some(peer("127.0.0.1")),
+                Some(asked),
+            )
+            .await;
+            assert_eq!(status, StatusCode::BAD_REQUEST, "{name:?}");
+        }
+        assert!(f.pairing.pending().is_none());
+        // Ordinary non-ASCII names still pass.
+        let mut asked = body(SECRET);
+        asked["name"] = json!("Raycast \u{00E9}\u{65E5}\u{672C}");
+        let (status, _) = send(
+            &f.app,
+            post_req("localhost"),
+            Some(peer("127.0.0.1")),
+            Some(asked),
+        )
+        .await;
+        assert_eq!(status, StatusCode::ACCEPTED);
     }
 
     #[tokio::test]
