@@ -63,11 +63,12 @@ fn deliver(to: &CollabDoc, updates: &[Vec<u8>]) {
 proptest! {
     #![proptest_config(config(64))]
 
-    /// Typing inside the front matter, so that it reads as properties for a
-    /// moment no more (a line without its colon yet, or a block whose
-    /// closing line is gone), while another device changes a key, never
-    /// loses a property, never writes a second block, and the body edit
-    /// made with it lands.
+    /// A person typing a property: clean, then half typed (a line without
+    /// its colon yet, the block closed or not), then more typed in the body,
+    /// then the property finished, while another device changes a key. The
+    /// edit is held while the front matter doesn't read, nobody's properties
+    /// are lost, no second block is written, and once it reads everything
+    /// typed lands.
     #[test]
     fn prop_half_typed_front_matter_never_loses_properties_or_doubles_the_block(
         entries in gen_entries(),
@@ -85,25 +86,36 @@ proptest! {
         let mut other = entries.clone();
         other[j].1 = rest(0, &format!("{word_b}b"));
         deliver(&mine, &edit(&theirs, &note(&other, &body)));
-        // The half-typed text: the word on a line of its own among the keys.
         let line = at.index(entries.len() + 1);
-        let mut front: Vec<String> = entries
-            .iter()
-            .map(|(key, rest)| format!("{key}:{rest}"))
-            .collect();
-        front.insert(line, format!("{typed}\n"));
+        let front = |last: &str| -> String {
+            let mut rows: Vec<String> = entries
+                .iter()
+                .map(|(key, rest)| format!("{key}:{rest}"))
+                .collect();
+            rows.insert(line, last.to_owned());
+            rows.concat()
+        };
         let closing = if unclosed { "" } else { "---\n" };
-        let local = format!("---\n{}{closing}{body}{tail}", front.concat());
-        let sent = mine.edit_note_in_parts(&base, &local, PART);
-        if unclosed {
-            // Nothing of it is taken until the block closes.
-            prop_assert!(sent.is_empty());
-            prop_assert_eq!(mine.note_text(), note(&other, &body));
-        } else {
+        let half = format!("---\n{}{closing}{body}", front(&format!("{typed}\n")));
+        let half_more = format!("---\n{}{closing}{body}{tail}", front(&format!("{typed}\n")));
+        let done = format!("---\n{}---\n{body}{tail}", front(&format!("{typed}: v\n")));
+        let held = note(&other, &body);
+        // What the engine does: `base` moves only when the edit was taken.
+        let at_base = base.clone();
+        for local in [&half, &half_more] {
+            prop_assert!(mine.set_note_text_in_parts(local, PART).is_empty());
+            let taken = mine.try_edit_note_in_parts(&at_base, local, PART);
+            prop_assert!(taken.is_none());
             prop_assert_eq!(mine.props().len(), entries.len());
-            prop_assert_eq!(mine.note_text(), note(&other, &format!("{body}{tail}")));
+            prop_assert_eq!(mine.note_text(), held.clone());
         }
-        prop_assert_eq!(mine.note_text().matches("---\n").count() % 2, 0);
+        let sent = mine
+            .try_edit_note_in_parts(&at_base, &done, PART)
+            .expect("it reads now");
+        let mut want = other.clone();
+        want.insert(line, (typed.clone(), " v\n".to_owned()));
+        prop_assert_eq!(mine.note_text(), note(&want, &format!("{body}{tail}")));
+        prop_assert_eq!(mine.note_text().matches("---\n").count(), 2);
         deliver(&theirs, &sent);
         prop_assert_eq!(theirs.note_text(), mine.note_text());
     }

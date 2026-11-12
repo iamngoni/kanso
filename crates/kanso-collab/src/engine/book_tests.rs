@@ -855,11 +855,74 @@ fn half_typed_front_matter_and_a_key_edited_elsewhere_both_land() {
     let b_id = note_of(&b, &b_book, "One");
     // A changes a key; B, offline, is part way through typing a new one.
     write(&a, &a_id, "---\nstage: done\ntags: x\n---\nbody\n");
-    write(&b, &b_id, "---\nstage: draft\nsta\ntags: x\n---\nbody 2\n");
+    let typed = "---\nstage: draft\nsta\ntags: x\n---\nbody 2\n";
+    write(&b, &b_id, typed);
     sync(&[&a, &b], &share);
-    let want = "---\nstage: done\ntags: x\n---\nbody 2\n";
+    // Held back: B's note keeps what was typed (the body edit with it),
+    // nobody's properties are touched, and A has no second block.
+    assert_eq!(body(&b, &b_id), typed);
+    assert_eq!(body(&a, &a_id), "---\nstage: done\ntags: x\n---\nbody\n");
+    // More typed meanwhile, then the property is finished: everything lands.
+    write(
+        &b,
+        &b_id,
+        "---\nstage: draft\nsta\ntags: x\n---\nbody 2 more\n",
+    );
+    sync(&[&b], &share);
+    assert_eq!(
+        body(&b, &b_id),
+        "---\nstage: draft\nsta\ntags: x\n---\nbody 2 more\n"
+    );
+    write(
+        &b,
+        &b_id,
+        "---\nstage: draft\nsta: x\ntags: x\n---\nbody 2 more\n",
+    );
+    sync(&[&a, &b], &share);
+    let want = "---\nstage: done\nsta: x\ntags: x\n---\nbody 2 more\n";
     assert_eq!(body(&a, &a_id), want);
     assert_eq!(body(&b, &b_id), want);
+}
+
+#[test]
+fn a_member_that_couldnt_be_pinned_is_tried_again_at_every_sync() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let (book, _) = notebook(&a.store, "Studio", &[("One".to_owned(), "1".to_owned())]);
+    let share = shared(&a, &[(&b, Role::Edit)], &book);
+    // The owner lists someone whose account the server doesn't have (yet):
+    // the keys are the ones that account will publish.
+    let nine = device(&server, 9, 1);
+    let later = member_of(&nine, Role::Edit);
+    let published = server.take_identity(&later.account).unwrap();
+    server.skip_book_member_checks();
+    post_members(
+        &server,
+        &a,
+        &share,
+        vec![
+            member_of(&a, Role::Owner),
+            member_of(&b, Role::Edit),
+            later.clone(),
+        ],
+        false,
+    );
+    b.engine.sync_book(&share).unwrap();
+    assert_eq!(
+        b.engine.unpinned_members(&share),
+        vec![later.account.clone()]
+    );
+    // Nothing changed in the chain: still tried, still left.
+    b.engine.sync_book(&share).unwrap();
+    assert_eq!(
+        b.engine.unpinned_members(&share),
+        vec![later.account.clone()]
+    );
+    // Their account appears: the next sync pins them, the chain unchanged.
+    server.put_identity(&later.account, published);
+    b.engine.sync_book(&share).unwrap();
+    assert!(b.engine.unpinned_members(&share).is_empty());
+    assert!(b.store.contact(&later.account).unwrap().is_some());
 }
 
 proptest! {

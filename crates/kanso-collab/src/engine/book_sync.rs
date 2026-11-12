@@ -573,7 +573,16 @@ impl Engine {
                 && local != base
             {
                 if role.may_edit() {
-                    edited |= self.take_note_edit(ctx, row, doc, base, local)?;
+                    match self.take_note_edit(ctx, row, doc, base, local)? {
+                        Some(sent) => edited |= sent,
+                        // Held back: the library keeps what was typed and
+                        // `base` stays, so the next sync takes the whole
+                        // edit once the front matter reads.
+                        None => {
+                            self.persist_note_row(row, doc)?;
+                            return Ok(edited);
+                        }
+                    }
                 }
                 row.base = write_base(local);
             }
@@ -617,7 +626,9 @@ impl Engine {
     }
 
     /// A local edit of a note's text, `base` to `local`, as Yrs operations in
-    /// the notebook's outbox. Whether it sent anything.
+    /// the notebook's outbox. Whether it sent anything; `None` when the edit
+    /// is held back (front matter half typed): nothing is taken, and the
+    /// note's text and `base` stay as they are until it reads again.
     fn take_note_edit(
         &self,
         ctx: &mut Ctx,
@@ -625,7 +636,7 @@ impl Engine {
         doc: &CollabDoc,
         base: &Text,
         local: &Text,
-    ) -> Result<bool> {
+    ) -> Result<Option<bool>> {
         let growth =
             local.0.len().saturating_sub(base.0.len()) + local.1.len().saturating_sub(base.1.len());
         if growth > 0 && doc.encode_state().len() + growth + crate::doc::OP_COST > STATE_LIMIT {
@@ -642,16 +653,21 @@ impl Engine {
                 &ctx.row.share_id,
                 "A note in the shared notebook is at its size limit: the edit is kept in a private note.",
             );
-            return Ok(false);
+            return Ok(Some(false));
         }
+        // The text first: held back, nothing at all is taken (the title
+        // with it), and the caller leaves the note as it is.
+        let Some(text_updates) = doc.try_edit_note_in_parts(&base.1, &local.1, UPDATE_PART) else {
+            return Ok(None);
+        };
         let title = rebase(&base.0, &local.0, &doc.text(Field::Title));
         let mut updates = doc.set_text_in_parts(Field::Title, &title, UPDATE_PART);
-        updates.extend(doc.edit_note_in_parts(&base.1, &local.1, UPDATE_PART));
+        updates.extend(text_updates);
         for update in &updates {
             self.store
                 .push_book_outbox(&ctx.row.share_id, &row.stream, update)?;
         }
-        Ok(!updates.is_empty())
+        Ok(Some(!updates.is_empty()))
     }
 
     // ---------------------------------------------------------------- push
