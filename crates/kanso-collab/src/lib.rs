@@ -30,7 +30,9 @@ pub mod model;
 pub mod shared_doc;
 
 pub use api::{Caller, CollabApi, CollabError};
-pub use book_members_model::{BookChainHead, BookListError, BookMemberList, SignedBookList};
+pub use book_members_model::{
+    BookChainHead, BookListError, BookMemberList, BookPin, SignedBookList,
+};
 pub use book_model::{BookHistory, BookKey};
 pub use canvas_doc::CanvasDoc;
 pub use doc::{CollabDoc, Field, Merged, apply_splices, remap, splices};

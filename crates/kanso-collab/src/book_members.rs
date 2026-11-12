@@ -16,13 +16,21 @@
 
 use std::collections::BTreeMap;
 
-use crate::book_members_model::{BookChainHead, BookListError, BookMemberList, SignedBookList};
+use crate::book_members_model::{
+    BookChainHead, BookListError, BookMemberList, BookPin, SignedBookList,
+};
 use crate::codec::{FORMAT_V1, b64, hex, put_lp, sha256, unb64, unb64_array};
 use crate::identity::{Identity, verify};
 use crate::model::{Member, Role};
 
 /// At most this many people in a notebook, its owner included.
 pub const MAX_BOOK_MEMBERS: usize = 25;
+
+/// How far a new epoch's `from_seq` may jump past the previous epoch's. A
+/// list that names a log position far beyond any real log would make
+/// clients drop every later write; clients that know the log's head pass it
+/// in as well, which tightens this.
+pub const MAX_SEQ_JUMP: u64 = 1_000_000;
 
 fn signed_message(share_id: &str, list_bytes: &[u8]) -> Vec<u8> {
     let mut message = b"kanso-book-members".to_vec();
@@ -145,10 +153,13 @@ pub fn open_genesis(
     })
 }
 
-/// Checks `signed` as the list that follows `head`.
+/// Checks `signed` as the list that follows `head`. `log_head` is the
+/// newest log sequence the client has seen for the notebook, when it knows
+/// one: no epoch may begin beyond it.
 pub fn open_next(
     head: &BookChainHead,
     signed: &SignedBookList,
+    log_head: Option<u64>,
 ) -> Result<BookChainHead, BookListError> {
     let prev = &head.list;
     let opened = parse(signed)?;
@@ -158,6 +169,12 @@ pub fn open_next(
     }
     if next.owner != prev.owner {
         return Err(BookListError::WrongOwner);
+    }
+    // A different list in the place of the head, off the same parent: two
+    // signers each extended the chain. Honest clients never see this, so
+    // it is a hard error, not a reason to pick one.
+    if next.rev == prev.rev && next.prev == prev.prev && link_hash(&opened.bytes) != head.hash {
+        return Err(BookListError::Forked);
     }
     if next.rev != prev.rev.saturating_add(1) || next.prev.as_deref() != Some(head.hash.as_str()) {
         return Err(BookListError::Broken);
@@ -181,7 +198,14 @@ pub fn open_next(
     let epoch_ok = if same_epoch {
         !cuts && next.key_commit == prev.key_commit && next.from_seq == prev.from_seq
     } else {
-        new_epoch && next.key_commit != prev.key_commit && next.from_seq >= prev.from_seq
+        let base = prev.from_seq.unwrap_or(0);
+        let bound = log_head.map_or(u64::MAX, |h| h.max(base));
+        new_epoch
+            && next.key_commit != prev.key_commit
+            && next.from_seq >= prev.from_seq
+            && next
+                .from_seq
+                .is_some_and(|f| f <= bound && f.saturating_sub(base) <= MAX_SEQ_JUMP)
     };
     if !epoch_ok {
         return Err(BookListError::BadEpoch);
@@ -193,8 +217,9 @@ pub fn open_next(
 }
 
 /// What a signer of `signer_role` may change between `prev` and `next`.
-/// Returns whether anyone was removed, demoted or given a new box key, in
-/// which case the list must start a new epoch.
+/// Returns whether anyone was removed or demoted, in which case the list
+/// must start a new epoch. Anyone who stays keeps their username and both
+/// keys: only a role changes. A new key is a removal and a fresh addition.
 fn rank_rules(
     prev: &BookMemberList,
     next: &BookMemberList,
@@ -221,6 +246,11 @@ fn rank_rules(
         if before == after {
             continue;
         }
+        if let (Some(b), Some(a)) = (before, after)
+            && (a.sign_pub != b.sign_pub || a.box_pub != b.box_pub || a.username != b.username)
+        {
+            return Err(BookListError::RankViolation);
+        }
         // A manager's changes stop below Manager, on both sides: they can't
         // touch a manager's entry or give anyone that role.
         if signer_role != Role::Owner
@@ -231,7 +261,7 @@ fn rank_rules(
         }
         cuts |= match (before, after) {
             (Some(_), None) => true,
-            (Some(b), Some(a)) => a.role < b.role || a.box_pub != b.box_pub,
+            (Some(b), Some(a)) => a.role < b.role,
             _ => false,
         };
     }
@@ -239,33 +269,58 @@ fn rank_rules(
 }
 
 /// Checks a whole chain, genesis first, against the owner's pinned key and
-/// returns its newest list. `min_rev` is the newest revision the client has
-/// already seen: a shorter chain is refused as stale (a truncation or a
-/// replay of an old state).
+/// returns its newest list. `pin` is the newest list the client has already
+/// trusted ([`BookChainHead::pin`], kept per notebook): the chain must pass
+/// through that exact list ([`BookListError::Forked`] if it holds another at
+/// that revision) and may not end before it ([`BookListError::Stale`]).
 pub fn verify_chain(
     chain: &[SignedBookList],
     share_id: &str,
     owner_sign_pub: &[u8; 32],
-    min_rev: u32,
+    pin: Option<&BookPin>,
+    log_head: Option<u64>,
 ) -> Result<BookChainHead, BookListError> {
     let (first, rest) = chain.split_first().ok_or(BookListError::Empty)?;
-    let head = extend_chain(&open_genesis(first, share_id, owner_sign_pub)?, rest)?;
-    if head.list.rev < min_rev {
+    let mut head = open_genesis(first, share_id, owner_sign_pub)?;
+    check_pin(&head, pin)?;
+    for signed in rest {
+        head = open_next(&head, signed, log_head)?;
+        check_pin(&head, pin)?;
+    }
+    if pin.is_some_and(|p| head.list.rev < p.rev) {
         return Err(BookListError::Stale);
     }
     Ok(head)
+}
+
+fn check_pin(head: &BookChainHead, pin: Option<&BookPin>) -> Result<(), BookListError> {
+    match pin {
+        Some(p) if p.rev == head.list.rev && p.hash != head.hash => Err(BookListError::Forked),
+        _ => Ok(()),
+    }
 }
 
 /// Checks the lists after one a client already trusts.
 pub fn extend_chain(
     trusted: &BookChainHead,
     rest: &[SignedBookList],
+    log_head: Option<u64>,
 ) -> Result<BookChainHead, BookListError> {
     let mut head = trusted.clone();
     for signed in rest {
-        head = open_next(&head, signed)?;
+        head = open_next(&head, signed, log_head)?;
     }
     Ok(head)
+}
+
+impl BookChainHead {
+    /// What a client keeps per notebook to recognize its history later.
+    pub fn pin(&self) -> BookPin {
+        BookPin {
+            rev: self.list.rev,
+            hash: self.hash.clone(),
+        }
+    }
 }
 
 impl BookMemberList {
@@ -398,7 +453,7 @@ mod tests {
 
         fn push_list(&mut self, signer: &str, list: &BookMemberList) -> Result<(), BookListError> {
             let signed = sign(&ident(signer), list);
-            let head = open_next(self.head(), &signed)?;
+            let head = open_next(self.head(), &signed, None)?;
             self.chain.push(signed);
             self.heads.push(head);
             Ok(())
@@ -447,7 +502,7 @@ mod tests {
         }
 
         fn verify(&self) -> Result<BookChainHead, BookListError> {
-            verify_chain(&self.chain, &self.share, &self.owner_pub(), 0)
+            verify_chain(&self.chain, &self.share, &self.owner_pub(), None, None)
         }
     }
 
@@ -532,7 +587,7 @@ mod tests {
             prop_assert_eq!(&head, studio.head());
             prop_assert!(head.list.members.len() <= MAX_BOOK_MEMBERS);
             let at = from.index(studio.chain.len());
-            prop_assert_eq!(extend_chain(&studio.heads[at], &studio.chain[at + 1..]).unwrap(), head);
+            prop_assert_eq!(extend_chain(&studio.heads[at], &studio.chain[at + 1..], None).unwrap(), head);
         }
 
         /// A list signed by someone who is not owner or manager in the
@@ -552,7 +607,7 @@ mod tests {
             claimed.signer = "a_0".into();
             prop_assert_eq!(studio.push_list(&signer, &claimed), Err(BookListError::BadSignature));
             let forged = sign(&ident("a_forger"), &claimed);
-            prop_assert_eq!(open_next(studio.head(), &forged), Err(BookListError::BadSignature));
+            prop_assert_eq!(open_next(studio.head(), &forged, None), Err(BookListError::BadSignature));
         }
 
         /// A changed list or signature anywhere in a chain breaks it, and a
@@ -563,11 +618,11 @@ mod tests {
             let i = link.index(studio.chain.len());
             let mut chain = studio.chain.clone();
             chain[i] = tamper(&chain[i], at);
-            prop_assert!(verify_chain(&chain, "s", &studio.owner_pub(), 0).is_err());
+            prop_assert!(verify_chain(&chain, "s", &studio.owner_pub(), None, None).is_err());
             if studio.chain.len() > 1 {
                 let mut chain = studio.chain.clone();
                 chain[i].sig = chain[(i + 1) % chain.len()].sig.clone();
-                prop_assert!(verify_chain(&chain, "s", &studio.owner_pub(), 0).is_err());
+                prop_assert!(verify_chain(&chain, "s", &studio.owner_pub(), None, None).is_err());
             }
             let mut list = studio.heads[0].list.clone();
             list.members = vec![entry("a_0", Role::Owner)];
@@ -585,7 +640,7 @@ mod tests {
             prop_assume!(i != j);
             let mut chain = studio.chain.clone();
             chain.swap(i, j);
-            prop_assert!(verify_chain(&chain, "s", &studio.owner_pub(), 0).is_err());
+            prop_assert!(verify_chain(&chain, "s", &studio.owner_pub(), None, None).is_err());
         }
 
         /// A list played again is refused; so is a chain that stops short of
@@ -597,15 +652,15 @@ mod tests {
             prop_assume!(n >= 3);
             let mut replayed = studio.chain.clone();
             replayed.push(studio.chain[a.index(n)].clone());
-            prop_assert_eq!(verify_chain(&replayed, "s", &studio.owner_pub(), 0), Err(BookListError::Broken));
+            prop_assert_eq!(verify_chain(&replayed, "s", &studio.owner_pub(), None, None), Err(BookListError::Broken));
             let keep = 1 + cut.index(n - 1);
             let prefix = &studio.chain[..keep];
-            prop_assert!(verify_chain(prefix, "s", &studio.owner_pub(), 0).is_ok());
-            prop_assert_eq!(verify_chain(prefix, "s", &studio.owner_pub(), n as u32), Err(BookListError::Stale));
+            prop_assert!(verify_chain(prefix, "s", &studio.owner_pub(), None, None).is_ok());
+            prop_assert_eq!(verify_chain(prefix, "s", &studio.owner_pub(), Some(&studio.head().pin()), None), Err(BookListError::Stale));
             let mut skipped = studio.chain.clone();
             skipped.remove(1 + cut.index(n - 2));
-            prop_assert!(verify_chain(&skipped, "s", &studio.owner_pub(), 0).is_err());
-            prop_assert_eq!(verify_chain(&[], "s", &studio.owner_pub(), 0), Err(BookListError::Empty));
+            prop_assert!(verify_chain(&skipped, "s", &studio.owner_pub(), None, None).is_err());
+            prop_assert_eq!(verify_chain(&[], "s", &studio.owner_pub(), None, None), Err(BookListError::Empty));
         }
 
         /// A manager the owner removed or demoted can't sign what follows,
@@ -616,14 +671,14 @@ mod tests {
             let m = studio.add("a_0", Role::Manager).unwrap();
             let fork = studio.next_list(&m, |l| l.push(entry("a_fork", Role::Edit)));
             let signed_fork = sign(&ident(&m), &fork);
-            prop_assert!(open_next(studio.head(), &signed_fork).is_ok());
+            prop_assert!(open_next(studio.head(), &signed_fork, None).is_ok());
             if demote { studio.set_role("a_0", &m, role).unwrap(); } else { studio.remove("a_0", &m).unwrap(); }
             let later = studio.next_list(&m, |l| l.push(entry("a_late", Role::Edit)));
             prop_assert_eq!(studio.push_list(&m, &later), Err(BookListError::NotAllowed));
-            prop_assert_eq!(open_next(studio.head(), &signed_fork), Err(BookListError::Broken));
+            prop_assert_eq!(open_next(studio.head(), &signed_fork, None), Err(BookListError::Forked));
             let mut chain = studio.chain.clone();
             chain.push(signed_fork);
-            prop_assert!(verify_chain(&chain, "s", &studio.owner_pub(), 0).is_err());
+            prop_assert!(verify_chain(&chain, "s", &studio.owner_pub(), None, None).is_err());
         }
 
         /// A chain, or any list of one, belongs to its notebook only, even
@@ -632,13 +687,13 @@ mod tests {
         fn prop_cross_notebook_replay_is_refused(ops in ops(0, 8), other_ops in ops(1, 6)) {
             let s = build("s", &ops);
             let t = build("t", &other_ops);
-            prop_assert_eq!(verify_chain(&s.chain, "t", &s.owner_pub(), 0), Err(BookListError::WrongShare));
-            prop_assert_eq!(verify_chain(&t.chain, "s", &s.owner_pub(), 0), Err(BookListError::WrongShare));
+            prop_assert_eq!(verify_chain(&s.chain, "t", &s.owner_pub(), None, None), Err(BookListError::WrongShare));
+            prop_assert_eq!(verify_chain(&t.chain, "s", &s.owner_pub(), None, None), Err(BookListError::WrongShare));
             let mut spliced = t.chain.clone();
             spliced[0] = s.chain[0].clone();
-            prop_assert!(verify_chain(&spliced, "t", &s.owner_pub(), 0).is_err());
+            prop_assert!(verify_chain(&spliced, "t", &s.owner_pub(), None, None).is_err());
             if s.chain.len() > 1 {
-                prop_assert_eq!(open_next(t.head(), &s.chain[1]), Err(BookListError::WrongShare));
+                prop_assert_eq!(open_next(t.head(), &s.chain[1], None), Err(BookListError::WrongShare));
             }
             // Re-labelling a signed list for another notebook breaks its signature.
             let mut list = s.heads[0].list.clone();
@@ -673,6 +728,185 @@ mod tests {
             }
             prop_assert_eq!(studio.head(), &before);
         }
+    }
+
+    /// Anyone who stays in a list keeps their name and keys, for a manager
+    /// and for the owner: a swapped key would let the signer write as them.
+    /// A new key is a removal and a fresh addition.
+    #[test]
+    fn prop_rekeying_a_member_is_refused() {
+        let mut runner = proptest::test_runner::TestRunner::new(crate::tests::config(24));
+        runner
+            .run(
+                &(
+                    ops(0, 10),
+                    any::<prop::sample::Index>(),
+                    0u8..3,
+                    any::<bool>(),
+                ),
+                |(ops, pick, field, by_owner)| {
+                    let mut studio = build("s", &ops);
+                    let m = studio.add("a_0", Role::Manager).unwrap();
+                    studio.add("a_0", Role::Edit).unwrap();
+                    let people: Vec<String> = studio
+                        .head()
+                        .list
+                        .members
+                        .iter()
+                        .filter(|x| x.role < Role::Manager)
+                        .map(|x| x.account.clone())
+                        .collect();
+                    let target = people[pick.index(people.len())].clone();
+                    let signer = if by_owner { "a_0" } else { m.as_str() };
+                    let other = entry("a_rekey", Role::Edit);
+                    let list = studio.next_list(signer, |l| {
+                        let t = l.iter_mut().find(|x| x.account == target).unwrap();
+                        match field {
+                            0 => t.sign_pub = other.sign_pub.clone(),
+                            1 => t.box_pub = other.box_pub.clone(),
+                            _ => t.username = "someone-else".into(),
+                        }
+                    });
+                    prop_assert_eq!(
+                        studio.push_list(signer, &list),
+                        Err(BookListError::RankViolation)
+                    );
+                    // Remove and re-add with the new keys is how it's done.
+                    studio.remove("a_0", &target).unwrap();
+                    let again = Member {
+                        account: target.clone(),
+                        ..other
+                    };
+                    prop_assert!(studio.push("a_0", |l| l.push(again)).is_ok());
+                    Ok(())
+                },
+            )
+            .unwrap();
+    }
+
+    /// A client that trusts a head only takes chains that pass through it.
+    #[test]
+    fn prop_forks_below_the_trusted_head_are_refused() {
+        let mut runner = proptest::test_runner::TestRunner::new(crate::tests::config(24));
+        runner
+            .run(&(ops(2, 10), any::<prop::sample::Index>()), |(ops, cut)| {
+                let studio = build("s", &ops);
+                let n = studio.chain.len();
+                prop_assume!(n >= 3);
+                let pin = studio.head().pin();
+                let owner = studio.owner_pub();
+                prop_assert_eq!(
+                    verify_chain(&studio.chain, "s", &owner, Some(&pin), None).unwrap(),
+                    studio.head().clone()
+                );
+                // Diverge after list `keep`, then grow past the pinned revision.
+                let keep = 1 + cut.index(n - 1);
+                let mut alt = Studio {
+                    share: studio.share.clone(),
+                    chain: studio.chain[..keep].to_vec(),
+                    heads: studio.heads[..keep].to_vec(),
+                    spawned: 100,
+                };
+                while alt.chain.len() < n + 1 {
+                    alt.add("a_0", Role::Edit).unwrap();
+                }
+                prop_assert_eq!(
+                    verify_chain(&alt.chain, "s", &owner, Some(&pin), None),
+                    Err(BookListError::Forked)
+                );
+                // Without a pin the fork is an ordinary chain.
+                prop_assert!(verify_chain(&alt.chain, "s", &owner, None, None).is_ok());
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    /// The server hides the removal of a manager and serves a fork the
+    /// removed manager keeps extending: a client that saw the removal
+    /// refuses it.
+    #[test]
+    fn a_hidden_removal_is_a_fork() {
+        let mut studio = Studio::new("s");
+        let m = studio.add("a_0", Role::Manager).unwrap();
+        let before = studio.chain.len();
+        studio.remove("a_0", &m).unwrap();
+        let pin = studio.head().pin();
+        let mut alt = Studio {
+            share: "s".into(),
+            chain: studio.chain[..before].to_vec(),
+            heads: studio.heads[..before].to_vec(),
+            spawned: 100,
+        };
+        for _ in 0..3 {
+            alt.add(&m, Role::Edit).unwrap();
+        }
+        assert!(alt.chain.len() > studio.chain.len());
+        assert_eq!(
+            verify_chain(&alt.chain, "s", &studio.owner_pub(), Some(&pin), None),
+            Err(BookListError::Forked)
+        );
+        // A chain that ends before the trusted head is stale, not a fork.
+        assert_eq!(
+            verify_chain(
+                &studio.chain[..before],
+                "s",
+                &studio.owner_pub(),
+                Some(&pin),
+                None
+            ),
+            Err(BookListError::Stale)
+        );
+    }
+
+    /// Two managers who each sign the list after the same one: whichever a
+    /// client sees second is a fork.
+    #[test]
+    fn two_managers_signing_the_same_revision_fork_the_history() {
+        let mut studio = Studio::new("s");
+        let m1 = studio.add("a_0", Role::Manager).unwrap();
+        let m2 = studio.add("a_0", Role::Manager).unwrap();
+        let first = studio.next_list(&m1, |l| l.push(entry("a_x", Role::Edit)));
+        let second = studio.next_list(&m2, |l| l.push(entry("a_y", Role::Edit)));
+        let (a, b) = (sign(&ident(&m1), &first), sign(&ident(&m2), &second));
+        let base = studio.head().clone();
+        let seen_first = open_next(&base, &a, None).unwrap();
+        assert_eq!(open_next(&seen_first, &b, None), Err(BookListError::Forked));
+        let seen_second = open_next(&base, &b, None).unwrap();
+        assert_eq!(
+            open_next(&seen_second, &a, None),
+            Err(BookListError::Forked)
+        );
+        // The same list again is a replay, not a fork.
+        assert_eq!(open_next(&seen_first, &a, None), Err(BookListError::Broken));
+    }
+
+    #[test]
+    fn a_new_epochs_log_position_is_bounded() {
+        let mut studio = Studio::new("s");
+        let e = studio.add("a_0", Role::Edit).unwrap();
+        let rev = studio.head().list.rev;
+        let cut = |from_seq: u64| {
+            let mut list = studio.next_list("a_0", |l| l.retain(|x| x.account != e));
+            list.from_seq = Some(from_seq);
+            sign(&ident("a_0"), &list)
+        };
+        let head = studio.head().clone();
+        assert_eq!(
+            open_next(&head, &cut(u64::MAX), None),
+            Err(BookListError::BadEpoch)
+        );
+        assert_eq!(
+            open_next(&head, &cut(MAX_SEQ_JUMP + 1), None),
+            Err(BookListError::BadEpoch)
+        );
+        assert!(open_next(&head, &cut(MAX_SEQ_JUMP), None).is_ok());
+        // A client that has seen the log's head holds the epoch to it.
+        assert_eq!(
+            open_next(&head, &cut(6), Some(5)),
+            Err(BookListError::BadEpoch)
+        );
+        assert!(open_next(&head, &cut(5), Some(5)).is_ok());
+        assert!(open_next(&head, &cut(u64::from(rev)), Some(u64::from(rev))).is_ok());
     }
 
     #[test]

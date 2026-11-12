@@ -52,6 +52,15 @@ pub struct BookChainHead {
     pub hash: String,
 }
 
+/// The newest list a client trusts for a notebook, small enough to keep
+/// beside it. A chain that doesn't pass through this exact list is a
+/// different history.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BookPin {
+    pub rev: u32,
+    pub hash: String,
+}
+
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum BookListError {
     #[error("the notebook's member list isn't well-formed")]
@@ -70,6 +79,8 @@ pub enum BookListError {
     Broken,
     #[error("the member list's epoch or key commitment is wrong")]
     BadEpoch,
+    #[error("the notebook's history forked: two different member lists follow the same one")]
+    Forked,
     #[error("the chain is shorter than one already seen")]
     Stale,
     #[error("the chain is empty")]
