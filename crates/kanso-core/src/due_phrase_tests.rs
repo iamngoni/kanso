@@ -843,6 +843,22 @@ proptest! {
     }
 }
 
+#[test]
+fn label_reads_day_time_and_repeat() {
+    let day = |text: &str| {
+        label(
+            &parse(text, now(), DateOrder::DayMonth).unwrap(),
+            now().date,
+        )
+    };
+    assert_eq!(
+        day("film Pixel review fri 3pm every week"),
+        "Fri 13 Nov, 15:00 \u{b7} every week"
+    );
+    assert_eq!(day("pay rent 2 dec"), "Wed 2 Dec");
+    assert_eq!(day("renew 2027-01-04"), "Mon 4 Jan 2027");
+}
+
 fn ordinal(day: u32) -> &'static str {
     match (day % 10, day % 100) {
         (_, 11..=13) => "th",

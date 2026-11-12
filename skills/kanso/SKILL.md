@@ -99,8 +99,11 @@ include it.
 
 **Tasks and loops**
 - `kanso-list-tasks` checkbox items (`- [ ]`) across notes; a due date is `@YYYY-MM-DD` or
-  `@YYYY-MM-DDTHH:MM` in the task text. Filter by `status`, `dueBefore`, `dueAfter`, `bookId`, `limit`.
+  `@YYYY-MM-DDTHH:MM` in the task text, with `every …` words after it for a repeat. Filter by `status`, `dueBefore`, `dueAfter`, `bookId`, `limit`.
 - `kanso-set-task-done` ticks or unticks one task, by note, line and exact text.
+- `kanso-add-task` adds a task line to a note, today's daily note or the Inbox. A date and
+  repeat at the end ("fri 3pm every week") are written as `@2026-11-13T15:00 every week`.
+- `kanso-parse-when` shows what date and repeat a line of text ends in, writing nothing.
 - `kanso-list-open-loops` things notes say the writer will do, is waiting on, or must check.
 
 **Write**

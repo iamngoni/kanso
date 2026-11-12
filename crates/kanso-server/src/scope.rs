@@ -30,7 +30,7 @@ use crate::tokens::TokenId;
 /// Read tools offered to an agent. Attachment bytes remain unavailable;
 /// PDF tools expose only the extracted, page-scoped text and annotations
 /// after the owning note has passed the same visibility checks.
-pub const READ_TOOLS: [&str; 28] = [
+pub const READ_TOOLS: [&str; 29] = [
     "search-notes",
     "read-note",
     "list-notes",
@@ -38,6 +38,7 @@ pub const READ_TOOLS: [&str; 28] = [
     "list-templates",
     "kanso-get-outline",
     "kanso-list-tasks",
+    "kanso-parse-when",
     "kanso-list-open-loops",
     "kanso-search-by-meaning",
     "kanso-related-notes",

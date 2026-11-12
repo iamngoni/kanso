@@ -415,6 +415,7 @@ mod tests {
             &names[18..],
             [
                 "kanso-add-pdf-highlight",
+                "kanso-add-task",
                 "kanso-ask-read-lines",
                 "kanso-ask-search",
                 "kanso-ask-when",
@@ -440,6 +441,7 @@ mod tests {
                 "kanso-list-tasks",
                 "kanso-list-versions",
                 "kanso-move-note",
+                "kanso-parse-when",
                 "kanso-read-attachment",
                 "kanso-read-canvas",
                 "kanso-read-pdf-page",
