@@ -3,6 +3,28 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.10.7](https://github.com/iamngoni/kanso/compare/v0.10.6...v0.10.7) - 2026-11-12
+
+### New
+
+- **app:** Open an agent task as a session, with its transcript, and list tasks as session rows ([a9dd545](https://github.com/iamngoni/kanso/commit/a9dd545b1cf9bae6a990d8c00704e23f215d3145))
+- **agent-task:** Follow-ups in the same session ([9b866ca](https://github.com/iamngoni/kanso/commit/9b866cab68633d95ebb0b542c324bc37afc499c1))
+- **agent:** Keep agent sessions on disk, with the unreviewed proposal, and list them again after a restart ([c41d0e1](https://github.com/iamngoni/kanso/commit/c41d0e138911b256aace59a4a845b675295b0a86))
+- **app:** Record each permission answer in the session transcript ([9828a7a](https://github.com/iamngoni/kanso/commit/9828a7a967cd9b8b5e492735211e569d84f34c21))
+- **agent:** Pick an agent session up again after a restart, or continue it in a new session (#375 step 7) ([337271c](https://github.com/iamngoni/kanso/commit/337271c4f3e134b92018995fee60b50bf369d8b8))
+- **mobile:** Agent task sessions on the phone, a list and a session screen with a composer ([#375](https://github.com/iamngoni/kanso/pull/375)) ([84af67b](https://github.com/iamngoni/kanso/commit/84af67b0cba2e01f13c84c723e4093d60e69f224))
+- What's New video for releases on desktop and mobile ([bd1fcf5](https://github.com/iamngoni/kanso/commit/bd1fcf541d4b91da4f8094b848fe76bd8425295e))
+- **mobile:** Rename and Delete Session, regenerated bridge; fix npx registry property ([3254a35](https://github.com/iamngoni/kanso/commit/3254a35f7adaa1be25756d8466f991ff594ed098))
+
+### Fixed
+
+- **mobile:** The Delete key works as a shortcut key, so Delete Selected Notes has keys on a phone keyboard ([c40e053](https://github.com/iamngoni/kanso/commit/c40e05383c3f63709e8da3bd936c395c78946b2a))
+
+### Under the hood
+
+- Fix four master CI failures (ETXTBSY race, notice fallback, saved-request race) ([1b92688](https://github.com/iamngoni/kanso/commit/1b92688bd4538e3debac3f79278e07d05b248f3c))
+- **pdf:** Stand-in worker scripts are made by cp, so Linux never finds them busy ([f03c0fd](https://github.com/iamngoni/kanso/commit/f03c0fd638a183d09ffda6ccade8dac7ad537c80))
+
 ## [0.10.6](https://github.com/iamngoni/kanso/compare/v0.10.5...v0.10.6) - 2026-11-11
 
 ### New
