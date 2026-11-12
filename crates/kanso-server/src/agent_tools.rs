@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use kanso_store::Store;
+use kanso_store::{KeyAccess, Store};
 use serde_json::Value;
 
 use crate::AppState;
@@ -136,6 +136,9 @@ pub(crate) fn call_for_key(
     };
     // A key's notebooks and tags count only the notes it sees.
     let vis = vis.with_counts();
+    if key.access == KeyAccess::Capture {
+        return tools::call_capture(state, key, &vis, name, arguments);
+    }
     if key.can_write() {
         return tools::call_write(state, key, &vis, name, arguments);
     }
@@ -163,9 +166,25 @@ pub(crate) fn call_for_key(
     tools::call(state, Some(&vis), name, arguments)
 }
 
+/// What a Capture key's MCP catalog exposes: the reads a Read key has, and
+/// the three tools that add (see [`crate::capture`]).
+pub(crate) fn definitions_for_capture() -> Vec<Value> {
+    crate::mcp::schema::definitions()
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|tool| {
+            tool.get("name")
+                .and_then(Value::as_str)
+                .is_some_and(|name| crate::capture::tool(name) != crate::capture::Decision::Denied)
+        })
+        .cloned()
+        .collect()
+}
+
 /// The tools that reach attachments: a key that can only read or suggest
 /// has none of them.
-const ATTACHMENT_TOOLS: [&str; 12] = [
+pub(crate) const ATTACHMENT_TOOLS: [&str; 12] = [
     "create-file",
     "read-file",
     "kanso-attach-file",

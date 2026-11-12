@@ -129,7 +129,7 @@ export const TOPICS: readonly Topic[] = [
       <>
         <p>
           Every AI agent, script or app that reaches Kanso's local API needs its own key. Open Settings › Local API › API keys and
-          choose <strong>New key…</strong>. Pick what it's for, what it may do (read, suggest edits, or read and write) and which
+          choose <strong>New key…</strong>. Pick what it's for, what it may do (read, suggest edits, read and write, or add and tick only) and which
           notebooks it sees. Kanso shows the key once, inside the setup to paste into the agent. <strong>Revoke</strong> stops a key
           at once. Locked notes are never shown to a key.
         </p>

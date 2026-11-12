@@ -44,6 +44,9 @@ pub(crate) fn cannot_write(access: KeyAccess) -> String {
         KeyAccess::Read => format!(
             "This key can read your notes but not change them. In Kanso, open {SETTINGS} and create a key that can read and write."
         ),
+        KeyAccess::Capture => format!(
+            "This key can add notes and tasks and tick tasks, but it can't change or delete what is already there. In Kanso, open {SETTINGS} and create a key that can read and write."
+        ),
         _ => format!(
             "This key can suggest edits through MCP but not change notes directly. In Kanso, open {SETTINGS} and create a key that can read and write."
         ),
@@ -52,10 +55,10 @@ pub(crate) fn cannot_write(access: KeyAccess) -> String {
 
 /// What a key that may not use attachments is told.
 pub(crate) fn cannot_attach(access: KeyAccess) -> String {
-    let what = if access == KeyAccess::Read {
-        "read"
-    } else {
-        "suggest edits"
+    let what = match access {
+        KeyAccess::Read => "read",
+        KeyAccess::Capture => "add notes and tasks",
+        _ => "suggest edits",
     };
     format!(
         "This key can {what} but has no access to attachments. In Kanso, open {SETTINGS} and create a key that can read and write."

@@ -72,7 +72,7 @@ fn scope_for(row: &ApiKeyRow) -> AgentScope {
         .as_ref()
         .map(|books| books.iter().cloned().collect::<HashSet<_>>());
     let mut scope = AgentScope::with_tools(books, &READ_TOOLS);
-    if row.access != KeyAccess::Read {
+    if matches!(row.access, KeyAccess::Suggest | KeyAccess::Write) {
         scope
             .tools
             .extend(SUGGEST_TOOLS.iter().map(|tool| (*tool).to_owned()));
