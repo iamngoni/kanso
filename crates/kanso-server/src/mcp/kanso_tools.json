@@ -1095,7 +1095,7 @@
   },
   {
     "name": "kanso-set-task-done",
-    "description": "Set one task’s checked state by its note, current line, and exact task text. This is an explicit note write; it fails without changing the note if the task moved ambiguously.",
+    "description": "Set one task’s checked state by its note, current line, and exact task text. This is an explicit note write; it fails without changing the note if the task moved ambiguously. Ticking an open repeating task (one with `every …` after its due date) also writes the next one on a new line above it.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
