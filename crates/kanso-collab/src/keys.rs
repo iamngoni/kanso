@@ -63,7 +63,12 @@ pub const WRAPPED_LEN: usize = 1 + 32 + NONCE_LEN + 32 + 16;
 
 /// `0x01 || E || nonce(24) || XChaCha20-Poly1305(k, nonce, aad, plaintext)`
 /// with `k = HKDF(ikm X25519(e, B), salt E || B, info)` for a fresh `(e, E)`.
-fn box_seal(their_box: &[u8; 32], info: &[u8], aad: &[u8], plaintext: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn box_seal(
+    their_box: &[u8; 32],
+    info: &[u8],
+    aad: &[u8],
+    plaintext: &[u8],
+) -> Option<Vec<u8>> {
     let ephemeral = Zeroizing::new(random::<32>());
     let ephemeral_pub = MontgomeryPoint::mul_base_clamped(*ephemeral).to_bytes();
     let shared = x25519(&ephemeral, their_box)?;
@@ -77,7 +82,7 @@ fn box_seal(their_box: &[u8; 32], info: &[u8], aad: &[u8], plaintext: &[u8]) -> 
     Some(out)
 }
 
-fn box_open(
+pub(crate) fn box_open(
     identity: &Identity,
     info: &[u8],
     aad: &[u8],
