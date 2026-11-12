@@ -153,6 +153,15 @@ impl Transcript {
         });
     }
 
+    /// The person answered a request to use a tool.
+    pub fn permission(&mut self, title: &str, kind: ToolKind, answer: PermissionAnswer) {
+        self.push(Item::Permission {
+            title: title.to_owned(),
+            kind,
+            answer,
+        });
+    }
+
     pub fn notice(&mut self, text: &str, at_ms: i64) {
         self.push(Item::Notice {
             text: text.to_owned(),
