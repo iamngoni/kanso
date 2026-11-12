@@ -229,6 +229,12 @@ pub struct ChangeSet {
     /// The notebooks the person named: those they shared and the one new
     /// notes go in. A move or a new note elsewhere gets a warning.
     pub named_books: BTreeSet<String>,
+    /// The round of the session the agent is in: 1, then one more for each
+    /// follow-up that opens a new set.
+    pub round: u32,
+    /// The ops as they stood when each round ended, with the round they
+    /// belong to. An op not in it was proposed in the round now.
+    stamped: Vec<(ProposedOp, u32)>,
     next_temp: u64,
 }
 
@@ -320,13 +326,63 @@ impl ChangeSet {
             summary: String::new(),
             done: false,
             named_books,
+            round: 1,
+            stamped: Vec::new(),
             next_temp: 1,
         }
     }
 
+    /// A follow-up begins round `round`: the ops so far are labelled with
+    /// the rounds they came in, and the agent may finish again.
+    pub fn begin_round(&mut self, round: u32) {
+        self.stamp_round();
+        self.round = round;
+        self.done = false;
+    }
+
+    /// Labels every op not labelled yet with the round now. An op the agent
+    /// changed since (a later edit of the same note) is the new round's.
+    pub fn stamp_round(&mut self) {
+        let round = self.round;
+        let stamped = self
+            .ops
+            .iter()
+            .map(|op| {
+                let had = self.stamped.iter().find(|(old, _)| old == op);
+                (op.clone(), had.map_or(round, |(_, r)| *r))
+            })
+            .collect();
+        self.stamped = stamped;
+    }
+
+    /// The round `op` was proposed in.
+    pub fn round_of(&self, op: &ProposedOp) -> u32 {
+        self.stamped
+            .iter()
+            .find(|(old, _)| old == op)
+            .map_or(self.round, |(_, round)| *round)
+    }
+
+    /// The rounds the ops are from, oldest first, each once.
+    pub fn rounds(&self) -> Vec<u32> {
+        let mut rounds: Vec<u32> = self.ops.iter().map(|op| self.round_of(op)).collect();
+        rounds.sort_unstable();
+        rounds.dedup();
+        rounds
+    }
+
     pub fn counts(&self) -> Counts {
+        Self::count(self.ops.iter())
+    }
+
+    /// The counts of the ops proposed in round `round`.
+    pub fn counts_in(&self, round: u32) -> Counts {
+        Self::count(self.ops.iter().filter(|op| self.round_of(op) == round))
+    }
+
+    fn count<'a>(ops: impl Iterator<Item = &'a ProposedOp>) -> Counts {
         let mut counts = Counts::default();
-        for op in &self.ops {
+        for op in ops {
             match op.kind() {
                 OpKind::Create => counts.creates += 1,
                 OpKind::Edit => counts.edits += 1,

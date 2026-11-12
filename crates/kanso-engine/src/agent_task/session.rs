@@ -94,6 +94,14 @@ pub enum RoundState {
     Lost,
 }
 
+/// One Apply of a session: which rounds it covered and what it wrote, so
+/// each can be taken back, latest first.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AppliedRound {
+    pub rounds: Vec<u32>,
+    pub set: kanso_server::AppliedSet,
+}
+
 /// One thing in the conversation.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Item {
@@ -247,6 +255,23 @@ impl Transcript {
             && *have != state
         {
             *have = state;
+            self.version += 1;
+        }
+    }
+
+    /// Every round still waiting for review is now `state` (the whole set
+    /// was applied or discarded at once).
+    pub fn set_pending_rounds(&mut self, state: RoundState) {
+        let mut moved = false;
+        for item in &mut self.items {
+            if let Item::Proposed { state: have, .. } = item
+                && *have == RoundState::ToReview
+            {
+                *have = state;
+                moved = true;
+            }
+        }
+        if moved {
             self.version += 1;
         }
     }

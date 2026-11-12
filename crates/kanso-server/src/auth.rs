@@ -72,6 +72,12 @@ pub(crate) fn caller_leased(
         && let Some(token) = bearer(header)
         && let Some(caller) = tokens.verify(token)
     {
+        // A session between turns: live, but it may not call anything.
+        if let Caller::Agent { token, .. } = &caller
+            && tokens.is_paused(*token)
+        {
+            return None;
+        }
         return Some((caller, None));
     }
     let key = key_from_header(header)?;

@@ -42,9 +42,9 @@ pub const DEFAULT_MAX_CALLS: usize = 200;
 /// The default and offered limits on how many notes one task may read.
 pub const DEFAULT_MAX_NOTES: usize = 200;
 pub const MAX_NOTES_CHOICES: [usize; 3] = [50, 200, 1000];
-/// How long a task waits for the person's reply to a question before it
-/// stops and keeps its change set.
-pub const REPLY_WAIT: Duration = Duration::from_secs(30 * 60);
+/// How long a warm session waits for the next message before it is closed.
+/// Its transcript and any changes to review stay.
+pub const IDLE_CLOSE: Duration = Duration::from_secs(30 * 60);
 
 /// What the agent may read.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -264,15 +264,58 @@ impl OpenTask {
         self.tokens.task_reads(self.id)
     }
 
-    /// Ends the token. The change set stays for review.
-    pub fn end(&self) {
-        self.tokens.revoke(self.token);
+    /// The limits one turn of the session has: its own time and calls.
+    pub fn limits(&self) -> TaskLimits {
+        TaskLimits {
+            lifetime: self.spec.time_limit + Duration::from_secs(60),
+            calls: self.spec.max_calls,
+            max_notes: self.spec.max_notes,
+        }
     }
 
-    /// Throws the change set away.
+    /// The turn ended: the token stays live but refuses every call.
+    pub fn pause(&self) {
+        self.tokens.pause_task(self.id);
+    }
+
+    /// A follow-up begins a turn: the token takes calls again, with a
+    /// fresh clock and budget. `false` when it was evicted or revoked.
+    pub fn resume(&self) -> bool {
+        self.tokens.resume_task(self.id, self.limits())
+    }
+
+    /// A new, empty change set for round `round`, when there is none.
+    pub fn open_round(&self, round: u32) {
+        let sets = self.tokens.changesets();
+        if sets.with(self.id, |set| set.begin_round(round)).is_none() {
+            let mut set = ChangeSet::new(
+                self.id,
+                &self.spec.goal,
+                &self.agent,
+                self.scope.clone(),
+                named_books(&self.spec),
+            );
+            set.round = round;
+            sets.open(set);
+        }
+    }
+
+    /// Ends the session's tokens (the one it started with, and any it
+    /// started again with). The change set stays for review.
+    pub fn end(&self) {
+        self.tokens.revoke(self.token);
+        self.tokens.revoke_task(self.id);
+    }
+
+    /// Throws the change set away. The session goes on.
+    pub fn discard_changes(&self) {
+        self.tokens.changesets().remove(self.id);
+    }
+
+    /// Ends the session and throws everything of it away.
     pub fn discard(&self) {
         self.end();
-        self.tokens.changesets().remove(self.id);
+        self.discard_changes();
         self.tokens.forget_task(self.id);
     }
 }

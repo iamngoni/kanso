@@ -27,7 +27,7 @@ pub struct TaskView {
     pub id: u64,
     pub goal: String,
     pub agent: String,
-    /// `waiting`, `running`, `asking`, `ready`, `nothing`, `failed`,
+    /// `waiting`, `running`, `idle`, `asking`, `ready`, `nothing`, `failed`,
     /// `applied`, `undone` or `discarded`.
     pub phase: String,
     /// The question, the error or the number of changes, by phase.
@@ -45,6 +45,7 @@ impl TaskView {
         let (phase, detail) = match &row.phase {
             Phase::Waiting => ("waiting", String::new()),
             Phase::Running => ("running", String::new()),
+            Phase::Idle => ("idle", String::new()),
             Phase::Asking { question } => ("asking", question.clone()),
             Phase::Ready => ("ready", String::new()),
             Phase::Nothing => ("nothing", String::new()),

@@ -777,6 +777,13 @@ impl Conversation {
             .unwrap_or_default()
     }
 
+    /// Closes the agent session (`session/close`) and revokes its token. The
+    /// next question would start a new session. Waits for a turn that is
+    /// still running.
+    pub fn end(&self) {
+        lock(&self.state).end();
+    }
+
     /// Whether the conversation has a session open now, for tests.
     pub fn has_session(&self) -> bool {
         lock(&self.state).session.is_some()

@@ -4,7 +4,12 @@
 //! may propose ([`super::TaskSpec`]). It runs on its own thread until the
 //! agent says it is done, the person presses Stop, the time limit (default
 //! 20 minutes) passes, or the tool-call limit (default 200) is reached; in
-//! every case the changes proposed so far stay for review. The agent never
+//! every case the changes proposed so far stay for review. A turn ends the
+//! stretch, not the session: the agent conversation stays warm and its token
+//! pauses, and the person's next message ([`Tasks::follow_up`]) is another
+//! turn of the same conversation, in a new round of proposals. Stop ends a
+//! turn; End Session ([`Tasks::end_session`]) closes the conversation, as
+//! does half an hour without a message. The agent never
 //! writes: Apply writes the ticked ops in one transaction
 //! ([`kanso_server::ChangeSet::apply`]) and one Undo takes them back.
 //!
@@ -25,8 +30,10 @@ use kanso_server::{
 use kanso_store::{Store, UndoReport};
 
 use super::model::{EndedBy, Phase, TaskRow, is_unread};
-use super::session::{Item, RoundState, SessionKey, ToolKind, ToolStatus, Transcript};
-use super::{OpenTask, REPLY_WAIT, StartError, TaskSpec};
+use super::session::{
+    AppliedRound, Item, RoundState, SessionKey, ToolKind, ToolStatus, Transcript,
+};
+use super::{IDLE_CLOSE, OpenTask, StartError, TaskSpec};
 
 /// The most tasks working at once.
 pub const MAX_ACTIVE: usize = 2;
@@ -101,6 +108,11 @@ pub trait TaskDriver: Send + Sync {
         false
     }
 
+    /// The session is over (End Session, idle close, quitting): the agent
+    /// conversation closes. Called once per session, never during a turn
+    /// the driver has not finished stopping.
+    fn end(&self) {}
+
     /// Whether the live line is made from the notes read ("Reading Q3
     /// planning") rather than from the AI's own status lines.
     fn names_reads(&self) -> bool {
@@ -156,25 +168,32 @@ struct Entry {
     open: OpenTask,
     store: Arc<Store>,
     backend: Backend,
-    started: Instant,
+    /// When the turn now running (or the last one) began.
+    turn_started: Mutex<Instant>,
+    /// Counts the turns, so the watchdog never acts on an earlier one.
+    turn: AtomicU64,
     /// Set by Stop, the watchdog and shutdown.
     cancel: Arc<AtomicBool>,
     /// Why the watchdog or Stop cancelled.
     reason: Mutex<Option<EndedBy>>,
-    /// When the agent started waiting for a reply.
-    asked_at: Mutex<Option<Instant>>,
-    /// The last applied batch, for Undo.
-    applied: Mutex<Option<AppliedSet>>,
+    /// When the session last had nothing running: the idle close counts
+    /// from here.
+    idle_since: Mutex<Instant>,
+    /// Set by End Session while a turn runs: the session closes when the
+    /// turn has stopped.
+    closing: AtomicBool,
+    /// Each Apply, latest last, for Undo.
+    applied: Mutex<Vec<AppliedRound>>,
     /// The words of the turn so far.
     said: Mutex<String>,
-    /// Everything that happened, over the whole task: also what an API-key
-    /// reply is built from (it restarts the loop).
+    /// Everything that happened, over the whole session: also what an
+    /// API-key follow-up is built from (it restarts the loop).
     transcript: Mutex<Transcript>,
     /// This session's own id (a [`TaskId`] restarts with each launch).
     key: SessionKey,
     /// The transcript version the person last looked at.
     seen: AtomicU64,
-    /// The round of proposals the task is in; 1 until a follow-up.
+    /// The round of proposals the session is in; 1 until a follow-up.
     round: AtomicU32,
     /// When the transcript last grew, in Unix milliseconds.
     last_activity_ms: AtomicI64,
@@ -197,6 +216,11 @@ impl Entry {
         self.last_activity_ms.store(now, Ordering::Relaxed);
         lock(&self.row).last_activity_ms = now;
     }
+
+    /// How long the current turn has run.
+    fn turn_elapsed(&self) -> Duration {
+        lock(&self.turn_started).elapsed()
+    }
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -215,6 +239,9 @@ pub struct Tasks {
     starting: Arc<Mutex<()>>,
     notice: Arc<Mutex<Option<Notice>>>,
     subscribers: Arc<Mutex<Vec<async_channel::Sender<TaskEvent>>>>,
+    /// How long a warm session may idle; [`IDLE_CLOSE`] unless a test says
+    /// otherwise.
+    idle_close: Arc<Mutex<Option<Duration>>>,
 }
 
 impl Tasks {
@@ -223,6 +250,17 @@ impl Tasks {
         let (tx, rx) = async_channel::unbounded();
         lock(&self.subscribers).push(tx);
         rx
+    }
+
+    /// How long a warm session may sit with nothing to do before it is
+    /// closed, for tests.
+    #[doc(hidden)]
+    pub fn set_idle_close(&self, after: Duration) {
+        *lock(&self.idle_close) = Some(after);
+    }
+
+    fn idle_close(&self) -> Duration {
+        lock(&self.idle_close).unwrap_or(IDLE_CLOSE)
     }
 
     /// What happened in the task so far, if it is listed.
@@ -241,7 +279,7 @@ impl Tasks {
             .map(|entry| {
                 let mut row = lock(&entry.row).clone();
                 if row.is_active() {
-                    row.elapsed = entry.started.elapsed();
+                    row.elapsed = entry.turn_elapsed();
                 }
                 row.unread = is_unread(
                     entry.seen.load(Ordering::Relaxed),
@@ -296,9 +334,29 @@ impl Tasks {
         self.entry(id).map(|entry| entry.open.spec.clone())
     }
 
-    /// How many tasks are working.
+    /// How many turns are running or waiting to. A session between turns
+    /// (idle, or with a question for the person) is not one.
     pub fn active(&self) -> usize {
-        self.rows().iter().filter(|row| row.is_active()).count()
+        self.active_except(None).1
+    }
+
+    /// `(running, running or waiting)` turns, not counting `skip`'s.
+    fn active_except(&self, skip: Option<TaskId>) -> (usize, usize) {
+        let (mut running, mut active) = (0, 0);
+        for entry in lock(&self.entries).iter() {
+            if Some(entry.open.id) == skip {
+                continue;
+            }
+            match lock(&entry.row).phase {
+                Phase::Running => {
+                    running += 1;
+                    active += 1;
+                }
+                Phase::Waiting => active += 1,
+                _ => {}
+            }
+        }
+        (running, active)
     }
 
     /// A copy of the task's change set so far.
@@ -311,7 +369,7 @@ impl Tasks {
         self.entry(id).map(|e| e.open.reads()).unwrap_or_default()
     }
 
-    /// The task's token (it ends with the task).
+    /// The task's token (it ends with the session).
     pub fn token(&self, id: TaskId) -> kanso_server::TokenId {
         self.entry(id).expect("the task").open.token
     }
@@ -352,11 +410,13 @@ impl Tasks {
             open,
             store: store.clone(),
             backend,
-            started: Instant::now(),
+            turn_started: Mutex::new(Instant::now()),
+            turn: AtomicU64::new(0),
             cancel: Arc::new(AtomicBool::new(false)),
             reason: Mutex::new(None),
-            asked_at: Mutex::new(None),
-            applied: Mutex::new(None),
+            idle_since: Mutex::new(Instant::now()),
+            closing: AtomicBool::new(false),
+            applied: Mutex::new(Vec::new()),
             said: Mutex::new(String::new()),
             transcript: Mutex::new(Transcript::default()),
             key,
@@ -372,15 +432,16 @@ impl Tasks {
         lock(&self.entries).push(entry.clone());
         drop(gate);
         self.tell(TaskEvent::Changed(Some(id)));
-        self.watch(entry.clone(), spec.time_limit);
+        self.watch(entry.clone());
         let prompt = entry.backend.first_prompt(&entry.open);
-        self.segment(entry, prompt);
+        self.segment(entry, prompt, false);
         Ok(id)
     }
 
-    /// The watchdog: ends the task at its time limit or tool-call limit, and
-    /// a task that waited [`REPLY_WAIT`] for a reply.
-    fn watch(&self, entry: Arc<Entry>, limit: Duration) {
+    /// The watchdog of a session: stops a turn at its time limit or
+    /// tool-call limit, and closes a session that sat idle for
+    /// [`IDLE_CLOSE`]. It ends with the session.
+    fn watch(&self, entry: Arc<Entry>) {
         let tasks = self.clone();
         std::thread::Builder::new()
             .name("kanso-agent-task-watch".into())
@@ -388,56 +449,91 @@ impl Tasks {
                 loop {
                     std::thread::sleep(Duration::from_millis(200));
                     let row = lock(&entry.row).clone();
-                    if !row.is_active() {
+                    if !row.live {
                         return;
                     }
-                    if let Phase::Asking { .. } = row.phase {
-                        let waited = lock(&entry.asked_at).map(|at| at.elapsed());
-                        if waited.is_some_and(|waited| waited >= REPLY_WAIT) {
-                            tasks.conclude(&entry, Some(EndedBy::NoReply), None);
-                            return;
+                    match row.phase {
+                        Phase::Waiting => {}
+                        Phase::Running => tasks.watch_turn(&entry),
+                        _ => {
+                            let idle = lock(&entry.idle_since).elapsed();
+                            if idle >= tasks.idle_close() {
+                                tasks.end_session_by(entry.open.id, EndedBy::IdleClose, |row| {
+                                    !row.is_active()
+                                });
+                            }
                         }
-                        continue;
-                    }
-                    let reason = if entry.started.elapsed() >= limit {
-                        Some(EndedBy::TimeLimit)
-                    } else if entry.open.tokens.task_calls(entry.open.id)
-                        >= entry.open.spec.max_calls
-                    {
-                        Some(EndedBy::CallLimit)
-                    } else {
-                        None
-                    };
-                    if let Some(reason) = reason {
-                        lock(&entry.reason).get_or_insert(reason);
-                        entry.cancel.store(true, Ordering::Relaxed);
-                        // A hung agent is let go of after a moment.
-                        std::thread::sleep(Duration::from_secs(5));
-                        if lock(&entry.row).is_active() {
-                            tasks.conclude(&entry, Some(reason), None);
-                        }
-                        return;
                     }
                 }
             })
             .ok();
     }
 
-    /// Runs one stretch of the task: the goal, or the person's reply.
-    fn segment(&self, entry: Arc<Entry>, prompt: Prompt) {
+    /// One look at the running turn: past its limits, it is cancelled.
+    fn watch_turn(&self, entry: &Arc<Entry>) {
+        let limit = entry.open.spec.time_limit;
+        let reason = if entry.turn_elapsed() >= limit {
+            Some(EndedBy::TimeLimit)
+        } else if entry.open.tokens.task_calls(entry.open.id) >= entry.open.spec.max_calls {
+            Some(EndedBy::CallLimit)
+        } else {
+            None
+        };
+        let Some(reason) = reason else { return };
+        let turn = entry.turn.load(Ordering::Relaxed);
+        lock(&entry.reason).get_or_insert(reason);
+        entry.cancel.store(true, Ordering::Relaxed);
+        // A hung agent is let go of after a moment.
+        std::thread::sleep(Duration::from_secs(5));
+        if entry.turn.load(Ordering::Relaxed) == turn && lock(&entry.row).is_active() {
+            self.conclude(entry, Some(reason), None, None);
+        }
+    }
+
+    /// Runs one stretch of the session: the goal, or the person's follow-up.
+    /// A `gated` one waits its turn when [`MAX_ACTIVE`] turns are running.
+    fn segment(&self, entry: Arc<Entry>, prompt: Prompt, gated: bool) {
         let tasks = self.clone();
         entry.cancel.store(false, Ordering::Relaxed);
-        {
-            let mut row = lock(&entry.row);
-            if matches!(row.phase, Phase::Asking { .. }) {
-                row.phase = Phase::Running;
-            }
-        }
+        *lock(&entry.reason) = None;
+        entry.turn.fetch_add(1, Ordering::Relaxed);
+        *lock(&entry.turn_started) = Instant::now();
         lock(&entry.said).clear();
         std::thread::Builder::new()
             .name("kanso-agent-task".into())
-            .spawn(move || tasks.run_segment(&entry, &prompt))
+            .spawn(move || {
+                if gated && !tasks.claim(&entry) {
+                    return tasks.conclude(&entry, None, None, None);
+                }
+                tasks.run_segment(&entry, &prompt);
+            })
             .ok();
+    }
+
+    /// Waits until fewer than [`MAX_ACTIVE`] other turns are running, then
+    /// takes a place. `false` when stopped while waiting.
+    fn claim(&self, entry: &Arc<Entry>) -> bool {
+        loop {
+            {
+                let _gate = lock(&self.starting);
+                let (running, active) = self.active_except(Some(entry.open.id));
+                if running < MAX_ACTIVE {
+                    // An agent is one process: its turns queue on it, and
+                    // the first thing it says moves this one on.
+                    if !(entry.backend.queues() && active > 0) {
+                        let mut row = lock(&entry.row);
+                        if row.phase == Phase::Waiting {
+                            row.phase = Phase::Running;
+                        }
+                    }
+                    return true;
+                }
+            }
+            if entry.cancel.load(Ordering::Relaxed) {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
     }
 
     fn refresh(&self, entry: &Entry, line: Option<String>) {
@@ -455,7 +551,7 @@ impl Tasks {
             if let Some(counts) = counts {
                 row.counts = counts;
             }
-            row.elapsed = entry.started.elapsed();
+            row.elapsed = entry.turn_elapsed();
             if let Some(line) = line {
                 row.line = line;
             } else if let Some(last) = notes.last()
@@ -480,7 +576,7 @@ impl Tasks {
         );
         let events = match events {
             Ok(events) => events,
-            Err(message) => return self.conclude(entry, None, Some(message)),
+            Err(message) => return self.conclude(entry, None, Some(message), None),
         };
         let mut failure = None;
         let mut thinking_since: Option<Instant> = None;
@@ -531,36 +627,45 @@ impl Tasks {
         if !said.trim().is_empty() {
             lock(&entry.row).last_message = said.trim().to_owned();
         }
-        if failure.is_none() && self.wants_reply(entry, &said) {
-            return;
-        }
-        self.conclude(entry, None, failure);
+        let question = if failure.is_none() {
+            self.question(entry, &said)
+        } else {
+            None
+        };
+        self.conclude(entry, None, failure, question);
     }
 
-    /// Whether the agent ended its turn with a question for the person (and
-    /// not with `kanso-task-done`). Then the task waits for a reply.
-    fn wants_reply(&self, entry: &Arc<Entry>, said: &str) -> bool {
+    /// The question the agent ended its turn with for the person (and not
+    /// with `kanso-task-done`), if it did.
+    fn question(&self, entry: &Arc<Entry>, said: &str) -> Option<String> {
         let done = entry.open.changes().is_some_and(|set| set.done);
         let stopped = entry.cancel.load(Ordering::Relaxed);
         let question = said.trim();
-        if done || stopped || !question.ends_with('?') {
-            return false;
-        }
-        *lock(&entry.asked_at) = Some(Instant::now());
-        lock(&entry.row).phase = Phase::Asking {
-            question: question.to_owned(),
-        };
-        self.refresh(entry, None);
-        true
+        (!done && !stopped && question.ends_with('?')).then(|| question.to_owned())
     }
 
-    /// Ends the task: the token ends, the change set stays.
-    fn conclude(&self, entry: &Arc<Entry>, forced: Option<EndedBy>, failure: Option<String>) {
+    /// Ends the turn: the session stays warm and its token pauses, the
+    /// change set stays. A failure ends the session.
+    fn conclude(
+        &self,
+        entry: &Arc<Entry>,
+        forced: Option<EndedBy>,
+        failure: Option<String>,
+        question: Option<String>,
+    ) {
         let reason = forced.or(*lock(&entry.reason));
-        let set = entry.open.changes();
-        let counts = set.as_ref().map(|s| s.counts()).unwrap_or_default();
-        let summary = set.as_ref().map(|s| s.summary.clone()).unwrap_or_default();
+        let round = entry.round.load(Ordering::Relaxed);
+        let (counts, round_counts, summary) = entry
+            .open
+            .tokens
+            .changesets()
+            .with(entry.open.id, |set| {
+                set.stamp_round();
+                (set.counts(), set.counts_in(round), set.summary.clone())
+            })
+            .unwrap_or_default();
         let failure_text = failure.clone();
+        let failed = failure.is_some();
         let finished = {
             let mut row = lock(&entry.row);
             if !row.is_active() {
@@ -568,7 +673,7 @@ impl Tasks {
             }
             row.counts = counts;
             row.notes_read = entry.open.reads().len();
-            row.elapsed = entry.started.elapsed();
+            row.elapsed = entry.turn_elapsed();
             if !summary.trim().is_empty() {
                 row.last_message = summary;
             }
@@ -577,11 +682,15 @@ impl Tasks {
                 None if entry.cancel.load(Ordering::Relaxed) => EndedBy::Stopped,
                 None => EndedBy::Agent,
             });
-            row.phase = match failure {
-                Some(message) => Phase::Failed { message },
-                None if counts.total() > 0 => Phase::Ready,
-                None => Phase::Nothing,
+            row.phase = match (failure, question) {
+                (Some(message), _) => Phase::Failed { message },
+                (None, Some(question)) => Phase::Asking { question },
+                (None, None) if counts.total() > 0 => Phase::Ready,
+                (None, None) => Phase::Idle,
             };
+            if failed {
+                row.live = false;
+            }
             row.line.clear();
             row.can_review()
         };
@@ -590,6 +699,7 @@ impl Tasks {
             let notice = match (&failure_text, ended_by) {
                 (Some(message), _) => Some(format!("Failed: {message}")),
                 (None, Some(EndedBy::Stopped)) => Some("Stopped".to_owned()),
+                (None, Some(EndedBy::Ended)) => Some("Session ended".to_owned()),
                 (None, Some(EndedBy::TimeLimit)) => Some(format!(
                     "Hit the {}-minute limit",
                     (entry.open.spec.time_limit.as_secs() / 60).max(1)
@@ -598,21 +708,25 @@ impl Tasks {
                     "Hit the {}-tool-call limit",
                     entry.open.spec.max_calls
                 )),
-                (None, Some(EndedBy::NoReply)) => Some("No reply, so the task stopped".to_owned()),
                 (None, _) => None,
             };
             if let Some(text) = notice {
                 transcript.notice(&text, now);
             }
-            if counts.total() > 0 {
+            if round_counts.total() > 0 {
                 transcript.push(Item::Proposed {
-                    round: entry.round.load(Ordering::Relaxed),
-                    counts,
+                    round,
+                    counts: round_counts,
                     state: RoundState::ToReview,
                 });
             }
         });
-        entry.open.end();
+        *lock(&entry.idle_since) = Instant::now();
+        if failed || entry.closing.load(Ordering::Relaxed) {
+            self.finish_end(entry);
+        } else {
+            entry.open.pause();
+        }
         entry.cancel.store(true, Ordering::Relaxed);
         self.tell(TaskEvent::Changed(Some(entry.open.id)));
         if finished {
@@ -620,30 +734,137 @@ impl Tasks {
         }
     }
 
-    /// Stops the task. Its changes so far stay for review.
+    /// Stops the turn now running. The session stays, idle, and its changes
+    /// so far stay for review.
     pub fn stop(&self, id: TaskId) {
         let Some(entry) = self.entry(id) else { return };
+        let phase = {
+            let row = lock(&entry.row);
+            if !row.is_active() {
+                return;
+            }
+            row.phase.clone()
+        };
         lock(&entry.reason).get_or_insert(EndedBy::Stopped);
         entry.cancel.store(true, Ordering::Relaxed);
-        if matches!(
-            lock(&entry.row).phase,
-            Phase::Asking { .. } | Phase::Waiting
-        ) {
-            self.conclude(&entry, Some(EndedBy::Stopped), None);
+        if phase == Phase::Waiting {
+            self.conclude(&entry, Some(EndedBy::Stopped), None, None);
         }
     }
 
-    /// The person's answer to the agent's question: the task goes on.
-    pub fn reply(&self, id: TaskId, text: &str) {
+    /// Ends the session: the agent conversation closes and the token ends.
+    /// The transcript and any changes to review stay, read-only.
+    pub fn end_session(&self, id: TaskId) {
+        self.end_session_by(id, EndedBy::Ended, |_| true);
+    }
+
+    /// [`Tasks::end_session`] when `allowed` says so of the row, decided in
+    /// the same moment the session closes.
+    fn end_session_by(&self, id: TaskId, by: EndedBy, allowed: impl Fn(&TaskRow) -> bool) {
         let Some(entry) = self.entry(id) else { return };
-        if !matches!(lock(&entry.row).phase, Phase::Asking { .. }) || text.trim().is_empty() {
-            return;
+        let was_active = {
+            let mut row = lock(&entry.row);
+            if !row.live || !allowed(&row) {
+                return;
+            }
+            row.live = false;
+            row.is_active()
+        };
+        entry.closing.store(true, Ordering::Relaxed);
+        if was_active {
+            // The turn's own end closes it, once the agent has stopped.
+            lock(&entry.reason).get_or_insert(by);
+            entry.cancel.store(true, Ordering::Relaxed);
+            let waiting = lock(&entry.row).phase == Phase::Waiting;
+            if waiting {
+                self.conclude(&entry, Some(by), None, None);
+            }
+        } else {
+            {
+                let mut row = lock(&entry.row);
+                row.ended_by = Some(by);
+                if matches!(row.phase, Phase::Idle | Phase::Asking { .. }) {
+                    row.phase = Phase::Nothing;
+                }
+            }
+            entry.record(|transcript, now| {
+                transcript.notice(
+                    match by {
+                        EndedBy::IdleClose => "Closed after 30 minutes with no message",
+                        _ => "Session ended",
+                    },
+                    now,
+                );
+            });
+            self.finish_end(&entry);
+            self.tell(TaskEvent::Changed(Some(id)));
         }
-        *lock(&entry.asked_at) = None;
-        entry.record(|transcript, now| transcript.user(text.trim(), now));
+    }
+
+    /// Closes the agent conversation and ends every token of the session.
+    fn finish_end(&self, entry: &Arc<Entry>) {
+        entry.open.end();
+        {
+            let mut row = lock(&entry.row);
+            row.live = false;
+            if !row.is_active() && matches!(row.phase, Phase::Idle | Phase::Asking { .. }) {
+                row.phase = Phase::Nothing;
+            }
+        }
+        let entry = entry.clone();
+        // Closing waits for a turn that is still stopping, so it never
+        // holds up whoever asked.
+        std::thread::Builder::new()
+            .name("kanso-agent-task-end".into())
+            .spawn(move || {
+                entry.backend.end();
+                entry.open.end();
+            })
+            .ok();
+    }
+
+    /// The person's next message in the session: it goes to the same agent
+    /// conversation, which keeps everything it read and said. Starts a new
+    /// round of proposals. `false` when the session can't take one now (a
+    /// turn is running, or it ended) or `text` is blank.
+    pub fn follow_up(&self, id: TaskId, text: &str) -> bool {
+        let text = text.trim();
+        let Some(entry) = self.entry(id) else {
+            return false;
+        };
+        if text.is_empty() {
+            return false;
+        }
+        {
+            let _gate = lock(&self.starting);
+            let mut row = lock(&entry.row);
+            if !row.can_follow_up() {
+                return false;
+            }
+            row.phase = Phase::Waiting;
+            row.ended_by = None;
+            row.line.clear();
+        }
+        let round = entry.round.fetch_add(1, Ordering::Relaxed) + 1;
+        lock(&entry.row).round = round;
+        // The token takes calls again with the turn's own clock and budget;
+        // an evicted one means the agent starts a conversation anew.
+        let resumed = entry.open.resume();
+        entry.open.open_round(round);
+        entry.record(|transcript, now| {
+            transcript.user(text, now);
+            if !resumed {
+                transcript.notice(
+                    "The agent started a new conversation. It may not remember earlier work.",
+                    now,
+                );
+            }
+        });
         let transcript = lock(&entry.transcript).clone();
         let prompt = entry.backend.reply_prompt(&entry.open, &transcript, text);
-        self.segment(entry, prompt);
+        self.segment(entry, prompt, true);
+        self.tell(TaskEvent::Changed(Some(id)));
+        true
     }
 
     /// Writes the ticked ops in one transaction. `Undo` is offered after.
@@ -657,12 +878,18 @@ impl Tasks {
         let set = entry.open.changes().ok_or(ApplyFailure::NothingToApply)?;
         let applied = set.apply(&entry.store, selection, now_ms)?;
         entry.open.tokens.changesets().remove(id);
-        *lock(&entry.applied) = Some(applied.clone());
-        let changes = selection.ticked.len().saturating_sub(applied.dropped.len());
-        lock(&entry.row).phase = Phase::Applied { changes };
-        entry.record(|transcript, _| {
-            transcript.set_round_state(entry.round.load(Ordering::Relaxed), RoundState::Applied);
+        lock(&entry.applied).push(AppliedRound {
+            rounds: set.rounds(),
+            set: applied.clone(),
         });
+        let changes = selection.ticked.len().saturating_sub(applied.dropped.len());
+        {
+            let mut row = lock(&entry.row);
+            if !row.is_active() {
+                row.phase = Phase::Applied { changes };
+            }
+        }
+        entry.record(|transcript, _| transcript.set_pending_rounds(RoundState::Applied));
         let agent = lock(&entry.row).agent.clone();
         self.say(
             id,
@@ -672,21 +899,35 @@ impl Tasks {
         Ok(applied)
     }
 
-    /// Takes back what Apply wrote, in one transaction.
+    /// Takes back what the latest Apply wrote, in one transaction.
     pub fn undo(&self, id: TaskId, now_ms: i64) -> Option<Result<UndoReport, String>> {
         let entry = self.entry(id)?;
         // Kept until the undo worked, so a failed one can be tried again.
-        let applied = lock(&entry.applied).clone()?;
-        let report = undo_changes(&entry.store, &applied.batch, now_ms).map_err(|e| e.to_string());
+        let last = lock(&entry.applied).last().cloned()?;
+        let report = undo_changes(&entry.store, &last.set.batch, now_ms).map_err(|e| e.to_string());
         if let Ok(done) = &report {
-            *lock(&entry.applied) = None;
-            lock(&entry.row).phase = Phase::Undone;
+            lock(&entry.applied).pop();
+            {
+                let mut row = lock(&entry.row);
+                if !row.is_active() {
+                    row.phase = Phase::Undone;
+                }
+            }
             entry.record(|transcript, _| {
-                transcript.set_round_state(entry.round.load(Ordering::Relaxed), RoundState::Undone);
+                for round in &last.rounds {
+                    transcript.set_round_state(*round, RoundState::Undone);
+                }
             });
             self.say(id, super::review::undo_message(done.skipped.len()), false);
         }
         Some(report)
+    }
+
+    /// The round the next Undo takes back, if there is one.
+    pub fn undo_round(&self, id: TaskId) -> Option<u32> {
+        let entry = self.entry(id)?;
+        let last = lock(&entry.applied).last().cloned()?;
+        last.rounds.iter().max().copied()
     }
 
     /// The notice to show now, if it hasn't run out.
@@ -714,49 +955,66 @@ impl Tasks {
     /// Whether task `id` has something Undo would take back.
     pub fn can_undo(&self, id: TaskId) -> bool {
         self.entry(id)
-            .is_some_and(|entry| lock(&entry.applied).is_some())
+            .is_some_and(|entry| !lock(&entry.applied).is_empty())
     }
 
-    /// Throws the task's change set away.
+    /// Throws the session's change set away. The session goes on; a turn
+    /// that is running is stopped.
     pub fn discard(&self, id: TaskId) {
         let Some(entry) = self.entry(id) else { return };
-        entry.cancel.store(true, Ordering::Relaxed);
-        entry.open.discard();
-        let mut row = lock(&entry.row);
-        let discarded = row.is_active() || row.can_discard();
-        if discarded {
-            row.phase = Phase::Discarded;
+        if lock(&entry.row).is_active() {
+            lock(&entry.reason).get_or_insert(EndedBy::Stopped);
+            entry.cancel.store(true, Ordering::Relaxed);
         }
-        drop(row);
-        if discarded {
-            entry.record(|transcript, _| {
-                transcript
-                    .set_round_state(entry.round.load(Ordering::Relaxed), RoundState::Discarded);
-            });
-        }
-        self.tell(TaskEvent::Changed(Some(id)));
-    }
-
-    /// Takes a finished row off the panel.
-    pub fn dismiss(&self, id: TaskId) {
-        let mut entries = lock(&self.entries);
-        entries.retain(|entry| {
-            let keep = entry.open.id != id || lock(&entry.row).is_active();
-            if !keep {
-                entry.open.discard();
+        entry.open.discard_changes();
+        let discarded = {
+            let mut row = lock(&entry.row);
+            let discarded = row.can_discard();
+            if discarded {
+                row.phase = Phase::Discarded;
             }
-            keep
-        });
-        drop(entries);
+            discarded
+        };
+        if discarded {
+            entry.record(|transcript, _| transcript.set_pending_rounds(RoundState::Discarded));
+        }
         self.tell(TaskEvent::Changed(Some(id)));
     }
 
-    /// Stops every task and revokes every token: AI was turned off or Kanso is
-    /// quitting. Change sets are lost with the app.
+    /// Takes a finished row off the panel; a session still open is ended.
+    pub fn dismiss(&self, id: TaskId) {
+        let removed = {
+            let mut entries = lock(&self.entries);
+            let at = entries
+                .iter()
+                .position(|entry| entry.open.id == id && !lock(&entry.row).is_active());
+            at.map(|at| entries.remove(at))
+        };
+        if let Some(entry) = removed {
+            lock(&entry.row).live = false;
+            entry.open.discard();
+            let backend = entry.clone();
+            std::thread::Builder::new()
+                .name("kanso-agent-task-end".into())
+                .spawn(move || backend.backend.end())
+                .ok();
+        }
+        self.tell(TaskEvent::Changed(Some(id)));
+    }
+
+    /// Ends every session and revokes every token: AI was turned off or
+    /// Kanso is quitting. Change sets are lost with the app.
     pub fn shutdown(&self) {
         for entry in lock(&self.entries).iter() {
             entry.cancel.store(true, Ordering::Relaxed);
+            lock(&entry.row).live = false;
+            entry.closing.store(true, Ordering::Relaxed);
             entry.open.end();
+            let entry = entry.clone();
+            std::thread::Builder::new()
+                .name("kanso-agent-task-end".into())
+                .spawn(move || entry.backend.end())
+                .ok();
         }
     }
 

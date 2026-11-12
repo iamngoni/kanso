@@ -228,7 +228,7 @@ impl AgentTasks {
 
     /// Answers a question the agent asked.
     pub fn reply(&self, id: u64, text: &str) {
-        self.runtime().tasks.reply(TaskId(id), text);
+        self.runtime().tasks.follow_up(TaskId(id), text);
     }
 
     /// Forgets a task and what it proposed.

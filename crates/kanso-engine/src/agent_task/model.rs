@@ -14,7 +14,11 @@ pub enum Phase {
     /// Another task is using the agent.
     Waiting,
     Running,
-    /// The agent asked a question and waits for the person.
+    /// The turn ended and the session is warm: a message goes to the same
+    /// agent conversation.
+    Idle,
+    /// The agent asked a question and waits for the person (in the
+    /// composer: it is the latest agent message).
     Asking {
         question: String,
     },
@@ -42,8 +46,10 @@ pub enum EndedBy {
     Stopped,
     TimeLimit,
     CallLimit,
-    /// Waited 30 minutes for a reply.
-    NoReply,
+    /// Nobody wrote for 30 minutes, so the session was closed.
+    IdleClose,
+    /// The person ended the session.
+    Ended,
 }
 
 /// One row of the Agent Tasks panel.
@@ -70,6 +76,39 @@ pub struct TaskRow {
     pub last_activity_ms: i64,
     /// New items since the session was last opened.
     pub unread: bool,
+    /// The agent conversation is warm: a message can still be sent to it.
+    pub live: bool,
+    /// The round of proposals the session is in; 1 until a follow-up.
+    pub round: u32,
+}
+
+/// What the composer under a transcript does now.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Composer {
+    /// Enter sends.
+    Send,
+    /// A turn is running: the button stops it, and what is typed waits as
+    /// the next message.
+    Stop,
+    /// Can't send, and why: a whole sentence.
+    Off(&'static str),
+}
+
+impl Composer {
+    /// The composer for `row`; `ai_on` is whether AI is on in Settings.
+    pub fn of(row: &TaskRow, ai_on: bool) -> Composer {
+        if !ai_on {
+            Composer::Off("AI is off in Settings.")
+        } else if !row.live {
+            Composer::Off("This session ended. Continue in a new session to keep going.")
+        } else if row.is_active() {
+            Composer::Stop
+        } else if matches!(row.phase, Phase::Failed { .. }) {
+            Composer::Off("The agent stopped. Continue in a new session to keep going.")
+        } else {
+            Composer::Send
+        }
+    }
 }
 
 /// The colour of a row's status dot.
@@ -140,6 +179,8 @@ impl TaskRow {
             elapsed: Duration::ZERO,
             last_activity_ms: 0,
             unread: false,
+            live: true,
+            round: 1,
         }
     }
 
@@ -148,6 +189,7 @@ impl TaskRow {
         match &self.phase {
             Phase::Waiting => "Waiting".to_owned(),
             Phase::Running => "Working…".to_owned(),
+            Phase::Idle => "Done".to_owned(),
             Phase::Asking { .. } => "Has a question".to_owned(),
             Phase::Ready => {
                 let n = self.counts.total();
@@ -180,16 +222,28 @@ impl TaskRow {
             Phase::Waiting | Phase::Running => Dot::Working,
             Phase::Asking { .. } | Phase::Ready => Dot::NeedsYou,
             Phase::Failed { .. } => Dot::Failed,
-            Phase::Nothing | Phase::Applied { .. } | Phase::Undone | Phase::Discarded => Dot::Idle,
+            Phase::Idle
+            | Phase::Nothing
+            | Phase::Applied { .. }
+            | Phase::Undone
+            | Phase::Discarded => Dot::Idle,
         }
     }
 
-    /// Whether the task is still working (or waiting to).
+    /// Whether a turn is running (or waiting to). A session that is only
+    /// open, between turns, is not active.
     pub fn is_active(&self) -> bool {
-        matches!(
-            self.phase,
-            Phase::Waiting | Phase::Running | Phase::Asking { .. }
-        )
+        matches!(self.phase, Phase::Waiting | Phase::Running)
+    }
+
+    /// Whether a message can go to the agent now.
+    pub fn can_follow_up(&self) -> bool {
+        self.live && !self.is_active() && !matches!(self.phase, Phase::Failed { .. })
+    }
+
+    /// Whether End Session does anything.
+    pub fn can_end(&self) -> bool {
+        self.live
     }
 
     pub fn can_stop(&self) -> bool {
@@ -207,7 +261,9 @@ impl TaskRow {
 
     /// Whether this task has changes nobody has reviewed.
     pub fn has_unreviewed(&self) -> bool {
-        self.can_review() || (self.is_active() && self.counts.total() > 0)
+        self.can_review()
+            || ((self.is_active() || matches!(self.phase, Phase::Asking { .. }))
+                && self.counts.total() > 0)
     }
 
     /// "Ready to review: 3 new notes, 5 edits, 6 moved".
@@ -221,6 +277,7 @@ impl TaskRow {
             Phase::Waiting => "Waiting for the agent to finish another task".to_owned(),
             Phase::Running if self.line.is_empty() => "Working…".to_owned(),
             Phase::Running => self.line.clone(),
+            Phase::Idle => "Ask for more, or end the session.".to_owned(),
             Phase::Asking { .. } => "The agent has a question".to_owned(),
             Phase::Ready => format!(
                 "{}{}",
@@ -229,7 +286,8 @@ impl TaskRow {
                     Some(EndedBy::TimeLimit) => " (stopped at the time limit)",
                     Some(EndedBy::CallLimit) => " (stopped at the tool-call limit)",
                     Some(EndedBy::Stopped) => " (stopped)",
-                    Some(EndedBy::NoReply) => " (no reply, so it stopped)",
+                    Some(EndedBy::IdleClose) => " (closed after 30 minutes idle)",
+                    Some(EndedBy::Ended) => " (session ended)",
                     _ => "",
                 }
             ),
@@ -409,6 +467,7 @@ mod tests {
             "1 change to review"
         );
         assert_eq!(said(Phase::Nothing), "Done");
+        assert_eq!(said(Phase::Idle), "Done");
         assert_eq!(
             said(Phase::Failed {
                 message: "x".into()
@@ -594,6 +653,29 @@ mod tests {
     }
 
     #[test]
+    fn the_composer_says_why_it_cannot_send() {
+        let mut idle = row(Phase::Idle, Counts::default());
+        assert_eq!(Composer::of(&idle, true), Composer::Send);
+        assert_eq!(
+            Composer::of(&idle, false),
+            Composer::Off("AI is off in Settings.")
+        );
+        let running = row(Phase::Running, Counts::default());
+        assert_eq!(Composer::of(&running, true), Composer::Stop);
+        idle.live = false;
+        assert!(matches!(Composer::of(&idle, true), Composer::Off(why) if why.contains("ended")));
+        let asking = row(
+            Phase::Asking {
+                question: "?".into(),
+            },
+            counts(1, 0, 0, 0),
+        );
+        assert_eq!(Composer::of(&asking, true), Composer::Send);
+        assert!(asking.has_unreviewed(), "a question keeps its changes");
+        assert!(!asking.is_active(), "a question is not a running turn");
+    }
+
+    #[test]
     fn elapsed_time_is_minutes_and_seconds() {
         assert_eq!(elapsed_label(Duration::from_secs(5)), "0:05");
         assert_eq!(elapsed_label(Duration::from_secs(125)), "2:05");
@@ -604,7 +686,7 @@ mod tests {
         /// A row only offers Stop while active, only offers Review when
         /// something is waiting, and never both.
         #[test]
-        fn prop_actions_follow_the_phase(c in (0usize..5, 0usize..5, 0usize..5, 0usize..5), pick in 0u8..9) {
+        fn prop_actions_follow_the_phase(c in (0usize..5, 0usize..5, 0usize..5, 0usize..5), pick in 0u8..10) {
             let phase = match pick {
                 0 => Phase::Waiting,
                 1 => Phase::Running,
@@ -614,6 +696,7 @@ mod tests {
                 5 => Phase::Failed { message: "x".into() },
                 6 => Phase::Applied { changes: 1 },
                 7 => Phase::Undone,
+                8 => Phase::Idle,
                 _ => Phase::Discarded,
             };
             let r = row(phase, counts(c.0, c.1, c.2, c.3));

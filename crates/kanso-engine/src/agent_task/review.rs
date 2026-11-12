@@ -112,6 +112,8 @@ pub struct ReviewCard {
     pub outside: bool,
     /// "Published": a published or shared note.
     pub published: bool,
+    /// The round of the session the op was proposed in.
+    pub round: u32,
     pub detail: CardDetail,
 }
 
@@ -124,6 +126,8 @@ pub struct ReviewSheet {
     pub from_agent: String,
     pub warnings: Vec<String>,
     pub cards: Vec<ReviewCard>,
+    /// Ops from more than one round are waiting, so each card says which.
+    pub multi_round: bool,
 }
 
 impl ReviewSheet {
@@ -329,6 +333,7 @@ pub fn build(store: &Store, set: &ChangeSet, from_agent: &str) -> ReviewSheet {
             state,
             outside,
             published,
+            round: set.round_of(op),
             detail,
         });
     }
@@ -345,6 +350,7 @@ pub fn build(store: &Store, set: &ChangeSet, from_agent: &str) -> ReviewSheet {
         },
         warnings: set.warnings(),
         cards,
+        multi_round: set.rounds().len() > 1,
     }
 }
 
@@ -368,6 +374,11 @@ pub fn all_lines(set: &ChangeSet, store: &Store, index: usize) -> Vec<(LineKind,
         }
         _ => Vec::new(),
     }
+}
+
+/// "Round 2" on a card, when the sheet holds more than one round.
+pub fn round_label(round: u32) -> String {
+    format!("Round {round}")
 }
 
 /// "Applied 12 changes from Claude Agent."

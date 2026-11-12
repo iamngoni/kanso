@@ -44,6 +44,10 @@ impl TaskDriver for AcpDriver {
             .map_err(|e| e.to_string())
     }
 
+    fn end(&self) {
+        self.0.end();
+    }
+
     fn queues(&self) -> bool {
         true
     }
