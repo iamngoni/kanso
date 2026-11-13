@@ -179,6 +179,25 @@ impl Store {
         })
     }
 
+    /// Forgets what a notebook that ended here (removed, left, stopped)
+    /// kept: keys, logs and outbox. The row stays, with the chain this
+    /// device trusted, so joining again is held to that history.
+    pub fn clear_shared_book_state(&self, share_id: &str) -> Result<()> {
+        self.write(|tx, _| {
+            for table in [
+                "collab_book_keys",
+                "collab_book_streams",
+                "collab_book_outbox",
+            ] {
+                tx.execute(
+                    &format!("DELETE FROM {table} WHERE share_id = ?"),
+                    [share_id],
+                )?;
+            }
+            Ok(())
+        })
+    }
+
     /// Keeps a notebook key (sealed) for one epoch.
     pub fn put_book_key(&self, share_id: &str, epoch: u32, sealed: &[u8]) -> Result<()> {
         self.write(|tx, _| {

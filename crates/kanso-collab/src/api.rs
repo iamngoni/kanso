@@ -118,6 +118,15 @@ impl CollabError {
         }
     }
 
+    /// A string in the error's body, such as the `account` of a
+    /// `member_gone`.
+    pub fn extra_str(&self, key: &str) -> Option<&str> {
+        match self {
+            CollabError::Api { body, .. } => body.get(key)?.as_str(),
+            _ => None,
+        }
+    }
+
     pub fn api(status: u16, code: &str, body: Value) -> CollabError {
         CollabError::Api {
             status,
@@ -364,6 +373,20 @@ pub struct BookInfo {
     pub wraps: Vec<EpochWrap>,
     #[serde(default)]
     pub epochs: Vec<BookEpochLink>,
+    /// Every member's status, for the owner and managers only (empty for
+    /// the others).
+    #[serde(default)]
+    pub members: Vec<BookMemberStatus>,
+}
+
+/// One person's standing in a notebook, as the owner and managers see it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BookMemberStatus {
+    pub account: String,
+    pub role: Role,
+    /// `member`, `invited` or `left` (they left, or declined; the signed
+    /// list names them until a manager cuts them).
+    pub status: String,
 }
 
 /// `POST /v2/collab/books/<id>/epoch`: the next signed list. Within an epoch
@@ -529,8 +552,15 @@ pub trait CollabApi: Send + Sync {
     fn book(&self, caller: &Caller, share_id: &str, since_rev: u32) -> Result<BookInfo>;
     /// An invitation becomes membership.
     fn accept_book(&self, caller: &Caller, share_id: &str) -> Result<()>;
-    /// The next signed list; 409 `rev_conflict`, `head_moved`.
+    /// The next signed list; 409 `rev_conflict`, `head_moved`,
+    /// `member_gone` (`account`: someone the list keeps whose account is
+    /// deleted).
     fn new_book_list(&self, caller: &Caller, share_id: &str, list: &NewBookList) -> Result<()>;
+    /// Leaves (or declines) a notebook, losing the wraps; 403 for the
+    /// owner, who stops sharing instead.
+    fn leave_book(&self, caller: &Caller, share_id: &str) -> Result<()>;
+    /// Stops sharing a notebook (the owner); the id is retired for good.
+    fn stop_book(&self, caller: &Caller, share_id: &str) -> Result<()>;
     /// A page of one stream (the manifest is [`MANIFEST_STREAM`]).
     fn book_log(
         &self,

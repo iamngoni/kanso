@@ -105,7 +105,7 @@ pub(crate) fn book_mark(row: &SharedBook, stream: &str) -> Value {
 }
 
 /// The `meta` key holding a notebook's unpinned members.
-fn unpinned_key(share_id: &str) -> String {
+pub(crate) fn unpinned_key(share_id: &str) -> String {
     format!("collab.book.unpinned.{share_id}")
 }
 
@@ -248,7 +248,7 @@ impl Engine {
 
     /// The newest log sequence the server has for the notebook (the manifest
     /// page's `head`), never lower than `known`.
-    fn log_head(&self, share_id: &str, known: u64) -> Result<u64> {
+    pub(crate) fn log_head(&self, share_id: &str, known: u64) -> Result<u64> {
         let page = self
             .api
             .book_log(&self.account.caller, share_id, MANIFEST_STREAM, known, 1)?;
@@ -496,7 +496,14 @@ impl Engine {
             .into_iter()
             .map(|(_, _, book)| book)
             .find(|book| !book.is_empty())
-            .unwrap_or_else(|| joined_book_id(share_id));
+            .unwrap_or_else(|| {
+                // The notebook this library had for it is the private copy
+                // it ended as: a new one is made for joining again.
+                match old_pin {
+                    Some(_) => format!("{}.again", joined_book_id(share_id)),
+                    None => joined_book_id(share_id),
+                }
+            });
         let mut ctx = Ctx {
             row: SharedBook {
                 share_id: share_id.to_owned(),

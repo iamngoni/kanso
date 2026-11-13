@@ -159,6 +159,16 @@ impl Engine {
             loaded.note.since_snapshot += 1;
             loaded.note.bytes_since_snapshot += envelope.len() as u64;
         }
+        // Two members who ticked the same repeating task offline each wrote
+        // its next line: the merge keeps one.
+        if merge.text
+            && loaded.role().may_edit()
+            && let Some(doc) = loaded.doc.text()
+            && let Some(update) = doc.dedupe_repeat_lines()
+        {
+            self.store
+                .push_outbox(&loaded.note.share_id, "u", &update)?;
+        }
         Ok(merge)
     }
 

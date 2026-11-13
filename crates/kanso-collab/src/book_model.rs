@@ -81,6 +81,41 @@ pub struct BookSync {
     pub notes_written: usize,
     /// This account is no longer in the notebook.
     pub removed: bool,
+    /// The notebook ended here during this sync (removed, or it was
+    /// stopped): the private copy it left.
+    pub ended: Option<BookEnded>,
+}
+
+/// Why a notebook stopped being shared on this device.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BookEndReason {
+    /// An owner or manager removed this account.
+    Removed,
+    /// This account left.
+    Left,
+    /// The owner stopped sharing.
+    Stopped,
+    /// The server no longer shows the notebook to this account: it was
+    /// stopped, or this account was removed (the server answers both with
+    /// the same 404).
+    Gone,
+}
+
+/// A notebook that ended here and the private copy it left.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BookEnded {
+    pub share_id: String,
+    pub reason: BookEndReason,
+    /// The notebook's name while it was shared.
+    pub name: String,
+    /// The private notebook the notes are in now.
+    pub book_id: String,
+    /// What the private notebook is called.
+    pub copy_name: String,
+    /// Notes in the private copy.
+    pub notes: usize,
+    /// What to tell the person ([`crate::book_copy`]).
+    pub message: String,
 }
 
 /// A notebook joined on this device.
