@@ -38,8 +38,12 @@ pub struct ScheduleRow {
     pub book_id: String,
     /// A task's line (0-based) in its note; `None` for a note.
     pub line: Option<u32>,
-    /// A task's words as written, or the note's title.
+    /// A task's words as written (what `move_scheduled` and `set_task` look
+    /// the task up by), or the note's title.
     pub text: String,
+    /// What a row is called: a task's words without their date and repeat,
+    /// or the note's title.
+    pub title: String,
     /// The day (in `zone`, for a zoned date-time).
     pub date: DayDate,
     /// `09:00`, on the wall clock of `zone` or the local one; `None` for a

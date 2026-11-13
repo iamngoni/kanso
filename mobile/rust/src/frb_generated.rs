@@ -33846,6 +33846,7 @@ const _: fn() = || {
         let _: String = ScheduleRow.book_id;
         let _: Option<u32> = ScheduleRow.line;
         let _: String = ScheduleRow.text;
+        let _: String = ScheduleRow.title;
         let _: crate::api::types::DayDate = ScheduleRow.date;
         let _: Option<String> = ScheduleRow.time;
         let _: Option<String> = ScheduleRow.zone;
@@ -45529,6 +45530,7 @@ impl SseDecode for crate::api::schedule_types::ScheduleRow {
         let mut var_bookId = <String>::sse_decode(deserializer);
         let mut var_line = <Option<u32>>::sse_decode(deserializer);
         let mut var_text = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
         let mut var_date = <crate::api::types::DayDate>::sse_decode(deserializer);
         let mut var_time = <Option<String>>::sse_decode(deserializer);
         let mut var_zone = <Option<String>>::sse_decode(deserializer);
@@ -45543,6 +45545,7 @@ impl SseDecode for crate::api::schedule_types::ScheduleRow {
             book_id: var_bookId,
             line: var_line,
             text: var_text,
+            title: var_title,
             date: var_date,
             time: var_time,
             zone: var_zone,
@@ -59245,6 +59248,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::schedule_types::Sc
             self.0.book_id.into_into_dart().into_dart(),
             self.0.line.into_into_dart().into_dart(),
             self.0.text.into_into_dart().into_dart(),
+            self.0.title.into_into_dart().into_dart(),
             self.0.date.into_into_dart().into_dart(),
             self.0.time.into_into_dart().into_dart(),
             self.0.zone.into_into_dart().into_dart(),
@@ -70025,6 +70029,7 @@ impl SseEncode for crate::api::schedule_types::ScheduleRow {
         <String>::sse_encode(self.book_id, serializer);
         <Option<u32>>::sse_encode(self.line, serializer);
         <String>::sse_encode(self.text, serializer);
+        <String>::sse_encode(self.title, serializer);
         <crate::api::types::DayDate>::sse_encode(self.date, serializer);
         <Option<String>>::sse_encode(self.time, serializer);
         <Option<String>>::sse_encode(self.zone, serializer);

@@ -131,7 +131,12 @@ impl Library {
 }
 
 fn row_of(item: ScheduleItem) -> ScheduleRow {
+    let title = match item.kind {
+        ScheduleKind::Task => kanso_engine::tasks::display_text(&item.text),
+        ScheduleKind::Note => item.note_title.clone(),
+    };
     ScheduleRow {
+        title,
         kind: match item.kind {
             ScheduleKind::Task => ScheduleRowKind::Task,
             ScheduleKind::Note => ScheduleRowKind::Note,
@@ -212,6 +217,7 @@ mod tests {
         assert_eq!(rows[0].time.as_deref(), Some("15:00"));
         assert_eq!(rows[0].repeat.as_deref(), Some("every week"));
         assert_eq!(rows[0].line, Some(0));
+        assert_eq!(rows[0].title, "Review");
         assert!(!rows[0].projected && rows[1].projected);
         assert_eq!(rows[3].date, day(2026, 11, 27));
         // A day that is not on the calendar is refused.

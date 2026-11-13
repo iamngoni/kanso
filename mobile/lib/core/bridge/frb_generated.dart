@@ -35676,8 +35676,8 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   ScheduleRow dco_decode_schedule_row(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 13)
-      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
     return ScheduleRow(
       kind: dco_decode_schedule_row_kind(arr[0]),
       noteId: dco_decode_String(arr[1]),
@@ -35685,13 +35685,14 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       bookId: dco_decode_String(arr[3]),
       line: dco_decode_opt_box_autoadd_u_32(arr[4]),
       text: dco_decode_String(arr[5]),
-      date: dco_decode_day_date(arr[6]),
-      time: dco_decode_opt_String(arr[7]),
-      zone: dco_decode_opt_String(arr[8]),
-      repeat: dco_decode_opt_String(arr[9]),
-      done: dco_decode_bool(arr[10]),
-      property: dco_decode_opt_String(arr[11]),
-      projected: dco_decode_bool(arr[12]),
+      title: dco_decode_String(arr[6]),
+      date: dco_decode_day_date(arr[7]),
+      time: dco_decode_opt_String(arr[8]),
+      zone: dco_decode_opt_String(arr[9]),
+      repeat: dco_decode_opt_String(arr[10]),
+      done: dco_decode_bool(arr[11]),
+      property: dco_decode_opt_String(arr[12]),
+      projected: dco_decode_bool(arr[13]),
     );
   }
 
@@ -48083,6 +48084,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     var var_bookId = sse_decode_String(deserializer);
     var var_line = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_text = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
     var var_date = sse_decode_day_date(deserializer);
     var var_time = sse_decode_opt_String(deserializer);
     var var_zone = sse_decode_opt_String(deserializer);
@@ -48097,6 +48099,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       bookId: var_bookId,
       line: var_line,
       text: var_text,
+      title: var_title,
       date: var_date,
       time: var_time,
       zone: var_zone,
@@ -59319,6 +59322,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_String(self.bookId, serializer);
     sse_encode_opt_box_autoadd_u_32(self.line, serializer);
     sse_encode_String(self.text, serializer);
+    sse_encode_String(self.title, serializer);
     sse_encode_day_date(self.date, serializer);
     sse_encode_opt_String(self.time, serializer);
     sse_encode_opt_String(self.zone, serializer);

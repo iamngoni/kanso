@@ -29,6 +29,7 @@ pub struct _ScheduleRow {
     pub book_id: String,
     pub line: Option<u32>,
     pub text: String,
+    pub title: String,
     pub date: DayDate,
     pub time: Option<String>,
     pub zone: Option<String>,
