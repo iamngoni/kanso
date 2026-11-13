@@ -46,6 +46,9 @@ pub(crate) enum Undoable {
         /// put back, which takes both lines away in one write.
         restore: Option<TickUndo>,
     },
+    /// A date property or a task's due date moved to another day on the
+    /// Schedule: the note's body, put back in one write.
+    Moved(kanso_store::PropertyEdit),
     /// A card moved to a lane of a notebook's property board: its note's
     /// property, put back in one write.
     Property(kanso_engine::board::MoveUndo),
@@ -164,6 +167,9 @@ impl Library {
                     &self.inner.store,
                     &undo,
                 )?)),
+                Undoable::Moved(edit) => Ok(u32::from(
+                    self.inner.store.undo_note_property(&edit, Origin::Ui)? && edit.changed,
+                )),
                 Undoable::Lanes(undo) => {
                     kanso_engine::board_settings::undo_lane_edit(&self.inner.store, &undo)?;
                     Ok(undo.edits.len() as u32)

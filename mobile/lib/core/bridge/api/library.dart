@@ -282,6 +282,18 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required int nowMs,
   });
 
+  /// Moves a note's date property (`property`) or a task (`line`, `text`)
+  /// to day `to`, keeping its time, zone and repeat. For a projected
+  /// occurrence the caller passes the real task's line and words. The
+  /// change can be taken back with `undo` under the ticket it returns.
+  Future<CardMoved> moveScheduled({
+    required String noteId,
+    int? line,
+    required String text,
+    String? property,
+    required DayDate to,
+  });
+
   Future<MadeNote> newFromTemplate({
     required String templateId,
     String? bookId,
@@ -502,6 +514,10 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// repeating one on every day it comes round) and notes by their date
   /// properties, by day and time.
   Future<List<ScheduleRow>> schedule({required ScheduleRequest request});
+
+  /// The date properties the notebooks `books` define (every notebook
+  /// when `None`): what the Schedule's property filter offers.
+  Future<List<String>> scheduleDateKeys({List<String>? books});
 
   Future<List<Hit>> search({
     required String text,
