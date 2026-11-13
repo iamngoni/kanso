@@ -518,6 +518,12 @@ pub struct CaptureSettings {
     /// A second shortcut that opens the same window already listening
     /// (issue #193). Empty: not set.
     pub voice_shortcut: String,
+    /// Where a task typed in Quick capture's Task mode is written
+    /// (Settings › General › Quick capture). Today's daily note by default.
+    pub task_target: kanso_engine::capture_task::TaskTarget,
+    /// The window opens in Task mode: the last choice of its Note | Task
+    /// toggle.
+    pub task_mode: bool,
 }
 
 /// ⌃⌥Space.
@@ -529,6 +535,8 @@ impl Default for CaptureSettings {
             enabled: true,
             shortcut: DEFAULT_CAPTURE_SHORTCUT.to_owned(),
             voice_shortcut: String::new(),
+            task_target: Default::default(),
+            task_mode: false,
         }
     }
 }

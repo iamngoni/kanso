@@ -11,6 +11,7 @@ use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Sizable as _, h_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
+use kanso_engine::capture_task::TaskTarget;
 use kanso_store::Origin;
 
 use crate::hotkey::{self, Shortcut, Status};
@@ -237,9 +238,43 @@ pub fn capture_section(
             Row::new(Lucide::Mic, "Voice capture shortcut")
                 .detail(voice_detail)
                 .trailing(voice_recorder.clone()),
+            Row::new(Lucide::SquareCheck, "Captured tasks go to")
+                .detail(
+                    "Where a task typed in Task mode is written, with its date and repeat. Notes still go to the notebook you pick.",
+                )
+                .trailing(task_target_menu(config.task_target)),
         ],
         colors,
     )
+}
+
+/// The "Captured tasks go to" choice: today's daily note or the Inbox.
+fn task_target_menu(current: TaskTarget) -> impl IntoElement {
+    let name = |target| match target {
+        TaskTarget::DailyNote => "Today's daily note",
+        TaskTarget::Inbox => "Inbox",
+    };
+    Button::new("capture-task-target")
+        .debug_selector(|| "capture-task-target".into())
+        .outline()
+        .small()
+        .label(name(current))
+        .dropdown_caret(true)
+        .dropdown_menu(move |mut menu, _, _| {
+            for target in [TaskTarget::DailyNote, TaskTarget::Inbox] {
+                menu = menu.item(
+                    PopupMenuItem::new(name(target))
+                        .checked(target == current)
+                        .on_click(move |_, window, cx| {
+                            AppState::update_config(cx, |config| {
+                                config.capture.task_target = target
+                            });
+                            window.refresh();
+                        }),
+                );
+            }
+            menu
+        })
 }
 
 /// Daily notes: the template ⌘D's new notes start from.

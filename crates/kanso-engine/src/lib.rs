@@ -79,6 +79,7 @@ pub mod brief;
 pub mod calendar;
 pub mod canvas_embed;
 pub mod capture;
+pub mod capture_task;
 pub mod catalogue;
 pub mod daily;
 #[cfg(feature = "discovery")]
