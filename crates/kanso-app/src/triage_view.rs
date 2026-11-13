@@ -1447,6 +1447,7 @@ impl Workspace {
         self.close_settings(window, cx);
         self.close_graph(window, cx);
         self.close_board(window, cx);
+        self.close_schedule(window, cx);
         self.set_focus_mode(false, window, cx);
         self.flush(cx);
         let triage = match &self.triage {

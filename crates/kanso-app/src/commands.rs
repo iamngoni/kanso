@@ -1286,6 +1286,19 @@ static COMMANDS: &[Command] = &[
         needs: Needs::Nothing,
     },
     Command {
+        id: "open-schedule",
+        label: "Open Schedule",
+        label_when_pinned: None,
+        description: "Shows a month or a week with your dated tasks and the notes that have a date property on their days. Click a task to tick it; drag a task or note to another day to change its date.",
+        icon: IconName::CalendarDays,
+        keywords: &[
+            "schedule", "calendar", "month", "week", "agenda", "dates", "publish", "due",
+        ],
+        group: Group::GoTo,
+        run: action!(crate::schedule_view::ShowSchedule),
+        needs: Needs::Nothing,
+    },
+    Command {
         id: "open-overview",
         label: "Open Overview",
         label_when_pinned: None,
