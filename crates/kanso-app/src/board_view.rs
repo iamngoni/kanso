@@ -26,10 +26,12 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::schema::{BoardSpec, Mismatch, PropertyType};
 use kanso_core::tasks::Due;
+use kanso_engine::board::MoveUndo;
 use kanso_engine::board::{
     Board, BoardKind, Card, CardId, Lane, Move, PropertyBoard, Written, cards, placements,
     property_board, undo_move, write_move_undoable,
 };
+use kanso_engine::board_settings::{SettingsUndo, undo_lane_edit};
 use kanso_store::{NoteSummary, Origin, Sort, Store, TaskQuery};
 
 use crate::clock::Clock;
@@ -87,8 +89,17 @@ pub fn bind_keys(cx: &mut App) {
     ]);
 }
 
+/// What puts back the board's last change: a card's move to a property, or
+/// an edit of the lanes in Board settings.
+pub(crate) enum BoardUndo {
+    Move(MoveUndo),
+    Settings(SettingsUndo),
+}
+
 /// What the board asks of the workspace.
 pub enum BoardEvent {
+    /// Open Board settings for the notebook the board is of.
+    Settings(String),
     /// Write a move to its note.
     Move(Move),
     /// Open a card's note (at a task's line).
@@ -444,6 +455,7 @@ impl BoardView {
             )
             .child(div().flex_1())
             .children(self.render_group_by(cx))
+            .children(self.render_settings_button(cx))
             .child(kinds)
             .child(
                 Button::new("board-close")
@@ -455,6 +467,23 @@ impl BoardView {
                         window.dispatch_action(Box::new(CloseBoard), cx)
                     })),
             )
+    }
+
+    /// The "…" that opens Board settings, on a board grouped by a property.
+    fn render_settings_button(&self, cx: &mut Context<Self>) -> Option<impl IntoElement> {
+        self.board.group.as_ref()?;
+        let book = self.book()?.to_owned();
+        Some(
+            Button::new("board-settings")
+                .ghost()
+                .small()
+                .icon(Lucide::Ellipsis)
+                .tooltip("Board settings")
+                .debug_selector(|| "board-settings".into())
+                .on_click(
+                    cx.listener(move |_, _, _, cx| cx.emit(BoardEvent::Settings(book.clone()))),
+                ),
+        )
     }
 
     /// "Group by: stage ▾", on a board of notes in one notebook that has
@@ -1038,6 +1067,7 @@ impl Workspace {
     fn on_board_event(&mut self, event: &BoardEvent, window: &mut Window, cx: &mut Context<Self>) {
         match event {
             BoardEvent::Move(mv) => self.write_board_move(mv, window, cx),
+            BoardEvent::Settings(book) => self.open_board_settings(book, window, cx),
             BoardEvent::Open { note_id, line } => {
                 self.close_board(window, cx);
                 match line {
@@ -1082,8 +1112,9 @@ impl Workspace {
         match write_move_undoable(&self.store, mv, now) {
             Ok((Written::Done, undo)) => {
                 if let Some(undo) = undo {
-                    self.board_undo = Some(undo);
-                    self.say_board_move(mv, window, cx);
+                    self.board_undo = Some(BoardUndo::Move(undo));
+                    let words = self.move_words(mv, cx);
+                    self.say_board_change(words, window, cx);
                 }
             }
             Ok((Written::Moved, _)) => {
@@ -1102,46 +1133,88 @@ impl Workspace {
         }
     }
 
-    /// A notice for a move written to a property, with Undo (Cmd-Z does the
-    /// same while the board has the keyboard).
-    fn say_board_move(&mut self, mv: &Move, window: &mut Window, cx: &mut Context<Self>) {
+    /// The words for a move written to a property.
+    fn move_words(&self, mv: &Move, cx: &App) -> String {
         let Some(board) = self.board.clone() else {
-            return;
+            return String::new();
         };
-        let words = board.read(cx).board.label(&mv.to);
+        let lane = board.read(cx).board.label(&mv.to);
         let key = mv.property.clone().unwrap_or_default();
-        let words = match mv.to {
+        match mv.to {
             Lane::Unset => format!("Cleared its {key}."),
-            _ => format!("Moved to {words}."),
-        };
-        let notification = Notification::info(words)
-            .id::<UndoBoardMove>()
-            .action(|_, _, _| {
-                Button::new("undo-board-move")
-                    .label("Undo")
-                    .debug_selector(|| "undo-board-move".into())
-                    .on_click(|_, window, cx| window.dispatch_action(Box::new(UndoBoardMove), cx))
-            });
+            _ => format!("Moved to {lane}."),
+        }
+    }
+
+    /// A notice for a change to the board, with Undo (Cmd-Z does the same
+    /// while the board has the keyboard).
+    fn say_board_change(&mut self, words: String, window: &mut Window, cx: &mut Context<Self>) {
+        let workspace = cx.entity();
+        let notification =
+            Notification::info(words)
+                .id::<UndoBoardMove>()
+                .action(move |_, _, _| {
+                    let workspace = workspace.clone();
+                    Button::new("undo-board-move")
+                        .label("Undo")
+                        .debug_selector(|| "undo-board-move".into())
+                        .on_click(move |_, window, cx| {
+                            workspace.update(cx, |this, cx| this.undo_board_move(window, cx))
+                        })
+                });
         window.push_notification(notification, cx);
     }
 
-    /// Puts the note of the board's last property move back, in one write.
-    /// Nothing to put back leaves the key to whatever else binds it.
-    fn undo_board_move(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    /// Opens Board settings for notebook `book`. Each edit there is the
+    /// board's last change, to undo with one step.
+    fn open_board_settings(&mut self, book: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.flush(cx);
+        let store = self.store.clone();
+        let workspace = cx.entity();
+        self.board_settings = Some(crate::board_settings_dialog::open_dialog(
+            store,
+            book.to_owned(),
+            window,
+            cx,
+            move |undo, words, window, cx| {
+                workspace.update(cx, |this, cx| {
+                    this.board_undo = Some(BoardUndo::Settings(undo));
+                    this.say_board_change(words, window, cx);
+                    this.reload_board(cx);
+                })
+            },
+        ));
+    }
+
+    /// Puts back the board's last change: a property move or a lane edit,
+    /// each in one step. Nothing to put back leaves the key to whatever
+    /// else binds it.
+    pub(crate) fn undo_board_move(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(undo) = self.board_undo.take() else {
             cx.propagate();
             return;
         };
         window.remove_notification::<UndoBoardMove>(cx);
         self.flush(cx);
-        match undo_move(&self.store, &undo) {
+        let (result, changed) = match &undo {
+            BoardUndo::Move(undo) => (undo_move(&self.store, undo), "That note"),
+            BoardUndo::Settings(undo) => (undo_lane_edit(&self.store, undo), "A note"),
+        };
+        match result {
             Ok(true) => {}
             Ok(false) => self.notify_error(
-                "That note changed since it was moved, so it was left as it is.",
+                format!("{changed} changed since, so it was left as it is."),
                 window,
                 cx,
             ),
-            Err(err) => self.notify_error(format!("Couldn't undo the move: {err}"), window, cx),
+            Err(err) => self.notify_error(format!("Couldn't undo: {err}"), window, cx),
+        }
+        // Board settings, if open, shows the lanes as they are again.
+        if let Some(settings) = self.board_settings.clone() {
+            settings.update(cx, |settings, cx| {
+                settings.cancel_removal(cx);
+                settings.refresh(window, cx);
+            });
         }
         self.reload_board(cx);
     }
