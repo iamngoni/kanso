@@ -241,7 +241,10 @@ mixin _$CaptureInboxState {
 /// Whether a save is running.
  bool get saving;/// The IDs of the notes the last save made.
  List<String> get saved;/// How many notes saves have made since the app started.
- int get savedCount;/// How many items the last save kept to try again.
+ int get savedCount;/// The task lines the last save added, from "Add Kanso task" run while
+/// the app was closed.
+ List<String> get tasks;/// How many tasks saves have added since the app started.
+ int get taskCount;/// How many items the last save kept to try again.
  int get kept;/// What was left out or refused since the person last dismissed them, a
 /// sentence each, for the screen to show as a short notice.
  List<String> get problems;/// Why the last save failed; null once one works.
@@ -256,16 +259,16 @@ $CaptureInboxStateCopyWith<CaptureInboxState> get copyWith => _$CaptureInboxStat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CaptureInboxState&&(identical(other.saving, saving) || other.saving == saving)&&const DeepCollectionEquality().equals(other.saved, saved)&&(identical(other.savedCount, savedCount) || other.savedCount == savedCount)&&(identical(other.kept, kept) || other.kept == kept)&&const DeepCollectionEquality().equals(other.problems, problems)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CaptureInboxState&&(identical(other.saving, saving) || other.saving == saving)&&const DeepCollectionEquality().equals(other.saved, saved)&&(identical(other.savedCount, savedCount) || other.savedCount == savedCount)&&const DeepCollectionEquality().equals(other.tasks, tasks)&&(identical(other.taskCount, taskCount) || other.taskCount == taskCount)&&(identical(other.kept, kept) || other.kept == kept)&&const DeepCollectionEquality().equals(other.problems, problems)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,saving,const DeepCollectionEquality().hash(saved),savedCount,kept,const DeepCollectionEquality().hash(problems),error);
+int get hashCode => Object.hash(runtimeType,saving,const DeepCollectionEquality().hash(saved),savedCount,const DeepCollectionEquality().hash(tasks),taskCount,kept,const DeepCollectionEquality().hash(problems),error);
 
 @override
 String toString() {
-  return 'CaptureInboxState(saving: $saving, saved: $saved, savedCount: $savedCount, kept: $kept, problems: $problems, error: $error)';
+  return 'CaptureInboxState(saving: $saving, saved: $saved, savedCount: $savedCount, tasks: $tasks, taskCount: $taskCount, kept: $kept, problems: $problems, error: $error)';
 }
 
 
@@ -276,7 +279,7 @@ abstract mixin class $CaptureInboxStateCopyWith<$Res>  {
   factory $CaptureInboxStateCopyWith(CaptureInboxState value, $Res Function(CaptureInboxState) _then) = _$CaptureInboxStateCopyWithImpl;
 @useResult
 $Res call({
- bool saving, List<String> saved, int savedCount, int kept, List<String> problems, ApplicationError? error
+ bool saving, List<String> saved, int savedCount, List<String> tasks, int taskCount, int kept, List<String> problems, ApplicationError? error
 });
 
 
@@ -293,11 +296,13 @@ class _$CaptureInboxStateCopyWithImpl<$Res>
 
 /// Create a copy of CaptureInboxState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? saving = null,Object? saved = null,Object? savedCount = null,Object? kept = null,Object? problems = null,Object? error = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? saving = null,Object? saved = null,Object? savedCount = null,Object? tasks = null,Object? taskCount = null,Object? kept = null,Object? problems = null,Object? error = freezed,}) {
   return _then(_self.copyWith(
 saving: null == saving ? _self.saving : saving // ignore: cast_nullable_to_non_nullable
 as bool,saved: null == saved ? _self.saved : saved // ignore: cast_nullable_to_non_nullable
 as List<String>,savedCount: null == savedCount ? _self.savedCount : savedCount // ignore: cast_nullable_to_non_nullable
+as int,tasks: null == tasks ? _self.tasks : tasks // ignore: cast_nullable_to_non_nullable
+as List<String>,taskCount: null == taskCount ? _self.taskCount : taskCount // ignore: cast_nullable_to_non_nullable
 as int,kept: null == kept ? _self.kept : kept // ignore: cast_nullable_to_non_nullable
 as int,problems: null == problems ? _self.problems : problems // ignore: cast_nullable_to_non_nullable
 as List<String>,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
@@ -398,10 +403,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool saving,  List<String> saved,  int savedCount,  int kept,  List<String> problems,  ApplicationError? error)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool saving,  List<String> saved,  int savedCount,  List<String> tasks,  int taskCount,  int kept,  List<String> problems,  ApplicationError? error)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CaptureInboxState() when $default != null:
-return $default(_that.saving,_that.saved,_that.savedCount,_that.kept,_that.problems,_that.error);case _:
+return $default(_that.saving,_that.saved,_that.savedCount,_that.tasks,_that.taskCount,_that.kept,_that.problems,_that.error);case _:
   return orElse();
 
 }
@@ -419,10 +424,10 @@ return $default(_that.saving,_that.saved,_that.savedCount,_that.kept,_that.probl
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool saving,  List<String> saved,  int savedCount,  int kept,  List<String> problems,  ApplicationError? error)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool saving,  List<String> saved,  int savedCount,  List<String> tasks,  int taskCount,  int kept,  List<String> problems,  ApplicationError? error)  $default,) {final _that = this;
 switch (_that) {
 case _CaptureInboxState():
-return $default(_that.saving,_that.saved,_that.savedCount,_that.kept,_that.problems,_that.error);case _:
+return $default(_that.saving,_that.saved,_that.savedCount,_that.tasks,_that.taskCount,_that.kept,_that.problems,_that.error);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -439,10 +444,10 @@ return $default(_that.saving,_that.saved,_that.savedCount,_that.kept,_that.probl
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool saving,  List<String> saved,  int savedCount,  int kept,  List<String> problems,  ApplicationError? error)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool saving,  List<String> saved,  int savedCount,  List<String> tasks,  int taskCount,  int kept,  List<String> problems,  ApplicationError? error)?  $default,) {final _that = this;
 switch (_that) {
 case _CaptureInboxState() when $default != null:
-return $default(_that.saving,_that.saved,_that.savedCount,_that.kept,_that.problems,_that.error);case _:
+return $default(_that.saving,_that.saved,_that.savedCount,_that.tasks,_that.taskCount,_that.kept,_that.problems,_that.error);case _:
   return null;
 
 }
@@ -454,7 +459,7 @@ return $default(_that.saving,_that.saved,_that.savedCount,_that.kept,_that.probl
 
 
 class _CaptureInboxState implements CaptureInboxState {
-  const _CaptureInboxState({this.saving = false, final  List<String> saved = const <String>[], this.savedCount = 0, this.kept = 0, final  List<String> problems = const <String>[], this.error}): _saved = saved,_problems = problems;
+  const _CaptureInboxState({this.saving = false, final  List<String> saved = const <String>[], this.savedCount = 0, final  List<String> tasks = const <String>[], this.taskCount = 0, this.kept = 0, final  List<String> problems = const <String>[], this.error}): _saved = saved,_tasks = tasks,_problems = problems;
   
 
 /// Whether a save is running.
@@ -470,6 +475,19 @@ class _CaptureInboxState implements CaptureInboxState {
 
 /// How many notes saves have made since the app started.
 @override@JsonKey() final  int savedCount;
+/// The task lines the last save added, from "Add Kanso task" run while
+/// the app was closed.
+ final  List<String> _tasks;
+/// The task lines the last save added, from "Add Kanso task" run while
+/// the app was closed.
+@override@JsonKey() List<String> get tasks {
+  if (_tasks is EqualUnmodifiableListView) return _tasks;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_tasks);
+}
+
+/// How many tasks saves have added since the app started.
+@override@JsonKey() final  int taskCount;
 /// How many items the last save kept to try again.
 @override@JsonKey() final  int kept;
 /// What was left out or refused since the person last dismissed them, a
@@ -496,16 +514,16 @@ _$CaptureInboxStateCopyWith<_CaptureInboxState> get copyWith => __$CaptureInboxS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CaptureInboxState&&(identical(other.saving, saving) || other.saving == saving)&&const DeepCollectionEquality().equals(other._saved, _saved)&&(identical(other.savedCount, savedCount) || other.savedCount == savedCount)&&(identical(other.kept, kept) || other.kept == kept)&&const DeepCollectionEquality().equals(other._problems, _problems)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CaptureInboxState&&(identical(other.saving, saving) || other.saving == saving)&&const DeepCollectionEquality().equals(other._saved, _saved)&&(identical(other.savedCount, savedCount) || other.savedCount == savedCount)&&const DeepCollectionEquality().equals(other._tasks, _tasks)&&(identical(other.taskCount, taskCount) || other.taskCount == taskCount)&&(identical(other.kept, kept) || other.kept == kept)&&const DeepCollectionEquality().equals(other._problems, _problems)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,saving,const DeepCollectionEquality().hash(_saved),savedCount,kept,const DeepCollectionEquality().hash(_problems),error);
+int get hashCode => Object.hash(runtimeType,saving,const DeepCollectionEquality().hash(_saved),savedCount,const DeepCollectionEquality().hash(_tasks),taskCount,kept,const DeepCollectionEquality().hash(_problems),error);
 
 @override
 String toString() {
-  return 'CaptureInboxState(saving: $saving, saved: $saved, savedCount: $savedCount, kept: $kept, problems: $problems, error: $error)';
+  return 'CaptureInboxState(saving: $saving, saved: $saved, savedCount: $savedCount, tasks: $tasks, taskCount: $taskCount, kept: $kept, problems: $problems, error: $error)';
 }
 
 
@@ -516,7 +534,7 @@ abstract mixin class _$CaptureInboxStateCopyWith<$Res> implements $CaptureInboxS
   factory _$CaptureInboxStateCopyWith(_CaptureInboxState value, $Res Function(_CaptureInboxState) _then) = __$CaptureInboxStateCopyWithImpl;
 @override @useResult
 $Res call({
- bool saving, List<String> saved, int savedCount, int kept, List<String> problems, ApplicationError? error
+ bool saving, List<String> saved, int savedCount, List<String> tasks, int taskCount, int kept, List<String> problems, ApplicationError? error
 });
 
 
@@ -533,11 +551,13 @@ class __$CaptureInboxStateCopyWithImpl<$Res>
 
 /// Create a copy of CaptureInboxState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? saving = null,Object? saved = null,Object? savedCount = null,Object? kept = null,Object? problems = null,Object? error = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? saving = null,Object? saved = null,Object? savedCount = null,Object? tasks = null,Object? taskCount = null,Object? kept = null,Object? problems = null,Object? error = freezed,}) {
   return _then(_CaptureInboxState(
 saving: null == saving ? _self.saving : saving // ignore: cast_nullable_to_non_nullable
 as bool,saved: null == saved ? _self._saved : saved // ignore: cast_nullable_to_non_nullable
 as List<String>,savedCount: null == savedCount ? _self.savedCount : savedCount // ignore: cast_nullable_to_non_nullable
+as int,tasks: null == tasks ? _self._tasks : tasks // ignore: cast_nullable_to_non_nullable
+as List<String>,taskCount: null == taskCount ? _self.taskCount : taskCount // ignore: cast_nullable_to_non_nullable
 as int,kept: null == kept ? _self.kept : kept // ignore: cast_nullable_to_non_nullable
 as int,problems: null == problems ? _self._problems : problems // ignore: cast_nullable_to_non_nullable
 as List<String>,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable

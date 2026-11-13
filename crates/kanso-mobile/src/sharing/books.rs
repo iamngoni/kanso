@@ -660,11 +660,8 @@ impl SharedNotes {
     fn end_book(&self, notebook_id: &str, stop: bool) -> Result<BookEndedRow, KansoError> {
         guard(|| {
             let (engine, share_id) = self.shared_book(notebook_id)?;
-            let owned = engine
-                .book_view(&share_id)
-                .ok()
-                .and_then(|v| v.my_role)
-                == Some(Role::Owner);
+            let owned =
+                engine.book_view(&share_id).ok().and_then(|v| v.my_role) == Some(Role::Owner);
             if stop && !owned {
                 return Err(KansoError::invalid(
                     "Only the notebook's owner can stop sharing it. You can leave it instead.",

@@ -153,6 +153,61 @@ On Android:
   `unsupported`, `notOnDevice`, `denied`, `unreadable`, `failed`; empty text
   with no error means nothing was heard.
 
+## Task drops
+
+"Add Kanso task" (iOS App Intent, #390) reads the typed task with the Rust
+parser first (`kanso_task_preview`, below), then leaves a *task drop*. It
+has the same folder rules as any drop and no files:
+
+```json
+{"version": 1, "kind": "task", "createdAt": 1793000000000,
+ "line": "- [ ] film Pixel review @2026-11-13T15:00 every week",
+ "day": "2026-11-12", "time": "09:41", "target": "dailyNote"}
+```
+
+- `line` is the parser's task line, written as it is. A line that isn't one
+  open task line (`- [ ] ` and words, one line, at most 4 KB) is refused.
+- `day` and `time` are the phone's local date and time when it was
+  captured: the task goes in that day's daily note, even when it is saved
+  later.
+- `target` is `dailyNote` (the default) or `inbox` (the Inbox's task note),
+  from the setting "Captured tasks go to" (`captureTaskTarget` in
+  `preferences.json`).
+- Saving appends the line (`kanso_engine::capture_task::save_task_line`) and
+  reports it in the result's `tasks`. A locked Journal or Inbox refuses the
+  drop, and the problem names the task so it can be added by hand. A crash
+  between the write and removing the folder writes the line again: a task is
+  never lost, at worst doubled.
+
+## App Intents (iOS)
+
+`mobile/ios/Runner/KansoIntents.swift`, offered in Spotlight, Shortcuts,
+Siri and the Action button by `KansoShortcuts`:
+
+| Intent | Opens the app | Does |
+|---|---|---|
+| Capture in Kanso | no | Text as a note in the Inbox (a drop, saved at once) |
+| Add Kanso task | no | A task drop, saved at once; says "Added: film Pixel review · Fri 13 Nov 15:00 · every week" |
+| Search Kanso | yes | `kanso://open/search?q=…` |
+| Open Kanso note | yes | `kanso://open/note/<id>`, the note picked from `kanso_intent_notes` |
+
+All four need an unlocked phone (`authenticationPolicy =
+.requiresAuthentication`). Search and Open read nothing a lock hides:
+`kanso_intent_notes` never lists a locked note or a note in a locked
+notebook, and the app opens what they ask for behind its own locks.
+
+```c
+// {"line", "words", "when", "confirmation"}, or null for no task.
+char *kanso_task_preview(const char *text, int32_t year, uint32_t month,
+                         uint32_t day, uint32_t hour, uint32_t minute,
+                         bool month_first);
+// {"notes": [{"id", "title", "notebook"}]}, newest edit first.
+char *kanso_intent_notes(const char *library_path, const char *query,
+                         uint32_t limit);
+```
+
+Both are freed with `kanso_string_free` (`mobile/rust/src/intents.rs`).
+
 ## Saving drops
 
 The Rust core saves each finished drop, oldest first, as one note in the
@@ -175,7 +230,7 @@ Inbox (`kanso_engine::capture`), then removes its folder:
 // Saves every finished drop in `inbox_path` into the library at
 // `library_path` (its `library.db`). Returns a JSON string the caller frees
 // with kanso_string_free, or NULL when the arguments aren't UTF-8 paths:
-//   {"notes": ["note:cap-…"], "problems": ["…"], "kept": 0}
+//   {"notes": ["note:cap-…"], "tasks": ["- [ ] …"], "problems": ["…"], "kept": 0}
 char *kanso_capture_inbox(const char *library_path, const char *inbox_path);
 void kanso_string_free(char *text);
 ```

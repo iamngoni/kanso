@@ -8,6 +8,8 @@ import Foundation
 struct CaptureResult: Decodable, Equatable {
   /// The IDs of the notes that were made.
   var notes: [String]
+  /// The task lines added from task drops ("Add Kanso task").
+  var tasks: [String]? = nil
   /// Sentences about what was left out or refused, written for the person.
   var problems: [String]
   /// How many drops were kept to be tried again.
@@ -67,26 +69,39 @@ enum KansoCore {
   /// The two functions, from the process itself when the library is loaded
   /// already (the app), otherwise from the framework file.
   private static func loadFunctions() -> (CaptureFunction, FreeFunction)? {
-    func symbols(in handle: UnsafeMutableRawPointer?) -> (CaptureFunction, FreeFunction)? {
-      guard
-        let capture = dlsym(handle, "kanso_capture_inbox"),
-        let free = dlsym(handle, "kanso_string_free")
-      else { return nil }
-      return (
-        unsafeBitCast(capture, to: CaptureFunction.self),
-        unsafeBitCast(free, to: FreeFunction.self)
-      )
-    }
+    guard
+      let capture = symbol("kanso_capture_inbox"),
+      let free = symbol("kanso_string_free")
+    else { return nil }
+    return (
+      unsafeBitCast(capture, to: CaptureFunction.self),
+      unsafeBitCast(free, to: FreeFunction.self)
+    )
+  }
 
-    if let found = symbols(in: UnsafeMutableRawPointer(bitPattern: -2)) {  // RTLD_DEFAULT
+  /// A C function of the library, from the process itself when the library
+  /// is loaded already (the app), otherwise from the framework file.
+  static func symbol(_ name: String) -> UnsafeMutableRawPointer? {
+    if let found = dlsym(UnsafeMutableRawPointer(bitPattern: -2), name) {  // RTLD_DEFAULT
       return found
     }
     for url in frameworkBinaryURLs() where FileManager.default.fileExists(atPath: url.path) {
-      if let handle = dlopen(url.path, RTLD_NOW | RTLD_LOCAL), let found = symbols(in: handle) {
+      if let handle = dlopen(url.path, RTLD_NOW | RTLD_LOCAL), let found = dlsym(handle, name) {
         return found
       }
     }
     return nil
+  }
+
+  /// The text a library function returned, freed after it is read. `nil`
+  /// when it returned null or `kanso_string_free` can't be found.
+  static func take(_ pointer: UnsafeMutablePointer<CChar>?) -> Data? {
+    guard let pointer else { return nil }
+    let data = Data(bytes: pointer, count: strlen(pointer))
+    if let free = symbol("kanso_string_free") {
+      unsafeBitCast(free, to: FreeFunction.self)(pointer)
+    }
+    return data
   }
 
   /// A sentence for the person about what saving did, in Kanso's plain words.
