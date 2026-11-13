@@ -850,6 +850,11 @@ impl Workspace {
             cx.observe_window_activation(window, |_, window, cx| {
                 if window.is_window_active() {
                     crate::device_approval::refresh(cx);
+                    // Files opened with File › Open… that changed while
+                    // away (issue #432).
+                    if !cfg!(test) {
+                        crate::library_import::refresh_opened_files(window, cx);
+                    }
                 }
             }),
         ];
