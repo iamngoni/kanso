@@ -121,7 +121,16 @@ class RustLibraryRepository implements LibraryRepository {
   Future<Either<ApplicationError, NotebookRow>> createNotebook(
     String name, {
     String? parentId,
-  }) => attempt(() => _library.createNotebook(name: name, parentId: parentId));
+    NewNotebookKind kind = NewNotebookKind.blank,
+  }) => attempt(
+    () => kind == NewNotebookKind.blank
+        ? _library.createNotebook(name: name, parentId: parentId)
+        : _library.createNotebookAs(
+            name: name,
+            parentId: parentId,
+            kind: kind,
+          ),
+  );
 
   @override
   Future<Either<ApplicationError, List<TagRow>>> tags() =>

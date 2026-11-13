@@ -30,7 +30,10 @@ Future<void> showTemplatePicker(
   String? notebookId,
 }) async {
   final bloc = context.read<JournalBloc>();
-  final id = await TemplatePickerSheet.show(context);
+  final id = await TemplatePickerSheet.show(
+    context,
+    notebookId: notebookId,
+  );
   if (id != null) {
     bloc.add(
       JournalEvent.fromTemplateRequested(

@@ -1245,6 +1245,26 @@
   "@newNotebookCreate": {
     "description": "The button that makes the notebook."
   },
+  "newNotebookKindLabel": "Start from",
+  "@newNotebookKindLabel": {
+    "description": "The label of the choice between a blank notebook and a Video studio, on the sheet that makes a notebook."
+  },
+  "newNotebookKindBlank": "Blank notebook",
+  "@newNotebookKindBlank": {
+    "description": "The choice of a notebook with nothing set up."
+  },
+  "newNotebookKindBlankHint": "An empty notebook for notes.",
+  "@newNotebookKindBlankHint": {
+    "description": "The line under the Blank notebook choice."
+  },
+  "newNotebookKindStudio": "Video studio",
+  "@newNotebookKindStudio": {
+    "description": "The choice of a notebook set up for making videos."
+  },
+  "newNotebookKindStudioHint": "Sets up a board (Idea \u2192 Scripting \u2192 Shooting \u2192 Editing \u2192 Published), a Schedule, and two templates: Video brief and Shot list. You can rename or change any of it later.",
+  "@newNotebookKindStudioHint": {
+    "description": "The line under the Video studio choice: what the preset sets up."
+  },
   "newNotebookInvalid": "Give the notebook a name.",
   "@newNotebookInvalid": {
     "description": "The line shown when a new notebook's name is empty or not accepted."
@@ -5007,6 +5027,14 @@
   "templatePickerTitle": "New from template",
   "@templatePickerTitle": {
     "description": "The title of the sheet that lists the templates."
+  },
+  "templatesInNotebook": "In this notebook",
+  "@templatesInNotebook": {
+    "description": "The heading over the templates the current notebook names, in the list of templates."
+  },
+  "templatesOthers": "Other templates",
+  "@templatesOthers": {
+    "description": "The heading over the templates the current notebook does not name."
   },
   "templatesEmptyTitle": "No templates yet",
   "@templatesEmptyTitle": {

@@ -38,7 +38,7 @@ class NewNotebookBloc extends Bloc<NewNotebookEvent, NewNotebookState> {
       return;
     }
     emit(const NewNotebookState(creating: true));
-    final made = await _library.createNotebook(name);
+    final made = await _library.createNotebook(name, kind: event.kind);
     emit(
       made.fold(
         (error) => NewNotebookState(

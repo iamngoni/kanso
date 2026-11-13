@@ -10,7 +10,11 @@ import '../../data/application_error.dart';
 /// The notes in the Templates notebook, and the template new daily notes
 /// start from.
 abstract interface class TemplatesRepository {
-  Future<Either<ApplicationError, List<TemplateRow>>> templates();
+  /// The templates by title; with [notebookId], the ones that notebook names
+  /// come first (each is marked `inNotebook`).
+  Future<Either<ApplicationError, List<TemplateRow>>> templates({
+    String? notebookId,
+  });
 
   /// A note from the template [templateId] in the notebook [bookId]; the
   /// core picks the Inbox when it is null.

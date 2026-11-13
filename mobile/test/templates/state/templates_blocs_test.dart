@@ -84,6 +84,35 @@ void main() {
       ]);
     });
 
+    test("lists the notebook's own templates first", () async {
+      fixture.notebookTemplates['book:studio'] = <String>[
+        'note:tpl-meeting',
+        'note:tpl-empty',
+      ];
+      final bloc = TemplatePickerBloc(fixture)
+        ..add(const TemplatePickerEvent.started(notebookId: 'book:studio'));
+      addTearDown(bloc.close);
+      final state = await bloc.stream.firstWhere(
+        (s) => s.status == LoadStatus.ready,
+      );
+      expect(fixture.templateNotebooks, <String?>['book:studio']);
+      expect(state.templates.map((t) => (t.id, t.inNotebook)), <(String, bool)>[
+        ('note:tpl-meeting', true),
+        ('note:tpl-empty', true),
+        ('note:tpl-daily', false),
+      ]);
+    });
+
+    test('a notebook that names none lists them as they are', () async {
+      final bloc = TemplatePickerBloc(fixture)
+        ..add(const TemplatePickerEvent.started(notebookId: 'book:plain'));
+      addTearDown(bloc.close);
+      final state = await bloc.stream.firstWhere(
+        (s) => s.status == LoadStatus.ready,
+      );
+      expect(state.templates.any((t) => t.inNotebook), isFalse);
+    });
+
     test('a failure is a failure', () async {
       fixture.failure = const ApplicationError.storage(message: 'Disk.');
       final bloc = TemplatePickerBloc(fixture)

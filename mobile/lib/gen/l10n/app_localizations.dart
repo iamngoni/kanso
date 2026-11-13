@@ -1828,6 +1828,36 @@ abstract class AppLocalizations {
   /// **'Create'**
   String get newNotebookCreate;
 
+  /// The label of the choice between a blank notebook and a Video studio, on the sheet that makes a notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Start from'**
+  String get newNotebookKindLabel;
+
+  /// The choice of a notebook with nothing set up.
+  ///
+  /// In en, this message translates to:
+  /// **'Blank notebook'**
+  String get newNotebookKindBlank;
+
+  /// The line under the Blank notebook choice.
+  ///
+  /// In en, this message translates to:
+  /// **'An empty notebook for notes.'**
+  String get newNotebookKindBlankHint;
+
+  /// The choice of a notebook set up for making videos.
+  ///
+  /// In en, this message translates to:
+  /// **'Video studio'**
+  String get newNotebookKindStudio;
+
+  /// The line under the Video studio choice: what the preset sets up.
+  ///
+  /// In en, this message translates to:
+  /// **'Sets up a board (Idea → Scripting → Shooting → Editing → Published), a Schedule, and two templates: Video brief and Shot list. You can rename or change any of it later.'**
+  String get newNotebookKindStudioHint;
+
   /// The line shown when a new notebook's name is empty or not accepted.
   ///
   /// In en, this message translates to:
@@ -6663,6 +6693,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New from template'**
   String get templatePickerTitle;
+
+  /// The heading over the templates the current notebook names, in the list of templates.
+  ///
+  /// In en, this message translates to:
+  /// **'In this notebook'**
+  String get templatesInNotebook;
+
+  /// The heading over the templates the current notebook does not name.
+  ///
+  /// In en, this message translates to:
+  /// **'Other templates'**
+  String get templatesOthers;
 
   /// The title shown when the Templates notebook has no notes.
   ///

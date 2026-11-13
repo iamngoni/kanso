@@ -28,10 +28,20 @@ class FixtureJournalRepository
   };
 
   List<TemplateRow> templateRows = const <TemplateRow>[
-    TemplateRow(id: 'note:tpl-daily', title: 'Daily'),
-    TemplateRow(id: 'note:tpl-meeting', title: 'Meeting notes'),
-    TemplateRow(id: 'note:tpl-empty', title: ''),
+    TemplateRow(id: 'note:tpl-daily', title: 'Daily', inNotebook: false),
+    TemplateRow(
+      id: 'note:tpl-meeting',
+      title: 'Meeting notes',
+      inNotebook: false,
+    ),
+    TemplateRow(id: 'note:tpl-empty', title: '', inNotebook: false),
   ];
+
+  /// The notebook each `templates` call was for.
+  final List<String?> templateNotebooks = <String?>[];
+
+  /// The templates each notebook names (by ID), listed first for it.
+  final Map<String, List<String>> notebookTemplates = <String, List<String>>{};
 
   String? daily;
 
@@ -223,9 +233,25 @@ class FixtureJournalRepository
   }
 
   @override
-  Future<Either<ApplicationError, List<TemplateRow>>> templates() async {
+  Future<Either<ApplicationError, List<TemplateRow>>> templates({
+    String? notebookId,
+  }) async {
+    templateNotebooks.add(notebookId);
     await templatesGate?.future;
-    return _result(templateRows);
+    final named = notebookTemplates[notebookId] ?? const <String>[];
+    if (named.isEmpty) {
+      return _result(templateRows);
+    }
+    final first = <TemplateRow>[
+      for (final id in named)
+        for (final row in templateRows)
+          if (row.id == id)
+            TemplateRow(id: row.id, title: row.title, inNotebook: true),
+    ];
+    return _result(<TemplateRow>[
+      ...first,
+      ...templateRows.where((row) => !named.contains(row.id)),
+    ]);
   }
 
   @override

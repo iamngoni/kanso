@@ -14,6 +14,7 @@ import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_check_row.dart';
 import '../../../core/views/widgets/kanso_empty_state.dart';
+import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../../core/views/widgets/sheet_header.dart';
 import '../../../injection.dart';
 import '../../state/template_picker/template_picker_bloc.dart';
@@ -29,6 +30,7 @@ class TemplatePickerSheet extends StatelessWidget {
     required this.title,
     this.daily = false,
     this.current,
+    this.notebookId,
     super.key,
   });
 
@@ -43,15 +45,23 @@ class TemplatePickerSheet extends StatelessWidget {
   /// The template in use, while choosing the daily template.
   final String? current;
 
-  /// Shows the templates over the whole app, to make a note from.
-  static Future<String?> show(BuildContext context) {
+  /// The notebook the note will be made in: the templates it names are
+  /// listed first, under their own heading.
+  final String? notebookId;
+
+  /// Shows the templates over the whole app, to make a note from in
+  /// [notebookId] (the notebook the list shows): its own come first.
+  static Future<String?> show(BuildContext context, {String? notebookId}) {
     return showKansoBottomSheet<String>(
       context,
       builder: (_) => BlocProvider<TemplatePickerBloc>(
         create: (_) =>
             getIt<TemplatePickerBloc>()
-              ..add(const TemplatePickerEvent.started()),
-        child: TemplatePickerSheet(title: context.l10n.templatePickerTitle),
+              ..add(TemplatePickerEvent.started(notebookId: notebookId)),
+        child: TemplatePickerSheet(
+          title: context.l10n.templatePickerTitle,
+          notebookId: notebookId,
+        ),
       ),
     );
   }
@@ -109,7 +119,7 @@ class TemplatePickerSheet extends StatelessWidget {
                   label: l10n.retry,
                   expanded: false,
                   onPressed: () => context.read<TemplatePickerBloc>().add(
-                    const TemplatePickerEvent.started(),
+                    TemplatePickerEvent.started(notebookId: notebookId),
                   ),
                 ),
               ),
@@ -122,14 +132,30 @@ class TemplatePickerSheet extends StatelessWidget {
               ),
             );
           case LoadStatus.ready:
-            for (final TemplateRow row in state.templates) {
+            // The notebook's own templates get a heading, and so do the
+            // others, when there are both.
+            final own = state.templates.where((row) => row.inNotebook).length;
+            final headed = !daily && own > 0;
+            for (final (int index, TemplateRow row)
+                in state.templates.indexed) {
+              if (headed && (index == 0 || index == own)) {
+                children.add(
+                  KansoSectionHeader(
+                    label: index == 0
+                        ? l10n.templatesInNotebook
+                        : l10n.templatesOthers,
+                  ),
+                );
+              }
               final title = row.title.trim().isEmpty
                   ? l10n.noteUntitled
                   : row.title;
               children.add(
                 KansoCheckRow(
                   label: title,
-                  icon: KansoIcons.layoutTemplate,
+                  icon: row.inNotebook
+                      ? KansoIcons.clapperboard
+                      : KansoIcons.layoutTemplate,
                   checked: daily && current == row.id,
                   onTap: () => Navigator.of(context).pop(row.id),
                 ),
