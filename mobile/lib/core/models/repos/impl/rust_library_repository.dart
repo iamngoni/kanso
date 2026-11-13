@@ -339,6 +339,19 @@ class RustLibraryRepository implements LibraryRepository {
   );
 
   @override
+  Future<Either<ApplicationError, Ticked>> stopRepeatingAt({
+    required String noteId,
+    required int index,
+    required String baseRev,
+  }) => attempt(
+    () => _library.stopRepeatingAt(
+      noteId: noteId,
+      index: index,
+      baseRev: baseRev,
+    ),
+  );
+
+  @override
   Future<Either<ApplicationError, List<PdfNotes>>> pdfHighlights(
     String noteId,
   ) => attempt(() => _library.pdfHighlights(noteId: noteId));

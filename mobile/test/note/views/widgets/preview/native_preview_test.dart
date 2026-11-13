@@ -266,6 +266,50 @@ void main() {
       expect(_styleOf(tester, 'Dust').color, _rgb(_palette.taskDone));
     });
 
+    testWidgets(
+      "a repeating task's chip opens its menu, and Stop repeating asks for "
+      'that task; a plain chip does not',
+      (tester) async {
+        PreviewListItem item(int index, String url, String label) =>
+            PreviewListItem(
+              task: PreviewTaskBox(checked: false, index: index),
+              blocks: <PreviewBlock>[
+                _paragraph(<PreviewInline>[
+                  _text('Film '),
+                  PreviewInline.due(
+                    url: url,
+                    label: label,
+                    title: 'Due Friday · Repeats every week',
+                    tone: DueTone.plain,
+                  ),
+                ]),
+              ],
+            );
+        await pump(tester, <PreviewBlock>[
+          PreviewBlock.list(
+            ordered: false,
+            start: 1,
+            tight: true,
+            items: <PreviewListItem>[
+              item(5, 'kanso-due:2099-11-14;repeat=every_week', 'Fri ↻'),
+              item(6, 'kanso-due:2099-11-15', 'Sat'),
+            ],
+          ),
+        ]);
+        await tester.tap(find.text('Sat'));
+        await tester.pumpAndSettle();
+        expect(find.text('Stop repeating'), findsNothing);
+        expect(tapped, <String>['kanso-due:2099-11-15']);
+        tapped.clear();
+        await tester.tap(find.text('Fri ↻'));
+        await tester.pumpAndSettle();
+        expect(find.text('Stop repeating'), findsOneWidget);
+        await tester.tap(find.text('Stop repeating'));
+        await tester.pumpAndSettle();
+        expect(tapped, <String>['${stopRepeatingLink}5']);
+      },
+    );
+
     testWidgets('a code block shows its language and copies by its number', (
       tester,
     ) async {

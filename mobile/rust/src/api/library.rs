@@ -202,6 +202,18 @@ impl KansoLibrary {
         self.0.toggle_task_at(&note_id, index, &base_rev)
     }
 
+    /// "Stop repeating" from a due chip's menu: the `index`-th task of a
+    /// note drawn at `base_rev` loses its `every …` words and keeps its due
+    /// date.
+    pub fn stop_repeating_at(
+        &self,
+        note_id: String,
+        index: u32,
+        base_rev: String,
+    ) -> Result<Ticked, KansoError> {
+        self.0.stop_repeating_at(&note_id, index, &base_rev)
+    }
+
     /// The highlights each PDF has in a note: what the preview's "4
     /// highlights" line opens.
     pub fn pdf_highlights(&self, note_id: String) -> Result<Vec<PdfNotes>, KansoError> {

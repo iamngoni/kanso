@@ -266,6 +266,48 @@ fn ticking_a_repeating_task_writes_the_next_one_and_undo_restores() {
     );
 }
 
+/// "Stop repeating" from a due chip's menu (#390): the `every …` words go,
+/// the due date stays, Undo puts the text back, and a stale page, a ticked
+/// task or one without a repeat writes nothing.
+#[test]
+fn stop_repeating_keeps_the_date_and_undo_restores() {
+    let phone = lone_phone();
+    let library = &phone.library;
+    let original = "- [ ] film @2099-11-14T15:00 every week #video\n- [ ] edit @2099-11-15\n- [x] old @2099-11-01 every day\n";
+    let id = note(library, "Shoots", original);
+    let rev = library.note(&id).unwrap().rev;
+    let Ticked::Changed { rev: new, undo, .. } = library.stop_repeating_at(&id, 0, &rev).unwrap()
+    else {
+        panic!("not changed");
+    };
+    let stopped = "- [ ] film @2099-11-14T15:00 #video\n- [ ] edit @2099-11-15\n- [x] old @2099-11-01 every day\n";
+    assert_eq!(library.note(&id).unwrap().body.unwrap(), stopped);
+    assert_eq!(
+        library.stop_repeating_at(&id, 0, &rev),
+        Err(KansoError::Conflict {
+            current_rev: new.clone()
+        })
+    );
+    assert_eq!(
+        library.stop_repeating_at(&id, 0, &new).unwrap(),
+        Ticked::Unchanged
+    );
+    assert_eq!(
+        library.stop_repeating_at(&id, 1, &new).unwrap(),
+        Ticked::Unchanged
+    );
+    assert_eq!(
+        library.stop_repeating_at(&id, 2, &new).unwrap(),
+        Ticked::Unchanged
+    );
+    assert_eq!(
+        library.stop_repeating_at(&id, 9, &new).unwrap(),
+        Ticked::Missing
+    );
+    assert_eq!(library.undo(undo).unwrap(), 1);
+    assert_eq!(library.note(&id).unwrap().body.unwrap(), original);
+}
+
 #[test]
 fn ticking_a_task_by_place() {
     let phone = lone_phone();
@@ -347,6 +389,56 @@ fn block_addresses(blocks: &[PreviewBlock], found: &mut Vec<String>) {
             _ => {}
         }
     }
+}
+
+/// A repeating task's chip on the phone carries its repeat, as the
+/// desktop's does: its address says it (which its menu reads), its words end
+/// in ↻ and its longer words say how often.
+#[test]
+fn a_repeating_chip_carries_its_repeat() {
+    let phone = lone_phone();
+    let library = &phone.library;
+    let id = note(
+        library,
+        "Shoots",
+        "- [ ] film @2099-11-14T15:00 every week\n- [ ] edit @2099-11-15\n",
+    );
+    let blocks = library
+        .renderer()
+        .preview_blocks(&id, palette(), PreviewOptions::default())
+        .unwrap();
+    fn dues(blocks: &[PreviewBlock], found: &mut Vec<(String, String, String)>) {
+        for block in blocks {
+            let list: &[PreviewInline] = match block {
+                PreviewBlock::Paragraph { inlines } => inlines,
+                PreviewBlock::List { items, .. } => {
+                    for item in items {
+                        dues(&item.blocks, found);
+                    }
+                    continue;
+                }
+                _ => continue,
+            };
+            for inline in list {
+                if let PreviewInline::Due {
+                    url, label, title, ..
+                } = inline
+                {
+                    found.push((url.clone(), label.clone(), title.clone()));
+                }
+            }
+        }
+    }
+    let mut found = Vec::new();
+    dues(&blocks, &mut found);
+    assert_eq!(found.len(), 2, "{found:?}");
+    let (url, label, title) = &found[0];
+    assert_eq!(url, "kanso-due:2099-11-14T15:00;repeat=every_week");
+    assert!(label.ends_with(" \u{21bb}"), "{label}");
+    assert!(title.ends_with("Repeats every week"), "{title}");
+    let (url, label, _) = &found[1];
+    assert_eq!(url, "kanso-due:2099-11-15");
+    assert!(!label.contains('\u{21bb}'));
 }
 
 #[test]

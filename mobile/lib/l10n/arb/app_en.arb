@@ -1999,6 +1999,10 @@
   "@previewTask": {
     "description": "Read by a screen reader for a task's box in a note's preview, with whether it is ticked."
   },
+  "previewStopRepeating": "Stop repeating",
+  "@previewStopRepeating": {
+    "description": "In the menu a repeating task's date chip opens in a note's preview: removes the task's repeat and keeps its date."
+  },
   "pdfNotesTitle": "Highlights",
   "@pdfNotesTitle": {
     "description": "Title of the sheet that lists the highlights a note holds for its PDFs."

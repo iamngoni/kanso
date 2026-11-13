@@ -168,7 +168,7 @@ reads like a Read key, with fewer tools, and it adds:
 | MCP tool | REST | What it does |
 |---|---|---|
 | `create-note` | `POST /notes` | A new note, saved at once. It may set only `bookId`, `title`, `body`, `status` and `tags`. Any other field, `_id` and `_rev` included, is `403`: "This key can only add a new note, with a notebook, title, text, status and tags. It can't set `…`, or change a note that is there." The trash and the Templates notebook are refused |
-| `kanso-add-task` | none | Adds one task line at the end of a note. Takes `text` (one line), and `noteId` or `target`, not both: `daily` is today's daily note, made when missing, and the default; `inbox` is the note titled Tasks in the Inbox, made when missing. `dateOrder` is `dmy` (the default) or `mdy`, for dates written with a slash. Returns `noteId`, `line` (0-based), `task` (the line written), `due`, `repeat`, `label` and `uri` |
+| `kanso-add-task` | none | Adds one task line at the end of a note. Takes `text` (one line), and `noteId` or `target`, not both: `daily` is today's daily note, made when missing, and the default; `inbox` is the Inbox's task note, titled Inbox tasks (`note:inbox-tasks`, the note Quick Capture's Task mode uses), made when missing. A note titled Tasks in the Inbox, where older versions put these, has its lines moved to the end of it and goes to the trash the next time a task goes there. `dateOrder` is `dmy` (the default) or `mdy`, for dates written with a slash. Returns `noteId`, `line` (0-based), `task` (the line written), `due`, `repeat`, `label` and `uri` |
 | `kanso-parse-when` | none | Reads the date, time and repeat at the end of a line of task text, as `kanso-add-task` would, and writes nothing. Returns `text` (the words before the date), `due`, `repeat` and `label`; with no date, the text and three `null`s |
 | `kanso-set-task-done` | none | Ticks a task, given `noteId`, `line` and its exact `text`. Only with `done: true`: clearing a checkbox is `403`, "This key can tick a task but not clear its checkbox. Pass `done: true`." Ticking a repeating task also writes the next one above it |
 
@@ -360,7 +360,7 @@ commands, and a fifth to connect:
 | Command | What it does |
 |---|---|
 | **Quick Capture** | Saves a note. The first line is the title and the rest is the note. **Notebook** starts at the Inbox. The toast, "Saved to Inbox", has **Open in Kanso** |
-| **Add Task** | Adds one task. The line under the field shows how Kanso reads the date, such as "Fri 14 Nov, 15:00 · every week", or "No date or repeat. It will be saved as written." **Put it in** offers Today's daily note (the default), the Inbox task list or a recent note. The toast says "Task added · Fri 14 Nov 15:00 · every week" |
+| **Add Task** | Adds one task. The line under the field shows how Kanso reads the date, such as "Fri 14 Nov, 15:00 · every week", or "No date or repeat. It will be saved as written." **Put it in** offers Today's daily note (the default), the Inbox task list (the Inbox tasks note, shared with Quick Capture) or a recent note. The toast says "Task added · Fri 14 Nov 15:00 · every week" |
 | **Search Notes** | Searches your notes, with a preview. Enter opens the note in Kanso. **Copy Link** copies its `kanso://open/note/<id>` link and **Copy Title** its title. **Add Task Here** adds a task to a note that already has tasks |
 | **Open Note** | Lists recently updated notes. Enter opens one in Kanso |
 | **Connect to Kanso** | Pairs again, or **Paste a Key** to use a key made by hand |
