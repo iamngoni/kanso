@@ -18,6 +18,8 @@
 //! text reaches the library through [`Engine::sync_editor`] only.
 
 pub mod book;
+mod book_end;
+mod book_people;
 mod book_sync;
 pub mod canvas;
 pub mod live;
@@ -1103,6 +1105,8 @@ pub fn rebase(base: &str, local: &str, current: &str) -> String {
     out
 }
 
+#[cfg(test)]
+mod book_rotation_tests;
 #[cfg(test)]
 mod book_tests;
 #[cfg(test)]

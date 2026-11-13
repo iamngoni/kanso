@@ -10,8 +10,8 @@ use serde_json::json;
 
 use super::*;
 use crate::api::{
-    BookCreated, BookEpochLink, BookInfo, BookListEntry, BookLogPage, MANIFEST_STREAM, NewBook,
-    NewBookList,
+    BookCreated, BookEpochLink, BookInfo, BookListEntry, BookLogPage, BookMemberStatus,
+    MANIFEST_STREAM, NewBook, NewBookList,
 };
 use crate::book_members::{MAX_BOOK_MEMBERS, is_well_formed as list_well_formed, link_hash};
 use crate::book_members_model::BookMemberList;
@@ -19,6 +19,20 @@ use crate::book_members_model::BookMemberList;
 /// A shared notebook may hold this many notes.
 pub const MAX_BOOK_NOTES: usize = 2_000;
 const PAGE_LISTS: usize = 200;
+
+/// The server's wraps (account, epoch, wrap) and history links (epoch, link).
+pub type BookKeying = (Vec<(String, u32, String)>, Vec<(u32, String)>);
+
+/// Something a test runs just before the server takes a notebook's next
+/// list, as another client writing at that moment would.
+#[derive(Default)]
+pub(super) struct Hook(Option<Box<dyn FnOnce() + Send>>);
+
+impl std::fmt::Debug for Hook {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Hook")
+    }
+}
 
 #[derive(Debug, Default)]
 struct Stream {
@@ -90,13 +104,27 @@ impl State {
     }
 
     /// A listed member's keys and username must be their account's own.
-    fn check_book_members(&self, list: &BookMemberList) -> Result<()> {
+    /// `stayers` are those the list before also named: one of them whose
+    /// account is gone is `member_gone` (cut them), any other account
+    /// without keys `unknown_member`.
+    fn check_book_members(&self, list: &BookMemberList, stayers: &[String]) -> Result<()> {
         if self.lax_book_members {
             return Ok(());
         }
         for member in &list.members {
             match self.identities.get(&member.account) {
-                None => return Err(bad()),
+                None => {
+                    let code = if stayers.contains(&member.account) {
+                        "member_gone"
+                    } else {
+                        "unknown_member"
+                    };
+                    return Err(CollabError::api(
+                        409,
+                        code,
+                        json!({ "error": code, "account": member.account }),
+                    ));
+                }
                 Some((username, published))
                     if *username != member.username
                         || published.sign_pub != member.sign_pub
@@ -140,6 +168,46 @@ impl MemoryCollab {
             }
         }
         out
+    }
+
+    /// Every log entry and snapshot the server holds for a notebook, as
+    /// (stream, snapshot's base sequence, envelope) (tests).
+    pub fn book_entries(&self, share_id: &str) -> Vec<(String, Option<u64>, Vec<u8>)> {
+        let state = self.state.lock().expect("poisoned");
+        let mut out = Vec::new();
+        if let Some(book) = state.books.get(share_id) {
+            for (name, stream) in &book.streams {
+                for (_, _, envelope) in &stream.log {
+                    out.push((name.clone(), None, envelope.clone()));
+                }
+                if let Some((base, envelope)) = &stream.snapshot {
+                    out.push((name.clone(), Some(*base), envelope.clone()));
+                }
+            }
+        }
+        out
+    }
+
+    /// The server's wraps and history links for a notebook (tests):
+    /// (account, epoch, wrap) and (epoch, link).
+    pub fn book_keying(&self, share_id: &str) -> BookKeying {
+        let state = self.state.lock().expect("poisoned");
+        let Some(book) = state.books.get(share_id) else {
+            return (Vec::new(), Vec::new());
+        };
+        (
+            book.wraps
+                .iter()
+                .map(|((account, epoch), wrap)| (account.clone(), *epoch, wrap.clone()))
+                .collect(),
+            book.history.iter().map(|(e, l)| (*e, l.clone())).collect(),
+        )
+    }
+
+    /// Runs `hook` once, just before the server takes the next list of any
+    /// notebook (tests).
+    pub fn before_book_list(&self, hook: impl FnOnce() + Send + 'static) {
+        self.state.lock().expect("poisoned").book_list_hook = Hook(Some(Box::new(hook)));
     }
 
     /// Takes every history link away, as a server that lost them would
@@ -269,7 +337,7 @@ impl MemoryCollab {
         if owned >= 50 {
             return Err(quota("books"));
         }
-        state.check_book_members(&list)?;
+        state.check_book_members(&list, &[])?;
         let accounts: Vec<&str> = list.members.iter().map(|m| m.account.as_str()).collect();
         State::check_book_wraps(&new.wraps, &accounts)?;
         let members = list
@@ -371,7 +439,50 @@ impl MemoryCollab {
                     history_link: link.clone(),
                 })
                 .collect(),
+            members: if status == "member" && role.may_manage() {
+                book.members
+                    .iter()
+                    .map(|(account, (role, status))| BookMemberStatus {
+                        account: account.clone(),
+                        role: *role,
+                        status: (*status).to_owned(),
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            },
         })
+    }
+
+    pub(super) fn leave_book_impl(&self, caller: &Caller, share_id: &str) -> Result<()> {
+        let mut state = self.lock()?;
+        state.book_role(share_id, caller, true)?;
+        let book = state.book(share_id)?;
+        if book.owner == caller.account_id {
+            return Err(refused(403, "forbidden_role"));
+        }
+        // The signed list still names them until a manager cuts them: they
+        // stay as left, without wraps.
+        book.wraps
+            .retain(|(account, _), _| *account != caller.account_id);
+        if let Some(entry) = book.members.get_mut(&caller.account_id) {
+            entry.1 = "left";
+        }
+        Ok(())
+    }
+
+    pub(super) fn stop_book_impl(&self, caller: &Caller, share_id: &str) -> Result<()> {
+        let mut state = self.lock()?;
+        let owned = state
+            .books
+            .get(share_id)
+            .is_some_and(|book| book.owner == caller.account_id);
+        if !owned {
+            return Err(not_found());
+        }
+        state.books.remove(share_id);
+        state.retired.insert(share_id.to_owned());
+        Ok(())
     }
 
     pub(super) fn accept_book_impl(&self, caller: &Caller, share_id: &str) -> Result<()> {
@@ -390,6 +501,10 @@ impl MemoryCollab {
         share_id: &str,
         new: &NewBookList,
     ) -> Result<()> {
+        let hook = self.state.lock().expect("poisoned").book_list_hook.0.take();
+        if let Some(hook) = hook {
+            hook();
+        }
         let mut state = self.lock()?;
         let (role, _) = state.book_role(share_id, caller, false)?;
         if !role.may_manage() {
@@ -439,7 +554,12 @@ impl MemoryCollab {
         if list.members.len() > MAX_BOOK_MEMBERS {
             return Err(quota("members"));
         }
-        state.check_book_members(&list)?;
+        let stayers: Vec<String> = prev_list
+            .members
+            .iter()
+            .map(|m| m.account.clone())
+            .collect();
+        state.check_book_members(&list, &stayers)?;
         let needed: Vec<&str> = list
             .members
             .iter()

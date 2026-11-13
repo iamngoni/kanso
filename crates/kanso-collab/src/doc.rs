@@ -42,7 +42,7 @@ const DIFF_DEADLINE: Duration = Duration::from_millis(150);
 pub struct CollabDoc {
     doc: Doc,
     title: TextRef,
-    body: TextRef,
+    pub(crate) body: TextRef,
     /// A note's properties, one entry per key ([`crate::doc_props`]).
     pub(crate) props: MapRef,
     /// Where each property goes among the others.
@@ -311,6 +311,10 @@ impl Merged {
 /// The edits that turn `old` into `new`, in order, each with its offset in
 /// `old`. Adjacent deletes and inserts are joined into one replacement.
 pub(crate) fn edits(old: &str, new: &str) -> Vec<Splice> {
+    // Ticking a repeating task is two lines, not a diff of characters.
+    if let Some(ticked) = crate::doc_dedupe::tick_edits(old, new) {
+        return ticked;
+    }
     // Common prefix and suffix first, on character boundaries: typing is
     // one small change in a long text.
     let prefix = old

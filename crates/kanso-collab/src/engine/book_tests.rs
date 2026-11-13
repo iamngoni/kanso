@@ -21,7 +21,11 @@ use crate::memory::MemoryCollab;
 use crate::model::{Member, Role};
 
 /// A notebook holding `notes` (title, text); its id and the notes' ids.
-fn notebook(store: &Store, name: &str, notes: &[(String, String)]) -> (String, Vec<String>) {
+pub(super) fn notebook(
+    store: &Store,
+    name: &str,
+    notes: &[(String, String)],
+) -> (String, Vec<String>) {
     let book = store
         .put(
             DocType::Book,
@@ -50,7 +54,7 @@ fn notebook(store: &Store, name: &str, notes: &[(String, String)]) -> (String, V
 }
 
 /// Title to text of the notes in a notebook of a library.
-fn texts(device: &Device, book: &str) -> BTreeMap<String, String> {
+pub(super) fn texts(device: &Device, book: &str) -> BTreeMap<String, String> {
     device
         .store
         .notes_in_books(&[book.to_owned()])
@@ -60,7 +64,7 @@ fn texts(device: &Device, book: &str) -> BTreeMap<String, String> {
         .collect()
 }
 
-fn note_of(device: &Device, book: &str, title: &str) -> String {
+pub(super) fn note_of(device: &Device, book: &str, title: &str) -> String {
     device
         .store
         .notes_in_books(&[book.to_owned()])
@@ -71,7 +75,7 @@ fn note_of(device: &Device, book: &str, title: &str) -> String {
         .id
 }
 
-fn write(device: &Device, id: &str, body: &str) {
+pub(super) fn write(device: &Device, id: &str, body: &str) {
     device
         .store
         .put(
@@ -83,11 +87,11 @@ fn write(device: &Device, id: &str, body: &str) {
         .unwrap();
 }
 
-fn body(device: &Device, id: &str) -> String {
+pub(super) fn body(device: &Device, id: &str) -> String {
     device.store.note(id).unwrap().unwrap().body
 }
 
-fn invite(others: &[(&Device, Role)]) -> Vec<(String, Role)> {
+pub(super) fn invite(others: &[(&Device, Role)]) -> Vec<(String, Role)> {
     others
         .iter()
         .map(|(d, role)| (d.engine.caller().username.clone(), *role))
@@ -95,7 +99,7 @@ fn invite(others: &[(&Device, Role)]) -> Vec<(String, Role)> {
 }
 
 /// A shares `book` with the others, who each join; the share's id.
-fn shared(owner: &Device, others: &[(&Device, Role)], book: &str) -> String {
+pub(super) fn shared(owner: &Device, others: &[(&Device, Role)], book: &str) -> String {
     for (other, _) in others {
         owner
             .engine
@@ -112,7 +116,7 @@ fn shared(owner: &Device, others: &[(&Device, Role)], book: &str) -> String {
     done.share_id
 }
 
-fn sync(devices: &[&Device], share: &str) {
+pub(super) fn sync(devices: &[&Device], share: &str) {
     for _ in 0..3 {
         for d in devices {
             d.engine.sync_book(share).unwrap();
@@ -120,7 +124,7 @@ fn sync(devices: &[&Device], share: &str) {
     }
 }
 
-fn member_of(d: &Device, role: Role) -> Member {
+pub(super) fn member_of(d: &Device, role: Role) -> Member {
     let identity = d.engine.identity().unwrap();
     Member {
         account: d.engine.caller().account_id.clone(),
@@ -134,7 +138,7 @@ fn member_of(d: &Device, role: Role) -> Member {
 /// The owner posts the next list, with `people` besides them: in the same
 /// epoch (the added get a wrap), or in a new one (a fresh key, a wrap for
 /// everyone and a history link). The key of the epoch the list is in.
-fn post_list(
+pub(super) fn post_list(
     server: &MemoryCollab,
     owner: &Device,
     share: &str,

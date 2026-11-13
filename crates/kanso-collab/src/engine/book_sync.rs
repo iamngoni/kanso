@@ -23,7 +23,7 @@ use super::log::{Opened, Unopened};
 use super::{Engine, STATE_LIMIT, UPDATE_PART, clamp_text, rebase};
 use crate::api::{CollabError, MANIFEST_STREAM, Result};
 use crate::book_manifest::ManifestDoc;
-use crate::book_model::BookSync;
+use crate::book_model::{BookEndReason, BookSync};
 use crate::codec::unb64;
 use crate::doc::{CollabDoc, Field};
 use crate::envelope::{self, parse_header};
@@ -175,7 +175,9 @@ impl Engine {
                 {
                     refreshed = true;
                     let mut ctx = self.book_ctx(share_id)?;
-                    self.refresh_chain(&mut ctx)?;
+                    if self.refresh_or_end(share_id, &mut ctx, &mut result)? {
+                        return Ok(result);
+                    }
                 }
                 other => return other.map(|()| result),
             }
@@ -199,13 +201,11 @@ impl Engine {
 
     fn sync_book_once(&self, share_id: &str, result: &mut BookSync) -> Result<()> {
         let mut ctx = self.book_ctx(share_id)?;
-        self.refresh_chain(&mut ctx)?;
+        if self.refresh_or_end(share_id, &mut ctx, result)? {
+            return Ok(());
+        }
         let me = self.account.caller.account_id.clone();
-        let Some(role) = ctx
-            .role(&me)
-            .filter(|_| ctx.row.status == SharedStatus::Active)
-        else {
-            result.removed = true;
+        let Some(role) = ctx.role(&me) else {
             return Ok(());
         };
         if ctx.row.uploading && role == Role::Owner {
@@ -214,6 +214,22 @@ impl Engine {
             return self.resume_book_share(share_id, &mut |_| {});
         }
         self.sync_streams(&mut ctx, role, result)
+    }
+
+    /// Brings the chain up to the server's. Whether the notebook ended for
+    /// this account (the chain no longer lists it, or the server no longer
+    /// shows the notebook to it): its private copy is in `result`.
+    fn refresh_or_end(&self, share_id: &str, ctx: &mut Ctx, result: &mut BookSync) -> Result<bool> {
+        let reason = match self.refresh_chain(ctx) {
+            Ok(()) if ctx.row.status == SharedStatus::Active => return Ok(false),
+            Ok(()) => BookEndReason::Removed,
+            // Stopped, or this account removed: the server says the same.
+            Err(err) if err.status() == Some(404) => BookEndReason::Gone,
+            Err(err) => return Err(err),
+        };
+        result.removed = true;
+        result.ended = Some(self.end_book(share_id, reason)?);
+        Ok(true)
     }
 
     fn sync_streams(&self, ctx: &mut Ctx, role: Role, result: &mut BookSync) -> Result<()> {
@@ -471,10 +487,20 @@ impl Engine {
             if existing.contains_key(&note.id) || note.deleted_at.is_some() {
                 continue;
             }
-            let note_id = marked
-                .get(&note.id)
-                .cloned()
-                .unwrap_or_else(|| book_note_id(&note.id));
+            let note_id = match marked.get(&note.id) {
+                Some(id) => id.clone(),
+                None => {
+                    // A note of that id that isn't this notebook's is the
+                    // private copy of an earlier time: the notebook joined
+                    // again gets notes of its own, beside it.
+                    let id = book_note_id(&note.id);
+                    if self.store.note(&id)?.is_some() {
+                        format!("{id}.again")
+                    } else {
+                        id
+                    }
+                }
+            };
             self.store.put_book_stream(&BookStream {
                 share_id: share_id.clone(),
                 stream: note.id.clone(),
@@ -585,6 +611,16 @@ impl Engine {
                     }
                 }
                 row.base = write_base(local);
+            }
+            // Two members who ticked the same repeating task offline each
+            // wrote its next line: the merge keeps one.
+            if changed
+                && role.may_edit()
+                && let Some(update) = doc.dedupe_repeat_lines()
+            {
+                self.store
+                    .push_book_outbox(&share_id, &row.stream, &update)?;
+                edited = true;
             }
             let (title, text) = clamp_text(doc.text(Field::Title), doc.note_text());
             let written = self.store.write_shared_text(&SharedText {

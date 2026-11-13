@@ -105,7 +105,7 @@ pub(super) fn body_of(device: &Device, share_id: &str) -> String {
 }
 
 /// A shares `body` with the others at `role`, and each accepts and syncs.
-fn shared(owner: &Device, others: &[(&Device, Role)], body: &str) -> String {
+pub(super) fn shared(owner: &Device, others: &[(&Device, Role)], body: &str) -> String {
     let id = note(&owner.store, "note:shared", "Plan", body);
     for (other, _) in others {
         owner

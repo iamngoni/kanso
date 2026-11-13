@@ -95,6 +95,8 @@ struct State {
     /// Lists naming members whose keys aren't their account's are taken
     /// (tests of a client against a server that doesn't check).
     lax_book_members: bool,
+    /// Runs once, just before the next notebook list is taken (tests).
+    book_list_hook: books::Hook,
 }
 
 /// The Worker's shared-note routes in memory.
@@ -942,6 +944,14 @@ impl CollabApi for MemoryCollab {
 
     fn new_book_list(&self, caller: &Caller, share_id: &str, list: &NewBookList) -> Result<()> {
         self.new_book_list_impl(caller, share_id, list)
+    }
+
+    fn leave_book(&self, caller: &Caller, share_id: &str) -> Result<()> {
+        self.leave_book_impl(caller, share_id)
+    }
+
+    fn stop_book(&self, caller: &Caller, share_id: &str) -> Result<()> {
+        self.stop_book_impl(caller, share_id)
     }
 
     fn book_log(

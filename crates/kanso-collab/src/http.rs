@@ -323,6 +323,17 @@ impl CollabApi for HttpCollab {
         send_json(caller, "POST", &path, list).map(|_| ())
     }
 
+    fn leave_book(&self, caller: &Caller, share_id: &str) -> Result<()> {
+        delete(
+            caller,
+            &format!("/v2/collab/books/{}/membership", segment(share_id)),
+        )
+    }
+
+    fn stop_book(&self, caller: &Caller, share_id: &str) -> Result<()> {
+        delete(caller, &format!("/v2/collab/books/{}", segment(share_id)))
+    }
+
     fn book_log(
         &self,
         caller: &Caller,

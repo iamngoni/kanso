@@ -12,6 +12,7 @@
 
 pub mod api;
 pub mod book;
+pub mod book_copy;
 pub mod book_manifest;
 pub mod book_members;
 pub mod book_members_model;
@@ -20,6 +21,7 @@ pub mod canvas_doc;
 pub mod codec;
 pub mod comments;
 pub mod doc;
+pub mod doc_dedupe;
 pub mod doc_props;
 pub mod engine;
 pub mod envelope;
@@ -37,7 +39,8 @@ pub use book_members_model::{
     BookChainHead, BookListError, BookMemberList, BookPin, SignedBookList,
 };
 pub use book_model::{
-    BookHistory, BookKey, BookProgress, BookShared, BookSync, JoinedBook, StoredChain,
+    BookEndReason, BookEnded, BookHistory, BookKey, BookProgress, BookShared, BookSync, JoinedBook,
+    StoredChain,
 };
 pub use canvas_doc::CanvasDoc;
 pub use doc::{CollabDoc, Field, Merged, apply_splices, remap, splices};
@@ -49,6 +52,8 @@ pub use shared_doc::SharedDoc;
 
 #[cfg(test)]
 mod canvas_doc_tests;
+#[cfg(test)]
+mod doc_dedupe_tests;
 #[cfg(test)]
 mod doc_props_edit_tests;
 #[cfg(test)]
