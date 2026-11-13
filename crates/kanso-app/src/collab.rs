@@ -125,24 +125,39 @@ pub fn sync_soon(cx: &mut App) {
         let engine = engine.clone();
         async move {
             let result = engine.sync_all();
+            // Shared notebooks after shared notes: one's trouble doesn't
+            // stop the other.
+            let books = crate::shared_books::sync_books(&engine);
             let fingerprint = engine.fingerprint().ok();
             let notices = engine.notices().unwrap_or_default();
-            (result, fingerprint, engine.invitations(), notices)
+            (result, fingerprint, engine.invitations(), notices, books)
         }
     });
     cx.spawn(async move |cx| {
-        let (result, fingerprint, invitations, notices) = task.await;
-        cx.update(|cx| finish_sync(&engine, result, fingerprint, invitations, notices, cx));
+        let (result, fingerprint, invitations, notices, books) = task.await;
+        cx.update(|cx| {
+            finish_sync(
+                &engine,
+                result,
+                fingerprint,
+                invitations,
+                notices,
+                books,
+                cx,
+            )
+        });
     })
     .detach();
 }
 
+#[allow(clippy::too_many_arguments)]
 fn finish_sync(
     engine: &Arc<Engine>,
     result: kanso_collab::api::Result<Vec<String>>,
     fingerprint: Option<String>,
     invitations: Vec<Invitation>,
     notices: Vec<StoredNotice>,
+    books: crate::book_share_model::BookNews,
     cx: &mut App,
 ) {
     let current = current(cx).is_some_and(|e| Arc::ptr_eq(&e, engine));
@@ -168,6 +183,10 @@ fn finish_sync(
         collab.invitations = invitations;
     }
     collab.notices = notices;
+    if books.offline {
+        collab.offline = true;
+    }
+    crate::shared_books::take_news(books, cx);
     // Comments the sync brought show in the open note.
     crate::workspace::for_each_editor(cx, |editor, cx| {
         editor.refresh_comments(cx);

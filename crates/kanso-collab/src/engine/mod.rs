@@ -21,6 +21,7 @@ pub mod book;
 mod book_end;
 pub mod book_live;
 mod book_people;
+pub mod book_roster;
 mod book_sync;
 pub mod canvas;
 pub mod live;
@@ -1115,6 +1116,8 @@ pub fn rebase(base: &str, local: &str, current: &str) -> String {
 
 #[cfg(test)]
 mod book_live_tests;
+#[cfg(test)]
+mod book_roster_tests;
 #[cfg(test)]
 mod book_rotation_tests;
 #[cfg(test)]

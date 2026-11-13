@@ -979,6 +979,204 @@ fn share_sheet(
     .unwrap();
 }
 
+/// A device of someone else's for the shared notebook shots: account `n`,
+/// called `username`, with a library of its own that lives as long as the
+/// shot.
+fn book_peer(
+    server: &kanso_collab::memory::MemoryCollab,
+    n: u8,
+    username: &str,
+) -> (Arc<kanso_collab::Engine>, Arc<Store>) {
+    let dir = Box::leak(Box::new(tempfile::tempdir().unwrap()));
+    let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
+    (
+        crate::collab_tests::engine_over(server, store.clone(), n, username),
+        store,
+    )
+}
+
+/// The shared notebook shots' world: "Studio", shared from the demo
+/// library with dan (who can edit, and edited the brief) and mira (invited
+/// to comment, not yet in); and "Launch", which tendai shared with the
+/// demo account, who joined. The demo account is signed in, and what a
+/// sync brings is in the app. "Studio"'s id, and the demo account's
+/// engine.
+fn book_demo(
+    cx: &mut HeadlessAppContext,
+    workspace: &Entity<Workspace>,
+) -> (String, Arc<kanso_collab::Engine>) {
+    use kanso_collab::Role;
+    use kanso_collab::memory::MemoryCollab;
+
+    let server = MemoryCollab::new();
+    let store = cx.update(|cx| cx.global::<AppState>().store.clone());
+    let me = crate::collab_tests::engine_over(&server, store.clone(), 1, DEMO_USER);
+    let (dan, dan_store) = book_peer(&server, 2, "dan");
+    book_peer(&server, 3, "mira");
+    let (tendai, tendai_store) = book_peer(&server, 4, "tendai");
+    let (studio, _) = crate::book_share_tests::studio(&store, "Studio");
+    me.person("dan").unwrap();
+    me.person("mira").unwrap();
+    let share = me
+        .share_book(
+            &studio,
+            &[("dan".into(), Role::Edit), ("mira".into(), Role::Comment)],
+            false,
+            &mut |_| {},
+        )
+        .unwrap()
+        .share_id;
+    let joined = dan.join_book(&share).unwrap();
+    let brief = dan_store
+        .notes_in_books(&[joined.book_id])
+        .unwrap()
+        .into_iter()
+        .find(|n| n.title == "Brief")
+        .unwrap()
+        .id;
+    dan_store
+        .put(
+            DocType::Note,
+            json!({"_id": brief, "body": "Shoot on Saturday, at the studio. Bring the long lens."}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+    dan.sync_book(&share).unwrap();
+    me.sync_book(&share).unwrap();
+    // A notebook tendai shared with the demo account.
+    let (launch, _) = crate::book_share_tests::studio(&tendai_store, "Launch");
+    tendai.person(DEMO_USER).unwrap();
+    tendai.person("dan").unwrap();
+    let theirs = tendai
+        .share_book(
+            &launch,
+            &[(DEMO_USER.into(), Role::Edit), ("dan".into(), Role::View)],
+            false,
+            &mut |_| {},
+        )
+        .unwrap()
+        .share_id;
+    me.join_book(&theirs).unwrap();
+    let news = crate::shared_books::sync_books(&me);
+    cx.update(|cx| {
+        cx.set_reduce_motion(true);
+        cx.global_mut::<Services>().account = AccountState::SignedIn {
+            username: DEMO_USER.into(),
+        };
+        crate::collab::use_engine(me.clone(), cx);
+        crate::shared_books::take_news(news, cx);
+        // The edit, two minutes before the shot's fixed clock.
+        let now = Clock::now_ms(cx);
+        for edit in cx
+            .global_mut::<crate::collab_model::Collab>()
+            .book_edits
+            .values_mut()
+        {
+            edit.at = now - 2 * MINUTE;
+        }
+    });
+    let library = cx.update(|cx| workspace.read(cx).library.clone());
+    let id = studio.clone();
+    cx.update(|cx| library.update(cx, |library, cx| library.set_filter(Filter::Book(id), cx)));
+    cx.run_until_parked();
+    (studio, me)
+}
+
+/// The Shared section with two notebooks, one offline with changes
+/// waiting, and the note list saying who edited a note.
+fn shared_books(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    _: &Store,
+) {
+    let (studio, me) = book_demo(cx, workspace);
+    // Two notes written here while the server can't be reached.
+    let store = cx.update(|cx| cx.global::<AppState>().store.clone());
+    for note in store.notes_in_books(&[studio]).unwrap().iter().take(2) {
+        store
+            .put(
+                DocType::Note,
+                json!({"_id": note.id, "body": format!("{} (offline)", note.body)}),
+                Put::Merge,
+                Origin::Ui,
+            )
+            .unwrap();
+    }
+    let rows = crate::shared_books::read_rows(&me);
+    cx.update(|cx| {
+        let collab = cx.global_mut::<crate::collab_model::Collab>();
+        collab.books = rows;
+        collab.offline = true;
+    });
+    cx.run_until_parked();
+}
+
+/// The Share notebook sheet for a notebook the demo account shared: its
+/// people, one invited and not yet in, with the invite field.
+fn book_share_sheet(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    _: &Store,
+) {
+    let (studio, _) = book_demo(cx, workspace);
+    cx.update_window(window, |_, window, cx| {
+        crate::book_share_sheet::open_book_share(studio, window, cx);
+    })
+    .unwrap();
+}
+
+/// The member list of a notebook someone else shared with the demo
+/// account, as a member sees it: who is in it, and Leave.
+fn book_members(
+    cx: &mut HeadlessAppContext,
+    window: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    _: &Store,
+) {
+    book_demo(cx, workspace);
+    let launch = cx.update(|cx| {
+        cx.global::<crate::collab_model::Collab>()
+            .books
+            .iter()
+            .find(|b| b.view.name == "Launch")
+            .map(|b| b.view.book_id.clone())
+    });
+    let Some(launch) = launch else {
+        return;
+    };
+    cx.update_window(window, |_, window, cx| {
+        crate::book_share_sheet::open_book_share(launch, window, cx);
+    })
+    .unwrap();
+}
+
+/// An invitation to a notebook in the Shared section, beside a notebook
+/// already joined.
+fn book_invitation(
+    cx: &mut HeadlessAppContext,
+    _: AnyWindowHandle,
+    workspace: &Entity<Workspace>,
+    _: &Store,
+) {
+    book_demo(cx, workspace);
+    cx.update(|cx| {
+        cx.global_mut::<crate::collab_model::Collab>()
+            .book_invitations = vec![kanso_collab::BookSummary {
+            share_id: "kQ2mX9vB4nL7pR1tY6wZ3a".into(),
+            owner: "a_05".into(),
+            owner_username: "mira".into(),
+            role: kanso_collab::Role::Edit,
+            status: "invited".into(),
+            epoch: 1,
+            rev: 1,
+        }];
+    });
+    cx.run_until_parked();
+}
+
 /// A shared note's comments in the inspector, beside the words they tint.
 fn comments(
     cx: &mut HeadlessAppContext,
@@ -5748,6 +5946,28 @@ fn snapshots() {
         },
         shot("dark-shared-invitation", Dark, Edit, shared_invitation),
         shot("light-shared-invitation", Light, Edit, shared_invitation),
+        // Shared notebooks: the Share notebook sheet, a member's list, the
+        // Shared section with "Edited by" in the list, and an invitation.
+        Shot {
+            dialog_width: crate::book_share_sheet::BOOK_SHEET_WIDTH,
+            ..shot("dark-book-share-sheet", Dark, Edit, book_share_sheet)
+        },
+        Shot {
+            dialog_width: crate::book_share_sheet::BOOK_SHEET_WIDTH,
+            ..shot("light-book-share-sheet", Light, Edit, book_share_sheet)
+        },
+        Shot {
+            dialog_width: crate::book_share_sheet::BOOK_SHEET_WIDTH,
+            ..shot("dark-book-members", Dark, Edit, book_members)
+        },
+        Shot {
+            dialog_width: crate::book_share_sheet::BOOK_SHEET_WIDTH,
+            ..shot("light-book-members", Light, Edit, book_members)
+        },
+        shot("dark-shared-books", Dark, Edit, shared_books),
+        shot("light-shared-books", Light, Edit, shared_books),
+        shot("dark-book-invitation", Dark, Edit, book_invitation),
+        shot("light-book-invitation", Light, Edit, book_invitation),
         shot("dark-comments", Dark, Edit, comments),
         shot("light-comments", Light, Split, comments),
         // Importing: choosing the source, the summary, the report.

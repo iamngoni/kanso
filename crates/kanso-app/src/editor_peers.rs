@@ -64,7 +64,7 @@ pub fn flush_everywhere(cx: &mut App) {
 }
 
 /// Every editor open in any window.
-pub(super) fn open_editors(cx: &App) -> Vec<Entity<NoteEditor>> {
+pub(crate) fn open_editors(cx: &App) -> Vec<Entity<NoteEditor>> {
     cx.try_global::<OpenEditors>()
         .map(|open| open.0.iter().filter_map(|(e, _)| e.upgrade()).collect())
         .unwrap_or_default()

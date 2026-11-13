@@ -3,16 +3,21 @@
 //! open in the editor, and the Share sheet's steps. The logic is in
 //! `collab.rs`, `collab_text.rs`, `editor_collab.rs` and `share_sheet.rs`.
 
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::sync::Arc;
 
 use gpui_kit::base::input::TextDecorationCollection;
 use gpui_kit::{AnyWindowHandle, Global, Task};
+use kanso_collab::engine::BookLiveHandle;
 use kanso_collab::{
-    CommentView, EditorMerge, Engine, Invitation, LiveHandle, Person, Problem, Role, SizeUse,
+    BookSummary, CommentView, EditorMerge, Engine, Invitation, LiveHandle, NoteEdit, Person,
+    Problem, Role, SizeUse,
 };
 use kanso_store::StoredNotice;
 use kanso_sync::Session;
+
+use crate::book_share_model::BookRow;
 
 /// The signed-in account's shared notes: its engine, made for the session
 /// in [`crate::services::Services`] and dropped with it, and what the last
@@ -28,6 +33,17 @@ pub struct Collab {
     pub invitations: Vec<Invitation>,
     /// Mentions of this account in comments, newest first.
     pub notices: Vec<StoredNotice>,
+    /// Notebooks shared with this account that this device hasn't joined:
+    /// invitations, and notebooks another device of the account joined.
+    pub book_invitations: Vec<BookSummary>,
+    /// Shared notebooks joined here, as the last sync left them.
+    pub books: Vec<BookRow>,
+    /// Who last edited each note of a shared notebook, by note id.
+    pub book_edits: HashMap<String, NoteEdit>,
+    /// The live rooms of shared notebooks with a note open in an editor.
+    pub book_rooms: HashMap<String, BookLiveHandle>,
+    /// The notebooks whose room is connected now.
+    pub book_live: HashSet<String>,
     /// The last sync got no answer from the server.
     pub offline: bool,
     /// A sync of shared notes is running, and another was asked for.
@@ -46,6 +62,23 @@ impl Collab {
     pub fn unread(&self) -> usize {
         self.notices.iter().filter(|n| !n.read).count()
     }
+
+    /// The shared notebook joined here that `book_id` is, if it is one.
+    pub fn book(&self, book_id: &str) -> Option<&BookRow> {
+        self.books.iter().find(|b| b.view.book_id == book_id)
+    }
+}
+
+/// A note of a shared notebook open in the editor: its room shows who else
+/// is in the note, and where.
+pub struct OpenBookNote {
+    pub share_id: String,
+    pub stream: String,
+    /// The caret last told the room: (anchor, head) body byte offsets.
+    pub caret_sent: Option<(usize, usize)>,
+    pub cursors: Vec<RemoteMark>,
+    /// The tints on other people's selections.
+    pub selections: Option<TextDecorationCollection>,
 }
 
 /// The shared note open in the editor: the engine it is attached to, its

@@ -128,3 +128,74 @@ pub struct JoinedBook {
     pub book_id: String,
     pub notes: usize,
 }
+
+/// Where a member of a notebook stands with the server: in it, invited and
+/// not yet in, or gone (left or declined, until a manager's device cuts
+/// them from the signed list). Only the owner and managers are told; for
+/// everyone else, and offline, it is `Unknown`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MemberStanding {
+    Member,
+    Invited,
+    Left,
+    Unknown,
+}
+
+impl MemberStanding {
+    /// The server's word for it.
+    pub fn parse(status: &str) -> MemberStanding {
+        match status {
+            "member" => MemberStanding::Member,
+            "invited" => MemberStanding::Invited,
+            "left" => MemberStanding::Left,
+            _ => MemberStanding::Unknown,
+        }
+    }
+}
+
+/// One person in a shared notebook, as the signed member list names them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BookMemberView {
+    pub account: String,
+    /// The username the signed list gives them.
+    pub username: String,
+    pub role: crate::model::Role,
+    pub standing: MemberStanding,
+    /// This account.
+    pub me: bool,
+}
+
+/// A shared notebook's people as this device trusts them: the head of its
+/// checked chain, with the server's word on who has accepted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BookView {
+    pub share_id: String,
+    /// The notebook in this library.
+    pub book_id: String,
+    pub name: String,
+    pub owner_id: String,
+    pub owner_name: String,
+    /// This account's role; `None` once it was removed.
+    pub my_role: Option<crate::model::Role>,
+    pub epoch: u32,
+    /// The owner first, then by role (highest first) and username.
+    pub members: Vec<BookMemberView>,
+    /// Sharing it is still going up (a share that stopped part way).
+    pub uploading: bool,
+}
+
+/// Who last changed a note of a shared notebook, as far as this device
+/// knows: the author of the last edit it merged or sent. The name is the
+/// one the notebook's signed member list gives that account, never one the
+/// author supplied.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NoteEdit {
+    pub note_id: String,
+    pub share_id: String,
+    pub account: String,
+    pub name: String,
+    /// When this device merged or sent it, in ms.
+    pub at: i64,
+    /// This account made it.
+    pub mine: bool,
+}
