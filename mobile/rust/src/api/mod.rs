@@ -53,6 +53,8 @@ pub mod recording_summary_types;
 pub mod recording_types;
 pub mod reminders;
 pub mod renderer;
+pub mod schedule;
+pub mod schedule_types;
 pub mod shared;
 pub mod shortcuts;
 pub mod sync;

@@ -32,6 +32,7 @@ import 'recording.dart';
 import 'recording_speakers.dart';
 import 'recording_summary.dart';
 import 'renderer.dart';
+import 'schedule_types.dart';
 import 'shared.dart';
 import 'sync.dart';
 import 'themes.dart';
@@ -496,6 +497,11 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   Future<DropsSaved> saveDrops({required String inbox});
 
   Future<ReviewSaved> saveReview({required String from, required bool replace});
+
+  /// What falls on each day of `request`'s range: tasks by due date (a
+  /// repeating one on every day it comes round) and notes by their date
+  /// properties, by day and time.
+  Future<List<ScheduleRow>> schedule({required ScheduleRequest request});
 
   Future<List<Hit>> search({
     required String text,
