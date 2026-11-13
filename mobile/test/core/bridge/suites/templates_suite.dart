@@ -47,6 +47,38 @@ void templatesSuite(OpenLibrary open) {
       await editor.close();
     }
 
+    test('a Video studio lists its own two templates first', () async {
+      final library = await open();
+      final studio = await library.createNotebookAs(
+        name: 'Channel',
+        kind: NewNotebookKind.videoStudio,
+      );
+      final plain = await library.createNotebookAs(
+        name: 'Notes',
+        kind: NewNotebookKind.blank,
+      );
+      final own = await library.templatesFor(notebookId: studio.id);
+      expect(
+        own.map((row) => (row.title, row.inNotebook)),
+        <(String, bool)>[('Video brief', true), ('Shot list', true)],
+      );
+      final elsewhere = await library.templatesFor(notebookId: plain.id);
+      expect(elsewhere.map((row) => row.inNotebook), <bool>[false, false]);
+      expect(
+        (await library.templatesFor()).map((row) => row.title),
+        <String>['Shot list', 'Video brief'],
+      );
+
+      final made = await library.newFromTemplate(
+        templateId: own.first.id,
+        bookId: studio.id,
+        now: now,
+      );
+      final note = await library.note(id: made.id);
+      expect(note.notebookId, studio.id);
+      expect(note.body, contains('stage: Idea'));
+    });
+
     test('the daily template fills today, and places the cursor', () async {
       final library = await open();
       expect(await library.dailyTemplate(), isNull);

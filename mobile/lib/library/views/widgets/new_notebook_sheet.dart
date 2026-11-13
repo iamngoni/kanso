@@ -116,11 +116,6 @@ class _NewNotebookSheetState extends State<NewNotebookSheet> {
                 ],
               ),
               const SizedBox(height: KansoSpacing.xs),
-              NewNotebookKindPicker(
-                kind: kind,
-                onChanged: (chosen) => setState(() => kind = chosen),
-              ),
-              const SizedBox(height: KansoSpacing.sm),
               KansoTextInput(
                 controller: name,
                 focusNode: focus,
@@ -155,6 +150,17 @@ class _NewNotebookSheetState extends State<NewNotebookSheet> {
                   );
                 },
               ),
+              // With the keyboard up on a phone the two choices don't fit:
+              // they scroll, with the name above and Create below in view.
+              Flexible(
+                child: SingleChildScrollView(
+                  child: NewNotebookKindPicker(
+                    kind: kind,
+                    onChanged: (chosen) => setState(() => kind = chosen),
+                  ),
+                ),
+              ),
+              const SizedBox(height: KansoSpacing.md),
               ListenableBuilder(
                 listenable: name,
                 builder: (context, _) {
