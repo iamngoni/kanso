@@ -12,7 +12,7 @@
 //! lands. A listed account that has been deleted (`member_gone`) is cut as
 //! well.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use kanso_core::now_ms;
 
@@ -25,6 +25,15 @@ use crate::book_members_model::BookMemberList;
 use crate::book_model::BookKey;
 use crate::codec::{b64, unb64, unb64_array};
 use crate::model::{Member, Role};
+
+/// What a rotation did.
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum Rotated {
+    Done,
+    /// An explicit demotion found this account below the role asked for:
+    /// a newer list moved them meanwhile, and nothing was sent.
+    RoleMoved(String),
+}
 
 /// Times a list is signed and sent again before giving up.
 const ATTEMPTS: usize = 8;
@@ -48,7 +57,7 @@ impl Engine {
         {
             cut.extend(left);
         }
-        self.rotate_book(share_id, cut, true)
+        self.rotate_book(share_id, cut, BTreeMap::new(), true)
     }
 
     /// Cuts every member who has left (or declined) from the signed list,
@@ -61,7 +70,7 @@ impl Engine {
             return Ok(0);
         }
         let count = left.len();
-        self.rotate_book(share_id, left, false)?;
+        self.rotate_book(share_id, left, BTreeMap::new(), false)?;
         Ok(count)
     }
 
@@ -85,11 +94,40 @@ impl Engine {
             .collect())
     }
 
-    /// Starts the next epoch without `cut`: signs the list, wraps the new
-    /// key to everyone who stays, and sends it, again on a moved head or
-    /// chain. `explicit` is a person's request (the accounts must be
-    /// members), against the housekeeping of [`Engine::cut_left_members`].
-    fn rotate_book(&self, share_id: &str, mut cut: BTreeSet<String>, explicit: bool) -> Result<()> {
+    /// Starts the next epoch without `cut` and with the roles in `demote`
+    /// lowered: signs the list, wraps the new key to everyone who stays,
+    /// and sends it, again on a moved head or chain. `explicit` is a
+    /// person's request (the accounts must be members), against the
+    /// housekeeping of [`Engine::cut_left_members`].
+    pub(super) fn rotate_book(
+        &self,
+        share_id: &str,
+        cut: BTreeSet<String>,
+        demote: BTreeMap<String, Role>,
+        explicit: bool,
+    ) -> Result<()> {
+        match self.rotate_book_inner(share_id, cut, demote, explicit)? {
+            Rotated::Done => Ok(()),
+            Rotated::RoleMoved(account) => {
+                let name = self
+                    .book_ctx(share_id)
+                    .ok()
+                    .and_then(|ctx| super::book_roster::name_in_chain(&ctx.chain, &account))
+                    .unwrap_or(account);
+                Err(super::book_roster::changed_meanwhile(&name))
+            }
+        }
+    }
+
+    /// [`Engine::rotate_book`], saying when an explicit demotion found the
+    /// member already below the role asked for.
+    pub(super) fn rotate_book_inner(
+        &self,
+        share_id: &str,
+        mut cut: BTreeSet<String>,
+        demote: BTreeMap<String, Role>,
+        explicit: bool,
+    ) -> Result<Rotated> {
         let me = self.account.caller.account_id.clone();
         let identity = self.identity()?;
         let mut head_hint: Option<u64> = None;
@@ -134,8 +172,44 @@ impl Engine {
                     ));
                 }
             }
-            if cut.is_empty() {
-                return Ok(());
+            // Demotions of people still listed, checked as removals are.
+            let mut lowered = BTreeMap::new();
+            for (account, role) in &demote {
+                let Some(member) = head.list.member(account) else {
+                    if explicit && attempt == 0 {
+                        return Err(CollabError::Refused(
+                            "That person isn't in the notebook.".into(),
+                        ));
+                    }
+                    continue;
+                };
+                if member.role == Role::Owner || *role == Role::Owner {
+                    return Err(CollabError::Refused(
+                        "The owner's role can't change.".into(),
+                    ));
+                }
+                if *account == me {
+                    return Err(CollabError::Refused(
+                        "Someone else changes your role.".into(),
+                    ));
+                }
+                if (member.role >= Role::Manager || *role >= Role::Manager)
+                    && my_role != Role::Owner
+                {
+                    return Err(CollabError::Refused(
+                        "Only the owner can change a manager's role.".into(),
+                    ));
+                }
+                if *role < member.role {
+                    lowered.insert(account.clone(), *role);
+                } else if explicit && *role > member.role {
+                    // A newer list put them below what was asked: lowering
+                    // them now would be a raise in disguise.
+                    return Ok(Rotated::RoleMoved(account.clone()));
+                }
+            }
+            if cut.is_empty() && lowered.is_empty() {
+                return Ok(Rotated::Done);
             }
             let epoch = head.list.epoch + 1;
             let previous = ctx.keys.get(&head.list.epoch).cloned().ok_or_else(|| {
@@ -170,7 +244,10 @@ impl Engine {
                     .members
                     .iter()
                     .filter(|m| !cut.contains(&m.account))
-                    .cloned()
+                    .map(|m| Member {
+                        role: lowered.get(&m.account).copied().unwrap_or(m.role),
+                        ..m.clone()
+                    })
                     .collect(),
             };
             list.sort();
@@ -196,7 +273,7 @@ impl Engine {
                     history_link: Some(b64(&link)),
                 },
             ) {
-                Ok(()) => return self.take_new_epoch(share_id),
+                Ok(()) => return self.take_new_epoch(share_id).map(|()| Rotated::Done),
                 // Someone wrote meanwhile: signed again from the head the
                 // server names.
                 Err(err) if err.code() == Some("head_moved") => {
@@ -208,7 +285,7 @@ impl Engine {
                     let mut now = self.book_ctx(share_id)?;
                     self.refresh_chain(&mut now)?;
                     if our_hash.as_deref() == Some(now.chain.head.hash.as_str()) {
-                        return Ok(());
+                        return Ok(Rotated::Done);
                     }
                 }
                 // Someone the list keeps no longer has an account: cut
@@ -232,14 +309,14 @@ impl Engine {
 
     /// Takes in the epoch this device just started: the chain, and the key
     /// (opened from the wrap the server keeps for this account).
-    fn take_new_epoch(&self, share_id: &str) -> Result<()> {
+    pub(super) fn take_new_epoch(&self, share_id: &str) -> Result<()> {
         let mut ctx = self.book_ctx(share_id)?;
         self.refresh_chain(&mut ctx)
     }
 }
 
 /// One wrap of `key` for every member of a list.
-fn wraps_for(
+pub(super) fn wraps_for(
     key: &BookKey,
     share_id: &str,
     epoch: u32,

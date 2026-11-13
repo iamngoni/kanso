@@ -227,6 +227,9 @@ impl Engine {
         let Ok(doc) = CollabDoc::load(&row.state) else {
             return Vec::new();
         };
+        // Names from the signed member list, never the one a presence
+        // message carries.
+        let chain = self.book_ctx(share_id).ok().map(|ctx| ctx.chain);
         let room = self.book_room(share_id);
         let mut room = lock(&room);
         let now = now_ms();
@@ -236,10 +239,13 @@ impl Engine {
             .iter()
             .filter(|((s, _, _), _)| s == stream)
             .filter_map(|((_, account, device), (presence, at))| {
+                let name = chain
+                    .as_ref()
+                    .and_then(|chain| super::book_roster::name_in_chain(chain, account))?;
                 Some(RemoteCursor {
                     account: account.clone(),
                     device: device.clone(),
-                    name: presence.name.clone(),
+                    name,
                     anchor: doc.note_resolve(&presence.cursor)?,
                     head: doc.note_resolve(&presence.head)?,
                     colour: colour_of(account),

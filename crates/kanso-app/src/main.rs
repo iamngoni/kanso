@@ -40,6 +40,12 @@ mod board_settings_dialog;
 mod board_view;
 mod book_colors;
 mod book_icons;
+#[cfg(test)]
+mod book_share_e2e;
+mod book_share_model;
+mod book_share_sheet;
+#[cfg(test)]
+mod book_share_tests;
 mod briefs;
 mod calendar;
 mod calendar_view;
@@ -238,6 +244,7 @@ mod settings_voice;
 #[cfg(test)]
 mod settings_window_tests;
 mod share_sheet;
+mod shared_books;
 mod shared_canvases;
 mod shared_inbox;
 #[cfg(test)]

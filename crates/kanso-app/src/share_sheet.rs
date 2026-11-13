@@ -490,7 +490,7 @@ impl ShareSheet {
 
 /// Looks someone up by username: their pinned keys, or the keys the
 /// server offers now that they changed.
-fn look_up(engine: &Engine, name: &str) -> kanso_collab::api::Result<Lookup> {
+pub(crate) fn look_up(engine: &Engine, name: &str) -> kanso_collab::api::Result<Lookup> {
     match engine.person(name) {
         Ok(person) => Ok(Lookup::Found(person)),
         Err(CollabError::KeyChanged(username)) => {
@@ -503,7 +503,7 @@ fn look_up(engine: &Engine, name: &str) -> kanso_collab::api::Result<Lookup> {
 }
 
 /// A fingerprint as six groups, in the monospaced face.
-fn fingerprint_block(fingerprint: &str, cx: &App) -> Div {
+pub(crate) fn fingerprint_block(fingerprint: &str, cx: &App) -> Div {
     let colors = Colors::get(cx);
     h_flex()
         .flex_wrap()
@@ -524,7 +524,7 @@ fn fingerprint_block(fingerprint: &str, cx: &App) -> Div {
 }
 
 /// A row's quiet second line.
-fn quiet(text: impl Into<SharedString>, colors: &Colors) -> Div {
+pub(crate) fn quiet(text: impl Into<SharedString>, colors: &Colors) -> Div {
     div()
         .text_size(px(12.))
         .line_height(px(16.))
@@ -532,7 +532,7 @@ fn quiet(text: impl Into<SharedString>, colors: &Colors) -> Div {
         .child(text.into())
 }
 
-fn heading(text: &'static str, colors: &Colors) -> Div {
+pub(crate) fn heading(text: &'static str, colors: &Colors) -> Div {
     div()
         .pt(px(4.))
         .text_size(px(11.5))
@@ -542,7 +542,7 @@ fn heading(text: &'static str, colors: &Colors) -> Div {
 }
 
 /// A row of choices, one selected.
-fn choices<V: 'static, T: Copy + PartialEq + 'static>(
+pub(crate) fn choices<V: 'static, T: Copy + PartialEq + 'static>(
     id: &'static str,
     options: &[(T, String)],
     current: T,

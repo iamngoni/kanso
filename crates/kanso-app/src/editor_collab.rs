@@ -100,11 +100,30 @@ impl NoteEditor {
                 _ => {}
             }
         }
+        // The same note of a shared notebook, shown again: it stays in the room.
+        if let Some(open) = &self.book_note
+            && mark.as_ref().is_some_and(|(id, _, _)| *id == open.share_id)
+            && self
+                .note
+                .as_ref()
+                .and_then(|n| book_stream(&n.extra))
+                .as_deref()
+                == Some(open.stream.as_str())
+        {
+            return;
+        }
         self.collab_detach(cx);
         let Some((share_id, role, _)) = mark else {
             self.set_text_read_only(false, cx);
             return;
         };
+        // A note of a shared notebook: its text goes through the library
+        // (the notebook's sync merges it), and its room shows who else is
+        // in it.
+        if let Some(stream) = self.note.as_ref().and_then(|n| book_stream(&n.extra)) {
+            self.book_follow(share_id, stream, role, cx);
+            return;
+        }
         let Some(engine) = crate::collab::engine(cx).filter(|e| e.attach(&share_id).is_ok()) else {
             self.set_text_read_only(!role.may_edit(), cx);
             return;
@@ -181,6 +200,7 @@ impl NoteEditor {
     /// Leaves the shared note: its room closes, and merges go to the
     /// library again without waiting for the editor.
     pub(super) fn collab_detach(&mut self, cx: &mut Context<Self>) {
+        self.book_detach(cx);
         let Some(open) = self.shared.take() else {
             return;
         };
@@ -663,6 +683,7 @@ impl NoteEditor {
 
     /// Tells the room where the caret is, when it moved.
     pub(super) fn collab_caret(&mut self, cx: &mut Context<Self>) {
+        self.book_caret(cx);
         let Some(open) = self.shared.as_mut().filter(|s| !s.ended) else {
             return;
         };
@@ -888,11 +909,14 @@ impl NoteEditor {
     // no-prop-test: painting; `remote_marks` has the properties and the
     // Comments snapshot shows a remote caret.
     pub(super) fn remote_carets(&self, window: &Window, cx: &App) -> Option<AnyElement> {
-        let open = self.shared.as_ref().filter(|s| !s.ended)?;
-        if open.cursors.is_empty() {
+        let marks = match (&self.shared, &self.book_note) {
+            (Some(open), _) if !open.ended => open.cursors.clone(),
+            (_, Some(book)) => book.cursors.clone(),
+            _ => return None,
+        };
+        if marks.is_empty() {
             return None;
         }
-        let marks = open.cursors.clone();
         let body = self.body.clone();
         let dark = cx.theme().is_dark();
         let label_text = Hsla::from(Colors::get(cx).editor);
@@ -963,6 +987,150 @@ impl NoteEditor {
     pub fn shared_role(&self) -> Option<Role> {
         self.shared.as_ref().filter(|s| !s.ended).map(|s| s.role)
     }
+}
+
+impl NoteEditor {
+    /// Joins the notebook's room for a note of it: one room per notebook,
+    /// kept while any of its notes is open. A note's own window doesn't
+    /// (only the main window's editor is in the room). The role the signed
+    /// list gives this account now decides whether the text can be typed in.
+    // no-prop-test: engine and editor glue; `book_note_shows_who_is_in_it`
+    // drives it.
+    fn book_follow(
+        &mut self,
+        share_id: String,
+        stream: String,
+        role: Role,
+        cx: &mut Context<Self>,
+    ) {
+        let engine = crate::collab::current(cx);
+        let role = engine
+            .as_ref()
+            .and_then(|e| e.book_view(&share_id).ok())
+            .and_then(|v| v.my_role)
+            .unwrap_or(role);
+        self.set_text_read_only(!role.may_edit(), cx);
+        if engine.is_none() || self.standalone {
+            return;
+        }
+        crate::shared_books::open_note(&share_id, &stream, cx);
+        self.book_note = Some(crate::collab_model::OpenBookNote {
+            share_id,
+            stream,
+            caret_sent: None,
+            cursors: Vec::new(),
+            selections: None,
+        });
+        self.book_caret(cx);
+        self.refresh_book_cursors(cx);
+    }
+
+    /// Leaves the notebook note's room; the room closes with the notebook's
+    /// last open note.
+    fn book_detach(&mut self, cx: &mut Context<Self>) {
+        let Some(open) = self.book_note.take() else {
+            return;
+        };
+        if let Some(tints) = open.selections {
+            tints.clear(cx);
+        }
+        // Once this update is over, so the other editors can be read.
+        cx.defer(move |cx| crate::shared_books::close_note(&open.share_id, &open.stream, cx));
+        cx.notify();
+    }
+
+    /// The notebook and note log open here, if a notebook note is.
+    pub fn book_note_open(&self) -> Option<(&str, &str)> {
+        self.book_note
+            .as_ref()
+            .map(|b| (b.share_id.as_str(), b.stream.as_str()))
+    }
+
+    /// Tells the notebook's room where the caret is, when it moved.
+    fn book_caret(&mut self, cx: &mut Context<Self>) {
+        let Some(open) = self.book_note.as_mut() else {
+            return;
+        };
+        let body = self.body.read(cx);
+        let range = body.selected_range();
+        let head = body.cursor();
+        let anchor = if head == range.start {
+            range.end
+        } else {
+            range.start
+        };
+        if open.caret_sent != Some((anchor, head)) {
+            open.caret_sent = Some((anchor, head));
+            if let Some(engine) = crate::collab::current(cx) {
+                engine.set_book_caret(&open.share_id, &open.stream, anchor, head);
+            }
+        }
+    }
+
+    /// Places the other members' cursors in the notebook note, with the
+    /// names the notebook's signed member list gives them.
+    pub fn refresh_book_cursors(&mut self, cx: &mut Context<Self>) {
+        let Some(open) = self.book_note.as_ref() else {
+            return;
+        };
+        let Some(engine) = crate::collab::current(cx) else {
+            return;
+        };
+        let text = self.body.read(cx).value();
+        let marks = remote_marks(&engine.book_cursors(&open.share_id, &open.stream), &text);
+        let dark = cx.theme().is_dark();
+        let tints: Vec<TextDecoration> = marks
+            .iter()
+            .filter(|m| !m.selection.is_empty())
+            .map(|m| {
+                TextDecoration::new(
+                    m.selection.clone(),
+                    HighlightStyle {
+                        background_color: Some(cursor_colour(m.colour, dark).opacity(0.22)),
+                        ..Default::default()
+                    },
+                )
+            })
+            .collect();
+        let made = match open.selections.clone() {
+            Some(collection) => {
+                collection.set(tints, cx);
+                None
+            }
+            None if tints.is_empty() => None,
+            None => Some(self.body.update(cx, |state, cx| {
+                state.create_decorations_collection(tints, cx)
+            })),
+        };
+        if let Some(open) = self.book_note.as_mut() {
+            if made.is_some() {
+                open.selections = made;
+            }
+            if open.cursors != marks {
+                open.cursors = marks;
+                cx.notify();
+            }
+        }
+    }
+
+    /// Who else is in the open notebook note, for tests.
+    #[cfg(test)]
+    pub fn book_cursors_for_test(&self) -> Vec<String> {
+        self.book_note
+            .as_ref()
+            .map(|b| b.cursors.iter().map(|c| c.name.clone()).collect())
+            .unwrap_or_default()
+    }
+}
+
+/// The note's log in a shared notebook, if its share mark is a notebook's.
+/// Pure.
+pub(crate) fn book_stream(extra: &serde_json::Map<String, serde_json::Value>) -> Option<String> {
+    let mark = extra.get(kanso_core::model::SHARE_FIELD)?.as_object()?;
+    if mark.get("book").and_then(|b| b.as_bool()) != Some(true) {
+        return None;
+    }
+    mark.get("stream")?.as_str().map(str::to_owned)
 }
 
 /// The usernames in a shared note, to set @mentions apart: its members as

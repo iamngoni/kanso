@@ -397,6 +397,8 @@ pub struct NoteEditor {
     live_scale: f32,
     /// The shared note open, attached to the engine (`editor_collab.rs`).
     shared: Option<crate::collab_model::OpenShare>,
+    /// The note of a shared notebook open here: its room's presence.
+    book_note: Option<crate::collab_model::OpenBookNote>,
     /// Effective read-only state for the title and text inputs.
     text_read_only: bool,
     /// The text input's own: also set for a shared canvas shown as text.
@@ -759,6 +761,7 @@ impl NoteEditor {
             live_plain: false,
             live_scale: 0.,
             shared: None,
+            book_note: None,
             text_read_only: false,
             body_read_only: false,
             account_read_only: false,

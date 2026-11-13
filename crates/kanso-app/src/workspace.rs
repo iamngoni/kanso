@@ -2029,6 +2029,9 @@ impl Workspace {
             SidebarEvent::PublishBook(id) => {
                 self.publish_notebook(Some(id.clone()), window, cx);
             }
+            SidebarEvent::ShareBook(id) => {
+                crate::book_share_sheet::open_book_share(id.clone(), window, cx);
+            }
             SidebarEvent::AskBook(id) => {
                 if !cx.global::<AppState>().config.ai.enabled {
                     return;
