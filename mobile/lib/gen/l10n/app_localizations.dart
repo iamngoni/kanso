@@ -13737,6 +13737,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That note is locked. Unlock it to change it.'**
   String get scheduleLocked;
+
+  /// The banner under a note's title while its embargo is in force.
+  ///
+  /// In en, this message translates to:
+  /// **'Embargoed until {when}'**
+  String embargoBanner(String when);
+
+  /// Under the embargo banner: how far off the lift is.
+  ///
+  /// In en, this message translates to:
+  /// **'Lifts {inWords}'**
+  String embargoBannerLifts(String inWords);
+
+  /// Title of the question before publishing, sharing by link or exporting a note under embargo.
+  ///
+  /// In en, this message translates to:
+  /// **'This note is under embargo'**
+  String get embargoAskTitle;
+
+  /// The question before publishing a note under embargo.
+  ///
+  /// In en, this message translates to:
+  /// **'Embargo lifts {when} ({inWords}). Publish anyway?'**
+  String embargoAskPublish(String when, String inWords);
+
+  /// The question before making an invite link to a note under embargo.
+  ///
+  /// In en, this message translates to:
+  /// **'Embargo lifts {when} ({inWords}). Make a share link anyway?'**
+  String embargoAskShareLink(String when, String inWords);
+
+  /// The question before exporting a note under embargo.
+  ///
+  /// In en, this message translates to:
+  /// **'Embargo lifts {when} ({inWords}). Export anyway?'**
+  String embargoAskExport(String when, String inWords);
+
+  /// Publishes a note under embargo.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish anyway'**
+  String get embargoPublishAnyway;
+
+  /// Makes an invite link to a note under embargo.
+  ///
+  /// In en, this message translates to:
+  /// **'Make link anyway'**
+  String get embargoShareLinkAnyway;
+
+  /// Exports a note under embargo.
+  ///
+  /// In en, this message translates to:
+  /// **'Export anyway'**
+  String get embargoExportAnyway;
+
+  /// Small print under the embargo question.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone who can read the note can still copy it. The embargo is a reminder, not a lock.'**
+  String get embargoGuardRail;
 }
 
 class _AppLocalizationsDelegate

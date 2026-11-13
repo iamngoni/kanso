@@ -8304,4 +8304,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduleLocked => 'That note is locked. Unlock it to change it.';
+
+  @override
+  String embargoBanner(String when) {
+    return 'Embargoed until $when';
+  }
+
+  @override
+  String embargoBannerLifts(String inWords) {
+    return 'Lifts $inWords';
+  }
+
+  @override
+  String get embargoAskTitle => 'This note is under embargo';
+
+  @override
+  String embargoAskPublish(String when, String inWords) {
+    return 'Embargo lifts $when ($inWords). Publish anyway?';
+  }
+
+  @override
+  String embargoAskShareLink(String when, String inWords) {
+    return 'Embargo lifts $when ($inWords). Make a share link anyway?';
+  }
+
+  @override
+  String embargoAskExport(String when, String inWords) {
+    return 'Embargo lifts $when ($inWords). Export anyway?';
+  }
+
+  @override
+  String get embargoPublishAnyway => 'Publish anyway';
+
+  @override
+  String get embargoShareLinkAnyway => 'Make link anyway';
+
+  @override
+  String get embargoExportAnyway => 'Export anyway';
+
+  @override
+  String get embargoGuardRail =>
+      'Anyone who can read the note can still copy it. The embargo is a reminder, not a lock.';
 }
