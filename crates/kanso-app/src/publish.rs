@@ -53,6 +53,11 @@ pub struct PublishView {
     copied: bool,
     /// Unpublish was pressed once; the next press unpublishes.
     confirm_unpublish: bool,
+    /// The note is under embargo and Publish was pressed: what the sheet
+    /// asks before it goes ahead.
+    embargo_ask: Option<kanso_core::embargo::Ask>,
+    /// The person said to publish anyway, for the next publish.
+    embargo_ok: bool,
 }
 
 impl PublishView {
@@ -71,6 +76,26 @@ impl PublishView {
     #[cfg(test)]
     pub fn error(&self) -> Option<&SharedString> {
         self.error.as_ref()
+    }
+
+    /// What the sheet asks before publishing a note under embargo, while
+    /// it asks.
+    #[cfg(test)]
+    pub fn embargo_ask(&self) -> Option<&kanso_core::embargo::Ask> {
+        self.embargo_ask.as_ref()
+    }
+
+    /// Publishes past the embargo, as "Publish anyway" does.
+    pub fn publish_anyway(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.embargo_ask = None;
+        self.embargo_ok = true;
+        self.run_publish(window, cx);
+    }
+
+    /// Takes the embargo question back without publishing.
+    pub fn keep_embargo(&mut self, cx: &mut Context<Self>) {
+        self.embargo_ask = None;
+        cx.notify();
     }
 
     fn link(&self) -> Option<String> {
@@ -124,6 +149,21 @@ impl PublishView {
                 return;
             }
         }
+        // Under embargo, the sheet asks first; "Publish anyway" goes on.
+        let ok = std::mem::take(&mut self.embargo_ok);
+        if !ok
+            && let Some(ask) = crate::embargo_gate::ask_for(
+                &self.source.body,
+                kanso_core::embargo::Gate::Publish,
+                cx,
+            )
+        {
+            self.embargo_ask = Some(ask);
+            self.confirm_unpublish = false;
+            cx.notify();
+            return;
+        }
+        self.embargo_ask = None;
         let palette = kanso_engine::export::print_palette(crate::preview_rich::palette(cx));
         let style = crate::export_style::for_palette(cx, &palette);
         let now = Clock::now_ms(cx);
@@ -333,7 +373,10 @@ impl Render for PublishView {
                 })
             }
         };
-        body.when_some(self.error.clone(), |el, error| {
+        body.when_some(self.embargo_ask.clone(), |el, ask| {
+            el.child(embargo_box(&ask, "publish-embargo", colors))
+        })
+        .when_some(self.error.clone(), |el, error| {
             el.child(
                 div()
                     .text_size(px(13.))
@@ -344,6 +387,43 @@ impl Render for PublishView {
             )
         })
     }
+}
+
+/// The question a sheet asks before going past an embargo: its title in
+/// bold over when the embargo lifts.
+pub(crate) fn embargo_box(
+    ask: &kanso_core::embargo::Ask,
+    selector: &'static str,
+    colors: &Colors,
+) -> Div {
+    v_flex()
+        .gap_1()
+        .px(px(12.))
+        .py(px(10.))
+        .rounded(px(6.))
+        .bg(Hsla::from(colors.warning).opacity(0.14))
+        .debug_selector(move || selector.into())
+        .child(
+            h_flex()
+                .gap_2()
+                .items_center()
+                .text_size(px(13.5))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(colors.text)
+                .child(
+                    gpui_kit::component::Icon::new(Lucide::Pause)
+                        .size(px(13.))
+                        .text_color(colors.warning),
+                )
+                .child(ask.title.clone()),
+        )
+        .child(
+            div()
+                .text_size(px(13.))
+                .line_height(px(19.))
+                .text_color(colors.text_secondary)
+                .child(ask.body.clone()),
+        )
 }
 
 impl PublishView {
@@ -434,6 +514,29 @@ impl Render for PublishFooter {
             .on_click(|_, window, cx| window.close_dialog(cx));
         let target = self.view.clone();
         let row = h_flex().w_full().gap_2().items_center();
+        // Asking about an embargo: go back, or publish anyway.
+        if let Some(ask) = view.embargo_ask.clone() {
+            let keep = self.view.clone();
+            return row
+                .child(div().flex_1())
+                .child(
+                    Button::new("embargo-cancel")
+                        .label("Cancel")
+                        .debug_selector(|| "embargo-cancel".into())
+                        .on_click(move |_, _, cx| {
+                            keep.update(cx, |view, cx| view.keep_embargo(cx));
+                        }),
+                )
+                .child(
+                    Button::new("embargo-go")
+                        .primary()
+                        .label(ask.confirm)
+                        .debug_selector(|| "embargo-go".into())
+                        .on_click(move |_, window, cx| {
+                            target.update(cx, |view, cx| view.publish_anyway(window, cx));
+                        }),
+                );
+        }
         match view.phase() {
             Phase::SignedOut => row
                 .child(div().flex_1())
@@ -565,6 +668,8 @@ pub fn open_publish(
         error: None,
         copied: false,
         confirm_unpublish: false,
+        embargo_ask: None,
+        embargo_ok: false,
     });
     let footer = cx.new(|cx| PublishFooter {
         view: view.clone(),

@@ -4,6 +4,7 @@
 
 use chrono::{Datelike as _, Local, TimeZone as _};
 use kanso_core::dates::{Date, DateTime};
+use kanso_core::embargo;
 use kanso_core::model::LOCK_FIELD;
 use kanso_core::reminders::{ACK_FIELD, Acks, acknowledge, acks_value, read_acks, task_key};
 use kanso_core::reschedule::set_task_due;
@@ -374,9 +375,11 @@ impl Store {
             };
             let acks = read_acks(&row.fields);
             let body = row.fields.get("body").and_then(Value::as_str).unwrap_or("");
+            // The note's embargo reminds too: its key stays while it does.
             let live: Vec<String> = task_items(body)
                 .into_iter()
                 .filter_map(|t| Some(task_key(id, &t.text, &t.due?)))
+                .chain(embargo::of(body).map(|e| embargo::reminder_key(id, &e)))
                 .collect();
             let next = acknowledge(&acks, key, fired_at, &live);
             if next == acks {

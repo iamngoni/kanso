@@ -886,6 +886,71 @@ async fn notes_export_as_standalone_pages() {
     assert_eq!(bad["isError"], true);
 }
 
+/// A note under embargo isn't exported unless the caller says to ignore
+/// it; the error names the embargo and the flag. A lifted one exports.
+#[tokio::test]
+async fn an_embargoed_note_exports_only_with_the_override() {
+    let app = app();
+    let book_id =
+        tool_json(&tool(&app.router, "create-book", json!({ "name": "Studio" })).await)["id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+    let made = |body: &'static str| {
+        let router = app.router.clone();
+        let book_id = book_id.clone();
+        async move {
+            tool_json(
+                &tool(
+                    &router,
+                    "create-note",
+                    json!({ "bookId": book_id, "title": "Pixel 11 review", "body": body }),
+                )
+                .await,
+            )["id"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        }
+    };
+    let held =
+        made("---\nembargo: 2099-11-18T09:00 America/New_York\n---\nThe Pixel 11 is fast.\n").await;
+    let refused = tool(&app.router, "kanso-export-html", json!({ "noteId": held })).await;
+    assert_eq!(refused["isError"], true);
+    let words = text(&refused, 0);
+    assert!(
+        words.contains("under embargo until Wed 18 Nov, 09:00 New York"),
+        "{words}"
+    );
+    assert!(words.contains("\"ignoreEmbargo\": true"), "{words}");
+    let refused = tool(
+        &app.router,
+        "kanso-export-html",
+        json!({ "noteId": held, "ignoreEmbargo": false }),
+    )
+    .await;
+    assert_eq!(refused["isError"], true);
+
+    let page = tool(
+        &app.router,
+        "kanso-export-html",
+        json!({ "noteId": held, "ignoreEmbargo": true }),
+    )
+    .await;
+    assert_ne!(page["isError"], true);
+    assert!(text(&page, 0).contains("The Pixel 11 is fast."));
+
+    let lifted = made("---\nembargo: 2001-11-18T09:00 America/New_York\n---\nOld news.\n").await;
+    let page = tool(
+        &app.router,
+        "kanso-export-html",
+        json!({ "noteId": lifted }),
+    )
+    .await;
+    assert_ne!(page["isError"], true);
+    assert!(text(&page, 0).contains("Old news."));
+}
+
 #[tokio::test]
 async fn outlines_and_wiki_links_through_kanso_tools() {
     let app = app();

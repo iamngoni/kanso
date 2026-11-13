@@ -14,6 +14,8 @@ mod cards_model;
 pub mod collab;
 mod derived;
 mod doc;
+mod embargo;
+mod embargo_model;
 mod embed;
 mod encrypt;
 mod encrypt_backups;
@@ -79,6 +81,7 @@ pub use collab::model::{
 pub use collab::{LOCKED_SHARED, SharedCanvas, SharedText};
 pub use derived::{Backlink, DERIVED_VERSION, DERIVED_VERSION_KEY, HeadingHit};
 pub use doc::{Attachment, Doc};
+pub use embargo_model::EmbargoNote;
 pub use embed::{
     EmbeddedNote, EmbeddedPassage, Embedder, EmbeddingQueue, MODEL_KEY as EMBED_MODEL_KEY,
     PendingEmbedding, RelatedNote, content_hash, cosine, embed_text, top_k,

@@ -76,6 +76,9 @@ mod digest_view;
 mod due;
 mod editor;
 mod editor_footer;
+mod embargo_gate;
+#[cfg(test)]
+mod embargo_tests;
 mod empty_state;
 mod encrypt_progress;
 mod export_html;

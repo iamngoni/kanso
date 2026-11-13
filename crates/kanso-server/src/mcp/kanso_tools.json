@@ -480,7 +480,7 @@
   },
   {
     "name": "kanso-export-html",
-    "description": "Export a note as one self-contained HTML page, as Kanso's \"Export as web page\" does. TeX math ($…$ and $$…$$), Mermaid diagrams and Excalidraw drawings are drawn as inline SVG, attached images are embedded as data URIs, and the page has no scripts and loads nothing from the network. Returns the HTML.",
+    "description": "Export a note as one self-contained HTML page, as Kanso's \"Export as web page\" does. TeX math ($…$ and $$…$$), Mermaid diagrams and Excalidraw drawings are drawn as inline SVG, attached images are embedded as data URIs, and the page has no scripts and loads nothing from the network. Returns the HTML. A note whose `embargo` property is still to come is refused unless ignoreEmbargo is true.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
@@ -497,6 +497,11 @@
             "light",
             "dark"
           ]
+        },
+        "ignoreEmbargo": {
+          "type": "boolean",
+          "default": false,
+          "description": "Export the note even though its embargo has not lifted yet. Only set this when the person asked to export it before the embargo date."
         }
       },
       "required": [

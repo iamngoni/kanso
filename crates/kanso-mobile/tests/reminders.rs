@@ -438,3 +438,56 @@ fn a_repeating_task_reminds_for_the_next_instance_and_says_it_repeats() {
     );
     assert_ne!(next.schedule[0].key, got.show_now[0].key);
 }
+
+// no-prop-test: a fixed note and the plan at fixed times; the engine's
+// properties cover when a lift notice falls due.
+#[test]
+fn an_embargo_lift_notice_is_scheduled_then_shown_and_opens_the_note() {
+    let phone = lone_phone();
+    let library = &phone.library;
+    // 05:00 in New York is 09:00 UTC, 11:00 on this phone.
+    let id = note(
+        library,
+        "Pixel 11 review",
+        "---\nembargo: 2026-10-22T05:00 America/New_York\n---\nThe Pixel 11 is fast.\n",
+    );
+    let before = utc("2026-10-22T10:00");
+    let held = library
+        .embargo(&id, before, OFFSET)
+        .unwrap()
+        .expect("in force");
+    assert_eq!(held.lifts, "Thu 22 Oct, 05:00 New York");
+    assert_eq!(held.lifts_in, "in 1 hour");
+    assert_eq!(held.lifts_at_ms, utc("2026-10-22T11:00"));
+    assert_eq!(held.zone.as_deref(), Some("America/New_York"));
+
+    let got = plan(library, before);
+    assert!(got.show_now.is_empty());
+    assert_eq!(keys(&got.schedule), ["Embargo lifted: Pixel 11 review"]);
+    let lift = &got.schedule[0];
+    assert_eq!(lift.body, "Today 11:00 · Pixel 11 review");
+    assert_eq!((lift.fire_at.hour, lift.fire_at.minute), (11, 0));
+    assert!(!lift.actions, "nothing to tick off");
+    assert_eq!(
+        lift.key,
+        format!("{id}#embargo@2026-10-22T05:00 America/New_York")
+    );
+
+    // On a phone whose plan wasn't handed out ahead, it shows when it lifts.
+    library
+        .reminders_forget(vec![lift.key.clone()], before)
+        .unwrap();
+    let now = utc("2026-10-22T11:00") + 30_000;
+    assert_eq!(library.embargo(&id, now, OFFSET).unwrap(), None);
+    let got = plan(library, now);
+    assert_eq!(keys(&got.show_now), ["Embargo lifted: Pixel 11 review"]);
+    let open = library.reminder_answer(&got.show_now[0].key, ReminderAnswer::Open, now);
+    assert_eq!(
+        open,
+        Ok(Some(TaskPlace {
+            note_id: id,
+            line: 0
+        }))
+    );
+    assert!(plan(library, now + 60_000).show_now.is_empty());
+}
