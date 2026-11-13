@@ -324,21 +324,26 @@ pub fn repeat_query(before_caret: &str) -> Option<(usize, &str)> {
     (!task_items(&line).is_empty()).then_some((token.end + 1, query))
 }
 
-/// The repeats offered for `query`, as `(label, words)`: every day, week,
-/// weekday and month, those the typing is the start of (of the words or of
-/// one of them: `w` finds week and weekday). Pure.
+/// The repeats the `@` list offers once a date is written: the row's words
+/// and what it writes. The desktop and the phone share them.
+pub const REPEAT_CHOICES: [(&str, &str); 4] = [
+    ("Every day", "every day"),
+    ("Every week", "every week"),
+    ("Every weekday", "every weekday"),
+    ("Every month", "every month"),
+];
+
+/// The repeats offered for `query`, as `(label, words)`: [`REPEAT_CHOICES`]
+/// the typing is the start of (of the words or of one of them: `w` finds
+/// week and weekday). Pure.
 pub fn repeat_choices(query: &str) -> Vec<(String, String)> {
     let query = query.trim_start().to_lowercase();
-    ["every day", "every week", "every weekday", "every month"]
-        .into_iter()
-        .filter(|words| {
+    REPEAT_CHOICES
+        .iter()
+        .filter(|(_, words)| {
             words.starts_with(&query) || words.split(' ').any(|w| w.starts_with(&query))
         })
-        .map(|words| {
-            let mut label = words.to_owned();
-            label[..1].make_ascii_uppercase();
-            (label, words.to_owned())
-        })
+        .map(|(label, words)| ((*label).to_owned(), (*words).to_owned()))
         .collect()
 }
 
