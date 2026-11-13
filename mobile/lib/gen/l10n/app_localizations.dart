@@ -13408,6 +13408,24 @@ abstract class AppLocalizations {
   /// **'Reads as {date}'**
   String captureTaskHintSemantics(String date);
 
+  /// Said over another app when photos or a PDF picked in the capture sheet were saved as a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to the Inbox'**
+  String get captureOverAppSaved;
+
+  /// Said over another app when what was picked in the capture sheet could not be saved because the Inbox is locked.
+  ///
+  /// In en, this message translates to:
+  /// **'The Inbox is locked, so nothing was saved. Remove its lock in Kanso.'**
+  String get captureOverAppLocked;
+
+  /// Said over another app when what was picked in the capture sheet could not be saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Kanso couldn’t save this. Try again.'**
+  String get captureOverAppFailed;
+
   /// The setting for where a task typed into Quick Capture is written.
   ///
   /// In en, this message translates to:

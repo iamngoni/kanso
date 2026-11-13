@@ -170,8 +170,23 @@
                 android:name="android.service.quicksettings.TOGGLEABLE_TILE"
                 android:value="true" />
         </service>
+        <!-- The capture sheet over the app on screen: the Add task tile and
+             the Capture and Add task shortcuts (CaptureActivity.kt). A
+             see-through window in a task of its own, never in the recents,
+             so the app beneath stays and Kanso's own task is not brought
+             forward. Its engine runs captureMain. -->
+        <activity
+            android:name=".CaptureActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="app.kanso.kanso.capture"
+            android:launchMode="singleTask"
+            android:theme="@style/CaptureTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize|stateVisible" />
         <!-- The Quick Settings tile "Add task": opens the capture sheet in
-             Task mode (kanso://open/new?task=1) over where the app is. -->
+             Task mode (kanso://open/new?task=1) over the app on screen. -->
         <service
             android:name=".TaskTileService"
             android:exported="true"

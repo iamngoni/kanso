@@ -33,26 +33,33 @@ class CaptureSheet extends StatelessWidget {
     required this.first,
     required this.onSource,
     this.tasks,
+    this.onTaskSaved,
     super.key,
   });
 
   /// Shows the sheet over [context]. With [tasks] it offers Task mode too;
   /// the sheet closes the cubit when it is dismissed, which was made for it.
   /// With [mode] it opens in that mode rather than the last one chosen.
+  /// [onTaskSaved] is told each time a task is written.
   static Future<void> show(
     BuildContext context, {
     required CaptureFirstRow first,
     required ValueChanged<MediaSource> onSource,
     CaptureTaskCubit? tasks,
     CaptureMode? mode,
+    VoidCallback? onTaskSaved,
   }) {
     if (tasks != null && !tasks.state.loaded) {
       tasks.started(mode: mode);
     }
     return showKansoBottomSheet<void>(
       context,
-      builder: (_) =>
-          CaptureSheet(first: first, onSource: onSource, tasks: tasks),
+      builder: (_) => CaptureSheet(
+        first: first,
+        onSource: onSource,
+        tasks: tasks,
+        onTaskSaved: onTaskSaved,
+      ),
     ).whenComplete(() => tasks?.close());
   }
 
@@ -63,6 +70,9 @@ class CaptureSheet extends StatelessWidget {
 
   /// The Task mode's state, or none for a sheet that only picks media.
   final CaptureTaskCubit? tasks;
+
+  /// Told each time a task is written: the sheet over another app goes.
+  final VoidCallback? onTaskSaved;
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +118,7 @@ class CaptureSheet extends StatelessWidget {
                   ),
                 ),
                 if (state.mode == CaptureMode.task)
-                  const CaptureTaskForm()
+                  CaptureTaskForm(onSaved: onTaskSaved)
                 else
                   _Sources(first: first, onSource: onSource),
               ],

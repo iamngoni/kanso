@@ -8109,6 +8109,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get captureOverAppSaved => 'Saved to the Inbox';
+
+  @override
+  String get captureOverAppLocked =>
+      'The Inbox is locked, so nothing was saved. Remove its lock in Kanso.';
+
+  @override
+  String get captureOverAppFailed => 'Kanso couldn’t save this. Try again.';
+
+  @override
   String get settingsCaptureTasks => 'Captured tasks go to';
 
   @override

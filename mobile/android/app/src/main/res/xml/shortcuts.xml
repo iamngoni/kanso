@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Capture, Add task and Search come first: most launchers show four.
-         new_note keeps its id so a pinned copy keeps working. -->
+         new_note keeps its id so a pinned copy keeps working.
+         Capture and Add task open the capture sheet over the app on screen
+         (CaptureActivity), in Note and Task mode; Android starts a static
+         shortcut in a task of its own, cleared first. -->
     <shortcut
         android:shortcutId="new_note"
         android:enabled="true"
@@ -12,9 +15,9 @@
             android:action="android.intent.action.VIEW"
             android:data="kanso://open/new"
             android:targetPackage="app.kanso.kanso"
-            android:targetClass="app.kanso.kanso.MainActivity" />
+            android:targetClass="app.kanso.kanso.CaptureActivity" />
     </shortcut>
-    <!-- The capture sheet in Task mode, over where the app is. -->
+    <!-- The capture sheet in Task mode, over the app on screen. -->
     <shortcut
         android:shortcutId="add_task"
         android:enabled="true"
@@ -25,7 +28,7 @@
             android:action="android.intent.action.VIEW"
             android:data="kanso://open/new?task=1"
             android:targetPackage="app.kanso.kanso"
-            android:targetClass="app.kanso.kanso.MainActivity" />
+            android:targetClass="app.kanso.kanso.CaptureActivity" />
     </shortcut>
     <shortcut
         android:shortcutId="search"

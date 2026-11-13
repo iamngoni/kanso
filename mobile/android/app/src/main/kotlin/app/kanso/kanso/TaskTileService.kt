@@ -3,16 +3,18 @@ package app.kanso.kanso
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 
 /**
- * The Quick Settings tile "Add task": a tap opens Kanso with
- * `kanso://open/new?task=1`, which shows the capture sheet in Task mode over
- * the screen the app was on (the Dart router, `deep_links.dart`). The same
- * link is the launcher's Add task shortcut (`res/xml/shortcuts.xml`).
+ * The Quick Settings tile "Add task": a tap opens the capture sheet in Task
+ * mode over the app on screen (`CaptureActivity` on
+ * `kanso://open/new?task=1`), without bringing Kanso forward. The launcher's
+ * Add task shortcut (`res/xml/shortcuts.xml`) opens the same.
+ *
+ * While the panel shows the tile, the sheet's engine is started ahead, so
+ * it is up as soon as the tile is tapped.
  *
  * The task goes into the notes, so on the lock screen the phone is unlocked
  * first.
@@ -23,6 +25,7 @@ class TaskTileService : TileService() {
         // An action, not a switch: it is never "on".
         tile.state = Tile.STATE_INACTIVE
         tile.updateTile()
+        CaptureEngines.prewarm(this)
     }
 
     override fun onClick() {
@@ -49,15 +52,13 @@ class TaskTileService : TileService() {
 
     companion object {
         /** The link the tile and the Add task shortcut open. */
-        const val ADD_TASK_LINK = "kanso://open/new?task=1"
+        const val ADD_TASK_LINK = CaptureEngines.ADD_TASK_LINK
 
         // VoiceTileService's pending intent is 4.
         private const val REQUEST_CODE = 5
 
-        /** Opens `MainActivity` on [ADD_TASK_LINK], as the shortcut does. */
+        /** Opens `CaptureActivity` on [ADD_TASK_LINK], as the shortcut does. */
         fun addTaskIntent(context: Context): Intent =
-            Intent(Intent.ACTION_VIEW, Uri.parse(ADD_TASK_LINK))
-                .setClassName(context, MainActivity::class.java.name)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            CaptureEngines.intent(context, ADD_TASK_LINK)
     }
 }

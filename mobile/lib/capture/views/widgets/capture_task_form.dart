@@ -25,7 +25,10 @@ import '../../state/capture_task/capture_task_cubit.dart';
 /// written empties the field for the next one and says where it went.
 /// It needs the [CaptureTaskCubit] above it.
 class CaptureTaskForm extends StatefulWidget {
-  const CaptureTaskForm({super.key});
+  const CaptureTaskForm({this.onSaved, super.key});
+
+  /// Told after a task is written, once the field is emptied.
+  final VoidCallback? onSaved;
 
   @override
   State<CaptureTaskForm> createState() => _CaptureTaskFormState();
@@ -50,6 +53,7 @@ class _CaptureTaskFormState extends State<CaptureTaskForm> {
     final written = await cubit.submitted(_text.text, monthFirst: _monthFirst);
     if (written && mounted) {
       _text.clear();
+      widget.onSaved?.call();
     }
   }
 
