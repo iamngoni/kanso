@@ -14,30 +14,61 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$TemplatePickerEvent {
 
-
+ String? get notebookId;
+/// Create a copy of TemplatePickerEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$TemplatePickerEventCopyWith<TemplatePickerEvent> get copyWith => _$TemplatePickerEventCopyWithImpl<TemplatePickerEvent>(this as TemplatePickerEvent, _$identity);
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TemplatePickerEvent);
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TemplatePickerEvent&&(identical(other.notebookId, notebookId) || other.notebookId == notebookId));
 }
 
 
 @override
-int get hashCode => runtimeType.hashCode;
+int get hashCode => Object.hash(runtimeType,notebookId);
 
 @override
 String toString() {
-  return 'TemplatePickerEvent()';
+  return 'TemplatePickerEvent(notebookId: $notebookId)';
 }
 
 
 }
 
 /// @nodoc
-class $TemplatePickerEventCopyWith<$Res>  {
-$TemplatePickerEventCopyWith(TemplatePickerEvent _, $Res Function(TemplatePickerEvent) __);
+abstract mixin class $TemplatePickerEventCopyWith<$Res>  {
+  factory $TemplatePickerEventCopyWith(TemplatePickerEvent value, $Res Function(TemplatePickerEvent) _then) = _$TemplatePickerEventCopyWithImpl;
+@useResult
+$Res call({
+ String? notebookId
+});
+
+
+
+
+}
+/// @nodoc
+class _$TemplatePickerEventCopyWithImpl<$Res>
+    implements $TemplatePickerEventCopyWith<$Res> {
+  _$TemplatePickerEventCopyWithImpl(this._self, this._then);
+
+  final TemplatePickerEvent _self;
+  final $Res Function(TemplatePickerEvent) _then;
+
+/// Create a copy of TemplatePickerEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? notebookId = freezed,}) {
+  return _then(_self.copyWith(
+notebookId: freezed == notebookId ? _self.notebookId : notebookId // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
 }
 
 
@@ -116,10 +147,10 @@ return started(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String? notebookId)?  started,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case TemplatePickerStartedEvent() when started != null:
-return started();case _:
+return started(_that.notebookId);case _:
   return orElse();
 
 }
@@ -137,10 +168,10 @@ return started();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String? notebookId)  started,}) {final _that = this;
 switch (_that) {
 case TemplatePickerStartedEvent():
-return started();}
+return started(_that.notebookId);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -154,10 +185,10 @@ return started();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String? notebookId)?  started,}) {final _that = this;
 switch (_that) {
 case TemplatePickerStartedEvent() when started != null:
-return started();case _:
+return started(_that.notebookId);case _:
   return null;
 
 }
@@ -169,33 +200,67 @@ return started();case _:
 
 
 class TemplatePickerStartedEvent implements TemplatePickerEvent {
-  const TemplatePickerStartedEvent();
+  const TemplatePickerStartedEvent({this.notebookId});
   
 
+@override final  String? notebookId;
 
-
+/// Create a copy of TemplatePickerEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$TemplatePickerStartedEventCopyWith<TemplatePickerStartedEvent> get copyWith => _$TemplatePickerStartedEventCopyWithImpl<TemplatePickerStartedEvent>(this, _$identity);
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TemplatePickerStartedEvent);
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TemplatePickerStartedEvent&&(identical(other.notebookId, notebookId) || other.notebookId == notebookId));
 }
 
 
 @override
-int get hashCode => runtimeType.hashCode;
+int get hashCode => Object.hash(runtimeType,notebookId);
 
 @override
 String toString() {
-  return 'TemplatePickerEvent.started()';
+  return 'TemplatePickerEvent.started(notebookId: $notebookId)';
 }
 
 
 }
 
+/// @nodoc
+abstract mixin class $TemplatePickerStartedEventCopyWith<$Res> implements $TemplatePickerEventCopyWith<$Res> {
+  factory $TemplatePickerStartedEventCopyWith(TemplatePickerStartedEvent value, $Res Function(TemplatePickerStartedEvent) _then) = _$TemplatePickerStartedEventCopyWithImpl;
+@override @useResult
+$Res call({
+ String? notebookId
+});
 
 
+
+
+}
+/// @nodoc
+class _$TemplatePickerStartedEventCopyWithImpl<$Res>
+    implements $TemplatePickerStartedEventCopyWith<$Res> {
+  _$TemplatePickerStartedEventCopyWithImpl(this._self, this._then);
+
+  final TemplatePickerStartedEvent _self;
+  final $Res Function(TemplatePickerStartedEvent) _then;
+
+/// Create a copy of TemplatePickerEvent
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? notebookId = freezed,}) {
+  return _then(TemplatePickerStartedEvent(
+notebookId: freezed == notebookId ? _self.notebookId : notebookId // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
 
 /// @nodoc
 mixin _$TemplatePickerState {

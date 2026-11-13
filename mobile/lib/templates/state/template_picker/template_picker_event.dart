@@ -6,6 +6,8 @@ part of 'template_picker_bloc.dart';
 
 @freezed
 sealed class TemplatePickerEvent with _$TemplatePickerEvent {
-  /// The picker was opened (or tried again): read the templates.
-  const factory TemplatePickerEvent.started() = TemplatePickerStartedEvent;
+  /// The picker was opened (or tried again): read the templates, with the
+  /// ones [notebookId] names first.
+  const factory TemplatePickerEvent.started({String? notebookId}) =
+      TemplatePickerStartedEvent;
 }

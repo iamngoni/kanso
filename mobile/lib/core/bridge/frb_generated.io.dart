@@ -2423,6 +2423,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   NewNote dco_decode_new_note(dynamic raw);
 
   @protected
+  NewNotebookKind dco_decode_new_notebook_kind(dynamic raw);
+
+  @protected
   NoteCardView dco_decode_note_card_view(dynamic raw);
 
   @protected
@@ -5933,6 +5936,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   NewNote sse_decode_new_note(SseDeserializer deserializer);
+
+  @protected
+  NewNotebookKind sse_decode_new_notebook_kind(SseDeserializer deserializer);
 
   @protected
   NoteCardView sse_decode_note_card_view(SseDeserializer deserializer);
@@ -10298,6 +10304,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_new_note(NewNote self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_new_notebook_kind(
+    NewNotebookKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_note_card_view(NoteCardView self, SseSerializer serializer);

@@ -7,7 +7,10 @@
 
 use kanso_core::DocType;
 use kanso_core::properties;
-use kanso_core::schema::{self, BOARD_FIELD, BoardSpec, FIELD, Mismatch, PropertyDef, SchemaError};
+use kanso_core::schema::{
+    self, BOARD_FIELD, BoardSpec, FIELD, MAX_TEMPLATES, Mismatch, PropertyDef, SchemaError,
+    TEMPLATES_FIELD, TemplateEntry,
+};
 use serde_json::json;
 
 use crate::{Origin, Put, Result, Store, StoreError, WriteResult};
@@ -81,6 +84,54 @@ impl Store {
             Put::Merge,
             origin,
         )
+    }
+
+    /// The IDs of the templates notebook `book_id` names, in order; empty
+    /// when it names none or is not there.
+    pub fn notebook_templates(&self, book_id: &str) -> Result<Vec<String>> {
+        Ok(self
+            .get(book_id)?
+            .filter(|doc| doc.doc_type == DocType::Book)
+            .map(|doc| schema::templates_from_json(doc.fields.get(TEMPLATES_FIELD)))
+            .unwrap_or_default())
+    }
+
+    /// Makes `ids` the templates notebook `book_id` names (an empty list
+    /// clears it). A template is a note in the Templates notebook.
+    pub fn set_notebook_templates(
+        &self,
+        book_id: &str,
+        ids: &[String],
+        origin: Origin,
+    ) -> Result<WriteResult> {
+        if ids.len() > MAX_TEMPLATES {
+            return Err(StoreError::Invalid(format!(
+                "A notebook can name at most {MAX_TEMPLATES} templates."
+            )));
+        }
+        if self
+            .get(book_id)?
+            .is_none_or(|doc| doc.doc_type != DocType::Book)
+        {
+            return Err(StoreError::NotFound);
+        }
+        self.put(
+            DocType::Book,
+            json!({"_id": book_id, TEMPLATES_FIELD: schema::templates_to_json(ids)}),
+            Put::Merge,
+            origin,
+        )
+    }
+
+    /// The "New from template" list for the notebook the list shows
+    /// (`book_id`, none for no notebook): the templates it names first, then
+    /// the rest by title.
+    pub fn templates_for(&self, book_id: Option<&str>) -> Result<Vec<TemplateEntry>> {
+        let named = match book_id {
+            Some(book) => self.notebook_templates(book)?,
+            None => Vec::new(),
+        };
+        Ok(schema::order_templates(&self.templates()?, &named))
     }
 
     /// The warnings for note `note_id`: each property its notebook's list

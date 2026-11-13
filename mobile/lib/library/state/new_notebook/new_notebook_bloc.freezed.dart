@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$NewNotebookEvent {
 
- String get name;
+ String get name; NewNotebookKind get kind;
 /// Create a copy of NewNotebookEvent
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $NewNotebookEventCopyWith<NewNotebookEvent> get copyWith => _$NewNotebookEventCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NewNotebookEvent&&(identical(other.name, name) || other.name == name));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NewNotebookEvent&&(identical(other.name, name) || other.name == name)&&(identical(other.kind, kind) || other.kind == kind));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,name);
+int get hashCode => Object.hash(runtimeType,name,kind);
 
 @override
 String toString() {
-  return 'NewNotebookEvent(name: $name)';
+  return 'NewNotebookEvent(name: $name, kind: $kind)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $NewNotebookEventCopyWith<$Res>  {
   factory $NewNotebookEventCopyWith(NewNotebookEvent value, $Res Function(NewNotebookEvent) _then) = _$NewNotebookEventCopyWithImpl;
 @useResult
 $Res call({
- String name
+ String name, NewNotebookKind kind
 });
 
 
@@ -62,10 +62,11 @@ class _$NewNotebookEventCopyWithImpl<$Res>
 
 /// Create a copy of NewNotebookEvent
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? name = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? kind = null,}) {
   return _then(_self.copyWith(
 name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,
+as String,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
+as NewNotebookKind,
   ));
 }
 
@@ -147,10 +148,10 @@ return submitted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String name)?  submitted,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String name,  NewNotebookKind kind)?  submitted,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case NewNotebookSubmittedEvent() when submitted != null:
-return submitted(_that.name);case _:
+return submitted(_that.name,_that.kind);case _:
   return orElse();
 
 }
@@ -168,10 +169,10 @@ return submitted(_that.name);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String name)  submitted,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String name,  NewNotebookKind kind)  submitted,}) {final _that = this;
 switch (_that) {
 case NewNotebookSubmittedEvent():
-return submitted(_that.name);}
+return submitted(_that.name,_that.kind);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -185,10 +186,10 @@ return submitted(_that.name);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String name)?  submitted,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String name,  NewNotebookKind kind)?  submitted,}) {final _that = this;
 switch (_that) {
 case NewNotebookSubmittedEvent() when submitted != null:
-return submitted(_that.name);case _:
+return submitted(_that.name,_that.kind);case _:
   return null;
 
 }
@@ -200,10 +201,11 @@ return submitted(_that.name);case _:
 
 
 class NewNotebookSubmittedEvent implements NewNotebookEvent {
-  const NewNotebookSubmittedEvent(this.name);
+  const NewNotebookSubmittedEvent(this.name, {this.kind = NewNotebookKind.blank});
   
 
 @override final  String name;
+@override@JsonKey() final  NewNotebookKind kind;
 
 /// Create a copy of NewNotebookEvent
 /// with the given fields replaced by the non-null parameter values.
@@ -215,16 +217,16 @@ $NewNotebookSubmittedEventCopyWith<NewNotebookSubmittedEvent> get copyWith => _$
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NewNotebookSubmittedEvent&&(identical(other.name, name) || other.name == name));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NewNotebookSubmittedEvent&&(identical(other.name, name) || other.name == name)&&(identical(other.kind, kind) || other.kind == kind));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,name);
+int get hashCode => Object.hash(runtimeType,name,kind);
 
 @override
 String toString() {
-  return 'NewNotebookEvent.submitted(name: $name)';
+  return 'NewNotebookEvent.submitted(name: $name, kind: $kind)';
 }
 
 
@@ -235,7 +237,7 @@ abstract mixin class $NewNotebookSubmittedEventCopyWith<$Res> implements $NewNot
   factory $NewNotebookSubmittedEventCopyWith(NewNotebookSubmittedEvent value, $Res Function(NewNotebookSubmittedEvent) _then) = _$NewNotebookSubmittedEventCopyWithImpl;
 @override @useResult
 $Res call({
- String name
+ String name, NewNotebookKind kind
 });
 
 
@@ -252,10 +254,11 @@ class _$NewNotebookSubmittedEventCopyWithImpl<$Res>
 
 /// Create a copy of NewNotebookEvent
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? name = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? name = null,Object? kind = null,}) {
   return _then(NewNotebookSubmittedEvent(
 null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,
+as String,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
+as NewNotebookKind,
   ));
 }
 

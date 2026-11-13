@@ -210,16 +210,24 @@ class _GraphDiscovery extends FixtureDiscoveryRepository {
 
 class _Templates implements TemplatesRepository {
   final List<TemplateRow> rows = <TemplateRow>[
-    const TemplateRow(id: 'template:chosen', title: 'Chosen template'),
+    const TemplateRow(
+      id: 'template:chosen',
+      title: 'Chosen template',
+      inNotebook: false,
+    ),
   ];
   final MadeNote made = const MadeNote(id: 'note:made', titleFirst: false);
   String? pickedId;
   String? pickedBookId;
+  final List<String?> askedNotebooks = <String?>[];
   LocalTime? pickedNow;
   int newTemplateCalls = 0;
 
   @override
-  Future<Either<ApplicationError, List<TemplateRow>>> templates() async {
+  Future<Either<ApplicationError, List<TemplateRow>>> templates({
+    String? notebookId,
+  }) async {
+    askedNotebooks.add(notebookId);
     return Right<ApplicationError, List<TemplateRow>>(rows);
   }
 
@@ -629,6 +637,7 @@ void main() {
 
     expect(templates.pickedId, 'template:chosen');
     expect(templates.pickedBookId, 'book:palette');
+    expect(templates.askedNotebooks, <String?>['book:palette']);
     expect(templates.pickedNow, isNotNull);
     expect(app.where, contains('note%3Amade'));
   });

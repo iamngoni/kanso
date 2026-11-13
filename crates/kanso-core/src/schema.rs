@@ -13,8 +13,8 @@ use serde_json::{Map, Value as Json, json};
 use crate::dates::Date;
 use crate::properties::{self, Value};
 pub use crate::schema_model::{
-    BOARD_FIELD, BoardSpec, FIELD, MAX_LANES, MAX_OPTIONS, MAX_PROPERTIES, Mismatch, PropertyDef,
-    PropertyType, SchemaError,
+    BOARD_FIELD, BoardSpec, FIELD, MAX_LANES, MAX_OPTIONS, MAX_PROPERTIES, MAX_TEMPLATES, Mismatch,
+    PropertyDef, PropertyType, SchemaError, TEMPLATES_FIELD, TemplateEntry,
 };
 use crate::zoned;
 
@@ -118,6 +118,54 @@ pub fn board_from_json(field: Option<&Json>) -> Option<BoardSpec> {
 pub fn board_to_json(spec: Option<&BoardSpec>) -> Option<Json> {
     let spec = spec?;
     Some(json!({"by": spec.by, "lanes": spec.lanes, "showUnset": spec.show_unset}))
+}
+
+/// The template IDs a notebook's `kansoTemplates` names, in order. A blank
+/// or repeated entry is skipped, and anything past [`MAX_TEMPLATES`].
+pub fn templates_from_json(field: Option<&Json>) -> Vec<String> {
+    let Some(Json::Array(entries)) = field else {
+        return Vec::new();
+    };
+    let mut ids: Vec<String> = Vec::new();
+    for id in entries.iter().filter_map(Json::as_str) {
+        let id = id.trim();
+        if !id.is_empty() && !ids.iter().any(|i| i == id) && ids.len() < MAX_TEMPLATES {
+            ids.push(id.to_owned());
+        }
+    }
+    ids
+}
+
+/// The `kansoTemplates` field for `ids`: `None` for none.
+pub fn templates_to_json(ids: &[String]) -> Option<Json> {
+    (!ids.is_empty()).then(|| json!(ids))
+}
+
+/// The "New from template" list: the templates `named` by the current
+/// notebook first (in the order it names them, those that exist), then every
+/// other template in `all` in its own order. Pure.
+pub fn order_templates(all: &[(String, String)], named: &[String]) -> Vec<TemplateEntry> {
+    let entry = |(id, title): &(String, String), in_notebook| TemplateEntry {
+        id: id.clone(),
+        title: title.clone(),
+        in_notebook,
+    };
+    let mut out: Vec<TemplateEntry> = Vec::new();
+    for id in named {
+        if out.iter().any(|e| &e.id == id) {
+            continue;
+        }
+        if let Some(template) = all.iter().find(|(t, _)| t == id) {
+            out.push(entry(template, true));
+        }
+    }
+    let named_ids: Vec<String> = out.iter().map(|e| e.id.clone()).collect();
+    out.extend(
+        all.iter()
+            .filter(|(id, _)| !named_ids.contains(id))
+            .map(|t| entry(t, false)),
+    );
+    out
 }
 
 /// Whether `spec` can be saved as a notebook's board.
@@ -582,6 +630,75 @@ mod tests {
                     prop_assert_eq!(properties::get(&back, "k"), Some(other));
                 }
             }
+        }
+    }
+
+    fn ids() -> impl Strategy<Value = Vec<String>> {
+        prop::collection::vec("[a-z]{1,4}", 0..8)
+    }
+
+    #[test]
+    fn named_templates_come_first_in_the_order_named() {
+        let all: Vec<(String, String)> = [("a", "Alpha"), ("b", "Beta"), ("c", "Gamma")]
+            .iter()
+            .map(|(i, t)| ((*i).to_owned(), (*t).to_owned()))
+            .collect();
+        let listed = order_templates(&all, &["c".into(), "gone".into(), "a".into()]);
+        let order: Vec<(&str, bool)> = listed
+            .iter()
+            .map(|e| (e.id.as_str(), e.in_notebook))
+            .collect();
+        assert_eq!(order, [("c", true), ("a", true), ("b", false)]);
+        assert_eq!(
+            templates_from_json(Some(&json!(["x", " ", "x", 3, "y"]))),
+            ["x", "y"]
+        );
+        assert_eq!(templates_to_json(&[]), None);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 256,
+            failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("regressions"))),
+            ..ProptestConfig::default()
+        })]
+
+        /// The list has every template once, those the notebook names (that
+        /// exist) first, and nothing that is not a template.
+        #[test]
+        fn prop_order_templates_is_a_notebook_first_permutation(all in ids(), named in ids()) {
+            let mut seen = HashSet::new();
+            let all: Vec<(String, String)> = all
+                .into_iter()
+                .filter(|id| seen.insert(id.clone()))
+                .map(|id| (id.clone(), id.to_uppercase()))
+                .collect();
+            let listed = order_templates(&all, &named);
+            prop_assert_eq!(listed.len(), all.len());
+            let mut ids: Vec<&str> = listed.iter().map(|e| e.id.as_str()).collect();
+            ids.sort_unstable();
+            let mut expected: Vec<&str> = all.iter().map(|(id, _)| id.as_str()).collect();
+            expected.sort_unstable();
+            prop_assert_eq!(ids, expected);
+            // Named ones are a prefix; the rest keep their own order.
+            let firsts = listed.iter().take_while(|e| e.in_notebook).count();
+            prop_assert!(listed[firsts..].iter().all(|e| !e.in_notebook));
+            prop_assert!(listed[..firsts].iter().all(|e| named.contains(&e.id)));
+            let rest: Vec<&String> = listed[firsts..].iter().map(|e| &e.id).collect();
+            let own: Vec<&String> = all
+                .iter()
+                .map(|(id, _)| id)
+                .filter(|id| rest.contains(id))
+                .collect();
+            prop_assert_eq!(rest, own);
+        }
+
+        /// A saved list of template IDs reads back as itself.
+        #[test]
+        fn prop_template_ids_round_trip(raw in ids()) {
+            let mut seen = HashSet::new();
+            let list: Vec<String> = raw.into_iter().filter(|id| seen.insert(id.clone())).collect();
+            prop_assert_eq!(templates_from_json(templates_to_json(&list).as_ref()), list);
         }
     }
 }

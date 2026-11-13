@@ -69,10 +69,13 @@ abstract interface class LibraryRepository {
   /// The notebooks in tree order, with their depth and role.
   Future<Either<ApplicationError, List<NotebookRow>>> notebooks();
 
-  /// Makes a notebook, inside [parentId] if given.
+  /// Makes a notebook, inside [parentId] if given. A [kind] of
+  /// [NewNotebookKind.videoStudio] comes with its stage board, properties and
+  /// two templates.
   Future<Either<ApplicationError, NotebookRow>> createNotebook(
     String name, {
     String? parentId,
+    NewNotebookKind kind = NewNotebookKind.blank,
   });
 
   Future<Either<ApplicationError, List<TagRow>>> tags();

@@ -997,6 +997,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newNotebookCreate => 'Create';
 
   @override
+  String get newNotebookKindLabel => 'Start from';
+
+  @override
+  String get newNotebookKindBlank => 'Blank notebook';
+
+  @override
+  String get newNotebookKindBlankHint => 'An empty notebook for notes.';
+
+  @override
+  String get newNotebookKindStudio => 'Video studio';
+
+  @override
+  String get newNotebookKindStudioHint =>
+      'Sets up a board (Idea → Scripting → Shooting → Editing → Published), a Schedule, and two templates: Video brief and Shot list. You can rename or change any of it later.';
+
+  @override
   String get newNotebookInvalid => 'Give the notebook a name.';
 
   @override
@@ -3947,6 +3963,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get templatePickerTitle => 'New from template';
+
+  @override
+  String get templatesInNotebook => 'In this notebook';
+
+  @override
+  String get templatesOthers => 'Other templates';
 
   @override
   String get templatesEmptyTitle => 'No templates yet';

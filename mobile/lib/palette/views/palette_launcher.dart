@@ -554,7 +554,10 @@ abstract final class PaletteLauncher {
           await ChangePasswordSheet.show(context, status: status);
         }
       case 'new-from-template':
-        final templateId = await TemplatePickerSheet.show(context);
+        final templateId = await TemplatePickerSheet.show(
+          context,
+          notebookId: notebookId,
+        );
         if (templateId != null && context.mounted) {
           final result = await getIt<TemplatesRepository>().newFromTemplate(
             templateId: templateId,

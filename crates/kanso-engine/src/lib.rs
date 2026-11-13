@@ -114,6 +114,8 @@ pub mod overview;
 #[cfg(feature = "ai")]
 pub mod pages;
 pub mod palette;
+pub mod presets;
+pub mod presets_model;
 pub mod publish;
 pub mod recording_flow;
 pub mod recording_flow_model;

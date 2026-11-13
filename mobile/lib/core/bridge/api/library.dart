@@ -144,6 +144,13 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   Future<NotebookRow> createNotebook({required String name, String? parentId});
 
+  /// [`Self::create_notebook`] as a blank notebook or a Video studio.
+  Future<NotebookRow> createNotebookAs({
+    required String name,
+    String? parentId,
+    required NewNotebookKind kind,
+  });
+
   /// Names a tag `name`, making it; returns the tag.
   Future<TagRow> createTag({required String name});
 
@@ -620,6 +627,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   Future<TaskBoard> tasks({required TaskListQuery query});
 
   Future<List<TemplateRow>> templates();
+
+  /// The templates for a new note in `notebook_id`: its own first.
+  Future<List<TemplateRow>> templatesFor({String? notebookId});
 
   KansoThemes themes();
 

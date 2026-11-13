@@ -7,9 +7,9 @@ use flutter_rust_bridge::frb;
 use kanso_mobile::{
     AttachmentFile, CaptureOutcome, CaptureTarget, Changed, ColorChoice, CopiedLink, DropsSaved,
     FoldState, GoalSetting, Hit, IconChoice, ImportEvent, KansoError, Library, LibraryOverview,
-    ListQuery, LocalTime, NewNote, NoteChange, NoteList, NoteView, NotebookRow, OpenedDocuments,
-    OpenedFile, Property, Saved, SearchScope, Share, StatusChoice, Table, TagPlaces, TagRow,
-    TaskBoard, TaskCaptured, TaskListQuery, Ticked, VisibleNotebook,
+    ListQuery, LocalTime, NewNote, NewNotebookKind, NoteChange, NoteList, NoteView, NotebookRow,
+    OpenedDocuments, OpenedFile, Property, Saved, SearchScope, Share, StatusChoice, Table,
+    TagPlaces, TagRow, TaskBoard, TaskCaptured, TaskListQuery, Ticked, VisibleNotebook,
 };
 use kanso_mobile::{PdfEdited, PdfHighlightChange, PdfNotes};
 // A note's history, Replace in all notes and the backups.
@@ -272,6 +272,16 @@ impl KansoLibrary {
         parent_id: Option<String>,
     ) -> Result<NotebookRow, KansoError> {
         self.0.create_notebook(name, parent_id)
+    }
+
+    /// [`Self::create_notebook`] as a blank notebook or a Video studio.
+    pub fn create_notebook_as(
+        &self,
+        name: String,
+        parent_id: Option<String>,
+        kind: NewNotebookKind,
+    ) -> Result<NotebookRow, KansoError> {
+        self.0.create_notebook_as(name, parent_id, kind)
     }
 
     pub fn tags(&self) -> Result<Vec<TagRow>, KansoError> {
