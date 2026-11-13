@@ -727,6 +727,19 @@ impl Engine {
     /// merges what arrived, writes the result to the library, and says how
     /// the editor's text must change (splices that never move its caret).
     pub fn sync_editor(&self, share_id: &str, title: &str, body: &str) -> Result<EditorMerge> {
+        self.merge_open(share_id, Some((title, body)))
+    }
+
+    /// [`Engine::sync_editor`] for an open note no editor shows (the
+    /// phone's pump): the library's text is the editor's, read under the
+    /// note's lock. A copy read before the call would be older than a save
+    /// made meanwhile, and taken as an edit back to it.
+    pub fn sync_library(&self, share_id: &str) -> Result<EditorMerge> {
+        self.merge_open(share_id, None)
+    }
+
+    /// The editor's text (`None`: the library's, as it is now) merged.
+    fn merge_open(&self, share_id: &str, given: Option<(&str, &str)>) -> Result<EditorMerge> {
         let loaded = self.loaded(share_id)?;
         let mut loaded = lock(&loaded);
         if loaded.doc.text().is_none() {
@@ -734,22 +747,29 @@ impl Engine {
                 "The note is a canvas: it is merged by drawing, not as text.".into(),
             ));
         }
+        let unchanged = |title: &str, body: &str| EditorMerge {
+            title: Vec::new(),
+            body: Vec::new(),
+            title_text: title.to_owned(),
+            body_text: body.to_owned(),
+        };
         if loaded.ended || loaded.reloading {
             // Nothing to merge into yet: the editor keeps what it has.
-            return Ok(EditorMerge {
-                title: Vec::new(),
-                body: Vec::new(),
-                title_text: title.to_owned(),
-                body_text: body.to_owned(),
-            });
+            let (title, body) = given.unwrap_or_default();
+            return Ok(unchanged(title, body));
         }
-        let editor = (title.to_owned(), body.to_owned());
         // What other writers (the API, MCP) put in the library first; the
         // editor's own text then, unless that is what the library has.
         let library = self
             .store
             .note(&loaded.note.note_id)?
             .map(|note| (note.title, note.body));
+        let editor = match (given, &library) {
+            (Some((title, body)), _) => (title.to_owned(), body.to_owned()),
+            (None, Some(library)) => library.clone(),
+            (None, None) => return Ok(unchanged("", "")),
+        };
+        let (title, body) = (editor.0.as_str(), editor.1.as_str());
         let from_library = match &library {
             // The text of a held edit written here isn't another writer's.
             Some(library) if loaded.held_text.as_ref() != Some(library) => {
@@ -770,8 +790,10 @@ impl Engine {
             // `base` stays, so the library then differs from it, the next
             // sync holds again and leaves it, and the whole edit is taken
             // once it reads, after a restart too.
+            // (Without an editor, the library has the text already.)
             let note_id = loaded.note.note_id.clone();
-            if let Some(current) = self.store.note(&note_id)?
+            if given.is_some()
+                && let Some(current) = self.store.note(&note_id)?
                 && (current.title.as_str(), current.body.as_str()) != (title, body)
             {
                 let inbox = self
@@ -1102,17 +1124,61 @@ pub fn rebase(base: &str, local: &str, current: &str) -> String {
     // `splices` lists edits from the end of `base`, so each later one still
     // has offsets in `base`, mapped through the remote edits alone.
     for edit in splices(base, local) {
-        let start = remap(edit.at, &remote);
-        let end = remap(edit.at + edit.delete, &remote).max(start);
-        let end = end.min(out.len());
-        let start = start.min(end);
-        if out.is_char_boundary(start) && out.is_char_boundary(end) {
-            out.replace_range(start..end, &edit.insert);
+        // What the local edit removes is only text of `base` the remote
+        // edits left: what they wrote in its range stays, as two people
+        // replacing the same word both keep theirs (text merges by
+        // character). The range is cut wherever a remote edit is.
+        let (start, end) = (edit.at, edit.at + edit.delete);
+        let mut cuts = vec![start, end];
+        for r in &remote {
+            for at in [r.at, r.at + r.delete] {
+                if at > start && at < end {
+                    cuts.push(at);
+                }
+            }
+        }
+        cuts.sort_unstable();
+        cuts.dedup();
+        let at = remap(start, &remote).min(out.len());
+        let pieces: Vec<(usize, usize)> = cuts
+            .windows(2)
+            .filter(|w| {
+                !remote
+                    .iter()
+                    .any(|r| r.delete > 0 && w[0] >= r.at && w[1] <= r.at + r.delete)
+            })
+            .map(|w| (remap_past(w[0], &remote), remap(w[1], &remote)))
+            .collect();
+        for (from, to) in pieces.into_iter().rev() {
+            let to = to.min(out.len());
+            let from = from.clamp(at, to);
+            if out.is_char_boundary(from) && out.is_char_boundary(to) {
+                out.replace_range(from..to, "");
+            }
+        }
+        if out.is_char_boundary(at) {
+            out.insert_str(at, &edit.insert);
         }
     }
     out
 }
 
+/// [`remap`], but past what a splice inserted at the offset itself: where
+/// the text after the offset begins.
+fn remap_past(mut offset: usize, splices: &[crate::model::Splice]) -> usize {
+    for splice in splices {
+        let end = splice.at + splice.delete;
+        if offset >= end {
+            offset = offset - splice.delete + splice.insert.len();
+        } else if offset > splice.at {
+            offset = splice.at;
+        }
+    }
+    offset
+}
+
+#[cfg(test)]
+mod book_conflict_tests;
 #[cfg(test)]
 mod book_live_tests;
 #[cfg(test)]
