@@ -24,19 +24,40 @@ use lsp_types::{CompletionItem, CompletionItemKind, CompletionTextEdit, TextEdit
 use crate::theme::Colors;
 use crate::zoom::px;
 
+use kanso_core::repeat_model::Repeat;
 pub use kanso_engine::tasks::{
-    ChipColor, Tone, chip_label, date_choices, date_query, long_label, marks, parse_due_url, tone,
+    ChipColor, Tone, chip_label, date_choices, date_query, long_label, marks, parse_due_link,
+    repeat_choices, repeat_query, tone,
 };
+
+/// What marks a repeating task's chip, after its date: `Fri 14 Nov 15:00 ↻`.
+pub const REPEAT_MARK: &str = "\u{21bb}";
+
+/// A chip's words with the mark of a repeat, when it has one.
+pub fn repeat_label(label: String, repeat: Option<Repeat>) -> String {
+    match repeat {
+        Some(_) => format!("{label} {REPEAT_MARK}"),
+        None => label,
+    }
+}
+
+/// A chip's tooltip: the date in words, then `Repeats every week`.
+pub fn chip_tooltip(due: Due, repeat: Option<Repeat>) -> String {
+    match repeat {
+        Some(repeat) => format!("{} \u{b7} Repeats {repeat}", long_label(due)),
+        None => long_label(due),
+    }
+}
 
 /// How long the editor waits after typing stops to tint new dates.
 const MARK_DELAY: Duration = Duration::from_millis(150);
 
 /// The note's Markdown with each task's due date, outside code, written as
-/// a `kanso-due:` link for [`DueChip`] to draw. Text without dates comes
-/// back as it is, the same shared string.
-// no-prop-test: delegates to kanso_engine::tasks::rewrite_for_preview, tested there.
+/// a `kanso-due:` link for [`DueChip`] to draw, its repeat inside. Text
+/// without dates comes back as it is, the same shared string.
+// no-prop-test: delegates to kanso_engine::tasks::rewrite_for_preview_with_repeats, tested there.
 pub fn rewrite_for_preview(text: &SharedString) -> SharedString {
-    match kanso_engine::tasks::rewrite_for_preview(text) {
+    match kanso_engine::tasks::rewrite_for_preview_with_repeats(text) {
         std::borrow::Cow::Borrowed(_) => text.clone(),
         std::borrow::Cow::Owned(rewritten) => rewritten.into(),
     }
@@ -46,6 +67,7 @@ pub fn rewrite_for_preview(text: &SharedString) -> SharedString {
 struct Chip {
     due: Due,
     checked: bool,
+    repeat: Option<Repeat>,
 }
 
 /// Draws the links due dates become: a small rounded chip with the date in
@@ -93,12 +115,19 @@ impl MarkdownPlugin for DueChip {
         let markdown_ast::Node::Link(link) = node else {
             return None;
         };
-        let (due, checked) = parse_due_url(&link.url)?;
+        let (due, checked, repeat) = parse_due_link(&link.url)?;
         let source = cx.node_source(node).unwrap_or_default().to_owned();
         Some(
-            MarkdownNode::new(Self::NAME, Chip { due, checked })
-                .text(format!("@{}", due.format()))
-                .markdown(source),
+            MarkdownNode::new(
+                Self::NAME,
+                Chip {
+                    due,
+                    checked,
+                    repeat,
+                },
+            )
+            .text(format!("@{}", due.format()))
+            .markdown(source),
         )
     }
 
@@ -117,7 +146,7 @@ impl MarkdownPlugin for DueChip {
         let style = context.text_style();
         let size = context.font_size() * 0.8;
         let at = node.source_range().map_or(0, |r| r.start);
-        let tooltip = long_label(chip.due);
+        let tooltip = chip_tooltip(chip.due, chip.repeat);
         let element = div()
             .id(ElementId::NamedInteger(Self::NAME.into(), at as u64))
             .h(context.line_height())
@@ -143,7 +172,10 @@ impl MarkdownPlugin for DueChip {
                             .size(size * 0.95)
                             .text_color(text),
                     )
-                    .child(chip_label(chip.due, chip.checked, now)),
+                    .child(repeat_label(
+                        chip_label(chip.due, chip.checked, now),
+                        chip.repeat,
+                    )),
             )
             .tooltip(move |window, cx| {
                 gpui_kit::component::tooltip::Tooltip::new(tooltip.clone()).build(window, cx)
@@ -231,13 +263,35 @@ impl DueMarks {
 // MARK: Autocomplete
 
 /// `@` autocomplete for the date of the task the caret is in: the dates
-/// [`date_choices`] offers, each replacing the `@` and what follows it.
-/// `None` when the caret isn't after an `@` in a task.
+/// [`date_choices`] offers, each replacing the `@` and what follows it; and
+/// once a date is there, the repeats [`repeat_choices`] offers after it.
+/// `None` when the caret isn't after an `@` in a task, or just past a date.
 pub fn completions(text: &Rope, offset: usize, cx: &App) -> Option<Vec<CompletionItem>> {
     let offset = offset.min(text.len());
     let position = text.offset_to_position(offset);
     let line_start = text.line_start_offset(position.line as usize);
     let before = text.slice(line_start..offset).to_string();
+    if let Some((from, query)) = repeat_query(&before) {
+        let range = lsp_types::Range {
+            start: text.offset_to_position(line_start + from),
+            end: text.offset_to_position(offset),
+        };
+        let items = repeat_choices(query)
+            .into_iter()
+            .map(|(label, words)| CompletionItem {
+                label,
+                detail: Some(words.clone()),
+                kind: Some(CompletionItemKind::VALUE),
+                filter_text: Some(String::new()),
+                text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+                    range,
+                    new_text: words,
+                })),
+                ..Default::default()
+            })
+            .collect::<Vec<_>>();
+        return (!items.is_empty()).then_some(items);
+    }
     let (at, query) = date_query(&before)?;
     let today = crate::journal::now(cx).date;
     let range = lsp_types::Range {

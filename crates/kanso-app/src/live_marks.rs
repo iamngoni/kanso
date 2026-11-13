@@ -1354,9 +1354,20 @@ pub fn due_labels(
             let due = kanso_core::tasks::Due::parse(token.strip_prefix('@')?)?;
             let checked = tone == crate::due::Tone::Done;
             let (text_color, fill) = crate::due::chip_colors(tone, colors);
+            // A repeat after the date goes into its chip.
+            let line_end = text[range.end..]
+                .find('\n')
+                .map_or(text.len(), |at| range.end + at);
+            let repeat = kanso_core::repeat::repeat_token(&text[range.start..line_end]);
+            let end = repeat
+                .as_ref()
+                .map_or(range.end, |(words, _)| range.start + words.end);
             Some(DueLabel {
-                range,
-                label: crate::due::chip_label(due, checked, now),
+                range: range.start..end,
+                label: crate::due::repeat_label(
+                    crate::due::chip_label(due, checked, now),
+                    repeat.map(|(_, repeat)| repeat),
+                ),
                 text: text_color,
                 fill,
             })

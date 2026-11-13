@@ -106,6 +106,9 @@ mod vim_glue;
 #[cfg(test)]
 #[path = "editor_vim_tests.rs"]
 mod vim_tests;
+#[cfg(test)]
+#[path = "editor_when_tests.rs"]
+mod when_tests;
 
 /// While typing goes on, the preview beside the source catches up at most
 /// this often: the first change shows at once, later ones on the next tick.
@@ -379,6 +382,8 @@ pub struct NoteEditor {
     inline: Option<inline_glue::Suggestion>,
     /// The tints on tasks' due dates in the text.
     due_marks: crate::due::DueMarks,
+    /// The typed-date hint on the caret's task line (`when_hint`).
+    when_hints: crate::when_hint::WhenHints,
     card_marks: crate::card_marks::CardMarks,
     /// The underlines under misspelled words in the text.
     spell_marks: SpellMarks,
@@ -623,6 +628,14 @@ impl NoteEditor {
                         |editor: &mut NoteEditor| &mut editor.due_marks,
                         cx,
                     );
+                    cx.defer_in(window, |this, window, cx| this.offer_repeats(window, cx));
+                    let (body, me) = (this.body.clone(), cx.entity().downgrade());
+                    this.when_hints.refresh_soon(
+                        body,
+                        me,
+                        |editor: &mut NoteEditor| &mut editor.when_hints,
+                        cx,
+                    );
                     let (body, me) = (this.body.clone(), cx.entity().downgrade());
                     this.card_marks.refresh_soon(
                         body,
@@ -739,6 +752,7 @@ impl NoteEditor {
             vim: None,
             inline: None,
             due_marks: Default::default(),
+            when_hints: Default::default(),
             card_marks: Default::default(),
             spell_marks: Default::default(),
             live_marks: Default::default(),
@@ -1322,6 +1336,7 @@ impl NoteEditor {
             }
         });
         self.due_marks.refresh(&self.body, cx);
+        self.when_hints.clear();
         self.card_marks.refresh(&self.body, cx);
         self.check_spelling(Duration::ZERO, cx);
         // The kept line lengths describe the old text, which may have had
@@ -3232,6 +3247,10 @@ impl NoteEditor {
             cx.stop_propagation();
             return;
         }
+        if self.dismiss_when_hint(event, window, cx) {
+            cx.stop_propagation();
+            return;
+        }
         if !self.settings.auto_pair {
             return;
         }
@@ -3251,6 +3270,100 @@ impl NoteEditor {
                 self.body
                     .update(cx, |state, cx| state.show_completions(window, cx));
             }
+        }
+    }
+
+    /// The typed-date hint over the text, while the caret is on its line.
+    // no-prop-test: painting glue over `when_hint::overlay`.
+    fn when_hint_overlay(&self, window: &Window, cx: &App) -> Option<AnyElement> {
+        let body = self.body.read(cx);
+        if !body.focus_handle(cx).is_focused(window) {
+            return None;
+        }
+        let range = body.selected_range();
+        let hint = self
+            .when_hints
+            .shown(range.end)
+            .filter(|_| range.is_empty())?;
+        Some(crate::when_hint::overlay(
+            self.body.clone(),
+            hint,
+            self.font_size,
+            window,
+            cx,
+        ))
+    }
+
+    /// Whether the typed-date hint can take Tab or Escape now: it shows,
+    /// the text has the keyboard, and neither Vim's Normal mode nor the
+    /// completion list has the key.
+    fn when_hint_takes_keys(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if !self.body_takes_edits(window, cx) {
+            return false;
+        }
+        let caret = self.body.read(cx).selected_range();
+        if !caret.is_empty() || self.when_hints.shown(caret.end).is_none() {
+            return false;
+        }
+        !(self.vim_has_keys() || self.body.read(cx).completion_menu_state().open)
+    }
+
+    /// Tab while the typed-date hint shows writes the date in its stored
+    /// form, as one undo step. Whether it did.
+    // no-prop-test: key glue over `when_hint::{hint_at, edit}`, which have
+    // the properties.
+    fn apply_when_hint(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if !self.when_hint_takes_keys(window, cx) {
+            return false;
+        }
+        // Worked out again from the text: never from a hint gone stale.
+        let now = crate::journal::now(cx);
+        let order = crate::when_hint::system_date_order();
+        let done = self.smart_edit(window, cx, |_, text, selection| {
+            crate::when_hint::hint_at(text, selection.end, now, order)
+                .map(|hint| crate::when_hint::edit(&hint))
+        });
+        self.when_hints.clear();
+        cx.notify();
+        done
+    }
+
+    /// Escape while the typed-date hint shows sends it away and leaves the
+    /// text alone. Whether it did.
+    fn dismiss_when_hint(
+        &mut self,
+        event: &KeyDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        if event.keystroke.key != "escape"
+            || event.keystroke.modifiers.modified()
+            || !self.when_hint_takes_keys(window, cx)
+        {
+            return false;
+        }
+        self.when_hints.clear();
+        cx.notify();
+        true
+    }
+
+    /// A space typed after a task's date offers its repeats, as `@` offers
+    /// the dates.
+    fn offer_repeats(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let state = self.body.read(cx);
+        let caret = state.selected_range();
+        if !caret.is_empty() || caret.end == 0 {
+            return;
+        }
+        let text = state.value();
+        let before = &text[..caret.end.min(text.len())];
+        if !before.ends_with(' ') {
+            return;
+        }
+        let line = &before[before.rfind('\n').map_or(0, |at| at + 1)..];
+        if crate::due::repeat_query(line).is_some_and(|(_, query)| query.is_empty()) {
+            self.body
+                .update(cx, |state, cx| state.show_completions(window, cx));
         }
     }
 
@@ -3275,6 +3388,10 @@ impl NoteEditor {
     // no-prop-test: key glue over `kanso_engine::edit::tab`, tested there.
     fn on_tab(&mut self, out: bool, window: &mut Window, cx: &mut Context<Self>) {
         if !self.body_takes_edits(window, cx) {
+            return;
+        }
+        if !out && self.apply_when_hint(window, cx) {
+            cx.stop_propagation();
             return;
         }
         let format = self.settings.format_tables;
@@ -5956,6 +6073,8 @@ impl Render for NoteEditor {
                     )
                     // Vim's block caret, over the text.
                     .children(self.vim_caret(window, cx))
+                    // What a typed date will become, after its line.
+                    .children(self.when_hint_overlay(window, cx))
                     // Other people's carets in a shared note.
                     .children(self.remote_carets(window, cx)),
             );
@@ -6251,7 +6370,17 @@ impl NoteEditor {
         )
     }
 
+    /// The typed-date hint showing now: its words and the stored form.
+    #[cfg(test)]
+    pub fn when_hint_for_test(&self, cx: &App) -> Option<(String, String)> {
+        let caret = self.body.read(cx).selected_range().end;
+        self.when_hints
+            .shown(caret)
+            .map(|hint| (hint.label.clone(), hint.canonical.clone()))
+    }
+
     /// How many due dates the text has tinted.
+    #[cfg(test)]
     pub fn due_marks_for_test(&self) -> usize {
         self.due_marks.count()
     }
