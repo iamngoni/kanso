@@ -28,18 +28,26 @@ class CaptureTaskCubit extends Cubit<CaptureTaskState> {
   final CaptureRepository _capture;
   final PreferencesRepository _preferences;
 
-  /// Reads the saved mode and destination.
-  Future<void> started() async {
+  /// Reads the saved mode and destination. With [mode] the sheet opens in
+  /// it whatever was saved, as the Add task shortcut and tile ask; the
+  /// saved choice is left as it is.
+  Future<void> started({CaptureMode? mode}) async {
+    if (mode != null) {
+      // At once, so the sheet does not show the other mode first.
+      emit(state.copyWith(mode: mode));
+    }
     final loaded = await _preferences.load();
     if (isClosed) {
       return;
     }
     loaded.fold(
-      (_) => emit(state.copyWith(loaded: true)),
+      (_) => emit(state.copyWith(loaded: true, mode: mode ?? state.mode)),
       (found) => emit(
         state.copyWith(
           loaded: true,
-          mode: found.captureAsTask ? CaptureMode.task : CaptureMode.note,
+          mode:
+              mode ??
+              (found.captureAsTask ? CaptureMode.task : CaptureMode.note),
           target: found.captureTaskTarget,
         ),
       ),
