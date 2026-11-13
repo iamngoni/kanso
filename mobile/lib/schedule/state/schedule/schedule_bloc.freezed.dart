@@ -966,12 +966,12 @@ $ScheduleTickedEventCopyWith<ScheduleTickedEvent> get copyWith => _$ScheduleTick
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ScheduleTickedEvent&&const DeepCollectionEquality().equals(other.row, row));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ScheduleTickedEvent&&(identical(other.row, row) || other.row == row));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(row));
+int get hashCode => Object.hash(runtimeType,row);
 
 @override
 String toString() {
@@ -1003,9 +1003,9 @@ class _$ScheduleTickedEventCopyWithImpl<$Res>
 
 /// Create a copy of ScheduleEvent
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? row = freezed,}) {
+@pragma('vm:prefer-inline') $Res call({Object? row = null,}) {
   return _then(ScheduleTickedEvent(
-freezed == row ? _self.row : row // ignore: cast_nullable_to_non_nullable
+null == row ? _self.row : row // ignore: cast_nullable_to_non_nullable
 as ScheduleRow,
   ));
 }
@@ -1033,12 +1033,12 @@ $ScheduleMovedEventCopyWith<ScheduleMovedEvent> get copyWith => _$ScheduleMovedE
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ScheduleMovedEvent&&const DeepCollectionEquality().equals(other.row, row)&&(identical(other.day, day) || other.day == day));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ScheduleMovedEvent&&(identical(other.row, row) || other.row == row)&&(identical(other.day, day) || other.day == day));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(row),day);
+int get hashCode => Object.hash(runtimeType,row,day);
 
 @override
 String toString() {
@@ -1070,9 +1070,9 @@ class _$ScheduleMovedEventCopyWithImpl<$Res>
 
 /// Create a copy of ScheduleEvent
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? row = freezed,Object? day = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? row = null,Object? day = null,}) {
   return _then(ScheduleMovedEvent(
-freezed == row ? _self.row : row // ignore: cast_nullable_to_non_nullable
+null == row ? _self.row : row // ignore: cast_nullable_to_non_nullable
 as ScheduleRow,null == day ? _self.day : day // ignore: cast_nullable_to_non_nullable
 as DayDate,
   ));
