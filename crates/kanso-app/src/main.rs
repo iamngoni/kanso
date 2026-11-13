@@ -180,6 +180,7 @@ mod preview_rich;
 mod preview_tasks;
 #[allow(dead_code)]
 mod proof_sheet;
+mod property_pick;
 mod provider_browser;
 mod publish;
 mod publish_site;

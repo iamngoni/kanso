@@ -4565,6 +4565,7 @@ dependencies = [
  "gpui-pre-apple",
  "gpui-pre-platform",
  "gpui-pre-wgpu",
+ "iana-time-zone",
  "image",
  "kanso-acp",
  "kanso-ai",
