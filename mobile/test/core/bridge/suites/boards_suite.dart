@@ -50,7 +50,7 @@ void boardsSuite(OpenLibrary open) {
         to: const BoardLane.status(status: 'active'),
         nowMs: 5,
       );
-      expect(moved, CardMoved.changed);
+      expect(moved, const CardMoved.changed());
       expect((await library.note(id: made.id)).status, 'active');
       // Again, there is nothing to write.
       expect(
@@ -59,7 +59,7 @@ void boardsSuite(OpenLibrary open) {
           to: const BoardLane.status(status: 'active'),
           nowMs: 6,
         ),
-        CardMoved.unchanged,
+        const CardMoved.unchanged(),
       );
 
       final after = await library.board(
@@ -135,10 +135,48 @@ void boardsSuite(OpenLibrary open) {
         to: const BoardLane.done(),
         nowMs: 5,
       );
-      expect(moved, CardMoved.changed);
+      expect(moved, const CardMoved.changed());
       expect(
         (await library.note(id: made.id)).body,
         contains('- [x] water the plants'),
+      );
+    });
+
+    test('a notebook with no select property has no board settings', () async {
+      final library = await open();
+      final book = await library.createNotebook(name: 'Plain');
+      final board = await library.board(
+        kind: BoardKind.notes,
+        query: ListQuery(
+          place: ListPlace.notebook(id: book.id),
+          pinnedOnly: false,
+          sort: SortKey.updated,
+          descending: true,
+        ),
+      );
+      // The notes stay on the status lanes, with nothing to set.
+      expect(board.setup, isNull);
+      expect(board.columns, hasLength(5));
+      // Settings of a board it doesn't have are refused, in words.
+      await expectLater(
+        library.setBoardGroup(bookId: book.id, by: 'stage'),
+        throwsA(isA<KansoError_Invalid>()),
+      );
+      await expectLater(
+        library.setBoardShowUnset(bookId: book.id, show_: false),
+        throwsA(isA<KansoError_Invalid>()),
+      );
+      await expectLater(
+        library.boardLaneRemoval(bookId: book.id, lane: 'Idea'),
+        throwsA(isA<KansoError_Invalid>()),
+      );
+      await expectLater(
+        library.editBoardLanes(
+          bookId: book.id,
+          change: const LaneChange.add(name: 'Idea'),
+          nowMs: 5,
+        ),
+        throwsA(isA<KansoError_Invalid>()),
       );
     });
 

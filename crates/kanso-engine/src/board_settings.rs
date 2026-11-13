@@ -239,6 +239,47 @@ pub fn undo_lane_edit(store: &Store, undo: &SettingsUndo) -> Result<bool, StoreE
     Ok(all)
 }
 
+/// The grouping a board saves when it is grouped by `by`: the notebook's
+/// own lanes stay when it keeps its property, and the lane of notes with no
+/// value keeps its setting (shown, for a board that had none). Pure.
+pub fn grouped_spec(own: Option<&BoardSpec>, by: &str) -> BoardSpec {
+    let kept = own.filter(|own| own.by == by);
+    BoardSpec {
+        by: by.to_owned(),
+        lanes: kept.map(|own| own.lanes.clone()).unwrap_or_default(),
+        show_unset: own.is_none_or(|own| own.show_unset),
+    }
+}
+
+/// The notice for a written edit: "Renamed Shooting to Filming. 3 notes
+/// updated." `key` is the board's property. Pure.
+pub fn edit_words(edit: &LaneEdit, rewritten: usize, key: &str) -> String {
+    let notes = |n: usize| match n {
+        1 => "1 note".to_owned(),
+        n => format!("{n} notes"),
+    };
+    match edit {
+        LaneEdit::Rename { from, to } => {
+            let base = format!("Renamed {from} to {}.", to.trim());
+            if rewritten == 0 {
+                base
+            } else {
+                format!("{base} {} updated.", notes(rewritten))
+            }
+        }
+        LaneEdit::Move { .. } => "Moved a lane.".to_owned(),
+        LaneEdit::Add(name) => format!("Added the lane {}.", name.trim()),
+        LaneEdit::Remove { lane, move_to } => {
+            let base = format!("Removed {lane}.");
+            match (rewritten, move_to) {
+                (0, _) => base,
+                (n, Some(to)) => format!("{base} {} moved to {to}.", notes(n)),
+                (n, None) => format!("{base} {} moved to No {key}.", notes(n)),
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -511,6 +552,54 @@ mod tests {
                 prop_assert_eq!(values.len(), before);
                 lanes = next;
             }
+        }
+    }
+
+    proptest! {
+        #![proptest_config(Config {
+            cases: 64,
+            rng_seed: RngSeed::Fixed(0x0067_726f_7570),
+            rng_algorithm: RngAlgorithm::ChaCha,
+            failure_persistence: None,
+            ..Config::default()
+        })]
+
+        /// Grouping keeps the lanes exactly when the property stays, and
+        /// the empty lane's setting except for a board that had none.
+        #[test]
+        fn prop_grouping_keeps_the_lanes_of_the_same_property(
+            own_by in "[a-c]", by in "[a-c]",
+            lanes in prop::collection::vec("[A-Z][a-z]{0,5}", 0..5),
+            show in any::<bool>(),
+            has_board in any::<bool>(),
+        ) {
+            let own = BoardSpec { by: own_by.clone(), lanes: lanes.clone(), show_unset: show };
+            let own = has_board.then_some(&own);
+            let spec = grouped_spec(own, &by);
+            prop_assert_eq!(&spec.by, &by);
+            prop_assert_eq!(spec.show_unset, own.is_none_or(|own| own.show_unset));
+            if has_board && own_by == by {
+                prop_assert_eq!(spec.lanes, lanes);
+            } else {
+                prop_assert!(spec.lanes.is_empty());
+            }
+        }
+
+        /// Every edit has words that name what it touched and end in a
+        /// full stop, and the count agrees with the notes' number.
+        #[test]
+        fn prop_the_words_name_the_lane_and_count_the_notes(
+            from in "[A-Z][a-z]{1,5}", to in "[A-Z][a-z]{1,5}", n in 0usize..5,
+        ) {
+            let rename = edit_words(&LaneEdit::Rename { from: from.clone(), to: to.clone() }, n, "stage");
+            prop_assert!(rename.starts_with(&format!("Renamed {from} to {to}.")), "{}", rename);
+            prop_assert_eq!(rename.contains("updated"), n > 0);
+            let remove = edit_words(
+                &LaneEdit::Remove { lane: from.clone(), move_to: Some(to.clone()) }, n, "stage");
+            prop_assert_eq!(remove.contains(&format!("moved to {to}.")), n > 0);
+            let none = edit_words(&LaneEdit::Remove { lane: from, move_to: None }, n, "stage");
+            prop_assert_eq!(none.contains("moved to No stage."), n > 0);
+            prop_assert!(none.ends_with('.'));
         }
     }
 }

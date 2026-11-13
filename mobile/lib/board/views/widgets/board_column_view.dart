@@ -40,7 +40,9 @@ class BoardColumnView extends StatelessWidget {
     final colors = context.colors;
     final name = l10n.laneName(column);
     return DragTarget<BoardDrag>(
-      onWillAcceptWithDetails: (details) => details.data.from != column.lane,
+      onWillAcceptWithDetails: (details) =>
+          details.data.from != column.lane &&
+          column.lane is! BoardLane_Unlisted,
       onAcceptWithDetails: (details) => onDrop(details.data, column.lane),
       builder: (context, candidates, rejected) {
         final hovered = candidates.isNotEmpty;

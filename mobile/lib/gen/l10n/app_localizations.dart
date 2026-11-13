@@ -13347,6 +13347,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show full task'**
   String get tasksShowDetail;
+
+  /// What the button on a notebook’s board that opens its settings is called.
+  ///
+  /// In en, this message translates to:
+  /// **'Board settings'**
+  String get boardSettingsLabel;
+
+  /// The title of the sheet that sets how a notebook’s board is laid out.
+  ///
+  /// In en, this message translates to:
+  /// **'Board settings'**
+  String get boardSettingsTitle;
+
+  /// The button that closes the board settings sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get boardSettingsDone;
+
+  /// The heading over the choice of what a notebook’s board is grouped by.
+  ///
+  /// In en, this message translates to:
+  /// **'Group by'**
+  String get boardSettingsGroupBy;
+
+  /// The choice that lays a board out by the notes’ status.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get boardSettingsStatus;
+
+  /// The line under the group choices of a board that is laid out by status.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a select property to lay the notes out in a lane for each of its values.'**
+  String get boardSettingsGroupHint;
+
+  /// The heading over the lanes of a board grouped by a property.
+  ///
+  /// In en, this message translates to:
+  /// **'Lanes'**
+  String get boardSettingsLanes;
+
+  /// The label of the field that renames a lane.
+  ///
+  /// In en, this message translates to:
+  /// **'Lane name'**
+  String get boardSettingsLaneName;
+
+  /// What a screen reader says for the handle that reorders a lane.
+  ///
+  /// In en, this message translates to:
+  /// **'Move {lane}'**
+  String boardSettingsMoveLane(String lane);
+
+  /// The label of the button that removes a lane.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {lane}'**
+  String boardSettingsRemoveLane(String lane);
+
+  /// The hint of the field that adds a lane at the end of the board.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a lane'**
+  String get boardSettingsAddLane;
+
+  /// The label of the button that adds the lane typed in the field.
+  ///
+  /// In en, this message translates to:
+  /// **'Add lane'**
+  String get boardSettingsAddLaneButton;
+
+  /// The switch that shows the lane of notes that have no value, even while it is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Show cards without a {key}'**
+  String boardSettingsShowUnset(String key);
+
+  /// The choice that leaves the notes of a removed lane with no value.
+  ///
+  /// In en, this message translates to:
+  /// **'No {key}'**
+  String boardSettingsNoValue(String key);
+
+  /// The button that removes the lane being asked about.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get boardSettingsRemove;
+
+  /// The hint under a notebook’s board grouped by a property, on a phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Touch and hold a card to change its {key}.'**
+  String boardHintGroup(String key);
+
+  /// The hint under a notebook’s board grouped by a property, on a tablet.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag a card to change its {key}.'**
+  String boardHintGroupDrag(String key);
 }
 
 class _AppLocalizationsDelegate

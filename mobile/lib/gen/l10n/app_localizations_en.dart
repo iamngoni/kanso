@@ -8078,4 +8078,68 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tasksShowDetail => 'Show full task';
+
+  @override
+  String get boardSettingsLabel => 'Board settings';
+
+  @override
+  String get boardSettingsTitle => 'Board settings';
+
+  @override
+  String get boardSettingsDone => 'Done';
+
+  @override
+  String get boardSettingsGroupBy => 'Group by';
+
+  @override
+  String get boardSettingsStatus => 'Status';
+
+  @override
+  String get boardSettingsGroupHint =>
+      'Pick a select property to lay the notes out in a lane for each of its values.';
+
+  @override
+  String get boardSettingsLanes => 'Lanes';
+
+  @override
+  String get boardSettingsLaneName => 'Lane name';
+
+  @override
+  String boardSettingsMoveLane(String lane) {
+    return 'Move $lane';
+  }
+
+  @override
+  String boardSettingsRemoveLane(String lane) {
+    return 'Remove $lane';
+  }
+
+  @override
+  String get boardSettingsAddLane => 'Add a lane';
+
+  @override
+  String get boardSettingsAddLaneButton => 'Add lane';
+
+  @override
+  String boardSettingsShowUnset(String key) {
+    return 'Show cards without a $key';
+  }
+
+  @override
+  String boardSettingsNoValue(String key) {
+    return 'No $key';
+  }
+
+  @override
+  String get boardSettingsRemove => 'Remove';
+
+  @override
+  String boardHintGroup(String key) {
+    return 'Touch and hold a card to change its $key.';
+  }
+
+  @override
+  String boardHintGroupDrag(String key) {
+    return 'Drag a card to change its $key.';
+  }
 }

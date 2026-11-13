@@ -26,12 +26,14 @@ import '../../../core/views/widgets/kanso_notice.dart';
 import '../../../core/views/widgets/kanso_segment.dart';
 import '../../../core/views/widgets/kanso_segmented.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
+import '../../../core/views/widgets/kanso_undo_notice.dart';
 import '../../../gen/l10n/app_localizations.dart';
 import '../../../journal/utils/open_made_note.dart';
 import '../../models/data/board_drag.dart';
 import '../../state/board/board_bloc.dart';
 import 'board_column_view.dart';
 import 'board_move_sheet.dart';
+import 'board_settings_sheet.dart';
 
 /// A board of the notes a list shows: a bar, the choice between the notes
 /// by status and their tasks, the columns side by side (scrolling sideways
@@ -83,6 +85,13 @@ class BoardPane extends StatelessWidget {
                         title: l10n.boardTitle,
                         subtitle: placeTitle(l10n, place, index),
                         trailing: <Widget>[
+                          if (state.kind == BoardKind.notes &&
+                              state.data?.setup != null)
+                            KansoIconButton(
+                              icon: KansoIcons.ellipsis,
+                              semanticLabel: l10n.boardSettingsLabel,
+                              onPressed: () => BoardSettingsSheet.show(context),
+                            ),
                           if (draggable)
                             KansoIconButton(
                               icon: KansoIcons.close,
@@ -129,7 +138,7 @@ class BoardPane extends StatelessWidget {
                             ),
                           ),
                           child: Text(
-                            _hint(l10n, state.kind),
+                            _hint(l10n, state),
                             textAlign: TextAlign.center,
                             style: context.typography.meta,
                           ),
@@ -143,15 +152,7 @@ class BoardPane extends StatelessWidget {
                       bottom:
                           MediaQuery.paddingOf(context).bottom +
                           KansoSpacing.xl,
-                      child: KansoNotice(
-                        message: switch (state.notice!) {
-                          BoardNoticeChangedInNote() => l10n.boardChangedInNote,
-                          BoardNoticeFailed() => l10n.boardMoveFailed,
-                        },
-                        dismissLabel: l10n.boardNoticeDismiss,
-                        onDismiss: () =>
-                            bloc.add(const BoardEvent.noticeDismissed()),
-                      ),
+                      child: _notice(context, state.notice!),
                     ),
                 ],
               );
@@ -162,11 +163,39 @@ class BoardPane extends StatelessWidget {
     );
   }
 
-  String _hint(AppLocalizations l10n, BoardKind kind) {
-    final notes = kind == BoardKind.notes;
+  String _hint(AppLocalizations l10n, BoardState state) {
+    final notes = state.kind == BoardKind.notes;
+    final key = state.data?.setup?.group;
+    if (notes && key != null) {
+      return draggable
+          ? l10n.boardHintGroupDrag(key)
+          : l10n.boardHintGroup(key);
+    }
     return draggable
         ? (notes ? l10n.boardHintNotesDrag : l10n.boardHintTasksDrag)
         : (notes ? l10n.boardHintNotes : l10n.boardHintTasks);
+  }
+
+  /// What the last change did: the core's words with an Undo for a change
+  /// that can be taken back, or why a move did not happen.
+  Widget _notice(BuildContext context, BoardNotice notice) {
+    final l10n = context.l10n;
+    final bloc = context.read<BoardBloc>();
+    if (notice case BoardNoticeDone(:final message, :final undo?)) {
+      return KansoUndoNotice(
+        message: message,
+        onUndo: () => bloc.add(BoardEvent.undone(undo)),
+      );
+    }
+    return KansoNotice(
+      message: switch (notice) {
+        BoardNoticeChangedInNote() => l10n.boardChangedInNote,
+        BoardNoticeFailed() => l10n.boardMoveFailed,
+        BoardNoticeDone(:final message) => message,
+      },
+      dismissLabel: l10n.boardNoticeDismiss,
+      onDismiss: () => bloc.add(const BoardEvent.noticeDismissed()),
+    );
   }
 
   Widget _content(BuildContext context, BoardState state) {
