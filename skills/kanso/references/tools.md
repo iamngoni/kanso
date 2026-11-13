@@ -198,7 +198,7 @@ Add a PDF highlight by page and exact text quote. The quote is resolved to page 
 
 ### `kanso-add-task`
 
-Add one task to a note, as a `- [ ] …` line after the note's last line. Nothing else in the note changes. A date and repeat at the end of the text are written as Kanso's own tokens: `film Pixel review fri 3pm every week` becomes `- [ ] film Pixel review @2026-11-13T15:00 every week`. Text that ends in no date is added as it is. Say where it goes with `noteId` (that note), or `target` (`daily`: today's daily note, made when missing, which is the default; `inbox`: the note titled Tasks in the Inbox, made when missing), not both. Returns the note's ID, the task's 0-based line, the line written, and its due date, repeat and a short label when it has them. A locked note is refused.
+Add one task to a note, as a `- [ ] …` line after the note's last line. Nothing else in the note changes. A date and repeat at the end of the text are written as Kanso's own tokens: `film Pixel review fri 3pm every week` becomes `- [ ] film Pixel review @2026-11-13T15:00 every week`. Text that ends in no date is added as it is. Say where it goes with `noteId` (that note), or `target` (`daily`: today's daily note, made when missing, which is the default; `inbox`: the Inbox's task note, Inbox tasks, which Quick Capture also adds to, made when missing), not both. Returns the note's ID, the task's 0-based line, the line written, and its due date, repeat and a short label when it has them. A locked note is refused.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|

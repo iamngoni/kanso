@@ -247,6 +247,19 @@ class FixtureLibraryRepository implements LibraryRepository {
     return setTaskResult;
   }
 
+  /// The tasks `stopRepeatingAt` was asked to stop: note, index, rev.
+  final List<(String, int, String)> repeatsStopped = <(String, int, String)>[];
+
+  @override
+  Future<Either<ApplicationError, Ticked>> stopRepeatingAt({
+    required String noteId,
+    required int index,
+    required String baseRev,
+  }) async {
+    repeatsStopped.add((noteId, index, baseRev));
+    return setTaskResult;
+  }
+
   /// What `pdfHighlights` answers.
   Either<ApplicationError, List<PdfNotes>> pdfHighlightsResult =
       const Right<ApplicationError, List<PdfNotes>>(<PdfNotes>[]);
