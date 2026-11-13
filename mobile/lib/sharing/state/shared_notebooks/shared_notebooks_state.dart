@@ -17,6 +17,10 @@ abstract class SharedNotebooksState with _$SharedNotebooksState {
     /// What to tell of notebooks that ended here, oldest first.
     @Default(<String>[]) List<String> notices,
 
+    /// "Update Kanso to open this shared notebook.": the sync server said
+    /// this Kanso is too old for shared notebooks. Null while it is happy.
+    String? updateLine,
+
     /// The notebook just joined, to open.
     String? joined,
     ShareProblem? problem,
