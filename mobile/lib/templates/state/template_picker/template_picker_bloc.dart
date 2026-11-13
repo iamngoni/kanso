@@ -33,7 +33,9 @@ class TemplatePickerBloc
     Emitter<TemplatePickerState> emit,
   ) async {
     emit(const TemplatePickerState());
-    final result = await _templates.templates();
+    final result = await _templates.templates(
+      notebookId: event.notebookId,
+    );
     if (emit.isDone) {
       return;
     }

@@ -19,6 +19,7 @@ import '../../../core/views/widgets/kanso_text_input.dart';
 import '../../../injection.dart';
 import '../../models/data/new_notebook_failure.dart';
 import '../../state/new_notebook/new_notebook_bloc.dart';
+import 'new_notebook_kind_picker.dart';
 
 /// A sheet with a name to type, that makes a notebook at the top of the
 /// library and goes to it.
@@ -48,6 +49,7 @@ class _NewNotebookSheetState extends State<NewNotebookSheet> {
   late final NewNotebookBloc bloc;
   final TextEditingController name = TextEditingController();
   final FocusNode focus = FocusNode(debugLabel: 'New notebook name');
+  NewNotebookKind kind = NewNotebookKind.blank;
 
   @override
   void initState() {
@@ -68,7 +70,8 @@ class _NewNotebookSheetState extends State<NewNotebookSheet> {
     super.dispose();
   }
 
-  void submit(String value) => bloc.add(NewNotebookEvent.submitted(value));
+  void submit(String value) =>
+      bloc.add(NewNotebookEvent.submitted(value, kind: kind));
 
   @override
   Widget build(BuildContext context) {
@@ -147,6 +150,17 @@ class _NewNotebookSheetState extends State<NewNotebookSheet> {
                   );
                 },
               ),
+              // With the keyboard up on a phone the two choices don't fit:
+              // they scroll, with the name above and Create below in view.
+              Flexible(
+                child: SingleChildScrollView(
+                  child: NewNotebookKindPicker(
+                    kind: kind,
+                    onChanged: (chosen) => setState(() => kind = chosen),
+                  ),
+                ),
+              ),
+              const SizedBox(height: KansoSpacing.md),
               ListenableBuilder(
                 listenable: name,
                 builder: (context, _) {

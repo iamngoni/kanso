@@ -52,7 +52,7 @@ pub struct FromTemplate {
 
 /// Writes `fields` as a new live document `id` (over a tombstone, if
 /// there is one) and returns its revision.
-fn create(
+pub(crate) fn create(
     tx: &Transaction,
     doc_type: DocType,
     id: &str,
@@ -83,7 +83,7 @@ fn create(
 
 /// The notebook with `role` inside a write, made when missing: the one with
 /// the fixed ID, else any live notebook whose `kansoRole` says so.
-fn role_book_in(
+pub(crate) fn role_book_in(
     tx: &Transaction,
     role: Role,
     origin: Origin,

@@ -3519,6 +3519,11 @@ class NewNote {
           pinned == other.pinned;
 }
 
+enum NewNotebookKind {
+  blank,
+  videoStudio,
+}
+
 @freezed
 sealed class NoteChange with _$NoteChange {
   const NoteChange._();
@@ -6774,14 +6779,16 @@ class TaskSection {
 class TemplateRow {
   final String id;
   final String title;
+  final bool inNotebook;
 
   const TemplateRow({
     required this.id,
     required this.title,
+    required this.inNotebook,
   });
 
   @override
-  int get hashCode => id.hashCode ^ title.hashCode;
+  int get hashCode => id.hashCode ^ title.hashCode ^ inNotebook.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -6789,7 +6796,8 @@ class TemplateRow {
       other is TemplateRow &&
           runtimeType == other.runtimeType &&
           id == other.id &&
-          title == other.title;
+          title == other.title &&
+          inNotebook == other.inNotebook;
 }
 
 class TextChange {

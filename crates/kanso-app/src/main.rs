@@ -132,6 +132,9 @@ mod models;
 mod nav_history;
 #[cfg(test)]
 mod nav_tests;
+mod new_notebook_sheet;
+#[cfg(test)]
+mod new_notebook_tests;
 mod note_batch;
 mod note_link;
 mod note_list;

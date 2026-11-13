@@ -336,6 +336,9 @@ class FixtureLibraryRepository implements LibraryRepository {
   /// The notebooks `createNotebook` was asked to make, with their parents.
   final List<(String, String?)> notebooksCreated = <(String, String?)>[];
 
+  /// The kind of each notebook `createNotebook` was asked to make.
+  final List<NewNotebookKind> notebookKinds = <NewNotebookKind>[];
+
   /// What `createNotebook` answers when it is set; the notebook, appended
   /// to the notebooks, otherwise.
   Either<ApplicationError, NotebookRow>? createNotebookResult;
@@ -347,8 +350,10 @@ class FixtureLibraryRepository implements LibraryRepository {
   Future<Either<ApplicationError, NotebookRow>> createNotebook(
     String name, {
     String? parentId,
+    NewNotebookKind kind = NewNotebookKind.blank,
   }) async {
     notebooksCreated.add((name, parentId));
+    notebookKinds.add(kind);
     await notebookGate?.future;
     final fixed = createNotebookResult;
     if (fixed != null) {

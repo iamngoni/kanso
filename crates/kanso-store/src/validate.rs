@@ -222,6 +222,12 @@ fn normalize_book(id: &str, f: &mut Map<String, Value>, now: i64, refs: Refs) ->
     {
         return invalid("The notebook has an invalid board.".into());
     }
+    if let Some(templates) = f.get(kanso_core::schema::TEMPLATES_FIELD)
+        && !templates.is_null()
+        && !templates.is_array()
+    {
+        return invalid("The notebook has an invalid template list.".into());
+    }
     let updated_at = timestamp(f, "updatedAt")?.unwrap_or(now);
     f.insert("updatedAt".into(), updated_at.into());
     Ok(())

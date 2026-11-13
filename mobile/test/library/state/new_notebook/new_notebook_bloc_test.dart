@@ -41,6 +41,37 @@ void main() {
     );
 
     blocTest<NewNotebookBloc, NewNotebookState>(
+      'asks for a Video studio when that is the kind',
+      build: build,
+      act: (bloc) => bloc.add(
+        const NewNotebookEvent.submitted(
+          'Studio',
+          kind: NewNotebookKind.videoStudio,
+        ),
+      ),
+      expect: () => <dynamic>[
+        const NewNotebookState(creating: true),
+        isA<NewNotebookState>().having(
+          (s) => s.created?.name,
+          'name',
+          'Studio',
+        ),
+      ],
+      verify: (_) => expect(library.notebookKinds, <NewNotebookKind>[
+        NewNotebookKind.videoStudio,
+      ]),
+    );
+
+    blocTest<NewNotebookBloc, NewNotebookState>(
+      'makes a blank notebook unless told otherwise',
+      build: build,
+      act: (bloc) => bloc.add(const NewNotebookEvent.submitted('Plain')),
+      verify: (_) => expect(library.notebookKinds, <NewNotebookKind>[
+        NewNotebookKind.blank,
+      ]),
+    );
+
+    blocTest<NewNotebookBloc, NewNotebookState>(
       'refuses an empty name without asking the library',
       build: build,
       act: (bloc) => bloc.add(const NewNotebookEvent.submitted('   ')),

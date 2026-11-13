@@ -60,6 +60,7 @@ mod inspector_properties;
 mod learn_modals;
 mod library_key;
 mod locking;
+mod new_notebook;
 mod pdf;
 mod plugins_panel;
 mod plugins_settings;
@@ -7407,6 +7408,7 @@ fn snapshots() {
         .chain(recording_summary::SHOTS)
         .chain(plugins_panel::SHOTS)
         .chain(inspector_properties::SHOTS)
+        .chain(new_notebook::SHOTS)
     {
         let theme = if name.starts_with("dark-") {
             Dark

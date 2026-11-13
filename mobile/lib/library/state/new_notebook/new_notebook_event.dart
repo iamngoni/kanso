@@ -6,7 +6,10 @@ part of 'new_notebook_bloc.dart';
 
 @freezed
 sealed class NewNotebookEvent with _$NewNotebookEvent {
-  /// The person asked for a notebook named [name].
-  const factory NewNotebookEvent.submitted(String name) =
-      NewNotebookSubmittedEvent;
+  /// The person asked for a notebook named [name], blank or as a Video
+  /// studio.
+  const factory NewNotebookEvent.submitted(
+    String name, {
+    @Default(NewNotebookKind.blank) NewNotebookKind kind,
+  }) = NewNotebookSubmittedEvent;
 }

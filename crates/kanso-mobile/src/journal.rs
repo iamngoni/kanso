@@ -178,7 +178,32 @@ impl Library {
                 .store
                 .templates()?
                 .into_iter()
-                .map(|(id, title)| TemplateRow { id, title })
+                .map(|(id, title)| TemplateRow {
+                    id,
+                    title,
+                    in_notebook: false,
+                })
+                .collect())
+        })
+    }
+
+    /// The templates for a new note in `notebook_id` (none for no notebook):
+    /// the ones the notebook names first, then the rest by title.
+    pub fn templates_for(
+        &self,
+        notebook_id: Option<String>,
+    ) -> Result<Vec<TemplateRow>, KansoError> {
+        guard(|| {
+            Ok(self
+                .inner
+                .store
+                .templates_for(notebook_id.as_deref())?
+                .into_iter()
+                .map(|t| TemplateRow {
+                    id: t.id,
+                    title: t.title,
+                    in_notebook: t.in_notebook,
+                })
                 .collect())
         })
     }

@@ -19,8 +19,13 @@ class RustTemplatesRepository implements TemplatesRepository {
   final KansoLibrary _library;
 
   @override
-  Future<Either<ApplicationError, List<TemplateRow>>> templates() =>
-      attempt(_library.templates);
+  Future<Either<ApplicationError, List<TemplateRow>>> templates({
+    String? notebookId,
+  }) => attempt(
+    () => notebookId == null
+        ? _library.templates()
+        : _library.templatesFor(notebookId: notebookId),
+  );
 
   @override
   Future<Either<ApplicationError, MadeNote>> newFromTemplate({

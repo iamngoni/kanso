@@ -1109,6 +1109,18 @@ pub struct MonthGrid {
 pub struct TemplateRow {
     pub id: String,
     pub title: String,
+    /// Whether the notebook the list is for names it: those are listed
+    /// first.
+    pub in_notebook: bool,
+}
+
+/// What a new notebook starts as.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NewNotebookKind {
+    /// Nothing set up.
+    Blank,
+    /// A stage board, dates and two templates.
+    VideoStudio,
 }
 
 /// What a board lays out.

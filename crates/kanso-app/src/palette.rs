@@ -23,6 +23,7 @@ use gpui_kit::component::{ActiveTheme as _, Icon, StyledExt as _, WindowExt as _
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::model::TRASH_BOOK_ID;
+use kanso_core::schema::TemplateEntry;
 use kanso_core::{DocType, Note, NoteStatus};
 use kanso_engine::discovery::meaning::meaning_query;
 use kanso_engine::navigate::quick_open::{
@@ -841,27 +842,41 @@ impl Palette {
                 vec![section("Status", entries, false)]
             }
             Some(Mode::Pick(Picker::Template)) => {
-                let mut entries: Vec<_> = self
+                // The notebook the new note goes in lists its own first.
+                let book = self.library.read(cx).default_book();
+                let listed = self
                     .store
-                    .templates()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|(id, title)| {
-                        let label = if title.trim().is_empty() {
-                            "Untitled".to_owned()
-                        } else {
-                            title
-                        };
-                        fit(
-                            Item::new(Target::Template(id), label, IconName::LayoutTemplate),
-                            &[],
-                        )
-                    })
-                    .collect();
+                    .templates_for(book.as_deref())
+                    .unwrap_or_default();
+                let (own, others) = template_groups(listed);
+                let entries = |group: Vec<TemplateEntry>| -> Vec<_> {
+                    group
+                        .into_iter()
+                        .map(|t| {
+                            let icon = if t.in_notebook {
+                                IconName::Clapperboard
+                            } else {
+                                IconName::LayoutTemplate
+                            };
+                            let label = if t.title.trim().is_empty() {
+                                "Untitled".to_owned()
+                            } else {
+                                t.title
+                            };
+                            fit(Item::new(Target::Template(t.id), label, icon), &[])
+                        })
+                        .collect()
+                };
+                let mut rest = entries(others);
                 let item = Item::new(Target::NewTemplate, "New template", IconName::Plus);
                 // Last, but always there.
-                entries.push((item, Some(i64::MIN / 8)));
-                vec![section("Templates", entries, false)]
+                rest.push((item, Some(i64::MIN / 8)));
+                let mut sections = Vec::new();
+                if !own.is_empty() {
+                    sections.push(section(OWN_TEMPLATES_HEADING, entries(own), false));
+                }
+                sections.push(section("Templates", rest, false));
+                sections
             }
             Some(Mode::Pick(Picker::WordGoal)) => {
                 let editor = self.editor.read(cx);
@@ -2440,6 +2455,16 @@ fn status_description(status: NoteStatus) -> &'static str {
     }
 }
 
+/// The heading over the templates the notebook names, in "New note from
+/// template…".
+pub const OWN_TEMPLATES_HEADING: &str = "In this notebook";
+
+/// The template list split for the palette: the ones the notebook names,
+/// then the others, each in the order given. Pure.
+pub fn template_groups(listed: Vec<TemplateEntry>) -> (Vec<TemplateEntry>, Vec<TemplateEntry>) {
+    listed.into_iter().partition(|t| t.in_notebook)
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -3625,5 +3650,105 @@ mod tests {
         f.draw(cx);
         f.keys(cx, "cmd-k");
         assert_eq!(f.mode(cx), Some(Mode::Commands));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 256,
+            failure_persistence: Some(Box::new(FileFailurePersistence::Off)),
+            ..ProptestConfig::default()
+        })]
+
+        /// Invariant: the notebook's own templates come first and the rest
+        /// after, each in the order the store listed them, with nothing
+        /// lost or repeated.
+        #[test]
+        fn prop_template_groups_keep_the_order_and_lose_nothing(
+            titles in prop::collection::vec("[a-z ]{0,6}", 0..8),
+            named in prop::collection::vec(0usize..10, 0..8),
+        ) {
+            let all: Vec<(String, String)> = titles
+                .iter()
+                .enumerate()
+                .map(|(i, t)| (format!("note:{i}"), t.clone()))
+                .collect();
+            let named: Vec<String> = named.iter().map(|i| format!("note:{i}")).collect();
+            let listed = kanso_core::schema::order_templates(&all, &named);
+            let (own, others) = super::template_groups(listed.clone());
+            prop_assert!(own.iter().all(|t| t.in_notebook));
+            prop_assert!(others.iter().all(|t| !t.in_notebook));
+            let joined: Vec<_> = own.iter().chain(&others).cloned().collect();
+            prop_assert_eq!(joined, listed);
+        }
+    }
+
+    fn headings(f: &Fixture, cx: &mut TestAppContext) -> Vec<String> {
+        let palette = f.palette(cx);
+        cx.read(|cx| {
+            palette
+                .read(cx)
+                .rows
+                .iter()
+                .filter_map(|row| match row {
+                    Row::Heading(h) => Some(h.to_string()),
+                    _ => None,
+                })
+                .collect()
+        })
+    }
+
+    #[gpui_kit::test]
+    fn a_studio_lists_its_own_templates_first(cx: &mut TestAppContext) {
+        let f = setup(cx);
+        let studio = kanso_engine::presets::create_notebook(
+            &f.store,
+            "Channel",
+            None,
+            kanso_engine::presets::NotebookKind::VideoStudio,
+            Origin::Ui,
+        )
+        .unwrap();
+        // A template of the user's own, which every notebook lists.
+        let templates = f.store.templates().unwrap();
+        let book = f.store.note(&templates[0].0).unwrap().unwrap().book_id;
+        f.store
+            .put(
+                DocType::Note,
+                json!({"title": "Agenda", "body": "", "bookId": book}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+        let library = cx.read(|cx| f.workspace.read(cx).library.clone());
+        library.update(cx, |library, cx| {
+            library.set_filter(Filter::Book(studio.book_id.clone()), cx)
+        });
+        cx.run_until_parked();
+        f.open(cx, Mode::Pick(crate::commands::Picker::Template));
+        assert_eq!(
+            f.labels(cx),
+            ["Video brief", "Shot list", "Agenda", "New template"]
+        );
+        assert_eq!(
+            headings(&f, cx),
+            [super::OWN_TEMPLATES_HEADING, "Templates"]
+        );
+
+        // Anywhere else they are plain templates, by title.
+        f.update(cx, |workspace, window, cx| {
+            workspace
+                .palette
+                .update(cx, |palette, cx| palette.close(window, cx))
+        });
+        library.update(cx, |library, cx| {
+            library.set_filter(Filter::Book(f.other_book.clone()), cx)
+        });
+        cx.run_until_parked();
+        f.open(cx, Mode::Pick(crate::commands::Picker::Template));
+        assert_eq!(
+            f.labels(cx),
+            ["Agenda", "Shot list", "Video brief", "New template"]
+        );
+        assert_eq!(headings(&f, cx), ["Templates"]);
     }
 }

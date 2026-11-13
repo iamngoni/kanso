@@ -1947,6 +1947,17 @@ impl Workspace {
         self.editor.read(cx).note_id() == Some(id)
     }
 
+    /// Sends `event` as the sidebar would (tests).
+    #[cfg(test)]
+    pub(crate) fn sidebar_event_for_test(
+        &mut self,
+        event: &SidebarEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.on_sidebar_event(event, window, cx);
+    }
+
     fn on_sidebar_event(
         &mut self,
         event: &SidebarEvent,
@@ -1977,34 +1988,7 @@ impl Workspace {
                     .update(cx, |palette, cx| palette.open(mode, window, cx));
             }
             SidebarEvent::NewBook { parent } => {
-                let parent = parent.clone();
-                prompt_text(
-                    "New Notebook",
-                    "",
-                    "Create",
-                    window,
-                    cx,
-                    move |name, window, cx| {
-                        let result = store.put(
-                            DocType::Book,
-                            json!({"name": name, "parentBookId": parent}),
-                            Put::Upsert,
-                            Origin::Ui,
-                        );
-                        match result {
-                            Ok(created) => {
-                                crate::metrics::record(
-                                    cx,
-                                    crate::metrics::Feature::NotebookCreated,
-                                );
-                                library.update(cx, |library, cx| {
-                                    library.set_filter(Filter::Book(created.id), cx)
-                                })
-                            }
-                            Err(err) => report(Err(err), window, cx),
-                        }
-                    },
-                );
+                crate::new_notebook_sheet::open(library, parent.clone(), window, cx);
             }
             SidebarEvent::RenameBook(id) => {
                 let current = self
