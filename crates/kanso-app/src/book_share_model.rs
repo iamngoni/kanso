@@ -34,6 +34,9 @@ pub struct BookNews {
     pub ended: Vec<String>,
     /// A notebook's sync got no answer from the server.
     pub offline: bool,
+    /// The server refused this Kanso as too old for shared notebooks: the
+    /// section says to update, and the update notice shows.
+    pub needs_update: bool,
 }
 
 /// What the Share notebook sheet shows.

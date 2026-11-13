@@ -47,12 +47,14 @@ pub fn sync_books(engine: &Engine) -> BookNews {
                 }
             }
             Err(err) if err.is_offline() => news.offline = true,
+            Err(err) if err.is_client_too_old() => news.needs_update = true,
             Err(err) => eprintln!("kanso: syncing shared notebook {share_id}: {err}"),
         }
     }
     match engine.joinable_books() {
         Ok(books) => news.invitations = Some(books),
         Err(err) if err.is_offline() => news.offline = true,
+        Err(err) if err.is_client_too_old() => news.needs_update = true,
         Err(err) => eprintln!("kanso: reading notebook invitations: {err}"),
     }
     news.rows = Some(read_rows(engine));
@@ -90,6 +92,7 @@ pub fn take_news(news: BookNews, cx: &mut App) {
         collab.book_invitations = invitations;
     }
     collab.book_edits = by_note(news.edits);
+    collab.book_update_needed = news.needs_update;
     // A room whose notebook ended closes.
     let joined: Vec<String> = collab
         .books
@@ -290,7 +293,7 @@ pub fn render_section(
     cx: &App,
 ) -> Option<AnyElement> {
     let collab = cx.try_global::<Collab>()?;
-    if collab.books.is_empty() && collab.book_invitations.is_empty() {
+    if collab.books.is_empty() && collab.book_invitations.is_empty() && !collab.book_update_needed {
         return None;
     }
     let colors = Colors::get(cx);
@@ -418,6 +421,35 @@ pub fn render_section(
                     .size(px(12.)),
                 )
                 .child(status_words(collab.offline, collab.syncing, waiting)),
+        );
+    }
+    if collab.book_update_needed {
+        // An invitation this Kanso can't open: the server won't list one to a
+        // client that's too old, so the section says what to do instead.
+        section = section.child(
+            h_flex()
+                .id("book-update-needed")
+                .debug_selector(|| "book-update-needed".into())
+                .gap(px(10.))
+                .mx_2()
+                .mt(px(6.))
+                .px(px(12.))
+                .py(px(9.))
+                .rounded(px(6.))
+                .bg(colors.fill)
+                .text_size(px(13.))
+                .text_color(colors.text)
+                .child(
+                    Icon::new(Lucide::UserPlus)
+                        .size(px(15.))
+                        .text_color(colors.text_secondary),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .child(kanso_collab::UPDATE_FOR_INVITATION),
+                ),
         );
     }
     for (ix, invitation) in collab.book_invitations.iter().enumerate() {

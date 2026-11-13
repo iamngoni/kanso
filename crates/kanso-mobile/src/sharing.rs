@@ -1123,6 +1123,9 @@ pub(crate) fn words(err: &CollabError) -> String {
             format!("{name}'s keys changed since you last shared with them.")
         }
         CollabError::NotShareable(words) | CollabError::Refused(words) => words.clone(),
+        CollabError::Api { .. } if err.is_client_too_old() => {
+            kanso_collab::UPDATE_FOR_BOOKS.into()
+        }
         CollabError::Transport(_) => {
             "Couldn't reach your sync server. Check your connection and try again.".into()
         }

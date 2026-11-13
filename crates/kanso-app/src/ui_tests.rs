@@ -5667,6 +5667,69 @@ fn an_update_notice_shows_until_it_is_dismissed(cx: &mut TestAppContext) {
     assert_eq!(saved.dismissed.len(), 2);
 }
 
+/// The shipped "Update Kanso to use shared notebooks" notice, with its
+/// version lowered to the one the tests run as (it starts with the release
+/// after this one).
+fn shared_notebooks_notice() -> &'static [kanso_core::notices::Notice] {
+    use kanso_core::notices::{NOTICES, SHARED_NOTEBOOKS_UPDATE_ID};
+    let mut notice = NOTICES
+        .iter()
+        .find(|n| n.id == SHARED_NOTEBOOKS_UPDATE_ID)
+        .expect("the shipped list has it")
+        .clone();
+    notice.since = semver::Version::new(0, 10, 0);
+    Box::leak(Box::new([notice]))
+}
+
+/// When the sync server says this Kanso is too old for shared notebooks, the
+/// Shared section says "Update Kanso to open this shared notebook." and a
+/// dismissible banner says how to fix it; Dismiss hides the banner for good
+/// and the section keeps its line. Nothing shows while the server is happy.
+// no-prop-test: drives one window; the rules are properties in kanso-core.
+#[gpui_kit::test]
+fn an_old_kanso_is_told_to_update_for_shared_notebooks(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    f.draw(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    vcx.update(|_, cx| {
+        cx.set_global(crate::notices::NoticeBoard {
+            list: shared_notebooks_notice(),
+            previous: None,
+        });
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+    assert_eq!(vcx.debug_bounds("book-update-needed"), None);
+
+    vcx.update(|_, cx| {
+        cx.default_global::<crate::collab_model::Collab>()
+            .book_update_needed = true;
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    let pick = vcx.read(crate::notices::banner).unwrap();
+    assert_eq!(
+        pick.notice.id,
+        kanso_core::notices::SHARED_NOTEBOOKS_UPDATE_ID
+    );
+    assert!(pick.notice.title.starts_with("Update Kanso"));
+    assert!(vcx.debug_bounds("notice-banner").is_some());
+    assert!(vcx.debug_bounds("notice-dismiss").is_some());
+    assert!(vcx.debug_bounds("book-update-needed").is_some());
+
+    let bounds = vcx.debug_bounds("notice-dismiss").unwrap();
+    vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+    assert!(vcx.debug_bounds("book-update-needed").is_some());
+    assert_eq!(
+        f.saved_config().notices.dismissed,
+        [kanso_core::notices::SHARED_NOTEBOOKS_UPDATE_ID]
+    );
+}
+
 /// How to fix's own buttons: Mark as fixed puts the notice away (banner and
 /// palette), and the sheet opened again has Done instead of Dismiss, so it
 /// can still be closed with the mouse. On macOS the banner leaves the
