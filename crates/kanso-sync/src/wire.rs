@@ -55,6 +55,14 @@ pub const DOC_ROW_COST: u64 = 512;
 pub const FILE_ROW_COST: u64 = 1024;
 /// The protocol version `/v2/health` reports.
 pub const PROTOCOL_VERSION: u32 = 2;
+/// The shared-notebook level this client speaks, sent as
+/// [`BOOK_PROTOCOL_HEADER`] on every shared-notebook request (issue #390).
+/// The routes stay under `/v2`: a server that has raised its minimum answers
+/// a lower level with `426 client_too_old` and how to fix it. Mirrors
+/// `cloud/src/protocol.ts`.
+pub const BOOK_PROTOCOL: u32 = 1;
+/// The header that states [`BOOK_PROTOCOL`].
+pub const BOOK_PROTOCOL_HEADER: &str = "x-kanso-book-protocol";
 
 // ---------------------------------------------------------------------------
 // Patterns (pure validators, implemented in step 1)
