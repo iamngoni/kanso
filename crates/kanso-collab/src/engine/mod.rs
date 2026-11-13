@@ -21,6 +21,7 @@ pub mod book;
 mod book_end;
 pub mod book_live;
 mod book_people;
+pub mod book_roster;
 mod book_sync;
 pub mod canvas;
 pub mod live;
@@ -1181,6 +1182,8 @@ fn remap_past(mut offset: usize, splices: &[crate::model::Splice]) -> usize {
 mod book_conflict_tests;
 #[cfg(test)]
 mod book_live_tests;
+#[cfg(test)]
+mod book_roster_tests;
 #[cfg(test)]
 mod book_rotation_tests;
 #[cfg(test)]

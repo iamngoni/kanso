@@ -119,6 +119,8 @@ impl Engine {
     ) -> Result<bool> {
         let caller = &self.account.caller;
         let mut changed = false;
+        // The author of the last edit merged, for "Edited by".
+        let mut last_author: Option<String> = None;
         loop {
             let page = self.api.book_log(
                 caller,
@@ -160,7 +162,10 @@ impl Engine {
                             && opened.role.may_edit()
                             && !ctx.past_its_epoch(opened.header.epoch, entry.seq) =>
                     {
-                        changed |= apply(&opened.plain);
+                        if apply(&opened.plain) {
+                            changed = true;
+                            last_author = Some(opened.header.author_account.clone());
+                        }
                     }
                     Ok(opened)
                         if opened.header.kind == Kind::Comment
@@ -186,6 +191,9 @@ impl Engine {
             if !page.more {
                 break;
             }
+        }
+        if let Some(author) = last_author {
+            self.note_edited(&ctx.row.share_id, &row.stream, &author);
         }
         Ok(changed)
     }
@@ -936,6 +944,13 @@ impl Engine {
         for update in &updates {
             self.store
                 .push_book_outbox(&ctx.row.share_id, &row.stream, update)?;
+        }
+        if !updates.is_empty() {
+            self.note_edited(
+                &ctx.row.share_id,
+                &row.stream,
+                &self.account.caller.account_id,
+            );
         }
         Ok(Some(!updates.is_empty()))
     }

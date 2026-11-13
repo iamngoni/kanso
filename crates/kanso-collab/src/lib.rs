@@ -43,8 +43,8 @@ pub use book_members_model::{
     BookChainHead, BookListError, BookMemberList, BookPin, SignedBookList,
 };
 pub use book_model::{
-    BookEndReason, BookEnded, BookHistory, BookKey, BookProgress, BookShared, BookSync, JoinedBook,
-    StoredChain,
+    BookEndReason, BookEnded, BookHistory, BookKey, BookMemberView, BookProgress, BookShared,
+    BookSync, BookView, JoinedBook, MemberStanding, NoteEdit, StoredChain,
 };
 pub use canvas_doc::CanvasDoc;
 pub use doc::{CollabDoc, Field, Merged, apply_splices, remap, splices};

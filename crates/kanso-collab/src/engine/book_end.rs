@@ -142,6 +142,8 @@ impl Engine {
         self.store.put_shared_book(&row)?;
         self.store.clear_shared_book_state(share_id)?;
         self.store.remove_meta(&unpinned_key(share_id))?;
+        self.store
+            .remove_meta(&super::book_roster::edits_key(share_id))?;
         Ok(BookEnded {
             share_id: share_id.to_owned(),
             reason,
