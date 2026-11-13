@@ -3,22 +3,34 @@
 //! or their tasks in To do and Done. A card dragged to another column, or
 //! moved with ⇧← and ⇧→, changes its note's status or ticks its task.
 //! Return or a double-click opens the card's note.
+//!
+//! A board of one notebook can be grouped by one of the notebook's select
+//! properties instead ("Group by"): a column per option, in the property's
+//! order, then "Unlisted stage" for a value no column has and "No stage"
+//! for none. A move there writes the property into the note, and Cmd-Z puts
+//! it back in one step.
 
 use gpui_component::scroll::ScrollableElement as _;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonGroup, ButtonVariants as _};
+use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::{
     Icon, Selectable as _, Sizable as _, StyledExt as _, WindowExt as _, h_flex, v_flex,
 };
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
+use kanso_core::schema::{BoardSpec, Mismatch, PropertyType};
 use kanso_core::tasks::Due;
-use kanso_engine::board::{Board, BoardKind, Card, CardId, Lane, Move, Written, cards, write_move};
-use kanso_store::{Sort, Store, TaskQuery};
+use kanso_engine::board::{
+    Board, BoardKind, Card, CardId, Lane, Move, PropertyBoard, Written, cards, placements,
+    property_board, undo_move, write_move_undoable,
+};
+use kanso_store::{NoteSummary, Origin, Sort, Store, TaskQuery};
 
 use crate::clock::Clock;
 use crate::due::{Tone, chip_colors, chip_label, tone};
@@ -36,7 +48,10 @@ const COLUMN_WIDTH: f32 = 272.;
 const RELOAD_DELAY: Duration = Duration::from_millis(150);
 const DAY_MS: i64 = 86_400_000;
 
-actions!(kanso, [ShowBoard, ShowTaskBoard, CloseBoardView]);
+actions!(
+    kanso,
+    [ShowBoard, ShowTaskBoard, CloseBoardView, UndoBoardMove]
+);
 actions!(
     board_view,
     [
@@ -68,6 +83,7 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("shift-l", MoveCardRight, context),
         KeyBinding::new("enter", OpenCard, context),
         KeyBinding::new("escape", CloseBoard, context),
+        KeyBinding::new("secondary-z", UndoBoardMove, context),
     ]);
 }
 
@@ -120,6 +136,9 @@ pub struct BoardView {
     store: Arc<Store>,
     pub(crate) board: Board,
     pub(crate) scope: BoardScope,
+    /// The select properties of the board's notebook it can be grouped by.
+    /// Empty on a board of anything but one notebook.
+    pub(crate) groupable: Vec<String>,
     /// Drawn on screen: only then is it read again on changes.
     pub visible: bool,
     stale: bool,
@@ -148,7 +167,7 @@ impl BoardView {
     ) -> Self {
         let subscriptions = vec![cx.subscribe(&library, |this, _, event, cx| {
             if let LibraryEvent::Changed(change) = event
-                && change.id.starts_with("note:")
+                && (change.id.starts_with("note:") || change.id.starts_with("book:"))
             {
                 this.stale = true;
                 if this.visible {
@@ -161,6 +180,7 @@ impl BoardView {
             store,
             board: Board::new(kind),
             scope,
+            groupable: Vec::new(),
             visible: false,
             stale: true,
             focus: cx.focus_handle(),
@@ -208,14 +228,14 @@ impl BoardView {
         let recent_since = Clock::now_ms(cx) - crate::library::RECENT_DAYS * DAY_MS;
         let task = cx
             .background_executor()
-            .spawn(async move { read_cards(&store, kind, &scope, recent_since) });
+            .spawn(async move { read_board(&store, kind, &scope, recent_since) });
         self.reload_task = Some(cx.spawn(async move |this, cx| {
             let read = task.await;
             this.update(cx, |this, cx| {
                 // A board of the other kind was asked for meanwhile.
                 if this.board.kind == kind {
                     match read {
-                        Ok(cards) => this.board.set_cards(cards),
+                        Ok(read) => this.apply(read),
                         Err(err) => eprintln!("kanso: board: {err}"),
                     }
                 }
@@ -229,10 +249,85 @@ impl BoardView {
     #[cfg(test)]
     pub fn reload_now(&mut self, cx: &mut Context<Self>) {
         let recent_since = Clock::now_ms(cx) - crate::library::RECENT_DAYS * DAY_MS;
-        if let Ok(cards) = read_cards(&self.store, self.board.kind, &self.scope, recent_since) {
-            self.board.set_cards(cards);
+        if let Ok(read) = read_board(&self.store, self.board.kind, &self.scope, recent_since) {
+            self.apply(read);
         }
         cx.notify();
+    }
+
+    /// Takes a read: the notebook's grouping, where each note is in it, and
+    /// the cards.
+    fn apply(&mut self, read: Read) {
+        self.groupable = read.groupable;
+        match read.group {
+            Some((group, placed)) => {
+                self.board.group = Some(group);
+                self.board.set_placements(placed);
+            }
+            None => {
+                self.board.group = None;
+                self.board.set_placements(HashMap::new());
+            }
+        }
+        self.board.set_cards(read.cards);
+    }
+
+    /// The notebook the board is of, when it is of one.
+    fn book(&self) -> Option<&str> {
+        match &self.scope.filter {
+            Filter::Book(id) => Some(id),
+            _ => None,
+        }
+    }
+
+    /// Groups the board by property `by` (status when `None`), saved with
+    /// its notebook. The notebook's lanes stay when it keeps its property.
+    pub(crate) fn group_by(
+        &mut self,
+        by: Option<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(book) = self.book().map(str::to_owned) else {
+            return;
+        };
+        let spec = by.map(|by| {
+            let own = self.store.notebook_board(&book).ok().flatten();
+            let kept = own.as_ref().filter(|own| own.by == by);
+            BoardSpec {
+                lanes: kept.map(|own| own.lanes.clone()).unwrap_or_default(),
+                show_unset: own.as_ref().is_none_or(|own| own.show_unset),
+                by,
+            }
+        });
+        self.save_board_spec(&book, spec.as_ref(), window, cx);
+    }
+
+    /// Shows or hides the lane of notes with no value while it is empty.
+    fn show_unset(&mut self, show: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(book) = self.book().map(str::to_owned) else {
+            return;
+        };
+        if let Ok(Some(mut spec)) = self.store.notebook_board(&book) {
+            spec.show_unset = show;
+            self.save_board_spec(&book, Some(&spec), window, cx);
+        }
+    }
+
+    fn save_board_spec(
+        &mut self,
+        book: &str,
+        spec: Option<&BoardSpec>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match self.store.set_notebook_board(book, spec, Origin::Ui) {
+            Ok(_) => self.reload(cx),
+            Err(err) => window.push_notification(
+                Notification::error(format!("Couldn't change the board: {err}")),
+                cx,
+            ),
+        }
     }
 
     fn scroll_to_selection(&self) {
@@ -262,7 +357,7 @@ impl BoardView {
         cx.notify();
     }
 
-    fn drop_card(&mut self, id: &CardId, lane: Lane, cx: &mut Context<Self>) {
+    pub(crate) fn drop_card(&mut self, id: &CardId, lane: Lane, cx: &mut Context<Self>) {
         if let Some(mv) = self.board.move_card(id, lane) {
             cx.emit(BoardEvent::Move(mv));
         }
@@ -348,6 +443,7 @@ impl BoardView {
                     .child(format!("{place} · {count}")),
             )
             .child(div().flex_1())
+            .children(self.render_group_by(cx))
             .child(kinds)
             .child(
                 Button::new("board-close")
@@ -359,6 +455,65 @@ impl BoardView {
                         window.dispatch_action(Box::new(CloseBoard), cx)
                     })),
             )
+    }
+
+    /// "Group by: stage ▾", on a board of notes in one notebook that has
+    /// select properties: Status, each of them, and whether the lane of
+    /// notes with none shows while empty.
+    fn render_group_by(&self, cx: &mut Context<Self>) -> Option<impl IntoElement> {
+        if self.board.kind != BoardKind::Notes || self.book().is_none() || self.groupable.is_empty()
+        {
+            return None;
+        }
+        let current = self.board.group.as_ref().map(|group| group.key.clone());
+        let show_unset = self.board.group.as_ref().map(|group| group.show_unset);
+        let label = format!("Group by: {}", current.as_deref().unwrap_or("status"));
+        let keys = self.groupable.clone();
+        let view = cx.entity();
+        Some(
+            Button::new("board-group-by")
+                .outline()
+                .small()
+                .label(label)
+                .dropdown_caret(true)
+                .debug_selector(|| "board-group-by".into())
+                .dropdown_menu_with_anchor(Anchor::TopRight, move |menu, _, _| {
+                    let status = {
+                        let view = view.clone();
+                        PopupMenuItem::new("Status")
+                            .checked(current.is_none())
+                            .on_click(move |_, window, cx| {
+                                view.update(cx, |view, cx| view.group_by(None, window, cx))
+                            })
+                    };
+                    let menu = keys.iter().fold(menu.item(status), |menu, key| {
+                        let (view, by) = (view.clone(), key.clone());
+                        menu.item(
+                            PopupMenuItem::new(key.clone())
+                                .checked(current.as_deref() == Some(key.as_str()))
+                                .on_click(move |_, window, cx| {
+                                    let by = by.clone();
+                                    view.update(cx, |view, cx| view.group_by(Some(by), window, cx))
+                                }),
+                        )
+                    });
+                    match (&current, show_unset) {
+                        (Some(key), Some(shown)) => {
+                            let view = view.clone();
+                            menu.separator().item(
+                                PopupMenuItem::new(format!("Show cards without a {key}"))
+                                    .checked(shown)
+                                    .on_click(move |_, window, cx| {
+                                        view.update(cx, |view, cx| {
+                                            view.show_unset(!shown, window, cx)
+                                        })
+                                    }),
+                            )
+                        }
+                        _ => menu,
+                    }
+                }),
+        )
     }
 
     fn render_column(
@@ -375,15 +530,16 @@ impl BoardView {
             Lane::Status(status) => status_glyph(*status, colors, colors.text_muted),
             Lane::Todo => Some((Lucide::Circle, colors.text_muted)),
             Lane::Done => Some((Lucide::CircleCheck, colors.success)),
-            // Property lanes get their head in the property board (slice 22).
-            Lane::Value(_) | Lane::Unset | Lane::Unlisted => None,
+            Lane::Value(_) | Lane::Unset => Some((Lucide::Circle, colors.text_muted)),
+            Lane::Unlisted => Some((Lucide::TriangleAlert, colors.warning)),
         };
+        let name = self.board.label(&lane);
         let now = crate::journal::now(cx);
         let scroll = self.column_scrolls.get(col).cloned().unwrap_or_default();
         let accent = Hsla::from(colors.accent);
         let drop_lane = lane.clone();
         v_flex()
-            .id(SharedString::from(format!("board-column-{}", lane.label())))
+            .id(SharedString::from(format!("board-column-{col}")))
             .w(px(COLUMN_WIDTH))
             .flex_none()
             .h_full()
@@ -391,10 +547,13 @@ impl BoardView {
             .bg(colors.list)
             .border_1()
             .border_color(colors.divider)
-            .drag_over::<DraggedCard>(move |style, _, _, _| {
-                style
-                    .border_color(accent.opacity(0.7))
-                    .bg(accent.opacity(0.06))
+            // A card can't be dropped on "Unlisted": a value is typed there.
+            .when(lane != Lane::Unlisted, |el| {
+                el.drag_over::<DraggedCard>(move |style, _, _, _| {
+                    style
+                        .border_color(accent.opacity(0.7))
+                        .bg(accent.opacity(0.06))
+                })
             })
             .on_drop(cx.listener(move |this, card: &DraggedCard, _, cx| {
                 this.drop_card(&card.id, drop_lane.clone(), cx);
@@ -408,7 +567,7 @@ impl BoardView {
                     .when_some(glyph, |el, (icon, color)| {
                         el.child(Icon::new(icon).size(px(14.)).text_color(color))
                     })
-                    .child(section_label(div(), colors).child(lane.label()))
+                    .child(section_label(div(), colors).child(name))
                     .child(
                         div()
                             .text_size(px(11.5))
@@ -418,7 +577,7 @@ impl BoardView {
             )
             .child(
                 v_flex()
-                    .id(SharedString::from(format!("board-cards-{}", lane.label())))
+                    .id(SharedString::from(format!("board-cards-{col}")))
                     .flex_1()
                     .min_h_0()
                     .px(px(8.))
@@ -453,6 +612,15 @@ impl BoardView {
                 title.to_owned()
             }
         };
+        let unlisted = (self.board.lane_of(card) == Lane::Unlisted)
+            .then_some(self.board.group.as_ref())
+            .flatten()
+            .map(|group| {
+                Mismatch::NotAnOption {
+                    key: group.key.clone(),
+                }
+                .message()
+            });
         let (title, body): (String, AnyElement) = match card {
             Card::Note(note) => {
                 let book = library
@@ -505,6 +673,27 @@ impl BoardView {
                                 .text_size(px(11.5))
                                 .text_color(colors.text_muted)
                                 .child(footer.join(" · ")),
+                        )
+                    })
+                    // The value is none of the board's lanes: say so, as the
+                    // note's own property does.
+                    .when_some(unlisted, |el, warning| {
+                        el.child(
+                            h_flex()
+                                .gap(px(4.))
+                                .child(
+                                    Icon::new(Lucide::TriangleAlert)
+                                        .size(px(11.))
+                                        .text_color(colors.warning),
+                                )
+                                .child(
+                                    div()
+                                        .min_w_0()
+                                        .truncate()
+                                        .text_size(px(11.5))
+                                        .text_color(colors.warning)
+                                        .child(warning),
+                                ),
                         )
                     })
                     .into_any_element();
@@ -627,6 +816,51 @@ impl BoardView {
     }
 }
 
+/// What a read of the board brings: its cards, and for a board of one
+/// notebook the select properties it can be grouped by and, when the
+/// notebook has a board of its own, its grouping with each note's lane.
+struct Read {
+    cards: Vec<Card>,
+    groupable: Vec<String>,
+    group: Option<(PropertyBoard, HashMap<String, Lane>)>,
+}
+
+/// [`read_cards`] with the notebook's grouping.
+fn read_board(
+    store: &Store,
+    kind: BoardKind,
+    scope: &BoardScope,
+    recent_since: i64,
+) -> Result<Read, kanso_store::StoreError> {
+    let cards = read_cards(store, kind, scope, recent_since)?;
+    let mut read = Read {
+        cards,
+        groupable: Vec::new(),
+        group: None,
+    };
+    if let (BoardKind::Notes, Filter::Book(book)) = (kind, &scope.filter) {
+        read.groupable = store
+            .notebook_properties(book)?
+            .into_iter()
+            .filter(|def| def.kind == PropertyType::Select)
+            .map(|def| def.key)
+            .collect();
+        if let Some(group) = property_board(store, book)? {
+            let notes: Vec<NoteSummary> = read
+                .cards
+                .iter()
+                .filter_map(|card| match card {
+                    Card::Note(note) => Some(note.clone()),
+                    Card::Task(_) => None,
+                })
+                .collect();
+            let placed = placements(store, &group, &notes)?;
+            read.group = Some((group, placed));
+        }
+    }
+    Ok(read)
+}
+
 /// The cards of a `kind` board over `scope`'s notes. The trash never
 /// shows.
 fn read_cards(
@@ -675,12 +909,18 @@ impl Render for BoardView {
                 }))
                 .into_any_element()
         };
-        let hint = match self.board.kind {
-            BoardKind::Notes => {
+        let hint = match (&self.board.kind, &self.board.group) {
+            (BoardKind::Notes, Some(group)) => format!(
+                "Drag a card to change its {} · Arrows choose · ⇧← ⇧→ move · ⌘Z undoes a move · Return opens",
+                group.key
+            ),
+            (BoardKind::Notes, None) => {
                 "Drag a card to change its status · Arrows choose · ⇧← ⇧→ move · Return opens"
+                    .to_owned()
             }
-            BoardKind::Tasks => {
+            (BoardKind::Tasks, _) => {
                 "Drag a task to Done to tick it off · Arrows choose · ⇧← ⇧→ move · Return opens"
+                    .to_owned()
             }
         };
         v_flex()
@@ -839,9 +1079,14 @@ impl Workspace {
         }
         self.flush(cx);
         let now = Clock::now_ms(cx);
-        match write_move(&self.store, mv, now) {
-            Ok(Written::Done) => {}
-            Ok(Written::Moved) => {
+        match write_move_undoable(&self.store, mv, now) {
+            Ok((Written::Done, undo)) => {
+                if let Some(undo) = undo {
+                    self.board_undo = Some(undo);
+                    self.say_board_move(mv, window, cx);
+                }
+            }
+            Ok((Written::Moved, _)) => {
                 window.push_notification(
                     Notification::info(
                         "That task changed in its note. The board is up to date now.",
@@ -855,6 +1100,50 @@ impl Workspace {
                 self.reload_board(cx);
             }
         }
+    }
+
+    /// A notice for a move written to a property, with Undo (Cmd-Z does the
+    /// same while the board has the keyboard).
+    fn say_board_move(&mut self, mv: &Move, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(board) = self.board.clone() else {
+            return;
+        };
+        let words = board.read(cx).board.label(&mv.to);
+        let key = mv.property.clone().unwrap_or_default();
+        let words = match mv.to {
+            Lane::Unset => format!("Cleared its {key}."),
+            _ => format!("Moved to {words}."),
+        };
+        let notification = Notification::info(words)
+            .id::<UndoBoardMove>()
+            .action(|_, _, _| {
+                Button::new("undo-board-move")
+                    .label("Undo")
+                    .debug_selector(|| "undo-board-move".into())
+                    .on_click(|_, window, cx| window.dispatch_action(Box::new(UndoBoardMove), cx))
+            });
+        window.push_notification(notification, cx);
+    }
+
+    /// Puts the note of the board's last property move back, in one write.
+    /// Nothing to put back leaves the key to whatever else binds it.
+    fn undo_board_move(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(undo) = self.board_undo.take() else {
+            cx.propagate();
+            return;
+        };
+        window.remove_notification::<UndoBoardMove>(cx);
+        self.flush(cx);
+        match undo_move(&self.store, &undo) {
+            Ok(true) => {}
+            Ok(false) => self.notify_error(
+                "That note changed since it was moved, so it was left as it is.",
+                window,
+                cx,
+            ),
+            Err(err) => self.notify_error(format!("Couldn't undo the move: {err}"), window, cx),
+        }
+        self.reload_board(cx);
     }
 
     fn reload_board(&self, cx: &mut Context<Self>) {
@@ -875,6 +1164,7 @@ pub fn on_actions(el: Div, cx: &mut Context<Workspace>) -> Div {
         this.show_board(BoardKind::Tasks, window, cx)
     }))
     .on_action(cx.listener(|this, _: &CloseBoardView, window, cx| this.close_board(window, cx)))
+    .on_action(cx.listener(|this, _: &UndoBoardMove, window, cx| this.undo_board_move(window, cx)))
 }
 
 /// The board over the window, while open.

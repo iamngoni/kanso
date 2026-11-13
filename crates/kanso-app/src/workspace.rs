@@ -490,6 +490,8 @@ pub struct Workspace {
     /// first time it opens.
     pub(crate) board: Option<Entity<crate::board_view::BoardView>>,
     pub(crate) board_open: bool,
+    /// What puts back the board's last move to a note's property.
+    pub(crate) board_undo: Option<kanso_engine::board::MoveUndo>,
     pub(crate) _board_events: Option<Subscription>,
     /// Inbox triage over the window while open (`triage_view.rs`); made the
     /// first time it opens.
@@ -912,6 +914,7 @@ impl Workspace {
             graph_open: false,
             board: None,
             board_open: false,
+            board_undo: None,
             _board_events: None,
             triage: None,
             flashcards: None,

@@ -59,6 +59,7 @@ const Set<String> unboundOnMobile = <String>{
   'move_card_right', // Board view has no keyboard selection model.
   'open_card', // Board view has no keyboard selection model.
   'close_board', // Board view has no keyboard selection model.
+  'undo_board_move', // Board view has no keyboard selection model.
   'confirm', // Palette navigation is not on mobile.
   'dismiss', // Palette navigation is not on mobile.
   'back', // Palette navigation is not on mobile.
@@ -171,7 +172,8 @@ Intent? intentForShortcut(ShortcutEntry entry) => switch (entry.id) {
   'move_card_left' ||
   'move_card_right' ||
   'open_card' ||
-  'close_board' => null, // Board has no keyboard selection model.
+  'close_board' ||
+  'undo_board_move' => null, // Board has no keyboard selection model.
   'save_capture' ||
   'cancel_capture' => null, // Capture is a separate desktop window.
   _ => null,
