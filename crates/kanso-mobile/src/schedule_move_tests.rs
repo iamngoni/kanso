@@ -114,6 +114,57 @@ fn undo_puts_the_note_back() {
 }
 
 #[test]
+fn notes_on_a_date_property_come_through_the_bridge() {
+    use crate::schedule_view_model::{ScheduleRequest, ScheduleRowKind};
+    use kanso_core::schema::{PropertyDef, PropertyType};
+    let (_dir, library) = library_with(NOTE);
+    let def = |key: &str, kind| PropertyDef {
+        key: key.to_owned(),
+        kind,
+        options: Vec::new(),
+    };
+    library
+        .inner
+        .store
+        .set_notebook_properties(
+            "book:a",
+            &[def("publish", PropertyType::DateTimeZone)],
+            Origin::Ui,
+        )
+        .unwrap();
+    let request = |keys: Option<Vec<String>>| ScheduleRequest {
+        from: day(2026, 11, 1),
+        until: day(2026, 12, 1),
+        books: None,
+        date_keys: keys,
+        include_done: true,
+    };
+    let rows = library.schedule(request(None)).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].kind, ScheduleRowKind::Note);
+    assert_eq!(rows[0].property.as_deref(), Some("publish"));
+    assert_eq!(rows[0].title, "Pixel 11");
+    assert_eq!(rows[0].date, day(2026, 11, 18));
+    assert_eq!(rows[0].time.as_deref(), Some("09:00"));
+    assert_eq!(rows[0].zone.as_deref(), Some("America/New_York"));
+    assert!(rows[0].line.is_none() && !rows[0].projected);
+    // The property filter keeps or drops it.
+    assert_eq!(
+        library
+            .schedule(request(Some(vec!["publish".into()])))
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(
+        library
+            .schedule(request(Some(vec!["embargo".into()])))
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
 fn date_keys_are_the_date_properties_of_the_notebooks() {
     use kanso_core::schema::{PropertyDef, PropertyType};
     let (_dir, library) = library_with(NOTE);
