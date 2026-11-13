@@ -18,7 +18,8 @@ use std::ops::Range;
 
 use kanso_core::dates::{Date, DateTime};
 use kanso_core::links::{code_ranges, plain_line};
-use kanso_core::repeat::repeat_token;
+use kanso_core::repeat::{parse_repeat, repeat_token};
+use kanso_core::repeat_model::Repeat;
 use kanso_core::tasks::{Due, TaskGroup, due_label, due_spans, due_token, task_group, task_items};
 use kanso_store::TaskRow;
 
@@ -48,6 +49,8 @@ impl TaskId {
 pub const DUE_SCHEME: &str = "kanso-due:";
 /// Marks a done task's date in its link.
 const DONE_SUFFIX: &str = ";done";
+/// Starts the repeat in a link: `;repeat=every_week`.
+const REPEAT_PART: &str = ";repeat=";
 
 /// How a due date is shown.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -139,6 +142,18 @@ pub fn long_label(due: Due) -> String {
 /// a `kanso-due:` link for the app to draw as a chip. Text without dates
 /// comes back as it is (borrowed). Pure.
 pub fn rewrite_for_preview(text: &str) -> Cow<'_, str> {
+    rewrite(text, false)
+}
+
+/// [`rewrite_for_preview`] with a task's repeat (`@2026-11-13 every week`)
+/// taken into its chip: the link covers the `every ...` words and carries
+/// them (`kanso-due:2026-11-13;repeat=every_week`), which
+/// [`parse_due_link`] reads back. Pure.
+pub fn rewrite_for_preview_with_repeats(text: &str) -> Cow<'_, str> {
+    rewrite(text, true)
+}
+
+fn rewrite(text: &str, repeats: bool) -> Cow<'_, str> {
     if !text.contains('@') {
         return Cow::Borrowed(text);
     }
@@ -157,17 +172,29 @@ pub fn rewrite_for_preview(text: &str) -> Cow<'_, str> {
             continue;
         }
         out.push_str(&text[last..span.range.start]);
-        let token = &text[span.range.clone()];
+        let mut end = span.range.end;
+        let mut repeat = None;
+        if repeats {
+            let line_end = text[end..].find('\n').map_or(text.len(), |at| end + at);
+            if let Some((range, found)) = repeat_token(&text[span.range.start..line_end]) {
+                end = span.range.start + range.end;
+                repeat = Some(found);
+            }
+        }
         out.push('[');
-        out.push_str(token);
+        out.push_str(&text[span.range.start..end]);
         out.push_str("](");
         out.push_str(DUE_SCHEME);
-        out.push_str(&token[1..]);
+        out.push_str(&text[span.range.start + 1..span.range.end]);
+        if let Some(repeat) = repeat {
+            out.push_str(REPEAT_PART);
+            out.push_str(&repeat.to_string().replace(' ', "_"));
+        }
         if span.checked {
             out.push_str(DONE_SUFFIX);
         }
         out.push(')');
-        last = span.range.end;
+        last = end;
     }
     out.push_str(&text[last..]);
     Cow::Owned(out)
@@ -181,6 +208,26 @@ pub fn parse_due_url(url: &str) -> Option<(Due, bool)> {
         None => (rest, false),
     };
     Some((Due::parse(date)?, checked))
+}
+
+/// [`parse_due_url`] with the repeat a link from
+/// [`rewrite_for_preview_with_repeats`] carries.
+pub fn parse_due_link(url: &str) -> Option<(Due, bool, Option<Repeat>)> {
+    let rest = url.strip_prefix(DUE_SCHEME)?;
+    let (rest, checked) = match rest.strip_suffix(DONE_SUFFIX) {
+        Some(rest) => (rest, true),
+        None => (rest, false),
+    };
+    let (date, repeat) = match rest.split_once(REPEAT_PART) {
+        Some((date, words)) => {
+            let words = words.replace('_', " ");
+            let (repeat, len) = parse_repeat(&words)?;
+            (len == words.len()).then_some(())?;
+            (date, Some(repeat))
+        }
+        None => (rest, None),
+    };
+    Some((Due::parse(date)?, checked, repeat))
 }
 
 /// The tint of each due date in `body` at local time `now`. Pure.
@@ -259,6 +306,45 @@ pub fn date_choices(query: &str, today: Date) -> Vec<(String, String)> {
         out.push((due_label(due, today), due.format()));
     }
     out
+}
+
+/// What `@` autocomplete is completing after a task's due date, from the
+/// text of the caret's line up to the caret: where the words after the
+/// date start, and what was typed of them (`@2026-11-13 ev`). `None` when
+/// the caret isn't just past a due token and a space. Pure.
+pub fn repeat_query(before_caret: &str) -> Option<(usize, &str)> {
+    let token = due_token(before_caret)?;
+    let rest = &before_caret[token.end..];
+    let query = rest.strip_prefix(' ')?;
+    if query.len() > 12 || !query.chars().all(|c| c.is_ascii_alphabetic() || c == ' ') {
+        return None;
+    }
+    // A task: its box, then some words, before the date.
+    let line = format!("{}x", &before_caret[..token.start]);
+    (!task_items(&line).is_empty()).then_some((token.end + 1, query))
+}
+
+/// The repeats the `@` list offers once a date is written: the row's words
+/// and what it writes. The desktop and the phone share them.
+pub const REPEAT_CHOICES: [(&str, &str); 4] = [
+    ("Every day", "every day"),
+    ("Every week", "every week"),
+    ("Every weekday", "every weekday"),
+    ("Every month", "every month"),
+];
+
+/// The repeats offered for `query`, as `(label, words)`: [`REPEAT_CHOICES`]
+/// the typing is the start of (of the words or of one of them: `w` finds
+/// week and weekday). Pure.
+pub fn repeat_choices(query: &str) -> Vec<(String, String)> {
+    let query = query.trim_start().to_lowercase();
+    REPEAT_CHOICES
+        .iter()
+        .filter(|(_, words)| {
+            words.starts_with(&query) || words.split(' ').any(|w| w.starts_with(&query))
+        })
+        .map(|(label, words)| ((*label).to_owned(), (*words).to_owned()))
+        .collect()
 }
 
 // MARK: Lists
@@ -497,6 +583,93 @@ mod tests {
             let due = Due { date: Date::from_days(days), time: None };
             let shown = display_text(&format!("{words} @{}", due.format()));
             prop_assert_eq!(shown, words);
+        }
+    }
+
+    #[test]
+    fn repeats_are_offered_after_a_date() {
+        let line = "- [ ] film @2026-11-13T15:00 ";
+        assert_eq!(repeat_query(line), Some((line.len(), "")));
+        assert_eq!(
+            repeat_query("- [ ] film @2026-11-13 ev").map(|q| q.1),
+            Some("ev")
+        );
+        // No date before it, no task, or other words after the date.
+        assert_eq!(repeat_query("- [ ] film "), None);
+        assert_eq!(repeat_query("film @2026-11-13 "), None);
+        assert_eq!(repeat_query("- [ ] film @2026-11-13"), None);
+        assert_eq!(repeat_query("- [ ] film @2026-11-13 w8"), None);
+        let all: Vec<_> = repeat_choices("").into_iter().map(|c| c.0).collect();
+        assert_eq!(
+            all,
+            ["Every day", "Every week", "Every weekday", "Every month"]
+        );
+        let week: Vec<_> = repeat_choices("every w").into_iter().map(|c| c.1).collect();
+        assert_eq!(week, ["every week", "every weekday"]);
+        assert!(repeat_choices("x").is_empty());
+    }
+
+    #[test]
+    fn a_repeat_goes_into_the_chip_link() {
+        let out =
+            rewrite_for_preview_with_repeats("- [ ] film @2026-11-13T15:00 every 2 weeks now\n");
+        assert_eq!(
+            out,
+            "- [ ] film [@2026-11-13T15:00 every 2 weeks](kanso-due:2026-11-13T15:00;repeat=every_2_weeks) now\n"
+        );
+        let url = "kanso-due:2026-11-13T15:00;repeat=every_2_weeks";
+        let (due, checked, repeat) = parse_due_link(url).unwrap();
+        assert_eq!(due, Due::parse("2026-11-13T15:00").unwrap());
+        assert!(!checked);
+        assert_eq!(repeat.unwrap().to_string(), "every 2 weeks");
+        // Without the repeat part, nothing changes for older readers.
+        assert_eq!(
+            rewrite_for_preview("- [ ] a @2026-11-13 every week\n"),
+            "- [ ] a [@2026-11-13](kanso-due:2026-11-13) every week\n"
+        );
+        assert_eq!(
+            parse_due_link("kanso-due:2026-11-13;repeat=every_blue"),
+            None
+        );
+    }
+
+    fn pinned() -> ProptestConfig {
+        ProptestConfig {
+            cases: 256,
+            rng_seed: proptest::test_runner::RngSeed::Fixed(0x0072_6570_6c6b),
+            rng_algorithm: proptest::test_runner::RngAlgorithm::ChaCha,
+            failure_persistence: None,
+            ..ProptestConfig::default()
+        }
+    }
+
+    proptest! {
+        #![proptest_config(pinned())]
+
+        /// A chip link with a repeat reads back as the same date, done
+        /// state and repeat, and covers the date and its words exactly.
+        #[test]
+        fn prop_repeat_links_round_trip(
+            days in 0i64..40_000,
+            time in prop::option::of((0u32..24, 0u32..60)),
+            checked: bool,
+            n in 1u16..30,
+            unit in prop_oneof![Just("days"), Just("weeks"), Just("months")],
+            after in prop::option::of(Just(" after done")),
+        ) {
+            let due = Due { date: Date::from_days(days), time };
+            let mark = if checked { 'x' } else { ' ' };
+            let words = format!("every {n} {unit}{}", after.unwrap_or(""));
+            let text = format!("- [{mark}] a @{} {words}\n", due.format());
+            let out = rewrite_for_preview_with_repeats(&text);
+            let url_start = out.find(DUE_SCHEME).unwrap();
+            let url_end = url_start + out[url_start..].find(')').unwrap();
+            let (back, done, repeat) = parse_due_link(&out[url_start..url_end]).unwrap();
+            prop_assert_eq!((back, done), (due, checked));
+            let (expected, _) = parse_repeat(&words).unwrap();
+            prop_assert_eq!(repeat, Some(expected));
+            let label = format!("[@{} {words}](", due.format());
+            prop_assert!(out.contains(&label));
         }
     }
 }
