@@ -9987,5 +9987,150 @@
         "type": "String"
       }
     }
+  },
+  "scheduleTitle": "Schedule",
+  "@scheduleTitle": {
+    "description": "The title of the Schedule: the tasks and dated notes on a calendar, and its library row."
+  },
+  "scheduleMonth": "Month",
+  "@scheduleMonth": {
+    "description": "The Schedule's month view."
+  },
+  "scheduleAgenda": "Agenda",
+  "@scheduleAgenda": {
+    "description": "The Schedule's agenda view: the days that have something on them, one after another."
+  },
+  "scheduleViewLabel": "Schedule view",
+  "@scheduleViewLabel": {
+    "description": "What a screen reader calls the month and agenda choice."
+  },
+  "scheduleFilter": "Filter schedule",
+  "@scheduleFilter": {
+    "description": "What a screen reader calls the Schedule's filter button."
+  },
+  "scheduleFilterTitle": "Filter schedule",
+  "@scheduleFilterTitle": {
+    "description": "The title of the Schedule's filter sheet."
+  },
+  "scheduleNotebooksHeader": "Notebook",
+  "@scheduleNotebooksHeader": {
+    "description": "The header over the notebooks of the Schedule's filter."
+  },
+  "scheduleAllNotebooks": "All notebooks",
+  "@scheduleAllNotebooks": {
+    "description": "The Schedule's filter row for every notebook."
+  },
+  "scheduleDatesHeader": "Date property",
+  "@scheduleDatesHeader": {
+    "description": "The header over the date properties of the Schedule's filter."
+  },
+  "scheduleAllDates": "All date properties",
+  "@scheduleAllDates": {
+    "description": "The Schedule's filter row for every date property."
+  },
+  "scheduleNoDateProperties": "No date properties yet",
+  "@scheduleNoDateProperties": {
+    "description": "Said in the filter when no notebook has a date property."
+  },
+  "scheduleShowCompleted": "Show Completed",
+  "@scheduleShowCompleted": {
+    "description": "The Schedule's filter row that shows done tasks."
+  },
+  "scheduleLoading": "Loading the schedule",
+  "@scheduleLoading": {
+    "description": "What a screen reader says while the Schedule is read."
+  },
+  "scheduleFailedTitle": "The schedule didn’t load",
+  "@scheduleFailedTitle": {
+    "description": "The title of the card shown when the Schedule could not be read."
+  },
+  "scheduleFailedMessage": "Something went wrong reading the schedule on this device. Try again.",
+  "@scheduleFailedMessage": {
+    "description": "The message of the card shown when the Schedule could not be read."
+  },
+  "scheduleEmptyTitle": "Nothing scheduled",
+  "@scheduleEmptyTitle": {
+    "description": "The title shown when no task or note has a date in the month."
+  },
+  "scheduleEmptyMessage": "Write “- [ ] Call Sam @2026-10-25” in a note, or give a note a date property, and it shows here.",
+  "@scheduleEmptyMessage": {
+    "description": "What puts something on the Schedule."
+  },
+  "scheduleDayEmpty": "Nothing on this day",
+  "@scheduleDayEmpty": {
+    "description": "Said under the month when the chosen day has nothing on it."
+  },
+  "scheduleDayItems": "{count, plural, =1{1 item} other{{count} items}}",
+  "@scheduleDayItems": {
+    "description": "How many things are on a day.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleToday": "Today",
+  "@scheduleToday": {
+    "description": "The header of today's day in the agenda."
+  },
+  "scheduleMoved": "That item changed in its note. The schedule is up to date now.",
+  "@scheduleMoved": {
+    "description": "Said when a tick or a move found the item changed."
+  },
+  "scheduleChangeFailed": "Couldn’t change the item. Try again.",
+  "@scheduleChangeFailed": {
+    "description": "Said when a tick or a move failed."
+  },
+  "scheduleRowContext": "{note} · {notebook}",
+  "@scheduleRowContext": {
+    "description": "The note and notebook a scheduled item is in.",
+    "placeholders": {
+      "note": {
+        "type": "String"
+      },
+      "notebook": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleRowSemantics": "{title}, {when}",
+  "@scheduleRowSemantics": {
+    "description": "What a screen reader reads for a scheduled item: its title and when.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleProjectedSemantics": "Coming round again",
+  "@scheduleProjectedSemantics": {
+    "description": "What a screen reader says for a repeat that is worked out and not written."
+  },
+  "scheduleItemActions": "Actions",
+  "@scheduleItemActions": {
+    "description": "The title of the sheet of what can be done with a scheduled item."
+  },
+  "scheduleMoreActions": "More actions",
+  "@scheduleMoreActions": {
+    "description": "What a screen reader calls the button that opens a scheduled item's actions."
+  },
+  "scheduleMoveToDay": "Move to day…",
+  "@scheduleMoveToDay": {
+    "description": "The action that moves a note's date or a task's due date to another day."
+  },
+  "scheduleMoveTitle": "Move to day",
+  "@scheduleMoveTitle": {
+    "description": "The title of the sheet that picks the day to move to."
+  },
+  "scheduleProjectedHint": "A repeat coming round. Ticking it ticks the task; move the first one to change the date.",
+  "@scheduleProjectedHint": {
+    "description": "The line in the actions of a projected occurrence."
+  },
+  "scheduleLocked": "That note is locked. Unlock it to change it.",
+  "@scheduleLocked": {
+    "description": "Said when a tick or a move found the note locked."
   }
 }
