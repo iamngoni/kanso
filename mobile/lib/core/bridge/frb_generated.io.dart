@@ -43,6 +43,7 @@ import 'api/recording_summary.dart';
 import 'api/recording_summary_types.dart';
 import 'api/recording_types.dart';
 import 'api/renderer.dart';
+import 'api/schedule_types.dart';
 import 'api/shared.dart';
 import 'api/shortcuts.dart';
 import 'api/sync.dart';
@@ -1310,6 +1311,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Saved dco_decode_box_autoadd_saved(dynamic raw);
 
   @protected
+  ScheduleRequest dco_decode_box_autoadd_schedule_request(dynamic raw);
+
+  @protected
   SearchScope dco_decode_box_autoadd_search_scope(dynamic raw);
 
   @protected
@@ -2197,6 +2201,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<RevisitOption> dco_decode_list_revisit_option(dynamic raw);
 
   @protected
+  List<ScheduleRow> dco_decode_list_schedule_row(dynamic raw);
+
+  @protected
   List<SessionView> dco_decode_list_session_view(dynamic raw);
 
   @protected
@@ -2661,6 +2668,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   WhenHint? dco_decode_opt_box_autoadd_when_hint(dynamic raw);
 
   @protected
+  List<String>? dco_decode_opt_list_String(dynamic raw);
+
+  @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
@@ -3100,6 +3110,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Saved dco_decode_saved(dynamic raw);
+
+  @protected
+  ScheduleRequest dco_decode_schedule_request(dynamic raw);
+
+  @protected
+  ScheduleRow dco_decode_schedule_row(dynamic raw);
+
+  @protected
+  ScheduleRowKind dco_decode_schedule_row_kind(dynamic raw);
 
   @protected
   SealPhase dco_decode_seal_phase(dynamic raw);
@@ -4578,6 +4597,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Saved sse_decode_box_autoadd_saved(SseDeserializer deserializer);
 
   @protected
+  ScheduleRequest sse_decode_box_autoadd_schedule_request(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SearchScope sse_decode_box_autoadd_search_scope(SseDeserializer deserializer);
 
   @protected
@@ -5621,6 +5645,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<ScheduleRow> sse_decode_list_schedule_row(SseDeserializer deserializer);
+
+  @protected
   List<SessionView> sse_decode_list_session_view(SseDeserializer deserializer);
 
   @protected
@@ -6205,6 +6232,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   WhenHint? sse_decode_opt_box_autoadd_when_hint(SseDeserializer deserializer);
 
   @protected
+  List<String>? sse_decode_opt_list_String(SseDeserializer deserializer);
+
+  @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
@@ -6674,6 +6704,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   Saved sse_decode_saved(SseDeserializer deserializer);
+
+  @protected
+  ScheduleRequest sse_decode_schedule_request(SseDeserializer deserializer);
+
+  @protected
+  ScheduleRow sse_decode_schedule_row(SseDeserializer deserializer);
+
+  @protected
+  ScheduleRowKind sse_decode_schedule_row_kind(SseDeserializer deserializer);
 
   @protected
   SealPhase sse_decode_seal_phase(SseDeserializer deserializer);
@@ -8476,6 +8515,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_box_autoadd_saved(Saved self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_schedule_request(
+    ScheduleRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_search_scope(
     SearchScope self,
     SseSerializer serializer,
@@ -9847,6 +9892,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_schedule_row(
+    List<ScheduleRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_session_view(
     List<SessionView> self,
     SseSerializer serializer,
@@ -10589,6 +10640,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_opt_list_String(List<String>? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_list_prim_u_8_strict(
     Uint8List? self,
     SseSerializer serializer,
@@ -11178,6 +11232,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_saved(Saved self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_schedule_request(
+    ScheduleRequest self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_schedule_row(ScheduleRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_schedule_row_kind(
+    ScheduleRowKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_seal_phase(SealPhase self, SseSerializer serializer);
