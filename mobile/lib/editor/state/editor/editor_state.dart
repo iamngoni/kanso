@@ -30,6 +30,9 @@ abstract class EditorState with _$EditorState {
     /// Why the last change to the properties did not work.
     ApplicationError? propertyError,
 
+    /// The last pick was dropped because the front matter changed under it.
+    @Default(false) bool propertyDropped,
+
     /// What the caret is in, and so what the keyboard bar may do.
     EditorContext? context,
 

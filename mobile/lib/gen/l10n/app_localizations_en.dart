@@ -766,6 +766,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get propertiesFailed => 'That property couldn\'t be set.';
 
   @override
+  String get propertiesChoose => 'Choose';
+
+  @override
+  String get propertiesPickDate => 'Pick a date';
+
+  @override
+  String get propertiesPickDateTime => 'Pick a date and time';
+
+  @override
+  String get propertiesPickZone => 'Time zone';
+
+  @override
+  String get propertiesSearchZones => 'Search time zones';
+
+  @override
+  String get propertiesTime => 'Time';
+
+  @override
+  String get propertiesClear => 'Clear';
+
+  @override
+  String get propertiesUnlisted => 'Not in the notebook\'s list';
+
+  @override
+  String get propertiesDropped =>
+      'That property changed while you were editing it.';
+
+  @override
+  String get propertiesNoZones => 'No time zone matches.';
+
+  @override
   String get propertiesShow => 'Show properties';
 
   @override

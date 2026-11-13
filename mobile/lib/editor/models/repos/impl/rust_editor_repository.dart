@@ -117,6 +117,24 @@ class RustEditorDocument implements EditorDocument {
       attempt(() => _editor.setProperty(index: index, key: key, value: value));
 
   @override
+  Future<Either<ApplicationError, PickOutcome>> pickProperty({
+    required int index,
+    required String key,
+    required String original,
+    required PropertyChoice choice,
+  }) => attempt(
+    () => _editor.pickProperty(
+      index: index,
+      key: key,
+      original: original,
+      choice: choice,
+    ),
+  );
+
+  @override
+  Future<List<ZoneRow>> zones() async => propertyZones();
+
+  @override
   Future<Either<ApplicationError, List<Property>>> removeProperty(int index) =>
       attempt(() => _editor.removeProperty(index: index));
 

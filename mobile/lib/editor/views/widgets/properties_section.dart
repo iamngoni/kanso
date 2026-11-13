@@ -24,7 +24,10 @@ class PropertiesSection extends StatefulWidget {
     required this.onToggle,
     required this.onSet,
     required this.onRemove,
+    required this.onPick,
+    required this.loadZones,
     this.failed = false,
+    this.dropped = false,
     this.readOnly = false,
     super.key,
   });
@@ -43,8 +46,25 @@ class PropertiesSection extends StatefulWidget {
   /// The property in the row at this index was asked to go.
   final ValueChanged<int> onRemove;
 
+  /// A picker picked a choice for the property in row `index`, which it
+  /// showed as `key` holding `original`.
+  final void Function(
+    int index,
+    String key,
+    String original,
+    PropertyChoice choice,
+  )
+  onPick;
+
+  /// Every time zone, for the zone picker.
+  final Future<List<ZoneRow>> Function() loadZones;
+
   /// Whether the last change did not work.
   final bool failed;
+
+  /// Whether the last pick was dropped because the properties changed under
+  /// it.
+  final bool dropped;
 
   /// Whether the properties may be read and not changed: they open and
   /// close, and nothing is added.
@@ -97,6 +117,26 @@ class _PropertiesSectionState extends State<PropertiesSection> {
                 onSubmitted: (value) =>
                     widget.onSet(widget.properties[i].key, value, index: i),
                 onRemove: () => widget.onRemove(i),
+                onPick: (choice) => widget.onPick(
+                  i,
+                  widget.properties[i].key,
+                  widget.properties[i].text,
+                  choice,
+                ),
+                loadZones: widget.loadZones,
+              ),
+            ),
+          if (widget.dropped)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: KansoSpacing.xxs),
+              child: Semantics(
+                liveRegion: true,
+                child: Text(
+                  l10n.propertiesDropped,
+                  style: context.typography.meta.copyWith(
+                    color: colors.warning,
+                  ),
+                ),
               ),
             ),
           if (widget.failed)

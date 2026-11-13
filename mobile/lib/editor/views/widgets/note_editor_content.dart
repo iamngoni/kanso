@@ -860,12 +860,23 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
               buildWhen: (before, now) =>
                   before.properties != now.properties ||
                   before.propertiesOpen != now.propertiesOpen ||
-                  before.propertyError != now.propertyError,
+                  before.propertyError != now.propertyError ||
+                  before.propertyDropped != now.propertyDropped,
               builder: (context, state) => PropertiesSection(
                 properties: state.properties,
                 open: state.propertiesOpen,
                 failed: state.propertyError != null,
+                dropped: state.propertyDropped,
                 readOnly: readOnly,
+                loadZones: editor.zones,
+                onPick: (index, key, original, choice) => editor.add(
+                  EditorEvent.propertyPicked(
+                    index: index,
+                    key: key,
+                    original: original,
+                    choice: choice,
+                  ),
+                ),
                 onToggle: () => editor.add(
                   const EditorEvent.propertiesToggled(),
                 ),

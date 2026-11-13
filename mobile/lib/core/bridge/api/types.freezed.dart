@@ -12156,6 +12156,554 @@ String toString() {
 
 
 /// @nodoc
+mixin _$PropertyChoice {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PropertyChoice);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PropertyChoice()';
+}
+
+
+}
+
+/// @nodoc
+class $PropertyChoiceCopyWith<$Res>  {
+$PropertyChoiceCopyWith(PropertyChoice _, $Res Function(PropertyChoice) __);
+}
+
+
+/// Adds pattern-matching-related methods to [PropertyChoice].
+extension PropertyChoicePatterns on PropertyChoice {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( PropertyChoice_Clear value)?  clear,TResult Function( PropertyChoice_Option value)?  option,TResult Function( PropertyChoice_Day value)?  day,TResult Function( PropertyChoice_Moment value)?  moment,TResult Function( PropertyChoice_Zoned value)?  zoned,TResult Function( PropertyChoice_Zone value)?  zone,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case PropertyChoice_Clear() when clear != null:
+return clear(_that);case PropertyChoice_Option() when option != null:
+return option(_that);case PropertyChoice_Day() when day != null:
+return day(_that);case PropertyChoice_Moment() when moment != null:
+return moment(_that);case PropertyChoice_Zoned() when zoned != null:
+return zoned(_that);case PropertyChoice_Zone() when zone != null:
+return zone(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( PropertyChoice_Clear value)  clear,required TResult Function( PropertyChoice_Option value)  option,required TResult Function( PropertyChoice_Day value)  day,required TResult Function( PropertyChoice_Moment value)  moment,required TResult Function( PropertyChoice_Zoned value)  zoned,required TResult Function( PropertyChoice_Zone value)  zone,}){
+final _that = this;
+switch (_that) {
+case PropertyChoice_Clear():
+return clear(_that);case PropertyChoice_Option():
+return option(_that);case PropertyChoice_Day():
+return day(_that);case PropertyChoice_Moment():
+return moment(_that);case PropertyChoice_Zoned():
+return zoned(_that);case PropertyChoice_Zone():
+return zone(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( PropertyChoice_Clear value)?  clear,TResult? Function( PropertyChoice_Option value)?  option,TResult? Function( PropertyChoice_Day value)?  day,TResult? Function( PropertyChoice_Moment value)?  moment,TResult? Function( PropertyChoice_Zoned value)?  zoned,TResult? Function( PropertyChoice_Zone value)?  zone,}){
+final _that = this;
+switch (_that) {
+case PropertyChoice_Clear() when clear != null:
+return clear(_that);case PropertyChoice_Option() when option != null:
+return option(_that);case PropertyChoice_Day() when day != null:
+return day(_that);case PropertyChoice_Moment() when moment != null:
+return moment(_that);case PropertyChoice_Zoned() when zoned != null:
+return zoned(_that);case PropertyChoice_Zone() when zone != null:
+return zone(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  clear,TResult Function( String text)?  option,TResult Function( Moment moment)?  day,TResult Function( Moment moment)?  moment,TResult Function( Moment moment,  String zone)?  zoned,TResult Function( String zone)?  zone,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case PropertyChoice_Clear() when clear != null:
+return clear();case PropertyChoice_Option() when option != null:
+return option(_that.text);case PropertyChoice_Day() when day != null:
+return day(_that.moment);case PropertyChoice_Moment() when moment != null:
+return moment(_that.moment);case PropertyChoice_Zoned() when zoned != null:
+return zoned(_that.moment,_that.zone);case PropertyChoice_Zone() when zone != null:
+return zone(_that.zone);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  clear,required TResult Function( String text)  option,required TResult Function( Moment moment)  day,required TResult Function( Moment moment)  moment,required TResult Function( Moment moment,  String zone)  zoned,required TResult Function( String zone)  zone,}) {final _that = this;
+switch (_that) {
+case PropertyChoice_Clear():
+return clear();case PropertyChoice_Option():
+return option(_that.text);case PropertyChoice_Day():
+return day(_that.moment);case PropertyChoice_Moment():
+return moment(_that.moment);case PropertyChoice_Zoned():
+return zoned(_that.moment,_that.zone);case PropertyChoice_Zone():
+return zone(_that.zone);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  clear,TResult? Function( String text)?  option,TResult? Function( Moment moment)?  day,TResult? Function( Moment moment)?  moment,TResult? Function( Moment moment,  String zone)?  zoned,TResult? Function( String zone)?  zone,}) {final _that = this;
+switch (_that) {
+case PropertyChoice_Clear() when clear != null:
+return clear();case PropertyChoice_Option() when option != null:
+return option(_that.text);case PropertyChoice_Day() when day != null:
+return day(_that.moment);case PropertyChoice_Moment() when moment != null:
+return moment(_that.moment);case PropertyChoice_Zoned() when zoned != null:
+return zoned(_that.moment,_that.zone);case PropertyChoice_Zone() when zone != null:
+return zone(_that.zone);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class PropertyChoice_Clear extends PropertyChoice {
+  const PropertyChoice_Clear(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PropertyChoice_Clear);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'PropertyChoice.clear()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class PropertyChoice_Option extends PropertyChoice {
+  const PropertyChoice_Option({required this.text}): super._();
+  
+
+ final  String text;
+
+/// Create a copy of PropertyChoice
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PropertyChoice_OptionCopyWith<PropertyChoice_Option> get copyWith => _$PropertyChoice_OptionCopyWithImpl<PropertyChoice_Option>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PropertyChoice_Option&&(identical(other.text, text) || other.text == text));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,text);
+
+@override
+String toString() {
+  return 'PropertyChoice.option(text: $text)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PropertyChoice_OptionCopyWith<$Res> implements $PropertyChoiceCopyWith<$Res> {
+  factory $PropertyChoice_OptionCopyWith(PropertyChoice_Option value, $Res Function(PropertyChoice_Option) _then) = _$PropertyChoice_OptionCopyWithImpl;
+@useResult
+$Res call({
+ String text
+});
+
+
+
+
+}
+/// @nodoc
+class _$PropertyChoice_OptionCopyWithImpl<$Res>
+    implements $PropertyChoice_OptionCopyWith<$Res> {
+  _$PropertyChoice_OptionCopyWithImpl(this._self, this._then);
+
+  final PropertyChoice_Option _self;
+  final $Res Function(PropertyChoice_Option) _then;
+
+/// Create a copy of PropertyChoice
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? text = null,}) {
+  return _then(PropertyChoice_Option(
+text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PropertyChoice_Day extends PropertyChoice {
+  const PropertyChoice_Day({required this.moment}): super._();
+  
+
+ final  Moment moment;
+
+/// Create a copy of PropertyChoice
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PropertyChoice_DayCopyWith<PropertyChoice_Day> get copyWith => _$PropertyChoice_DayCopyWithImpl<PropertyChoice_Day>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PropertyChoice_Day&&(identical(other.moment, moment) || other.moment == moment));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,moment);
+
+@override
+String toString() {
+  return 'PropertyChoice.day(moment: $moment)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PropertyChoice_DayCopyWith<$Res> implements $PropertyChoiceCopyWith<$Res> {
+  factory $PropertyChoice_DayCopyWith(PropertyChoice_Day value, $Res Function(PropertyChoice_Day) _then) = _$PropertyChoice_DayCopyWithImpl;
+@useResult
+$Res call({
+ Moment moment
+});
+
+
+
+
+}
+/// @nodoc
+class _$PropertyChoice_DayCopyWithImpl<$Res>
+    implements $PropertyChoice_DayCopyWith<$Res> {
+  _$PropertyChoice_DayCopyWithImpl(this._self, this._then);
+
+  final PropertyChoice_Day _self;
+  final $Res Function(PropertyChoice_Day) _then;
+
+/// Create a copy of PropertyChoice
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? moment = null,}) {
+  return _then(PropertyChoice_Day(
+moment: null == moment ? _self.moment : moment // ignore: cast_nullable_to_non_nullable
+as Moment,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PropertyChoice_Moment extends PropertyChoice {
+  const PropertyChoice_Moment({required this.moment}): super._();
+  
+
+ final  Moment moment;
+
+/// Create a copy of PropertyChoice
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PropertyChoice_MomentCopyWith<PropertyChoice_Moment> get copyWith => _$PropertyChoice_MomentCopyWithImpl<PropertyChoice_Moment>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PropertyChoice_Moment&&(identical(other.moment, moment) || other.moment == moment));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,moment);
+
+@override
+String toString() {
+  return 'PropertyChoice.moment(moment: $moment)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PropertyChoice_MomentCopyWith<$Res> implements $PropertyChoiceCopyWith<$Res> {
+  factory $PropertyChoice_MomentCopyWith(PropertyChoice_Moment value, $Res Function(PropertyChoice_Moment) _then) = _$PropertyChoice_MomentCopyWithImpl;
+@useResult
+$Res call({
+ Moment moment
+});
+
+
+
+
+}
+/// @nodoc
+class _$PropertyChoice_MomentCopyWithImpl<$Res>
+    implements $PropertyChoice_MomentCopyWith<$Res> {
+  _$PropertyChoice_MomentCopyWithImpl(this._self, this._then);
+
+  final PropertyChoice_Moment _self;
+  final $Res Function(PropertyChoice_Moment) _then;
+
+/// Create a copy of PropertyChoice
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? moment = null,}) {
+  return _then(PropertyChoice_Moment(
+moment: null == moment ? _self.moment : moment // ignore: cast_nullable_to_non_nullable
+as Moment,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PropertyChoice_Zoned extends PropertyChoice {
+  const PropertyChoice_Zoned({required this.moment, required this.zone}): super._();
+  
+
+ final  Moment moment;
+ final  String zone;
+
+/// Create a copy of PropertyChoice
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PropertyChoice_ZonedCopyWith<PropertyChoice_Zoned> get copyWith => _$PropertyChoice_ZonedCopyWithImpl<PropertyChoice_Zoned>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PropertyChoice_Zoned&&(identical(other.moment, moment) || other.moment == moment)&&(identical(other.zone, zone) || other.zone == zone));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,moment,zone);
+
+@override
+String toString() {
+  return 'PropertyChoice.zoned(moment: $moment, zone: $zone)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PropertyChoice_ZonedCopyWith<$Res> implements $PropertyChoiceCopyWith<$Res> {
+  factory $PropertyChoice_ZonedCopyWith(PropertyChoice_Zoned value, $Res Function(PropertyChoice_Zoned) _then) = _$PropertyChoice_ZonedCopyWithImpl;
+@useResult
+$Res call({
+ Moment moment, String zone
+});
+
+
+
+
+}
+/// @nodoc
+class _$PropertyChoice_ZonedCopyWithImpl<$Res>
+    implements $PropertyChoice_ZonedCopyWith<$Res> {
+  _$PropertyChoice_ZonedCopyWithImpl(this._self, this._then);
+
+  final PropertyChoice_Zoned _self;
+  final $Res Function(PropertyChoice_Zoned) _then;
+
+/// Create a copy of PropertyChoice
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? moment = null,Object? zone = null,}) {
+  return _then(PropertyChoice_Zoned(
+moment: null == moment ? _self.moment : moment // ignore: cast_nullable_to_non_nullable
+as Moment,zone: null == zone ? _self.zone : zone // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PropertyChoice_Zone extends PropertyChoice {
+  const PropertyChoice_Zone({required this.zone}): super._();
+  
+
+ final  String zone;
+
+/// Create a copy of PropertyChoice
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PropertyChoice_ZoneCopyWith<PropertyChoice_Zone> get copyWith => _$PropertyChoice_ZoneCopyWithImpl<PropertyChoice_Zone>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PropertyChoice_Zone&&(identical(other.zone, zone) || other.zone == zone));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,zone);
+
+@override
+String toString() {
+  return 'PropertyChoice.zone(zone: $zone)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PropertyChoice_ZoneCopyWith<$Res> implements $PropertyChoiceCopyWith<$Res> {
+  factory $PropertyChoice_ZoneCopyWith(PropertyChoice_Zone value, $Res Function(PropertyChoice_Zone) _then) = _$PropertyChoice_ZoneCopyWithImpl;
+@useResult
+$Res call({
+ String zone
+});
+
+
+
+
+}
+/// @nodoc
+class _$PropertyChoice_ZoneCopyWithImpl<$Res>
+    implements $PropertyChoice_ZoneCopyWith<$Res> {
+  _$PropertyChoice_ZoneCopyWithImpl(this._self, this._then);
+
+  final PropertyChoice_Zone _self;
+  final $Res Function(PropertyChoice_Zone) _then;
+
+/// Create a copy of PropertyChoice
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? zone = null,}) {
+  return _then(PropertyChoice_Zone(
+zone: null == zone ? _self.zone : zone // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
 mixin _$ProviderEvent {
 
 

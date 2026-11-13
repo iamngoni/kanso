@@ -759,6 +759,25 @@ impl SharedNotes {
 
     // ------------------------------------------------------------- helpers
 
+    /// The usernames of the people in a shared note whose `extra` carries
+    /// its share mark: what a person property offers. Empty for a note that
+    /// is not shared, and while nobody is signed in.
+    pub(crate) fn member_names(
+        &self,
+        extra: &serde_json::Map<String, serde_json::Value>,
+    ) -> Vec<String> {
+        let Some((share_id, _)) = share_mark(extra) else {
+            return Vec::new();
+        };
+        let Ok(engine) = self.engine() else {
+            return Vec::new();
+        };
+        engine
+            .share_view(&share_id)
+            .map(|view| member_usernames(&view))
+            .unwrap_or_default()
+    }
+
     /// The engine of the signed-in session, made now if the session is new.
     /// A session that changed takes the old engine's rooms with it.
     /// [`KansoError::SignedOut`] while nobody is signed in.
@@ -999,6 +1018,22 @@ fn person_row(person: &kanso_collab::Person) -> PersonRow {
     }
 }
 
+/// The usernames of the people in a share, the owner first: those who left
+/// or declined are not offered.
+pub(crate) fn member_usernames(view: &ShareView) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    let owner = &view.owner.username;
+    if !owner.is_empty() {
+        names.push(owner.clone());
+    }
+    for member in view.members.iter().filter(|member| !member.left) {
+        if !names.contains(&member.person.username) {
+            names.push(member.person.username.clone());
+        }
+    }
+    names
+}
+
 /// A share's view as the rows the shell shows. The owner comes first, then
 /// the others as the signed list has them.
 pub(crate) fn share_info(view: &ShareView, me: &str) -> ShareInfo {
@@ -1215,6 +1250,25 @@ mod tests {
         fn a_manager_shows_as_an_editor(_x in Just(())) {
             prop_assert_eq!(ShareRole::from(Role::Manager), ShareRole::Editor);
             prop_assert_eq!(Role::from(ShareRole::Editor), Role::Edit);
+        }
+
+        /// A person property offers each person who is still in the note
+        /// once, the owner first, and nobody who left.
+        #[test]
+        fn prop_member_names_are_those_still_in((view, _me) in views()) {
+            let names = member_usernames(&view);
+            let mut once = names.clone();
+            once.sort();
+            once.dedup();
+            prop_assert_eq!(once.len(), names.len());
+            prop_assert_eq!(names.first(), Some(&view.owner.username));
+            for member in &view.members {
+                if member.left && member.person.username != view.owner.username {
+                    prop_assert!(!names.contains(&member.person.username));
+                } else {
+                    prop_assert!(names.contains(&member.person.username));
+                }
+            }
         }
 
         /// Every role survives the trip to the shell's role and back, and
