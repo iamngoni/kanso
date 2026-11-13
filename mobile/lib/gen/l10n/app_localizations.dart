@@ -13551,6 +13551,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Drag a card to change its {key}.'**
   String boardHintGroupDrag(String key);
+
+  /// The title of the Schedule: the tasks and dated notes on a calendar, and its library row.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get scheduleTitle;
+
+  /// The Schedule's month view.
+  ///
+  /// In en, this message translates to:
+  /// **'Month'**
+  String get scheduleMonth;
+
+  /// The Schedule's agenda view: the days that have something on them, one after another.
+  ///
+  /// In en, this message translates to:
+  /// **'Agenda'**
+  String get scheduleAgenda;
+
+  /// What a screen reader calls the month and agenda choice.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule view'**
+  String get scheduleViewLabel;
+
+  /// What a screen reader calls the Schedule's filter button.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter schedule'**
+  String get scheduleFilter;
+
+  /// The title of the Schedule's filter sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter schedule'**
+  String get scheduleFilterTitle;
+
+  /// The header over the notebooks of the Schedule's filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Notebook'**
+  String get scheduleNotebooksHeader;
+
+  /// The Schedule's filter row for every notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'All notebooks'**
+  String get scheduleAllNotebooks;
+
+  /// The header over the date properties of the Schedule's filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Date property'**
+  String get scheduleDatesHeader;
+
+  /// The Schedule's filter row for every date property.
+  ///
+  /// In en, this message translates to:
+  /// **'All date properties'**
+  String get scheduleAllDates;
+
+  /// Said in the filter when no notebook has a date property.
+  ///
+  /// In en, this message translates to:
+  /// **'No date properties yet'**
+  String get scheduleNoDateProperties;
+
+  /// The Schedule's filter row that shows done tasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Completed'**
+  String get scheduleShowCompleted;
+
+  /// What a screen reader says while the Schedule is read.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading the schedule'**
+  String get scheduleLoading;
+
+  /// The title of the card shown when the Schedule could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'The schedule didn’t load'**
+  String get scheduleFailedTitle;
+
+  /// The message of the card shown when the Schedule could not be read.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong reading the schedule on this device. Try again.'**
+  String get scheduleFailedMessage;
+
+  /// The title shown when no task or note has a date in the month.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scheduled'**
+  String get scheduleEmptyTitle;
+
+  /// What puts something on the Schedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Write “- [ ] Call Sam @2026-10-25” in a note, or give a note a date property, and it shows here.'**
+  String get scheduleEmptyMessage;
+
+  /// Said under the month when the chosen day has nothing on it.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing on this day'**
+  String get scheduleDayEmpty;
+
+  /// How many things are on a day.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item} other{{count} items}}'**
+  String scheduleDayItems(int count);
+
+  /// The header of today's day in the agenda.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get scheduleToday;
+
+  /// Said when a tick or a move found the item changed.
+  ///
+  /// In en, this message translates to:
+  /// **'That item changed in its note. The schedule is up to date now.'**
+  String get scheduleMoved;
+
+  /// Said when a tick or a move failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t change the item. Try again.'**
+  String get scheduleChangeFailed;
+
+  /// The note and notebook a scheduled item is in.
+  ///
+  /// In en, this message translates to:
+  /// **'{note} · {notebook}'**
+  String scheduleRowContext(String note, String notebook);
+
+  /// What a screen reader reads for a scheduled item: its title and when.
+  ///
+  /// In en, this message translates to:
+  /// **'{title}, {when}'**
+  String scheduleRowSemantics(String title, String when);
+
+  /// What a screen reader says for a repeat that is worked out and not written.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming round again'**
+  String get scheduleProjectedSemantics;
+
+  /// The title of the sheet of what can be done with a scheduled item.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions'**
+  String get scheduleItemActions;
+
+  /// What a screen reader calls the button that opens a scheduled item's actions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get scheduleMoreActions;
+
+  /// The action that moves a note's date or a task's due date to another day.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to day…'**
+  String get scheduleMoveToDay;
+
+  /// The title of the sheet that picks the day to move to.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to day'**
+  String get scheduleMoveTitle;
+
+  /// The line in the actions of a projected occurrence.
+  ///
+  /// In en, this message translates to:
+  /// **'A repeat coming round. Ticking it ticks the task; move the first one to change the date.'**
+  String get scheduleProjectedHint;
+
+  /// Said when a tick or a move found the note locked.
+  ///
+  /// In en, this message translates to:
+  /// **'That note is locked. Unlock it to change it.'**
+  String get scheduleLocked;
 }
 
 class _AppLocalizationsDelegate

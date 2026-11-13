@@ -40,6 +40,7 @@ import '../../people/views/pages/people_list_page.dart';
 import '../../people/views/pages/people_settings_page.dart';
 import '../../recording/views/pages/recording_page.dart';
 import '../../replace/views/pages/replace_page.dart';
+import '../../schedule/views/pages/schedule_page.dart';
 import '../../search/views/pages/search_page.dart';
 import '../../settings/views/pages/default_notebook_page.dart';
 import '../../settings/views/pages/fonts_page.dart';
@@ -251,6 +252,13 @@ class KansoRouter {
             child: DraftPage(
               noteIds: (state.extra as List<String>?) ?? const <String>[],
             ),
+          ),
+        ),
+        GoRoute(
+          path: KansoRoutes.schedule,
+          pageBuilder: (context, state) => kansoPage<void>(
+            key: state.pageKey,
+            child: const SchedulePage(),
           ),
         ),
         GoRoute(

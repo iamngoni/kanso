@@ -39,6 +39,25 @@ void librarySuite(OpenLibrary open) {
       expect((task.date.day, task.noteTitle), (18, 'Pixel'));
     });
 
+    test('Move to day keeps a task’s time and repeat', () async {
+      final library = await open();
+      const text = 'film @2026-11-18T15:00 every week';
+      final id = await makeNote(library, 'Pixel', '- [ ] $text\n');
+      final moved = await library.moveScheduled(
+        noteId: id,
+        line: 0,
+        text: text,
+        to: const DayDate(year: 2026, month: 11, day: 20),
+      );
+      expect(moved, isA<CardMoved_Changed>());
+      expect(
+        (await library.note(id: id)).body,
+        contains('film @2026-11-20T15:00 every week'),
+      );
+      // A library whose notebooks define no date property offers none.
+      expect(await library.scheduleDateKeys(), isEmpty);
+    });
+
     test('note and library word goals round-trip through the bridge', () async {
       final library = await open();
       final made = await makeNote(library, 'Goal', 'one two three');

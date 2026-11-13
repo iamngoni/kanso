@@ -4,13 +4,18 @@
 //! are `kanso_engine::schedule`, which the desktop's Schedule reads too.
 //! This only turns days and times into what the bridge carries.
 
+use kanso_core::properties;
+use kanso_core::reschedule::move_value;
+use kanso_core::schema::PropertyType;
 use kanso_engine::schedule::{self, ScheduleItem, ScheduleKind, ScheduleQuery};
 
 use crate::boundary::guard;
 use crate::errors::KansoError;
 use crate::journal::{date_of, day_of};
 use crate::library::Library;
+use crate::model::{CardMoved, DayDate};
 use crate::schedule_view_model::{ScheduleRequest, ScheduleRow, ScheduleRowKind};
+use crate::undo::Undoable;
 
 impl Library {
     /// What falls on the days of `request`, by day and time: tasks by their
@@ -26,10 +31,112 @@ impl Library {
             Ok(items.into_iter().map(row_of).collect())
         })
     }
+
+    /// The date properties the notebooks `books` (every notebook when
+    /// `None`) define, sorted and without repeats: what the Schedule's
+    /// property filter offers.
+    pub fn schedule_date_keys(
+        &self,
+        books: Option<Vec<String>>,
+    ) -> Result<Vec<String>, KansoError> {
+        guard(|| {
+            let store = &self.inner.store;
+            let ids: Vec<String> = match books {
+                Some(ids) => ids,
+                None => store.books()?.into_iter().map(|book| book.id).collect(),
+            };
+            let mut keys = Vec::new();
+            for id in ids {
+                for def in store.notebook_properties(&id)? {
+                    if matches!(
+                        def.kind,
+                        PropertyType::Date | PropertyType::DateTime | PropertyType::DateTimeZone
+                    ) {
+                        keys.push(def.key);
+                    }
+                }
+            }
+            keys.sort();
+            keys.dedup();
+            Ok(keys)
+        })
+    }
+
+    /// Moves a scheduled thing to `to`, keeping the rest of what it says: a
+    /// note's date property `property` keeps its time and zone, and a task
+    /// (`line`, `text`) keeps its time and repeat. A projected occurrence is
+    /// not a date of its own, so the caller passes the real task's line and
+    /// words. The change can be taken back with [`Library::undo`] under the
+    /// ticket. [`CardMoved::Missing`] when the note, task or property is
+    /// gone or no longer a date; [`KansoError::Locked`] for a locked note.
+    pub fn move_scheduled(
+        &self,
+        note_id: &str,
+        line: Option<u32>,
+        text: &str,
+        property: Option<String>,
+        to: DayDate,
+    ) -> Result<CardMoved, KansoError> {
+        guard(|| {
+            let day = date_of(to)?;
+            let store = &self.inner.store;
+            let Some(note) = store.note(note_id)? else {
+                return Ok(CardMoved::Missing);
+            };
+            if store.note_is_locked(note_id)? || store.locked_books()?.contains(&note.book_id) {
+                return Err(KansoError::Locked);
+            }
+            let now = kanso_core::now_ms();
+            let edit = match (property, line) {
+                (Some(key), _) => {
+                    let Some((_, value)) = properties::parse(&note.body)
+                        .into_iter()
+                        .find(|(name, _)| *name == key)
+                    else {
+                        return Ok(CardMoved::Missing);
+                    };
+                    let Some(moved) = move_value(&value, day) else {
+                        return Ok(CardMoved::Missing);
+                    };
+                    store.set_note_property(note_id, &key, &moved, now, kanso_store::Origin::Ui)?
+                }
+                (None, Some(line)) => {
+                    match store.set_task_due(
+                        note_id,
+                        line,
+                        text,
+                        day,
+                        now,
+                        kanso_store::Origin::Ui,
+                    )? {
+                        Some(edit) => edit,
+                        None => return Ok(CardMoved::Missing),
+                    }
+                }
+                (None, None) => return Ok(CardMoved::Missing),
+            };
+            if !edit.changed {
+                return Ok(CardMoved::Unchanged);
+            }
+            let what = match line {
+                Some(_) => kanso_engine::tasks::display_text(text),
+                None => note.title.clone(),
+            };
+            Ok(CardMoved::Changed {
+                message: Some(format!("Moved “{what}” to {}.", day.long_label())),
+                undo: Some(self.keep_undo(Undoable::Moved(edit))),
+            })
+        })
+    }
 }
 
 fn row_of(item: ScheduleItem) -> ScheduleRow {
+    let title = match item.kind {
+        ScheduleKind::Task => kanso_engine::tasks::display_text(&item.text),
+        ScheduleKind::Note => item.note_title.clone(),
+    };
     ScheduleRow {
+        title,
         kind: match item.kind {
             ScheduleKind::Task => ScheduleRowKind::Task,
             ScheduleKind::Note => ScheduleRowKind::Note,
@@ -110,6 +217,7 @@ mod tests {
         assert_eq!(rows[0].time.as_deref(), Some("15:00"));
         assert_eq!(rows[0].repeat.as_deref(), Some("every week"));
         assert_eq!(rows[0].line, Some(0));
+        assert_eq!(rows[0].title, "Review");
         assert!(!rows[0].projected && rows[1].projected);
         assert_eq!(rows[3].date, day(2026, 11, 27));
         // A day that is not on the calendar is refused.
@@ -120,3 +228,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "schedule_move_tests.rs"]
+mod move_tests;

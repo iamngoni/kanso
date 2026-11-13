@@ -52,6 +52,7 @@ import 'library_actions.dart';
 import 'library_header.dart';
 import 'library_loading_rows.dart';
 import 'library_place_row.dart';
+import 'library_schedule_row.dart';
 import 'library_tasks_row.dart';
 import 'new_notebook_sheet.dart';
 import 'notebook_actions_sheet.dart';
@@ -237,6 +238,7 @@ class _LibraryPaneState extends State<LibraryPane> {
                           overdue: index.overdueTasks,
                           selected: here is TasksLocation,
                         ),
+                        const LibraryScheduleRow(),
                         LibraryPlaceRow(
                           place: const ListPlace.canvases(),
                           icon: KansoIcons.infinity,

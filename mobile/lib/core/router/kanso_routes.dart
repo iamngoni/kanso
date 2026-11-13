@@ -93,6 +93,9 @@ abstract final class KansoRoutes {
   /// Agent tasks: the AI proposes changes to notes, the person approves them.
   static const String agentTasks = '/agent-tasks';
 
+  /// The Schedule: the tasks and dated notes of a month.
+  static const String schedule = '/schedule';
+
   /// People & Projects: the pages and the names Kanso suggests pages for.
   static const String people = '/people';
 

@@ -8195,4 +8195,113 @@ class AppLocalizationsEn extends AppLocalizations {
   String boardHintGroupDrag(String key) {
     return 'Drag a card to change its $key.';
   }
+
+  @override
+  String get scheduleTitle => 'Schedule';
+
+  @override
+  String get scheduleMonth => 'Month';
+
+  @override
+  String get scheduleAgenda => 'Agenda';
+
+  @override
+  String get scheduleViewLabel => 'Schedule view';
+
+  @override
+  String get scheduleFilter => 'Filter schedule';
+
+  @override
+  String get scheduleFilterTitle => 'Filter schedule';
+
+  @override
+  String get scheduleNotebooksHeader => 'Notebook';
+
+  @override
+  String get scheduleAllNotebooks => 'All notebooks';
+
+  @override
+  String get scheduleDatesHeader => 'Date property';
+
+  @override
+  String get scheduleAllDates => 'All date properties';
+
+  @override
+  String get scheduleNoDateProperties => 'No date properties yet';
+
+  @override
+  String get scheduleShowCompleted => 'Show Completed';
+
+  @override
+  String get scheduleLoading => 'Loading the schedule';
+
+  @override
+  String get scheduleFailedTitle => 'The schedule didn’t load';
+
+  @override
+  String get scheduleFailedMessage =>
+      'Something went wrong reading the schedule on this device. Try again.';
+
+  @override
+  String get scheduleEmptyTitle => 'Nothing scheduled';
+
+  @override
+  String get scheduleEmptyMessage =>
+      'Write “- [ ] Call Sam @2026-10-25” in a note, or give a note a date property, and it shows here.';
+
+  @override
+  String get scheduleDayEmpty => 'Nothing on this day';
+
+  @override
+  String scheduleDayItems(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get scheduleToday => 'Today';
+
+  @override
+  String get scheduleMoved =>
+      'That item changed in its note. The schedule is up to date now.';
+
+  @override
+  String get scheduleChangeFailed => 'Couldn’t change the item. Try again.';
+
+  @override
+  String scheduleRowContext(String note, String notebook) {
+    return '$note · $notebook';
+  }
+
+  @override
+  String scheduleRowSemantics(String title, String when) {
+    return '$title, $when';
+  }
+
+  @override
+  String get scheduleProjectedSemantics => 'Coming round again';
+
+  @override
+  String get scheduleItemActions => 'Actions';
+
+  @override
+  String get scheduleMoreActions => 'More actions';
+
+  @override
+  String get scheduleMoveToDay => 'Move to day…';
+
+  @override
+  String get scheduleMoveTitle => 'Move to day';
+
+  @override
+  String get scheduleProjectedHint =>
+      'A repeat coming round. Ticking it ticks the task; move the first one to change the date.';
+
+  @override
+  String get scheduleLocked => 'That note is locked. Unlock it to change it.';
 }
