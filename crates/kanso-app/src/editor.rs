@@ -513,6 +513,9 @@ impl NoteEditor {
                             this.sketch_to_canvas(&id, window, cx)
                         }
                         PreviewEdit::OpenFile(url) => this.open_file_link(&url, window, cx),
+                        PreviewEdit::StopRepeating { shown_line } => {
+                            this.stop_repeating_shown(&shown_line, window, cx)
+                        }
                     })
                     .is_err()
                 {
@@ -3122,6 +3125,14 @@ impl NoteEditor {
             .menu_with_disabled("Paste", !editable, Box::new(Paste))
             .separator()
             .menu("Select All", Box::new(SelectAll));
+        // A repeating task's date chip is drawn on the caret's line: its
+        // menu item is here too.
+        if editable && !self.lock.is_closed() && self.repeating_task_on_caret_line(cx).is_some() {
+            menu = menu.separator().menu(
+                crate::due::STOP_REPEATING,
+                Box::new(crate::due::StopRepeating),
+            );
+        }
         // The inline assistant works on a selection, while AI is on.
         let assists = self.inline_menu(cx);
         if !assists.is_empty() {
@@ -3862,6 +3873,57 @@ impl NoteEditor {
         if ticked {
             crate::metrics::record(cx, crate::metrics::Feature::TaskToggled);
         }
+    }
+
+    /// "Stop Repeating" from a due chip's menu in the preview: the open
+    /// repeating task on the shown line that reads `shown_line` keeps its
+    /// date and loses its `every …` words, as one undo step.
+    // no-prop-test: glue; `kanso_core::tick::stop_repeating` and
+    // `due::stop_repeating_shown` have the properties.
+    fn stop_repeating_shown(
+        &mut self,
+        shown_line: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.takes_preview_edits(cx) {
+            return;
+        }
+        let shown = self.preview.read(cx).shown().clone();
+        self.smart_edit(window, cx, |_, text, selection| {
+            let stopped = crate::due::stop_repeating_shown(text, &shown, shown_line)?;
+            body_edit(text, &stopped, selection)
+        });
+    }
+
+    /// The line (0-based) of the caret, when an open repeating task is on
+    /// it: what the text menu's "Stop Repeating" acts on.
+    fn repeating_task_on_caret_line(&self, cx: &App) -> Option<u32> {
+        let state = self.body.read(cx);
+        let text = state.value();
+        let at = state.selected_range().start.min(text.len());
+        let line = text[..at].matches('\n').count() as u32;
+        kanso_core::tick::stop_repeating(&text, line).map(|_| line)
+    }
+
+    /// "Stop Repeating" from the text's menu, for the task on the caret's
+    /// line, as one undo step.
+    // no-prop-test: glue; `kanso_core::tick::stop_repeating` has the properties.
+    fn stop_repeating(
+        &mut self,
+        _: &crate::due::StopRepeating,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.note.is_none() || self.text_read_only || self.lock.is_closed() {
+            return;
+        }
+        self.smart_edit(window, cx, |_, text, selection| {
+            let at = selection.start.min(text.len());
+            let line = text[..at].matches('\n').count() as u32;
+            let stopped = kanso_core::tick::stop_repeating(text, line)?;
+            body_edit(text, &stopped, selection)
+        });
     }
 
     /// Whether the preview may rewrite the note's text: it is open for
@@ -6024,6 +6086,7 @@ impl Render for NoteEditor {
             .capture_action(cx.listener(Self::on_enter))
             .capture_action(cx.listener(Self::on_paste))
             .on_action(cx.listener(Self::correct_spelling))
+            .on_action(cx.listener(Self::stop_repeating))
             .on_action(cx.listener(Self::inline_assist))
             .on_action(cx.listener(Self::learn_spelling))
             .on_action(cx.listener(Self::ignore_spelling))

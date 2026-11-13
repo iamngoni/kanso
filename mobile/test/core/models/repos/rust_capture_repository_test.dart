@@ -105,6 +105,7 @@ void main() {
     test("saves the drops in the library folder's inbox", () async {
       const saved = DropsSaved(
         notes: <String>['note:cap-a'],
+        tasks: <String>['- [ ] a'],
         problems: <String>['x'],
         kept: 0,
       );
@@ -122,7 +123,8 @@ void main() {
       when(
         () => library.saveDrops(inbox: any(named: 'inbox')),
       ).thenAnswer(
-        (_) async => const DropsSaved(notes: [], problems: [], kept: 0),
+        (_) async =>
+            const DropsSaved(notes: [], tasks: [], problems: [], kept: 0),
       );
       final heard = <List<String>>[];
       final subscription = external.stream.listen(heard.add);

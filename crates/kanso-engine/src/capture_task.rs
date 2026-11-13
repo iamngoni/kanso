@@ -13,7 +13,7 @@ use kanso_core::DocType;
 use kanso_core::dates::DateTime;
 use kanso_core::due_phrase;
 use kanso_core::due_phrase_model::{DateOrder, Parsed};
-use kanso_core::model::{MAX_BODY_LEN, TRASH_BOOK_ID};
+use kanso_core::model::MAX_BODY_LEN;
 use kanso_core::roles::Role;
 use kanso_store::{Origin, Put, Store, StoreError};
 use serde_json::json;
@@ -21,12 +21,8 @@ use serde_json::json;
 use crate::capture::CaptureError;
 
 /// The note in the Inbox that captured tasks collect in when the Inbox is
-/// where they go. A fixed ID, so every device that captures one adds to the
-/// same note once they sync.
-pub const INBOX_TASKS_ID: &str = "note:inbox-tasks";
-
-/// The title that note is made with.
-pub const INBOX_TASKS_TITLE: &str = "Inbox tasks";
+/// where they go (a fixed ID); the local API's Inbox tasks land there too.
+pub use kanso_store::{INBOX_TASKS_ID, INBOX_TASKS_TITLE};
 
 /// Where a captured task is written.
 #[derive(
@@ -94,6 +90,75 @@ pub fn task_hint(text: &str, now: DateTime, order: DateOrder) -> Option<String> 
     parsed.map(|parsed| due_phrase::label(&parsed, now.date))
 }
 
+/// A typed task as it will be written and as an App Intent confirms it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TaskPreview {
+    /// The line written: `- [ ] film Pixel review @2026-11-14T15:00 every
+    /// week`.
+    pub line: String,
+    /// The task's words: `film Pixel review`.
+    pub words: String,
+    /// When it is due and how it repeats, as a person reads it: `Fri 14 Nov
+    /// 15:00 · every week`. `None` when the text named no date.
+    pub when: Option<String>,
+}
+
+impl TaskPreview {
+    /// The sentence that says the task was added: `Added: film Pixel review
+    /// · Fri 14 Nov 15:00 · every week`.
+    pub fn confirmation(&self) -> String {
+        match &self.when {
+            Some(when) => format!("Added: {} \u{b7} {when}", self.words),
+            None => format!("Added: {}", self.words),
+        }
+    }
+}
+
+/// The line, the words and the due date of the task in `text`, or `None`
+/// when there is no task in it. The line is [`task_line`]'s. Pure.
+pub fn task_preview(text: &str, now: DateTime, order: DateOrder) -> Option<TaskPreview> {
+    let (words, parsed) = read_task(text, now, order)?;
+    Some(match parsed {
+        Some(parsed) => {
+            let label = due_phrase::label(&parsed, now.date);
+            // The confirmation reads `Fri 14 Nov 15:00`: no comma before
+            // the time. The date part never holds one.
+            let when = if parsed.due.time.is_some() {
+                label.replacen(", ", " ", 1)
+            } else {
+                label
+            };
+            TaskPreview {
+                line: format!("- [ ] {words} {}", due_phrase::canonical(&parsed)),
+                words,
+                when: Some(when),
+            }
+        }
+        None => TaskPreview {
+            line: format!("- [ ] {words}"),
+            words,
+            when: None,
+        },
+    })
+}
+
+/// The longest task line [`checked_task_line`] takes, in bytes.
+pub const MAX_TASK_LINE: usize = 4096;
+
+/// `line` when it is one open task line as [`task_line`] writes them: a
+/// single line starting `- [ ] ` with words after it, at most
+/// [`MAX_TASK_LINE`] bytes. Surrounding whitespace is dropped. What another
+/// process hands over (an App Intent's drop) is checked with this before it
+/// is written. Pure.
+pub fn checked_task_line(line: &str) -> Option<&str> {
+    let line = line.trim();
+    if line.len() > MAX_TASK_LINE || line.contains(['\n', '\r']) {
+        return None;
+    }
+    let words = line.strip_prefix("- [ ] ")?;
+    (!words.trim().is_empty()).then_some(line)
+}
+
 /// The words of the task in `text` and the phrase that ends it, when it
 /// has one and words come before it.
 fn read_task(text: &str, now: DateTime, order: DateOrder) -> Option<(String, Option<Parsed>)> {
@@ -157,6 +222,29 @@ pub fn save_task(
     let Some(line) = task_line(text, now, order) else {
         return Ok(None);
     };
+    save_task_line(store, &line, target, now, origin).map(Some)
+}
+
+/// Writes a task `line` that was read already ([`task_line`]'s output, as
+/// an App Intent hands it over in a drop) at `target`, and returns the ID
+/// of the note it went into. `now` is the local date and time the task was
+/// captured at, for which daily note it goes in.
+///
+/// A line [`checked_task_line`] refuses, or one that would make the note
+/// longer than a note can be, is refused as invalid; a locked Journal,
+/// Inbox or note is [`CaptureError::Locked`]. Nothing is written then.
+pub fn save_task_line(
+    store: &Store,
+    line: &str,
+    target: TaskTarget,
+    now: DateTime,
+    origin: Origin,
+) -> Result<String, CaptureError> {
+    let Some(line) = checked_task_line(line) else {
+        return Err(CaptureError::Store(StoreError::Invalid(
+            "That isn't a task line.".into(),
+        )));
+    };
     let id = match target {
         TaskTarget::DailyNote => {
             // Made in the Journal; a locked Journal takes nothing.
@@ -177,7 +265,7 @@ pub fn save_task(
             "The note for this task has gone.".into(),
         )));
     };
-    let body = append_task(&note.body, &line);
+    let body = append_task(&note.body, line);
     if body.len() > MAX_BODY_LEN {
         return Err(CaptureError::Store(StoreError::Invalid(
             "That note is too long to add a task to.".into(),
@@ -189,36 +277,17 @@ pub fn save_task(
         Put::Merge,
         origin,
     )?;
-    Ok(Some(id))
+    Ok(id)
 }
 
-/// The Inbox's task note, made when missing and brought back from the
-/// trash when it was deleted. Refuses a locked Inbox.
+/// The Inbox's task note ([`Store::inbox_tasks_note`], the same note the
+/// local API adds to). Refuses a locked Inbox.
 fn inbox_tasks_note(store: &Store, origin: Origin) -> Result<String, CaptureError> {
     let inbox = store.role_book(Role::Inbox, origin)?;
     if store.locked_books()?.contains(&inbox) {
         return Err(CaptureError::Locked);
     }
-    match store.note(INBOX_TASKS_ID)? {
-        None => {
-            store.put(
-                DocType::Note,
-                json!({"_id": INBOX_TASKS_ID, "title": INBOX_TASKS_TITLE, "body": "", "bookId": inbox}),
-                Put::Upsert,
-                origin,
-            )?;
-        }
-        Some(note) if note.book_id == TRASH_BOOK_ID => {
-            store.put(
-                DocType::Note,
-                json!({"_id": INBOX_TASKS_ID, "bookId": inbox}),
-                Put::Merge,
-                origin,
-            )?;
-        }
-        Some(_) => {}
-    }
-    Ok(INBOX_TASKS_ID.to_owned())
+    Ok(store.inbox_tasks_note(origin)?)
 }
 
 #[cfg(test)]

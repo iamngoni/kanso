@@ -399,6 +399,62 @@ void main() {
       ).called(1);
     });
 
+    test(
+      'Stop repeating from a chip is one write by place, with Undo',
+      () async {
+        final bloc = await started();
+        when(
+          () => library.stopRepeatingAt(
+            noteId: any(named: 'noteId'),
+            index: any(named: 'index'),
+            baseRev: any(named: 'baseRev'),
+          ),
+        ).thenAnswer(
+          (_) async => const Right<ApplicationError, Ticked>(
+            Ticked.changed(
+              rev: 'r2',
+              undo: 4,
+              message: '“Film” no longer repeats',
+            ),
+          ),
+        );
+        bloc.add(const PreviewEvent.linkTapped('${stopRepeatingLink}3'));
+        await bloc.stream.firstWhere((s) => _shown(s) == 'page 2');
+        verify(
+          () => library.stopRepeatingAt(
+            noteId: mockOpenNote.id,
+            index: 3,
+            baseRev: mockOpenNote.rev,
+          ),
+        ).called(1);
+        verify(
+          () => undoNotice.add(
+            const UndoNoticeEvent.shown(4, '“Film” no longer repeats'),
+          ),
+        ).called(1);
+        // The core is never asked what the address is.
+        verifyNever(() => renderer.linkTarget(any(), any()));
+      },
+    );
+
+    glados.Glados(glados.any.letterOrDigits).test(
+      'a Stop repeating address without a place writes nothing',
+      (tail) async {
+        final bloc = await started();
+        final url = '$stopRepeatingLink${tail.isEmpty ? 'x' : 'x$tail'}';
+        bloc.add(PreviewEvent.linkTapped(url));
+        await pumpEventQueue();
+        verifyNever(
+          () => library.stopRepeatingAt(
+            noteId: any(named: 'noteId'),
+            index: any(named: 'index'),
+            baseRev: any(named: 'baseRev'),
+          ),
+        );
+        await bloc.close();
+      },
+    );
+
     test('a box on blocks older than the note draws them again', () async {
       final bloc = await started();
       answer('kanso-task:0', const PreviewLink.task(index: 0));

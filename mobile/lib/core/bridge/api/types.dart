@@ -1559,17 +1559,20 @@ class DiscoveryMeasure {
 
 class DropsSaved {
   final List<String> notes;
+  final List<String> tasks;
   final List<String> problems;
   final int kept;
 
   const DropsSaved({
     required this.notes,
+    required this.tasks,
     required this.problems,
     required this.kept,
   });
 
   @override
-  int get hashCode => notes.hashCode ^ problems.hashCode ^ kept.hashCode;
+  int get hashCode =>
+      notes.hashCode ^ tasks.hashCode ^ problems.hashCode ^ kept.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1577,6 +1580,7 @@ class DropsSaved {
       other is DropsSaved &&
           runtimeType == other.runtimeType &&
           notes == other.notes &&
+          tasks == other.tasks &&
           problems == other.problems &&
           kept == other.kept;
 }

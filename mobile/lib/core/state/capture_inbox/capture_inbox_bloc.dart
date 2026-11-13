@@ -15,7 +15,9 @@ part 'capture_inbox_event.dart';
 part 'capture_inbox_state.dart';
 
 /// Saves what other apps shared into Kanso (the share extension, the
-/// shortcuts, the share activity), as notes in the Inbox.
+/// shortcuts, the share activity), as notes in the Inbox, and the tasks
+/// "Add Kanso task" left while the app was closed, as task lines in today's
+/// daily note or the Inbox.
 ///
 /// It is asked when the app starts and each time it comes back to the
 /// front. Two saves never overlap: one asked for while another runs is
@@ -49,6 +51,8 @@ class CaptureInboxBloc extends Bloc<CaptureInboxEvent, CaptureInboxState> {
           error: null,
           saved: saved.notes,
           savedCount: state.savedCount + saved.notes.length,
+          tasks: saved.tasks,
+          taskCount: state.taskCount + saved.tasks.length,
           kept: saved.kept,
           problems: <String>[...state.problems, ...saved.problems],
         ),

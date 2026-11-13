@@ -1035,6 +1035,9 @@ pub struct DropsSaved {
     /// The IDs of the notes made, oldest item first. A note already made by
     /// an earlier try is here too.
     pub notes: Vec<String>,
+    /// The task lines added from task drops (App Intents' "Add Kanso
+    /// task"), oldest first: `- [ ] film Pixel review @2026-11-14T15:00`.
+    pub tasks: Vec<String>,
     /// What was left out or refused, a sentence each: a file that couldn't
     /// be attached, an item discarded because the Inbox is locked.
     pub problems: Vec<String>,
