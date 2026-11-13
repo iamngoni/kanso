@@ -789,12 +789,12 @@ impl MemoryCollab {
         let (kind, _) = parse_header(envelope)
             .map(|(h, _)| (h.kind, ()))
             .ok_or_else(bad)?;
-        Ok(State::store_book_entry(
-            state.book(share_id)?,
-            stream,
-            kind,
-            envelope,
-        ))
+        let seq = State::store_book_entry(state.book(share_id)?, stream, kind, envelope);
+        if state.lost_replies > 0 {
+            state.lost_replies -= 1;
+            return Err(CollabError::Transport("reply lost (test)".into()));
+        }
+        Ok(seq)
     }
 
     /// The caller's notebooks (`GET /v2/collab/books`).

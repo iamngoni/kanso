@@ -274,6 +274,34 @@ fn a_held_edit_in_the_open_editor_is_saved_and_survives_close_quit_and_reload() 
     assert_eq!(body_of(&b, &share), want);
 }
 
+/// Regression (#390 slice 40; the phone test of a held edit was flaky): the
+/// phone's pump read the library, then merged that copy as an editor's text.
+/// A save landing in between, which fixed a held edit, was taken as an edit
+/// back to the held text: the fix reached the others, the library lost it.
+/// The pump merges the library as it is under the note's lock now.
+#[test]
+fn a_save_that_fixes_a_held_edit_is_never_taken_back_by_the_pump() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared(&a, &b, NOTE);
+    let typed = format!("{}More\n", NOTE.replace("due:", "sta\ndue:"));
+    let fixed = format!("{}More\n", NOTE.replace("due:", "sta: x\ndue:"));
+    let id = id_of(&b, &share);
+    // A writer of the whole text breaks the front matter: held, and kept.
+    write_body(&b.store, &id, &typed).unwrap();
+    b.engine.sync_library(&share).unwrap();
+    b.engine.sync_library(&share).unwrap();
+    assert_eq!(body_of(&b, &share), typed);
+    // The fix is saved, and the pump merges: the fix stays and lands.
+    write_body(&b.store, &id, &fixed).unwrap();
+    b.engine.sync_library(&share).unwrap();
+    b.engine.sync_library(&share).unwrap();
+    assert_eq!(body_of(&b, &share), fixed);
+    sync(&[&b, &a], &share);
+    assert_eq!(body_of(&a, &share), fixed);
+    assert_eq!(body_of(&b, &share), fixed);
+}
+
 #[test]
 fn the_editors_caret_and_a_comment_stay_on_their_words_when_the_front_matter_changes() {
     let server = MemoryCollab::new();
