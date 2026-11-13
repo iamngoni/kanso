@@ -12,23 +12,24 @@ pub use kanso_mobile::WhenHint;
 pub use kanso_mobile::{
     AccountDetails, AccountState, AccountStep, AiSummary, ApprovalPhase, ApprovalPrompt,
     ApprovalWait, AttachmentFile, BindingAnswer, BindingQuestion, BoardCard, BoardColumn,
-    BoardKind, BoardLane, BoardView, BriefNote, BriefPrefs, BriefReminder, BriefView, BuiltinTheme,
-    CalendarDay, CaptureOutcome, CaptureTarget, CardKey, CardMoved, Changed, ColorChoice, ColorRow,
-    CommentPlacement, CommentRow, Completion, CompletionItem, CompletionKind, CopiedLink,
-    CostSummary, CursorMark, DateChoice, DateChoices, DateField, DayDate, DeviceRow, DiagramKind,
-    DiagramRenderer, DiscoveryMeasure, DropsSaved, DueChipRow, DueTone, EditCommand, EditOutcome,
-    EditorContext, EditorEvent, EditorRun, EditorSnapshot, ExportedPage, FilesMigration, FoldState,
-    FormatKind, GalleryColors, GalleryItem, GalleryKind, GoalSetting, GraphEdgeRow, GraphFilter,
-    GraphLayout, GraphNodeRow, GraphRequest, HistoryState, Hit, IconChoice, IconThemeRow,
-    ImageToRead, ImportEvent, ImportFound, ImportPhase, ImportProgress, ImportSource,
-    ImportSummary, InterruptedLock, InvitationRow, JoinRow, KansoError, LibraryOverview,
-    LinkTarget, LinkedProviderRow, ListPlace, ListQuery, ListShape, LiveBatch, LiveDocBlock,
-    LiveDocBlockKind, LiveDocLink, LiveDocLinkKind, LiveDocMarker, LiveDocMarkerKind, LiveDocStyle,
-    LiveDocStyleKind, LiveDocWidget, LiveDocument, LiveKind, LiveLine, LiveRun, LiveStatus,
-    LocalTime, LockCopyNotice, LockEvent, LockReason, LockState, LockStatus, LockSummary,
-    LockedInfo, LoopAction, LoopProposal, LoopScan, MadeNote, MeaningResult, MemberRow,
-    MentionSpan, MigrationOutcome, MonthGrid, NewNote, NoteChange, NoteList, NoteMeaning, NoteRow,
-    NoteView, NotebookRole, NotebookRow, OnThisDayRow, OpenLoopItem, OpenLoopKind, OpenLoopsBoard,
+    BoardKind, BoardLane, BoardSetup, BoardView, BriefNote, BriefPrefs, BriefReminder, BriefView,
+    BuiltinTheme, CalendarDay, CaptureOutcome, CaptureTarget, CardKey, CardMoved, Changed,
+    ColorChoice, ColorRow, CommentPlacement, CommentRow, Completion, CompletionItem,
+    CompletionKind, CopiedLink, CostSummary, CursorMark, DateChoice, DateChoices, DateField,
+    DayDate, DeviceRow, DiagramKind, DiagramRenderer, DiscoveryMeasure, DropsSaved, DueChipRow,
+    DueTone, EditCommand, EditOutcome, EditorContext, EditorEvent, EditorRun, EditorSnapshot,
+    ExportedPage, FilesMigration, FoldState, FormatKind, GalleryColors, GalleryItem, GalleryKind,
+    GoalSetting, GraphEdgeRow, GraphFilter, GraphLayout, GraphNodeRow, GraphRequest, HistoryState,
+    Hit, IconChoice, IconThemeRow, ImageToRead, ImportEvent, ImportFound, ImportPhase,
+    ImportProgress, ImportSource, ImportSummary, InterruptedLock, InvitationRow, JoinRow,
+    KansoError, LaneChange, LaneEdited, LaneRemoval, LibraryOverview, LinkTarget,
+    LinkedProviderRow, ListPlace, ListQuery, ListShape, LiveBatch, LiveDocBlock, LiveDocBlockKind,
+    LiveDocLink, LiveDocLinkKind, LiveDocMarker, LiveDocMarkerKind, LiveDocStyle, LiveDocStyleKind,
+    LiveDocWidget, LiveDocument, LiveKind, LiveLine, LiveRun, LiveStatus, LocalTime,
+    LockCopyNotice, LockEvent, LockReason, LockState, LockStatus, LockSummary, LockedInfo,
+    LoopAction, LoopProposal, LoopScan, MadeNote, MeaningResult, MemberRow, MentionSpan,
+    MigrationOutcome, MonthGrid, NewNote, NoteChange, NoteList, NoteMeaning, NoteRow, NoteView,
+    NotebookRole, NotebookRow, OnThisDayRow, OpenLoopItem, OpenLoopKind, OpenLoopsBoard,
     OpenedDocuments, OpenedFile, PairingCode, PaletteDto, PasskeyFailure, PasskeyRequest,
     PasskeyRequestKind, PasskeyRow, PdfHighlightChange, PdfHighlightRow, PdfInkRow, PdfNotes,
     PersonLookup, PersonRow, PlannedNotice, PreviewAlign, PreviewBlock, PreviewCanvasNotice,
@@ -44,8 +45,8 @@ pub use kanso_mobile::{
     StatusChoice, StatusCount, StyledRun, SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption,
     SyncPhase, SyncProblemKind, SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine,
     SyncTone, SyntaxStyleRow, Table, TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard,
-    TaskCaptured, TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection, TemplateRow, TextChange,
-    ThemeTokens, ThemedIcon, Ticked, TwinRow, VisibleNotebook,
+    TaskCaptured, TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection, TemplateRow,
+    TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow, VisibleNotebook,
 };
 pub use kanso_mobile::{
     IconThemeImport, InstalledIconThemeRow, ThemeImport, ThemeNotice, ThemeOrigin, ThemeRow,
@@ -1973,6 +1974,9 @@ pub enum _BoardLane {
     Status { status: String },
     Todo,
     Done,
+    Value { value: String },
+    Unset,
+    Unlisted,
 }
 
 #[frb(mirror(CardKey))]
@@ -2010,13 +2014,61 @@ pub struct _BoardColumn {
 pub struct _BoardView {
     pub kind: BoardKind,
     pub columns: Vec<BoardColumn>,
+    pub setup: Option<BoardSetup>,
+}
+
+#[frb(mirror(BoardSetup))]
+pub struct _BoardSetup {
+    pub book_id: String,
+    pub group: Option<String>,
+    pub groupable: Vec<String>,
+    pub lanes: Vec<String>,
+    pub show_unset: bool,
 }
 
 #[frb(mirror(CardMoved))]
 pub enum _CardMoved {
-    Changed,
+    Changed {
+        message: Option<String>,
+        undo: Option<u64>,
+    },
     Unchanged,
     Missing,
+}
+
+#[frb(mirror(LaneChange))]
+pub enum _LaneChange {
+    Rename {
+        from: String,
+        to: String,
+    },
+    Move {
+        from: u32,
+        to: u32,
+    },
+    Add {
+        name: String,
+    },
+    Remove {
+        lane: String,
+        move_to: Option<String>,
+    },
+}
+
+#[frb(mirror(LaneEdited))]
+pub struct _LaneEdited {
+    pub lanes: Vec<String>,
+    pub rewritten: u32,
+    pub message: String,
+    pub undo: u64,
+}
+
+#[frb(mirror(LaneRemoval))]
+pub struct _LaneRemoval {
+    pub notes: u32,
+    pub prompt: String,
+    pub target: Option<String>,
+    pub targets: Vec<String>,
 }
 
 #[frb(mirror(DueChipRow))]

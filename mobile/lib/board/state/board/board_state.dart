@@ -13,6 +13,23 @@ sealed class BoardNotice with _$BoardNotice {
   /// The task changed in its note meanwhile (or the note went); the board
   /// has been read again.
   const factory BoardNotice.changedInNote() = BoardNoticeChangedInNote;
+
+  /// A change to the notebook's board was written; [message] is the core's
+  /// words for it, and [undo] the ticket that takes it back.
+  const factory BoardNotice.done({required String message, int? undo}) =
+      BoardNoticeDone;
+}
+
+/// A lane being removed that still has notes: where they go is asked.
+@freezed
+abstract class BoardRemoval with _$BoardRemoval {
+  const factory BoardRemoval({
+    required String lane,
+    required LaneRemoval plan,
+
+    /// The lane the notes go to; null is "no value".
+    String? target,
+  }) = _BoardRemoval;
 }
 
 @freezed
@@ -31,5 +48,11 @@ abstract class BoardState with _$BoardState {
 
     /// Why the last move did not happen, until it is dismissed.
     BoardNotice? notice,
+
+    /// The lane the settings are asking about, while they are.
+    BoardRemoval? removal,
+
+    /// Why the last change in the settings was refused, in the core's words.
+    String? settingsError,
   }) = _BoardState;
 }

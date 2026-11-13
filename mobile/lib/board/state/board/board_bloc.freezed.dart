@@ -55,7 +55,7 @@ extension BoardEventPatterns on BoardEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BoardStartedEvent value)?  started,TResult Function( BoardKindChangedEvent value)?  kindChanged,TResult Function( BoardChangesReceivedEvent value)?  changesReceived,TResult Function( BoardRetriedEvent value)?  retried,TResult Function( BoardCardMovedEvent value)?  cardMoved,TResult Function( BoardNoticeDismissedEvent value)?  noticeDismissed,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BoardStartedEvent value)?  started,TResult Function( BoardKindChangedEvent value)?  kindChanged,TResult Function( BoardChangesReceivedEvent value)?  changesReceived,TResult Function( BoardRetriedEvent value)?  retried,TResult Function( BoardCardMovedEvent value)?  cardMoved,TResult Function( BoardNoticeDismissedEvent value)?  noticeDismissed,TResult Function( BoardGroupChangedEvent value)?  groupChanged,TResult Function( BoardShowUnsetChangedEvent value)?  showUnsetChanged,TResult Function( BoardLaneEditedEvent value)?  laneEdited,TResult Function( BoardLaneRemovalRequestedEvent value)?  laneRemovalRequested,TResult Function( BoardRemovalTargetChosenEvent value)?  removalTargetChosen,TResult Function( BoardRemovalConfirmedEvent value)?  removalConfirmed,TResult Function( BoardRemovalCancelledEvent value)?  removalCancelled,TResult Function( BoardUndoneEvent value)?  undone,TResult Function( BoardSettingsClosedEvent value)?  settingsClosed,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BoardStartedEvent() when started != null:
@@ -64,7 +64,16 @@ return kindChanged(_that);case BoardChangesReceivedEvent() when changesReceived 
 return changesReceived(_that);case BoardRetriedEvent() when retried != null:
 return retried(_that);case BoardCardMovedEvent() when cardMoved != null:
 return cardMoved(_that);case BoardNoticeDismissedEvent() when noticeDismissed != null:
-return noticeDismissed(_that);case _:
+return noticeDismissed(_that);case BoardGroupChangedEvent() when groupChanged != null:
+return groupChanged(_that);case BoardShowUnsetChangedEvent() when showUnsetChanged != null:
+return showUnsetChanged(_that);case BoardLaneEditedEvent() when laneEdited != null:
+return laneEdited(_that);case BoardLaneRemovalRequestedEvent() when laneRemovalRequested != null:
+return laneRemovalRequested(_that);case BoardRemovalTargetChosenEvent() when removalTargetChosen != null:
+return removalTargetChosen(_that);case BoardRemovalConfirmedEvent() when removalConfirmed != null:
+return removalConfirmed(_that);case BoardRemovalCancelledEvent() when removalCancelled != null:
+return removalCancelled(_that);case BoardUndoneEvent() when undone != null:
+return undone(_that);case BoardSettingsClosedEvent() when settingsClosed != null:
+return settingsClosed(_that);case _:
   return orElse();
 
 }
@@ -82,7 +91,7 @@ return noticeDismissed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BoardStartedEvent value)  started,required TResult Function( BoardKindChangedEvent value)  kindChanged,required TResult Function( BoardChangesReceivedEvent value)  changesReceived,required TResult Function( BoardRetriedEvent value)  retried,required TResult Function( BoardCardMovedEvent value)  cardMoved,required TResult Function( BoardNoticeDismissedEvent value)  noticeDismissed,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BoardStartedEvent value)  started,required TResult Function( BoardKindChangedEvent value)  kindChanged,required TResult Function( BoardChangesReceivedEvent value)  changesReceived,required TResult Function( BoardRetriedEvent value)  retried,required TResult Function( BoardCardMovedEvent value)  cardMoved,required TResult Function( BoardNoticeDismissedEvent value)  noticeDismissed,required TResult Function( BoardGroupChangedEvent value)  groupChanged,required TResult Function( BoardShowUnsetChangedEvent value)  showUnsetChanged,required TResult Function( BoardLaneEditedEvent value)  laneEdited,required TResult Function( BoardLaneRemovalRequestedEvent value)  laneRemovalRequested,required TResult Function( BoardRemovalTargetChosenEvent value)  removalTargetChosen,required TResult Function( BoardRemovalConfirmedEvent value)  removalConfirmed,required TResult Function( BoardRemovalCancelledEvent value)  removalCancelled,required TResult Function( BoardUndoneEvent value)  undone,required TResult Function( BoardSettingsClosedEvent value)  settingsClosed,}){
 final _that = this;
 switch (_that) {
 case BoardStartedEvent():
@@ -91,7 +100,16 @@ return kindChanged(_that);case BoardChangesReceivedEvent():
 return changesReceived(_that);case BoardRetriedEvent():
 return retried(_that);case BoardCardMovedEvent():
 return cardMoved(_that);case BoardNoticeDismissedEvent():
-return noticeDismissed(_that);}
+return noticeDismissed(_that);case BoardGroupChangedEvent():
+return groupChanged(_that);case BoardShowUnsetChangedEvent():
+return showUnsetChanged(_that);case BoardLaneEditedEvent():
+return laneEdited(_that);case BoardLaneRemovalRequestedEvent():
+return laneRemovalRequested(_that);case BoardRemovalTargetChosenEvent():
+return removalTargetChosen(_that);case BoardRemovalConfirmedEvent():
+return removalConfirmed(_that);case BoardRemovalCancelledEvent():
+return removalCancelled(_that);case BoardUndoneEvent():
+return undone(_that);case BoardSettingsClosedEvent():
+return settingsClosed(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -105,7 +123,7 @@ return noticeDismissed(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BoardStartedEvent value)?  started,TResult? Function( BoardKindChangedEvent value)?  kindChanged,TResult? Function( BoardChangesReceivedEvent value)?  changesReceived,TResult? Function( BoardRetriedEvent value)?  retried,TResult? Function( BoardCardMovedEvent value)?  cardMoved,TResult? Function( BoardNoticeDismissedEvent value)?  noticeDismissed,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BoardStartedEvent value)?  started,TResult? Function( BoardKindChangedEvent value)?  kindChanged,TResult? Function( BoardChangesReceivedEvent value)?  changesReceived,TResult? Function( BoardRetriedEvent value)?  retried,TResult? Function( BoardCardMovedEvent value)?  cardMoved,TResult? Function( BoardNoticeDismissedEvent value)?  noticeDismissed,TResult? Function( BoardGroupChangedEvent value)?  groupChanged,TResult? Function( BoardShowUnsetChangedEvent value)?  showUnsetChanged,TResult? Function( BoardLaneEditedEvent value)?  laneEdited,TResult? Function( BoardLaneRemovalRequestedEvent value)?  laneRemovalRequested,TResult? Function( BoardRemovalTargetChosenEvent value)?  removalTargetChosen,TResult? Function( BoardRemovalConfirmedEvent value)?  removalConfirmed,TResult? Function( BoardRemovalCancelledEvent value)?  removalCancelled,TResult? Function( BoardUndoneEvent value)?  undone,TResult? Function( BoardSettingsClosedEvent value)?  settingsClosed,}){
 final _that = this;
 switch (_that) {
 case BoardStartedEvent() when started != null:
@@ -114,7 +132,16 @@ return kindChanged(_that);case BoardChangesReceivedEvent() when changesReceived 
 return changesReceived(_that);case BoardRetriedEvent() when retried != null:
 return retried(_that);case BoardCardMovedEvent() when cardMoved != null:
 return cardMoved(_that);case BoardNoticeDismissedEvent() when noticeDismissed != null:
-return noticeDismissed(_that);case _:
+return noticeDismissed(_that);case BoardGroupChangedEvent() when groupChanged != null:
+return groupChanged(_that);case BoardShowUnsetChangedEvent() when showUnsetChanged != null:
+return showUnsetChanged(_that);case BoardLaneEditedEvent() when laneEdited != null:
+return laneEdited(_that);case BoardLaneRemovalRequestedEvent() when laneRemovalRequested != null:
+return laneRemovalRequested(_that);case BoardRemovalTargetChosenEvent() when removalTargetChosen != null:
+return removalTargetChosen(_that);case BoardRemovalConfirmedEvent() when removalConfirmed != null:
+return removalConfirmed(_that);case BoardRemovalCancelledEvent() when removalCancelled != null:
+return removalCancelled(_that);case BoardUndoneEvent() when undone != null:
+return undone(_that);case BoardSettingsClosedEvent() when settingsClosed != null:
+return settingsClosed(_that);case _:
   return null;
 
 }
@@ -131,7 +158,7 @@ return noticeDismissed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ListQuery query,  BoardKind kind)?  started,TResult Function( BoardKind kind)?  kindChanged,TResult Function( List<String> ids)?  changesReceived,TResult Function()?  retried,TResult Function( CardKey card,  BoardLane lane)?  cardMoved,TResult Function()?  noticeDismissed,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ListQuery query,  BoardKind kind)?  started,TResult Function( BoardKind kind)?  kindChanged,TResult Function( List<String> ids)?  changesReceived,TResult Function()?  retried,TResult Function( CardKey card,  BoardLane lane)?  cardMoved,TResult Function()?  noticeDismissed,TResult Function( String? by)?  groupChanged,TResult Function( bool show)?  showUnsetChanged,TResult Function( LaneChange change)?  laneEdited,TResult Function( String lane)?  laneRemovalRequested,TResult Function( String? target)?  removalTargetChosen,TResult Function()?  removalConfirmed,TResult Function()?  removalCancelled,TResult Function( int ticket)?  undone,TResult Function()?  settingsClosed,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BoardStartedEvent() when started != null:
 return started(_that.query,_that.kind);case BoardKindChangedEvent() when kindChanged != null:
@@ -139,7 +166,16 @@ return kindChanged(_that.kind);case BoardChangesReceivedEvent() when changesRece
 return changesReceived(_that.ids);case BoardRetriedEvent() when retried != null:
 return retried();case BoardCardMovedEvent() when cardMoved != null:
 return cardMoved(_that.card,_that.lane);case BoardNoticeDismissedEvent() when noticeDismissed != null:
-return noticeDismissed();case _:
+return noticeDismissed();case BoardGroupChangedEvent() when groupChanged != null:
+return groupChanged(_that.by);case BoardShowUnsetChangedEvent() when showUnsetChanged != null:
+return showUnsetChanged(_that.show);case BoardLaneEditedEvent() when laneEdited != null:
+return laneEdited(_that.change);case BoardLaneRemovalRequestedEvent() when laneRemovalRequested != null:
+return laneRemovalRequested(_that.lane);case BoardRemovalTargetChosenEvent() when removalTargetChosen != null:
+return removalTargetChosen(_that.target);case BoardRemovalConfirmedEvent() when removalConfirmed != null:
+return removalConfirmed();case BoardRemovalCancelledEvent() when removalCancelled != null:
+return removalCancelled();case BoardUndoneEvent() when undone != null:
+return undone(_that.ticket);case BoardSettingsClosedEvent() when settingsClosed != null:
+return settingsClosed();case _:
   return orElse();
 
 }
@@ -157,7 +193,7 @@ return noticeDismissed();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ListQuery query,  BoardKind kind)  started,required TResult Function( BoardKind kind)  kindChanged,required TResult Function( List<String> ids)  changesReceived,required TResult Function()  retried,required TResult Function( CardKey card,  BoardLane lane)  cardMoved,required TResult Function()  noticeDismissed,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ListQuery query,  BoardKind kind)  started,required TResult Function( BoardKind kind)  kindChanged,required TResult Function( List<String> ids)  changesReceived,required TResult Function()  retried,required TResult Function( CardKey card,  BoardLane lane)  cardMoved,required TResult Function()  noticeDismissed,required TResult Function( String? by)  groupChanged,required TResult Function( bool show)  showUnsetChanged,required TResult Function( LaneChange change)  laneEdited,required TResult Function( String lane)  laneRemovalRequested,required TResult Function( String? target)  removalTargetChosen,required TResult Function()  removalConfirmed,required TResult Function()  removalCancelled,required TResult Function( int ticket)  undone,required TResult Function()  settingsClosed,}) {final _that = this;
 switch (_that) {
 case BoardStartedEvent():
 return started(_that.query,_that.kind);case BoardKindChangedEvent():
@@ -165,7 +201,16 @@ return kindChanged(_that.kind);case BoardChangesReceivedEvent():
 return changesReceived(_that.ids);case BoardRetriedEvent():
 return retried();case BoardCardMovedEvent():
 return cardMoved(_that.card,_that.lane);case BoardNoticeDismissedEvent():
-return noticeDismissed();}
+return noticeDismissed();case BoardGroupChangedEvent():
+return groupChanged(_that.by);case BoardShowUnsetChangedEvent():
+return showUnsetChanged(_that.show);case BoardLaneEditedEvent():
+return laneEdited(_that.change);case BoardLaneRemovalRequestedEvent():
+return laneRemovalRequested(_that.lane);case BoardRemovalTargetChosenEvent():
+return removalTargetChosen(_that.target);case BoardRemovalConfirmedEvent():
+return removalConfirmed();case BoardRemovalCancelledEvent():
+return removalCancelled();case BoardUndoneEvent():
+return undone(_that.ticket);case BoardSettingsClosedEvent():
+return settingsClosed();}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -179,7 +224,7 @@ return noticeDismissed();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ListQuery query,  BoardKind kind)?  started,TResult? Function( BoardKind kind)?  kindChanged,TResult? Function( List<String> ids)?  changesReceived,TResult? Function()?  retried,TResult? Function( CardKey card,  BoardLane lane)?  cardMoved,TResult? Function()?  noticeDismissed,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ListQuery query,  BoardKind kind)?  started,TResult? Function( BoardKind kind)?  kindChanged,TResult? Function( List<String> ids)?  changesReceived,TResult? Function()?  retried,TResult? Function( CardKey card,  BoardLane lane)?  cardMoved,TResult? Function()?  noticeDismissed,TResult? Function( String? by)?  groupChanged,TResult? Function( bool show)?  showUnsetChanged,TResult? Function( LaneChange change)?  laneEdited,TResult? Function( String lane)?  laneRemovalRequested,TResult? Function( String? target)?  removalTargetChosen,TResult? Function()?  removalConfirmed,TResult? Function()?  removalCancelled,TResult? Function( int ticket)?  undone,TResult? Function()?  settingsClosed,}) {final _that = this;
 switch (_that) {
 case BoardStartedEvent() when started != null:
 return started(_that.query,_that.kind);case BoardKindChangedEvent() when kindChanged != null:
@@ -187,7 +232,16 @@ return kindChanged(_that.kind);case BoardChangesReceivedEvent() when changesRece
 return changesReceived(_that.ids);case BoardRetriedEvent() when retried != null:
 return retried();case BoardCardMovedEvent() when cardMoved != null:
 return cardMoved(_that.card,_that.lane);case BoardNoticeDismissedEvent() when noticeDismissed != null:
-return noticeDismissed();case _:
+return noticeDismissed();case BoardGroupChangedEvent() when groupChanged != null:
+return groupChanged(_that.by);case BoardShowUnsetChangedEvent() when showUnsetChanged != null:
+return showUnsetChanged(_that.show);case BoardLaneEditedEvent() when laneEdited != null:
+return laneEdited(_that.change);case BoardLaneRemovalRequestedEvent() when laneRemovalRequested != null:
+return laneRemovalRequested(_that.lane);case BoardRemovalTargetChosenEvent() when removalTargetChosen != null:
+return removalTargetChosen(_that.target);case BoardRemovalConfirmedEvent() when removalConfirmed != null:
+return removalConfirmed();case BoardRemovalCancelledEvent() when removalCancelled != null:
+return removalCancelled();case BoardUndoneEvent() when undone != null:
+return undone(_that.ticket);case BoardSettingsClosedEvent() when settingsClosed != null:
+return settingsClosed();case _:
   return null;
 
 }
@@ -552,6 +606,507 @@ String toString() {
 
 
 /// @nodoc
+
+
+class BoardGroupChangedEvent implements BoardEvent {
+  const BoardGroupChangedEvent(this.by);
+  
+
+ final  String? by;
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BoardGroupChangedEventCopyWith<BoardGroupChangedEvent> get copyWith => _$BoardGroupChangedEventCopyWithImpl<BoardGroupChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardGroupChangedEvent&&(identical(other.by, by) || other.by == by));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,by);
+
+@override
+String toString() {
+  return 'BoardEvent.groupChanged(by: $by)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BoardGroupChangedEventCopyWith<$Res> implements $BoardEventCopyWith<$Res> {
+  factory $BoardGroupChangedEventCopyWith(BoardGroupChangedEvent value, $Res Function(BoardGroupChangedEvent) _then) = _$BoardGroupChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ String? by
+});
+
+
+
+
+}
+/// @nodoc
+class _$BoardGroupChangedEventCopyWithImpl<$Res>
+    implements $BoardGroupChangedEventCopyWith<$Res> {
+  _$BoardGroupChangedEventCopyWithImpl(this._self, this._then);
+
+  final BoardGroupChangedEvent _self;
+  final $Res Function(BoardGroupChangedEvent) _then;
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? by = freezed,}) {
+  return _then(BoardGroupChangedEvent(
+freezed == by ? _self.by : by // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BoardShowUnsetChangedEvent implements BoardEvent {
+  const BoardShowUnsetChangedEvent({required this.show});
+  
+
+ final  bool show;
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BoardShowUnsetChangedEventCopyWith<BoardShowUnsetChangedEvent> get copyWith => _$BoardShowUnsetChangedEventCopyWithImpl<BoardShowUnsetChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardShowUnsetChangedEvent&&(identical(other.show, show) || other.show == show));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,show);
+
+@override
+String toString() {
+  return 'BoardEvent.showUnsetChanged(show: $show)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BoardShowUnsetChangedEventCopyWith<$Res> implements $BoardEventCopyWith<$Res> {
+  factory $BoardShowUnsetChangedEventCopyWith(BoardShowUnsetChangedEvent value, $Res Function(BoardShowUnsetChangedEvent) _then) = _$BoardShowUnsetChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ bool show
+});
+
+
+
+
+}
+/// @nodoc
+class _$BoardShowUnsetChangedEventCopyWithImpl<$Res>
+    implements $BoardShowUnsetChangedEventCopyWith<$Res> {
+  _$BoardShowUnsetChangedEventCopyWithImpl(this._self, this._then);
+
+  final BoardShowUnsetChangedEvent _self;
+  final $Res Function(BoardShowUnsetChangedEvent) _then;
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? show = null,}) {
+  return _then(BoardShowUnsetChangedEvent(
+show: null == show ? _self.show : show // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BoardLaneEditedEvent implements BoardEvent {
+  const BoardLaneEditedEvent(this.change);
+  
+
+ final  LaneChange change;
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BoardLaneEditedEventCopyWith<BoardLaneEditedEvent> get copyWith => _$BoardLaneEditedEventCopyWithImpl<BoardLaneEditedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardLaneEditedEvent&&(identical(other.change, change) || other.change == change));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,change);
+
+@override
+String toString() {
+  return 'BoardEvent.laneEdited(change: $change)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BoardLaneEditedEventCopyWith<$Res> implements $BoardEventCopyWith<$Res> {
+  factory $BoardLaneEditedEventCopyWith(BoardLaneEditedEvent value, $Res Function(BoardLaneEditedEvent) _then) = _$BoardLaneEditedEventCopyWithImpl;
+@useResult
+$Res call({
+ LaneChange change
+});
+
+
+$LaneChangeCopyWith<$Res> get change;
+
+}
+/// @nodoc
+class _$BoardLaneEditedEventCopyWithImpl<$Res>
+    implements $BoardLaneEditedEventCopyWith<$Res> {
+  _$BoardLaneEditedEventCopyWithImpl(this._self, this._then);
+
+  final BoardLaneEditedEvent _self;
+  final $Res Function(BoardLaneEditedEvent) _then;
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? change = null,}) {
+  return _then(BoardLaneEditedEvent(
+null == change ? _self.change : change // ignore: cast_nullable_to_non_nullable
+as LaneChange,
+  ));
+}
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$LaneChangeCopyWith<$Res> get change {
+  
+  return $LaneChangeCopyWith<$Res>(_self.change, (value) {
+    return _then(_self.copyWith(change: value));
+  });
+}
+}
+
+/// @nodoc
+
+
+class BoardLaneRemovalRequestedEvent implements BoardEvent {
+  const BoardLaneRemovalRequestedEvent(this.lane);
+  
+
+ final  String lane;
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BoardLaneRemovalRequestedEventCopyWith<BoardLaneRemovalRequestedEvent> get copyWith => _$BoardLaneRemovalRequestedEventCopyWithImpl<BoardLaneRemovalRequestedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardLaneRemovalRequestedEvent&&(identical(other.lane, lane) || other.lane == lane));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,lane);
+
+@override
+String toString() {
+  return 'BoardEvent.laneRemovalRequested(lane: $lane)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BoardLaneRemovalRequestedEventCopyWith<$Res> implements $BoardEventCopyWith<$Res> {
+  factory $BoardLaneRemovalRequestedEventCopyWith(BoardLaneRemovalRequestedEvent value, $Res Function(BoardLaneRemovalRequestedEvent) _then) = _$BoardLaneRemovalRequestedEventCopyWithImpl;
+@useResult
+$Res call({
+ String lane
+});
+
+
+
+
+}
+/// @nodoc
+class _$BoardLaneRemovalRequestedEventCopyWithImpl<$Res>
+    implements $BoardLaneRemovalRequestedEventCopyWith<$Res> {
+  _$BoardLaneRemovalRequestedEventCopyWithImpl(this._self, this._then);
+
+  final BoardLaneRemovalRequestedEvent _self;
+  final $Res Function(BoardLaneRemovalRequestedEvent) _then;
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? lane = null,}) {
+  return _then(BoardLaneRemovalRequestedEvent(
+null == lane ? _self.lane : lane // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BoardRemovalTargetChosenEvent implements BoardEvent {
+  const BoardRemovalTargetChosenEvent(this.target);
+  
+
+ final  String? target;
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BoardRemovalTargetChosenEventCopyWith<BoardRemovalTargetChosenEvent> get copyWith => _$BoardRemovalTargetChosenEventCopyWithImpl<BoardRemovalTargetChosenEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardRemovalTargetChosenEvent&&(identical(other.target, target) || other.target == target));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,target);
+
+@override
+String toString() {
+  return 'BoardEvent.removalTargetChosen(target: $target)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BoardRemovalTargetChosenEventCopyWith<$Res> implements $BoardEventCopyWith<$Res> {
+  factory $BoardRemovalTargetChosenEventCopyWith(BoardRemovalTargetChosenEvent value, $Res Function(BoardRemovalTargetChosenEvent) _then) = _$BoardRemovalTargetChosenEventCopyWithImpl;
+@useResult
+$Res call({
+ String? target
+});
+
+
+
+
+}
+/// @nodoc
+class _$BoardRemovalTargetChosenEventCopyWithImpl<$Res>
+    implements $BoardRemovalTargetChosenEventCopyWith<$Res> {
+  _$BoardRemovalTargetChosenEventCopyWithImpl(this._self, this._then);
+
+  final BoardRemovalTargetChosenEvent _self;
+  final $Res Function(BoardRemovalTargetChosenEvent) _then;
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? target = freezed,}) {
+  return _then(BoardRemovalTargetChosenEvent(
+freezed == target ? _self.target : target // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BoardRemovalConfirmedEvent implements BoardEvent {
+  const BoardRemovalConfirmedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardRemovalConfirmedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BoardEvent.removalConfirmed()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class BoardRemovalCancelledEvent implements BoardEvent {
+  const BoardRemovalCancelledEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardRemovalCancelledEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BoardEvent.removalCancelled()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class BoardUndoneEvent implements BoardEvent {
+  const BoardUndoneEvent(this.ticket);
+  
+
+ final  int ticket;
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BoardUndoneEventCopyWith<BoardUndoneEvent> get copyWith => _$BoardUndoneEventCopyWithImpl<BoardUndoneEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardUndoneEvent&&(identical(other.ticket, ticket) || other.ticket == ticket));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,ticket);
+
+@override
+String toString() {
+  return 'BoardEvent.undone(ticket: $ticket)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BoardUndoneEventCopyWith<$Res> implements $BoardEventCopyWith<$Res> {
+  factory $BoardUndoneEventCopyWith(BoardUndoneEvent value, $Res Function(BoardUndoneEvent) _then) = _$BoardUndoneEventCopyWithImpl;
+@useResult
+$Res call({
+ int ticket
+});
+
+
+
+
+}
+/// @nodoc
+class _$BoardUndoneEventCopyWithImpl<$Res>
+    implements $BoardUndoneEventCopyWith<$Res> {
+  _$BoardUndoneEventCopyWithImpl(this._self, this._then);
+
+  final BoardUndoneEvent _self;
+  final $Res Function(BoardUndoneEvent) _then;
+
+/// Create a copy of BoardEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? ticket = null,}) {
+  return _then(BoardUndoneEvent(
+null == ticket ? _self.ticket : ticket // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BoardSettingsClosedEvent implements BoardEvent {
+  const BoardSettingsClosedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardSettingsClosedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BoardEvent.settingsClosed()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$BoardNotice {
 
 
@@ -595,12 +1150,13 @@ extension BoardNoticePatterns on BoardNotice {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BoardNoticeFailed value)?  failed,TResult Function( BoardNoticeChangedInNote value)?  changedInNote,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BoardNoticeFailed value)?  failed,TResult Function( BoardNoticeChangedInNote value)?  changedInNote,TResult Function( BoardNoticeDone value)?  done,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BoardNoticeFailed() when failed != null:
 return failed(_that);case BoardNoticeChangedInNote() when changedInNote != null:
-return changedInNote(_that);case _:
+return changedInNote(_that);case BoardNoticeDone() when done != null:
+return done(_that);case _:
   return orElse();
 
 }
@@ -618,12 +1174,13 @@ return changedInNote(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BoardNoticeFailed value)  failed,required TResult Function( BoardNoticeChangedInNote value)  changedInNote,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BoardNoticeFailed value)  failed,required TResult Function( BoardNoticeChangedInNote value)  changedInNote,required TResult Function( BoardNoticeDone value)  done,}){
 final _that = this;
 switch (_that) {
 case BoardNoticeFailed():
 return failed(_that);case BoardNoticeChangedInNote():
-return changedInNote(_that);}
+return changedInNote(_that);case BoardNoticeDone():
+return done(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -637,12 +1194,13 @@ return changedInNote(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BoardNoticeFailed value)?  failed,TResult? Function( BoardNoticeChangedInNote value)?  changedInNote,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BoardNoticeFailed value)?  failed,TResult? Function( BoardNoticeChangedInNote value)?  changedInNote,TResult? Function( BoardNoticeDone value)?  done,}){
 final _that = this;
 switch (_that) {
 case BoardNoticeFailed() when failed != null:
 return failed(_that);case BoardNoticeChangedInNote() when changedInNote != null:
-return changedInNote(_that);case _:
+return changedInNote(_that);case BoardNoticeDone() when done != null:
+return done(_that);case _:
   return null;
 
 }
@@ -659,11 +1217,12 @@ return changedInNote(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ApplicationError error)?  failed,TResult Function()?  changedInNote,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( ApplicationError error)?  failed,TResult Function()?  changedInNote,TResult Function( String message,  int? undo)?  done,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BoardNoticeFailed() when failed != null:
 return failed(_that.error);case BoardNoticeChangedInNote() when changedInNote != null:
-return changedInNote();case _:
+return changedInNote();case BoardNoticeDone() when done != null:
+return done(_that.message,_that.undo);case _:
   return orElse();
 
 }
@@ -681,11 +1240,12 @@ return changedInNote();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ApplicationError error)  failed,required TResult Function()  changedInNote,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( ApplicationError error)  failed,required TResult Function()  changedInNote,required TResult Function( String message,  int? undo)  done,}) {final _that = this;
 switch (_that) {
 case BoardNoticeFailed():
 return failed(_that.error);case BoardNoticeChangedInNote():
-return changedInNote();}
+return changedInNote();case BoardNoticeDone():
+return done(_that.message,_that.undo);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -699,11 +1259,12 @@ return changedInNote();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ApplicationError error)?  failed,TResult? Function()?  changedInNote,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( ApplicationError error)?  failed,TResult? Function()?  changedInNote,TResult? Function( String message,  int? undo)?  done,}) {final _that = this;
 switch (_that) {
 case BoardNoticeFailed() when failed != null:
 return failed(_that.error);case BoardNoticeChangedInNote() when changedInNote != null:
-return changedInNote();case _:
+return changedInNote();case BoardNoticeDone() when done != null:
+return done(_that.message,_that.undo);case _:
   return null;
 
 }
@@ -819,13 +1380,348 @@ String toString() {
 
 
 /// @nodoc
+
+
+class BoardNoticeDone implements BoardNotice {
+  const BoardNoticeDone({required this.message, this.undo});
+  
+
+ final  String message;
+ final  int? undo;
+
+/// Create a copy of BoardNotice
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BoardNoticeDoneCopyWith<BoardNoticeDone> get copyWith => _$BoardNoticeDoneCopyWithImpl<BoardNoticeDone>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardNoticeDone&&(identical(other.message, message) || other.message == message)&&(identical(other.undo, undo) || other.undo == undo));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message,undo);
+
+@override
+String toString() {
+  return 'BoardNotice.done(message: $message, undo: $undo)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BoardNoticeDoneCopyWith<$Res> implements $BoardNoticeCopyWith<$Res> {
+  factory $BoardNoticeDoneCopyWith(BoardNoticeDone value, $Res Function(BoardNoticeDone) _then) = _$BoardNoticeDoneCopyWithImpl;
+@useResult
+$Res call({
+ String message, int? undo
+});
+
+
+
+
+}
+/// @nodoc
+class _$BoardNoticeDoneCopyWithImpl<$Res>
+    implements $BoardNoticeDoneCopyWith<$Res> {
+  _$BoardNoticeDoneCopyWithImpl(this._self, this._then);
+
+  final BoardNoticeDone _self;
+  final $Res Function(BoardNoticeDone) _then;
+
+/// Create a copy of BoardNotice
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,Object? undo = freezed,}) {
+  return _then(BoardNoticeDone(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,undo: freezed == undo ? _self.undo : undo // ignore: cast_nullable_to_non_nullable
+as int?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+mixin _$BoardRemoval {
+
+ String get lane; LaneRemoval get plan;/// The lane the notes go to; null is "no value".
+ String? get target;
+/// Create a copy of BoardRemoval
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BoardRemovalCopyWith<BoardRemoval> get copyWith => _$BoardRemovalCopyWithImpl<BoardRemoval>(this as BoardRemoval, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardRemoval&&(identical(other.lane, lane) || other.lane == lane)&&(identical(other.plan, plan) || other.plan == plan)&&(identical(other.target, target) || other.target == target));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,lane,plan,target);
+
+@override
+String toString() {
+  return 'BoardRemoval(lane: $lane, plan: $plan, target: $target)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BoardRemovalCopyWith<$Res>  {
+  factory $BoardRemovalCopyWith(BoardRemoval value, $Res Function(BoardRemoval) _then) = _$BoardRemovalCopyWithImpl;
+@useResult
+$Res call({
+ String lane, LaneRemoval plan, String? target
+});
+
+
+
+
+}
+/// @nodoc
+class _$BoardRemovalCopyWithImpl<$Res>
+    implements $BoardRemovalCopyWith<$Res> {
+  _$BoardRemovalCopyWithImpl(this._self, this._then);
+
+  final BoardRemoval _self;
+  final $Res Function(BoardRemoval) _then;
+
+/// Create a copy of BoardRemoval
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? lane = null,Object? plan = null,Object? target = freezed,}) {
+  return _then(_self.copyWith(
+lane: null == lane ? _self.lane : lane // ignore: cast_nullable_to_non_nullable
+as String,plan: null == plan ? _self.plan : plan // ignore: cast_nullable_to_non_nullable
+as LaneRemoval,target: freezed == target ? _self.target : target // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [BoardRemoval].
+extension BoardRemovalPatterns on BoardRemoval {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _BoardRemoval value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _BoardRemoval() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _BoardRemoval value)  $default,){
+final _that = this;
+switch (_that) {
+case _BoardRemoval():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _BoardRemoval value)?  $default,){
+final _that = this;
+switch (_that) {
+case _BoardRemoval() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String lane,  LaneRemoval plan,  String? target)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _BoardRemoval() when $default != null:
+return $default(_that.lane,_that.plan,_that.target);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String lane,  LaneRemoval plan,  String? target)  $default,) {final _that = this;
+switch (_that) {
+case _BoardRemoval():
+return $default(_that.lane,_that.plan,_that.target);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String lane,  LaneRemoval plan,  String? target)?  $default,) {final _that = this;
+switch (_that) {
+case _BoardRemoval() when $default != null:
+return $default(_that.lane,_that.plan,_that.target);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class _BoardRemoval implements BoardRemoval {
+  const _BoardRemoval({required this.lane, required this.plan, this.target});
+  
+
+@override final  String lane;
+@override final  LaneRemoval plan;
+/// The lane the notes go to; null is "no value".
+@override final  String? target;
+
+/// Create a copy of BoardRemoval
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$BoardRemovalCopyWith<_BoardRemoval> get copyWith => __$BoardRemovalCopyWithImpl<_BoardRemoval>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BoardRemoval&&(identical(other.lane, lane) || other.lane == lane)&&(identical(other.plan, plan) || other.plan == plan)&&(identical(other.target, target) || other.target == target));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,lane,plan,target);
+
+@override
+String toString() {
+  return 'BoardRemoval(lane: $lane, plan: $plan, target: $target)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$BoardRemovalCopyWith<$Res> implements $BoardRemovalCopyWith<$Res> {
+  factory _$BoardRemovalCopyWith(_BoardRemoval value, $Res Function(_BoardRemoval) _then) = __$BoardRemovalCopyWithImpl;
+@override @useResult
+$Res call({
+ String lane, LaneRemoval plan, String? target
+});
+
+
+
+
+}
+/// @nodoc
+class __$BoardRemovalCopyWithImpl<$Res>
+    implements _$BoardRemovalCopyWith<$Res> {
+  __$BoardRemovalCopyWithImpl(this._self, this._then);
+
+  final _BoardRemoval _self;
+  final $Res Function(_BoardRemoval) _then;
+
+/// Create a copy of BoardRemoval
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? lane = null,Object? plan = null,Object? target = freezed,}) {
+  return _then(_BoardRemoval(
+lane: null == lane ? _self.lane : lane // ignore: cast_nullable_to_non_nullable
+as String,plan: null == plan ? _self.plan : plan // ignore: cast_nullable_to_non_nullable
+as LaneRemoval,target: freezed == target ? _self.target : target // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
 mixin _$BoardState {
 
 /// The list the board lays out; null until started.
  ListQuery? get query; BoardKind get kind; LoadStatus get status;/// The columns, as last read.
  BoardView? get data;/// Why reading failed, while [status] is failed.
  ApplicationError? get error;/// Why the last move did not happen, until it is dismissed.
- BoardNotice? get notice;
+ BoardNotice? get notice;/// The lane the settings are asking about, while they are.
+ BoardRemoval? get removal;/// Why the last change in the settings was refused, in the core's words.
+ String? get settingsError;
 /// Create a copy of BoardState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -836,16 +1732,16 @@ $BoardStateCopyWith<BoardState> get copyWith => _$BoardStateCopyWithImpl<BoardSt
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardState&&(identical(other.query, query) || other.query == query)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.status, status) || other.status == status)&&(identical(other.data, data) || other.data == data)&&(identical(other.error, error) || other.error == error)&&(identical(other.notice, notice) || other.notice == notice));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardState&&(identical(other.query, query) || other.query == query)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.status, status) || other.status == status)&&(identical(other.data, data) || other.data == data)&&(identical(other.error, error) || other.error == error)&&(identical(other.notice, notice) || other.notice == notice)&&(identical(other.removal, removal) || other.removal == removal)&&(identical(other.settingsError, settingsError) || other.settingsError == settingsError));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,query,kind,status,data,error,notice);
+int get hashCode => Object.hash(runtimeType,query,kind,status,data,error,notice,removal,settingsError);
 
 @override
 String toString() {
-  return 'BoardState(query: $query, kind: $kind, status: $status, data: $data, error: $error, notice: $notice)';
+  return 'BoardState(query: $query, kind: $kind, status: $status, data: $data, error: $error, notice: $notice, removal: $removal, settingsError: $settingsError)';
 }
 
 
@@ -856,11 +1752,11 @@ abstract mixin class $BoardStateCopyWith<$Res>  {
   factory $BoardStateCopyWith(BoardState value, $Res Function(BoardState) _then) = _$BoardStateCopyWithImpl;
 @useResult
 $Res call({
- ListQuery? query, BoardKind kind, LoadStatus status, BoardView? data, ApplicationError? error, BoardNotice? notice
+ ListQuery? query, BoardKind kind, LoadStatus status, BoardView? data, ApplicationError? error, BoardNotice? notice, BoardRemoval? removal, String? settingsError
 });
 
 
-$ApplicationErrorCopyWith<$Res>? get error;$BoardNoticeCopyWith<$Res>? get notice;
+$ApplicationErrorCopyWith<$Res>? get error;$BoardNoticeCopyWith<$Res>? get notice;$BoardRemovalCopyWith<$Res>? get removal;
 
 }
 /// @nodoc
@@ -873,7 +1769,7 @@ class _$BoardStateCopyWithImpl<$Res>
 
 /// Create a copy of BoardState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? query = freezed,Object? kind = null,Object? status = null,Object? data = freezed,Object? error = freezed,Object? notice = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? query = freezed,Object? kind = null,Object? status = null,Object? data = freezed,Object? error = freezed,Object? notice = freezed,Object? removal = freezed,Object? settingsError = freezed,}) {
   return _then(_self.copyWith(
 query: freezed == query ? _self.query : query // ignore: cast_nullable_to_non_nullable
 as ListQuery?,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
@@ -881,7 +1777,9 @@ as BoardKind,status: null == status ? _self.status : status // ignore: cast_null
 as LoadStatus,data: freezed == data ? _self.data : data // ignore: cast_nullable_to_non_nullable
 as BoardView?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ApplicationError?,notice: freezed == notice ? _self.notice : notice // ignore: cast_nullable_to_non_nullable
-as BoardNotice?,
+as BoardNotice?,removal: freezed == removal ? _self.removal : removal // ignore: cast_nullable_to_non_nullable
+as BoardRemoval?,settingsError: freezed == settingsError ? _self.settingsError : settingsError // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 /// Create a copy of BoardState
@@ -907,6 +1805,18 @@ $BoardNoticeCopyWith<$Res>? get notice {
 
   return $BoardNoticeCopyWith<$Res>(_self.notice!, (value) {
     return _then(_self.copyWith(notice: value));
+  });
+}/// Create a copy of BoardState
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$BoardRemovalCopyWith<$Res>? get removal {
+    if (_self.removal == null) {
+    return null;
+  }
+
+  return $BoardRemovalCopyWith<$Res>(_self.removal!, (value) {
+    return _then(_self.copyWith(removal: value));
   });
 }
 }
@@ -990,10 +1900,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ListQuery? query,  BoardKind kind,  LoadStatus status,  BoardView? data,  ApplicationError? error,  BoardNotice? notice)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ListQuery? query,  BoardKind kind,  LoadStatus status,  BoardView? data,  ApplicationError? error,  BoardNotice? notice,  BoardRemoval? removal,  String? settingsError)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BoardState() when $default != null:
-return $default(_that.query,_that.kind,_that.status,_that.data,_that.error,_that.notice);case _:
+return $default(_that.query,_that.kind,_that.status,_that.data,_that.error,_that.notice,_that.removal,_that.settingsError);case _:
   return orElse();
 
 }
@@ -1011,10 +1921,10 @@ return $default(_that.query,_that.kind,_that.status,_that.data,_that.error,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ListQuery? query,  BoardKind kind,  LoadStatus status,  BoardView? data,  ApplicationError? error,  BoardNotice? notice)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ListQuery? query,  BoardKind kind,  LoadStatus status,  BoardView? data,  ApplicationError? error,  BoardNotice? notice,  BoardRemoval? removal,  String? settingsError)  $default,) {final _that = this;
 switch (_that) {
 case _BoardState():
-return $default(_that.query,_that.kind,_that.status,_that.data,_that.error,_that.notice);case _:
+return $default(_that.query,_that.kind,_that.status,_that.data,_that.error,_that.notice,_that.removal,_that.settingsError);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1031,10 +1941,10 @@ return $default(_that.query,_that.kind,_that.status,_that.data,_that.error,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ListQuery? query,  BoardKind kind,  LoadStatus status,  BoardView? data,  ApplicationError? error,  BoardNotice? notice)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ListQuery? query,  BoardKind kind,  LoadStatus status,  BoardView? data,  ApplicationError? error,  BoardNotice? notice,  BoardRemoval? removal,  String? settingsError)?  $default,) {final _that = this;
 switch (_that) {
 case _BoardState() when $default != null:
-return $default(_that.query,_that.kind,_that.status,_that.data,_that.error,_that.notice);case _:
+return $default(_that.query,_that.kind,_that.status,_that.data,_that.error,_that.notice,_that.removal,_that.settingsError);case _:
   return null;
 
 }
@@ -1046,7 +1956,7 @@ return $default(_that.query,_that.kind,_that.status,_that.data,_that.error,_that
 
 
 class _BoardState implements BoardState {
-  const _BoardState({this.query, this.kind = BoardKind.notes, this.status = LoadStatus.loading, this.data, this.error, this.notice});
+  const _BoardState({this.query, this.kind = BoardKind.notes, this.status = LoadStatus.loading, this.data, this.error, this.notice, this.removal, this.settingsError});
   
 
 /// The list the board lays out; null until started.
@@ -1059,6 +1969,10 @@ class _BoardState implements BoardState {
 @override final  ApplicationError? error;
 /// Why the last move did not happen, until it is dismissed.
 @override final  BoardNotice? notice;
+/// The lane the settings are asking about, while they are.
+@override final  BoardRemoval? removal;
+/// Why the last change in the settings was refused, in the core's words.
+@override final  String? settingsError;
 
 /// Create a copy of BoardState
 /// with the given fields replaced by the non-null parameter values.
@@ -1070,16 +1984,16 @@ _$BoardStateCopyWith<_BoardState> get copyWith => __$BoardStateCopyWithImpl<_Boa
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BoardState&&(identical(other.query, query) || other.query == query)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.status, status) || other.status == status)&&(identical(other.data, data) || other.data == data)&&(identical(other.error, error) || other.error == error)&&(identical(other.notice, notice) || other.notice == notice));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BoardState&&(identical(other.query, query) || other.query == query)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.status, status) || other.status == status)&&(identical(other.data, data) || other.data == data)&&(identical(other.error, error) || other.error == error)&&(identical(other.notice, notice) || other.notice == notice)&&(identical(other.removal, removal) || other.removal == removal)&&(identical(other.settingsError, settingsError) || other.settingsError == settingsError));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,query,kind,status,data,error,notice);
+int get hashCode => Object.hash(runtimeType,query,kind,status,data,error,notice,removal,settingsError);
 
 @override
 String toString() {
-  return 'BoardState(query: $query, kind: $kind, status: $status, data: $data, error: $error, notice: $notice)';
+  return 'BoardState(query: $query, kind: $kind, status: $status, data: $data, error: $error, notice: $notice, removal: $removal, settingsError: $settingsError)';
 }
 
 
@@ -1090,11 +2004,11 @@ abstract mixin class _$BoardStateCopyWith<$Res> implements $BoardStateCopyWith<$
   factory _$BoardStateCopyWith(_BoardState value, $Res Function(_BoardState) _then) = __$BoardStateCopyWithImpl;
 @override @useResult
 $Res call({
- ListQuery? query, BoardKind kind, LoadStatus status, BoardView? data, ApplicationError? error, BoardNotice? notice
+ ListQuery? query, BoardKind kind, LoadStatus status, BoardView? data, ApplicationError? error, BoardNotice? notice, BoardRemoval? removal, String? settingsError
 });
 
 
-@override $ApplicationErrorCopyWith<$Res>? get error;@override $BoardNoticeCopyWith<$Res>? get notice;
+@override $ApplicationErrorCopyWith<$Res>? get error;@override $BoardNoticeCopyWith<$Res>? get notice;@override $BoardRemovalCopyWith<$Res>? get removal;
 
 }
 /// @nodoc
@@ -1107,7 +2021,7 @@ class __$BoardStateCopyWithImpl<$Res>
 
 /// Create a copy of BoardState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? query = freezed,Object? kind = null,Object? status = null,Object? data = freezed,Object? error = freezed,Object? notice = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? query = freezed,Object? kind = null,Object? status = null,Object? data = freezed,Object? error = freezed,Object? notice = freezed,Object? removal = freezed,Object? settingsError = freezed,}) {
   return _then(_BoardState(
 query: freezed == query ? _self.query : query // ignore: cast_nullable_to_non_nullable
 as ListQuery?,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
@@ -1115,7 +2029,9 @@ as BoardKind,status: null == status ? _self.status : status // ignore: cast_null
 as LoadStatus,data: freezed == data ? _self.data : data // ignore: cast_nullable_to_non_nullable
 as BoardView?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ApplicationError?,notice: freezed == notice ? _self.notice : notice // ignore: cast_nullable_to_non_nullable
-as BoardNotice?,
+as BoardNotice?,removal: freezed == removal ? _self.removal : removal // ignore: cast_nullable_to_non_nullable
+as BoardRemoval?,settingsError: freezed == settingsError ? _self.settingsError : settingsError // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -1142,6 +2058,18 @@ $BoardNoticeCopyWith<$Res>? get notice {
 
   return $BoardNoticeCopyWith<$Res>(_self.notice!, (value) {
     return _then(_self.copyWith(notice: value));
+  });
+}/// Create a copy of BoardState
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$BoardRemovalCopyWith<$Res>? get removal {
+    if (_self.removal == null) {
+    return null;
+  }
+
+  return $BoardRemovalCopyWith<$Res>(_self.removal!, (value) {
+    return _then(_self.copyWith(removal: value));
   });
 }
 }

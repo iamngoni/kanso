@@ -1130,6 +1130,16 @@ pub enum BoardLane {
     },
     Todo,
     Done,
+    /// On a board grouped by a notebook property: the notes whose property
+    /// has this value.
+    Value {
+        value: String,
+    },
+    /// On a board grouped by a property: the notes with no value.
+    Unset,
+    /// On a board grouped by a property: the notes whose value is none of
+    /// the lanes. Shown as written; a card can't be moved here.
+    Unlisted,
 }
 
 /// Which card: a note, or a task in its note.
@@ -1181,14 +1191,81 @@ pub struct BoardColumn {
 pub struct BoardView {
     pub kind: BoardKind,
     pub columns: Vec<BoardColumn>,
+    /// For the notes of one notebook that has select properties: what the
+    /// board is grouped by and its lanes, for the board's settings. `None`
+    /// on any other board.
+    pub setup: Option<BoardSetup>,
+}
+
+/// How a notebook's board is grouped, and what it can be grouped by.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BoardSetup {
+    pub book_id: String,
+    /// The property the board is grouped by; `None` for the status lanes.
+    pub group: Option<String>,
+    /// The select properties it can be grouped by.
+    pub groupable: Vec<String>,
+    /// The lanes of a board grouped by a property, in order; empty for the
+    /// status lanes.
+    pub lanes: Vec<String>,
+    /// Whether the lane of notes with no value shows while it is empty.
+    pub show_unset: bool,
 }
 
 /// What moving a card did.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CardMoved {
-    Changed,
+    /// It was written. A move to a lane of a property board says so in
+    /// words and can be taken back with `Library::undo` under `undo`.
+    Changed {
+        message: Option<String>,
+        undo: Option<u64>,
+    },
     Unchanged,
     Missing,
+}
+
+/// One change to the lanes of a board grouped by a property.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LaneChange {
+    /// A lane gets another name; the notes in it get it as their value.
+    Rename { from: String, to: String },
+    /// The lane at index `from` goes to index `to`.
+    Move { from: u32, to: u32 },
+    /// A lane at the end.
+    Add { name: String },
+    /// A lane goes; its notes move to lane `move_to`, or to no value.
+    Remove {
+        lane: String,
+        move_to: Option<String>,
+    },
+}
+
+/// A lane edit that was written.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LaneEdited {
+    /// The lanes now, in order.
+    pub lanes: Vec<String>,
+    /// How many notes were rewritten.
+    pub rewritten: u32,
+    /// "Renamed Shooting to Filming. 3 notes updated."
+    pub message: String,
+    /// What takes it back: `Library::undo`.
+    pub undo: u64,
+}
+
+/// What removing a lane asks first.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LaneRemoval {
+    /// How many live notes are in the lane.
+    pub notes: u32,
+    /// "3 notes are in Shooting. Move them to:"; empty when no note is.
+    pub prompt: String,
+    /// The lane its notes go to unless another is chosen: the next one, or
+    /// the one before the last. `None` is "no value".
+    pub target: Option<String>,
+    /// The lanes the notes can go to.
+    pub targets: Vec<String>,
 }
 
 /// A due date's chip.

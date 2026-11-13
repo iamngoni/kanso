@@ -31,7 +31,7 @@ use kanso_engine::board::{
     Board, BoardKind, Card, CardId, Lane, Move, PropertyBoard, Written, cards, placements,
     property_board, undo_move, write_move_undoable,
 };
-use kanso_engine::board_settings::{SettingsUndo, undo_lane_edit};
+use kanso_engine::board_settings::{SettingsUndo, grouped_spec, undo_lane_edit};
 use kanso_store::{NoteSummary, Origin, Sort, Store, TaskQuery};
 
 use crate::clock::Clock;
@@ -304,12 +304,7 @@ impl BoardView {
         };
         let spec = by.map(|by| {
             let own = self.store.notebook_board(&book).ok().flatten();
-            let kept = own.as_ref().filter(|own| own.by == by);
-            BoardSpec {
-                lanes: kept.map(|own| own.lanes.clone()).unwrap_or_default(),
-                show_unset: own.as_ref().is_none_or(|own| own.show_unset),
-                by,
-            }
+            grouped_spec(own.as_ref(), &by)
         });
         self.save_board_spec(&book, spec.as_ref(), window, cx);
     }

@@ -5,11 +5,11 @@
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    AttachmentFile, CaptureOutcome, CaptureTarget, TaskCaptured, Changed, ColorChoice, CopiedLink, DropsSaved, FoldState,
-    GoalSetting, Hit, IconChoice, ImportEvent, KansoError, Library, LibraryOverview, ListQuery,
-    LocalTime, NewNote, NoteChange, NoteList, NoteView, NotebookRow, OpenedDocuments, OpenedFile,
-    Property, Saved, SearchScope, Share, StatusChoice, Table, TagPlaces, TagRow, TaskBoard,
-    TaskListQuery, Ticked, VisibleNotebook,
+    AttachmentFile, CaptureOutcome, CaptureTarget, Changed, ColorChoice, CopiedLink, DropsSaved,
+    FoldState, GoalSetting, Hit, IconChoice, ImportEvent, KansoError, Library, LibraryOverview,
+    ListQuery, LocalTime, NewNote, NoteChange, NoteList, NoteView, NotebookRow, OpenedDocuments,
+    OpenedFile, Property, Saved, SearchScope, Share, StatusChoice, Table, TagPlaces, TagRow,
+    TaskBoard, TaskCaptured, TaskListQuery, Ticked, VisibleNotebook,
 };
 use kanso_mobile::{PdfEdited, PdfHighlightChange, PdfNotes};
 // A note's history, Replace in all notes and the backups.

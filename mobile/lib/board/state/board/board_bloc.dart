@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:clock/clock.dart';
+import 'package:dartz/dartz.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
@@ -46,6 +47,32 @@ class BoardBloc extends Bloc<BoardEvent, BoardState> {
     on<BoardCardMovedEvent>(_onMoved, transformer: sequential());
     on<BoardNoticeDismissedEvent>(
       (event, emit) => emit(state.copyWith(notice: null)),
+    );
+    on<BoardGroupChangedEvent>(_onGroupChanged, transformer: sequential());
+    on<BoardShowUnsetChangedEvent>(
+      _onShowUnsetChanged,
+      transformer: sequential(),
+    );
+    on<BoardLaneEditedEvent>(_onLaneEdited, transformer: sequential());
+    on<BoardLaneRemovalRequestedEvent>(
+      _onRemovalRequested,
+      transformer: sequential(),
+    );
+    on<BoardRemovalTargetChosenEvent>(
+      (event, emit) => emit(
+        state.copyWith(removal: state.removal?.copyWith(target: event.target)),
+      ),
+    );
+    on<BoardRemovalConfirmedEvent>(
+      _onRemovalConfirmed,
+      transformer: sequential(),
+    );
+    on<BoardRemovalCancelledEvent>(
+      (event, emit) => emit(state.copyWith(removal: null)),
+    );
+    on<BoardUndoneEvent>(_onUndone, transformer: sequential());
+    on<BoardSettingsClosedEvent>(
+      (event, emit) => emit(state.copyWith(removal: null, settingsError: null)),
     );
   }
 
@@ -123,13 +150,159 @@ class BoardBloc extends Bloc<BoardEvent, BoardState> {
     result.fold(
       (error) => emit(state.copyWith(notice: BoardNotice.failed(error))),
       (moved) => switch (moved) {
-        CardMoved.changed || CardMoved.unchanged => emit(
+        CardMoved_Changed(:final message?, :final undo) => emit(
+          state.copyWith(
+            notice: BoardNotice.done(message: message, undo: undo),
+          ),
+        ),
+        CardMoved_Changed() || CardMoved_Unchanged() => emit(
           state.copyWith(notice: null),
         ),
-        CardMoved.missing => emit(
+        CardMoved_Missing() => emit(
           state.copyWith(notice: const BoardNotice.changedInNote()),
         ),
       },
+    );
+    await _read(emit);
+  }
+
+  /// The notebook the settings are of; null when the board has none.
+  String? get _bookId => state.data?.setup?.bookId;
+
+  /// A refused change keeps the core's words in
+  /// [BoardState.settingsError]; any other failure is a notice.
+  BoardState _failed(BoardState state, ApplicationError error) =>
+      switch (error) {
+        InvalidError(:final message) => state.copyWith(settingsError: message),
+        _ => state.copyWith(notice: BoardNotice.failed(error)),
+      };
+
+  /// Writes a change to the board's settings, then reads the board again.
+  Future<void> _settle(
+    Emitter<BoardState> emit,
+    Future<Either<ApplicationError, Unit>> write,
+  ) async {
+    final result = await write;
+    if (emit.isDone) {
+      return;
+    }
+    emit(
+      result.fold(
+        (error) => _failed(state, error),
+        (_) => state.copyWith(settingsError: null),
+      ),
+    );
+    await _read(emit);
+  }
+
+  Future<void> _onGroupChanged(
+    BoardGroupChangedEvent event,
+    Emitter<BoardState> emit,
+  ) async {
+    final book = _bookId;
+    if (book != null) {
+      await _settle(emit, _board.setGroup(book, event.by));
+    }
+  }
+
+  Future<void> _onShowUnsetChanged(
+    BoardShowUnsetChangedEvent event,
+    Emitter<BoardState> emit,
+  ) async {
+    final book = _bookId;
+    if (book != null) {
+      await _settle(emit, _board.setShowUnset(book, show: event.show));
+    }
+  }
+
+  Future<void> _onLaneEdited(
+    BoardLaneEditedEvent event,
+    Emitter<BoardState> emit,
+  ) => _edit(event.change, emit);
+
+  Future<void> _edit(LaneChange change, Emitter<BoardState> emit) async {
+    final book = _bookId;
+    if (book == null) {
+      return;
+    }
+    final result = await _board.editLanes(
+      book,
+      change,
+      clock.now().millisecondsSinceEpoch,
+    );
+    if (emit.isDone) {
+      return;
+    }
+    emit(
+      result.fold(
+        (error) => _failed(state, error),
+        (edited) => state.copyWith(
+          settingsError: null,
+          removal: null,
+          notice: BoardNotice.done(message: edited.message, undo: edited.undo),
+        ),
+      ),
+    );
+    await _read(emit);
+  }
+
+  Future<void> _onRemovalRequested(
+    BoardLaneRemovalRequestedEvent event,
+    Emitter<BoardState> emit,
+  ) async {
+    final book = _bookId;
+    if (book == null) {
+      return;
+    }
+    final result = await _board.laneRemoval(book, event.lane);
+    if (emit.isDone) {
+      return;
+    }
+    final plan = result.toOption().toNullable();
+    if (plan == null) {
+      emit(result.fold((error) => _failed(state, error), (_) => state));
+    } else if (plan.notes == 0) {
+      // An empty lane goes without a question.
+      await _edit(LaneChange.remove(lane: event.lane), emit);
+    } else {
+      emit(
+        state.copyWith(
+          settingsError: null,
+          removal: BoardRemoval(
+            lane: event.lane,
+            plan: plan,
+            target: plan.target,
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _onRemovalConfirmed(
+    BoardRemovalConfirmedEvent event,
+    Emitter<BoardState> emit,
+  ) async {
+    final removal = state.removal;
+    if (removal != null) {
+      await _edit(
+        LaneChange.remove(lane: removal.lane, moveTo: removal.target),
+        emit,
+      );
+    }
+  }
+
+  Future<void> _onUndone(
+    BoardUndoneEvent event,
+    Emitter<BoardState> emit,
+  ) async {
+    emit(state.copyWith(notice: null));
+    final result = await _library.undo(event.ticket);
+    if (emit.isDone) {
+      return;
+    }
+    result.fold(
+      (error) => emit(state.copyWith(notice: BoardNotice.failed(error))),
+      (_) {},
     );
     await _read(emit);
   }

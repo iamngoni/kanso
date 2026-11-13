@@ -13,8 +13,13 @@
 
 #[path = "inspector_comments.rs"]
 mod comments;
+#[path = "inspector_pickers.rs"]
+mod pickers;
 #[path = "inspector_properties.rs"]
 mod properties_section;
+
+#[cfg(test)]
+pub(crate) use pickers::{Dropdown, DropdownEvent};
 
 use gpui_component::scroll::ScrollableElement as _;
 use std::sync::Arc;
@@ -99,6 +104,12 @@ pub struct Inspector {
     /// The property value being edited, and the property being added.
     property_edit: Option<properties_section::PropertyEdit>,
     property_add: Option<properties_section::PropertyAdd>,
+    /// The pickers of the property rows that have one, by row.
+    pickers: std::collections::HashMap<usize, pickers::RowPicker>,
+    /// The people a person property offers, in place of the open shared
+    /// note's.
+    #[cfg(test)]
+    members_for_test: Option<Vec<String>>,
     scroll: ScrollHandle,
     _subscriptions: Vec<Subscription>,
 }
@@ -180,6 +191,9 @@ impl Inspector {
             related_task: None,
             property_edit: None,
             property_add: None,
+            pickers: std::collections::HashMap::new(),
+            #[cfg(test)]
+            members_for_test: None,
             scroll: ScrollHandle::new(),
             _subscriptions: subscriptions,
         }
@@ -1223,7 +1237,7 @@ impl Render for Inspector {
         let body = match self.tab {
             _ if panel.is_some() => panel.unwrap_or_else(|| div().into_any_element()),
             InspectorTab::Outline => {
-                let properties = self.render_properties(cx);
+                let properties = self.render_properties(window, cx);
                 let outline = self.render_outline(cx);
                 match properties {
                     Some(properties) => v_flex()

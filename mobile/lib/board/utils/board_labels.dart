@@ -18,6 +18,10 @@ extension BoardLaneLabel on AppLocalizations {
         status == 'none' || status.isEmpty
             ? boardLaneNoStatus
             : _statusName(status, column.label),
+      // A property board words its own lanes (“No stage”): the core knows
+      // the property's name, as it does on the desktop.
+      BoardLane_Value(:final value) => value,
+      BoardLane_Unset() || BoardLane_Unlisted() => column.label,
     };
   }
 
