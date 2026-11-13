@@ -283,8 +283,92 @@ fn ticking_from_the_board_keeps_the_task_and_undo_puts_it_back() {
     assert_eq!(library.undo(undo).unwrap(), 0);
 }
 
+// no-prop-test: the contract's sequence for a repeating task, once; the
+// property below covers every repeat phrase.
+#[test]
+fn a_repeating_task_says_how_it_repeats_and_ticking_it_writes_the_next_one() {
+    let phone = phone_with(&server(), |store| {
+        let b = book(store, "A");
+        note_in(
+            store,
+            &b,
+            "N",
+            "- [ ] Film @2026-10-19T15:00 every week\n- [ ] Plain @2026-10-19\n",
+        );
+    });
+    let library = &phone.library;
+    let board = library.tasks_at(TaskListQuery::default(), now()).unwrap();
+    let all = items(&board);
+    let film = all.iter().find(|i| i.text == "Film").unwrap();
+    assert_eq!(film.repeat_label.as_deref(), Some("every week"));
+    let plain = all.iter().find(|i| i.text == "Plain").unwrap();
+    assert_eq!(plain.repeat_label, None);
+
+    let Ticked::Changed { undo, .. } = library
+        .set_task(&film.note_id, film.line, &film.source_text, true)
+        .unwrap()
+    else {
+        panic!("not ticked");
+    };
+    let text = library.note(&film.note_id).unwrap().body.unwrap();
+    let lines: Vec<&str> = text.lines().collect();
+    // The next one is written above, open; this one is ticked, without the
+    // repeat; the other task is untouched.
+    assert_eq!(lines.len(), 3, "{text}");
+    assert!(lines[0].starts_with("- [ ] Film @2026-"), "{text}");
+    assert!(lines[0].ends_with("T15:00 every week"), "{text}");
+    assert_ne!(
+        lines[0], "- [ ] Film @2026-10-19T15:00 every week",
+        "{text}"
+    );
+    assert_eq!(lines[1], "- [x] Film @2026-10-19T15:00", "{text}");
+    assert_eq!(lines[2], "- [ ] Plain @2026-10-19", "{text}");
+    // The next occurrence is on the board, still repeating.
+    let after = library.tasks_at(TaskListQuery::default(), now()).unwrap();
+    let next = items(&after)
+        .into_iter()
+        .find(|i| i.text == "Film")
+        .unwrap()
+        .clone();
+    assert_eq!(next.repeat_label.as_deref(), Some("every week"));
+    // Undo takes both lines back.
+    assert_eq!(library.undo(undo).unwrap(), 1);
+    assert_eq!(
+        library.note(&film.note_id).unwrap().body.unwrap(),
+        "- [ ] Film @2026-10-19T15:00 every week\n- [ ] Plain @2026-10-19\n"
+    );
+}
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(24))]
+
+    /// A repeat chip's words are the repeat as written, for every repeat the
+    /// desktop knows, and ticking such a task always leaves one open task of
+    /// the same words and one done.
+    #[test]
+    fn prop_a_repeating_tick_leaves_one_open_and_one_done(
+        every in prop::sample::select(vec![
+            "every day", "every week", "every 2 weeks", "every weekday", "every month",
+        ]),
+        hour in prop::option::of(0u32..24),
+    ) {
+        let due = match hour {
+            Some(h) => format!("@2026-10-19T{h:02}:00"),
+            None => "@2026-10-19".to_owned(),
+        };
+        let phone = phone_with(&server(), |store| {
+            let b = book(store, "A");
+            note_in(store, &b, "N", &format!("- [ ] Job {due} {every}\n"));
+        });
+        let library = &phone.library;
+        let item = single(library);
+        prop_assert_eq!(item.repeat_label.as_deref(), Some(every));
+        library.set_task(&item.note_id, item.line, &item.source_text, true).unwrap();
+        let text = library.note(&item.note_id).unwrap().body.unwrap();
+        let open = text.lines().filter(|l| l.starts_with("- [ ] Job ") && l.ends_with(every)).count();
+        let done = text.lines().filter(|l| l.starts_with("- [x] Job ")).count();
+        prop_assert_eq!((open, done), (1, 1), "{}", text);
+    }
 
     /// Whatever the notes hold, no task of a locked notebook or sealed
     /// note comes back, the sections hold exactly the unlocked open tasks,

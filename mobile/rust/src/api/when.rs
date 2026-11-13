@@ -23,3 +23,14 @@ pub fn date_choices(
 ) -> Result<Option<DateChoices>, KansoError> {
     Library::date_choices(&before_caret, now)
 }
+
+/// How the date and repeat at the end of `text` read in Quick Capture's Task
+/// mode (`Fri 13 Nov, 15:00 · every week`), or `None`.
+#[frb(sync)]
+pub fn capture_task_hint(
+    text: String,
+    now: LocalTime,
+    month_first: bool,
+) -> Result<Option<String>, KansoError> {
+    Library::capture_task_hint(&text, now, month_first)
+}

@@ -15,6 +15,13 @@ Future<void> _holdNewNote(WidgetTester tester, BrowseApp app) async {
   await tester.pumpAndSettle();
 }
 
+/// The same, switched to Task mode.
+Future<void> _holdNewNoteForTask(WidgetTester tester, BrowseApp app) async {
+  await _holdNewNote(tester, app);
+  await tester.tap(find.text('Task'));
+  await tester.pumpAndSettle();
+}
+
 /// The phone, and the three tablets the issue asks for in both orientations.
 const List<KansoViewport> _everywhere = <KansoViewport>[
   KansoViewport.phone,
@@ -39,5 +46,18 @@ void main() {
         );
       });
     }
+  }
+  for (final brightness in Brightness.values) {
+    testWidgets('the capture sheet in Task mode, phone ${brightness.name}', (
+      tester,
+    ) async {
+      await expectAppGoldenOnBothPlatforms(
+        tester,
+        name: 'capture_sheet_task_phone_${brightness.name}',
+        viewport: KansoViewport.phone,
+        brightness: brightness,
+        interact: _holdNewNoteForTask,
+      );
+    });
   }
 }

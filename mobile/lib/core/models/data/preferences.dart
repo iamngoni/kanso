@@ -4,6 +4,7 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../bridge/api/types.dart' show CaptureTarget;
 import '../../bridge/api/types.dart' show SortKey;
 import '../../bridge/api/types.dart' show DiagramRenderer;
 import 'kanso_fonts.dart';
@@ -128,6 +129,16 @@ abstract class Preferences with _$Preferences {
     /// What decides whether to ask for a review of the app: when it was
     /// first opened, how often it is used, and when it last asked.
     @Default(ReviewPromptRecord()) ReviewPromptRecord reviewPrompt,
+
+    /// Whether the capture sheet was last left in Task mode, so it opens
+    /// there again.
+    @Default(false) bool captureAsTask,
+
+    /// Where a captured task is written (Settings › Captured tasks go to);
+    /// the same two places as the desktop's setting.
+    @JsonKey(unknownEnumValue: CaptureTarget.dailyNote)
+    @Default(CaptureTarget.dailyNote)
+    CaptureTarget captureTaskTarget,
 
     /// The PDFs whose pages are shown as printed rather than smart-inverted
     /// in a dark theme, keyed by attachment ID.

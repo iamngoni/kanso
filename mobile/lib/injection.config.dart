@@ -39,6 +39,7 @@ import 'canvas/state/canvas/canvas_bloc.dart' as _i601;
 import 'capture/models/repos/abs/media_picker_repository.dart' as _i900;
 import 'capture/models/repos/impl/platform_media_picker_repository.dart'
     as _i598;
+import 'capture/state/capture_task/capture_task_cubit.dart' as _i161;
 import 'capture/state/daily_note/daily_note_bloc.dart' as _i1060;
 import 'core/bridge/api/account.dart' as _i578;
 import 'core/bridge/api/account_settings.dart' as _i102;
@@ -619,6 +620,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i974.HistoryRepository>(
       () => _i1065.RustHistoryRepository(gh<_i455.KansoLibrary>()),
+    );
+    gh.factory<_i161.CaptureTaskCubit>(
+      () => _i161.CaptureTaskCubit(
+        gh<_i23.CaptureRepository>(),
+        gh<_i384.PreferencesRepository>(),
+      ),
     );
     gh.factory<_i170.ResurfaceBloc>(
       () => _i170.ResurfaceBloc(

@@ -2,6 +2,8 @@
 // Created 2026-10-27.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +19,7 @@ import '../../../core/views/widgets/kanso_list_scrollbar.dart';
 import '../../../core/views/widgets/kanso_refresh_control.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../state/tasks/tasks_bloc.dart';
+import 'task_detail_sheet.dart';
 import 'task_row.dart';
 import 'tasks_keyboard.dart';
 
@@ -81,6 +84,13 @@ class TasksListView extends StatelessWidget {
                               focused: task.key == focusedKey,
                               onTick: () => bloc.add(TasksEvent.ticked(task)),
                               onOpen: () => open(task),
+                              onLongPress: () => unawaited(
+                                TaskDetailSheet.show(
+                                  context,
+                                  task: task,
+                                  onOpen: () => open(task),
+                                ),
+                              ),
                             ),
                           ],
                         );

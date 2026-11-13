@@ -13,7 +13,7 @@ pub use kanso_mobile::{
     AccountDetails, AccountState, AccountStep, AiSummary, ApprovalPhase, ApprovalPrompt,
     ApprovalWait, AttachmentFile, BindingAnswer, BindingQuestion, BoardCard, BoardColumn,
     BoardKind, BoardLane, BoardView, BriefNote, BriefPrefs, BriefReminder, BriefView, BuiltinTheme,
-    CalendarDay, CaptureOutcome, CardKey, CardMoved, Changed, ColorChoice, ColorRow,
+    CalendarDay, CaptureOutcome, CaptureTarget, CardKey, CardMoved, Changed, ColorChoice, ColorRow,
     CommentPlacement, CommentRow, Completion, CompletionItem, CompletionKind, CopiedLink,
     CostSummary, CursorMark, DateChoice, DateChoices, DateField, DayDate, DeviceRow, DiagramKind,
     DiagramRenderer, DiscoveryMeasure, DropsSaved, DueChipRow, DueTone, EditCommand, EditOutcome,
@@ -44,7 +44,7 @@ pub use kanso_mobile::{
     StatusChoice, StatusCount, StyledRun, SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption,
     SyncPhase, SyncProblemKind, SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine,
     SyncTone, SyntaxStyleRow, Table, TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard,
-    TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection, TemplateRow, TextChange,
+    TaskCaptured, TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection, TemplateRow, TextChange,
     ThemeTokens, ThemedIcon, Ticked, TwinRow, VisibleNotebook,
 };
 pub use kanso_mobile::{
@@ -206,6 +206,7 @@ pub struct _TaskItem {
     pub checked: bool,
     pub due_label: Option<String>,
     pub due_tone: Option<DueTone>,
+    pub repeat_label: Option<String>,
 }
 
 #[frb(mirror(TaskSection))]
@@ -2074,6 +2075,18 @@ pub struct _ShareFile {
 pub struct _CaptureOutcome {
     pub note_id: String,
     pub problems: Vec<String>,
+}
+
+#[frb(mirror(CaptureTarget))]
+pub enum _CaptureTarget {
+    DailyNote,
+    Inbox,
+}
+
+#[frb(mirror(TaskCaptured))]
+pub struct _TaskCaptured {
+    pub note_id: String,
+    pub line: String,
 }
 
 #[frb(mirror(ShortcutPlace))]

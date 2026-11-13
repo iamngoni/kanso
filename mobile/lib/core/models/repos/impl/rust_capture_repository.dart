@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../bridge/api/library.dart';
 import '../../../bridge/api/types.dart';
+import '../../../bridge/api/when.dart' as when;
 import '../../../services/external_changes.dart';
 import '../../../utils/kanso_error_mapping.dart';
 import '../../data/application_error.dart';
@@ -47,5 +48,43 @@ class RustCaptureRepository implements CaptureRepository {
         second: now.second,
       ),
     ),
+  );
+
+  @override
+  String? taskHint(String text, DateTime now, {required bool monthFirst}) {
+    try {
+      return when.captureTaskHint(
+        text: text,
+        now: _local(now),
+        monthFirst: monthFirst,
+      );
+    } on Object {
+      // A hint is a courtesy: when it cannot be made there is none.
+      return null;
+    }
+  }
+
+  @override
+  Future<Either<ApplicationError, TaskCaptured>> captureTask({
+    required String text,
+    required CaptureTarget target,
+    required DateTime now,
+    required bool monthFirst,
+  }) => attempt(
+    () => _library.captureTask(
+      text: text,
+      target: target,
+      now: _local(now),
+      monthFirst: monthFirst,
+    ),
+  );
+
+  LocalTime _local(DateTime now) => LocalTime(
+    year: now.year,
+    month: now.month,
+    day: now.day,
+    hour: now.hour,
+    minute: now.minute,
+    second: now.second,
   );
 }
