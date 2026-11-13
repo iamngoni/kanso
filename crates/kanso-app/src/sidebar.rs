@@ -53,6 +53,8 @@ pub enum SidebarEvent {
     LockBook(String),
     RemoveBookLock(String),
     PublishBook(String),
+    /// "Share Notebook…": the workspace opens the Share notebook sheet.
+    ShareBook(String),
     /// "Ask About This Notebook…": the Ask panel, limited to the notebook.
     AskBook(String),
     RenameTag(String),
@@ -1838,6 +1840,22 @@ impl Render for Sidebar {
             ));
         }
         list = list.children(self.shared_row(cx));
+        // Shared notebooks joined here, and invitations to more.
+        if cx
+            .try_global::<crate::collab_model::Collab>()
+            .is_some_and(|c| !c.books.is_empty() || !c.book_invitations.is_empty())
+        {
+            let selected = (!self.settings_open).then(|| self.library.read(cx).filter.clone());
+            let section = crate::shared_books::render_section(
+                &cx.entity(),
+                &self.library,
+                selected.as_ref(),
+                cx,
+            );
+            list = list
+                .child(self.heading("Shared", None, cx))
+                .children(section);
+        }
 
         let add_book = self.add_button(
             "add-book",
@@ -1932,6 +1950,7 @@ impl Render for Sidebar {
                         None => menu,
                     };
                     let (publish, e) = (view.clone(), book_id.clone());
+                    let (share, k) = (view.clone(), book_id.clone());
                     // A locked notebook is never read by Ask, so it isn't offered.
                     let menu = if ai_on && !locked {
                         menu.item(PopupMenuItem::new("Ask About This Notebook…").on_click(
@@ -1967,6 +1986,11 @@ impl Render for Sidebar {
                             recolor.update(cx, |_, cx| {
                                 cx.emit(SidebarEvent::ChangeBookColor(g.clone()))
                             });
+                        }),
+                    )
+                    .item(
+                        PopupMenuItem::new("Share Notebook…").on_click(move |_, _, cx| {
+                            share.update(cx, |_, cx| cx.emit(SidebarEvent::ShareBook(k.clone())));
                         }),
                     )
                     .item(
