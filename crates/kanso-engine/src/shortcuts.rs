@@ -1213,6 +1213,15 @@ pub const SHORTCUTS: &[Shortcut] = &[
         on_mobile: true,
     },
     Shortcut {
+        id: "undo_board_move",
+        mac: "secondary-z",
+        other: "secondary-z",
+        context: ShortcutContext::BoardView,
+        label: "Undo Card Move",
+        group: ShortcutGroup::Board,
+        on_mobile: true,
+    },
+    Shortcut {
         id: "save_capture",
         mac: "secondary-enter",
         other: "secondary-enter",

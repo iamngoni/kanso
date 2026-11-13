@@ -2108,6 +2108,266 @@ fn the_board_moves_cards_with_the_keyboard(cx: &mut TestAppContext) {
     assert!(!f.workspace(&mut vcx, |w, _| w.board_open));
 }
 
+/// A notebook whose notes carry a `stage` (Idea, Scripting, Shooting), with
+/// a board grouped by it: note "idea" is in Idea, "odd" has a stage no lane
+/// has, "bare" has none. The board is over the notebook and drawn.
+/// Returns the board and the three notes' ids.
+fn stage_board(
+    f: &Fixture,
+    cx: &mut TestAppContext,
+    grouped: bool,
+) -> (Entity<crate::board_view::BoardView>, [String; 3]) {
+    use kanso_core::schema::{BoardSpec, PropertyDef, PropertyType};
+    let book = f.store.note(&f.notes[0]).unwrap().unwrap().book_id;
+    let options = ["Idea", "Scripting", "Shooting"]
+        .map(str::to_owned)
+        .to_vec();
+    f.store
+        .set_notebook_properties(
+            &book,
+            &[PropertyDef {
+                key: "stage".into(),
+                kind: PropertyType::Select,
+                options,
+            }],
+            Origin::Ui,
+        )
+        .unwrap();
+    if grouped {
+        let spec = BoardSpec {
+            by: "stage".into(),
+            lanes: Vec::new(),
+            show_unset: true,
+        };
+        f.store
+            .set_notebook_board(&book, Some(&spec), Origin::Ui)
+            .unwrap();
+    }
+    let make = |title: &str, body: &str| {
+        f.store
+            .put(
+                DocType::Note,
+                json!({"title": title, "body": body, "bookId": book}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id
+    };
+    let notes = [
+        make("idea", "---\nstage: Idea\n---\nstart"),
+        make("odd", "---\nstage: Archived\n---\nstart"),
+        make("bare", "start"),
+    ];
+    // The fixture's own two notes leave the board.
+    for id in &f.notes {
+        f.store.delete(id, Origin::Ui).unwrap();
+    }
+    let library = cx.read(|cx| f.workspace.read(cx).library.clone());
+    library.update(cx, |library, cx| {
+        library.set_filter(crate::library::Filter::Book(book.clone()), cx)
+    });
+    cx.run_until_parked();
+    cx.update(|cx| {
+        crate::workspace::bind_keys(cx);
+        crate::board_view::bind_keys(cx);
+    });
+    f.window
+        .update(cx, |_, window, _| window.activate_window())
+        .unwrap();
+    f.draw(cx);
+    cx.dispatch_action(f.window, crate::board_view::ShowBoard);
+    f.draw(cx);
+    let board = f.workspace(cx, |w, _| w.board.clone().unwrap());
+    board.update(cx, |board, cx| board.reload_now(cx));
+    f.draw(cx);
+    (board, notes)
+}
+
+fn stage_of(f: &Fixture, id: &str) -> Option<String> {
+    let body = f.store.note(id).unwrap().unwrap().body;
+    kanso_core::properties::get(&kanso_core::properties::parse(&body), "stage")
+        .map(|value| value.text())
+}
+
+/// Grouped by `stage`, the board has a column per option in the property's
+/// order, then "Unlisted stage" for the value no column has and "No stage"
+/// for none: every note in exactly one. Grouped by status, the default,
+/// it is the five statuses as before.
+// no-prop-test: drives one window; the lanes' rules are properties in
+// board.rs.
+#[gpui_kit::test]
+fn the_board_groups_by_a_property_in_option_order(cx: &mut TestAppContext) {
+    use kanso_engine::board::{CardId, Lane};
+    let f = setup(cx);
+    let (board, [idea, odd, bare]) = stage_board(&f, cx, true);
+    let columns = cx.read(|cx| {
+        let board = board.read(cx);
+        board
+            .board
+            .columns()
+            .into_iter()
+            .map(|(lane, cards)| {
+                let ids: Vec<String> = cards
+                    .iter()
+                    .map(|&ix| board.board.cards[ix].note_id().to_owned())
+                    .collect();
+                (board.board.label(&lane), ids)
+            })
+            .collect::<Vec<_>>()
+    });
+    let labels: Vec<&str> = columns.iter().map(|(label, _)| label.as_str()).collect();
+    assert_eq!(
+        labels,
+        [
+            "Idea",
+            "Scripting",
+            "Shooting",
+            "Unlisted stage",
+            "No stage"
+        ]
+    );
+    assert_eq!(columns[0].1, std::slice::from_ref(&idea));
+    assert!(columns[1].1.is_empty() && columns[2].1.is_empty());
+    assert_eq!(columns[3].1, std::slice::from_ref(&odd));
+    assert_eq!(columns[4].1, std::slice::from_ref(&bare));
+
+    // The unlisted column takes no drop: a value there is typed.
+    board.update(cx, |board, cx| {
+        board.drop_card(&CardId::Note(bare.clone()), Lane::Unlisted, cx)
+    });
+    cx.run_until_parked();
+    assert_eq!(stage_of(&f, &bare), None);
+
+    // Back to status: the five statuses, and the notebook's board gone.
+    let window = f.window;
+    window
+        .update(cx, |_, window, cx| {
+            board.update(cx, |board, cx| board.group_by(None, window, cx))
+        })
+        .unwrap();
+    cx.run_until_parked();
+    board.update(cx, |board, cx| board.reload_now(cx));
+    let status_lanes = cx.read(|cx| board.read(cx).board.lanes());
+    assert_eq!(status_lanes.len(), kanso_core::NoteStatus::ALL.len());
+    assert!(matches!(status_lanes[0], Lane::Status(_)));
+    let book = f.store.note(&idea).unwrap().unwrap().book_id;
+    assert_eq!(f.store.notebook_board(&book).unwrap(), None);
+    // And grouping by the property makes the notebook's board.
+    window
+        .update(cx, |_, window, cx| {
+            board.update(cx, |board, cx| {
+                board.group_by(Some("stage".into()), window, cx)
+            })
+        })
+        .unwrap();
+    cx.run_until_parked();
+    board.update(cx, |board, cx| board.reload_now(cx));
+    let lanes = cx.read(|cx| board.read(cx).board.lanes());
+    assert_eq!(lanes[0], Lane::Value("Idea".into()));
+    assert_eq!(f.store.notebook_board(&book).unwrap().unwrap().by, "stage");
+}
+
+/// ⇧→ and a drop write the property into the note, and Undo (the key, here
+/// the action) puts the note back in one step; "No stage" leaves the
+/// property empty, and a move to "No stage" is undone too.
+// no-prop-test: drives one window through keystrokes and a drop; the moves'
+// rules are properties in board.rs and the store.
+#[gpui_kit::test]
+fn a_property_board_writes_moves_and_undoes_them(cx: &mut TestAppContext) {
+    use kanso_engine::board::{CardId, Lane};
+    let f = setup(cx);
+    let (board, [idea, _odd, bare]) = stage_board(&f, cx, true);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    vcx.simulate_keystrokes("down");
+    board.update(&mut vcx, |board, cx| {
+        board.board.selected = Some(CardId::Note(idea.clone()));
+        cx.notify();
+    });
+
+    // The keyboard: Idea to Scripting, then back with Undo.
+    let before = f.store.note(&idea).unwrap().unwrap();
+    vcx.simulate_keystrokes("shift-right");
+    f.draw(&mut vcx);
+    assert_eq!(stage_of(&f, &idea).as_deref(), Some("Scripting"));
+    assert!(
+        f.store
+            .note(&idea)
+            .unwrap()
+            .unwrap()
+            .body
+            .ends_with("start")
+    );
+    vcx.dispatch_action(crate::board_view::UndoBoardMove);
+    f.draw(&mut vcx);
+    let after = f.store.note(&idea).unwrap().unwrap();
+    assert_eq!(after.body, before.body);
+    assert_eq!(after.updated_at, before.updated_at);
+    board.update(&mut vcx, |board, cx| board.reload_now(cx));
+    assert_eq!(
+        vcx.read(|cx| board.read(cx).board.position(&CardId::Note(idea.clone()))),
+        Some((0, 0))
+    );
+
+    // A drop: a note with no stage to Shooting, then Undo.
+    board.update(&mut vcx, |board, cx| {
+        board.drop_card(
+            &CardId::Note(bare.clone()),
+            Lane::Value("Shooting".into()),
+            cx,
+        )
+    });
+    f.draw(&mut vcx);
+    assert_eq!(stage_of(&f, &bare).as_deref(), Some("Shooting"));
+    vcx.dispatch_action(crate::board_view::UndoBoardMove);
+    f.draw(&mut vcx);
+    assert_eq!(stage_of(&f, &bare), None);
+    assert_eq!(f.store.note(&bare).unwrap().unwrap().body, "start");
+
+    // A drop on "No stage" empties the property, and Undo restores it.
+    board.update(&mut vcx, |board, cx| {
+        board.reload_now(cx);
+        board.drop_card(&CardId::Note(idea.clone()), Lane::Unset, cx)
+    });
+    f.draw(&mut vcx);
+    assert_eq!(stage_of(&f, &idea).as_deref(), Some(""));
+    vcx.dispatch_action(crate::board_view::UndoBoardMove);
+    f.draw(&mut vcx);
+    assert_eq!(stage_of(&f, &idea).as_deref(), Some("Idea"));
+}
+
+/// A notebook with select properties but no board of its own is laid out
+/// by status, as it always was, and offers "Group by"; a status move still
+/// writes the status and has no Undo of this kind.
+// no-prop-test: drives one window; status moves are properties in board.rs.
+#[gpui_kit::test]
+fn a_notebook_without_a_board_stays_a_status_board(cx: &mut TestAppContext) {
+    use kanso_core::NoteStatus;
+    use kanso_engine::board::{CardId, Lane};
+    let f = setup(cx);
+    let (board, [idea, ..]) = stage_board(&f, cx, false);
+    cx.read(|cx| {
+        let board = board.read(cx);
+        assert!(board.board.group.is_none());
+        assert_eq!(board.groupable, ["stage"]);
+        assert_eq!(board.board.lanes().len(), NoteStatus::ALL.len());
+    });
+    board.update(cx, |board, cx| {
+        board.drop_card(
+            &CardId::Note(idea.clone()),
+            Lane::Status(NoteStatus::Active),
+            cx,
+        )
+    });
+    f.draw(cx);
+    assert_eq!(
+        f.store.note(&idea).unwrap().unwrap().status,
+        NoteStatus::Active
+    );
+    assert_eq!(stage_of(&f, &idea).as_deref(), Some("Idea"));
+    assert!(f.workspace(cx, |w, _| w.board_undo.is_none()));
+}
+
 /// The Journal's calendar opens on today's month, the keyboard moves the
 /// day and the month, and Return opens the day's note: made in the Journal
 /// when missing, with the calendar closed; a day with a note opens it.
