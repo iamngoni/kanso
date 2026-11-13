@@ -1,8 +1,11 @@
 /**
  * Help, in plain words: getting started, sync and adding a device, locked
- * notes, the library key, API keys for agents, sharing, importing (Apple Notes too), crash reports, deleting an account and where to
- * ask. It summarises README.md, docs/ACCOUNTS.md and docs/CRASH-REPORTS.md
- * and must change when they do. The mobile apps' Settings › About opens it.
+ * notes, the library key, typed dates and repeating tasks, the Video studio
+ * (board, Schedule, templates), API keys and pairing for agents and
+ * Raycast, sharing notes and notebooks, importing (Apple Notes too), crash
+ * reports, deleting an account and where to ask. It summarises README.md,
+ * docs/ACCOUNTS.md, docs/LOCAL-API.md and docs/CRASH-REPORTS.md and must
+ * change when they do. The mobile apps' Settings › About opens it.
  */
 import { Link, createFileRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -15,7 +18,7 @@ export const Route = createFileRoute("/help")({
   head: () => ({
     meta: [
       { title: "Help — Kanso" },
-      { name: "description", content: "Getting started with Kanso, syncing and adding a device, locked notes, your library key, API keys for agents, sharing, importing, crash reports and support." },
+      { name: "description", content: "Getting started with Kanso, syncing and adding a device, locked notes, your library key, dates and repeating tasks, running a video studio, API keys and Raycast, sharing notes and notebooks, importing, crash reports and support." },
     ],
     links: [{ rel: "canonical", href: "https://kansoapp.app/help" }],
   }),
@@ -79,6 +82,10 @@ export const TOPICS: readonly Topic[] = [
           Signing out keeps every note on the device. If a device already has notes when you sign in, Kanso asks whether to add
           them to the account or replace them with the account's notes, and saves a backup first.
         </p>
+        <p>
+          Kanso and its sync are free, with no subscription. Settings › Account › <strong>What Kanso costs</strong> shows how much
+          of your sync space you use, and <Link to="/price" className="ink-link">the price page</Link> gives the limits.
+        </p>
       </>
     ),
   },
@@ -123,6 +130,103 @@ export const TOPICS: readonly Topic[] = [
     ),
   },
   {
+    id: "tasks",
+    title: "Dates and repeating tasks",
+    body: (
+      <>
+        <p>
+          A task is a line that starts with <code>- [ ]</code>. Type when it's due at the end of the line, in plain words:{" "}
+          <code>- [ ] film Pixel review fri 3pm every week</code>. When you pause, a quiet hint at the end of the line shows how
+          Kanso reads it, such as "Fri 14 Nov, 15:00 · every week". Press <strong>Tab</strong> on a computer, or tap the hint
+          above the keyboard (it ends in <strong>Set</strong>) on a phone, and the words become Kanso's own:{" "}
+          <code>- [ ] film Pixel review @2026-11-14T15:00 every week</code>. Press Escape, or keep typing, and the text stays as
+          you wrote it. Nothing is rewritten without that one key, so "fri" in a sentence stays a word.
+        </p>
+        <p>
+          Typing <code>@</code> on a task offers Today, Tomorrow and the days of the week. After a date, a space offers{" "}
+          <strong>Every day</strong>, <strong>Every week</strong>, <strong>Every weekday</strong> and{" "}
+          <strong>Every month</strong>.
+        </p>
+        <p>Kanso reads English, and leaves anything else as text, without guessing:</p>
+        <ul className="grid gap-1 pl-5 list-disc">
+          <li>
+            Days: today, tonight (20:00), tomorrow or tmr, mon to sun or monday to sunday, this fri, next fri, in 3 days, in 2
+            weeks, 14 nov, nov 14, 14/11, 2026-11-14. A weekday alone means the next one after today, so "fri" typed on a Friday
+            is a week later.
+          </li>
+          <li>
+            Times: 3pm, 3:30pm, 15:00, 1500 h, noon, midnight, morning (09:00), afternoon (14:00), evening (18:00). A time
+            alone is today, or tomorrow once it has passed.
+          </li>
+          <li>
+            Repeats, after a date: every day or daily, every weekday, every week or weekly, every 2 weeks, every mon and thu,
+            every month or monthly, every month on the 15th, on the last day or on the 2nd tue, every year or yearly. Add{" "}
+            <strong>after done</strong> to count from the day you tick it rather than the day it was due.
+          </li>
+        </ul>
+        <p>
+          A repeating task's date ends in ↻, and its tooltip, or a long press on a phone, says how often it repeats. When you
+          tick it, Kanso keeps the ticked line, without its repeat, and writes the next one just above it:
+        </p>
+        <pre className="overflow-x-auto rounded-md border border-line bg-code p-3 font-mono text-[0.8125rem] text-code-fg">
+          <code>{"- [ ] film Pixel review @2026-11-21T15:00 every week\n- [x] film Pixel review @2026-11-14T15:00"}</code>
+        </pre>
+        <p>
+          So the note keeps a record of each time. One undo takes both changes back, and unticking the old line leaves the new
+          one. To stop a task repeating, delete its <code>every …</code> words. As before, only a task with a time reminds you;
+          a repeating one reminds you each time, and ticking it from the reminder writes the next one too.
+        </p>
+        <p>
+          Quick Capture (<strong>⌃⌥Space</strong> on a computer, the capture sheet on a phone) has a <strong>Note | Task</strong>{" "}
+          switch. In Task mode the whole text is one task, with the same hint under the field. Tasks go to today's daily note, or
+          to the Inbox if you choose that under <strong>Captured tasks go to</strong> (Settings › General › Quick capture on a
+          computer, Settings on a phone).
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "studio",
+    title: "Running a video studio",
+    body: (
+      <>
+        <p>
+          File › New Notebook (on a phone, Library › + › Notebook) asks what to start from: <strong>Blank notebook</strong> or{" "}
+          <strong>Video studio</strong>. Video studio sets up a board (Idea → Scripting → Shooting → Editing → Published), a
+          Schedule, and two templates, <strong>Video brief</strong> and <strong>Shot list</strong>. Its notes get the properties
+          a pipeline needs: <code>stage</code>, <code>embargo</code> (a date and time with its time zone), <code>publish</code>,{" "}
+          <code>sponsor</code> and <code>owner</code>. You can rename or change any of it later.
+        </p>
+        <p>
+          <strong>The board.</strong> View › Board on a computer, or Board in the notes list's options on a phone, shows the
+          notebook's notes as cards in a lane for each stage. Drag a card to another lane to change its stage; on a computer, ⇧←
+          and ⇧→ move the selected card and ⌘Z undoes a move. On a phone, touch and hold a card and choose the stage. A card
+          shows how many of the note's tasks are ticked, so a shot list reads as progress. <strong>Board settings</strong>{" "}
+          chooses what the board is grouped by (Status, or any select property), and renames, reorders, adds and removes lanes.{" "}
+          <strong>Show cards without a stage</strong> adds a lane for notes with none. Removing a lane asks what to do with its
+          notes.
+        </p>
+        <p>
+          <strong>Properties.</strong> In the note's inspector, or its properties on a phone, a select property such as{" "}
+          <code>stage</code> is a list to choose from, a date opens a calendar, a date and time adds a clock and a time zone, and
+          a person property lists people.
+        </p>
+        <p>
+          <strong>The Schedule.</strong> View › Schedule, or Schedule in the sidebar, on a computer; Schedule in the library on a
+          phone. It shows a month (or a week, on a computer, and an agenda, on a phone) with your dated tasks and the notes that
+          have a date property, each on its day, and repeating tasks on every day they come round. Click or tap a task to tick
+          it. Drag a task or a note to another day to change its date, or use <strong>Move to day…</strong> on a phone. Filter
+          by notebook and by date property, and turn on <strong>Show Completed</strong> to see what's done.
+        </p>
+        <p>
+          <strong>Templates.</strong> New from template lists the notebook's own templates first, under{" "}
+          <strong>In this notebook</strong>. Video brief has a stage, the dates, an angle, key points, a shot list and review
+          tasks; Shot list has a table of shots and a task for each.
+        </p>
+      </>
+    ),
+  },
+  {
     id: "api-keys",
     title: "Connecting an agent or a script",
     body: (
@@ -132,6 +236,14 @@ export const TOPICS: readonly Topic[] = [
           choose <strong>New key…</strong>. Pick what it's for, what it may do (read, suggest edits, read and write, or add and tick only) and which
           notebooks it sees. Kanso shows the key once, inside the setup to paste into the agent. <strong>Revoke</strong> stops a key
           at once. Locked notes are never shown to a key.
+        </p>
+        <p>
+          An app on your computer can ask for a key itself. The Kanso extension for Raycast does: the first time you run one of its
+          commands, Kanso comes to the front with <strong>Raycast wants to connect</strong> and a six-digit code. Choose{" "}
+          <strong>Allow</strong> only if Raycast shows the same code and you just started it. The key it gets can only search and
+          read notes, add notes and tasks, and tick tasks; it can't change or delete existing text. Paired apps have their own
+          group in Settings › Local API, with when each was added and last used. <strong>Revoke</strong> disconnects one at once,
+          and running a Kanso command in Raycast connects it again.
         </p>
         <p>
           The local API's old username and password are gone. If you had set them up, a banner explains it and{" "}
@@ -150,6 +262,78 @@ export const TOPICS: readonly Topic[] = [
         <p>
           You can export a note as a web page or a PDF, or publish it as an encrypted link. The key to a published note is in the
           link itself, so only people you give the link to can read it. Locked notes can't be published.
+        </p>
+        <p>
+          To write a note together with other people, share it, or a whole notebook, with their Kanso accounts. See{" "}
+          <a href="#shared-notebooks" className="ink-link">Sharing a notebook</a>.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "shared-notebooks",
+    title: "Sharing a notebook",
+    body: (
+      <>
+        <p>
+          A shared notebook is one that several people read and write together: every note in it, its board, its schedule and its
+          templates. It is end-to-end encrypted. Your sync server passes it on without being able to read it, and each person's
+          devices hold the notebook's key. Sharing needs a Kanso account, and so does everyone you share with.
+        </p>
+        <p>
+          On a computer, right-click the notebook in the sidebar and choose <strong>Share Notebook…</strong>; on a phone, open the
+          notebook's actions and tap <strong>Share notebook…</strong>. Type the person's Kanso username, pick their role and choose{" "}
+          <strong>Invite</strong>. The first time you share with someone, Kanso shows their fingerprint. Compare it with the one
+          they see in Settings › Account, in person or on a call, and choose <strong>Mark as verified and invite</strong> if it
+          matches. If someone's keys change later, Kanso asks again before it trusts them (<strong>Trust the new keys</strong>).
+        </p>
+        <p>
+          Sharing a notebook for the first time sends every note up, and the sheet counts them ("Sharing Studio… 120 of 340").
+          Locked notes can't be in a shared notebook: they move to a private notebook of the same name. Notes you already share
+          on their own, and canvases, stay out too, and the sheet lists them before you share.
+        </p>
+        <p>The roles are:</p>
+        <ul className="grid gap-1 pl-5 list-disc">
+          <li>
+            <strong>Owner</strong>: the person who shared it. They can do everything, and only they can stop sharing it.
+          </li>
+          <li>
+            <strong>Manager</strong>: edits, and invites, removes and changes the roles of people below Manager.
+          </li>
+          <li>
+            <strong>Can edit</strong>: writes, moves cards on the board and changes properties.
+          </li>
+          <li>
+            <strong>Can comment</strong>: reads and comments.
+          </li>
+          <li>
+            <strong>Can view</strong>: reads only.
+          </li>
+        </ul>
+        <p>A notebook can have up to 25 people, its owner included.</p>
+        <p>
+          An invitation shows under <strong>Shared</strong> in the sidebar, or in the phone's library, as "Sam invited you to a
+          notebook · Can edit". <strong>Accept</strong> joins it and <strong>Decline</strong> says no. Once you've joined on one
+          device, your other devices show it with <strong>Open here</strong>.
+        </p>
+        <p>
+          Inside a shared notebook you see who else is in a note as they type. Each note says who changed it last ("Edited by
+          Sam · 5 min ago"), and the notebook shows whether it is <strong>Up to date</strong>, <strong>Offline</strong>, or has
+          changes waiting to go. You can keep working offline: when you're back, everyone's edits are merged. Two people
+          changing different properties of a note, such as its stage and its publish date, both keep their change. A note
+          someone else deletes goes to your trash, where you can restore it.
+        </p>
+        <p>
+          <strong>Remove from notebook…</strong> takes someone out, and <strong>Leave</strong> takes yourself out. The owner's{" "}
+          <strong>Stop sharing</strong> ends it for everyone. In each case the notebook gets a new key, so a person who has left
+          can't read what is written after. They keep a private copy of the notes as they were, and so does everyone when sharing
+          stops. To come back, someone in the notebook invites them again.
+        </p>
+        <p>
+          Everyone in a shared notebook needs an up-to-date Kanso. When an update changes how shared notes are kept, Kanso shows
+          a notice, "Update Kanso on every device for shared notes", and an older app may show shared notes without their
+          properties until it is updated. Update Kanso on every computer and phone you use, and ask the people you share with to
+          do the same.
         </p>
       </>
     ),
