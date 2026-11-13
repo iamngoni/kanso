@@ -144,6 +144,9 @@ impl CollabError {
                     .and_then(Value::as_str)
                     .unwrap_or("unknown")
                     .to_owned();
+                if crate::old_client::is_refusal(status, &code) {
+                    crate::old_client::note_refusal();
+                }
                 CollabError::Api {
                     status,
                     code,
@@ -152,6 +155,13 @@ impl CollabError {
             }
             Err(_) => CollabError::Protocol(format!("a {status} answer without a JSON error body")),
         }
+    }
+
+    /// Whether the server refused this Kanso as too old for shared
+    /// notebooks (`426 client_too_old`): the fix is to update.
+    pub fn is_client_too_old(&self) -> bool {
+        matches!(self, CollabError::Api { status, code, .. }
+            if crate::old_client::is_refusal(*status, code))
     }
 
     /// Whether this means "offline": the request got no answer.

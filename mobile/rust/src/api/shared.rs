@@ -201,6 +201,13 @@ impl KansoShared {
         self.0.book_words(name, who)
     }
 
+    /// "Update Kanso to open this shared notebook." once the server said
+    /// this Kanso is too old for shared notebooks; null until then.
+    #[frb(sync)]
+    pub fn book_update_line(&self) -> Option<String> {
+        self.0.book_update_line()
+    }
+
     pub fn book_invitations(&self) -> Result<Vec<BookInvitationRow>, KansoError> {
         self.0.book_invitations()
     }

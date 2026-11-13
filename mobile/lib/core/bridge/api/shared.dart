@@ -48,6 +48,10 @@ abstract class KansoShared implements RustOpaqueInterface {
   /// notebook isn't shared.
   Future<BookSyncStatus?> bookStatus({required String notebookId});
 
+  /// "Update Kanso to open this shared notebook." once the server said
+  /// this Kanso is too old for shared notebooks; null until then.
+  String? bookUpdateLine();
+
   /// The questions' words, the same as the desktop's.
   BookWords bookWords({required String name, required String who});
 

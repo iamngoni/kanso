@@ -4,6 +4,29 @@
 
 export const PROTOCOL_VERSION = 2;
 
+/**
+ * The shared-notebook level a client speaks, sent as `x-kanso-book-protocol` (issue #390). The
+ * routes stay under /v2: this is how a Kanso without notebook sharing, which never sends it, is
+ * told so in words instead of failing on a shape it doesn't know. Mirrors
+ * crates/kanso-sync/src/wire.rs `BOOK_PROTOCOL`.
+ */
+export const BOOK_PROTOCOL = 1;
+/** The lowest level the book routes take. Raised only with a breaking change, and a notice for it. */
+export const MIN_BOOK_PROTOCOL = 1;
+export const BOOK_PROTOCOL_HEADER = "x-kanso-book-protocol";
+/**
+ * What a client too old for shared notebooks is told: what to do, not only what went wrong.
+ * Lives here, not in index.ts: the Worker's entry module may export only handlers and classes.
+ */
+export const CLIENT_TOO_OLD =
+	"Update Kanso to use shared notebooks. This version of Kanso is too old to open them: choose Settings › Updates in Kanso (or install the latest version from the Kanso website), then try again.";
+
+/** The level a header states: a non-negative integer, else `null` (absent or malformed counts as too old). */
+export function bookProtocolOf(header: string | null): number | null {
+	if (header === null || !/^[0-9]{1,6}$/.test(header.trim())) return null;
+	return Number(header.trim());
+}
+
 /** Auth and account request bodies. */
 export const MAX_AUTH_BODY = 8 * 1024;
 /** Three D1 statements per document in one batch. */

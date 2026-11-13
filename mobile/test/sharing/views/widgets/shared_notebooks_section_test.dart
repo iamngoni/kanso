@@ -242,5 +242,33 @@ void main() {
       await _settle(tester);
       expect(find.text('Offline'), findsOneWidget);
     });
+
+    testWidgets('says to update where an invitation would be, once the '
+        'server refused this Kanso', (tester) async {
+      const line = 'Update Kanso to open this shared notebook.';
+      final books = FixtureSharedNotebooksRepository()..updateLineText = line;
+      await _pump(tester, books);
+      expect(find.text('Shared'), findsOneWidget);
+      expect(find.text(line), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('book-update-needed')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a refusal that comes with a later sync shows the line', (
+      tester,
+    ) async {
+      const line = 'Update Kanso to open this shared notebook.';
+      final books = FixtureSharedNotebooksRepository()
+        ..books = <SharedBookRow>[_book('book:1')];
+      final (_, shared, _) = await _pump(tester, books);
+      expect(find.text(line), findsNothing);
+      books.updateLineText = line;
+      shared.eventsController.add(_news);
+      await _settle(tester);
+      expect(find.text(line), findsOneWidget);
+      expect(find.text('Studio'), findsOneWidget);
+    });
   });
 }

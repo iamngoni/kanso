@@ -87,6 +87,9 @@ class RustSharedNotebooksRepository implements SharedNotebooksRepository {
       _shared.bookWords(name: name, who: who);
 
   @override
+  String? updateLine() => _shared.bookUpdateLine();
+
+  @override
   Future<Either<ApplicationError, List<BookInvitationRow>>> invitations() =>
       attempt(_shared.bookInvitations);
 

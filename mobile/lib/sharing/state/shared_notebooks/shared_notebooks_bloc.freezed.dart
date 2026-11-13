@@ -462,7 +462,9 @@ mixin _$SharedNotebooksState {
 
  LoadStatus get status; List<SharedBookRow> get books; List<BookInvitationRow> get invitations;/// Invitations being accepted or declined, by share ID.
  Set<String> get working;/// What to tell of notebooks that ended here, oldest first.
- List<String> get notices;/// The notebook just joined, to open.
+ List<String> get notices;/// "Update Kanso to open this shared notebook.": the sync server said
+/// this Kanso is too old for shared notebooks. Null while it is happy.
+ String? get updateLine;/// The notebook just joined, to open.
  String? get joined; ShareProblem? get problem;
 /// Create a copy of SharedNotebooksState
 /// with the given fields replaced by the non-null parameter values.
@@ -474,16 +476,16 @@ $SharedNotebooksStateCopyWith<SharedNotebooksState> get copyWith => _$SharedNote
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SharedNotebooksState&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.books, books)&&const DeepCollectionEquality().equals(other.invitations, invitations)&&const DeepCollectionEquality().equals(other.working, working)&&const DeepCollectionEquality().equals(other.notices, notices)&&(identical(other.joined, joined) || other.joined == joined)&&(identical(other.problem, problem) || other.problem == problem));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SharedNotebooksState&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.books, books)&&const DeepCollectionEquality().equals(other.invitations, invitations)&&const DeepCollectionEquality().equals(other.working, working)&&const DeepCollectionEquality().equals(other.notices, notices)&&(identical(other.updateLine, updateLine) || other.updateLine == updateLine)&&(identical(other.joined, joined) || other.joined == joined)&&(identical(other.problem, problem) || other.problem == problem));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,const DeepCollectionEquality().hash(books),const DeepCollectionEquality().hash(invitations),const DeepCollectionEquality().hash(working),const DeepCollectionEquality().hash(notices),joined,problem);
+int get hashCode => Object.hash(runtimeType,status,const DeepCollectionEquality().hash(books),const DeepCollectionEquality().hash(invitations),const DeepCollectionEquality().hash(working),const DeepCollectionEquality().hash(notices),updateLine,joined,problem);
 
 @override
 String toString() {
-  return 'SharedNotebooksState(status: $status, books: $books, invitations: $invitations, working: $working, notices: $notices, joined: $joined, problem: $problem)';
+  return 'SharedNotebooksState(status: $status, books: $books, invitations: $invitations, working: $working, notices: $notices, updateLine: $updateLine, joined: $joined, problem: $problem)';
 }
 
 
@@ -494,7 +496,7 @@ abstract mixin class $SharedNotebooksStateCopyWith<$Res>  {
   factory $SharedNotebooksStateCopyWith(SharedNotebooksState value, $Res Function(SharedNotebooksState) _then) = _$SharedNotebooksStateCopyWithImpl;
 @useResult
 $Res call({
- LoadStatus status, List<SharedBookRow> books, List<BookInvitationRow> invitations, Set<String> working, List<String> notices, String? joined, ShareProblem? problem
+ LoadStatus status, List<SharedBookRow> books, List<BookInvitationRow> invitations, Set<String> working, List<String> notices, String? updateLine, String? joined, ShareProblem? problem
 });
 
 
@@ -511,14 +513,15 @@ class _$SharedNotebooksStateCopyWithImpl<$Res>
 
 /// Create a copy of SharedNotebooksState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? books = null,Object? invitations = null,Object? working = null,Object? notices = null,Object? joined = freezed,Object? problem = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? books = null,Object? invitations = null,Object? working = null,Object? notices = null,Object? updateLine = freezed,Object? joined = freezed,Object? problem = freezed,}) {
   return _then(_self.copyWith(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LoadStatus,books: null == books ? _self.books : books // ignore: cast_nullable_to_non_nullable
 as List<SharedBookRow>,invitations: null == invitations ? _self.invitations : invitations // ignore: cast_nullable_to_non_nullable
 as List<BookInvitationRow>,working: null == working ? _self.working : working // ignore: cast_nullable_to_non_nullable
 as Set<String>,notices: null == notices ? _self.notices : notices // ignore: cast_nullable_to_non_nullable
-as List<String>,joined: freezed == joined ? _self.joined : joined // ignore: cast_nullable_to_non_nullable
+as List<String>,updateLine: freezed == updateLine ? _self.updateLine : updateLine // ignore: cast_nullable_to_non_nullable
+as String?,joined: freezed == joined ? _self.joined : joined // ignore: cast_nullable_to_non_nullable
 as String?,problem: freezed == problem ? _self.problem : problem // ignore: cast_nullable_to_non_nullable
 as ShareProblem?,
   ));
@@ -617,10 +620,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LoadStatus status,  List<SharedBookRow> books,  List<BookInvitationRow> invitations,  Set<String> working,  List<String> notices,  String? joined,  ShareProblem? problem)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LoadStatus status,  List<SharedBookRow> books,  List<BookInvitationRow> invitations,  Set<String> working,  List<String> notices,  String? updateLine,  String? joined,  ShareProblem? problem)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SharedNotebooksState() when $default != null:
-return $default(_that.status,_that.books,_that.invitations,_that.working,_that.notices,_that.joined,_that.problem);case _:
+return $default(_that.status,_that.books,_that.invitations,_that.working,_that.notices,_that.updateLine,_that.joined,_that.problem);case _:
   return orElse();
 
 }
@@ -638,10 +641,10 @@ return $default(_that.status,_that.books,_that.invitations,_that.working,_that.n
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LoadStatus status,  List<SharedBookRow> books,  List<BookInvitationRow> invitations,  Set<String> working,  List<String> notices,  String? joined,  ShareProblem? problem)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LoadStatus status,  List<SharedBookRow> books,  List<BookInvitationRow> invitations,  Set<String> working,  List<String> notices,  String? updateLine,  String? joined,  ShareProblem? problem)  $default,) {final _that = this;
 switch (_that) {
 case _SharedNotebooksState():
-return $default(_that.status,_that.books,_that.invitations,_that.working,_that.notices,_that.joined,_that.problem);case _:
+return $default(_that.status,_that.books,_that.invitations,_that.working,_that.notices,_that.updateLine,_that.joined,_that.problem);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -658,10 +661,10 @@ return $default(_that.status,_that.books,_that.invitations,_that.working,_that.n
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LoadStatus status,  List<SharedBookRow> books,  List<BookInvitationRow> invitations,  Set<String> working,  List<String> notices,  String? joined,  ShareProblem? problem)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LoadStatus status,  List<SharedBookRow> books,  List<BookInvitationRow> invitations,  Set<String> working,  List<String> notices,  String? updateLine,  String? joined,  ShareProblem? problem)?  $default,) {final _that = this;
 switch (_that) {
 case _SharedNotebooksState() when $default != null:
-return $default(_that.status,_that.books,_that.invitations,_that.working,_that.notices,_that.joined,_that.problem);case _:
+return $default(_that.status,_that.books,_that.invitations,_that.working,_that.notices,_that.updateLine,_that.joined,_that.problem);case _:
   return null;
 
 }
@@ -673,7 +676,7 @@ return $default(_that.status,_that.books,_that.invitations,_that.working,_that.n
 
 
 class _SharedNotebooksState implements SharedNotebooksState {
-  const _SharedNotebooksState({this.status = LoadStatus.loading, final  List<SharedBookRow> books = const <SharedBookRow>[], final  List<BookInvitationRow> invitations = const <BookInvitationRow>[], final  Set<String> working = const <String>{}, final  List<String> notices = const <String>[], this.joined, this.problem}): _books = books,_invitations = invitations,_working = working,_notices = notices;
+  const _SharedNotebooksState({this.status = LoadStatus.loading, final  List<SharedBookRow> books = const <SharedBookRow>[], final  List<BookInvitationRow> invitations = const <BookInvitationRow>[], final  Set<String> working = const <String>{}, final  List<String> notices = const <String>[], this.updateLine, this.joined, this.problem}): _books = books,_invitations = invitations,_working = working,_notices = notices;
   
 
 @override@JsonKey() final  LoadStatus status;
@@ -709,6 +712,9 @@ class _SharedNotebooksState implements SharedNotebooksState {
   return EqualUnmodifiableListView(_notices);
 }
 
+/// "Update Kanso to open this shared notebook.": the sync server said
+/// this Kanso is too old for shared notebooks. Null while it is happy.
+@override final  String? updateLine;
 /// The notebook just joined, to open.
 @override final  String? joined;
 @override final  ShareProblem? problem;
@@ -723,16 +729,16 @@ _$SharedNotebooksStateCopyWith<_SharedNotebooksState> get copyWith => __$SharedN
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SharedNotebooksState&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._books, _books)&&const DeepCollectionEquality().equals(other._invitations, _invitations)&&const DeepCollectionEquality().equals(other._working, _working)&&const DeepCollectionEquality().equals(other._notices, _notices)&&(identical(other.joined, joined) || other.joined == joined)&&(identical(other.problem, problem) || other.problem == problem));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SharedNotebooksState&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._books, _books)&&const DeepCollectionEquality().equals(other._invitations, _invitations)&&const DeepCollectionEquality().equals(other._working, _working)&&const DeepCollectionEquality().equals(other._notices, _notices)&&(identical(other.updateLine, updateLine) || other.updateLine == updateLine)&&(identical(other.joined, joined) || other.joined == joined)&&(identical(other.problem, problem) || other.problem == problem));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,const DeepCollectionEquality().hash(_books),const DeepCollectionEquality().hash(_invitations),const DeepCollectionEquality().hash(_working),const DeepCollectionEquality().hash(_notices),joined,problem);
+int get hashCode => Object.hash(runtimeType,status,const DeepCollectionEquality().hash(_books),const DeepCollectionEquality().hash(_invitations),const DeepCollectionEquality().hash(_working),const DeepCollectionEquality().hash(_notices),updateLine,joined,problem);
 
 @override
 String toString() {
-  return 'SharedNotebooksState(status: $status, books: $books, invitations: $invitations, working: $working, notices: $notices, joined: $joined, problem: $problem)';
+  return 'SharedNotebooksState(status: $status, books: $books, invitations: $invitations, working: $working, notices: $notices, updateLine: $updateLine, joined: $joined, problem: $problem)';
 }
 
 
@@ -743,7 +749,7 @@ abstract mixin class _$SharedNotebooksStateCopyWith<$Res> implements $SharedNote
   factory _$SharedNotebooksStateCopyWith(_SharedNotebooksState value, $Res Function(_SharedNotebooksState) _then) = __$SharedNotebooksStateCopyWithImpl;
 @override @useResult
 $Res call({
- LoadStatus status, List<SharedBookRow> books, List<BookInvitationRow> invitations, Set<String> working, List<String> notices, String? joined, ShareProblem? problem
+ LoadStatus status, List<SharedBookRow> books, List<BookInvitationRow> invitations, Set<String> working, List<String> notices, String? updateLine, String? joined, ShareProblem? problem
 });
 
 
@@ -760,14 +766,15 @@ class __$SharedNotebooksStateCopyWithImpl<$Res>
 
 /// Create a copy of SharedNotebooksState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? books = null,Object? invitations = null,Object? working = null,Object? notices = null,Object? joined = freezed,Object? problem = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? books = null,Object? invitations = null,Object? working = null,Object? notices = null,Object? updateLine = freezed,Object? joined = freezed,Object? problem = freezed,}) {
   return _then(_SharedNotebooksState(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LoadStatus,books: null == books ? _self._books : books // ignore: cast_nullable_to_non_nullable
 as List<SharedBookRow>,invitations: null == invitations ? _self._invitations : invitations // ignore: cast_nullable_to_non_nullable
 as List<BookInvitationRow>,working: null == working ? _self._working : working // ignore: cast_nullable_to_non_nullable
 as Set<String>,notices: null == notices ? _self._notices : notices // ignore: cast_nullable_to_non_nullable
-as List<String>,joined: freezed == joined ? _self.joined : joined // ignore: cast_nullable_to_non_nullable
+as List<String>,updateLine: freezed == updateLine ? _self.updateLine : updateLine // ignore: cast_nullable_to_non_nullable
+as String?,joined: freezed == joined ? _self.joined : joined // ignore: cast_nullable_to_non_nullable
 as String?,problem: freezed == problem ? _self.problem : problem // ignore: cast_nullable_to_non_nullable
 as ShareProblem?,
   ));

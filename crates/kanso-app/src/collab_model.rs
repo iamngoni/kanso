@@ -36,6 +36,9 @@ pub struct Collab {
     /// Notebooks shared with this account that this device hasn't joined:
     /// invitations, and notebooks another device of the account joined.
     pub book_invitations: Vec<BookSummary>,
+    /// The server said this Kanso is too old for shared notebooks, so the
+    /// Shared section says to update where invitations would be.
+    pub book_update_needed: bool,
     /// Shared notebooks joined here, as the last sync left them.
     pub books: Vec<BookRow>,
     /// Who last edited each note of a shared notebook, by note id.
