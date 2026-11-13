@@ -55,7 +55,8 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="kanso" android:host="open"/>
             </intent-filter>
-            <!-- The launcher's long-press shortcuts: New note, Voice note, Today. -->
+            <!-- The launcher's long-press shortcuts: Capture, Add task, Search,
+                 Voice note, Today. -->
             <meta-data
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
@@ -168,6 +169,18 @@
             <meta-data
                 android:name="android.service.quicksettings.TOGGLEABLE_TILE"
                 android:value="true" />
+        </service>
+        <!-- The Quick Settings tile "Add task": opens the capture sheet in
+             Task mode (kanso://open/new?task=1) over where the app is. -->
+        <service
+            android:name=".TaskTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_list_checks"
+            android:label="@string/tile_task_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE"/>
+            </intent-filter>
         </service>
         <receiver
             android:name=".KansoReminderReceiver"
