@@ -95,8 +95,9 @@ check "claude-code-action pinned by commit SHA", claude.all? { |_, s| s["uses"].
 check "every action pinned by commit SHA",
   action_steps.select { |_, s| s["uses"] }.all? { |_, s| s["uses"].match?(/@[0-9a-f]{40}\z/) }
 check "max-turns on every agent", claude_args.all? { |_, a| a.match?(/--max-turns\s+\S+/) }
-check "build uses sonnet, review uses opus",
-  claude_args.to_h["build"].include?("--model sonnet") && claude_args.to_h["review"].include?("--model opus")
+check "size:s builds with sonnet, size:m/l plan and build with opus, review uses opus",
+  claude_args.to_h["build"].include?("--model ${{ needs.gate.outputs.size == 's' && 'sonnet' || 'opus' }}") &&
+    claude_args.to_h["plan"].include?("--model opus") && claude_args.to_h["review"].include?("--model opus")
 check "explicit allowedTools on every agent", claude_args.all? { |_, a| a.include?("--allowedTools") }
 
 allowed = claude_args.map do |id, a|
