@@ -10,6 +10,7 @@ import '../../../../core/models/data/application_error.dart';
 /// A note's embargo: whether its `embargo` property is still to come, for
 /// the banner under its title and the question before publishing it, making
 /// a share link to it or exporting it. The rules are the Rust core's.
+// ignore: one_member_abstracts
 abstract interface class EmbargoRepository {
   /// The embargo of note [noteId] now, or null when it has none, it has
   /// lifted or the note is locked.
