@@ -568,6 +568,28 @@ impl Default for InboxSettings {
     }
 }
 
+/// Notes made by File › Open…, and whether they follow their files
+/// (Settings › General › Import, issue #432).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ImportSettings {
+    /// Importing an opened file again when it changes on disk. A note
+    /// changed in Kanso is never overwritten; it stops following its file.
+    pub refresh_opened_files: bool,
+    /// Each note made by opening a file and the file it follows. Kept on
+    /// this computer only.
+    pub linked_files: Vec<kanso_import::library::LinkedFile>,
+}
+
+impl Default for ImportSettings {
+    fn default() -> Self {
+        ImportSettings {
+            refresh_opened_files: true,
+            linked_files: Vec::new(),
+        }
+    }
+}
+
 /// Notifications for tasks with a due time (Settings › General).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -860,6 +882,7 @@ pub struct AppConfig {
     pub briefs: kanso_engine::brief::BriefSettings,
     pub discovery: DiscoverySettings,
     pub inbox: InboxSettings,
+    pub import: ImportSettings,
     /// People & Projects (Settings › General): suggestions, where pages are
     /// kept and when AI summaries are written.
     pub people_projects: kanso_engine::entities::EntitySettings,
@@ -919,6 +942,7 @@ impl Default for AppConfig {
             briefs: Default::default(),
             discovery: DiscoverySettings::default(),
             inbox: InboxSettings::default(),
+            import: ImportSettings::default(),
             people_projects: Default::default(),
             voice: VoiceSettings::default(),
             locked: LockedSettings::default(),

@@ -11,6 +11,7 @@ use gpui_component::scroll::ScrollableElement as _;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Context as _, bail};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -20,8 +21,8 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_import::library::words::{picks, progress_label, rejected_lines, skipped_lines, summary};
 use kanso_import::library::{
-    LibraryProgress, LibraryReport, SourceKind, apple_notes, import_source, open_note_files,
-    preview,
+    LibraryProgress, LibraryReport, LinkedFile, Refresh, Refreshed, SourceKind, apple_notes,
+    import_source, open_note_files_linked, preview, record_link, refresh_linked_files,
 };
 use kanso_store::Store;
 
@@ -637,37 +638,122 @@ async fn open_and_report(
     on_opened: impl Fn(String, &mut Window, &mut App) + 'static,
     cx: &mut AsyncWindowContext,
 ) {
-    let result = cx
+    let opened = cx
         .background_executor()
-        .spawn(async move { open_paths(&paths, &store) })
+        .spawn(async move { open_note_files_linked(&paths, &store) })
         .await;
-    cx.update(|window, cx| match result {
-        Ok((Some(id), problems)) => {
-            on_opened(id, window, cx);
-            for problem in problems {
-                window.push_notification(Notification::warning(problem), cx);
+    cx.update(|window, cx| {
+        record_links(opened.linked, cx);
+        match opened.last {
+            Some(id) => {
+                on_opened(id, window, cx);
+                for problem in opened.problems {
+                    window.push_notification(Notification::warning(problem), cx);
+                }
+            }
+            None => {
+                for problem in opened.problems {
+                    window.push_notification(Notification::error(problem), cx);
+                }
             }
         }
-        Ok((None, problems)) => {
-            for problem in problems {
-                window.push_notification(Notification::error(problem), cx);
-            }
-        }
-        Err(err) => window.push_notification(
-            Notification::error(format!("Couldn't open it: {err:#}")),
-            cx,
-        ),
     })
     .ok();
 }
 
+/// Remembers the files just opened, so their notes can follow them (issue
+/// #432). Kept whether or not following is on, so turning it on later
+/// covers what was opened before.
+fn record_links(linked: Vec<LinkedFile>, cx: &mut App) {
+    if linked.is_empty() {
+        return;
+    }
+    AppState::update_config(cx, |config| {
+        for link in linked {
+            config.import.linked_files = record_link(&config.import.linked_files, link);
+        }
+    });
+}
+
+/// Set while a refresh runs, so coming back to the window twice in a row
+/// doesn't read the same files twice.
+static REFRESHING: AtomicBool = AtomicBool::new(false);
+
+/// Imports again each opened file that changed since it was read, when
+/// Settings › General › Import says to. Runs in the background and says
+/// nothing unless a note stopped following its file because it was changed
+/// in Kanso. Coming back to the window is when it runs; never on a timer.
+pub fn refresh_opened_files(window: &mut Window, cx: &mut App) {
+    let state = cx.global::<AppState>();
+    let settings = &state.config.import;
+    if !settings.refresh_opened_files
+        || settings.linked_files.is_empty()
+        || REFRESHING.swap(true, Ordering::SeqCst)
+    {
+        return;
+    }
+    let links = settings.linked_files.clone();
+    let store = state.store.clone();
+    window
+        .spawn(cx, async move |cx| {
+            let looked_at = links.clone();
+            let (kept, done) = cx
+                .background_executor()
+                .spawn(async move { refresh_linked_files(&links, &store) })
+                .await;
+            cx.update(|window, cx| {
+                REFRESHING.store(false, Ordering::SeqCst);
+                if done.is_empty() {
+                    return;
+                }
+                AppState::update_config(cx, |config| {
+                    // Links recorded while this ran are kept as they are.
+                    let mut now: Vec<LinkedFile> = config
+                        .import
+                        .linked_files
+                        .iter()
+                        .filter(|l| !looked_at.iter().any(|o| o.note == l.note))
+                        .cloned()
+                        .collect();
+                    now.extend(kept);
+                    config.import.linked_files = now;
+                });
+                for line in stopped_following(&done) {
+                    window.push_notification(Notification::info(line), cx);
+                }
+            })
+            .ok();
+            // The window may have closed mid-refresh.
+            REFRESHING.store(false, Ordering::SeqCst);
+        })
+        .detach();
+}
+
+/// One line per note that stopped following its file, for the notice.
+/// Pure.
+fn stopped_following(done: &[Refreshed]) -> Vec<String> {
+    done.iter()
+        .filter(|r| r.refresh == Refresh::EditedInKanso)
+        .map(|r| {
+            let name = r
+                .path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            format!("{name} changed on disk, but its note was edited in Kanso, so it keeps your edits and no longer follows the file.")
+        })
+        .collect()
+}
+}
+
 /// Imports each Markdown file; returns the last note and what went wrong
 /// with the others.
-pub(crate) fn open_paths(
+#[cfg(test)]
+fn open_paths(
     paths: &[PathBuf],
     store: &Store,
 ) -> anyhow::Result<(Option<String>, Vec<String>)> {
-    Ok(open_note_files(paths, store))
+    Ok(kanso_import::library::open_note_files(paths, store))
 }
 
 // MARK: Command line
