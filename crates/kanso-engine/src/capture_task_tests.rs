@@ -1,4 +1,5 @@
 use kanso_core::dates::{Date, DateTime};
+use kanso_core::model::TRASH_BOOK_ID;
 use kanso_core::tasks::task_items;
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, RngSeed};
@@ -220,6 +221,49 @@ fn a_trashed_inbox_task_note_comes_back() {
     let note = store.note(INBOX_TASKS_ID).unwrap().unwrap();
     assert_eq!(note.book_id, "book:inbox");
     assert_eq!(note.body, "- [ ] one\n- [ ] two\n");
+}
+
+/// Quick Capture and the local API share one Inbox task note: tasks the
+/// API left in its old "Tasks" note are folded in ahead of the new one.
+#[test]
+fn the_api_and_quick_capture_share_the_inbox_task_note() {
+    let (_dir, store) = fresh();
+    let inbox = store.role_book(Role::Inbox, Origin::Ui).unwrap();
+    let old = store
+        .put(
+            DocType::Note,
+            json!({"title": kanso_store::LEGACY_INBOX_TASKS_TITLE, "body": "- [ ] from raycast\n", "bookId": inbox}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    let id = save_task(
+        &store,
+        "call Sam",
+        TaskTarget::Inbox,
+        now(),
+        DateOrder::DayMonth,
+        Origin::Ui,
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(id, INBOX_TASKS_ID);
+    let added = store
+        .add_task(
+            &kanso_store::TaskTarget::Inbox,
+            "- [ ] from the api",
+            now(),
+            1,
+            Origin::Api,
+        )
+        .unwrap();
+    assert_eq!(added.note_id, INBOX_TASKS_ID);
+    assert_eq!(
+        store.note(INBOX_TASKS_ID).unwrap().unwrap().body,
+        "- [ ] from raycast\n- [ ] call Sam\n- [ ] from the api\n"
+    );
+    assert_eq!(store.note(&old).unwrap().unwrap().book_id, TRASH_BOOK_ID);
 }
 
 /// A locked Inbox or a locked Journal takes no task.

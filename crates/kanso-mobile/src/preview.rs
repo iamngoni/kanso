@@ -392,6 +392,52 @@ impl Library {
         })
     }
 
+    /// "Stop repeating" from a due chip's menu: the `index`-th task of note
+    /// `note_id` (as the page numbers its boxes) loses its `every …` words
+    /// and keeps its due date ([`kanso_core::tick::stop_repeating`]), when
+    /// the note is still at `base_rev`; otherwise ([`KansoError::Conflict`])
+    /// nothing is written. Its ticket takes it back in one write.
+    /// [`Ticked::Unchanged`] when that task is ticked or doesn't repeat,
+    /// [`Ticked::Missing`] when the note has no such task any more.
+    pub fn stop_repeating_at(
+        &self,
+        note_id: &str,
+        index: u32,
+        base_rev: &str,
+    ) -> Result<Ticked, KansoError> {
+        guard(|| {
+            let (note, text) = self.readable_text(note_id)?.ok_or(KansoError::Locked)?;
+            if note.rev.as_deref() != Some(base_rev) {
+                return Err(KansoError::Conflict {
+                    current_rev: note.rev.unwrap_or_default(),
+                });
+            }
+            let items = task_items(&text);
+            let Some(item) = items.get(index as usize) else {
+                return Ok(Ticked::Missing);
+            };
+            let Some(after) = kanso_core::tick::stop_repeating(&text, item.line) else {
+                return Ok(Ticked::Unchanged);
+            };
+            let saved = self.save(note_id, base_rev, after.clone())?;
+            let name = kanso_engine::tasks::display_text(&item.text);
+            Ok(Ticked::Changed {
+                rev: saved.rev,
+                message: format!("“{name}” no longer repeats"),
+                undo: self.keep_undo(crate::undo::Undoable::Task {
+                    note_id: note_id.to_owned(),
+                    line: item.line,
+                    text: item.text.clone(),
+                    checked: item.checked,
+                    restore: Some(kanso_store::TickUndo {
+                        before: text,
+                        after,
+                    }),
+                }),
+            })
+        })
+    }
+
     /// The note a tapped unresolved wiki-link (a [`PreviewLink::NewNote`])
     /// asks for: a note titled `title` in the notebook of `from_note` (the
     /// default notebook when that one is the trash), empty. When a note with
@@ -517,7 +563,7 @@ impl Library {
         let index = WikiIndex::new(self.inner.store.note_titles()?);
         let linked = links::rewrite_for_app(text, &index);
         let tagged = links::tags::rewrite_for_app(&linked);
-        let dated = match due_chips::rewrite_for_preview(&tagged) {
+        let dated = match due_chips::rewrite_for_preview_with_repeats(&tagged) {
             Cow::Borrowed(_) => tagged.into_owned(),
             Cow::Owned(dated) => dated,
         };
@@ -712,13 +758,23 @@ fn is_web(url: &str) -> bool {
 }
 
 /// A `kanso-due:` address as the chip the page shows at local time
-/// `local_ms`.
+/// `local_ms`: a repeating task's ends in ↻ and its longer words say how
+/// often, as the desktop's do.
 fn due_chip(url: &str, local_ms: i64) -> Option<DueChip> {
-    let (due, checked) = due_chips::parse_due_url(url)?;
+    let (due, checked, repeat) = due_chips::parse_due_link(url)?;
     let now = DateTime::from_local_ms(local_ms);
+    let label = due_chips::chip_label(due, checked, now);
+    let title = due_chips::long_label(due);
+    let (label, title) = match repeat {
+        Some(repeat) => (
+            format!("{label} \u{21bb}"),
+            format!("{title} \u{b7} Repeats {repeat}"),
+        ),
+        None => (label, title),
+    };
     Some(DueChip {
-        label: due_chips::chip_label(due, checked, now),
-        title: due_chips::long_label(due),
+        label,
+        title,
         tone: match due_chips::tone(due, checked, now) {
             Tone::Plain => DueTone::Plain,
             Tone::Today => DueTone::Today,

@@ -612,6 +612,15 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   static List<StatusChoice> statuses() =>
       KansoCore.instance.api.crateApiLibraryKansoLibraryStatuses();
 
+  /// "Stop repeating" from a due chip's menu: the `index`-th task of a
+  /// note drawn at `base_rev` loses its `every …` words and keeps its due
+  /// date.
+  Future<Ticked> stopRepeatingAt({
+    required String noteId,
+    required int index,
+    required String baseRev,
+  });
+
   KansoSync syncing();
 
   /// The tag colours the desktop offers.

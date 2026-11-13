@@ -1538,6 +1538,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previewTask => 'Task';
 
   @override
+  String get previewStopRepeating => 'Stop repeating';
+
+  @override
   String get pdfNotesTitle => 'Highlights';
 
   @override

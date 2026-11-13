@@ -2788,6 +2788,12 @@ abstract class AppLocalizations {
   /// **'Task'**
   String get previewTask;
 
+  /// In the menu a repeating task's date chip opens in a note's preview: removes the task's repeat and keeps its date.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop repeating'**
+  String get previewStopRepeating;
+
   /// Title of the sheet that lists the highlights a note holds for its PDFs.
   ///
   /// In en, this message translates to:

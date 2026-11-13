@@ -91,6 +91,38 @@ fn tick_repeating(body: &str, item: &TaskItem, today: Date) -> Option<String> {
     Some(out)
 }
 
+/// The body with the open task on `line` (0-based) no longer repeating: its
+/// `every …` words gone, its due date and every other byte as they were
+/// (the chip menu's "Stop repeating"). `None` when that line holds no open
+/// task with a repeat.
+pub fn stop_repeating(body: &str, line: u32) -> Option<String> {
+    let item = task_items(body)
+        .into_iter()
+        .find(|item| item.line == line)?;
+    if item.checked || item.repeat.is_none() {
+        return None;
+    }
+    let (start, raw) = body
+        .split_inclusive('\n')
+        .scan(0usize, |offset, line| {
+            let at = *offset;
+            *offset += line.len();
+            Some((at, line))
+        })
+        .nth(line as usize)?;
+    let text_line = raw.trim_end_matches(['\n', '\r']);
+    // `task_items` reads the text from three bytes after the bracket.
+    let text_at = text_line.find('[')? + 3;
+    let text = text_line.get(text_at..)?;
+    let (repeat_at, _) = repeat_token(text)?;
+    let mut out = String::with_capacity(body.len());
+    out.push_str(&body[..start + text_at]);
+    out.push_str(text[..repeat_at.start].trim_end_matches([' ', '\t']));
+    out.push_str(&text[repeat_at.end..]);
+    out.push_str(&body[start + text_line.len()..]);
+    Some(out)
+}
+
 #[cfg(test)]
 #[path = "tick_tests.rs"]
 mod tests;
