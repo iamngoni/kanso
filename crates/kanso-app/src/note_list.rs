@@ -496,6 +496,27 @@ impl NoteList {
             note.updated_at
         };
         let time = row_time_label(Clock::local_ms(cx, at), context.now_local_ms);
+        // A note of a shared notebook someone else changed last says who,
+        // by the name the notebook's member list gives them.
+        let edited = cx
+            .try_global::<crate::collab_model::Collab>()
+            .and_then(|c| c.book_edits.get(&note.id))
+            .filter(|e| !e.mine)
+            .map(|e| {
+                let now = Clock::now_ms(cx);
+                let ago = crate::grouping::edited_label(
+                    e.at,
+                    now,
+                    Clock::local_ms(cx, e.at),
+                    context.now_local_ms,
+                );
+                crate::book_share_model::edited_by(&e.name, &ago)
+            });
+        let excerpt_lines = if edited.is_some() {
+            EXCERPT_LINES - 1.
+        } else {
+            EXCERPT_LINES
+        };
         let highlight = HighlightStyle {
             background_color: Some(Hsla::from(colors.accent).opacity(0.32)),
             color: Some(colors.text.into()),
@@ -633,16 +654,34 @@ impl NoteList {
                             )
                             .child(trailing),
                     )
+                    .when_some(edited, |el, words| {
+                        el.child(
+                            div()
+                                .h(px(EXCERPT_LINE))
+                                .when(context.status_column, |el| {
+                                    el.pl(px(GLYPH_COLUMN + GLYPH_GAP))
+                                })
+                                .text_size(px(12.))
+                                .line_height(px(EXCERPT_LINE))
+                                .text_color(colors.quiet(selected))
+                                .truncate()
+                                .debug_selector({
+                                    let id = note.id.clone();
+                                    move || format!("note-edited-by-{id}")
+                                })
+                                .child(words),
+                        )
+                    })
                     .child(
                         div()
-                            .h(px(EXCERPT_LINE * EXCERPT_LINES))
+                            .h(px(EXCERPT_LINE * excerpt_lines))
                             .when(context.status_column, |el| {
                                 el.pl(px(GLYPH_COLUMN + GLYPH_GAP))
                             })
                             .text_size(px(12.5))
                             .line_height(px(EXCERPT_LINE))
                             .text_color(colors.text_secondary)
-                            .line_clamp(EXCERPT_LINES as usize)
+                            .line_clamp(excerpt_lines as usize)
                             .text_ellipsis()
                             // A locked note's text isn't in the list.
                             .when(note.locked, |el| {
