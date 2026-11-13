@@ -152,7 +152,8 @@ impl KansoShared {
 
     /// How far a notebook being shared has got, until Dart stops listening.
     pub fn book_progress(&self, sink: StreamSink<BookShareProgress>) {
-        self.0.book_progress(move |progress| sink.add(progress).is_ok());
+        self.0
+            .book_progress(move |progress| sink.add(progress).is_ok());
     }
 
     /// A notebook's sharing; `None` when it isn't shared.
