@@ -4,8 +4,10 @@
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    CommentRow, InvitationRow, JoinRow, KansoError, LiveStatus, PersonLookup, PersonRow, ShareInfo,
-    ShareRole, SharedEvent, SharedNotes,
+    BookEndedRow, BookInvitationRow, BookRole, BookShareCheck, BookShareInfo, BookShareProgress,
+    BookSyncStatus, BookWords, CommentRow, InvitationRow, JoinRow, KansoError, LiveStatus,
+    NoteEditRow, PersonLookup, PersonRow, ShareInfo, ShareRole, SharedBookRow, SharedEvent,
+    SharedNotes,
 };
 
 #[frb(opaque)]
@@ -131,6 +133,100 @@ impl KansoShared {
     /// listening.
     pub fn events(&self, sink: StreamSink<SharedEvent>) {
         self.0.events(move |event| sink.add(event).is_ok());
+    }
+
+    // ---------------------------------------------------- shared notebooks
+
+    /// What sharing a notebook would do; refuses one that can't be shared.
+    pub fn can_share_book(&self, notebook_id: String) -> Result<BookShareCheck, KansoError> {
+        self.0.can_share_book(notebook_id)
+    }
+
+    pub fn share_book(
+        &self,
+        notebook_id: String,
+        invites: Vec<(String, BookRole)>,
+    ) -> Result<BookShareInfo, KansoError> {
+        self.0.share_book(notebook_id, invites)
+    }
+
+    /// How far a notebook being shared has got, until Dart stops listening.
+    pub fn book_progress(&self, sink: StreamSink<BookShareProgress>) {
+        self.0.book_progress(move |progress| sink.add(progress).is_ok());
+    }
+
+    /// A notebook's sharing; `None` when it isn't shared.
+    pub fn book_info(&self, notebook_id: String) -> Result<Option<BookShareInfo>, KansoError> {
+        self.0.book_info(notebook_id)
+    }
+
+    pub fn invite_to_book(
+        &self,
+        notebook_id: String,
+        username: String,
+        role: BookRole,
+    ) -> Result<BookShareInfo, KansoError> {
+        self.0.invite_to_book(notebook_id, username, role)
+    }
+
+    pub fn set_book_role(
+        &self,
+        notebook_id: String,
+        account_id: String,
+        role: BookRole,
+    ) -> Result<BookShareInfo, KansoError> {
+        self.0.set_book_role(notebook_id, account_id, role)
+    }
+
+    pub fn remove_from_book(
+        &self,
+        notebook_id: String,
+        account_id: String,
+    ) -> Result<BookShareInfo, KansoError> {
+        self.0.remove_from_book(notebook_id, account_id)
+    }
+
+    pub fn leave_book(&self, notebook_id: String) -> Result<BookEndedRow, KansoError> {
+        self.0.leave_book(notebook_id)
+    }
+
+    pub fn stop_book(&self, notebook_id: String) -> Result<BookEndedRow, KansoError> {
+        self.0.stop_book(notebook_id)
+    }
+
+    /// The questions' words, the same as the desktop's.
+    #[frb(sync)]
+    pub fn book_words(&self, name: String, who: String) -> BookWords {
+        self.0.book_words(name, who)
+    }
+
+    pub fn book_invitations(&self) -> Result<Vec<BookInvitationRow>, KansoError> {
+        self.0.book_invitations()
+    }
+
+    /// Joins the notebook; answers with its library ID.
+    pub fn accept_book(&self, share_id: String) -> Result<String, KansoError> {
+        self.0.accept_book(share_id)
+    }
+
+    pub fn decline_book(&self, share_id: String) -> Result<(), KansoError> {
+        self.0.decline_book(share_id)
+    }
+
+    /// The notebooks shared here, for the library's Shared section.
+    pub fn shared_books(&self) -> Result<Vec<SharedBookRow>, KansoError> {
+        self.0.shared_books()
+    }
+
+    /// "Edited by" for the notes of a shared notebook.
+    pub fn book_edits(&self, notebook_id: String) -> Result<Vec<NoteEditRow>, KansoError> {
+        self.0.book_edits(notebook_id)
+    }
+
+    /// "Offline · 4 changes waiting" or "Up to date"; `None` when the
+    /// notebook isn't shared.
+    pub fn book_status(&self, notebook_id: String) -> Result<Option<BookSyncStatus>, KansoError> {
+        self.0.book_status(notebook_id)
     }
 
     pub fn open_live(&self, note_id: String) -> Result<(), KansoError> {
