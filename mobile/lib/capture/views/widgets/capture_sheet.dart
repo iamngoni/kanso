@@ -38,14 +38,16 @@ class CaptureSheet extends StatelessWidget {
 
   /// Shows the sheet over [context]. With [tasks] it offers Task mode too;
   /// the sheet closes the cubit when it is dismissed, which was made for it.
+  /// With [mode] it opens in that mode rather than the last one chosen.
   static Future<void> show(
     BuildContext context, {
     required CaptureFirstRow first,
     required ValueChanged<MediaSource> onSource,
     CaptureTaskCubit? tasks,
+    CaptureMode? mode,
   }) {
     if (tasks != null && !tasks.state.loaded) {
-      tasks.started();
+      tasks.started(mode: mode);
     }
     return showKansoBottomSheet<void>(
       context,

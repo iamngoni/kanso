@@ -74,6 +74,20 @@ void main() {
       expect(cubit.state.target, CaptureTarget.inbox);
     });
 
+    test('opens in the mode it is told, keeping the saved one', () async {
+      preferences.current = const Preferences(
+        captureTaskTarget: CaptureTarget.inbox,
+      );
+      final cubit = make();
+      final starting = cubit.started(mode: CaptureMode.task);
+      // Task mode at once, before the preferences are read.
+      expect(cubit.state.mode, CaptureMode.task);
+      await starting;
+      expect(cubit.state.mode, CaptureMode.task);
+      expect(cubit.state.target, CaptureTarget.inbox);
+      expect(preferences.current.captureAsTask, isFalse);
+    });
+
     test('remembers the mode it was left in', () async {
       final cubit = make();
       await cubit.modeChosen(CaptureMode.task);

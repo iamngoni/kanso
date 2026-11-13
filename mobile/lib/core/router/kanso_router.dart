@@ -19,6 +19,7 @@ import '../../board/views/pages/board_page.dart';
 import '../../canvas/views/pages/note_or_canvas_page.dart';
 import '../../capture/views/pages/daily_note_page.dart';
 import '../../capture/views/pages/new_note_page.dart';
+import '../../capture/views/widgets/task_capture_sheet.dart';
 import '../../crash/views/pages/crash_reports_page.dart';
 import '../../design/views/pages/design_gallery_page.dart';
 import '../../dictation/views/pages/voice_note_page.dart';
@@ -63,6 +64,7 @@ import '../models/data/ask_scope.dart';
 import '../models/data/browse_location.dart';
 import '../models/data/design_gallery_access.dart';
 import '../models/data/layout_class.dart';
+import '../models/data/new_link_kind.dart';
 import '../models/data/search_scope_kind.dart';
 import '../models/repos/abs/digest_repository.dart';
 import '../views/widgets/kanso_page_route.dart';
@@ -80,7 +82,9 @@ import 'layout_class_notifier.dart';
 ///   Theme, Fonts and Licences sliding inside it. It is a sheet on a tablet
 ///   and a page on a phone.
 /// * `/daily` finds or makes today's note and goes to it in All Notes, and
-///   `/new` makes a note as the + button does (`?voice=1` to dictate into).
+///   `/new` makes a note as the + button does (`?voice=1` to dictate into;
+///   `?task=1` opens the capture sheet in Task mode over where the app is,
+///   and stays there).
 ///   Theme, Icons, Icon themes, Fonts, Licences, Crash reports and the
 ///   account's screens (Account, Sign in, Open your notes, Reset your
 ///   password, Your recovery key) sliding inside it. It is a sheet on a
@@ -118,6 +122,42 @@ class KansoRouter {
   /// Whether the first address has been looked at.
   bool _launched = false;
 
+  /// Whether the Task capture sheet is about to be opened.
+  bool _taskCapturePending = false;
+
+  /// Opens the capture sheet in Task mode on the root navigator once the
+  /// address it stays on has been built; one sheet however many times the
+  /// link arrives before then.
+  void _openTaskCapture() {
+    if (_taskCapturePending) {
+      return;
+    }
+    _taskCapturePending = true;
+    _showTaskCaptureWhenReady(_taskCaptureFrames);
+  }
+
+  /// How many frames a cold start may take to build the root navigator
+  /// before the Task sheet is given up.
+  static const int _taskCaptureFrames = 120;
+
+  void _showTaskCaptureWhenReady(int framesLeft) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _rootKey.currentContext;
+      if (context == null || !context.mounted) {
+        // A cold start: the navigator is not there yet.
+        if (framesLeft > 0) {
+          _showTaskCaptureWhenReady(framesLeft - 1);
+        } else {
+          _taskCapturePending = false;
+        }
+        return;
+      }
+      _taskCapturePending = false;
+      showTaskCaptureSheet(context);
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
   GoRouter _build() {
     return GoRouter(
       navigatorKey: _rootKey,
@@ -128,6 +168,13 @@ class KansoRouter {
       redirect: (context, state) async {
         if (state.uri.hasScheme) {
           return redirectLocation(state.uri);
+        }
+        // `kanso://open/new?task=1` (the Add task shortcut and tile) is a
+        // sheet, not a page: it opens over where the app already is.
+        if (opensTaskCapture(state.uri)) {
+          _openTaskCapture();
+          final current = config.routerDelegate.currentConfiguration;
+          return locationUnderSheet(current.isEmpty ? null : current.uri);
         }
         // The first launch opens to Overview unless Settings says the last
         // note; a link or a notification that names a place is not changed.
@@ -331,8 +378,8 @@ class KansoRouter {
                 key: state.pageKey,
                 child: NewNotePage(
                   voice:
-                      state.uri.queryParameters[KansoRoutes.voiceParameter] ==
-                      '1',
+                      newLinkKind(state.uri.queryParameters) ==
+                      NewLinkKind.voice,
                 ),
               ),
             ),

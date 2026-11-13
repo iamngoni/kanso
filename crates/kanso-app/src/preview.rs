@@ -85,6 +85,10 @@ pub enum PreviewEdit {
     /// A link to an attachment followed (`inkdrop://file:…`, with its
     /// fragment): the editor opens it if it is a PDF.
     OpenFile(String),
+    /// "Stop Repeating" from a due chip's menu: the open repeating task on
+    /// the line of the shown text that reads `shown_line` loses its
+    /// `every …` words.
+    StopRepeating { shown_line: String },
 }
 
 /// Where the preview's edits go.
@@ -469,7 +473,6 @@ impl Preview {
     }
 
     /// The text the preview shows.
-    #[cfg(test)]
     pub fn shown(&self) -> &SharedString {
         &self.shown
     }
@@ -1139,7 +1142,7 @@ fn quote_extensions(
         // Unresolved wiki-links, drawn dashed (see `crate::wikilinks`).
         .plugin(crate::wikilinks::UnresolvedLink::new(links.sender.clone()))
         // Tasks' due dates, as chips (see `crate::due`).
-        .plugin(crate::due::DueChip)
+        .plugin(crate::due::DueChip::new(resizes.clone()))
         .block_parser(parse)
         .block_renderer(PICTURE, move |node, window, cx| {
             let scale = picture_rich.text_scale();

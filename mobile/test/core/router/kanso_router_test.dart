@@ -5,11 +5,14 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
 import 'package:kanso/app.dart';
+import 'package:kanso/capture/views/pages/new_note_page.dart';
+import 'package:kanso/capture/views/widgets/capture_task_form.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/configs/kanso_layout.dart';
 import 'package:kanso/core/models/data/design_gallery_access.dart';
@@ -260,6 +263,44 @@ void main() {
       await _openLink(tester, 'kanso://open/search?q=soup');
       expect(_where(router), '/search?q=soup');
       expect(tester.widget<SearchPage>(find.byType(SearchPage)).query, 'soup');
+    });
+
+    testWidgets('the Add task link opens the Task sheet where the app is', (
+      tester,
+    ) async {
+      final router = await _pump(tester);
+      await _openLink(tester, 'kanso://open/notebook/b2');
+      await _openLink(tester, 'kanso://open/new?task=1');
+      // The notebook stays, with the sheet over it in Task mode.
+      expect(_where(router), '/notebooks/b2');
+      expect(
+        tester.widget<NoteListPage>(find.byType(NoteListPage)).place,
+        const ListPlace.notebook(id: 'b2'),
+      );
+      expect(find.byType(CaptureTaskForm), findsOneWidget);
+      expect(find.byType(NewNotePage), findsNothing);
+
+      // Closed, the notebook is still there.
+      Navigator.of(tester.element(find.byType(CaptureTaskForm))).pop();
+      await tester.pumpAndSettle();
+      expect(find.byType(CaptureTaskForm), findsNothing);
+      expect(_where(router), '/notebooks/b2');
+    });
+
+    testWidgets('the Add task link on a cold start opens over All Notes', (
+      tester,
+    ) async {
+      final router = await _pump(tester, at: '/new?task=1');
+      expect(_where(router), '/notes');
+      expect(find.byType(NoteListPage), findsOneWidget);
+      expect(find.byType(CaptureTaskForm), findsOneWidget);
+    });
+
+    testWidgets('the Search link opens Search', (tester) async {
+      final router = await _pump(tester);
+      await _openLink(tester, 'kanso://open/search');
+      expect(_where(router), '/search');
+      expect(find.byType(SearchPage), findsOneWidget);
     });
 
     testWidgets('settings opens over the page it was opened from', (

@@ -319,7 +319,7 @@ async fn a_task_goes_to_the_daily_note_by_default_and_to_the_inbox_on_request() 
         .note(inbox["noteId"].as_str().unwrap())
         .unwrap()
         .unwrap();
-    assert_eq!(saved.title, "Tasks");
+    assert_eq!(saved.title, "Inbox tasks");
     assert_eq!(saved.book_id, "book:inbox");
     assert_eq!(saved.body, "- [ ] sort post\n");
 }

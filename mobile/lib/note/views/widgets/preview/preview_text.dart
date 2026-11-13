@@ -140,6 +140,7 @@ class _PreviewTextState extends State<PreviewText> {
                 title: title,
                 tone: tone,
                 size: size,
+                url: url,
                 onTap: () => scope.onLink(url),
               ),
             ),

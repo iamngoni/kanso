@@ -238,3 +238,70 @@ proptest! {
         }
     }
 }
+
+// MARK: Stop repeating
+
+#[test]
+fn stop_repeating_drops_the_every_words_and_keeps_the_date() {
+    let body = "# Shoots\n- [ ] film @2026-11-14T15:00 every week #video\n- [ ] other\n";
+    assert_eq!(
+        stop_repeating(body, 1).unwrap(),
+        "# Shoots\n- [ ] film @2026-11-14T15:00 #video\n- [ ] other\n"
+    );
+    let last = "- [ ] water @2026-11-12 every 3 days after done";
+    assert_eq!(stop_repeating(last, 0).unwrap(), "- [ ] water @2026-11-12");
+    let crlf = "- [ ] pay @2026-11-30 every month on the last day\r\nnext\r\n";
+    assert_eq!(
+        stop_repeating(crlf, 0).unwrap(),
+        "- [ ] pay @2026-11-30\r\nnext\r\n"
+    );
+}
+
+#[test]
+fn stop_repeating_leaves_what_does_not_repeat() {
+    assert_eq!(stop_repeating("- [ ] a @2026-11-14\n", 0), None);
+    assert_eq!(stop_repeating("- [x] a @2026-11-14 every week\n", 0), None);
+    assert_eq!(stop_repeating("plain every week\n", 0), None);
+    assert_eq!(stop_repeating("- [ ] a @2026-11-14 every week\n", 1), None);
+    assert_eq!(
+        stop_repeating("```\n- [ ] a @2026-11-14 every week\n```\n", 1),
+        None
+    );
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// Stopping a repeat changes only that task's repeat: every task keeps
+    /// its box, its due date and its place, every other line is untouched,
+    /// and a second stop finds nothing to do.
+    #[test]
+    fn prop_stop_repeating_changes_only_the_repeat(body in gen_body(), line in 0u32..8) {
+        let before = task_items(&body);
+        let target = before.iter().find(|item| item.line == line);
+        let Some(out) = stop_repeating(&body, line) else {
+            prop_assert!(target.is_none_or(|item| item.checked || item.repeat.is_none()));
+            return Ok(());
+        };
+        let item = target.unwrap();
+        prop_assert!(!item.checked && item.repeat.is_some());
+        let after = task_items(&out);
+        prop_assert_eq!(after.len(), before.len());
+        for (old, new) in before.iter().zip(&after) {
+            prop_assert_eq!(old.line, new.line);
+            prop_assert_eq!(old.checked, new.checked);
+            prop_assert_eq!(&old.due, &new.due);
+            if old.line == line {
+                prop_assert!(new.repeat.is_none());
+            } else {
+                prop_assert_eq!(old.repeat, new.repeat);
+            }
+        }
+        let others = |s: &str| -> Vec<String> {
+            s.lines().enumerate().filter(|(i, _)| *i as u32 != line).map(|(_, l)| l.to_owned()).collect()
+        };
+        prop_assert_eq!(others(&out), others(&body));
+        prop_assert_eq!(out.ends_with('\n'), body.ends_with('\n'));
+        prop_assert_eq!(stop_repeating(&out, line), None);
+    }
+}

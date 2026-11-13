@@ -13,7 +13,7 @@ use kanso_core::DocType;
 use kanso_core::dates::DateTime;
 use kanso_core::due_phrase;
 use kanso_core::due_phrase_model::{DateOrder, Parsed};
-use kanso_core::model::{MAX_BODY_LEN, TRASH_BOOK_ID};
+use kanso_core::model::MAX_BODY_LEN;
 use kanso_core::roles::Role;
 use kanso_store::{Origin, Put, Store, StoreError};
 use serde_json::json;
@@ -21,12 +21,8 @@ use serde_json::json;
 use crate::capture::CaptureError;
 
 /// The note in the Inbox that captured tasks collect in when the Inbox is
-/// where they go. A fixed ID, so every device that captures one adds to the
-/// same note once they sync.
-pub const INBOX_TASKS_ID: &str = "note:inbox-tasks";
-
-/// The title that note is made with.
-pub const INBOX_TASKS_TITLE: &str = "Inbox tasks";
+/// where they go (a fixed ID); the local API's Inbox tasks land there too.
+pub use kanso_store::{INBOX_TASKS_ID, INBOX_TASKS_TITLE};
 
 /// Where a captured task is written.
 #[derive(
@@ -284,33 +280,14 @@ pub fn save_task_line(
     Ok(id)
 }
 
-/// The Inbox's task note, made when missing and brought back from the
-/// trash when it was deleted. Refuses a locked Inbox.
+/// The Inbox's task note ([`Store::inbox_tasks_note`], the same note the
+/// local API adds to). Refuses a locked Inbox.
 fn inbox_tasks_note(store: &Store, origin: Origin) -> Result<String, CaptureError> {
     let inbox = store.role_book(Role::Inbox, origin)?;
     if store.locked_books()?.contains(&inbox) {
         return Err(CaptureError::Locked);
     }
-    match store.note(INBOX_TASKS_ID)? {
-        None => {
-            store.put(
-                DocType::Note,
-                json!({"_id": INBOX_TASKS_ID, "title": INBOX_TASKS_TITLE, "body": "", "bookId": inbox}),
-                Put::Upsert,
-                origin,
-            )?;
-        }
-        Some(note) if note.book_id == TRASH_BOOK_ID => {
-            store.put(
-                DocType::Note,
-                json!({"_id": INBOX_TASKS_ID, "bookId": inbox}),
-                Put::Merge,
-                origin,
-            )?;
-        }
-        Some(_) => {}
-    }
-    Ok(INBOX_TASKS_ID.to_owned())
+    Ok(store.inbox_tasks_note(origin)?)
 }
 
 #[cfg(test)]
