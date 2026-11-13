@@ -73,9 +73,24 @@ describe("Help", () => {
 
   it("covers the topics the apps point people to", () => {
     render(<Help />);
-    for (const title of ["Syncing, and adding a device", "Locked notes", "Your library key", "Connecting an agent or a script", "Sharing", "Crash reports", "Deleting your account", "Getting support"]) {
+    for (const title of ["Syncing, and adding a device", "Locked notes", "Your library key", "Dates and repeating tasks", "Running a video studio", "Connecting an agent or a script", "Sharing", "Sharing a notebook", "Crash reports", "Deleting your account", "Getting support"]) {
       expect(screen.getByRole("heading", { level: 2, name: title })).toBeInTheDocument();
     }
+  });
+
+  it("explains pairing, repeats, the studio and shared notebooks in the apps' own words", () => {
+    const { container } = render(<Help />);
+    const topic = (id: string) => container.querySelector(`section#${id}`) as HTMLElement;
+    expect(within(topic("api-keys")).getByText("Raycast wants to connect")).toBeInTheDocument();
+    expect(within(topic("tasks")).getByText("Captured tasks go to")).toBeInTheDocument();
+    expect(within(topic("tasks")).getByText(/@2026-11-21T15:00 every week/)).toBeInTheDocument();
+    expect(within(topic("studio")).getByText("Video studio")).toBeInTheDocument();
+    expect(within(topic("studio")).getByText("Board settings")).toBeInTheDocument();
+    for (const role of ["Owner", "Manager", "Can edit", "Can comment", "Can view"]) {
+      expect(within(topic("shared-notebooks")).getByText(role)).toBeInTheDocument();
+    }
+    expect(within(topic("shared-notebooks")).getByText("Stop sharing")).toBeInTheDocument();
+    expect(within(topic("sharing")).getByRole("link", { name: "Sharing a notebook" })).toHaveAttribute("href", "#shared-notebooks");
   });
 
   it("points to GitHub issues for support and says what crash reports leave out", () => {
