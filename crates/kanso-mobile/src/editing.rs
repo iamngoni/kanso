@@ -610,7 +610,7 @@ impl EditorSession {
     /// session has. Nothing for a note that isn't open live.
     fn tell_caret(&self, selection: Option<Range16>) {
         let sharing = self.shared.sharing();
-        if !sharing.merges(&self.shared.id) {
+        if !sharing.merges(&self.shared.id) && !sharing.in_book_room(&self.shared.id) {
             return;
         }
         let Ok((anchor, head)) = self.shared.run(|st, _| {
