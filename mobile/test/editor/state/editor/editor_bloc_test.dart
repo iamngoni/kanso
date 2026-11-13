@@ -564,6 +564,72 @@ void main() {
       },
     );
 
+    test('a pick is written and the note is unsaved', () async {
+      final bloc = await ready();
+      document.properties = const <Property>[
+        Property(
+          key: 'stage',
+          kind: PropertyKind.text,
+          text: 'Idea',
+          items: [],
+        ),
+      ];
+      bloc.add(
+        const EditorEvent.propertyPicked(
+          index: 0,
+          key: 'stage',
+          original: '',
+          choice: PropertyChoice.option(text: 'Idea'),
+        ),
+      );
+      final state = await bloc.stream.firstWhere(
+        (s) => s.properties.first.text == 'Idea',
+      );
+      expect(state.propertyDropped, isFalse);
+      expect(state.save, isA<SaveState_Pending>());
+      expect(
+        document.calls.last,
+        startsWith('pickProperty 0 stage "" PropertyChoice.option'),
+      );
+    });
+
+    test('a pick that was dropped says so and writes nothing', () async {
+      final bloc = await ready();
+      document.pickApplies = false;
+      bloc.add(
+        const EditorEvent.propertyPicked(
+          index: 0,
+          key: 'stage',
+          original: 'Idea',
+          choice: PropertyChoice.clear(),
+        ),
+      );
+      final state = await bloc.stream.firstWhere((s) => s.propertyDropped);
+      expect(state.properties, const <Property>[_property]);
+      expect(state.save, isA<SaveState_Saved>());
+      // The next change clears the notice.
+      document.pickApplies = true;
+      bloc.add(const EditorEvent.propertyRemoved(0));
+      final after = await bloc.stream.firstWhere((s) => !s.propertyDropped);
+      expect(after.propertyDropped, isFalse);
+    });
+
+    test('a pick that fails says so', () async {
+      final bloc = await ready();
+      document.failures['pickProperty'] = const ApplicationError.invalid(
+        message: 'That is not a date and time.',
+      );
+      bloc.add(
+        const EditorEvent.propertyPicked(
+          index: 0,
+          key: 'k',
+          original: '',
+          choice: PropertyChoice.clear(),
+        ),
+      );
+      await bloc.stream.firstWhere((s) => s.propertyError != null);
+    });
+
     test('a property removed is the properties the core has', () async {
       final bloc = await ready();
       document.properties = const <Property>[];

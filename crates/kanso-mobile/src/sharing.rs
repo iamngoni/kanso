@@ -1252,6 +1252,25 @@ mod tests {
             prop_assert_eq!(Role::from(ShareRole::Editor), Role::Edit);
         }
 
+        /// A person property offers each person who is still in the note
+        /// once, the owner first, and nobody who left.
+        #[test]
+        fn prop_member_names_are_those_still_in((view, _me) in views()) {
+            let names = member_usernames(&view);
+            let mut once = names.clone();
+            once.sort();
+            once.dedup();
+            prop_assert_eq!(once.len(), names.len());
+            prop_assert_eq!(names.first(), Some(&view.owner.username));
+            for member in &view.members {
+                if member.left && member.person.username != view.owner.username {
+                    prop_assert!(!names.contains(&member.person.username));
+                } else {
+                    prop_assert!(names.contains(&member.person.username));
+                }
+            }
+        }
+
         /// Every role survives the trip to the shell's role and back, and
         /// the shell's four roles are the engine's four.
         #[test]

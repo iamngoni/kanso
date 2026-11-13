@@ -1474,6 +1474,66 @@ abstract class AppLocalizations {
   /// **'That property couldn\'t be set.'**
   String get propertiesFailed;
 
+  /// The empty value of a select or person property, which opens its list.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose'**
+  String get propertiesChoose;
+
+  /// The empty value of a date property, which opens its calendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a date'**
+  String get propertiesPickDate;
+
+  /// The empty value of a date and time property, which opens its calendar and clock.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a date and time'**
+  String get propertiesPickDateTime;
+
+  /// The label of a date and time property's time zone, and the title of the list of zones.
+  ///
+  /// In en, this message translates to:
+  /// **'Time zone'**
+  String get propertiesPickZone;
+
+  /// The hint of the search field over the list of time zones.
+  ///
+  /// In en, this message translates to:
+  /// **'Search time zones'**
+  String get propertiesSearchZones;
+
+  /// The row of a date and time picker that sets the time of day.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get propertiesTime;
+
+  /// Empties a property's value from its picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get propertiesClear;
+
+  /// Says that a select property's value is one its notebook no longer lists.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in the notebook\'s list'**
+  String get propertiesUnlisted;
+
+  /// Says that a picked value was not written because the note's properties changed under the picker.
+  ///
+  /// In en, this message translates to:
+  /// **'That property changed while you were editing it.'**
+  String get propertiesDropped;
+
+  /// Shown when a search over the time zones finds none.
+  ///
+  /// In en, this message translates to:
+  /// **'No time zone matches.'**
+  String get propertiesNoZones;
+
   /// What the row of properties does when it is closed, for a screen reader.
   ///
   /// In en, this message translates to:

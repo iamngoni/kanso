@@ -39,6 +39,15 @@ sealed class EditorEvent with _$EditorEvent {
     int? index,
   }) = EditorPropertySetEvent;
 
+  /// A picker picked [choice] for the property [key] in row [index], which
+  /// it showed holding [original].
+  const factory EditorEvent.propertyPicked({
+    required int index,
+    required String key,
+    required String original,
+    required core.PropertyChoice choice,
+  }) = EditorPropertyPickedEvent;
+
   /// The property in row [index] was removed.
   const factory EditorEvent.propertyRemoved(int index) =
       EditorPropertyRemovedEvent;

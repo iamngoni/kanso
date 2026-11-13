@@ -20,9 +20,7 @@ use kanso_core::zoned;
 
 use crate::errors::KansoError;
 use crate::model::{Property, PropertyKind};
-use crate::property_pick_model::{
-    Moment, PickKind, PropertyChoice, PropertyPick, ZoneRow,
-};
+use crate::property_pick_model::{Moment, PickKind, PropertyChoice, PropertyPick, ZoneRow};
 
 /// What decides a row's editor besides its value: the notebook's property
 /// list, the people of a shared note, and the zone this device is in.
@@ -53,7 +51,10 @@ pub(crate) fn row(key: String, value: &Value, ctx: &PickContext) -> Property {
         Value::List(items) => (PropertyKind::List, items.iter().map(Value::text).collect()),
         Value::Raw(_) => (PropertyKind::Raw, Vec::new()),
     };
-    let def = ctx.defs.iter().find(|def| def.key.eq_ignore_ascii_case(&key));
+    let def = ctx
+        .defs
+        .iter()
+        .find(|def| def.key.eq_ignore_ascii_case(&key));
     Property {
         pick: pick_for(def, value, ctx),
         key,
@@ -190,7 +191,7 @@ fn zoned_label(value: &Value) -> Option<String> {
 }
 
 /// Every zone of the picker, in order.
-pub(crate) fn zone_rows() -> Vec<ZoneRow> {
+pub fn zone_rows() -> Vec<ZoneRow> {
     zoned::zone_names()
         .into_iter()
         .map(|name| ZoneRow {
@@ -241,9 +242,7 @@ fn picked(current: &Value, choice: &PropertyChoice) -> Result<Option<Value>, Kan
         PropertyChoice::Clear => Value::Text(String::new()),
         PropertyChoice::Option { text } => Value::Text(text.clone()),
         PropertyChoice::Day { moment } => Value::Date(local_of(moment)?.date.iso()),
-        PropertyChoice::Moment { moment } => {
-            Value::DateTime(zoned::local_text(&local_of(moment)?))
-        }
+        PropertyChoice::Moment { moment } => Value::DateTime(zoned::local_text(&local_of(moment)?)),
         PropertyChoice::Zoned { moment, zone } => zoned_value(local_of(moment)?, zone)?,
         // The wall-clock time stays whichever zone it is read in: an embargo
         // at 09:00 New York stays 09:00 when its zone becomes London.

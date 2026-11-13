@@ -10,8 +10,8 @@ use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
     Completion, CursorMark, EditCommand, EditOutcome, EditorContext, EditorEvent, EditorSession,
-    EditorSnapshot, GoalSetting, KansoError, LinkTarget, LiveBatch, LiveDocument, Property,
-    Range16, RunBatch, SaveState, ShareFile, TextChange,
+    EditorSnapshot, GoalSetting, KansoError, LinkTarget, LiveBatch, LiveDocument, PickOutcome,
+    Property, PropertyChoice, Range16, RunBatch, SaveState, ShareFile, TextChange, ZoneRow,
 };
 
 /// A note open for editing. Cheap to clone on the Rust side; Dart holds one.
@@ -117,6 +117,19 @@ impl KansoEditor {
         self.0.set_property(index, key, value)
     }
 
+    /// Writes what a picker picked into row `index`, which the picker showed
+    /// as property `key` holding `original`; dropped (`applied` false) when
+    /// the front matter changed under the pick.
+    pub fn pick_property(
+        &self,
+        index: u32,
+        key: String,
+        original: String,
+        choice: PropertyChoice,
+    ) -> Result<PickOutcome, KansoError> {
+        self.0.pick_property(index, key, original, choice)
+    }
+
     pub fn remove_property(&self, index: u32) -> Result<Vec<Property>, KansoError> {
         self.0.remove_property(index)
     }
@@ -169,4 +182,9 @@ impl KansoEditor {
     pub fn events(&self, sink: StreamSink<EditorEvent>) {
         self.0.events(move |event| sink.add(event).is_ok());
     }
+}
+
+/// Every time zone the zone picker lists, in order.
+pub fn property_zones() -> Vec<ZoneRow> {
+    kanso_mobile::property_zones()
 }

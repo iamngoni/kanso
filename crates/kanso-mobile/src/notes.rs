@@ -28,8 +28,8 @@ use crate::library::Library;
 use crate::matching::ranges;
 use crate::model::{
     Changed, DateField, Hit, LibraryOverview, ListPlace, ListQuery, ListShape, LockState, NewNote,
-    NoteChange, NoteList, NoteRow, NoteView, NotebookRole, NotebookRow, Property, PropertyKind,
-    Saved, SearchScope, SortKey, StatusCount, Table, TableRow, TagRow,
+    NoteChange, NoteList, NoteRow, NoteView, NotebookRole, NotebookRow, Property, Saved,
+    SearchScope, SortKey, StatusCount, Table, TableRow, TagRow,
 };
 use crate::undo::Undoable;
 
