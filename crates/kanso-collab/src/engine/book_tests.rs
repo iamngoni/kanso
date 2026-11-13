@@ -465,13 +465,25 @@ fn notes_made_in_a_shared_notebook_reach_everyone_and_a_deleted_note_comes_back_
         texts(&a, &book).get("Fresh").map(String::as_str),
         Some("new")
     );
-    // A deletes it; B, who didn't, keeps it; B's edit brings it back to A.
+    // A deletes it; it goes to B's trash, still readable there; B takes it
+    // out again with an edit, which brings it back to A.
     let a_fresh = note_of(&a, &book, "Fresh");
     a.store.delete(&a_fresh, Origin::Ui).unwrap();
     sync(&[&a, &b], &share);
     assert!(!texts(&a, &book).contains_key("Fresh"));
     assert!(body(&b, "note:fresh") == "new");
-    write(&b, "note:fresh", "new and edited");
+    assert_eq!(
+        b.store.note("note:fresh").unwrap().unwrap().book_id,
+        "trash"
+    );
+    b.store
+        .put(
+            DocType::Note,
+            json!({"_id": "note:fresh", "bookId": b_book, "body": "new and edited"}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
     sync(&[&b, &a], &share);
     sync(&[&a, &b], &share);
     assert_eq!(

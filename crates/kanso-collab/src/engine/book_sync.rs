@@ -15,10 +15,12 @@
 use std::collections::{BTreeMap, HashMap};
 
 use kanso_core::{DocType, now_ms};
-use kanso_store::{BookStream, Origin, Put, SharedStatus, SharedText, StoreError};
+use kanso_store::{BookStream, CommentRecord, Origin, Put, SharedStatus, SharedText, StoreError};
 use serde_json::json;
 
-use super::book::{BOOK_FIELDS, Ctx, book_mark, book_note_id, stream_key};
+use super::book::{
+    BOOK_FIELDS, COMMENT_SUFFIX, Ctx, book_mark, book_note_id, comment_key, stream_key,
+};
 use super::log::{Opened, Unopened};
 use super::{Engine, STATE_LIMIT, UPDATE_PART, clamp_text, rebase};
 use crate::api::{CollabError, MANIFEST_STREAM, Result};
@@ -35,8 +37,17 @@ const PAGE: usize = 500;
 /// A log's text as the library keeps it: title and note text.
 type Text = (String, String);
 
-fn read_base(row: &BookStream) -> Option<Text> {
+pub(super) fn read_base(row: &BookStream) -> Option<Text> {
     serde_json::from_str::<(String, String)>(&row.base).ok()
+}
+
+/// An outbox row's stream and the kind of entry it holds: a comment is
+/// queued under `<stream>.c`.
+pub(super) fn split_outgoing(stream: &str) -> (&str, Kind) {
+    match stream.strip_suffix(COMMENT_SUFFIX) {
+        Some(note) => (note, Kind::Comment),
+        None => (stream, Kind::Update),
+    }
 }
 
 fn write_base(text: &Text) -> String {
@@ -46,7 +57,7 @@ fn write_base(text: &Text) -> String {
 impl Engine {
     /// Opens an envelope of a log: its author must be a member of the
     /// epoch's last list with that list's key and a role that may write.
-    fn open_book_entry(
+    pub(super) fn open_book_entry(
         &self,
         ctx: &Ctx,
         stream: &str,
@@ -127,29 +138,40 @@ impl Engine {
             }
             result.pulled += page.entries.len();
             for entry in &page.entries {
-                if entry.seq <= row.applied_seq {
-                    continue;
-                }
+                // Below what is merged only comments count (a snapshot
+                // covers the updates, and the log keeps comments).
+                let fresh = entry.seq > row.applied_seq;
                 let bytes = unb64(&entry.envelope)
                     .ok_or_else(|| CollabError::Protocol("an entry isn't base64url".into()))?;
                 match self.open_book_entry(ctx, &row.stream, &bytes, None) {
                     Ok(opened)
-                        if opened.header.kind == Kind::Update
+                        if fresh
+                            && opened.header.kind == Kind::Update
                             && opened.role.may_edit()
                             && !ctx.past_its_epoch(opened.header.epoch, entry.seq) =>
                     {
                         changed |= apply(&opened.plain);
                     }
-                    Err(Unopened::NeedKey) => {
+                    Ok(opened)
+                        if opened.header.kind == Kind::Comment
+                            && row.stream != MANIFEST_STREAM
+                            && opened.role.may_comment()
+                            && !ctx.past_its_epoch(opened.header.epoch, entry.seq) =>
+                    {
+                        self.keep_book_comment(ctx, &row.stream, entry.seq, &opened)?;
+                    }
+                    Err(Unopened::NeedKey) if fresh => {
                         return Err(CollabError::api(409, "epoch_changed", json!({})));
                     }
-                    // Comments, forged and dropped entries: nothing to merge.
+                    // Forged and dropped entries: nothing to merge.
                     _ => {}
                 }
-                row.applied_seq = entry.seq;
-                // The head this device trusts grows only with what it has
-                // received, never with the server's say-so.
-                ctx.row.head = ctx.row.head.max(entry.seq);
+                if fresh {
+                    row.applied_seq = entry.seq;
+                    // The head this device trusts grows only with what it
+                    // has received, never with the server's say-so.
+                    ctx.row.head = ctx.row.head.max(entry.seq);
+                }
             }
             if !page.more {
                 break;
@@ -158,12 +180,38 @@ impl Engine {
         Ok(changed)
     }
 
+    /// Keeps a comment event a note's log delivered (once per sequence).
+    pub(super) fn keep_book_comment(
+        &self,
+        ctx: &Ctx,
+        stream: &str,
+        seq: u64,
+        opened: &Opened,
+    ) -> Result<()> {
+        if serde_json::from_slice::<crate::model::CommentEvent>(&opened.plain).is_err() {
+            return Ok(());
+        }
+        self.store.add_comment_event(
+            &comment_key(&ctx.row.share_id, stream),
+            &CommentRecord {
+                seq,
+                author: opened.header.author_account.clone(),
+                author_name: opened.author_name.clone(),
+                role: opened.role.as_str().into(),
+                json: String::from_utf8_lossy(&opened.plain).into_owned(),
+            },
+        )?;
+        Ok(())
+    }
+
     // ---------------------------------------------------------------- sync
 
     /// Brings a joined notebook up to date over HTTP: the chain, the
     /// manifest, every note, then what this device wrote. Goes on where it
     /// stopped after a crash or an offline spell.
     pub fn sync_book(&self, share_id: &str) -> Result<BookSync> {
+        // One step on a notebook at a time (the live room works on it too).
+        let _gate = self.book_gate.enter();
         let mut result = BookSync::default();
         let mut refreshed = false;
         loop {
@@ -238,11 +286,22 @@ impl Engine {
         let mut manifest_row = self.manifest_row(&share_id)?;
         let manifest = ManifestDoc::load(&manifest_row.state)
             .map_err(|e| CollabError::Crypto(e.to_string()))?;
+        // Which notes were deleted before this pull: a deletion that is new
+        // here lands in the trash; one that was restored comes back.
+        let deleted_before: std::collections::HashSet<String> = manifest
+            .notes()
+            .into_iter()
+            .filter(|n| n.deleted_at.is_some())
+            .map(|n| n.id)
+            .collect();
         let mut apply_manifest = |update: &[u8]| manifest.apply(update).unwrap_or(false);
         self.pull_into(ctx, &mut manifest_row, &mut apply_manifest, result)?;
         if role.may_edit() {
             self.take_local_manifest(ctx, &mut manifest_row, &manifest)?;
         }
+        // Before the manifest's state is kept: a failure here is tried again
+        // from the same state, so no deletion is missed.
+        self.follow_remote_deletions(ctx, &manifest, &deleted_before, role, result)?;
         manifest_row.state = manifest.encode_state();
         self.store.put_book_stream(&manifest_row)?;
         self.apply_manifest(ctx, &mut manifest_row, &manifest, role, result)?;
@@ -273,15 +332,9 @@ impl Engine {
         }
         // An edit to a note someone deleted brings it back.
         let mut revive = Vec::new();
+        let queued = self.queued_streams(&share_id)?;
         for note in manifest.notes() {
-            if note.deleted_at.is_some()
-                && role.may_edit()
-                && self
-                    .store
-                    .book_outbox(&share_id)?
-                    .iter()
-                    .any(|o| o.stream == note.id)
-            {
+            if note.deleted_at.is_some() && role.may_edit() && queued.contains(&note.id) {
                 revive.push(note.id);
             }
         }
@@ -388,6 +441,91 @@ impl Engine {
         Ok(())
     }
 
+    /// The streams this device has edits queued for, not yet taken by the
+    /// server.
+    fn queued_streams(&self, share_id: &str) -> Result<std::collections::HashSet<String>> {
+        Ok(self
+            .store
+            .book_outbox(share_id)?
+            .into_iter()
+            .map(|o| o.stream)
+            .collect())
+    }
+
+    /// What the manifest's deletions mean for this library. A note another
+    /// member deleted (listed deleted now, not before) moves to the trash
+    /// here, where it can be restored, unless it was edited here since the
+    /// last sync: then the edit wins and brings it back for everyone. A note
+    /// that was restored from the trash on this device (listed deleted, but
+    /// back in its notebook and not new) is brought back in the manifest. A
+    /// note someone brought back, which this device had put in the trash for
+    /// its deletion, returns to the notebook.
+    fn follow_remote_deletions(
+        &self,
+        ctx: &Ctx,
+        manifest: &ManifestDoc,
+        deleted_before: &std::collections::HashSet<String>,
+        role: Role,
+        result: &mut BookSync,
+    ) -> Result<()> {
+        let share_id = ctx.row.share_id.clone();
+        let trash = kanso_core::TRASH_BOOK_ID;
+        let queued = self.queued_streams(&share_id)?;
+        for note in manifest.notes() {
+            let Some(row) = self.store.book_stream(&share_id, &note.id)? else {
+                continue;
+            };
+            let (Some(note_id), Some(base)) = (row.note_id.clone(), read_base(&row)) else {
+                continue;
+            };
+            let Some(local) = self.store.note(&note_id)? else {
+                // Brought back by someone after this library's copy was
+                // emptied from the trash: it is made again from the log, not
+                // deleted again (the stream starts as a note new here).
+                if note.deleted_at.is_none() && deleted_before.contains(&note.id) {
+                    let mut fresh = row.clone();
+                    fresh.base = String::new();
+                    self.store.put_book_stream(&fresh)?;
+                    result.notes_written += 1;
+                }
+                continue;
+            };
+            // An edit counts from the moment it is queued, not only while the
+            // library's text differs from `base` (settling moves `base`).
+            let unedited =
+                (local.title.clone(), local.body.clone()) == base && !queued.contains(&note.id);
+            let new_deletion = note.deleted_at.is_some() && !deleted_before.contains(&note.id);
+            let restored_there = note.deleted_at.is_none() && deleted_before.contains(&note.id);
+            if new_deletion && local.book_id == ctx.row.book_id && unedited {
+                self.store.put(
+                    DocType::Note,
+                    json!({"_id": note_id, "bookId": trash}),
+                    Put::Merge,
+                    Origin::Collab,
+                )?;
+                result.notes_trashed += 1;
+            } else if restored_there && local.book_id == trash {
+                self.store.put(
+                    DocType::Note,
+                    json!({"_id": note_id, "bookId": ctx.row.book_id}),
+                    Put::Merge,
+                    Origin::Collab,
+                )?;
+                result.notes_written += 1;
+            } else if note.deleted_at.is_some()
+                && !new_deletion
+                && local.book_id == ctx.row.book_id
+                && role.may_edit()
+                && let Some(update) = manifest.set_deleted(&note.id, None)
+            {
+                // Restored from the trash here.
+                self.store
+                    .push_book_outbox(&share_id, MANIFEST_STREAM, &update)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Notes that are gone from the notebook here (deleted, or moved out),
     /// with nothing new from anyone, are marked deleted in the manifest.
     fn mark_gone_notes(&self, ctx: &Ctx, manifest: &ManifestDoc) -> Result<()> {
@@ -463,6 +601,34 @@ impl Engine {
                 patch.insert(key.clone(), parsed);
             }
         }
+        // The property list merges one property at a time: what another
+        // member added, changed or removed arrives, what was changed here and
+        // isn't pushed yet stays. A notebook first read here takes the
+        // manifest's.
+        let local_props = crate::book_props::of_fields(&local);
+        let base_props = if row.base.is_empty() {
+            local_props.clone()
+        } else {
+            crate::book_props::of_fields(&base)
+        };
+        let merged = crate::book_props::merge(
+            &local_props,
+            &base_props,
+            &crate::book_props::of_fields(&fields),
+        );
+        if merged != local_props {
+            let current = self
+                .store
+                .books()?
+                .into_iter()
+                .find(|b| b.id == ctx.row.book_id)
+                .and_then(|b| b.extra.get(kanso_core::schema::FIELD).cloned());
+            let list = crate::book_props::join(&merged, current.as_ref());
+            patch.insert(
+                kanso_core::schema::FIELD.into(),
+                list.unwrap_or(serde_json::Value::Null),
+            );
+        }
         if !patch.is_empty() {
             patch.insert("_id".into(), json!(ctx.row.book_id));
             self.store
@@ -519,7 +685,7 @@ impl Engine {
 
     /// Pulls a note's log and settles the library's text with it. Whether
     /// the note was edited here (its edits are in the outbox).
-    fn sync_note_stream(
+    pub(super) fn sync_note_stream(
         &self,
         ctx: &mut Ctx,
         stream: &str,
@@ -560,7 +726,7 @@ impl Engine {
 
     /// Takes the library's edits of a note (against its base) into its
     /// document, and writes the document's text to the library.
-    fn settle_note(
+    pub(super) fn settle_note(
         &self,
         ctx: &mut Ctx,
         row: &mut BookStream,
@@ -722,28 +888,33 @@ impl Engine {
             .is_some_and(|role| role.may_edit());
         let mut pushed = std::collections::BTreeSet::new();
         for outgoing in self.store.book_outbox(&share_id)? {
-            if !may_edit {
+            if !may_edit && !outgoing.stream.ends_with(COMMENT_SUFFIX) {
                 // The role changed: what this device wrote can't go.
                 self.store.drop_book_outbox(outgoing.id)?;
                 continue;
             }
             let mut compacted = false;
+            let (stream, kind) = split_outgoing(&outgoing.stream);
+            if kind == Kind::Comment
+                && !ctx
+                    .role(&caller.account_id)
+                    .is_some_and(|r| r.may_comment())
+            {
+                self.store.drop_book_outbox(outgoing.id)?;
+                continue;
+            }
             loop {
-                let sealed =
-                    self.seal_book(ctx, &outgoing.stream, Kind::Update, None, &outgoing.payload)?;
-                match self
-                    .api
-                    .book_append(caller, &share_id, &outgoing.stream, &sealed)
-                {
+                let sealed = self.seal_book(ctx, stream, kind, None, &outgoing.payload)?;
+                match self.api.book_append(caller, &share_id, stream, &sealed) {
                     Ok(_) => {
                         self.store.drop_book_outbox(outgoing.id)?;
                         result.pushed += 1;
-                        pushed.insert(outgoing.stream.clone());
+                        pushed.insert(stream.to_owned());
                         break;
                     }
                     Err(err) if err.code() == Some("compact_first") && !compacted => {
                         compacted = true;
-                        self.compact_book_stream(ctx, &outgoing.stream, result)?;
+                        self.compact_book_stream(ctx, stream, result)?;
                     }
                     Err(err) if err.code() == Some("too_large") => {
                         self.store.drop_book_outbox(outgoing.id)?;

@@ -12,10 +12,10 @@ use serde_json::json;
 
 use crate::api::Caller;
 use crate::api::{
-    BookCreated, BookInfo, BookLogPage, CollabApi, CollabError, Created, EpochList, EpochWrap,
-    JoinRequest, Joined, LinkInfo, LiveEvent, LiveLink, LogEntry, LogPage, MemberState, NewBook,
-    NewBookList, NewEpoch, NewLink, NewShare, NoticeIn, NoticeOut, Result, ShareInfo,
-    SnapshotEntry,
+    BookCreated, BookInfo, BookLiveLink, BookLogPage, BookSummary, CollabApi, CollabError, Created,
+    EpochList, EpochWrap, JoinRequest, Joined, LinkInfo, LiveEvent, LiveLink, LogEntry, LogPage,
+    MemberState, NewBook, NewBookList, NewEpoch, NewLink, NewShare, NoticeIn, NoticeOut, Result,
+    ShareInfo, SnapshotEntry,
 };
 use crate::codec::{b64, hex, is_id, sha256, unb64};
 use crate::envelope::{max_size, parse_header};
@@ -928,6 +928,14 @@ impl CollabApi for MemoryCollab {
             socket: id,
             rx,
         }))
+    }
+
+    fn books(&self, caller: &Caller) -> Result<Vec<BookSummary>> {
+        self.books_list(caller)
+    }
+
+    fn book_live(&self, caller: &Caller, share_id: &str) -> Result<Box<dyn BookLiveLink>> {
+        self.book_live_impl(caller, share_id)
     }
 
     fn create_book(&self, caller: &Caller, book: &NewBook) -> Result<BookCreated> {

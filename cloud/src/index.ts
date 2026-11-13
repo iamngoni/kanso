@@ -46,6 +46,7 @@
 //   DELETE /v2/collab/shares/<id>/requests/<account>  decline a request to join      (session)
 //   POST   /v2/collab/join/<link_id>    ask to join through a link                    (session)
 //   POST   /v2/collab/books             share a notebook                              (session)
+//   GET    /v2/collab/books             the notebooks you are in or invited to        (session)
 //   GET    /v2/collab/books/<id>        its member-list chain, your wraps, epochs     (session)
 //   DELETE /v2/collab/books/<id>        stop sharing it                               (session)
 //   POST   /v2/collab/books/<id>/accept        accept an invitation                   (session)
@@ -200,7 +201,7 @@ const ROUTES: Record<string, Route> = {
 	"/v2/changes": { name: "changes", methods: { GET: { handler: sync.changes } } },
 	"/v2/account/identity": { name: "identity", methods: { PUT: json(identity.putIdentity), GET: { handler: identity.getIdentity } } },
 	"/v2/collab/shares": { name: "collab_shares", methods: { POST: json(collab.createShare), GET: { handler: collab.listShares } } },
-	"/v2/collab/books": { name: "collab_books", methods: { POST: json(book.createBook) } },
+	"/v2/collab/books": { name: "collab_books", methods: { POST: json(book.createBook), GET: { handler: book.listBooks } } },
 	"/v2/collab/notifications": { name: "collab_notifications", methods: { POST: json(collab.notify), GET: { handler: collab.listNotifications } } },
 	"/v2/auth/apple/start": { name: "apple_start", binding: true, methods: { POST: json(providers.start("apple"), true) } },
 	"/v2/auth/apple/poll": { name: "apple_poll", binding: true, methods: { POST: json(providers.applePoll, true) } },

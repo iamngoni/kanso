@@ -13,9 +13,10 @@ use tungstenite::protocol::WebSocket;
 use ureq::Agent;
 
 use crate::api::{
-    BookCreated, BookInfo, BookLogPage, Caller, CollabApi, CollabError, Created, Joined, LiveEvent,
-    LiveLink, LogPage, MANIFEST_STREAM, NewBook, NewBookList, NewEpoch, NewLink, NewShare,
-    NoticeIn, NoticeOut, Result, ShareInfo, SharesPage, parse_control, parse_frame,
+    BookCreated, BookInfo, BookLiveEvent, BookLiveLink, BookLogPage, BookSummary, Caller,
+    CollabApi, CollabError, Created, Joined, LiveEvent, LiveLink, LogPage, MANIFEST_STREAM,
+    NewBook, NewBookList, NewEpoch, NewLink, NewShare, NoticeIn, NoticeOut, Result, ShareInfo,
+    SharesPage, parse_book_control, parse_book_frame, parse_control, parse_frame, stream_bytes,
 };
 use crate::codec::b64;
 use crate::identity::Published;
@@ -293,6 +294,21 @@ impl CollabApi for HttpCollab {
         Ok(Box::new(WsLink::connect(caller, share_id)?))
     }
 
+    fn books(&self, caller: &Caller) -> Result<Vec<BookSummary>> {
+        #[derive(serde::Deserialize)]
+        struct Page {
+            books: Vec<BookSummary>,
+        }
+        Ok(json_of::<Page>(get(caller, "/v2/collab/books")?)?.books)
+    }
+
+    fn book_live(&self, caller: &Caller, share_id: &str) -> Result<Box<dyn BookLiveLink>> {
+        let path = format!("/v2/collab/books/{}/live", segment(share_id));
+        Ok(Box::new(BookWsLink {
+            link: WsLink::connect_path(caller, &path)?,
+        }))
+    }
+
     fn create_book(&self, caller: &Caller, book: &NewBook) -> Result<BookCreated> {
         json_of(send_json(caller, "POST", "/v2/collab/books", book)?)
     }
@@ -394,9 +410,13 @@ struct WsLink {
 impl WsLink {
     fn connect(caller: &Caller, share_id: &str) -> Result<WsLink> {
         let path = format!("/v2/collab/shares/{}/live", segment(share_id));
+        WsLink::connect_path(caller, &path)
+    }
+
+    fn connect_path(caller: &Caller, path: &str) -> Result<WsLink> {
         let socket = kanso_sync::ws::connect(
             &caller.server,
-            &path,
+            path,
             &[("authorization", caller.authorization.as_str())],
         )
         .map_err(|err| match err {
@@ -450,6 +470,85 @@ impl LiveLink for WsLink {
                 Err(err) => return Err(CollabError::Transport(err.to_string())),
             }
         }
+    }
+}
+
+impl WsLink {
+    fn text(&mut self, value: serde_json::Value) -> Result<()> {
+        self.socket
+            .send(Message::text(value.to_string()))
+            .map_err(|err| CollabError::Transport(err.to_string()))
+    }
+
+    /// The next frame as the notebook room sends it.
+    fn recv_book(&mut self, wait: Duration) -> Result<Option<BookLiveEvent>> {
+        self.socket
+            .get_ref()
+            .tcp()
+            .set_read_timeout(Some(wait.max(Duration::from_millis(1))))
+            .ok();
+        loop {
+            match self.socket.read() {
+                Ok(Message::Binary(frame)) => {
+                    return parse_book_frame(&frame)
+                        .map(Some)
+                        .ok_or_else(|| CollabError::Protocol("a short frame".into()));
+                }
+                Ok(Message::Text(text)) => {
+                    if let Some(event) = parse_book_control(text.as_str()) {
+                        return Ok(Some(event));
+                    }
+                }
+                Ok(Message::Close(_)) => {
+                    return Ok(Some(BookLiveEvent::Closed {
+                        reason: "closed".into(),
+                    }));
+                }
+                Ok(_) => {}
+                Err(tungstenite::Error::Io(err))
+                    if matches!(
+                        err.kind(),
+                        io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
+                    ) =>
+                {
+                    return Ok(None);
+                }
+                Err(err) => return Err(CollabError::Transport(err.to_string())),
+            }
+        }
+    }
+}
+
+/// A notebook's live room: `stream || envelope` frames out, text frames to
+/// open and close a note's stream.
+struct BookWsLink {
+    link: WsLink,
+}
+
+impl BookLiveLink for BookWsLink {
+    fn open(&mut self, stream: &str) -> Result<()> {
+        self.link
+            .text(serde_json::json!({"type": "open", "stream": stream}))
+    }
+
+    fn close(&mut self, stream: &str) -> Result<()> {
+        self.link
+            .text(serde_json::json!({"type": "close", "stream": stream}))
+    }
+
+    fn send(&mut self, stream: &str, envelope: &[u8]) -> Result<()> {
+        let id = stream_bytes(stream)
+            .ok_or_else(|| CollabError::Protocol("a stream id isn't 16 bytes".into()))?;
+        let mut frame = id.to_vec();
+        frame.extend_from_slice(envelope);
+        self.link
+            .socket
+            .send(Message::binary(frame))
+            .map_err(|err| CollabError::Transport(err.to_string()))
+    }
+
+    fn recv(&mut self, wait: Duration) -> Result<Option<BookLiveEvent>> {
+        self.link.recv_book(wait)
     }
 }
 
@@ -612,5 +711,77 @@ mod tests {
             r#"/v2/collab/shares/share/live auth=Some("Bearer kanso_test") origin=None"#
         );
         assert_eq!(sent, b"mine");
+    }
+
+    #[test]
+    fn the_book_room_opens_streams_and_frames_carry_the_stream() {
+        let note = crate::codec::b64(&[7u8; 16]);
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let server = format!("http://{}", listener.local_addr().unwrap());
+        let (tx, rx) = mpsc::channel();
+        let served = note.clone();
+        std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut socket = tungstenite::accept(stream).unwrap();
+            socket
+                .send(Message::text(r#"{"type":"hello","head":9,"epoch":1}"#))
+                .unwrap();
+            let opened = socket.read().unwrap().into_text().unwrap().to_string();
+            socket
+                .send(Message::text(format!(
+                    r#"{{"type":"opened","stream":"{served}","head":4}}"#
+                )))
+                .unwrap();
+            let mut frame = vec![7u8; 16];
+            frame.extend_from_slice(&5u64.to_be_bytes());
+            frame.extend_from_slice(b"stored");
+            socket.send(Message::binary(frame)).unwrap();
+            let mut presence = vec![7u8; 16];
+            presence.extend_from_slice(&0u64.to_be_bytes());
+            presence.extend_from_slice(b"here");
+            socket.send(Message::binary(presence)).unwrap();
+            let sent = socket.read().unwrap().into_data().to_vec();
+            tx.send((opened, sent)).unwrap();
+            let _ = socket.close(None);
+            let _ = socket.flush();
+        });
+        let mut link = HttpCollab.book_live(&caller(server), "share").unwrap();
+        let wait = Duration::from_secs(5);
+        assert_eq!(
+            link.recv(wait).unwrap(),
+            Some(BookLiveEvent::Hello { head: 9, epoch: 1 })
+        );
+        link.open(&note).unwrap();
+        assert_eq!(
+            link.recv(wait).unwrap(),
+            Some(BookLiveEvent::Opened {
+                stream: note.clone(),
+                head: 4
+            })
+        );
+        assert_eq!(
+            link.recv(wait).unwrap(),
+            Some(BookLiveEvent::Stored {
+                stream: note.clone(),
+                seq: 5,
+                envelope: b"stored".to_vec()
+            })
+        );
+        assert_eq!(
+            link.recv(wait).unwrap(),
+            Some(BookLiveEvent::Presence {
+                stream: note.clone(),
+                envelope: b"here".to_vec()
+            })
+        );
+        link.send(&note, b"mine").unwrap();
+        let (opened, sent) = rx.recv().unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&opened).unwrap(),
+            serde_json::json!({"type": "open", "stream": note})
+        );
+        let mut want = vec![7u8; 16];
+        want.extend_from_slice(b"mine");
+        assert_eq!(sent, want);
     }
 }

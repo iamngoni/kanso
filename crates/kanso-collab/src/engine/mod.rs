@@ -19,6 +19,7 @@
 
 pub mod book;
 mod book_end;
+pub mod book_live;
 mod book_people;
 mod book_sync;
 pub mod canvas;
@@ -49,6 +50,7 @@ use crate::model::{
 };
 use crate::shared_doc::SharedDoc;
 
+pub use book_live::{BookLiveHandle, BookNotify};
 pub use live::LiveHandle;
 
 /// Updates or bytes since the last snapshot after which an editor writes one.
@@ -195,6 +197,10 @@ pub struct Engine {
     pub(crate) server_members: Mutex<HashMap<String, std::collections::HashSet<String>>>,
     /// What the person should hear about.
     pub(crate) problems: Mutex<Vec<crate::model::Problem>>,
+    /// Open notebook rooms' state: which notes are open, carets, cursors.
+    pub(crate) book_rooms: Mutex<HashMap<String, Arc<Mutex<book_live::BookRoom>>>>,
+    /// One step on a shared notebook at a time.
+    pub(crate) book_gate: book_live::Gate,
 }
 
 /// The `meta` key holding this account's published identity (sealed).
@@ -218,6 +224,8 @@ impl Engine {
             invitations: Mutex::new(Vec::new()),
             server_members: Mutex::new(HashMap::new()),
             problems: Mutex::new(Vec::new()),
+            book_rooms: Mutex::new(HashMap::new()),
+            book_gate: book_live::Gate::default(),
         }
     }
 
@@ -1105,6 +1113,8 @@ pub fn rebase(base: &str, local: &str, current: &str) -> String {
     out
 }
 
+#[cfg(test)]
+mod book_live_tests;
 #[cfg(test)]
 mod book_rotation_tests;
 #[cfg(test)]

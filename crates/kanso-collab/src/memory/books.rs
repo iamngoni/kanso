@@ -9,9 +9,13 @@ use std::collections::BTreeMap;
 use serde_json::json;
 
 use super::*;
+use std::collections::HashSet;
+use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
+use std::time::Duration;
+
 use crate::api::{
-    BookCreated, BookEpochLink, BookInfo, BookListEntry, BookLogPage, BookMemberStatus,
-    MANIFEST_STREAM, NewBook, NewBookList,
+    BookCreated, BookEpochLink, BookInfo, BookListEntry, BookLiveEvent, BookLiveLink, BookLogPage,
+    BookMemberStatus, BookSummary, MANIFEST_STREAM, NewBook, NewBookList,
 };
 use crate::book_members::{MAX_BOOK_MEMBERS, is_well_formed as list_well_formed, link_hash};
 use crate::book_members_model::BookMemberList;
@@ -58,6 +62,31 @@ pub(super) struct Book {
     /// The log's head: every stream's sequences share this count.
     head: u64,
     streams: BTreeMap<String, Stream>,
+    /// Open live connections.
+    sockets: Vec<BookSocket>,
+}
+
+#[derive(Debug)]
+struct BookSocket {
+    id: u64,
+    account: String,
+    /// The note streams opened on this socket (the manifest always is).
+    open: HashSet<String>,
+    tx: Sender<BookLiveEvent>,
+}
+
+impl Book {
+    /// Tells every socket that has `stream` open (the manifest: all of
+    /// them), except `except`.
+    fn tell(&mut self, stream: &str, event: &BookLiveEvent, except: Option<u64>) {
+        self.sockets.retain(|s| {
+            let hears = stream == MANIFEST_STREAM || s.open.contains(stream);
+            if !hears || Some(s.id) == except {
+                return true;
+            }
+            s.tx.send(event.clone()).is_ok()
+        });
+    }
 }
 
 fn parse(list: &str) -> Option<(BookMemberList, Vec<u8>)> {
@@ -75,6 +104,24 @@ fn conflict(book: &Book) -> CollabError {
 }
 
 impl State {
+    fn store_book_entry(book: &mut Book, stream: &str, kind: Kind, envelope: &[u8]) -> u64 {
+        book.head += 1;
+        let seq = book.head;
+        let entry = book.streams.entry(stream.to_owned()).or_default();
+        entry.head = seq;
+        entry.log.push((seq, kind, envelope.to_vec()));
+        book.tell(
+            stream,
+            &BookLiveEvent::Stored {
+                stream: stream.to_owned(),
+                seq,
+                envelope: envelope.to_vec(),
+            },
+            None,
+        );
+        seq
+    }
+
     fn book(&mut self, id: &str) -> Result<&mut Book> {
         self.books.get_mut(id).ok_or_else(not_found)
     }
@@ -374,6 +421,7 @@ impl MemoryCollab {
                 wraps,
                 history: BTreeMap::new(),
                 head: 0,
+                sockets: Vec::new(),
                 streams: BTreeMap::new(),
             },
         );
@@ -480,7 +528,13 @@ impl MemoryCollab {
         if !owned {
             return Err(not_found());
         }
-        state.books.remove(share_id);
+        if let Some(book) = state.books.remove(share_id) {
+            for socket in &book.sockets {
+                let _ = socket.tx.send(BookLiveEvent::Closed {
+                    reason: "stopped".into(),
+                });
+            }
+        }
         state.retired.insert(share_id.to_owned());
         Ok(())
     }
@@ -600,6 +654,16 @@ impl MemoryCollab {
         if let Some(link) = &new.history_link {
             book.history.insert(list.epoch, link.clone());
         }
+        let epoch_moved = book.epoch != list.epoch;
+        book.sockets.retain(|s| {
+            if list.member(&s.account).is_none() {
+                let _ = s.tx.send(BookLiveEvent::Closed {
+                    reason: "removed".into(),
+                });
+                return false;
+            }
+            !epoch_moved || s.tx.send(BookLiveEvent::Epoch(list.epoch)).is_ok()
+        });
         book.epoch = list.epoch;
         book.head_rev = new.rev;
         book.head_hash = hash;
@@ -725,13 +789,69 @@ impl MemoryCollab {
         let (kind, _) = parse_header(envelope)
             .map(|(h, _)| (h.kind, ()))
             .ok_or_else(bad)?;
+        Ok(State::store_book_entry(
+            state.book(share_id)?,
+            stream,
+            kind,
+            envelope,
+        ))
+    }
+
+    /// The caller's notebooks (`GET /v2/collab/books`).
+    pub(super) fn books_list(&self, caller: &Caller) -> Result<Vec<BookSummary>> {
+        let state = self.lock()?;
+        let mut out: Vec<BookSummary> = state
+            .books
+            .iter()
+            .filter_map(|(id, book)| {
+                let (role, status) = book.members.get(&caller.account_id)?;
+                (*status != "left").then(|| BookSummary {
+                    share_id: id.clone(),
+                    owner: book.owner.clone(),
+                    owner_username: state
+                        .identities
+                        .get(&book.owner)
+                        .map(|(name, _)| name.clone())
+                        .unwrap_or_default(),
+                    role: *role,
+                    status: (*status).to_owned(),
+                    epoch: book.epoch,
+                    rev: book.head_rev,
+                })
+            })
+            .collect();
+        out.sort_by(|a, b| a.share_id.cmp(&b.share_id));
+        Ok(out)
+    }
+
+    pub(super) fn book_live_impl(
+        &self,
+        caller: &Caller,
+        share_id: &str,
+    ) -> Result<Box<dyn BookLiveLink>> {
+        let mut state = self.lock()?;
+        state.book_role(share_id, caller, false)?;
+        state.next_socket += 1;
+        let id = state.next_socket;
+        let (tx, rx) = channel();
         let book = state.book(share_id)?;
-        book.head += 1;
-        let seq = book.head;
-        let entry = book.streams.entry(stream.to_owned()).or_default();
-        entry.head = seq;
-        entry.log.push((seq, kind, envelope.to_vec()));
-        Ok(seq)
+        let _ = tx.send(BookLiveEvent::Hello {
+            head: book.head,
+            epoch: book.epoch,
+        });
+        book.sockets.push(BookSocket {
+            id,
+            account: caller.account_id.clone(),
+            open: HashSet::new(),
+            tx,
+        });
+        Ok(Box::new(MemoryBookLink {
+            server: self.clone(),
+            caller: caller.clone(),
+            share_id: share_id.to_owned(),
+            socket: id,
+            rx,
+        }))
     }
 
     pub(super) fn book_snapshot_impl(
@@ -759,5 +879,134 @@ impl MemoryCollab {
             .retain(|(seq, kind, _)| *kind == Kind::Comment || *seq > base_seq);
         entry.snapshot = Some((base_seq, envelope.to_vec()));
         Ok(base_seq)
+    }
+}
+
+/// A live connection to a [`MemoryCollab`] notebook room.
+struct MemoryBookLink {
+    server: MemoryCollab,
+    caller: Caller,
+    share_id: String,
+    socket: u64,
+    rx: Receiver<BookLiveEvent>,
+}
+
+impl MemoryBookLink {
+    fn refuse(&self, state: &mut State, code: &str) {
+        if let Some(book) = state.books.get_mut(&self.share_id)
+            && let Some(mine) = book.sockets.iter().find(|s| s.id == self.socket)
+        {
+            let _ = mine.tx.send(BookLiveEvent::Error { code: code.into() });
+        }
+    }
+}
+
+impl BookLiveLink for MemoryBookLink {
+    fn open(&mut self, stream: &str) -> Result<()> {
+        let mut state = self.server.state.lock().expect("poisoned");
+        let book = state
+            .books
+            .get_mut(&self.share_id)
+            .ok_or_else(|| CollabError::Transport("the room closed".into()))?;
+        let head = book.streams.get(stream).map_or(0, |s| s.head);
+        let Some(mine) = book.sockets.iter_mut().find(|s| s.id == self.socket) else {
+            return Err(CollabError::Transport("the room closed".into()));
+        };
+        mine.open.insert(stream.to_owned());
+        let _ = mine.tx.send(BookLiveEvent::Opened {
+            stream: stream.to_owned(),
+            head,
+        });
+        Ok(())
+    }
+
+    fn close(&mut self, stream: &str) -> Result<()> {
+        let mut state = self.server.state.lock().expect("poisoned");
+        if let Some(book) = state.books.get_mut(&self.share_id)
+            && let Some(mine) = book.sockets.iter_mut().find(|s| s.id == self.socket)
+        {
+            mine.open.remove(stream);
+        }
+        Ok(())
+    }
+
+    fn send(&mut self, stream: &str, envelope: &[u8]) -> Result<()> {
+        let mut state = self.server.state.lock().expect("poisoned");
+        let open = state
+            .books
+            .get(&self.share_id)
+            .and_then(|b| b.sockets.iter().find(|s| s.id == self.socket))
+            .map(|s| stream == MANIFEST_STREAM || s.open.contains(stream));
+        let Some(open) = open else {
+            return Err(CollabError::Transport("the room closed".into()));
+        };
+        let Some((header, _)) = parse_header(envelope) else {
+            self.refuse(&mut state, "bad_request");
+            return Ok(());
+        };
+        if !open {
+            self.refuse(&mut state, "not_open");
+            return Ok(());
+        }
+        if header.kind == Kind::Presence {
+            let member = state.book_role(&self.share_id, &self.caller, false).is_ok();
+            if !member
+                || header.author_account != self.caller.account_id
+                || envelope.len() > max_size(Kind::Presence)
+            {
+                self.refuse(&mut state, "forbidden_role");
+                return Ok(());
+            }
+            if let Some(book) = state.books.get_mut(&self.share_id) {
+                book.tell(
+                    stream,
+                    &BookLiveEvent::Presence {
+                        stream: stream.to_owned(),
+                        envelope: envelope.to_vec(),
+                    },
+                    Some(self.socket),
+                );
+            }
+            return Ok(());
+        }
+        match MemoryCollab::admit_book_write(
+            &state,
+            &self.caller,
+            &self.share_id,
+            stream,
+            envelope,
+            false,
+        ) {
+            Ok((kind, _)) => {
+                if let Some(book) = state.books.get_mut(&self.share_id) {
+                    State::store_book_entry(book, stream, kind, envelope);
+                }
+            }
+            Err(err) => {
+                let code = err.code().unwrap_or("bad_request").to_owned();
+                self.refuse(&mut state, &code);
+            }
+        }
+        Ok(())
+    }
+
+    fn recv(&mut self, wait: Duration) -> Result<Option<BookLiveEvent>> {
+        match self.rx.recv_timeout(wait) {
+            Ok(event) => Ok(Some(event)),
+            Err(RecvTimeoutError::Timeout) => Ok(None),
+            Err(RecvTimeoutError::Disconnected) => {
+                Err(CollabError::Transport("the room closed".into()))
+            }
+        }
+    }
+}
+
+impl Drop for MemoryBookLink {
+    fn drop(&mut self) {
+        if let Ok(mut state) = self.server.state.lock()
+            && let Some(book) = state.books.get_mut(&self.share_id)
+        {
+            book.sockets.retain(|s| s.id != self.socket);
+        }
     }
 }

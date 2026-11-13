@@ -175,6 +175,12 @@ impl Store {
                     [share_id],
                 )?;
             }
+            // Comments on its notes, kept under `<share id>/<note stream>`.
+            tx.execute(
+                "DELETE FROM collab_comment_events
+                 WHERE substr(share_id, 1, length(?1) + 1) = ?1 || '/'",
+                [share_id],
+            )?;
             Ok(())
         })
     }
@@ -194,6 +200,12 @@ impl Store {
                     [share_id],
                 )?;
             }
+            // Comments on its notes, kept under `<share id>/<note stream>`.
+            tx.execute(
+                "DELETE FROM collab_comment_events
+                 WHERE substr(share_id, 1, length(?1) + 1) = ?1 || '/'",
+                [share_id],
+            )?;
             Ok(())
         })
     }

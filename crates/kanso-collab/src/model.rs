@@ -445,6 +445,26 @@ pub struct NoteSync {
     pub compacted: bool,
 }
 
+/// What the live connection of a shared notebook tells the app. Presence,
+/// text and comments are of one note's stream (an open note); the others
+/// are of the notebook.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BookLiveNotice {
+    /// Notes were written to the library, trashed or restored, or the
+    /// notebook's own fields changed: read the notebook again.
+    Notes { share_id: String },
+    /// An open note's text changed in the library.
+    Text { share_id: String, stream: String },
+    /// Someone's cursor moved, came or went in an open note.
+    Presence { share_id: String, stream: String },
+    /// An open note's comments changed.
+    Comments { share_id: String, stream: String },
+    /// The room is connected (`true`) or not.
+    Connection { share_id: String, live: bool },
+    /// This account is no longer in the notebook, or sharing stopped.
+    Ended { share_id: String },
+}
+
 /// What the live connection of an open shared note tells the app.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LiveNotice {
