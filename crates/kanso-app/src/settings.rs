@@ -1117,6 +1117,17 @@ impl SettingsView {
                                 .label("Import…")
                                 .on_click(|_, window, cx| pouch_import::start_import(window, cx)),
                         ),
+                    Row::new(Lucide::RefreshCw, "Update opened files")
+                        .detail("A note made by File › Open… is updated when its file changes while you're away. A note you've changed in Kanso keeps your changes and stops following the file.")
+                        .trailing(div().debug_selector(|| "import-refresh-opened".into()).child(
+                            Switch::new("import-refresh-opened")
+                                .checked(config(cx).import.refresh_opened_files)
+                                .on_click(|on, _, cx| {
+                                    AppState::update_config(cx, |config| {
+                                        config.import.refresh_opened_files = *on
+                                    });
+                                }),
+                        )),
                 ],
                 colors,
             ),

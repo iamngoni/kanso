@@ -6,14 +6,33 @@ use std::path::{Path, PathBuf};
 use kanso_store::Store;
 use sha1::{Digest as _, Sha1};
 
+use super::linked_files::{LinkedFile, modified_ms};
 use super::{import_markdown_file, resolve};
 
 /// Imports each Markdown or text file into the Inbox; returns the last note
 /// and what went wrong with the others. Opening a file again updates its
 /// note.
 pub fn open_note_files(paths: &[PathBuf], store: &Store) -> (Option<String>, Vec<String>) {
+    let opened = open_note_files_linked(paths, store);
+    (opened.last, opened.problems)
+}
+
+/// What [`open_note_files_linked`] did.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Opened {
+    /// The last note opened.
+    pub last: Option<String>,
+    /// What went wrong, one line per file.
+    pub problems: Vec<String>,
+    /// Each file opened and its note, for following the file.
+    pub linked: Vec<LinkedFile>,
+}
+
+/// [`open_note_files`], also saying which note each file made.
+pub fn open_note_files_linked(paths: &[PathBuf], store: &Store) -> Opened {
     let mut last = None;
     let mut problems = Vec::new();
+    let mut linked = Vec::new();
     for path in paths {
         let name = path
             .file_name()
@@ -25,13 +44,32 @@ pub fn open_note_files(paths: &[PathBuf], store: &Store) -> (Option<String>, Vec
             ));
             continue;
         }
+        // Read before the file is, so a change made meanwhile is seen next
+        // time.
+        let modified_ms = modified_ms(path);
         match import_markdown_file(path, store) {
-            Ok(report) if report.is_clean() => last = report.first_note.or(last),
+            Ok(report) if report.is_clean() => {
+                if let Some(note) = &report.first_note {
+                    // The note is keyed by the real path, so the link is
+                    // too: a file reached through a symlink or another
+                    // spelling is still one file.
+                    linked.push(LinkedFile {
+                        note: note.clone(),
+                        path: path.canonicalize().unwrap_or_else(|_| path.clone()),
+                        modified_ms,
+                    });
+                }
+                last = report.first_note.or(last);
+            }
             Ok(report) => problems.push(format!("{name}: {}", report.rejected.join("; "))),
             Err(err) => problems.push(format!("{name}: {err:#}")),
         }
     }
-    (last, problems)
+    Opened {
+        last,
+        problems,
+        linked,
+    }
 }
 
 /// The folder a document the platform names by `identity` is copied into
