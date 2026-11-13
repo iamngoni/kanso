@@ -185,7 +185,7 @@ void main() {
       await tester.tap(find.text('OK'));
       await tester.pumpAndSettle();
       fixtures.boards.moveFailure = null;
-      fixtures.boards.moved = CardMoved.missing;
+      fixtures.boards.moved = const CardMoved.missing();
       await tester.tap(find.bySemanticsLabel('Mark done').first);
       await tester.pumpAndSettle();
       expect(

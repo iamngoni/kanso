@@ -1026,6 +1026,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   BoardLane dco_decode_board_lane(dynamic raw);
 
   @protected
+  BoardSetup dco_decode_board_setup(dynamic raw);
+
+  @protected
   BoardView dco_decode_board_view(dynamic raw);
 
   @protected
@@ -1066,6 +1069,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   BoardLane dco_decode_box_autoadd_board_lane(dynamic raw);
+
+  @protected
+  BoardSetup dco_decode_box_autoadd_board_setup(dynamic raw);
 
   @protected
   bool dco_decode_box_autoadd_bool(dynamic raw);
@@ -1168,6 +1174,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   InterruptedLock dco_decode_box_autoadd_interrupted_lock(dynamic raw);
+
+  @protected
+  LaneChange dco_decode_box_autoadd_lane_change(dynamic raw);
 
   @protected
   LinkTarget dco_decode_box_autoadd_link_target(dynamic raw);
@@ -1735,6 +1744,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   KansoError dco_decode_kanso_error(dynamic raw);
+
+  @protected
+  LaneChange dco_decode_lane_change(dynamic raw);
+
+  @protected
+  LaneEdited dco_decode_lane_edited(dynamic raw);
+
+  @protected
+  LaneRemoval dco_decode_lane_removal(dynamic raw);
 
   @protected
   LibraryOverview dco_decode_library_overview(dynamic raw);
@@ -2466,6 +2484,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   BindingAnswer? dco_decode_opt_box_autoadd_binding_answer(dynamic raw);
+
+  @protected
+  BoardSetup? dco_decode_opt_box_autoadd_board_setup(dynamic raw);
 
   @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
@@ -4217,6 +4238,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   BoardLane sse_decode_board_lane(SseDeserializer deserializer);
 
   @protected
+  BoardSetup sse_decode_board_setup(SseDeserializer deserializer);
+
+  @protected
   BoardView sse_decode_board_view(SseDeserializer deserializer);
 
   @protected
@@ -4269,6 +4293,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   BoardLane sse_decode_box_autoadd_board_lane(SseDeserializer deserializer);
+
+  @protected
+  BoardSetup sse_decode_box_autoadd_board_setup(SseDeserializer deserializer);
 
   @protected
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
@@ -4395,6 +4422,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   InterruptedLock sse_decode_box_autoadd_interrupted_lock(
     SseDeserializer deserializer,
   );
+
+  @protected
+  LaneChange sse_decode_box_autoadd_lane_change(SseDeserializer deserializer);
 
   @protected
   LinkTarget sse_decode_box_autoadd_link_target(SseDeserializer deserializer);
@@ -5026,6 +5056,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   KansoError sse_decode_kanso_error(SseDeserializer deserializer);
+
+  @protected
+  LaneChange sse_decode_lane_change(SseDeserializer deserializer);
+
+  @protected
+  LaneEdited sse_decode_lane_edited(SseDeserializer deserializer);
+
+  @protected
+  LaneRemoval sse_decode_lane_removal(SseDeserializer deserializer);
 
   @protected
   LibraryOverview sse_decode_library_overview(SseDeserializer deserializer);
@@ -5919,6 +5958,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   BindingAnswer? sse_decode_opt_box_autoadd_binding_answer(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BoardSetup? sse_decode_opt_box_autoadd_board_setup(
     SseDeserializer deserializer,
   );
 
@@ -7951,6 +7995,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_board_lane(BoardLane self, SseSerializer serializer);
 
   @protected
+  void sse_encode_board_setup(BoardSetup self, SseSerializer serializer);
+
+  @protected
   void sse_encode_board_view(BoardView self, SseSerializer serializer);
 
   @protected
@@ -8017,6 +8064,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_board_lane(
     BoardLane self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_board_setup(
+    BoardSetup self,
     SseSerializer serializer,
   );
 
@@ -8200,6 +8253,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_interrupted_lock(
     InterruptedLock self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_lane_change(
+    LaneChange self,
     SseSerializer serializer,
   );
 
@@ -9018,6 +9077,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_kanso_error(KansoError self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_lane_change(LaneChange self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_lane_edited(LaneEdited self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_lane_removal(LaneRemoval self, SseSerializer serializer);
 
   @protected
   void sse_encode_library_overview(
@@ -10226,6 +10294,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_binding_answer(
     BindingAnswer? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_board_setup(
+    BoardSetup? self,
     SseSerializer serializer,
   );
 

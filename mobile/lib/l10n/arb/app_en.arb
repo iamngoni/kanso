@@ -9849,5 +9849,103 @@
   "tasksShowDetail": "Show full task",
   "@tasksShowDetail": {
     "description": "The action that shows a task's whole text, for a screen reader; a long press does it too."
+  },
+  "boardSettingsLabel": "Board settings",
+  "@boardSettingsLabel": {
+    "description": "What the button on a notebook’s board that opens its settings is called."
+  },
+  "boardSettingsTitle": "Board settings",
+  "@boardSettingsTitle": {
+    "description": "The title of the sheet that sets how a notebook’s board is laid out."
+  },
+  "boardSettingsDone": "Done",
+  "@boardSettingsDone": {
+    "description": "The button that closes the board settings sheet."
+  },
+  "boardSettingsGroupBy": "Group by",
+  "@boardSettingsGroupBy": {
+    "description": "The heading over the choice of what a notebook’s board is grouped by."
+  },
+  "boardSettingsStatus": "Status",
+  "@boardSettingsStatus": {
+    "description": "The choice that lays a board out by the notes’ status."
+  },
+  "boardSettingsGroupHint": "Pick a select property to lay the notes out in a lane for each of its values.",
+  "@boardSettingsGroupHint": {
+    "description": "The line under the group choices of a board that is laid out by status."
+  },
+  "boardSettingsLanes": "Lanes",
+  "@boardSettingsLanes": {
+    "description": "The heading over the lanes of a board grouped by a property."
+  },
+  "boardSettingsLaneName": "Lane name",
+  "@boardSettingsLaneName": {
+    "description": "The label of the field that renames a lane."
+  },
+  "boardSettingsMoveLane": "Move {lane}",
+  "@boardSettingsMoveLane": {
+    "description": "What a screen reader says for the handle that reorders a lane.",
+    "placeholders": {
+      "lane": {
+        "type": "String"
+      }
+    }
+  },
+  "boardSettingsRemoveLane": "Remove {lane}",
+  "@boardSettingsRemoveLane": {
+    "description": "The label of the button that removes a lane.",
+    "placeholders": {
+      "lane": {
+        "type": "String"
+      }
+    }
+  },
+  "boardSettingsAddLane": "Add a lane",
+  "@boardSettingsAddLane": {
+    "description": "The hint of the field that adds a lane at the end of the board."
+  },
+  "boardSettingsAddLaneButton": "Add lane",
+  "@boardSettingsAddLaneButton": {
+    "description": "The label of the button that adds the lane typed in the field."
+  },
+  "boardSettingsShowUnset": "Show cards without a {key}",
+  "@boardSettingsShowUnset": {
+    "description": "The switch that shows the lane of notes that have no value, even while it is empty.",
+    "placeholders": {
+      "key": {
+        "type": "String"
+      }
+    }
+  },
+  "boardSettingsNoValue": "No {key}",
+  "@boardSettingsNoValue": {
+    "description": "The choice that leaves the notes of a removed lane with no value.",
+    "placeholders": {
+      "key": {
+        "type": "String"
+      }
+    }
+  },
+  "boardSettingsRemove": "Remove",
+  "@boardSettingsRemove": {
+    "description": "The button that removes the lane being asked about."
+  },
+  "boardHintGroup": "Touch and hold a card to change its {key}.",
+  "@boardHintGroup": {
+    "description": "The hint under a notebook’s board grouped by a property, on a phone.",
+    "placeholders": {
+      "key": {
+        "type": "String"
+      }
+    }
+  },
+  "boardHintGroupDrag": "Drag a card to change its {key}.",
+  "@boardHintGroupDrag": {
+    "description": "The hint under a notebook’s board grouped by a property, on a tablet.",
+    "placeholders": {
+      "key": {
+        "type": "String"
+      }
+    }
   }
 }

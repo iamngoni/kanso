@@ -19,7 +19,7 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_engine::board::property_board;
 use kanso_engine::board_settings::{
-    LaneEdit, SettingsUndo, apply_lane_edit, notes_in_lane, removal_prompt,
+    LaneEdit, SettingsUndo, apply_lane_edit, edit_words, notes_in_lane, removal_prompt,
 };
 use kanso_store::{Origin, Store, StoreError};
 
@@ -145,7 +145,7 @@ impl BoardSettings {
         let now = Clock::now_ms(cx);
         match apply_lane_edit(&self.store, &self.book_id, &edit, now) {
             Ok(done) => {
-                let words = words_for(&edit, done.rewritten, &self.key);
+                let words = edit_words(&edit, done.rewritten, &self.key);
                 let on_change = self.on_change.clone();
                 on_change(done.undo, words, window, cx);
                 self.removal = None;
@@ -477,34 +477,6 @@ impl Render for BoardSettings {
                         .child(error),
                 )
             })
-    }
-}
-
-/// The notice for a written edit.
-fn words_for(edit: &LaneEdit, rewritten: usize, key: &str) -> String {
-    let notes = |n: usize| match n {
-        1 => "1 note".to_owned(),
-        n => format!("{n} notes"),
-    };
-    match edit {
-        LaneEdit::Rename { from, to } => {
-            let base = format!("Renamed {from} to {}.", to.trim());
-            if rewritten == 0 {
-                base
-            } else {
-                format!("{base} {} updated.", notes(rewritten))
-            }
-        }
-        LaneEdit::Move { .. } => "Moved a lane.".to_owned(),
-        LaneEdit::Add(name) => format!("Added the lane {}.", name.trim()),
-        LaneEdit::Remove { lane, move_to } => {
-            let base = format!("Removed {lane}.");
-            match (rewritten, move_to) {
-                (0, _) => base,
-                (n, Some(to)) => format!("{base} {} moved to {to}.", notes(n)),
-                (n, None) => format!("{base} {} moved to No {key}.", notes(n)),
-            }
-        }
     }
 }
 

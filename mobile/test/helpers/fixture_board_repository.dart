@@ -61,6 +61,12 @@ class FixtureBoardRepository implements BoardRepository {
       'completed': <BoardCard>[],
       'dropped': <BoardCard>[],
     };
+    laneCards = <String, List<BoardCard>>{
+      'Idea': <BoardCard>[noteCards['none']!.first],
+      'Scripting': <BoardCard>[noteCards['active']!.first],
+      'Shooting': <BoardCard>[noteCards['onHold']!.first],
+      '': <BoardCard>[noteCards['none']!.last],
+    };
     todo = <BoardCard>[
       const BoardCard(
         key: CardKey.task(
@@ -115,6 +121,23 @@ class FixtureBoardRepository implements BoardRepository {
     ];
   }
 
+  /// A notebook's board grouped by a property: the notes of a notebook
+  /// place are laid out by [groupKey] in [lanes], as the core does, when
+  /// [studio] is on. Cards are in [laneCards] by lane ('' is no value).
+  bool studio = false;
+  String? groupKey = 'stage';
+  List<String> lanes = <String>['Idea', 'Scripting', 'Shooting'];
+  bool showUnset = true;
+  late Map<String, List<BoardCard>> laneCards;
+
+  /// What the settings asked for, in order: 'group stage', 'show false',
+  /// 'rename A>B', 'move 2>0', 'add X', 'remove A>B' (a null target is
+  /// 'remove A>-').
+  final List<String> settingsCalls = <String>[];
+
+  /// What an edit answers when it is refused (the core's words).
+  String? refusal;
+
   late Map<String, List<BoardCard>> noteCards;
   late List<BoardCard> todo;
   late List<BoardCard> done;
@@ -126,7 +149,7 @@ class FixtureBoardRepository implements BoardRepository {
   ApplicationError? moveFailure;
 
   /// What a move answers when it works.
-  CardMoved moved = CardMoved.changed;
+  CardMoved moved = const CardMoved.changed();
 
   /// When set, `board` waits for it.
   Completer<void>? gate;
@@ -150,6 +173,11 @@ class FixtureBoardRepository implements BoardRepository {
     }
     List<BoardCard> cards(List<BoardCard> source) =>
         empty ? const <BoardCard>[] : List<BoardCard>.of(source);
+    if (studio &&
+        kind == BoardKind.notes &&
+        query.place is ListPlace_Notebook) {
+      return Right<ApplicationError, BoardView>(_studioBoard(cards));
+    }
     return Right<ApplicationError, BoardView>(
       kind == BoardKind.notes
           ? BoardView(
@@ -200,6 +228,148 @@ class FixtureBoardRepository implements BoardRepository {
     );
   }
 
+  BoardView _studioBoard(List<BoardCard> Function(List<BoardCard>) cards) {
+    final setup = BoardSetup(
+      bookId: 'book:studio',
+      group: groupKey,
+      groupable: const <String>['stage'],
+      lanes: groupKey == null ? const <String>[] : List<String>.of(lanes),
+      showUnset: showUnset,
+    );
+    if (groupKey == null) {
+      final status = <BoardColumn>[
+        for (final entry in noteCards.entries)
+          BoardColumn(
+            lane: BoardLane.status(status: entry.key),
+            label: entry.key,
+            cards: cards(entry.value),
+          ),
+      ];
+      return BoardView(
+        kind: BoardKind.notes,
+        columns: status,
+        setup: setup,
+      );
+    }
+    final unset = laneCards[''] ?? <BoardCard>[];
+    return BoardView(
+      kind: BoardKind.notes,
+      setup: setup,
+      columns: <BoardColumn>[
+        for (final lane in lanes)
+          BoardColumn(
+            lane: BoardLane.value(value: lane),
+            label: lane,
+            cards: cards(laneCards[lane] ?? <BoardCard>[]),
+          ),
+        if (showUnset || unset.isNotEmpty)
+          BoardColumn(
+            lane: const BoardLane.unset(),
+            label: 'No $groupKey',
+            cards: cards(unset),
+          ),
+      ],
+    );
+  }
+
+  @override
+  Future<Either<ApplicationError, Unit>> setGroup(
+    String bookId,
+    String? by,
+  ) async {
+    settingsCalls.add('group ${by ?? '-'}');
+    groupKey = by;
+    return const Right<ApplicationError, Unit>(unit);
+  }
+
+  @override
+  Future<Either<ApplicationError, Unit>> setShowUnset(
+    String bookId, {
+    required bool show,
+  }) async {
+    settingsCalls.add('show $show');
+    showUnset = show;
+    return const Right<ApplicationError, Unit>(unit);
+  }
+
+  @override
+  Future<Either<ApplicationError, LaneRemoval>> laneRemoval(
+    String bookId,
+    String lane,
+  ) async {
+    final notes = (laneCards[lane] ?? <BoardCard>[]).length;
+    final at = lanes.indexOf(lane);
+    return Right<ApplicationError, LaneRemoval>(
+      LaneRemoval(
+        notes: notes,
+        prompt: notes == 0
+            ? ''
+            : notes == 1
+            ? '1 note is in $lane. Move it to:'
+            : '$notes notes are in $lane. Move them to:',
+        target: at + 1 < lanes.length ? lanes[at + 1] : lanes[at - 1],
+        targets: <String>[
+          for (final other in lanes)
+            if (other != lane) other,
+        ],
+      ),
+    );
+  }
+
+  @override
+  Future<Either<ApplicationError, LaneEdited>> editLanes(
+    String bookId,
+    LaneChange change,
+    int nowMs,
+  ) async {
+    final refused = refusal;
+    if (refused != null) {
+      return Left<ApplicationError, LaneEdited>(
+        ApplicationError.invalid(message: refused),
+      );
+    }
+    var message = '';
+    var rewritten = 0;
+    switch (change) {
+      case LaneChange_Rename(:final from, :final to):
+        settingsCalls.add('rename $from>$to');
+        if (to != from && lanes.contains(to)) {
+          return Left<ApplicationError, LaneEdited>(
+            ApplicationError.invalid(
+              message: 'There is a lane called $to already.',
+            ),
+          );
+        }
+        lanes[lanes.indexOf(from)] = to;
+        laneCards[to] = laneCards.remove(from) ?? <BoardCard>[];
+        rewritten = laneCards[to]!.length;
+        message = 'Renamed $from to $to.';
+      case LaneChange_Move(:final from, :final to):
+        settingsCalls.add('move $from>$to');
+        lanes.insert(to, lanes.removeAt(from));
+        message = 'Moved a lane.';
+      case LaneChange_Add(:final name):
+        settingsCalls.add('add $name');
+        lanes.add(name);
+        message = 'Added the lane $name.';
+      case LaneChange_Remove(:final lane, :final moveTo):
+        settingsCalls.add('remove $lane>${moveTo ?? '-'}');
+        final moved = laneCards.remove(lane) ?? <BoardCard>[];
+        rewritten = moved.length;
+        (laneCards[moveTo ?? ''] ??= <BoardCard>[]).addAll(moved);
+        lanes.remove(lane);
+        message = 'Removed $lane.';
+    }
+    return Right<ApplicationError, LaneEdited>(
+      LaneEdited(
+        lanes: List<String>.of(lanes),
+        rewritten: rewritten,
+        message: message,
+        undo: 9,
+      ),
+    );
+  }
+
   @override
   Future<Either<ApplicationError, CardMoved>> moveCard(
     CardKey card,
@@ -211,8 +381,30 @@ class FixtureBoardRepository implements BoardRepository {
     if (error != null) {
       return Left<ApplicationError, CardMoved>(error);
     }
-    if (moved != CardMoved.changed) {
+    if (moved is! CardMoved_Changed) {
       return Right<ApplicationError, CardMoved>(moved);
+    }
+    if (lane is BoardLane_Value || lane is BoardLane_Unset) {
+      BoardCard? taken;
+      for (final list in laneCards.values) {
+        final index = list.indexWhere((it) => it.key == card);
+        if (index >= 0) {
+          taken = list.removeAt(index);
+        }
+      }
+      final to = switch (lane) {
+        BoardLane_Value(:final value) => value,
+        _ => '',
+      };
+      if (taken != null) {
+        (laneCards[to] ??= <BoardCard>[]).add(taken);
+      }
+      return Right<ApplicationError, CardMoved>(
+        CardMoved.changed(
+          message: 'Moved to ${to.isEmpty ? 'No $groupKey' : to}.',
+          undo: 5,
+        ),
+      );
     }
     BoardCard? found;
     for (final list in <List<BoardCard>>[
@@ -233,9 +425,11 @@ class FixtureBoardRepository implements BoardRepository {
           todo.add(found.copyWithChecked(checked: false));
         case BoardLane_Done():
           done.add(found.copyWithChecked(checked: true));
+        case BoardLane_Value() || BoardLane_Unset() || BoardLane_Unlisted():
+          break;
       }
     }
-    return const Right<ApplicationError, CardMoved>(CardMoved.changed);
+    return const Right<ApplicationError, CardMoved>(CardMoved.changed());
   }
 }
 

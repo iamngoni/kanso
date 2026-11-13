@@ -983,13 +983,16 @@ extension BoardLanePatterns on BoardLane {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BoardLane_Status value)?  status,TResult Function( BoardLane_Todo value)?  todo,TResult Function( BoardLane_Done value)?  done,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BoardLane_Status value)?  status,TResult Function( BoardLane_Todo value)?  todo,TResult Function( BoardLane_Done value)?  done,TResult Function( BoardLane_Value value)?  value,TResult Function( BoardLane_Unset value)?  unset,TResult Function( BoardLane_Unlisted value)?  unlisted,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BoardLane_Status() when status != null:
 return status(_that);case BoardLane_Todo() when todo != null:
 return todo(_that);case BoardLane_Done() when done != null:
-return done(_that);case _:
+return done(_that);case BoardLane_Value() when value != null:
+return value(_that);case BoardLane_Unset() when unset != null:
+return unset(_that);case BoardLane_Unlisted() when unlisted != null:
+return unlisted(_that);case _:
   return orElse();
 
 }
@@ -1007,13 +1010,16 @@ return done(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BoardLane_Status value)  status,required TResult Function( BoardLane_Todo value)  todo,required TResult Function( BoardLane_Done value)  done,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BoardLane_Status value)  status,required TResult Function( BoardLane_Todo value)  todo,required TResult Function( BoardLane_Done value)  done,required TResult Function( BoardLane_Value value)  value,required TResult Function( BoardLane_Unset value)  unset,required TResult Function( BoardLane_Unlisted value)  unlisted,}){
 final _that = this;
 switch (_that) {
 case BoardLane_Status():
 return status(_that);case BoardLane_Todo():
 return todo(_that);case BoardLane_Done():
-return done(_that);}
+return done(_that);case BoardLane_Value():
+return value(_that);case BoardLane_Unset():
+return unset(_that);case BoardLane_Unlisted():
+return unlisted(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -1027,13 +1033,16 @@ return done(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BoardLane_Status value)?  status,TResult? Function( BoardLane_Todo value)?  todo,TResult? Function( BoardLane_Done value)?  done,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BoardLane_Status value)?  status,TResult? Function( BoardLane_Todo value)?  todo,TResult? Function( BoardLane_Done value)?  done,TResult? Function( BoardLane_Value value)?  value,TResult? Function( BoardLane_Unset value)?  unset,TResult? Function( BoardLane_Unlisted value)?  unlisted,}){
 final _that = this;
 switch (_that) {
 case BoardLane_Status() when status != null:
 return status(_that);case BoardLane_Todo() when todo != null:
 return todo(_that);case BoardLane_Done() when done != null:
-return done(_that);case _:
+return done(_that);case BoardLane_Value() when value != null:
+return value(_that);case BoardLane_Unset() when unset != null:
+return unset(_that);case BoardLane_Unlisted() when unlisted != null:
+return unlisted(_that);case _:
   return null;
 
 }
@@ -1050,12 +1059,15 @@ return done(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String status)?  status,TResult Function()?  todo,TResult Function()?  done,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String status)?  status,TResult Function()?  todo,TResult Function()?  done,TResult Function( String value)?  value,TResult Function()?  unset,TResult Function()?  unlisted,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BoardLane_Status() when status != null:
 return status(_that.status);case BoardLane_Todo() when todo != null:
 return todo();case BoardLane_Done() when done != null:
-return done();case _:
+return done();case BoardLane_Value() when value != null:
+return value(_that.value);case BoardLane_Unset() when unset != null:
+return unset();case BoardLane_Unlisted() when unlisted != null:
+return unlisted();case _:
   return orElse();
 
 }
@@ -1073,12 +1085,15 @@ return done();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String status)  status,required TResult Function()  todo,required TResult Function()  done,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String status)  status,required TResult Function()  todo,required TResult Function()  done,required TResult Function( String value)  value,required TResult Function()  unset,required TResult Function()  unlisted,}) {final _that = this;
 switch (_that) {
 case BoardLane_Status():
 return status(_that.status);case BoardLane_Todo():
 return todo();case BoardLane_Done():
-return done();}
+return done();case BoardLane_Value():
+return value(_that.value);case BoardLane_Unset():
+return unset();case BoardLane_Unlisted():
+return unlisted();}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -1092,12 +1107,15 @@ return done();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String status)?  status,TResult? Function()?  todo,TResult? Function()?  done,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String status)?  status,TResult? Function()?  todo,TResult? Function()?  done,TResult? Function( String value)?  value,TResult? Function()?  unset,TResult? Function()?  unlisted,}) {final _that = this;
 switch (_that) {
 case BoardLane_Status() when status != null:
 return status(_that.status);case BoardLane_Todo() when todo != null:
 return todo();case BoardLane_Done() when done != null:
-return done();case _:
+return done();case BoardLane_Value() when value != null:
+return value(_that.value);case BoardLane_Unset() when unset != null:
+return unset();case BoardLane_Unlisted() when unlisted != null:
+return unlisted();case _:
   return null;
 
 }
@@ -1227,6 +1245,136 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'BoardLane.done()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class BoardLane_Value extends BoardLane {
+  const BoardLane_Value({required this.value}): super._();
+  
+
+ final  String value;
+
+/// Create a copy of BoardLane
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BoardLane_ValueCopyWith<BoardLane_Value> get copyWith => _$BoardLane_ValueCopyWithImpl<BoardLane_Value>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardLane_Value&&(identical(other.value, value) || other.value == value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,value);
+
+@override
+String toString() {
+  return 'BoardLane.value(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BoardLane_ValueCopyWith<$Res> implements $BoardLaneCopyWith<$Res> {
+  factory $BoardLane_ValueCopyWith(BoardLane_Value value, $Res Function(BoardLane_Value) _then) = _$BoardLane_ValueCopyWithImpl;
+@useResult
+$Res call({
+ String value
+});
+
+
+
+
+}
+/// @nodoc
+class _$BoardLane_ValueCopyWithImpl<$Res>
+    implements $BoardLane_ValueCopyWith<$Res> {
+  _$BoardLane_ValueCopyWithImpl(this._self, this._then);
+
+  final BoardLane_Value _self;
+  final $Res Function(BoardLane_Value) _then;
+
+/// Create a copy of BoardLane
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(BoardLane_Value(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BoardLane_Unset extends BoardLane {
+  const BoardLane_Unset(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardLane_Unset);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BoardLane.unset()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class BoardLane_Unlisted extends BoardLane {
+  const BoardLane_Unlisted(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BoardLane_Unlisted);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BoardLane.unlisted()';
 }
 
 
@@ -1530,6 +1678,304 @@ as String,
 
 
 }
+
+/// @nodoc
+mixin _$CardMoved {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CardMoved);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'CardMoved()';
+}
+
+
+}
+
+/// @nodoc
+class $CardMovedCopyWith<$Res>  {
+$CardMovedCopyWith(CardMoved _, $Res Function(CardMoved) __);
+}
+
+
+/// Adds pattern-matching-related methods to [CardMoved].
+extension CardMovedPatterns on CardMoved {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( CardMoved_Changed value)?  changed,TResult Function( CardMoved_Unchanged value)?  unchanged,TResult Function( CardMoved_Missing value)?  missing,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case CardMoved_Changed() when changed != null:
+return changed(_that);case CardMoved_Unchanged() when unchanged != null:
+return unchanged(_that);case CardMoved_Missing() when missing != null:
+return missing(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( CardMoved_Changed value)  changed,required TResult Function( CardMoved_Unchanged value)  unchanged,required TResult Function( CardMoved_Missing value)  missing,}){
+final _that = this;
+switch (_that) {
+case CardMoved_Changed():
+return changed(_that);case CardMoved_Unchanged():
+return unchanged(_that);case CardMoved_Missing():
+return missing(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( CardMoved_Changed value)?  changed,TResult? Function( CardMoved_Unchanged value)?  unchanged,TResult? Function( CardMoved_Missing value)?  missing,}){
+final _that = this;
+switch (_that) {
+case CardMoved_Changed() when changed != null:
+return changed(_that);case CardMoved_Unchanged() when unchanged != null:
+return unchanged(_that);case CardMoved_Missing() when missing != null:
+return missing(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String? message,  int? undo)?  changed,TResult Function()?  unchanged,TResult Function()?  missing,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case CardMoved_Changed() when changed != null:
+return changed(_that.message,_that.undo);case CardMoved_Unchanged() when unchanged != null:
+return unchanged();case CardMoved_Missing() when missing != null:
+return missing();case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String? message,  int? undo)  changed,required TResult Function()  unchanged,required TResult Function()  missing,}) {final _that = this;
+switch (_that) {
+case CardMoved_Changed():
+return changed(_that.message,_that.undo);case CardMoved_Unchanged():
+return unchanged();case CardMoved_Missing():
+return missing();}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String? message,  int? undo)?  changed,TResult? Function()?  unchanged,TResult? Function()?  missing,}) {final _that = this;
+switch (_that) {
+case CardMoved_Changed() when changed != null:
+return changed(_that.message,_that.undo);case CardMoved_Unchanged() when unchanged != null:
+return unchanged();case CardMoved_Missing() when missing != null:
+return missing();case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class CardMoved_Changed extends CardMoved {
+  const CardMoved_Changed({this.message, this.undo}): super._();
+  
+
+ final  String? message;
+ final  int? undo;
+
+/// Create a copy of CardMoved
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CardMoved_ChangedCopyWith<CardMoved_Changed> get copyWith => _$CardMoved_ChangedCopyWithImpl<CardMoved_Changed>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CardMoved_Changed&&(identical(other.message, message) || other.message == message)&&(identical(other.undo, undo) || other.undo == undo));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message,undo);
+
+@override
+String toString() {
+  return 'CardMoved.changed(message: $message, undo: $undo)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CardMoved_ChangedCopyWith<$Res> implements $CardMovedCopyWith<$Res> {
+  factory $CardMoved_ChangedCopyWith(CardMoved_Changed value, $Res Function(CardMoved_Changed) _then) = _$CardMoved_ChangedCopyWithImpl;
+@useResult
+$Res call({
+ String? message, int? undo
+});
+
+
+
+
+}
+/// @nodoc
+class _$CardMoved_ChangedCopyWithImpl<$Res>
+    implements $CardMoved_ChangedCopyWith<$Res> {
+  _$CardMoved_ChangedCopyWithImpl(this._self, this._then);
+
+  final CardMoved_Changed _self;
+  final $Res Function(CardMoved_Changed) _then;
+
+/// Create a copy of CardMoved
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = freezed,Object? undo = freezed,}) {
+  return _then(CardMoved_Changed(
+message: freezed == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String?,undo: freezed == undo ? _self.undo : undo // ignore: cast_nullable_to_non_nullable
+as int?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class CardMoved_Unchanged extends CardMoved {
+  const CardMoved_Unchanged(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CardMoved_Unchanged);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'CardMoved.unchanged()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class CardMoved_Missing extends CardMoved {
+  const CardMoved_Missing(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CardMoved_Missing);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'CardMoved.missing()';
+}
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$CommentPlacement {
@@ -4796,6 +5242,448 @@ class _$KansoError_InternalCopyWithImpl<$Res>
   return _then(KansoError_Internal(
 message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
 as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+mixin _$LaneChange {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LaneChange);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'LaneChange()';
+}
+
+
+}
+
+/// @nodoc
+class $LaneChangeCopyWith<$Res>  {
+$LaneChangeCopyWith(LaneChange _, $Res Function(LaneChange) __);
+}
+
+
+/// Adds pattern-matching-related methods to [LaneChange].
+extension LaneChangePatterns on LaneChange {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( LaneChange_Rename value)?  rename,TResult Function( LaneChange_Move value)?  move,TResult Function( LaneChange_Add value)?  add,TResult Function( LaneChange_Remove value)?  remove,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case LaneChange_Rename() when rename != null:
+return rename(_that);case LaneChange_Move() when move != null:
+return move(_that);case LaneChange_Add() when add != null:
+return add(_that);case LaneChange_Remove() when remove != null:
+return remove(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( LaneChange_Rename value)  rename,required TResult Function( LaneChange_Move value)  move,required TResult Function( LaneChange_Add value)  add,required TResult Function( LaneChange_Remove value)  remove,}){
+final _that = this;
+switch (_that) {
+case LaneChange_Rename():
+return rename(_that);case LaneChange_Move():
+return move(_that);case LaneChange_Add():
+return add(_that);case LaneChange_Remove():
+return remove(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( LaneChange_Rename value)?  rename,TResult? Function( LaneChange_Move value)?  move,TResult? Function( LaneChange_Add value)?  add,TResult? Function( LaneChange_Remove value)?  remove,}){
+final _that = this;
+switch (_that) {
+case LaneChange_Rename() when rename != null:
+return rename(_that);case LaneChange_Move() when move != null:
+return move(_that);case LaneChange_Add() when add != null:
+return add(_that);case LaneChange_Remove() when remove != null:
+return remove(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String from,  String to)?  rename,TResult Function( int from,  int to)?  move,TResult Function( String name)?  add,TResult Function( String lane,  String? moveTo)?  remove,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case LaneChange_Rename() when rename != null:
+return rename(_that.from,_that.to);case LaneChange_Move() when move != null:
+return move(_that.from,_that.to);case LaneChange_Add() when add != null:
+return add(_that.name);case LaneChange_Remove() when remove != null:
+return remove(_that.lane,_that.moveTo);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String from,  String to)  rename,required TResult Function( int from,  int to)  move,required TResult Function( String name)  add,required TResult Function( String lane,  String? moveTo)  remove,}) {final _that = this;
+switch (_that) {
+case LaneChange_Rename():
+return rename(_that.from,_that.to);case LaneChange_Move():
+return move(_that.from,_that.to);case LaneChange_Add():
+return add(_that.name);case LaneChange_Remove():
+return remove(_that.lane,_that.moveTo);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String from,  String to)?  rename,TResult? Function( int from,  int to)?  move,TResult? Function( String name)?  add,TResult? Function( String lane,  String? moveTo)?  remove,}) {final _that = this;
+switch (_that) {
+case LaneChange_Rename() when rename != null:
+return rename(_that.from,_that.to);case LaneChange_Move() when move != null:
+return move(_that.from,_that.to);case LaneChange_Add() when add != null:
+return add(_that.name);case LaneChange_Remove() when remove != null:
+return remove(_that.lane,_that.moveTo);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class LaneChange_Rename extends LaneChange {
+  const LaneChange_Rename({required this.from, required this.to}): super._();
+  
+
+ final  String from;
+ final  String to;
+
+/// Create a copy of LaneChange
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LaneChange_RenameCopyWith<LaneChange_Rename> get copyWith => _$LaneChange_RenameCopyWithImpl<LaneChange_Rename>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LaneChange_Rename&&(identical(other.from, from) || other.from == from)&&(identical(other.to, to) || other.to == to));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,from,to);
+
+@override
+String toString() {
+  return 'LaneChange.rename(from: $from, to: $to)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LaneChange_RenameCopyWith<$Res> implements $LaneChangeCopyWith<$Res> {
+  factory $LaneChange_RenameCopyWith(LaneChange_Rename value, $Res Function(LaneChange_Rename) _then) = _$LaneChange_RenameCopyWithImpl;
+@useResult
+$Res call({
+ String from, String to
+});
+
+
+
+
+}
+/// @nodoc
+class _$LaneChange_RenameCopyWithImpl<$Res>
+    implements $LaneChange_RenameCopyWith<$Res> {
+  _$LaneChange_RenameCopyWithImpl(this._self, this._then);
+
+  final LaneChange_Rename _self;
+  final $Res Function(LaneChange_Rename) _then;
+
+/// Create a copy of LaneChange
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? from = null,Object? to = null,}) {
+  return _then(LaneChange_Rename(
+from: null == from ? _self.from : from // ignore: cast_nullable_to_non_nullable
+as String,to: null == to ? _self.to : to // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class LaneChange_Move extends LaneChange {
+  const LaneChange_Move({required this.from, required this.to}): super._();
+  
+
+ final  int from;
+ final  int to;
+
+/// Create a copy of LaneChange
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LaneChange_MoveCopyWith<LaneChange_Move> get copyWith => _$LaneChange_MoveCopyWithImpl<LaneChange_Move>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LaneChange_Move&&(identical(other.from, from) || other.from == from)&&(identical(other.to, to) || other.to == to));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,from,to);
+
+@override
+String toString() {
+  return 'LaneChange.move(from: $from, to: $to)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LaneChange_MoveCopyWith<$Res> implements $LaneChangeCopyWith<$Res> {
+  factory $LaneChange_MoveCopyWith(LaneChange_Move value, $Res Function(LaneChange_Move) _then) = _$LaneChange_MoveCopyWithImpl;
+@useResult
+$Res call({
+ int from, int to
+});
+
+
+
+
+}
+/// @nodoc
+class _$LaneChange_MoveCopyWithImpl<$Res>
+    implements $LaneChange_MoveCopyWith<$Res> {
+  _$LaneChange_MoveCopyWithImpl(this._self, this._then);
+
+  final LaneChange_Move _self;
+  final $Res Function(LaneChange_Move) _then;
+
+/// Create a copy of LaneChange
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? from = null,Object? to = null,}) {
+  return _then(LaneChange_Move(
+from: null == from ? _self.from : from // ignore: cast_nullable_to_non_nullable
+as int,to: null == to ? _self.to : to // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class LaneChange_Add extends LaneChange {
+  const LaneChange_Add({required this.name}): super._();
+  
+
+ final  String name;
+
+/// Create a copy of LaneChange
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LaneChange_AddCopyWith<LaneChange_Add> get copyWith => _$LaneChange_AddCopyWithImpl<LaneChange_Add>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LaneChange_Add&&(identical(other.name, name) || other.name == name));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,name);
+
+@override
+String toString() {
+  return 'LaneChange.add(name: $name)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LaneChange_AddCopyWith<$Res> implements $LaneChangeCopyWith<$Res> {
+  factory $LaneChange_AddCopyWith(LaneChange_Add value, $Res Function(LaneChange_Add) _then) = _$LaneChange_AddCopyWithImpl;
+@useResult
+$Res call({
+ String name
+});
+
+
+
+
+}
+/// @nodoc
+class _$LaneChange_AddCopyWithImpl<$Res>
+    implements $LaneChange_AddCopyWith<$Res> {
+  _$LaneChange_AddCopyWithImpl(this._self, this._then);
+
+  final LaneChange_Add _self;
+  final $Res Function(LaneChange_Add) _then;
+
+/// Create a copy of LaneChange
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? name = null,}) {
+  return _then(LaneChange_Add(
+name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class LaneChange_Remove extends LaneChange {
+  const LaneChange_Remove({required this.lane, this.moveTo}): super._();
+  
+
+ final  String lane;
+ final  String? moveTo;
+
+/// Create a copy of LaneChange
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LaneChange_RemoveCopyWith<LaneChange_Remove> get copyWith => _$LaneChange_RemoveCopyWithImpl<LaneChange_Remove>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LaneChange_Remove&&(identical(other.lane, lane) || other.lane == lane)&&(identical(other.moveTo, moveTo) || other.moveTo == moveTo));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,lane,moveTo);
+
+@override
+String toString() {
+  return 'LaneChange.remove(lane: $lane, moveTo: $moveTo)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LaneChange_RemoveCopyWith<$Res> implements $LaneChangeCopyWith<$Res> {
+  factory $LaneChange_RemoveCopyWith(LaneChange_Remove value, $Res Function(LaneChange_Remove) _then) = _$LaneChange_RemoveCopyWithImpl;
+@useResult
+$Res call({
+ String lane, String? moveTo
+});
+
+
+
+
+}
+/// @nodoc
+class _$LaneChange_RemoveCopyWithImpl<$Res>
+    implements $LaneChange_RemoveCopyWith<$Res> {
+  _$LaneChange_RemoveCopyWithImpl(this._self, this._then);
+
+  final LaneChange_Remove _self;
+  final $Res Function(LaneChange_Remove) _then;
+
+/// Create a copy of LaneChange
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? lane = null,Object? moveTo = freezed,}) {
+  return _then(LaneChange_Remove(
+lane: null == lane ? _self.lane : lane // ignore: cast_nullable_to_non_nullable
+as String,moveTo: freezed == moveTo ? _self.moveTo : moveTo // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
