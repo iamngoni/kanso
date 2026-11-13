@@ -63,16 +63,39 @@ pub fn acks_value(acks: &Acks) -> Value {
     )
 }
 
+/// How long an acknowledgement is kept past its reminder's due time. A
+/// repeating task makes a new key for every occurrence, so without this the
+/// field would gain a key per repeat for ever.
+pub const ACK_KEEP_MS: i64 = 30 * 24 * 3_600_000;
+
+/// When the reminder `key` fell due, in local milliseconds: read from the
+/// `@<due>` the key ends with. `None` for a key without one.
+pub fn key_due_ms(key: &str) -> Option<i64> {
+    let (_, due) = key.rsplit_once('@')?;
+    Some(Due::parse(due)?.local_ms())
+}
+
+/// `acks` without those whose reminder fell due more than [`ACK_KEEP_MS`]
+/// before `now_local_ms`: too old to notify again, so nothing is lost.
+pub fn prune_acks(acks: &Acks, now_local_ms: i64) -> Acks {
+    acks.iter()
+        .filter(|(key, _)| key_due_ms(key).is_none_or(|due| now_local_ms - due <= ACK_KEEP_MS))
+        .map(|(key, at)| (key.clone(), *at))
+        .collect()
+}
+
 /// Both sets of acks: every key either has, with the earlier firing time
-/// where both do. Commutative, associative and idempotent.
-pub fn merge_acks(a: &Acks, b: &Acks) -> Acks {
+/// where both do, except those due more than [`ACK_KEEP_MS`] before
+/// `now_local_ms`. Commutative, associative and idempotent for a given
+/// `now_local_ms`.
+pub fn merge_acks(a: &Acks, b: &Acks, now_local_ms: i64) -> Acks {
     let mut out = a.clone();
     for (key, at) in b {
         out.entry(key.clone())
             .and_modify(|mine| *mine = (*mine).min(*at))
             .or_insert(*at);
     }
-    out
+    prune_acks(&out, now_local_ms)
 }
 
 /// A timed task that may remind: its key and when it falls due, in local
@@ -124,12 +147,12 @@ pub fn next_wake(tasks: &[Timed], now_local_ms: i64) -> Option<i64> {
 
 /// The acks after acknowledging `key` (fired at `at`), keeping only the
 /// keys still in `live` (the note's timed tasks) so the field doesn't grow
-/// for tasks long gone.
+/// for tasks long gone, and dropping those due more than [`ACK_KEEP_MS`]
+/// before `at` (see [`prune_acks`]).
 pub fn acknowledge(acks: &Acks, key: &str, at: i64, live: &[String]) -> Acks {
-    let mut next: Acks = acks
-        .iter()
-        .filter(|(k, _)| k.as_str() == key || live.iter().any(|l| l == *k))
-        .map(|(k, v)| (k.clone(), *v))
+    let mut next: Acks = prune_acks(acks, at)
+        .into_iter()
+        .filter(|(k, _)| k.as_str() == key || live.iter().any(|l| l == k))
         .collect();
     next.entry(key.to_owned()).or_insert(at);
     next
@@ -140,6 +163,21 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
     use std::collections::HashSet;
+
+    #[test]
+    fn old_acks_are_pruned_by_their_due() {
+        let old = task_key("note:x", "w", "2026-09-01T09:00");
+        let edge = task_key("note:x", "w", "2026-10-01T09:00");
+        let new = task_key("note:x", "w", "2026-10-20T09:00");
+        let acks = Acks::from([(old.clone(), 1), (edge.clone(), 2), (new.clone(), 3)]);
+        let now = Due::parse("2026-10-31T09:00").unwrap().local_ms();
+        let kept = merge_acks(&acks, &Acks::from([("plain".to_owned(), 4)]), now);
+        assert!(!kept.contains_key(&old));
+        assert!(kept.contains_key(&edge) && kept.contains_key(&new));
+        // A key without a due is never pruned.
+        assert!(kept.contains_key("plain"));
+        assert_eq!(key_due_ms("no-at"), None);
+    }
 
     #[test]
     fn keys_and_timing() {
@@ -185,10 +223,10 @@ mod tests {
         /// and it keeps every key either side had.
         #[test]
         fn prop_acks_merge_by_union(a in acks(), b in acks(), c in acks()) {
-            let ab = merge_acks(&a, &b);
-            prop_assert_eq!(&ab, &merge_acks(&b, &a));
-            prop_assert_eq!(merge_acks(&ab, &c), merge_acks(&a, &merge_acks(&b, &c)));
-            prop_assert_eq!(merge_acks(&a, &a), a.clone());
+            let ab = merge_acks(&a, &b, 0);
+            prop_assert_eq!(&ab, &merge_acks(&b, &a, 0));
+            prop_assert_eq!(merge_acks(&ab, &c, 0), merge_acks(&a, &merge_acks(&b, &c, 0), 0));
+            prop_assert_eq!(merge_acks(&a, &a, 0), a.clone());
             let keys: HashSet<&String> = a.keys().chain(b.keys()).collect();
             prop_assert_eq!(ab.keys().collect::<HashSet<_>>(), keys);
             // Through the note field and back.

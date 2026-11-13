@@ -16,6 +16,7 @@ use std::time::Duration;
 
 use kanso_core::dates::Date;
 use kanso_core::reminders::{GRACE_MS, Timed, due_now, next_wake, timed};
+use kanso_core::repeat::repeat_token;
 use kanso_core::tasks::{Due, due_label};
 use kanso_store::{Origin, ReminderTask, Store};
 
@@ -74,8 +75,8 @@ pub fn prune_shown(shown: &mut BTreeMap<String, i64>, now_ms: i64) {
     shown.retain(|_, at| now_ms - *at <= 2 * GRACE_MS);
 }
 
-/// The notification for a task: its words, and when it is due and in
-/// which note. Pure.
+/// The notification for a task: its words, and when it is due, how it
+/// repeats (if it does) and in which note. Pure.
 pub fn reminder(task: &ReminderTask, today: Date) -> Reminder {
     let when = Due::parse(&task.due)
         .map(|due| due_label(due, today))
@@ -85,10 +86,15 @@ pub fn reminder(task: &ReminderTask, today: Date) -> Reminder {
     } else {
         task.note_title.clone()
     };
+    // A repeating task's reminder says so: `Today 09:00 · every week · Plans`.
+    let body = match repeat_token(&task.text) {
+        Some((_, repeat)) => format!("{when} · {repeat} · {title}"),
+        None => format!("{when} · {title}"),
+    };
     Reminder {
         tag: task.key.clone(),
         title: display_text(&task.text),
-        body: format!("{when} · {title}"),
+        body,
     }
 }
 
@@ -272,6 +278,28 @@ mod tests {
 
     fn local(due: &str) -> i64 {
         Due::parse(due).unwrap().local_ms()
+    }
+
+    #[test]
+    fn a_repeating_reminder_says_how_it_repeats() {
+        let today = Date::new(2026, 10, 22).unwrap();
+        let weekly = task(
+            "note:a",
+            "Call Sam @2026-10-22T09:00 every week",
+            "2026-10-22T09:00",
+        );
+        let said = reminder(&weekly, today);
+        assert_eq!(said.title, "Call Sam");
+        assert_eq!(said.body, "Today 09:00 · every week · Plans");
+        let monthly = task(
+            "note:a",
+            "Rent @2026-10-22T09:00 every month on the 15th",
+            "2026-10-22T09:00",
+        );
+        assert_eq!(
+            reminder(&monthly, today).body,
+            "Today 09:00 · every month on the 15th · Plans"
+        );
     }
 
     #[test]

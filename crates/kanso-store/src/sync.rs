@@ -1075,7 +1075,7 @@ fn union_loops_and_acks(
         merged.insert(LOOPS_FIELD.into(), loops_value(&loops));
     }
     let (mine, theirs) = (read_acks(base), read_acks(other));
-    let acks = merge_acks(&mine, &theirs);
+    let acks = merge_acks(&mine, &theirs, now_local_ms());
     if acks != mine {
         merged.insert(ACK_FIELD.into(), acks_value(&acks));
     }
@@ -1362,6 +1362,14 @@ fn write_meta(tx: &rusqlite::Transaction, meta: &[(&str, Option<&str>)]) -> Resu
         }
     }
     Ok(())
+}
+
+/// Now in milliseconds, for pruning old reminder acknowledgements. The
+/// zone's offset is hours and the pruning age is 30 days, so UTC will do.
+fn now_local_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
 }
 
 #[cfg(test)]

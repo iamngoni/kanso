@@ -402,3 +402,39 @@ proptest! {
         prop_assert!(after.schedule.is_empty(), "{after:?}");
     }
 }
+
+// no-prop-test: the exact next instance; the engine's repeat_reminders
+// property tests cover the series.
+#[test]
+fn a_repeating_task_reminds_for_the_next_instance_and_says_it_repeats() {
+    let phone = lone_phone();
+    let library = &phone.library;
+    let id = note(
+        library,
+        "Shoots",
+        "- [ ] film Pixel review @2026-10-22T09:00 every week\n",
+    );
+    let now = utc("2026-10-22T09:01");
+    let got = plan(library, now);
+    assert_eq!(keys(&got.show_now), ["film Pixel review"]);
+    assert_eq!(got.show_now[0].body, "Today 09:00 · every week · Shoots");
+    assert_eq!(
+        library.reminder_answer(&got.show_now[0].key, ReminderAnswer::MarkDone, now),
+        Ok(None)
+    );
+    let body = library.note(&id).unwrap().body.unwrap();
+    assert_eq!(
+        body,
+        "- [ ] film Pixel review @2026-10-29T09:00 every week\n- [x] film Pixel review @2026-10-22T09:00\n"
+    );
+    // The log line is not planned; the next instance is, once.
+    let next = plan(library, now + 60_000);
+    assert!(next.show_now.is_empty(), "{next:?}");
+    assert_eq!(keys(&next.schedule), ["film Pixel review"]);
+    assert_eq!(next.schedule[0].body, "Today 09:00 · every week · Shoots");
+    assert_eq!(
+        (next.schedule[0].fire_at.month, next.schedule[0].fire_at.day),
+        (10, 29)
+    );
+    assert_ne!(next.schedule[0].key, got.show_now[0].key);
+}
