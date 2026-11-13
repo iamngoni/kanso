@@ -36,6 +36,7 @@ mod ask_panel;
 mod ask_tests;
 mod assets;
 mod attachments;
+mod board_settings_dialog;
 mod board_view;
 mod book_colors;
 mod book_icons;

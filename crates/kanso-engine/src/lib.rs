@@ -73,6 +73,8 @@ pub mod backup;
 pub mod batch;
 pub mod board;
 mod board_model;
+pub mod board_settings;
+mod board_settings_model;
 pub mod brief;
 pub mod calendar;
 pub mod canvas_embed;

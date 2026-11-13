@@ -2368,6 +2368,293 @@ fn a_notebook_without_a_board_stays_a_status_board(cx: &mut TestAppContext) {
     assert!(f.workspace(cx, |w, _| w.board_undo.is_none()));
 }
 
+/// Board settings opened from the board's "…": its dialog.
+fn open_board_settings(
+    f: &Fixture,
+    cx: &mut TestAppContext,
+    board: &Entity<crate::board_view::BoardView>,
+) -> Entity<crate::board_settings_dialog::BoardSettings> {
+    let book = cx.read(|cx| match &board.read(cx).scope.filter {
+        crate::library::Filter::Book(id) => id.clone(),
+        other => panic!("a board of {other:?}"),
+    });
+    f.window
+        .update(cx, |_, _, cx| {
+            board.update(cx, |_, cx| {
+                cx.emit(crate::board_view::BoardEvent::Settings(book))
+            })
+        })
+        .unwrap();
+    f.draw(cx);
+    f.workspace(cx, |w, _| {
+        w.board_settings.clone().expect("the dialog opened")
+    })
+}
+
+/// Runs `edit` on the dialog, with a window.
+fn in_settings(
+    f: &Fixture,
+    cx: &mut TestAppContext,
+    dialog: &Entity<crate::board_settings_dialog::BoardSettings>,
+    edit: impl FnOnce(
+        &mut crate::board_settings_dialog::BoardSettings,
+        &mut gpui_kit::Window,
+        &mut gpui_kit::Context<crate::board_settings_dialog::BoardSettings>,
+    ),
+) {
+    f.window
+        .update(cx, |_, window, cx| {
+            dialog.update(cx, |dialog, cx| edit(dialog, window, cx))
+        })
+        .unwrap();
+    cx.run_until_parked();
+}
+
+/// Takes back the board's last change, as its notice's Undo does.
+fn undo_board_change(f: &Fixture, cx: &mut TestAppContext) {
+    f.window
+        .update(cx, |_, window, cx| {
+            f.workspace
+                .update(cx, |w, cx| w.undo_board_move(window, cx))
+        })
+        .unwrap();
+    cx.run_until_parked();
+}
+
+/// The board's columns, as their heads and the notes in each.
+fn board_columns(
+    cx: &mut TestAppContext,
+    board: &Entity<crate::board_view::BoardView>,
+) -> Vec<(String, Vec<String>)> {
+    board.update(cx, |board, cx| board.reload_now(cx));
+    cx.read(|cx| {
+        let board = board.read(cx);
+        board
+            .board
+            .columns()
+            .into_iter()
+            .map(|(lane, cards)| {
+                let ids = cards
+                    .iter()
+                    .map(|&ix| board.board.cards[ix].note_id().to_owned())
+                    .collect();
+                (board.board.label(&lane), ids)
+            })
+            .collect()
+    })
+}
+
+fn heads(columns: &[(String, Vec<String>)]) -> Vec<&str> {
+    columns.iter().map(|(head, _)| head.as_str()).collect()
+}
+
+/// Renaming a lane in Board settings renames it on the board and in the
+/// property's options, and rewrites the property on every note in it; one
+/// Undo puts all of it back. A name a lane has already is refused.
+// no-prop-test: drives one window and its dialog; the rules are properties
+// in board_settings.rs.
+#[gpui_kit::test]
+fn board_settings_renames_a_lane_and_its_notes(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let (board, [idea, odd, _bare]) = stage_board(&f, cx, true);
+    let book = f.store.note(&idea).unwrap().unwrap().book_id;
+    let more = f
+        .store
+        .put(
+            DocType::Note,
+            json!({"title": "m", "body": "---\nstage: Idea\n---\nx", "bookId": book}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let dialog = open_board_settings(&f, cx, &board);
+    assert_eq!(
+        cx.read(|cx| dialog.read(cx).lanes().to_vec()),
+        ["Idea", "Scripting", "Shooting"]
+    );
+
+    in_settings(&f, cx, &dialog, |d, w, cx| d.rename(0, "Idea", w, cx));
+    assert!(
+        f.workspace(cx, |w, _| w.board_undo.is_none()),
+        "same name: no edit"
+    );
+    in_settings(&f, cx, &dialog, |d, w, cx| d.rename(0, "Scripting", w, cx));
+    assert_eq!(
+        cx.read(|cx| dialog.read(cx).error().map(str::to_owned))
+            .as_deref(),
+        Some("There is a lane called Scripting already.")
+    );
+    assert_eq!(stage_of(&f, &idea).as_deref(), Some("Idea"));
+
+    in_settings(&f, cx, &dialog, |d, w, cx| d.rename(0, "Pitch", w, cx));
+    assert_eq!(stage_of(&f, &idea).as_deref(), Some("Pitch"));
+    assert_eq!(stage_of(&f, &more).as_deref(), Some("Pitch"));
+    // A value that was no lane's is left as it was.
+    assert_eq!(stage_of(&f, &odd).as_deref(), Some("Archived"));
+    let columns = board_columns(cx, &board);
+    assert_eq!(
+        heads(&columns),
+        [
+            "Pitch",
+            "Scripting",
+            "Shooting",
+            "Unlisted stage",
+            "No stage"
+        ]
+    );
+    assert_eq!(columns[0].1.len(), 2);
+    assert!(f.store.note_property_warnings(&idea).unwrap().is_empty());
+
+    undo_board_change(&f, cx);
+    assert_eq!(stage_of(&f, &idea).as_deref(), Some("Idea"));
+    assert_eq!(stage_of(&f, &more).as_deref(), Some("Idea"));
+    let columns = board_columns(cx, &board);
+    assert_eq!(heads(&columns)[0], "Idea");
+    assert_eq!(columns[0].1.len(), 2);
+}
+
+/// Moving a lane up or down changes the order of the columns and nothing
+/// in the notes; Undo restores the order. Adding a lane makes an empty
+/// column at the end.
+// no-prop-test: drives one window and its dialog.
+#[gpui_kit::test]
+fn board_settings_reorders_and_adds_lanes(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let (board, [idea, _odd, _bare]) = stage_board(&f, cx, true);
+    let dialog = open_board_settings(&f, cx, &board);
+
+    in_settings(&f, cx, &dialog, |d, w, cx| d.move_lane(0, 1, w, cx));
+    let columns = board_columns(cx, &board);
+    assert_eq!(
+        heads(&columns),
+        [
+            "Scripting",
+            "Idea",
+            "Shooting",
+            "Unlisted stage",
+            "No stage"
+        ]
+    );
+    assert_eq!(columns[1].1, std::slice::from_ref(&idea));
+    assert_eq!(stage_of(&f, &idea).as_deref(), Some("Idea"));
+    // The edge: nothing moves past it.
+    in_settings(&f, cx, &dialog, |d, w, cx| d.move_lane(2, 1, w, cx));
+    assert_eq!(
+        cx.read(|cx| dialog.read(cx).lanes().to_vec()),
+        ["Scripting", "Idea", "Shooting"]
+    );
+    undo_board_change(&f, cx);
+    assert_eq!(heads(&board_columns(cx, &board))[0], "Idea");
+
+    in_settings(&f, cx, &dialog, |d, w, cx| d.add_lane("  Editing ", w, cx));
+    let columns = board_columns(cx, &board);
+    assert_eq!(
+        heads(&columns),
+        [
+            "Idea",
+            "Scripting",
+            "Shooting",
+            "Editing",
+            "Unlisted stage",
+            "No stage"
+        ]
+    );
+    assert!(columns[3].1.is_empty());
+    in_settings(&f, cx, &dialog, |d, w, cx| d.add_lane("Idea", w, cx));
+    assert_eq!(
+        cx.read(|cx| dialog.read(cx).error().map(str::to_owned))
+            .as_deref(),
+        Some("There is a lane called Idea already.")
+    );
+    undo_board_change(&f, cx);
+    assert_eq!(board_columns(cx, &board).len(), 5);
+}
+
+/// Removing a lane with notes asks where they go: "2 notes are in Shooting.
+/// Move them to:", to another lane or to no stage; nothing is stranded.
+/// A lane with no notes goes at once. Undo brings the lane and its notes
+/// back in one step.
+// no-prop-test: drives one window and its dialog.
+#[gpui_kit::test]
+fn board_settings_removes_a_lane_and_moves_its_notes(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let (board, [idea, _odd, _bare]) = stage_board(&f, cx, true);
+    let book = f.store.note(&idea).unwrap().unwrap().book_id;
+    let shoot = |title: &str| {
+        f.store
+            .put(
+                DocType::Note,
+                json!({"title": title, "body": "---\nstage: Shooting\n---\nx", "bookId": book}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap()
+            .id
+    };
+    let (s1, s2) = (shoot("s1"), shoot("s2"));
+    let dialog = open_board_settings(&f, cx, &board);
+
+    // Shooting has two notes: the question comes first, and nothing is
+    // written until it is answered.
+    in_settings(&f, cx, &dialog, |d, w, cx| d.request_remove(2, w, cx));
+    let asked = cx
+        .read(|cx| dialog.read(cx).removal().cloned())
+        .expect("asked where they go");
+    assert_eq!(asked.lane, "Shooting");
+    assert_eq!(asked.notes, 2);
+    assert_eq!(
+        kanso_engine::board_settings::removal_prompt(&asked.lane, asked.notes),
+        "2 notes are in Shooting. Move them to:"
+    );
+    assert_eq!(asked.target.as_deref(), Some("Scripting"));
+    assert_eq!(stage_of(&f, &s1).as_deref(), Some("Shooting"));
+    in_settings(&f, cx, &dialog, |d, _, cx| d.cancel_removal(cx));
+    assert!(cx.read(|cx| dialog.read(cx).removal().is_none()));
+
+    // Move them to Idea.
+    in_settings(&f, cx, &dialog, |d, w, cx| d.request_remove(2, w, cx));
+    in_settings(&f, cx, &dialog, |d, _, cx| {
+        d.set_target(Some("Idea".into()), cx)
+    });
+    in_settings(&f, cx, &dialog, |d, w, cx| d.confirm_removal(w, cx));
+    assert_eq!(stage_of(&f, &s1).as_deref(), Some("Idea"));
+    assert_eq!(stage_of(&f, &s2).as_deref(), Some("Idea"));
+    let columns = board_columns(cx, &board);
+    assert_eq!(
+        heads(&columns),
+        ["Idea", "Scripting", "Unlisted stage", "No stage"]
+    );
+    assert_eq!(columns[0].1.len(), 3);
+    undo_board_change(&f, cx);
+    assert_eq!(stage_of(&f, &s1).as_deref(), Some("Shooting"));
+    assert_eq!(heads(&board_columns(cx, &board))[2], "Shooting");
+
+    // Or to no stage.
+    in_settings(&f, cx, &dialog, |d, w, cx| d.request_remove(2, w, cx));
+    in_settings(&f, cx, &dialog, |d, _, cx| d.set_target(None, cx));
+    in_settings(&f, cx, &dialog, |d, w, cx| d.confirm_removal(w, cx));
+    assert_eq!(stage_of(&f, &s2).as_deref(), Some(""));
+    let columns = board_columns(cx, &board);
+    let no_stage = columns.last().unwrap();
+    assert_eq!(no_stage.0, "No stage");
+    assert!(no_stage.1.contains(&s1) && no_stage.1.contains(&s2));
+
+    // Scripting has no notes: it goes without a question.
+    in_settings(&f, cx, &dialog, |d, w, cx| d.request_remove(1, w, cx));
+    assert!(cx.read(|cx| dialog.read(cx).removal().is_none()));
+    assert_eq!(cx.read(|cx| dialog.read(cx).lanes().to_vec()), ["Idea"]);
+    // The last lane stays: a board needs one.
+    in_settings(&f, cx, &dialog, |d, w, cx| d.request_remove(0, w, cx));
+    assert_eq!(cx.read(|cx| dialog.read(cx).lanes().to_vec()), ["Idea"]);
+    // Every note is still on the board.
+    let total: usize = board_columns(cx, &board)
+        .iter()
+        .map(|(_, ids)| ids.len())
+        .sum();
+    assert_eq!(total, 5);
+}
+
 /// The Journal's calendar opens on today's month, the keyboard moves the
 /// day and the month, and Return opens the day's note: made in the Journal
 /// when missing, with the calendar closed; a day with a note opens it.
