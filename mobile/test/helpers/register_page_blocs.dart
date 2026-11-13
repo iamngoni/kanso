@@ -68,6 +68,7 @@ import 'fixture_push_repository.dart';
 import 'fixture_reminders_repository.dart';
 import 'fixture_renderer_repository.dart';
 import 'fixture_session_repository.dart';
+import 'fixture_shared_notebooks_repository.dart';
 import 'fixture_shared_notes_repository.dart';
 import 'fixture_system_share_repository.dart';
 import 'fixture_themes_repository.dart';
@@ -140,6 +141,7 @@ void _registerPageBlocs({
   final themeRepository = appearanceThemes ?? FixtureThemesRepository();
   final filePicker = appearanceFiles ?? FixtureFilePickerRepository();
   final sharing = shared ?? FixtureSharedNotesRepository();
+  registerSharedNotebooks(shared: sharing);
   final clipboard = system ?? FixtureSystemShareRepository();
   final noteHistory = history ?? FixtureHistoryRepository();
   final noteReplace = replace ?? FixtureReplaceRepository();

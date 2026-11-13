@@ -32,6 +32,10 @@ void main() {
     when(
       () => shared.closeLive(any(), any()),
     ).thenAnswer((_) async => _ok(unit));
+    // A note that isn't in a shared notebook has no live status either.
+    when(
+      () => shared.liveStatus(any()),
+    ).thenAnswer((_) async => _ok<LiveStatus?>(null));
   });
 
   SharedNoteLiveBloc build() => SharedNoteLiveBloc(shared);
@@ -63,6 +67,30 @@ void main() {
       verify: (bloc) {
         verifyNever(() => shared.openLive(any(), any()));
         expect(bloc.state.live, isFalse);
+      },
+    );
+
+    blocTest<SharedNoteLiveBloc, SharedNoteLiveState>(
+      'a note of a shared notebook joins its notebook’s room',
+      setUp: () {
+        isShared('n1', shared_: false);
+        when(() => shared.liveStatus('n1')).thenAnswer(
+          (_) async => _ok<LiveStatus?>(
+            const LiveStatus(
+              role: ShareRole.editor,
+              connected: true,
+              ended: false,
+              nearLimit: false,
+              problems: <String>[],
+            ),
+          ),
+        );
+      },
+      build: build,
+      act: (bloc) => bloc.add(const SharedNoteLiveEvent.opened('n1')),
+      verify: (bloc) {
+        verify(() => shared.openLive('n1', any())).called(1);
+        expect(bloc.state.live, isTrue);
       },
     );
 
