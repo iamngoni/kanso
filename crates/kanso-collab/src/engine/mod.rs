@@ -113,6 +113,9 @@ pub(crate) struct Loaded {
     /// The last edit taken in was held back (front matter half typed): its
     /// `base` didn't move, and the library and the editor keep their text.
     pub(crate) held: bool,
+    /// The text of a held edit the engine wrote to the library as typed: the
+    /// library having it isn't another writer's edit.
+    pub(crate) held_text: Option<(String, String)>,
     /// The note is starting again from the log: the library isn't written
     /// until the log has merged.
     pub(crate) reloading: bool,
@@ -346,6 +349,7 @@ impl Engine {
             pending_mentions: Vec::new(),
             ended: false,
             held: false,
+            held_text: None,
             reloading: false,
             canvas_base: None,
             canvas_dirty: false,
@@ -737,8 +741,11 @@ impl Engine {
             .note(&loaded.note.note_id)?
             .map(|note| (note.title, note.body));
         let from_library = match &library {
-            Some(library) => self.take_local(&mut loaded, library)?,
-            None => false,
+            // The text of a held edit written here isn't another writer's.
+            Some(library) if loaded.held_text.as_ref() != Some(library) => {
+                self.take_local(&mut loaded, library)?
+            }
+            _ => false,
         };
         if !(from_library && library.as_ref() == Some(&editor)) {
             self.take_editor(&mut loaded, &editor)?;
@@ -748,8 +755,34 @@ impl Engine {
         loaded.pending_mentions.extend(delivered.mentions);
         if held {
             // Half-typed front matter: the editor keeps its text as it is
-            // (the merge shows once the front matter reads), and the library
-            // is left alone.
+            // (the merge shows once the front matter reads). The library
+            // gets the text as typed, so closing or quitting loses nothing;
+            // `base` stays, so the library then differs from it, the next
+            // sync holds again and leaves it, and the whole edit is taken
+            // once it reads, after a restart too.
+            let note_id = loaded.note.note_id.clone();
+            if let Some(current) = self.store.note(&note_id)?
+                && (current.title.as_str(), current.body.as_str()) != (title, body)
+            {
+                let inbox = self
+                    .store
+                    .role_book(kanso_core::roles::Role::Inbox, kanso_store::Origin::Collab)?;
+                match self.store.write_shared_text(&SharedText {
+                    note_id: &note_id,
+                    title,
+                    body,
+                    mark: Some(Engine::mark(&loaded.note)),
+                    new_in: &inbox,
+                    expected_rev: current.rev.as_deref(),
+                    authors: &[],
+                }) {
+                    // Written meanwhile, or not allowed (a lock): the next
+                    // call tries again.
+                    Ok(_) => loaded.held_text = Some((title.to_owned(), body.to_owned())),
+                    Err(StoreError::Conflict | StoreError::Invalid(_)) => {}
+                    Err(err) => return Err(err.into()),
+                }
+            }
             return Ok(EditorMerge {
                 title: Vec::new(),
                 body: Vec::new(),
@@ -765,11 +798,17 @@ impl Engine {
             body_text,
         };
         loaded.editor_base = Some((merge.title_text.clone(), merge.body_text.clone()));
+        // The edit that was held has been taken in now: what the library has
+        // of it is no local edit, and the merge replaces it.
+        if let Some(text) = loaded.held_text.take() {
+            loaded.base = text;
+        }
         if loaded.base != (merge.title_text.clone(), merge.body_text.clone())
             || !delivered.authors.is_empty()
         {
             self.settle(&mut loaded, &delivered.authors)?;
         }
+        loaded.held_text = None;
         Ok(merge)
     }
 

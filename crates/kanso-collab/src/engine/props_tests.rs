@@ -231,6 +231,50 @@ fn half_typed_front_matter_in_the_editor_holds_across_keystrokes_and_wipes_nothi
 }
 
 #[test]
+fn a_held_edit_in_the_open_editor_is_saved_and_survives_close_quit_and_reload() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let share = shared(&a, &b, NOTE);
+    b.engine.attach(&share).unwrap();
+    // The front matter is broken and the body edited: held, and saved as
+    // typed (the desktop's save and the phones' sync both go through
+    // `sync_editor`).
+    let typed = format!("{}More words\n", NOTE.replace("due:", "sta\ndue:"));
+    let merge = b.engine.sync_editor(&share, "Plan", &typed).unwrap();
+    assert!(merge.body.is_empty());
+    assert_eq!(body_of(&b, &share), typed);
+    // The editor closes, then the app quits and starts again: the library
+    // still has what was typed, and nothing was sent or wiped.
+    b.engine.detach(&share);
+    assert_eq!(body_of(&b, &share), typed);
+    b.engine.unload(&share);
+    sync(&[&b, &a], &share);
+    assert_eq!(body_of(&b, &share), typed);
+    assert_eq!(props_len(&a, &share), 2);
+    assert_eq!(props_len(&b, &share), 2);
+    assert_eq!(body_of(&a, &share), NOTE);
+    // Another device changes a key meanwhile; the held text stays as typed.
+    write_body(
+        &a.store,
+        &id_of(&a, &share),
+        &NOTE.replace("Idea", "Shooting"),
+    )
+    .unwrap();
+    sync(&[&a, &b], &share);
+    assert_eq!(body_of(&b, &share), typed);
+    // The front matter is fixed, in the library (the editor is closed): the
+    // whole edit lands everywhere, the body edit included.
+    let fixed = format!("{}More words\n", NOTE.replace("due:", "sta: x\ndue:"));
+    write_body(&b.store, &id_of(&b, &share), &fixed).unwrap();
+    sync(&[&b, &a], &share);
+    sync(&[&a, &b], &share);
+    let want =
+        "---\nstage: Shooting\nsta: x\ndue: 2026-01-01\n---\nBrief for the shoot\nMore words\n";
+    assert_eq!(body_of(&a, &share), want);
+    assert_eq!(body_of(&b, &share), want);
+}
+
+#[test]
 fn the_editors_caret_and_a_comment_stay_on_their_words_when_the_front_matter_changes() {
     let server = MemoryCollab::new();
     let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
