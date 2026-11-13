@@ -65,11 +65,15 @@ abstract final class KansoRoutes {
   static const String voiceNote = '/voice-note';
 
   /// A new note in Edit, as the + button makes: `kanso://open/new`. With
-  /// `?voice=1` it starts in its text, to dictate into.
+  /// `?voice=1` it starts in its text, to dictate into; with `?task=1` it
+  /// is the capture sheet in Task mode instead, for one task.
   static const String newNote = '/new';
 
   /// The parameter of [newNote] that makes it a voice note.
   static const String voiceParameter = 'voice';
+
+  /// The parameter of [newNote] that opens the capture sheet in Task mode.
+  static const String taskParameter = 'task';
 
   /// Ask the notes a question, a page on a phone and sheet on a tablet.
   static const String ask = '/ask';
