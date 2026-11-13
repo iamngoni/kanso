@@ -5496,18 +5496,21 @@ fn theme_thumbnails() {
 }
 
 /// The quick capture window on its own, in both themes: with a note being
-/// written, and asking before Escape discards it.
+/// written, asking before Escape discards it, and in Task mode with a typed
+/// date and repeat read in the hint line.
 #[test]
 #[ignore = "writes PNGs; run on demand with KANSO_SNAPSHOT_DIR set"]
 fn capture_window() {
     use crate::capture::{CaptureView, HEIGHT, WIDTH};
     let out = PathBuf::from(std::env::var("KANSO_SNAPSHOT_DIR").expect("set KANSO_SNAPSHOT_DIR"));
     std::fs::create_dir_all(&out).unwrap();
-    for (name, theme, confirming) in [
-        ("dark-capture", ThemePreference::Dark, false),
-        ("light-capture", ThemePreference::Light, false),
-        ("dark-capture-discard", ThemePreference::Dark, true),
-        ("light-capture-discard", ThemePreference::Light, true),
+    for (name, theme, confirming, task) in [
+        ("dark-capture", ThemePreference::Dark, false, false),
+        ("light-capture", ThemePreference::Light, false, false),
+        ("dark-capture-discard", ThemePreference::Dark, true, false),
+        ("light-capture-discard", ThemePreference::Light, true, false),
+        ("dark-capture-task", ThemePreference::Dark, false, true),
+        ("light-capture-task", ThemePreference::Light, false, true),
     ] {
         let dir = tempfile::tempdir().unwrap();
         let store = Arc::new(demo_store(&dir.path().join("kanso.db")));
@@ -5547,11 +5550,14 @@ fn capture_window() {
         cx.run_until_parked();
         cx.update_window(window, |_, window, cx| {
             view.update(cx, |view, cx| {
-                view.set_text_for_test(
-                    "Call Sam about the lease\n\n- bring the signed copy\n- ask about the garden #home/garden",
-                    window,
-                    cx,
-                );
+                let text = if task {
+                    view.set_task_mode(true, cx);
+                    assert!(view.is_task_mode());
+                    "film Pixel review fri 3pm every week"
+                } else {
+                    "Call Sam about the lease\n\n- bring the signed copy\n- ask about the garden #home/garden"
+                };
+                view.set_text_for_test(text, window, cx);
                 if confirming {
                     view.cancel(window, cx);
                     assert!(view.is_confirming());

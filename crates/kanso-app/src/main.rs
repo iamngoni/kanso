@@ -50,6 +50,8 @@ mod canvas_view;
 mod capture;
 mod capture_cli;
 mod capture_request;
+#[cfg(test)]
+mod capture_task_tests;
 mod capture_voice;
 #[cfg(test)]
 mod capture_voice_tests;

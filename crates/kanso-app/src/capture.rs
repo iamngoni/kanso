@@ -9,15 +9,18 @@
 //! the main window closed. On Windows it is a topmost tool window, and on
 //! Linux an ordinary small window (X11 gives pop-ups no keyboard).
 //!
-//! The note's title is its first line ([`split_capture`]).
+//! The note's title is its first line ([`split_capture`]). A Note | Task
+//! toggle in the header switches to Task mode, where the text is one task
+//! ([`kanso_engine::capture_task`]) written into today's daily note or the
+//! Inbox, as Settings › General › Quick capture says.
 
 use std::sync::Arc;
 
 use gpui_kit::assets::IconName as Lucide;
-use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::button::{Button, ButtonGroup, ButtonVariants as _};
 use gpui_kit::component::input::{Editor, EditorState, InputEvent};
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
-use gpui_kit::component::{ActiveTheme as _, Icon, Sizable as _, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme as _, Icon, Selectable as _, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::roles::Role;
@@ -30,7 +33,9 @@ use crate::zoom::px;
 
 // The title and the save are the engine's, which the phones' share sheets
 // use as well.
+use kanso_core::due_phrase_model::DateOrder;
 pub use kanso_engine::capture::{save_capture, split_capture};
+use kanso_engine::capture_task::{TaskTarget, save_task, task_hint};
 
 actions!(kanso, [SaveCapture, CancelCapture]);
 
@@ -53,6 +58,20 @@ pub fn bind_keys(cx: &mut App) {
     cx.on_action(|_: &crate::journal::QuickCapture, cx| open(cx));
 }
 
+/// How a date written as two numbers reads: month first in the US locale,
+/// day first everywhere else.
+fn date_order() -> DateOrder {
+    let locale = ["LC_ALL", "LC_TIME", "LANG"]
+        .iter()
+        .find_map(|name| std::env::var(name).ok().filter(|v| !v.is_empty()))
+        .unwrap_or_default();
+    if locale.starts_with("en_US") {
+        DateOrder::MonthDay
+    } else {
+        DateOrder::DayMonth
+    }
+}
+
 pub struct CaptureView {
     store: Arc<Store>,
     pub(crate) body: Entity<EditorState>,
@@ -60,6 +79,10 @@ pub struct CaptureView {
     books: Vec<(String, String)>,
     /// `None`: the Inbox.
     book: Option<String>,
+    /// Task mode: the text is one task, written into the daily note or the
+    /// Inbox, as Settings says. The Note | Task toggle sets it, and the
+    /// last choice is kept.
+    task_mode: bool,
     /// Escape was pressed over text: asking whether to discard it.
     confirming: bool,
     pub(crate) error: Option<String>,
@@ -114,6 +137,7 @@ impl CaptureView {
             body,
             books,
             book: None,
+            task_mode: cx.global::<AppState>().config.capture.task_mode,
             confirming: false,
             error: None,
             focus: cx.focus_handle(),
@@ -150,9 +174,35 @@ impl CaptureView {
         cx.notify();
     }
 
+    #[cfg(test)]
+    pub fn is_task_mode(&self) -> bool {
+        self.task_mode
+    }
+
+    /// Switches between Note and Task, and remembers the choice for the
+    /// next time the window opens.
+    pub fn set_task_mode(&mut self, task: bool, cx: &mut Context<Self>) {
+        if self.task_mode == task {
+            return;
+        }
+        self.task_mode = task;
+        AppState::update_config(cx, |config| config.capture.task_mode = task);
+        cx.notify();
+    }
+
     pub fn save(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let text = self.text(cx);
-        let saved = if self.voice.from_voice {
+        let saved = if self.task_mode {
+            let target = cx.global::<AppState>().config.capture.task_target;
+            save_task(
+                &self.store,
+                &text,
+                target,
+                crate::journal::now(cx),
+                date_order(),
+                Origin::Ui,
+            )
+        } else if self.voice.from_voice {
             let id = self
                 .voice
                 .id
@@ -178,7 +228,8 @@ impl CaptureView {
                 window.remove_window();
             }
             Err(err) => {
-                self.error = Some(format!("Couldn't save the note: {err:#}"));
+                let what = if self.task_mode { "task" } else { "note" };
+                self.error = Some(format!("Couldn't save the {what}: {err:#}"));
                 cx.notify();
             }
         }
@@ -215,6 +266,7 @@ impl CaptureView {
         let colors = Colors::get(cx);
         let view = cx.entity();
         let books = self.books.clone();
+        let task_mode = self.task_mode;
         let current = self
             .book
             .clone()
@@ -230,12 +282,27 @@ impl CaptureView {
                     .text_color(colors.text_muted),
             )
             .child(
-                div()
-                    .flex_1()
-                    .text_size(px(12.5))
-                    .text_color(colors.text_muted)
-                    .child("Quick note"),
+                ButtonGroup::new("capture-kind")
+                    .outline()
+                    .small()
+                    .child(
+                        Button::new("capture-kind-note")
+                            .label("Note")
+                            .debug_selector(|| "capture-kind-note".into())
+                            .selected(!task_mode),
+                    )
+                    .child(
+                        Button::new("capture-kind-task")
+                            .label("Task")
+                            .debug_selector(|| "capture-kind-task".into())
+                            .selected(task_mode),
+                    )
+                    .on_click(cx.listener(|this, clicked: &Vec<usize>, window, cx| {
+                        this.set_task_mode(clicked.first() == Some(&1), cx);
+                        this.body.update(cx, |body, cx| body.focus(window, cx));
+                    })),
             )
+            .child(div().flex_1())
             .children(self.voice_buttons(cx))
             .child(
                 Button::new("capture-record")
@@ -246,39 +313,79 @@ impl CaptureView {
                     .tooltip("Record audio into a note")
                     .on_click(|_, window, cx| crate::record_sheet::open(None, window, cx)),
             )
-            .child(
-                Button::new("capture-book")
-                    .ghost()
-                    .small()
-                    .debug_selector(|| "capture-book".into())
-                    .icon(Icon::new(Lucide::Inbox).text_color(colors.text_secondary))
-                    .child(
-                        div()
-                            .text_size(px(12.5))
-                            .text_color(colors.text_secondary)
-                            .child(self.book_name().to_owned()),
-                    )
-                    .dropdown_caret(true)
-                    .tooltip("Save in notebook")
-                    .dropdown_menu(move |mut menu, _, _| {
-                        for (ix, (id, name)) in books.iter().enumerate() {
-                            if ix == 1 {
-                                menu = menu.separator();
+            .when(!task_mode, |header| {
+                header.child(
+                    Button::new("capture-book")
+                        .ghost()
+                        .small()
+                        .debug_selector(|| "capture-book".into())
+                        .icon(Icon::new(Lucide::Inbox).text_color(colors.text_secondary))
+                        .child(
+                            div()
+                                .text_size(px(12.5))
+                                .text_color(colors.text_secondary)
+                                .child(self.book_name().to_owned()),
+                        )
+                        .dropdown_caret(true)
+                        .tooltip("Save in notebook")
+                        .dropdown_menu(move |mut menu, _, _| {
+                            for (ix, (id, name)) in books.iter().enumerate() {
+                                if ix == 1 {
+                                    menu = menu.separator();
+                                }
+                                let view = view.clone();
+                                let id = id.clone();
+                                menu = menu.item(
+                                    PopupMenuItem::new(name.clone())
+                                        .checked(id == current)
+                                        .on_click(move |_, _, cx| {
+                                            let id = id.clone();
+                                            view.update(cx, |this, cx| this.set_book(Some(id), cx));
+                                        }),
+                                );
                             }
-                            let view = view.clone();
-                            let id = id.clone();
-                            menu = menu.item(
-                                PopupMenuItem::new(name.clone())
-                                    .checked(id == current)
-                                    .on_click(move |_, _, cx| {
-                                        let id = id.clone();
-                                        view.update(cx, |this, cx| this.set_book(Some(id), cx));
-                                    }),
-                            );
-                        }
-                        menu
-                    }),
-            )
+                            menu
+                        }),
+                )
+            })
+    }
+
+    /// In Task mode: where the task goes, and how the date and repeat typed
+    /// at its end read (`Fri 13 Nov, 15:00 · every week`).
+    fn render_task_hint(&self, cx: &mut Context<Self>) -> Option<impl IntoElement> {
+        if !self.task_mode {
+            return None;
+        }
+        let colors = Colors::get(cx);
+        let target = cx.global::<AppState>().config.capture.task_target;
+        let hint = task_hint(&self.text(cx), crate::journal::now(cx), date_order());
+        let place = match target {
+            TaskTarget::DailyNote => "Today's daily note",
+            TaskTarget::Inbox => "Inbox",
+        };
+        Some(
+            h_flex()
+                .flex_none()
+                .h(px(28.))
+                .px(px(14.))
+                .gap(px(8.))
+                .text_size(px(12.))
+                .debug_selector(|| "capture-task-hint".into())
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .truncate()
+                        .text_color(colors.accent)
+                        .children(hint),
+                )
+                .child(
+                    div()
+                        .flex_none()
+                        .text_color(colors.text_muted)
+                        .child(format!("Saves to {place}")),
+                ),
+        )
     }
 
     fn render_footer(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -408,6 +515,7 @@ impl Render for CaptureView {
                         .line_height(relative(crate::editor::BODY_LINE_HEIGHT)),
                 ),
             )
+            .children(self.render_task_hint(cx))
             .child(self.render_footer(cx))
     }
 }
