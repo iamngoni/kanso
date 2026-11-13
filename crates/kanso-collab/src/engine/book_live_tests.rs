@@ -485,3 +485,65 @@ fn a_member_who_is_removed_is_told_the_room_is_over() {
         })
     });
 }
+
+#[test]
+fn an_edit_queued_but_not_yet_taken_by_the_server_survives_a_remote_deletion() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let (book, _) = notebook(&a.store, "Studio", &[("Plan".to_owned(), "one".to_owned())]);
+    let share = shared(&a, &[(&b, Role::Edit)], &book);
+    let b_book = book_of(&b, &share);
+    let (a_id, b_id) = (note_of(&a, &book, "Plan"), note_of(&b, &b_book, "Plan"));
+    let stream = stream_of(&b, &b_id);
+    // B's edit was settled into its outbox (base moved on) but not pushed.
+    write(&b, &b_id, "one, edited");
+    let mut row = b.store.book_stream(&share, &stream).unwrap().unwrap();
+    let doc = crate::doc::CollabDoc::load(&row.state).unwrap();
+    for update in doc
+        .try_edit_note_in_parts("one", "one, edited", super::UPDATE_PART, true)
+        .unwrap()
+    {
+        b.store.push_book_outbox(&share, &stream, &update).unwrap();
+    }
+    row.state = doc.encode_state();
+    row.base = serde_json::to_string(&["Plan", "one, edited"]).unwrap();
+    b.store.put_book_stream(&row).unwrap();
+    // A deletes the note and B hears of it before its edit goes out.
+    move_note(&a, &a_id, "trash");
+    a.engine.sync_book(&share).unwrap();
+    b.engine.sync_book(&share).unwrap();
+    sync(&[&a, &b], &share);
+    sync(&[&b, &a], &share);
+    assert_eq!(where_is(&b, &b_id), b_book);
+    assert_eq!(where_is(&a, &a_id), book);
+    assert_eq!(body(&a, &a_id), "one, edited");
+}
+
+#[test]
+fn a_note_restored_by_another_member_after_this_trash_was_emptied_comes_back() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let (book, _) = notebook(&a.store, "Studio", &[("Plan".to_owned(), "one".to_owned())]);
+    let share = shared(&a, &[(&b, Role::Edit)], &book);
+    let b_book = book_of(&b, &share);
+    let (a_id, b_id) = (note_of(&a, &book, "Plan"), note_of(&b, &b_book, "Plan"));
+    move_note(&a, &a_id, "trash");
+    sync(&[&a, &b], &share);
+    assert_eq!(where_is(&b, &b_id), "trash");
+    b.store.empty_trash(Origin::Ui).unwrap();
+    assert!(b.store.note(&b_id).unwrap().is_none());
+    // A restores it; B has no copy to restore, and must not delete it again.
+    move_note(&a, &a_id, &book);
+    sync(&[&a, &b], &share);
+    sync(&[&b, &a], &share);
+    sync(&[&a, &b], &share);
+    assert_eq!(where_is(&a, &a_id), book);
+    assert_eq!(
+        texts(&b, &b_book).get("Plan").map(String::as_str),
+        Some("one")
+    );
+    assert_eq!(
+        texts(&a, &book).get("Plan").map(String::as_str),
+        Some("one")
+    );
+}

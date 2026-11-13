@@ -652,20 +652,26 @@ impl Engine {
                 };
                 let mine =
                     header.author_account == me.account_id && header.author_device == me.device_id;
-                if mine && let Some(id) = session.in_flight.remove(&header.counter) {
-                    // The room took what this device sent: it leaves the
-                    // outbox. Its own comment is kept now (the pull below
-                    // would find it too, but a comment shouldn't wait).
+                // Only an envelope that opens (a member's, signed, for this
+                // stream) counts as the room taking what this device sent.
+                let opened = if mine && session.in_flight.contains_key(&header.counter) {
+                    let ctx = self.session_ctx(share_id, session)?;
+                    self.open_book_entry(ctx, &stream, &envelope, None).ok()
+                } else {
+                    None
+                };
+                if let Some(opened) = opened
+                    && let Some(id) = session.in_flight.remove(&header.counter)
+                {
                     self.store.drop_book_outbox(id)?;
+                    // Its own comment is kept now (a comment shouldn't wait).
                     if header.kind == Kind::Comment && stream != MANIFEST_STREAM {
                         let ctx = self.session_ctx(share_id, session)?;
-                        if let Ok(opened) = self.open_book_entry(ctx, &stream, &envelope, None) {
-                            self.keep_book_comment(ctx, &stream, seq, &opened)?;
-                            notify(BookLiveNotice::Comments {
-                                share_id: share_id.to_owned(),
-                                stream,
-                            });
-                        }
+                        self.keep_book_comment(ctx, &stream, seq, &opened)?;
+                        notify(BookLiveNotice::Comments {
+                            share_id: share_id.to_owned(),
+                            stream,
+                        });
                     }
                     return Ok(None);
                 }
@@ -979,5 +985,56 @@ impl Engine {
         );
         lock(room).cursors.insert(key, (message, now_ms()));
         Ok(true)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::book_tests::{note_of, notebook, shared};
+    use super::super::tests::device;
+    use super::*;
+    use crate::memory::MemoryCollab;
+
+    /// An echo that doesn't open (forged, or damaged) is not the room taking
+    /// what this device sent: the outbox row stays.
+    #[test]
+    fn a_forged_echo_does_not_drop_the_outbox() {
+        let server = MemoryCollab::new();
+        let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+        let (book, _) = notebook(&a.store, "Studio", &[("Plan".to_owned(), "one".to_owned())]);
+        let share = shared(&a, &[(&b, Role::Edit)], &book);
+        let id = note_of(&a, &book, "Plan");
+        let stream = a.store.book_stream_of_note(&id).unwrap().unwrap().stream;
+        let row = a
+            .store
+            .push_book_outbox(&share, &stream, b"ignored")
+            .unwrap();
+        let mut ctx = a.engine.book_ctx(&share).unwrap();
+        let sealed = a
+            .engine
+            .seal_book(&mut ctx, &stream, Kind::Update, None, b"ignored")
+            .unwrap();
+        let counter = parse_header(&sealed).unwrap().0.counter;
+        let mut forged = sealed.clone();
+        let last = forged.len() - 1;
+        forged[last] ^= 0xff;
+        let room = Arc::new(Mutex::new(BookRoom::default()));
+        let notify: BookNotify = Arc::new(|_| {});
+        let mut session = Session::new();
+        session.in_flight.insert(counter, row);
+        let event = |envelope: Vec<u8>| BookLiveEvent::Stored {
+            stream: stream.clone(),
+            seq: 9,
+            envelope,
+        };
+        a.engine
+            .on_book_event(&share, event(forged), &room, &mut session, &notify)
+            .unwrap();
+        assert_eq!(a.store.book_outbox(&share).unwrap().len(), 1);
+        assert!(session.in_flight.contains_key(&counter));
+        a.engine
+            .on_book_event(&share, event(sealed), &room, &mut session, &notify)
+            .unwrap();
+        assert!(a.store.book_outbox(&share).unwrap().is_empty());
     }
 }

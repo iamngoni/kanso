@@ -332,15 +332,9 @@ impl Engine {
         }
         // An edit to a note someone deleted brings it back.
         let mut revive = Vec::new();
+        let queued = self.queued_streams(&share_id)?;
         for note in manifest.notes() {
-            if note.deleted_at.is_some()
-                && role.may_edit()
-                && self
-                    .store
-                    .book_outbox(&share_id)?
-                    .iter()
-                    .any(|o| o.stream == note.id)
-            {
+            if note.deleted_at.is_some() && role.may_edit() && queued.contains(&note.id) {
                 revive.push(note.id);
             }
         }
@@ -447,6 +441,17 @@ impl Engine {
         Ok(())
     }
 
+    /// The streams this device has edits queued for, not yet taken by the
+    /// server.
+    fn queued_streams(&self, share_id: &str) -> Result<std::collections::HashSet<String>> {
+        Ok(self
+            .store
+            .book_outbox(share_id)?
+            .into_iter()
+            .map(|o| o.stream)
+            .collect())
+    }
+
     /// What the manifest's deletions mean for this library. A note another
     /// member deleted (listed deleted now, not before) moves to the trash
     /// here, where it can be restored, unless it was edited here since the
@@ -465,6 +470,7 @@ impl Engine {
     ) -> Result<()> {
         let share_id = ctx.row.share_id.clone();
         let trash = kanso_core::TRASH_BOOK_ID;
+        let queued = self.queued_streams(&share_id)?;
         for note in manifest.notes() {
             let Some(row) = self.store.book_stream(&share_id, &note.id)? else {
                 continue;
@@ -473,9 +479,21 @@ impl Engine {
                 continue;
             };
             let Some(local) = self.store.note(&note_id)? else {
+                // Brought back by someone after this library's copy was
+                // emptied from the trash: it is made again from the log, not
+                // deleted again (the stream starts as a note new here).
+                if note.deleted_at.is_none() && deleted_before.contains(&note.id) {
+                    let mut fresh = row.clone();
+                    fresh.base = String::new();
+                    self.store.put_book_stream(&fresh)?;
+                    result.notes_written += 1;
+                }
                 continue;
             };
-            let unedited = (local.title.clone(), local.body.clone()) == base;
+            // An edit counts from the moment it is queued, not only while the
+            // library's text differs from `base` (settling moves `base`).
+            let unedited =
+                (local.title.clone(), local.body.clone()) == base && !queued.contains(&note.id);
             let new_deletion = note.deleted_at.is_some() && !deleted_before.contains(&note.id);
             let restored_there = note.deleted_at.is_none() && deleted_before.contains(&note.id);
             if new_deletion && local.book_id == ctx.row.book_id && unedited {
