@@ -19,6 +19,7 @@ use kanso_core::{DocType, Note, NoteStatus, new_id, now_ms};
 use kanso_engine::links::tags::apply_inline_tags;
 use kanso_engine::list::{self, DAY_MS, DateKey, Filter, RECENT_DAYS};
 use kanso_engine::lock::LockView;
+use kanso_engine::presets::{self, NotebookKind};
 use kanso_store::{NoteSummary, Origin, Put, SearchParams, Sort};
 use serde_json::{Value, json};
 
@@ -28,8 +29,8 @@ use crate::library::Library;
 use crate::matching::ranges;
 use crate::model::{
     Changed, DateField, Hit, LibraryOverview, ListPlace, ListQuery, ListShape, LockState, NewNote,
-    NoteChange, NoteList, NoteRow, NoteView, NotebookRole, NotebookRow, Property, PropertyKind,
-    Saved, SearchScope, SortKey, StatusCount, Table, TableRow, TagRow,
+    NewNotebookKind, NoteChange, NoteList, NoteRow, NoteView, NotebookRole, NotebookRow, Property,
+    PropertyKind, Saved, SearchScope, SortKey, StatusCount, Table, TableRow, TagRow,
 };
 use crate::undo::Undoable;
 
@@ -313,13 +314,25 @@ impl Library {
         guard(|| Ok(notebook_rows(&self.inner.store.books()?)))
     }
 
-    /// Makes a notebook, inside `parent_id` if given ([`KansoError::NotFound`]
-    /// when there is no such notebook), and returns it as the sidebar lists
-    /// it. The name is trimmed; an empty one is refused.
+    /// Makes a blank notebook, inside `parent_id` if given
+    /// ([`KansoError::NotFound`] when there is no such notebook), and
+    /// returns it as the sidebar lists it. The name is trimmed; an empty one
+    /// is refused.
     pub fn create_notebook(
         &self,
         name: String,
         parent_id: Option<String>,
+    ) -> Result<NotebookRow, KansoError> {
+        self.create_notebook_as(name, parent_id, NewNotebookKind::Blank)
+    }
+
+    /// [`Library::create_notebook`] as `kind`: a Video studio comes with its
+    /// properties, its stage board and its two templates, made whole.
+    pub fn create_notebook_as(
+        &self,
+        name: String,
+        parent_id: Option<String>,
+        kind: NewNotebookKind,
     ) -> Result<NotebookRow, KansoError> {
         guard(|| {
             let name = name.trim();
@@ -336,10 +349,14 @@ impl Library {
             {
                 return Err(KansoError::NotFound);
             }
-            let created = self.inner.store.put(
-                DocType::Book,
-                json!({"name": name, "parentBookId": parent_id}),
-                Put::Upsert,
+            let made = presets::create_notebook(
+                &self.inner.store,
+                name,
+                parent_id,
+                match kind {
+                    NewNotebookKind::Blank => NotebookKind::Blank,
+                    NewNotebookKind::VideoStudio => NotebookKind::VideoStudio,
+                },
                 Origin::Ui,
             )?;
             self.inner
@@ -347,7 +364,7 @@ impl Library {
                 .count(crate::metrics::Feature::NotebookCreated);
             notebook_rows(&self.inner.store.books()?)
                 .into_iter()
-                .find(|row| row.id == created.id)
+                .find(|row| row.id == made.book_id)
                 .ok_or(KansoError::NotFound)
         })
     }

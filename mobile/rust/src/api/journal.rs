@@ -48,6 +48,14 @@ impl KansoLibrary {
         self.0.templates()
     }
 
+    /// The templates for a new note in `notebook_id`: its own first.
+    pub fn templates_for(
+        &self,
+        notebook_id: Option<String>,
+    ) -> Result<Vec<TemplateRow>, KansoError> {
+        self.0.templates_for(notebook_id)
+    }
+
     pub fn new_from_template(
         &self,
         template_id: String,

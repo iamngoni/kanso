@@ -7,6 +7,13 @@ pub const FIELD: &str = "kansoProperties";
 /// The notebook field that holds the property its board is grouped by.
 pub const BOARD_FIELD: &str = "kansoBoard";
 
+/// The notebook field that holds the templates it names: the IDs of notes in
+/// the Templates notebook, listed first when this notebook is the current one.
+pub const TEMPLATES_FIELD: &str = "kansoTemplates";
+
+/// Most templates a notebook can name.
+pub const MAX_TEMPLATES: usize = 100;
+
 /// Most lanes a notebook's board can name.
 pub const MAX_LANES: usize = 200;
 
@@ -142,4 +149,13 @@ pub struct BoardSpec {
     pub lanes: Vec<String>,
     /// Whether the lane of notes with no value shows even when it is empty.
     pub show_unset: bool,
+}
+
+/// One template in the "New from template" list.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TemplateEntry {
+    pub id: String,
+    pub title: String,
+    /// Whether the current notebook names it (it is then listed first).
+    pub in_notebook: bool,
 }
