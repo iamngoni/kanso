@@ -2,6 +2,8 @@
 // Created 2026-10-26.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -10,6 +12,8 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_segment.dart';
 import '../../../core/views/widgets/kanso_segmented.dart';
+import '../../../embargo/models/data/embargo_gate.dart';
+import '../../../embargo/views/widgets/embargo_sheet.dart';
 import '../../models/data/share_choices.dart';
 import '../../state/share_note/share_note_bloc.dart';
 import 'share_role_segmented.dart';
@@ -19,6 +23,23 @@ import 'share_role_segmented.dart';
 /// it.
 class ShareLinkMaker extends StatelessWidget {
   const ShareLinkMaker({super.key});
+
+  /// Makes the link. A note under embargo asks first, and gets a link
+  /// only on "Make link anyway".
+  Future<void> _makeLink(
+    BuildContext context,
+    ShareNoteBloc bloc,
+    String noteId,
+  ) async {
+    final go = await confirmEmbargo(
+      context,
+      noteId: noteId,
+      gate: EmbargoGate.shareLink,
+    );
+    if (go) {
+      bloc.add(const ShareNoteEvent.linkMade());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +81,7 @@ class ShareLinkMaker extends StatelessWidget {
               variant: KansoButtonVariant.secondary,
               onPressed: state.busy
                   ? null
-                  : () => bloc.add(const ShareNoteEvent.linkMade()),
+                  : () => unawaited(_makeLink(context, bloc, state.noteId)),
             ),
           ],
         );
