@@ -206,6 +206,9 @@ void main() {
           invitations: 0,
           commentNotes: <String>[],
           liveNotes: <String>[MockIds.syncDesign],
+          notebooks: <String>[],
+          bookInvitations: 0,
+          bookNotices: <String>[],
         ),
       );
       await _settle(tester);

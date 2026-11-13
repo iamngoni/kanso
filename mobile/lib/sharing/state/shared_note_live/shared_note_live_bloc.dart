@@ -61,8 +61,14 @@ class SharedNoteLiveBloc
       return;
     }
     final read = await _shared.info(noteId);
-    final shared = read.fold((_) => false, (info) => info != null);
+    var shared = read.fold((_) => false, (info) => info != null);
     if (!shared) {
+      // A note of a shared notebook has no sharing of its own, but its page
+      // has a status: it goes into its notebook's room.
+      final status = await _shared.liveStatus(noteId);
+      shared = status.fold((_) => false, (status) => status != null);
+    }
+    if (!shared || isClosed) {
       return;
     }
     final opened = await _shared.openLive(noteId, this);

@@ -129,6 +129,9 @@ void main() {
             invitations: 1,
             commentNotes: <String>[],
             liveNotes: <String>[],
+            notebooks: <String>[],
+            bookInvitations: 0,
+            bookNotices: <String>[],
           ),
         );
         await settle();

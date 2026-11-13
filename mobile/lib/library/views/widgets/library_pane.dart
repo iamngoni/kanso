@@ -47,6 +47,7 @@ import '../../../lock/utils/notebook_lock_rule.dart';
 import '../../../note_list/state/note_list/note_list_bloc.dart';
 import '../../../palette/views/palette_launcher.dart';
 import '../../../people/views/widgets/people_library_row.dart';
+import '../../../sharing/views/widgets/shared_notebooks_section.dart';
 import '../../../sharing/views/widgets/shared_with_you_row.dart';
 import 'library_actions.dart';
 import 'library_header.dart';
@@ -245,6 +246,11 @@ class _LibraryPaneState extends State<LibraryPane> {
                           label: l10n.libraryCanvases,
                           count: index.overview.canvases,
                           selected: current == const ListPlace.canvases(),
+                        ),
+                        SharedNotebooksSection(
+                          selectedNotebook: current is ListPlace_Notebook
+                              ? current.id
+                              : null,
                         ),
                         KansoSectionHeader(
                           label: l10n.libraryNotebooks,
