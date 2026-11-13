@@ -3,7 +3,7 @@
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:glados/glados.dart' show Any, Glados3, IntAnys, any;
+import 'package:glados/glados.dart' show Glados3, IntAnys, any;
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/configs/kanso_icons.dart';
 import 'package:kanso/schedule/utils/schedule_days.dart';

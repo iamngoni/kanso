@@ -15,8 +15,9 @@ import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../state/schedule/schedule_bloc.dart';
 
 /// What the Schedule shows, as the desktop's filter menus have it: which
-/// done tasks show, which date properties place a note, and which notebooks. What is chosen applies at once; the sheet stays until it is done
-/// with.
+/// done tasks show, which date properties place a note, and which
+/// notebooks. What is chosen applies at once; the sheet stays until it is
+/// done with.
 class ScheduleFilterSheet extends StatelessWidget {
   const ScheduleFilterSheet({super.key});
 

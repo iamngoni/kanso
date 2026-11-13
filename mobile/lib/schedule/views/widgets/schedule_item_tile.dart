@@ -21,11 +21,11 @@ import '../../utils/schedule_days.dart';
 /// calendar for any other: the desktop's ▶ ⏸ ◆).
 ///
 /// Its time and, quietly, the note and notebook it is in sit under the
-/// title; a repeating task has ↻ (the loop icon) and how it repeats. A projected occurrence
-/// (a repeat worked out and never written) is dimmed; ticking it ticks the
-/// real task. Pressing the box ticks, pressing the rest opens the note, and
-/// the more button (or holding the row) opens its actions. One node for a
-/// screen reader.
+/// title; a repeating task has ↻ (the loop icon) and how it repeats. A
+/// projected occurrence (a repeat worked out and never written) is dimmed;
+/// ticking it ticks the real task. Pressing the box ticks, pressing the
+/// rest opens the note, and the more button (or holding the row) opens its
+/// actions. One node for a screen reader.
 class ScheduleItemTile extends StatelessWidget {
   const ScheduleItemTile({
     required this.row,
