@@ -725,6 +725,58 @@ fn typing_in_an_open_shared_note_merges_with_the_others_and_keeps_the_caret() {
     assert_eq!(bob.body(&bobs).as_deref(), Some("Hi. Alpha Bob!"));
 }
 
+// no-prop-test: one walk through a held edit on the phone, waited for; the
+// hold's properties (no wipe, no second block, the whole edit once it
+// reads) are in kanso-collab.
+#[test]
+fn a_held_edit_in_a_phones_editor_is_saved_survives_closing_and_lands_once_fixed() {
+    const FRONT: &str = "---\nstage: Idea\ndue: 2026-01-01\n---\nBrief\n";
+    let world = world();
+    let (alice, bob) = (world.phone("alice"), world.phone("bob"));
+    bob.arrive();
+    let note_id = note(&alice.library, "Plan", FRONT);
+    alice
+        .shared()
+        .share(note_id.clone(), vec![("bob".into(), ShareRole::Editor)])
+        .unwrap();
+    let invitation = bob.shared().invitations().unwrap().remove(0);
+    let bobs = bob.shared().accept(invitation.share_id).unwrap();
+    alice.shared().open_live(note_id.clone()).unwrap();
+    bob.shared().open_live(bobs.clone()).unwrap();
+    // Both apps have said they read properties: the note moves over with
+    // an edit of Alice's.
+    alice.edit(&note_id, &format!("{FRONT}x\n"));
+    eventually("Bob has it", || {
+        bob.body(&bobs).as_deref() == Some(&*format!("{FRONT}x\n"))
+    });
+    alice.edit(&note_id, FRONT);
+    eventually("Bob has it back", || {
+        bob.body(&bobs).as_deref() == Some(FRONT)
+    });
+
+    // The phone's editor keeps the front matter apart, so a writer of the
+    // whole text (the API, a sync from another app) breaks it: a property
+    // without its colon, and the body edited. The open room's merge holds
+    // the edit, and the text stays as written.
+    let typed = "---\nstage: Idea\nsta\ndue: 2026-01-01\n---\nBrief\nMore\n";
+    bob.edit(&bobs, typed);
+    std::thread::sleep(Duration::from_millis(600));
+    assert_eq!(bob.body(&bobs).as_deref(), Some(typed));
+    // Closing the room loses nothing, and nothing reaches Alice yet.
+    bob.shared().close_live(bobs.clone());
+    assert_eq!(bob.body(&bobs).as_deref(), Some(typed));
+    assert_eq!(alice.body(&note_id).as_deref(), Some(FRONT));
+
+    // Fixed, the whole edit lands once.
+    bob.shared().open_live(bobs.clone()).unwrap();
+    let want = "---\nstage: Idea\nsta: x\ndue: 2026-01-01\n---\nBrief\nMore\n";
+    bob.edit(&bobs, want);
+    eventually("Alice has the whole edit", || {
+        alice.body(&note_id).as_deref() == Some(want)
+    });
+    assert_eq!(bob.body(&bobs).as_deref(), Some(want));
+}
+
 // no-prop-test: a room's connection and end, waited for; the status's rows
 // are read straight from the engine, whose properties are in kanso-collab.
 #[test]

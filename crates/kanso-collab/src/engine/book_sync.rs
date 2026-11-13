@@ -657,7 +657,8 @@ impl Engine {
         }
         // The text first: held back, nothing at all is taken (the title
         // with it), and the caller leaves the note as it is.
-        let Some(text_updates) = doc.try_edit_note_in_parts(&base.1, &local.1, UPDATE_PART) else {
+        let Some(text_updates) = doc.try_edit_note_in_parts(&base.1, &local.1, UPDATE_PART, true)
+        else {
             return Ok(None);
         };
         let title = rebase(&base.0, &local.0, &doc.text(Field::Title));

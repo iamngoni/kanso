@@ -36,6 +36,22 @@ use yrs::{Any, Map as _, Number, Out, Transact};
 
 use crate::doc::{CollabDoc, Field};
 
+/// The `caps` key that says the note's properties are entries.
+const PARTS_KEY: &str = "parts";
+
+/// The `caps` keys that say an account's app keeps properties as entries.
+const ACK_PREFIX: &str = "ack:";
+
+/// What an account signs to say its app keeps properties as entries in a
+/// shared note: bound to the share and the account.
+pub fn parts_ack_message(share_id: &str, account: &str) -> Vec<u8> {
+    let mut message = b"kanso-parts-ack\x01".to_vec();
+    message.extend_from_slice(share_id.as_bytes());
+    message.push(0);
+    message.extend_from_slice(account.as_bytes());
+    message
+}
+
 /// The line that opens and closes the front matter.
 const FENCE: &str = "---\n";
 
@@ -304,12 +320,77 @@ impl CollabDoc {
     }
 
     /// A document holding `title` and a note's text, its front matter as
-    /// properties.
+    /// properties. Only for a document nobody with an older app edits (a
+    /// shared notebook's note); a shared note starts with
+    /// [`CollabDoc::from_text`] and moves over by
+    /// [`CollabDoc::edit_note_in_parts`] once everyone who edits can read it.
     pub fn from_note_text(title: &str, text: &str) -> CollabDoc {
         let doc = CollabDoc::new();
         doc.set_text(Field::Title, title);
         doc.set_note_text_in_parts(text, usize::MAX);
+        doc.mark_parts();
         doc
+    }
+
+    /// Whether the note keeps its front matter as properties (entries) and
+    /// not as text in the body: it was moved over, or made so.
+    ///
+    /// Only the note's record of the move says so ([`CollabDoc::mark_parts`]),
+    /// never the presence of a property: the move is decided once every app
+    /// that edits has said it reads them. The record itself is a plain entry
+    /// any editor could write, so it is best-effort against an editor
+    /// forcing the move early (who could damage the note in any case); it
+    /// can't make an editor appear to have said anything: see
+    /// [`CollabDoc::ack_parts`].
+    pub fn in_parts(&self) -> bool {
+        let txn = self.doc().transact();
+        self.caps.get(&txn, PARTS_KEY).is_some()
+    }
+
+    /// Records that the note keeps its properties as entries, from now on.
+    /// Returns the update, if it wasn't recorded.
+    pub fn mark_parts(&self) -> Option<Vec<u8>> {
+        let mut txn = self.doc().transact_mut();
+        if self.caps.get(&txn, PARTS_KEY).is_some() {
+            return None;
+        }
+        self.caps.insert(&mut txn, PARTS_KEY, 1);
+        Some(txn.encode_update_v1())
+    }
+
+    /// Says that `account`'s app keeps properties as entries: it can edit
+    /// a note that does. An app that can't says nothing, which is how the
+    /// others know. The word is `signature`, the account's own signature
+    /// over [`parts_ack_message`] (its share and its account), so nobody can
+    /// say it for another: [`CollabDoc::acked_parts`] counts only words that
+    /// verify against the member's key. Returns the update, if `account`
+    /// hadn't said it.
+    pub fn ack_parts(&self, account: &str, signature: &[u8; 64]) -> Option<Vec<u8>> {
+        let key = format!("{ACK_PREFIX}{account}");
+        let mut txn = self.doc().transact_mut();
+        if self.caps.get(&txn, &key).is_some() {
+            return None;
+        }
+        self.caps
+            .insert(&mut txn, key.as_str(), crate::codec::b64(signature));
+        Some(txn.encode_update_v1())
+    }
+
+    /// Whether every one of `members` (account, sign key) has said their app
+    /// keeps properties as entries in this note's share, by a signature that
+    /// verifies ([`CollabDoc::ack_parts`]).
+    pub fn acked_parts(&self, share_id: &str, members: &[(&str, [u8; 32])]) -> bool {
+        let txn = self.doc().transact();
+        members.iter().all(|(account, sign_pub)| {
+            let Some(Out::Any(Any::String(word))) =
+                self.caps.get(&txn, &format!("{ACK_PREFIX}{account}"))
+            else {
+                return false;
+            };
+            crate::codec::unb64_array::<64>(&word).is_some_and(|signature| {
+                crate::identity::verify(sign_pub, &parts_ack_message(share_id, account), &signature)
+            })
+        })
     }
 
     /// How many bytes of [`CollabDoc::note_text`] come before the body.
@@ -346,8 +427,20 @@ impl CollabDoc {
     /// it alone, stands; the body is rebased onto what changed in it
     /// meanwhile. A note whose text isn't kept key by key (see the module
     /// documentation) is rebased as one text.
-    pub fn edit_note_in_parts(&self, base: &str, local: &str, part: usize) -> Vec<Vec<u8>> {
-        self.try_edit_note_in_parts(base, local, part)
+    ///
+    /// A note that doesn't keep its properties as entries yet (one made by
+    /// an app that didn't, see [`CollabDoc::in_parts`]) is moved over only
+    /// when `migrate` says every app that edits it can read them that way
+    /// ([`CollabDoc::acked_parts`]); until then its whole text, front
+    /// matter included, is the body, as that app keeps it.
+    pub fn edit_note_in_parts(
+        &self,
+        base: &str,
+        local: &str,
+        part: usize,
+        migrate: bool,
+    ) -> Vec<Vec<u8>> {
+        self.try_edit_note_in_parts(base, local, part, migrate)
             .unwrap_or_default()
     }
 
@@ -363,9 +456,18 @@ impl CollabDoc {
         base: &str,
         local: &str,
         part: usize,
+        migrate: bool,
     ) -> Option<Vec<Vec<u8>>> {
         if base == local {
             return Some(Vec::new());
+        }
+        let in_parts = self.in_parts();
+        // (Properties without the record of the move are only ever from a
+        // writer that wrote them directly: the note's text is still read
+        // with them, so such a note is edited as one that has them.)
+        if !in_parts && !migrate && self.props().is_empty() {
+            let body = crate::engine::rebase(base, local, &self.body_text());
+            return Some(self.set_text_in_parts(Field::Body, &body, part));
         }
         let now_props = self.props();
         let now_body = self.body_text();
@@ -378,7 +480,12 @@ impl CollabDoc {
         {
             return None;
         }
-        Some(self.edit_taken(base, local, part, legacy, now_props, now_body))
+        let mut updates: Vec<Vec<u8>> = Vec::new();
+        if !in_parts {
+            updates.extend(self.mark_parts());
+        }
+        updates.extend(self.edit_taken(base, local, part, legacy, now_props, now_body));
+        Some(updates)
     }
 
     fn edit_taken(

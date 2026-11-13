@@ -844,6 +844,32 @@ fn the_head_a_device_trusts_only_grows_with_what_it_received() {
 }
 
 #[test]
+fn a_notebook_note_is_never_taken_for_a_single_note_share() {
+    let server = MemoryCollab::new();
+    let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));
+    let notes = [("One".to_owned(), "---\nstage: x\n---\n1\n".to_owned())];
+    let (book, _) = notebook(&a.store, "Studio", &notes);
+    let share = shared(&a, &[(&b, Role::Edit)], &book);
+    let b_book = b.store.shared_book(&share).unwrap().unwrap().book_id;
+    for (d, book) in [(&a, &book), (&b, &b_book)] {
+        let id = note_of(d, book, "One");
+        let note = d.store.note(&id).unwrap().unwrap();
+        let mark = &note.extra[kanso_core::model::SHARE_FIELD];
+        // The mark says it's a notebook's, and what carries a single note's
+        // share (the lookup by share, the share table) doesn't answer for it.
+        assert_eq!(mark["book"], true);
+        assert_eq!(d.store.note_with_share(&share).unwrap(), None);
+        assert!(d.store.shared_note(&share).unwrap().is_none());
+        // The single-note engine leaves it as it is.
+        d.engine.refresh().unwrap();
+        d.engine.sync_all().unwrap();
+        let after = d.store.note(&id).unwrap().unwrap();
+        assert_eq!(after.extra[kanso_core::model::SHARE_FIELD], *mark);
+        assert_eq!(after.body, note.body);
+    }
+}
+
+#[test]
 fn half_typed_front_matter_and_a_key_edited_elsewhere_both_land() {
     let server = MemoryCollab::new();
     let (a, b) = (device(&server, 1, 1), device(&server, 2, 1));

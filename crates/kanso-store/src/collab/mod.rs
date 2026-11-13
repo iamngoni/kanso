@@ -621,7 +621,8 @@ impl Store {
             Ok(conn
                 .query_row(
                     "SELECT id FROM docs WHERE type = 'note' AND deleted = 0
-                     AND json_extract(json, '$.kansoShare.shareId') = ? LIMIT 1",
+                     AND json_extract(json, '$.kansoShare.shareId') = ?
+                     AND COALESCE(json_extract(json, '$.kansoShare.book'), 0) = 0 LIMIT 1",
                     [share_id],
                     |row| row.get(0),
                 )

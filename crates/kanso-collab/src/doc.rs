@@ -47,6 +47,9 @@ pub struct CollabDoc {
     pub(crate) props: MapRef,
     /// Where each property goes among the others.
     pub(crate) order: MapRef,
+    /// What the people editing have said about how they keep the note
+    /// ([`crate::doc_props`]).
+    pub(crate) caps: MapRef,
 }
 
 impl std::fmt::Debug for CollabDoc {
@@ -87,12 +90,14 @@ impl CollabDoc {
         let body = doc.get_or_insert_text("body");
         let props = doc.get_or_insert_map("props");
         let order = doc.get_or_insert_map("order");
+        let caps = doc.get_or_insert_map("caps");
         CollabDoc {
             doc,
             title,
             body,
             props,
             order,
+            caps,
         }
     }
 
