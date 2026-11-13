@@ -30,6 +30,7 @@ pub mod google_keep;
 pub mod html;
 pub mod joplin;
 pub mod jsonexports;
+pub mod linked_files;
 pub mod links;
 pub mod markdown;
 pub mod notes_html;
@@ -62,7 +63,10 @@ use serde_json::{Map, Value, json};
 use sha1::{Digest as _, Sha1};
 
 pub use detect::kinds_for;
-pub use open_files::{open_note_files, staged_path, staging_folder_name};
+pub use linked_files::{LinkedFile, Refresh, Refreshed, record_link, refresh_linked_files};
+pub use open_files::{
+    Opened, open_note_files, open_note_files_linked, staged_path, staging_folder_name,
+};
 pub use report::{Counts, LibraryReport, Outcomes, Skipped};
 
 use crate::library::links::Kind;
