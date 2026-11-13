@@ -28,25 +28,26 @@ pub use kanso_mobile::{
     LiveDocWidget, LiveDocument, LiveKind, LiveLine, LiveRun, LiveStatus, LocalTime,
     LockCopyNotice, LockEvent, LockReason, LockState, LockStatus, LockSummary, LockedInfo,
     LoopAction, LoopProposal, LoopScan, MadeNote, MeaningResult, MemberRow, MentionSpan,
-    MigrationOutcome, MonthGrid, NewNote, NewNotebookKind, NoteChange, NoteList, NoteMeaning,
-    NoteRow, NoteView, NotebookRole, NotebookRow, OnThisDayRow, OpenLoopItem, OpenLoopKind,
-    OpenLoopsBoard, OpenedDocuments, OpenedFile, PairingCode, PaletteDto, PasskeyFailure,
-    PasskeyRequest, PasskeyRequestKind, PasskeyRow, PdfHighlightChange, PdfHighlightRow, PdfInkRow,
-    PdfNotes, PersonLookup, PersonRow, PlannedNotice, PreviewAlign, PreviewBlock,
-    PreviewCanvasNotice, PreviewCanvasShown, PreviewCell, PreviewCodeRun, PreviewFigureKind,
-    PreviewInline, PreviewLink, PreviewListItem, PreviewOptions, PreviewQueryRow, PreviewRow,
-    PreviewSourcedBlock, PreviewSvg, PreviewTaskBox, PromptState, Property, PropertyKind,
-    ProviderEvent, ProviderKind, PushEnvironmentKind, PushPlatformKind, QuotaLimit, Range16,
-    RecoveryKeyText, RelatedRow, RelatedState, RelatedStatus, ReminderAnswer, ReminderNote,
-    ReminderPlan, Replacement, ResurfaceResult, ResurfaceRow, ReviewFinished, ReviewSaved,
-    ReviewTheme, ReviewView, ReviewWritten, RunBatch, SaveState, Saved, SealPhase, SealProgress,
-    SearchScope, ServerInfo, ServerMethods, Share, ShareFile, ShareInfo, ShareLinkRow, ShareRole,
-    SharedEvent, ShortcutEntry, ShortcutPlace, ShortcutSection, SignOutReasonKind, SignedUp,
-    SortKey, SpanRow, StatusChoice, StatusCount, StyledRun, SuggestedTag, SvgRow, SyncAccount,
-    SyncIntervalOption, SyncPhase, SyncProblemKind, SyncReportRow, SyncSettingsRow, SyncStatus,
-    SyncStatusLine, SyncTone, SyntaxStyleRow, Table, TableRow, TagPlaces, TagRow, TagTreeRow,
-    TaskBoard, TaskCaptured, TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection,
-    TemplateRow, TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow, VisibleNotebook,
+    MigrationOutcome, Moment, MonthGrid, NewNote, NewNotebookKind, NoteChange, NoteList,
+    NoteMeaning, NoteRow, NoteView, NotebookRole, NotebookRow, OnThisDayRow, OpenLoopItem,
+    OpenLoopKind, OpenLoopsBoard, OpenedDocuments, OpenedFile, PairingCode, PaletteDto,
+    PasskeyFailure, PasskeyRequest, PasskeyRequestKind, PasskeyRow, PdfHighlightChange,
+    PdfHighlightRow, PdfInkRow, PdfNotes, PersonLookup, PersonRow, PickKind, PickOutcome,
+    PlannedNotice, PreviewAlign, PreviewBlock, PreviewCanvasNotice, PreviewCanvasShown,
+    PreviewCell, PreviewCodeRun, PreviewFigureKind, PreviewInline, PreviewLink, PreviewListItem,
+    PreviewOptions, PreviewQueryRow, PreviewRow, PreviewSourcedBlock, PreviewSvg, PreviewTaskBox,
+    PromptState, Property, PropertyChoice, PropertyKind, PropertyPick, ProviderEvent, ProviderKind,
+    PushEnvironmentKind, PushPlatformKind, QuotaLimit, Range16, RecoveryKeyText, RelatedRow,
+    RelatedState, RelatedStatus, ReminderAnswer, ReminderNote, ReminderPlan, Replacement,
+    ResurfaceResult, ResurfaceRow, ReviewFinished, ReviewSaved, ReviewTheme, ReviewView,
+    ReviewWritten, RunBatch, SaveState, Saved, SealPhase, SealProgress, SearchScope, ServerInfo,
+    ServerMethods, Share, ShareFile, ShareInfo, ShareLinkRow, ShareRole, SharedEvent,
+    ShortcutEntry, ShortcutPlace, ShortcutSection, SignOutReasonKind, SignedUp, SortKey, SpanRow,
+    StatusChoice, StatusCount, StyledRun, SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption,
+    SyncPhase, SyncProblemKind, SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine,
+    SyncTone, SyntaxStyleRow, Table, TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard,
+    TaskCaptured, TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection, TemplateRow,
+    TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow, VisibleNotebook, ZoneRow,
 };
 pub use kanso_mobile::{
     IconThemeImport, InstalledIconThemeRow, ThemeImport, ThemeNotice, ThemeOrigin, ThemeRow,
@@ -426,6 +427,8 @@ pub enum _PropertyKind {
     Number,
     Bool,
     Date,
+    DateTime,
+    DateTimeZone,
     List,
     Raw,
 }
@@ -436,6 +439,58 @@ pub struct _Property {
     pub kind: PropertyKind,
     pub text: String,
     pub items: Vec<String>,
+    pub pick: Option<PropertyPick>,
+}
+
+#[frb(mirror(PickKind))]
+pub enum _PickKind {
+    Select,
+    Person,
+    Date,
+    DateTime,
+    DateTimeZone,
+}
+
+#[frb(mirror(Moment))]
+pub struct _Moment {
+    pub year: i32,
+    pub month: u32,
+    pub day: u32,
+    pub hour: u32,
+    pub minute: u32,
+}
+
+#[frb(mirror(PropertyPick))]
+pub struct _PropertyPick {
+    pub kind: PickKind,
+    pub rows: Vec<String>,
+    pub unlisted: bool,
+    pub moment: Option<Moment>,
+    pub zone: Option<String>,
+    pub zone_set: bool,
+    pub label: Option<String>,
+}
+
+#[frb(mirror(PropertyChoice))]
+pub enum _PropertyChoice {
+    Clear,
+    Option { text: String },
+    Day { moment: Moment },
+    Moment { moment: Moment },
+    Zoned { moment: Moment, zone: String },
+    Zone { zone: String },
+}
+
+#[frb(mirror(PickOutcome))]
+pub struct _PickOutcome {
+    pub applied: bool,
+    pub properties: Vec<Property>,
+}
+
+#[frb(mirror(ZoneRow))]
+pub struct _ZoneRow {
+    pub name: String,
+    pub label: String,
 }
 
 #[frb(mirror(Table))]

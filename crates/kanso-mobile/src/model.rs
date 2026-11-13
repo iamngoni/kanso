@@ -7,6 +7,7 @@
 //! milliseconds since the Unix epoch (`i64`), colors are `0xRRGGBB` (`u32`),
 //! and text offsets are UTF-16 code units, the unit Flutter counts in.
 
+use crate::property_pick_model::PropertyPick;
 use crate::sync_model::{QuotaLimit, SignOutReasonKind, SyncAccount};
 
 /// A note's own word-goal setting: use the library default, turn the goal
@@ -480,6 +481,10 @@ pub enum PropertyKind {
     Bool,
     /// `YYYY-MM-DD`.
     Date,
+    /// `YYYY-MM-DDTHH:MM`, a local wall-clock time.
+    DateTime,
+    /// `YYYY-MM-DDTHH:MM Zone/Name`.
+    DateTimeZone,
     List,
     /// Kept as written: YAML the properties panel doesn't understand.
     Raw,
@@ -494,6 +499,8 @@ pub struct Property {
     pub text: String,
     /// A list's items, as text; empty for any other kind.
     pub items: Vec<String>,
+    /// The editor the row has besides a text field, if any.
+    pub pick: Option<PropertyPick>,
 }
 
 /// A query view's table.

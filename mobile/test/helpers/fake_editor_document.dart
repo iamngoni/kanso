@@ -315,6 +315,27 @@ class FakeEditorDocument implements EditorDocument {
     return failed<List<Property>>('setProperty') ?? Right(properties);
   }
 
+  /// What the next pick does: applied unless this is false.
+  bool pickApplies = true;
+
+  /// The zones `zones()` lists.
+  List<ZoneRow> zoneRows = const <ZoneRow>[];
+
+  @override
+  Future<Either<ApplicationError, PickOutcome>> pickProperty({
+    required int index,
+    required String key,
+    required String original,
+    required PropertyChoice choice,
+  }) async {
+    calls.add('pickProperty $index $key "$original" $choice');
+    return failed<PickOutcome>('pickProperty') ??
+        Right(PickOutcome(applied: pickApplies, properties: properties));
+  }
+
+  @override
+  Future<List<ZoneRow>> zones() async => zoneRows;
+
   @override
   Future<Either<ApplicationError, List<Property>>> removeProperty(
     int index,

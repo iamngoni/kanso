@@ -9,6 +9,10 @@ import 'types.dart';
 
 // These functions are ignored because they are not marked as `pub`: `new`
 
+/// Every time zone the zone picker lists, in order.
+Future<List<ZoneRow>> propertyZones() =>
+    KansoCore.instance.api.crateApiEditorPropertyZones();
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoEditor>>
 abstract class KansoEditor implements RustOpaqueInterface {
   /// The field's text changed.
@@ -57,6 +61,16 @@ abstract class KansoEditor implements RustOpaqueInterface {
   /// What Live mode draws for `start..end` of the text, in units from
   /// `start`.
   Future<LiveBatch> liveLayout({required int start, required int end});
+
+  /// Writes what a picker picked into row `index`, which the picker showed
+  /// as property `key` holding `original`; dropped (`applied` false) when
+  /// the front matter changed under the pick.
+  Future<PickOutcome> pickProperty({
+    required int index,
+    required String key,
+    required String original,
+    required PropertyChoice choice,
+  });
 
   EditOutcome? redo();
 

@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/core/bridge/api/editor.dart' show propertyZones;
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/bridge/api/word_goal.dart';
 
@@ -362,6 +363,62 @@ void editorSuite(OpenLibrary open) {
       expect(
         (await library.properties(id: id)).map((p) => p.key),
         <String>['rank', 'status'],
+      );
+    });
+
+    test('a date property is picked, and a stale pick is dropped', () async {
+      final library = await open();
+      final id = await makeNote(
+        library,
+        'Embargo',
+        '---\nstage: Idea\nwhen: 2026-11-18T09:00\n---\ntext',
+      );
+      final editor = await library.edit(id: id);
+      final shown = (await editor.snapshot()).properties[1];
+      expect(shown.kind, PropertyKind.dateTime);
+      expect(shown.pick?.kind, PickKind.dateTime);
+      expect(shown.pick?.moment?.hour, 9);
+
+      var outcome = await editor.pickProperty(
+        index: 1,
+        key: 'when',
+        original: '2026-11-18T09:00',
+        choice: const PropertyChoice.zoned(
+          moment: Moment(year: 2026, month: 11, day: 19, hour: 8, minute: 30),
+          zone: 'Africa/Harare',
+        ),
+      );
+      expect(outcome.applied, isTrue);
+      expect(outcome.properties[1].text, '2026-11-19T08:30 Africa/Harare');
+      expect(outcome.properties[1].kind, PropertyKind.dateTimeZone);
+      expect(
+        outcome.properties[1].pick?.label,
+        'Thu 19 Nov, 08:30 Harare',
+      );
+
+      // The picker still shows the old value: the pick is dropped.
+      outcome = await editor.pickProperty(
+        index: 1,
+        key: 'when',
+        original: '2026-11-18T09:00',
+        choice: const PropertyChoice.clear(),
+      );
+      expect(outcome.applied, isFalse);
+      expect(outcome.properties[1].text, '2026-11-19T08:30 Africa/Harare');
+      await expectLater(
+        editor.pickProperty(
+          index: 1,
+          key: 'when',
+          original: '2026-11-19T08:30 Africa/Harare',
+          choice: const PropertyChoice.zone(zone: 'Nowhere/Land'),
+        ),
+        throwsA(isA<KansoError_Invalid>()),
+      );
+      final zones = await propertyZones();
+      expect(zones.map((z) => z.name), contains('Africa/Harare'));
+      expect(
+        zones.firstWhere((z) => z.name == 'Africa/Harare').label,
+        'Harare',
       );
     });
 

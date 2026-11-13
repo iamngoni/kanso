@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/import.dart';
 import 'package:kanso/core/bridge/api/library.dart';
+import 'package:kanso/core/bridge/api/schedule_types.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:path/path.dart' as p;
 
@@ -20,6 +21,24 @@ import 'open_library.dart';
 /// emulator (`integration_test`).
 void librarySuite(OpenLibrary open) {
   group('KansoLibrary', () {
+    test('the schedule lists a dated task', () async {
+      final library = await open();
+      await makeNote(
+        library,
+        'Pixel',
+        '- [ ] film @2026-11-18\n',
+      );
+      final rows = await library.schedule(
+        request: const ScheduleRequest(
+          from: DayDate(year: 2026, month: 11, day: 17),
+          until: DayDate(year: 2026, month: 11, day: 20),
+          includeDone: false,
+        ),
+      );
+      final task = rows.singleWhere((row) => row.kind == ScheduleRowKind.task);
+      expect((task.date.day, task.noteTitle), (18, 'Pixel'));
+    });
+
     test('note and library word goals round-trip through the bridge', () async {
       final library = await open();
       final made = await makeNote(library, 'Goal', 'one two three');

@@ -11,6 +11,7 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_switch.dart';
 import '../../../core/views/widgets/kanso_text_input.dart';
+import 'property_pick_cell.dart';
 
 /// One property of the note: its name, its value to change, and a button to
 /// remove it.
@@ -23,6 +24,8 @@ class PropertyRow extends StatefulWidget {
     required this.property,
     required this.onSubmitted,
     required this.onRemove,
+    required this.onPick,
+    required this.loadZones,
     super.key,
   });
 
@@ -33,6 +36,12 @@ class PropertyRow extends StatefulWidget {
 
   /// The property was asked to go.
   final VoidCallback onRemove;
+
+  /// A picker of the row picked this.
+  final ValueChanged<PropertyChoice> onPick;
+
+  /// Every time zone, for the zone picker.
+  final Future<List<ZoneRow>> Function() loadZones;
 
   @override
   State<PropertyRow> createState() => _PropertyRowState();
@@ -93,7 +102,15 @@ class _PropertyRowState extends State<PropertyRow> {
     final colors = context.colors;
     final l10n = context.l10n;
     final property = widget.property;
-    final field = property.kind == PropertyKind.bool
+    final pick = property.pick;
+    final field = pick != null
+        ? PropertyPickCell(
+            property: property,
+            pick: pick,
+            onPick: widget.onPick,
+            loadZones: widget.loadZones,
+          )
+        : property.kind == PropertyKind.bool
         ? Align(
             alignment: AlignmentDirectional.centerStart,
             child: KansoSwitch(
@@ -118,6 +135,9 @@ class _PropertyRowState extends State<PropertyRow> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: KansoSpacing.xxs),
       child: Row(
+        crossAxisAlignment: pick == null
+            ? CrossAxisAlignment.center
+            : CrossAxisAlignment.start,
         children: <Widget>[
           Expanded(
             flex: 2,
