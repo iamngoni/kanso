@@ -989,6 +989,46 @@
   "@propertiesFailed": {
     "description": "Says that a property of the note could not be set."
   },
+  "propertiesChoose": "Choose",
+  "@propertiesChoose": {
+    "description": "The empty value of a select or person property, which opens its list."
+  },
+  "propertiesPickDate": "Pick a date",
+  "@propertiesPickDate": {
+    "description": "The empty value of a date property, which opens its calendar."
+  },
+  "propertiesPickDateTime": "Pick a date and time",
+  "@propertiesPickDateTime": {
+    "description": "The empty value of a date and time property, which opens its calendar and clock."
+  },
+  "propertiesPickZone": "Time zone",
+  "@propertiesPickZone": {
+    "description": "The label of a date and time property's time zone, and the title of the list of zones."
+  },
+  "propertiesSearchZones": "Search time zones",
+  "@propertiesSearchZones": {
+    "description": "The hint of the search field over the list of time zones."
+  },
+  "propertiesTime": "Time",
+  "@propertiesTime": {
+    "description": "The row of a date and time picker that sets the time of day."
+  },
+  "propertiesClear": "Clear",
+  "@propertiesClear": {
+    "description": "Empties a property's value from its picker."
+  },
+  "propertiesUnlisted": "Not in the notebook's list",
+  "@propertiesUnlisted": {
+    "description": "Says that a select property's value is one its notebook no longer lists."
+  },
+  "propertiesDropped": "That property changed while you were editing it.",
+  "@propertiesDropped": {
+    "description": "Says that a picked value was not written because the note's properties changed under the picker."
+  },
+  "propertiesNoZones": "No time zone matches.",
+  "@propertiesNoZones": {
+    "description": "Shown when a search over the time zones finds none."
+  },
   "propertiesShow": "Show properties",
   "@propertiesShow": {
     "description": "What the row of properties does when it is closed, for a screen reader."

@@ -85,7 +85,8 @@ use crate::model::{
     LiveDocument, LiveKind, LiveLine, LiveRun, LockState, Property, Range16, Replacement, RunBatch,
     SaveState, ShareFile, TextChange,
 };
-use crate::notes::property_row;
+use crate::property_pick::{self, PickContext};
+use crate::property_pick_model::{PickOutcome, PropertyChoice};
 use crate::sharing::SharedNotes;
 use crate::sharing_model::CursorMark;
 use crate::stream::Listeners;
@@ -479,6 +480,9 @@ struct State {
     /// The title or text changed in this session and the other sessions on
     /// the note have not been told yet.
     echo: bool,
+    /// What decides the editors of the property rows, read when the session
+    /// opens and again when the properties are asked for.
+    picks: PickContext,
 }
 
 /// The text of a note as one session has it, handed to the other sessions
@@ -519,6 +523,10 @@ impl Library {
                 titles: Mutex::new(None),
                 gate: Mutex::new(()),
             });
+            shared.run(|st, _| {
+                shared.refresh_picks(st);
+                Ok(())
+            })?;
             self.inner.editors.register(&shared);
             Ok(EditorSession { shared })
         })
@@ -528,7 +536,12 @@ impl Library {
 impl EditorSession {
     /// The note as it is now.
     pub fn snapshot(&self) -> Result<EditorSnapshot, KansoError> {
-        guard(|| self.shared.run(|st, _| Ok(st.snapshot())))
+        guard(|| {
+            self.shared.run(|st, _| {
+                self.shared.refresh_picks(st);
+                Ok(st.snapshot())
+            })
+        })
     }
 
     /// The goal that applies after combining this note's setting with the
@@ -976,7 +989,37 @@ impl EditorSession {
                     }
                 };
                 self.shared.hidden_changed(st, hidden);
+                self.shared.refresh_picks(st);
                 Ok(st.properties())
+            })
+        })
+    }
+
+    /// Writes what a picker picked into row `index`, which the picker showed
+    /// as property `key` holding `original`. If the front matter changed
+    /// under the pick (another row there, or another value) nothing is
+    /// written, and the outcome says so: a pick is never written to another
+    /// property.
+    pub fn pick_property(
+        &self,
+        index: u32,
+        key: String,
+        original: String,
+        choice: PropertyChoice,
+    ) -> Result<PickOutcome, KansoError> {
+        guard(|| {
+            self.shared.run(|st, _| {
+                let written =
+                    property_pick::apply(&st.hidden, index as usize, &key, &original, &choice)?;
+                let applied = written.is_some();
+                if let Some(hidden) = written {
+                    self.shared.hidden_changed(st, hidden);
+                }
+                self.shared.refresh_picks(st);
+                Ok(PickOutcome {
+                    applied,
+                    properties: st.properties(),
+                })
             })
         })
     }
@@ -990,6 +1033,7 @@ impl EditorSession {
                 }
                 let hidden = properties::remove_property_at(&st.hidden, index as usize);
                 self.shared.hidden_changed(st, hidden);
+                self.shared.refresh_picks(st);
                 Ok(st.properties())
             })
         })
@@ -1198,6 +1242,7 @@ impl State {
             writing: false,
             deferred: Vec::new(),
             echo: false,
+            picks: PickContext::default(),
         }
     }
 
@@ -1230,7 +1275,7 @@ impl State {
     fn properties(&self) -> Vec<Property> {
         properties::parse(&self.hidden)
             .into_iter()
-            .map(|(key, value)| property_row(key, &value))
+            .map(|(key, value)| property_pick::row(key, &value, &self.picks))
             .collect()
     }
 
@@ -1442,6 +1487,20 @@ impl Shared {
             st.echo = true;
             self.inner.editors.wake();
         }
+    }
+
+    /// Reads again what decides the editors of the property rows: the
+    /// notebook's property list and a shared note's people.
+    fn refresh_picks(&self, st: &mut State) {
+        st.picks = PickContext {
+            defs: self
+                .inner
+                .store
+                .notebook_properties(&st.note.book_id)
+                .unwrap_or_default(),
+            members: self.sharing().member_names(&st.note.extra),
+            device_zone: property_pick::device_zone(),
+        };
     }
 
     fn hidden_changed(&self, st: &mut State, hidden: String) {

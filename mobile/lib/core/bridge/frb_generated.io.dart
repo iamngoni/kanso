@@ -1203,6 +1203,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   MadeNote dco_decode_box_autoadd_made_note(dynamic raw);
 
   @protected
+  Moment dco_decode_box_autoadd_moment(dynamic raw);
+
+  @protected
   NewNote dco_decode_box_autoadd_new_note(dynamic raw);
 
   @protected
@@ -1285,6 +1288,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PreviewTaskBox dco_decode_box_autoadd_preview_task_box(dynamic raw);
+
+  @protected
+  PropertyChoice dco_decode_box_autoadd_property_choice(dynamic raw);
+
+  @protected
+  PropertyPick dco_decode_box_autoadd_property_pick(dynamic raw);
 
   @protected
   PublishLink dco_decode_box_autoadd_publish_link(dynamic raw);
@@ -2309,6 +2318,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<VoiceDrop> dco_decode_list_voice_drop(dynamic raw);
 
   @protected
+  List<ZoneRow> dco_decode_list_zone_row(dynamic raw);
+
+  @protected
   LiveBatch dco_decode_live_batch(dynamic raw);
 
   @protected
@@ -2400,6 +2412,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   MigrationOutcome dco_decode_migration_outcome(dynamic raw);
+
+  @protected
+  Moment dco_decode_moment(dynamic raw);
 
   @protected
   MonthGrid dco_decode_month_grid(dynamic raw);
@@ -2558,6 +2573,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   MadeNote? dco_decode_opt_box_autoadd_made_note(dynamic raw);
 
   @protected
+  Moment? dco_decode_opt_box_autoadd_moment(dynamic raw);
+
+  @protected
   NoteRecording? dco_decode_opt_box_autoadd_note_recording(dynamic raw);
 
   @protected
@@ -2607,6 +2625,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PreviewTaskBox? dco_decode_opt_box_autoadd_preview_task_box(dynamic raw);
+
+  @protected
+  PropertyPick? dco_decode_opt_box_autoadd_property_pick(dynamic raw);
 
   @protected
   PublishLink? dco_decode_opt_box_autoadd_publish_link(dynamic raw);
@@ -2896,6 +2917,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   PhoneWhatsNewSection dco_decode_phone_whats_new_section(dynamic raw);
 
   @protected
+  PickKind dco_decode_pick_kind(dynamic raw);
+
+  @protected
+  PickOutcome dco_decode_pick_outcome(dynamic raw);
+
+  @protected
   PlannedNote dco_decode_planned_note(dynamic raw);
 
   @protected
@@ -2959,7 +2986,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Property dco_decode_property(dynamic raw);
 
   @protected
+  PropertyChoice dco_decode_property_choice(dynamic raw);
+
+  @protected
   PropertyKind dco_decode_property_kind(dynamic raw);
+
+  @protected
+  PropertyPick dco_decode_property_pick(dynamic raw);
 
   @protected
   ProviderEvent dco_decode_provider_event(dynamic raw);
@@ -3410,6 +3443,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   WhenHint dco_decode_when_hint(dynamic raw);
+
+  @protected
+  ZoneRow dco_decode_zone_row(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -4453,6 +4489,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   MadeNote sse_decode_box_autoadd_made_note(SseDeserializer deserializer);
 
   @protected
+  Moment sse_decode_box_autoadd_moment(SseDeserializer deserializer);
+
+  @protected
   NewNote sse_decode_box_autoadd_new_note(SseDeserializer deserializer);
 
   @protected
@@ -4563,6 +4602,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PreviewTaskBox sse_decode_box_autoadd_preview_task_box(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PropertyChoice sse_decode_box_autoadd_property_choice(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PropertyPick sse_decode_box_autoadd_property_pick(
     SseDeserializer deserializer,
   );
 
@@ -5779,6 +5828,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<VoiceDrop> sse_decode_list_voice_drop(SseDeserializer deserializer);
 
   @protected
+  List<ZoneRow> sse_decode_list_zone_row(SseDeserializer deserializer);
+
+  @protected
   LiveBatch sse_decode_live_batch(SseDeserializer deserializer);
 
   @protected
@@ -5872,6 +5924,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   MigrationOutcome sse_decode_migration_outcome(SseDeserializer deserializer);
+
+  @protected
+  Moment sse_decode_moment(SseDeserializer deserializer);
 
   @protected
   MonthGrid sse_decode_month_grid(SseDeserializer deserializer);
@@ -6068,6 +6123,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   MadeNote? sse_decode_opt_box_autoadd_made_note(SseDeserializer deserializer);
 
   @protected
+  Moment? sse_decode_opt_box_autoadd_moment(SseDeserializer deserializer);
+
+  @protected
   NoteRecording? sse_decode_opt_box_autoadd_note_recording(
     SseDeserializer deserializer,
   );
@@ -6145,6 +6203,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   PreviewTaskBox? sse_decode_opt_box_autoadd_preview_task_box(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PropertyPick? sse_decode_opt_box_autoadd_property_pick(
     SseDeserializer deserializer,
   );
 
@@ -6472,6 +6535,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  PickKind sse_decode_pick_kind(SseDeserializer deserializer);
+
+  @protected
+  PickOutcome sse_decode_pick_outcome(SseDeserializer deserializer);
+
+  @protected
   PlannedNote sse_decode_planned_note(SseDeserializer deserializer);
 
   @protected
@@ -6543,7 +6612,13 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Property sse_decode_property(SseDeserializer deserializer);
 
   @protected
+  PropertyChoice sse_decode_property_choice(SseDeserializer deserializer);
+
+  @protected
   PropertyKind sse_decode_property_kind(SseDeserializer deserializer);
+
+  @protected
+  PropertyPick sse_decode_property_pick(SseDeserializer deserializer);
 
   @protected
   ProviderEvent sse_decode_provider_event(SseDeserializer deserializer);
@@ -7012,6 +7087,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   WhenHint sse_decode_when_hint(SseDeserializer deserializer);
+
+  @protected
+  ZoneRow sse_decode_zone_row(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -8311,6 +8389,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_moment(Moment self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_new_note(NewNote self, SseSerializer serializer);
 
   @protected
@@ -8469,6 +8550,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_preview_task_box(
     PreviewTaskBox self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_property_choice(
+    PropertyChoice self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_property_pick(
+    PropertyPick self,
     SseSerializer serializer,
   );
 
@@ -10084,6 +10177,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_zone_row(List<ZoneRow> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_live_batch(LiveBatch self, SseSerializer serializer);
 
   @protected
@@ -10193,6 +10289,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
     MigrationOutcome self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_moment(Moment self, SseSerializer serializer);
 
   @protected
   void sse_encode_month_grid(MonthGrid self, SseSerializer serializer);
@@ -10433,6 +10532,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_moment(
+    Moment? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_note_recording(
     NoteRecording? self,
     SseSerializer serializer,
@@ -10531,6 +10636,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_preview_task_box(
     PreviewTaskBox? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_property_pick(
+    PropertyPick? self,
     SseSerializer serializer,
   );
 
@@ -10940,6 +11051,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_pick_kind(PickKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pick_outcome(PickOutcome self, SseSerializer serializer);
+
+  @protected
   void sse_encode_planned_note(PlannedNote self, SseSerializer serializer);
 
   @protected
@@ -11030,7 +11147,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_property(Property self, SseSerializer serializer);
 
   @protected
+  void sse_encode_property_choice(
+    PropertyChoice self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_property_kind(PropertyKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_property_pick(PropertyPick self, SseSerializer serializer);
 
   @protected
   void sse_encode_provider_event(ProviderEvent self, SseSerializer serializer);
@@ -11595,6 +11721,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_when_hint(WhenHint self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_zone_row(ZoneRow self, SseSerializer serializer);
 }
 
 // Section: wire_class

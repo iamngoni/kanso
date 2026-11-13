@@ -52,7 +52,7 @@ extension EditorEventPatterns on EditorEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( EditorStartedEvent value)?  started,TResult Function( EditorSignalReceivedEvent value)?  signalReceived,TResult Function( EditorEditedEvent value)?  edited,TResult Function( EditorCaretMovedEvent value)?  caretMoved,TResult Function( EditorCompletionDismissedEvent value)?  completionDismissed,TResult Function( EditorPropertiesToggledEvent value)?  propertiesToggled,TResult Function( EditorPropertySetEvent value)?  propertySet,TResult Function( EditorPropertyRemovedEvent value)?  propertyRemoved,TResult Function( EditorWordGoalChangedEvent value)?  wordGoalChanged,TResult Function( EditorKeepMineRequestedEvent value)?  keepMineRequested,TResult Function( EditorUseTheirsRequestedEvent value)?  useTheirsRequested,TResult Function( EditorFlushRequestedEvent value)?  flushRequested,TResult Function( EditorLifecycleChangedEvent value)?  lifecycleChanged,TResult Function( EditorLinkOpenRequestedEvent value)?  linkOpenRequested,TResult Function( EditorDestinationHandledEvent value)?  destinationHandled,TResult Function( EditorClosedEvent value)?  closed,TResult Function( EditorAttachRequestedEvent value)?  attachRequested,TResult Function( EditorAttachNoticeDismissedEvent value)?  attachNoticeDismissed,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( EditorStartedEvent value)?  started,TResult Function( EditorSignalReceivedEvent value)?  signalReceived,TResult Function( EditorEditedEvent value)?  edited,TResult Function( EditorCaretMovedEvent value)?  caretMoved,TResult Function( EditorCompletionDismissedEvent value)?  completionDismissed,TResult Function( EditorPropertiesToggledEvent value)?  propertiesToggled,TResult Function( EditorPropertySetEvent value)?  propertySet,TResult Function( EditorPropertyPickedEvent value)?  propertyPicked,TResult Function( EditorPropertyRemovedEvent value)?  propertyRemoved,TResult Function( EditorWordGoalChangedEvent value)?  wordGoalChanged,TResult Function( EditorKeepMineRequestedEvent value)?  keepMineRequested,TResult Function( EditorUseTheirsRequestedEvent value)?  useTheirsRequested,TResult Function( EditorFlushRequestedEvent value)?  flushRequested,TResult Function( EditorLifecycleChangedEvent value)?  lifecycleChanged,TResult Function( EditorLinkOpenRequestedEvent value)?  linkOpenRequested,TResult Function( EditorDestinationHandledEvent value)?  destinationHandled,TResult Function( EditorClosedEvent value)?  closed,TResult Function( EditorAttachRequestedEvent value)?  attachRequested,TResult Function( EditorAttachNoticeDismissedEvent value)?  attachNoticeDismissed,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case EditorStartedEvent() when started != null:
@@ -62,7 +62,8 @@ return edited(_that);case EditorCaretMovedEvent() when caretMoved != null:
 return caretMoved(_that);case EditorCompletionDismissedEvent() when completionDismissed != null:
 return completionDismissed(_that);case EditorPropertiesToggledEvent() when propertiesToggled != null:
 return propertiesToggled(_that);case EditorPropertySetEvent() when propertySet != null:
-return propertySet(_that);case EditorPropertyRemovedEvent() when propertyRemoved != null:
+return propertySet(_that);case EditorPropertyPickedEvent() when propertyPicked != null:
+return propertyPicked(_that);case EditorPropertyRemovedEvent() when propertyRemoved != null:
 return propertyRemoved(_that);case EditorWordGoalChangedEvent() when wordGoalChanged != null:
 return wordGoalChanged(_that);case EditorKeepMineRequestedEvent() when keepMineRequested != null:
 return keepMineRequested(_that);case EditorUseTheirsRequestedEvent() when useTheirsRequested != null:
@@ -91,7 +92,7 @@ return attachNoticeDismissed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( EditorStartedEvent value)  started,required TResult Function( EditorSignalReceivedEvent value)  signalReceived,required TResult Function( EditorEditedEvent value)  edited,required TResult Function( EditorCaretMovedEvent value)  caretMoved,required TResult Function( EditorCompletionDismissedEvent value)  completionDismissed,required TResult Function( EditorPropertiesToggledEvent value)  propertiesToggled,required TResult Function( EditorPropertySetEvent value)  propertySet,required TResult Function( EditorPropertyRemovedEvent value)  propertyRemoved,required TResult Function( EditorWordGoalChangedEvent value)  wordGoalChanged,required TResult Function( EditorKeepMineRequestedEvent value)  keepMineRequested,required TResult Function( EditorUseTheirsRequestedEvent value)  useTheirsRequested,required TResult Function( EditorFlushRequestedEvent value)  flushRequested,required TResult Function( EditorLifecycleChangedEvent value)  lifecycleChanged,required TResult Function( EditorLinkOpenRequestedEvent value)  linkOpenRequested,required TResult Function( EditorDestinationHandledEvent value)  destinationHandled,required TResult Function( EditorClosedEvent value)  closed,required TResult Function( EditorAttachRequestedEvent value)  attachRequested,required TResult Function( EditorAttachNoticeDismissedEvent value)  attachNoticeDismissed,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( EditorStartedEvent value)  started,required TResult Function( EditorSignalReceivedEvent value)  signalReceived,required TResult Function( EditorEditedEvent value)  edited,required TResult Function( EditorCaretMovedEvent value)  caretMoved,required TResult Function( EditorCompletionDismissedEvent value)  completionDismissed,required TResult Function( EditorPropertiesToggledEvent value)  propertiesToggled,required TResult Function( EditorPropertySetEvent value)  propertySet,required TResult Function( EditorPropertyPickedEvent value)  propertyPicked,required TResult Function( EditorPropertyRemovedEvent value)  propertyRemoved,required TResult Function( EditorWordGoalChangedEvent value)  wordGoalChanged,required TResult Function( EditorKeepMineRequestedEvent value)  keepMineRequested,required TResult Function( EditorUseTheirsRequestedEvent value)  useTheirsRequested,required TResult Function( EditorFlushRequestedEvent value)  flushRequested,required TResult Function( EditorLifecycleChangedEvent value)  lifecycleChanged,required TResult Function( EditorLinkOpenRequestedEvent value)  linkOpenRequested,required TResult Function( EditorDestinationHandledEvent value)  destinationHandled,required TResult Function( EditorClosedEvent value)  closed,required TResult Function( EditorAttachRequestedEvent value)  attachRequested,required TResult Function( EditorAttachNoticeDismissedEvent value)  attachNoticeDismissed,}){
 final _that = this;
 switch (_that) {
 case EditorStartedEvent():
@@ -101,7 +102,8 @@ return edited(_that);case EditorCaretMovedEvent():
 return caretMoved(_that);case EditorCompletionDismissedEvent():
 return completionDismissed(_that);case EditorPropertiesToggledEvent():
 return propertiesToggled(_that);case EditorPropertySetEvent():
-return propertySet(_that);case EditorPropertyRemovedEvent():
+return propertySet(_that);case EditorPropertyPickedEvent():
+return propertyPicked(_that);case EditorPropertyRemovedEvent():
 return propertyRemoved(_that);case EditorWordGoalChangedEvent():
 return wordGoalChanged(_that);case EditorKeepMineRequestedEvent():
 return keepMineRequested(_that);case EditorUseTheirsRequestedEvent():
@@ -126,7 +128,7 @@ return attachNoticeDismissed(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( EditorStartedEvent value)?  started,TResult? Function( EditorSignalReceivedEvent value)?  signalReceived,TResult? Function( EditorEditedEvent value)?  edited,TResult? Function( EditorCaretMovedEvent value)?  caretMoved,TResult? Function( EditorCompletionDismissedEvent value)?  completionDismissed,TResult? Function( EditorPropertiesToggledEvent value)?  propertiesToggled,TResult? Function( EditorPropertySetEvent value)?  propertySet,TResult? Function( EditorPropertyRemovedEvent value)?  propertyRemoved,TResult? Function( EditorWordGoalChangedEvent value)?  wordGoalChanged,TResult? Function( EditorKeepMineRequestedEvent value)?  keepMineRequested,TResult? Function( EditorUseTheirsRequestedEvent value)?  useTheirsRequested,TResult? Function( EditorFlushRequestedEvent value)?  flushRequested,TResult? Function( EditorLifecycleChangedEvent value)?  lifecycleChanged,TResult? Function( EditorLinkOpenRequestedEvent value)?  linkOpenRequested,TResult? Function( EditorDestinationHandledEvent value)?  destinationHandled,TResult? Function( EditorClosedEvent value)?  closed,TResult? Function( EditorAttachRequestedEvent value)?  attachRequested,TResult? Function( EditorAttachNoticeDismissedEvent value)?  attachNoticeDismissed,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( EditorStartedEvent value)?  started,TResult? Function( EditorSignalReceivedEvent value)?  signalReceived,TResult? Function( EditorEditedEvent value)?  edited,TResult? Function( EditorCaretMovedEvent value)?  caretMoved,TResult? Function( EditorCompletionDismissedEvent value)?  completionDismissed,TResult? Function( EditorPropertiesToggledEvent value)?  propertiesToggled,TResult? Function( EditorPropertySetEvent value)?  propertySet,TResult? Function( EditorPropertyPickedEvent value)?  propertyPicked,TResult? Function( EditorPropertyRemovedEvent value)?  propertyRemoved,TResult? Function( EditorWordGoalChangedEvent value)?  wordGoalChanged,TResult? Function( EditorKeepMineRequestedEvent value)?  keepMineRequested,TResult? Function( EditorUseTheirsRequestedEvent value)?  useTheirsRequested,TResult? Function( EditorFlushRequestedEvent value)?  flushRequested,TResult? Function( EditorLifecycleChangedEvent value)?  lifecycleChanged,TResult? Function( EditorLinkOpenRequestedEvent value)?  linkOpenRequested,TResult? Function( EditorDestinationHandledEvent value)?  destinationHandled,TResult? Function( EditorClosedEvent value)?  closed,TResult? Function( EditorAttachRequestedEvent value)?  attachRequested,TResult? Function( EditorAttachNoticeDismissedEvent value)?  attachNoticeDismissed,}){
 final _that = this;
 switch (_that) {
 case EditorStartedEvent() when started != null:
@@ -136,7 +138,8 @@ return edited(_that);case EditorCaretMovedEvent() when caretMoved != null:
 return caretMoved(_that);case EditorCompletionDismissedEvent() when completionDismissed != null:
 return completionDismissed(_that);case EditorPropertiesToggledEvent() when propertiesToggled != null:
 return propertiesToggled(_that);case EditorPropertySetEvent() when propertySet != null:
-return propertySet(_that);case EditorPropertyRemovedEvent() when propertyRemoved != null:
+return propertySet(_that);case EditorPropertyPickedEvent() when propertyPicked != null:
+return propertyPicked(_that);case EditorPropertyRemovedEvent() when propertyRemoved != null:
 return propertyRemoved(_that);case EditorWordGoalChangedEvent() when wordGoalChanged != null:
 return wordGoalChanged(_that);case EditorKeepMineRequestedEvent() when keepMineRequested != null:
 return keepMineRequested(_that);case EditorUseTheirsRequestedEvent() when useTheirsRequested != null:
@@ -164,7 +167,7 @@ return attachNoticeDismissed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String noteId)?  started,TResult Function( EditorSignal signal)?  signalReceived,TResult Function()?  edited,TResult Function( EditorContext context)?  caretMoved,TResult Function()?  completionDismissed,TResult Function()?  propertiesToggled,TResult Function( String key,  String value,  int? index)?  propertySet,TResult Function( int index)?  propertyRemoved,TResult Function( core.GoalSetting setting)?  wordGoalChanged,TResult Function()?  keepMineRequested,TResult Function()?  useTheirsRequested,TResult Function( FlushReason reason)?  flushRequested,TResult Function( AppLifecycleState lifecycle)?  lifecycleChanged,TResult Function( LinkTarget target)?  linkOpenRequested,TResult Function()?  destinationHandled,TResult Function()?  closed,TResult Function( MediaSource source)?  attachRequested,TResult Function()?  attachNoticeDismissed,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String noteId)?  started,TResult Function( EditorSignal signal)?  signalReceived,TResult Function()?  edited,TResult Function( EditorContext context)?  caretMoved,TResult Function()?  completionDismissed,TResult Function()?  propertiesToggled,TResult Function( String key,  String value,  int? index)?  propertySet,TResult Function( int index,  String key,  String original,  core.PropertyChoice choice)?  propertyPicked,TResult Function( int index)?  propertyRemoved,TResult Function( core.GoalSetting setting)?  wordGoalChanged,TResult Function()?  keepMineRequested,TResult Function()?  useTheirsRequested,TResult Function( FlushReason reason)?  flushRequested,TResult Function( AppLifecycleState lifecycle)?  lifecycleChanged,TResult Function( LinkTarget target)?  linkOpenRequested,TResult Function()?  destinationHandled,TResult Function()?  closed,TResult Function( MediaSource source)?  attachRequested,TResult Function()?  attachNoticeDismissed,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case EditorStartedEvent() when started != null:
 return started(_that.noteId);case EditorSignalReceivedEvent() when signalReceived != null:
@@ -173,7 +176,8 @@ return edited();case EditorCaretMovedEvent() when caretMoved != null:
 return caretMoved(_that.context);case EditorCompletionDismissedEvent() when completionDismissed != null:
 return completionDismissed();case EditorPropertiesToggledEvent() when propertiesToggled != null:
 return propertiesToggled();case EditorPropertySetEvent() when propertySet != null:
-return propertySet(_that.key,_that.value,_that.index);case EditorPropertyRemovedEvent() when propertyRemoved != null:
+return propertySet(_that.key,_that.value,_that.index);case EditorPropertyPickedEvent() when propertyPicked != null:
+return propertyPicked(_that.index,_that.key,_that.original,_that.choice);case EditorPropertyRemovedEvent() when propertyRemoved != null:
 return propertyRemoved(_that.index);case EditorWordGoalChangedEvent() when wordGoalChanged != null:
 return wordGoalChanged(_that.setting);case EditorKeepMineRequestedEvent() when keepMineRequested != null:
 return keepMineRequested();case EditorUseTheirsRequestedEvent() when useTheirsRequested != null:
@@ -202,7 +206,7 @@ return attachNoticeDismissed();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String noteId)  started,required TResult Function( EditorSignal signal)  signalReceived,required TResult Function()  edited,required TResult Function( EditorContext context)  caretMoved,required TResult Function()  completionDismissed,required TResult Function()  propertiesToggled,required TResult Function( String key,  String value,  int? index)  propertySet,required TResult Function( int index)  propertyRemoved,required TResult Function( core.GoalSetting setting)  wordGoalChanged,required TResult Function()  keepMineRequested,required TResult Function()  useTheirsRequested,required TResult Function( FlushReason reason)  flushRequested,required TResult Function( AppLifecycleState lifecycle)  lifecycleChanged,required TResult Function( LinkTarget target)  linkOpenRequested,required TResult Function()  destinationHandled,required TResult Function()  closed,required TResult Function( MediaSource source)  attachRequested,required TResult Function()  attachNoticeDismissed,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String noteId)  started,required TResult Function( EditorSignal signal)  signalReceived,required TResult Function()  edited,required TResult Function( EditorContext context)  caretMoved,required TResult Function()  completionDismissed,required TResult Function()  propertiesToggled,required TResult Function( String key,  String value,  int? index)  propertySet,required TResult Function( int index,  String key,  String original,  core.PropertyChoice choice)  propertyPicked,required TResult Function( int index)  propertyRemoved,required TResult Function( core.GoalSetting setting)  wordGoalChanged,required TResult Function()  keepMineRequested,required TResult Function()  useTheirsRequested,required TResult Function( FlushReason reason)  flushRequested,required TResult Function( AppLifecycleState lifecycle)  lifecycleChanged,required TResult Function( LinkTarget target)  linkOpenRequested,required TResult Function()  destinationHandled,required TResult Function()  closed,required TResult Function( MediaSource source)  attachRequested,required TResult Function()  attachNoticeDismissed,}) {final _that = this;
 switch (_that) {
 case EditorStartedEvent():
 return started(_that.noteId);case EditorSignalReceivedEvent():
@@ -211,7 +215,8 @@ return edited();case EditorCaretMovedEvent():
 return caretMoved(_that.context);case EditorCompletionDismissedEvent():
 return completionDismissed();case EditorPropertiesToggledEvent():
 return propertiesToggled();case EditorPropertySetEvent():
-return propertySet(_that.key,_that.value,_that.index);case EditorPropertyRemovedEvent():
+return propertySet(_that.key,_that.value,_that.index);case EditorPropertyPickedEvent():
+return propertyPicked(_that.index,_that.key,_that.original,_that.choice);case EditorPropertyRemovedEvent():
 return propertyRemoved(_that.index);case EditorWordGoalChangedEvent():
 return wordGoalChanged(_that.setting);case EditorKeepMineRequestedEvent():
 return keepMineRequested();case EditorUseTheirsRequestedEvent():
@@ -236,7 +241,7 @@ return attachNoticeDismissed();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String noteId)?  started,TResult? Function( EditorSignal signal)?  signalReceived,TResult? Function()?  edited,TResult? Function( EditorContext context)?  caretMoved,TResult? Function()?  completionDismissed,TResult? Function()?  propertiesToggled,TResult? Function( String key,  String value,  int? index)?  propertySet,TResult? Function( int index)?  propertyRemoved,TResult? Function( core.GoalSetting setting)?  wordGoalChanged,TResult? Function()?  keepMineRequested,TResult? Function()?  useTheirsRequested,TResult? Function( FlushReason reason)?  flushRequested,TResult? Function( AppLifecycleState lifecycle)?  lifecycleChanged,TResult? Function( LinkTarget target)?  linkOpenRequested,TResult? Function()?  destinationHandled,TResult? Function()?  closed,TResult? Function( MediaSource source)?  attachRequested,TResult? Function()?  attachNoticeDismissed,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String noteId)?  started,TResult? Function( EditorSignal signal)?  signalReceived,TResult? Function()?  edited,TResult? Function( EditorContext context)?  caretMoved,TResult? Function()?  completionDismissed,TResult? Function()?  propertiesToggled,TResult? Function( String key,  String value,  int? index)?  propertySet,TResult? Function( int index,  String key,  String original,  core.PropertyChoice choice)?  propertyPicked,TResult? Function( int index)?  propertyRemoved,TResult? Function( core.GoalSetting setting)?  wordGoalChanged,TResult? Function()?  keepMineRequested,TResult? Function()?  useTheirsRequested,TResult? Function( FlushReason reason)?  flushRequested,TResult? Function( AppLifecycleState lifecycle)?  lifecycleChanged,TResult? Function( LinkTarget target)?  linkOpenRequested,TResult? Function()?  destinationHandled,TResult? Function()?  closed,TResult? Function( MediaSource source)?  attachRequested,TResult? Function()?  attachNoticeDismissed,}) {final _that = this;
 switch (_that) {
 case EditorStartedEvent() when started != null:
 return started(_that.noteId);case EditorSignalReceivedEvent() when signalReceived != null:
@@ -245,7 +250,8 @@ return edited();case EditorCaretMovedEvent() when caretMoved != null:
 return caretMoved(_that.context);case EditorCompletionDismissedEvent() when completionDismissed != null:
 return completionDismissed();case EditorPropertiesToggledEvent() when propertiesToggled != null:
 return propertiesToggled();case EditorPropertySetEvent() when propertySet != null:
-return propertySet(_that.key,_that.value,_that.index);case EditorPropertyRemovedEvent() when propertyRemoved != null:
+return propertySet(_that.key,_that.value,_that.index);case EditorPropertyPickedEvent() when propertyPicked != null:
+return propertyPicked(_that.index,_that.key,_that.original,_that.choice);case EditorPropertyRemovedEvent() when propertyRemoved != null:
 return propertyRemoved(_that.index);case EditorWordGoalChangedEvent() when wordGoalChanged != null:
 return wordGoalChanged(_that.setting);case EditorKeepMineRequestedEvent() when keepMineRequested != null:
 return keepMineRequested();case EditorUseTheirsRequestedEvent() when useTheirsRequested != null:
@@ -482,6 +488,41 @@ int get hashCode => Object.hash(runtimeType,key,value,index);
 @override
 String toString() {
   return 'EditorEvent.propertySet(key: $key, value: $value, index: $index)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class EditorPropertyPickedEvent implements EditorEvent {
+  const EditorPropertyPickedEvent({required this.index, required this.key, required this.original, required this.choice});
+  
+
+ final  int index;
+ final  String key;
+ final  String original;
+ final  core.PropertyChoice choice;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditorPropertyPickedEvent&&(identical(other.index, index) || other.index == index)&&(identical(other.key, key) || other.key == key)&&(identical(other.original, original) || other.original == original)&&(identical(other.choice, choice) || other.choice == choice));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,index,key,original,choice);
+
+@override
+String toString() {
+  return 'EditorEvent.propertyPicked(index: $index, key: $key, original: $original, choice: $choice)';
 }
 
 
@@ -854,7 +895,8 @@ mixin _$EditorState {
 /// elsewhere.
  SaveState? get save;/// The note's properties.
  List<Property> get properties; bool get propertiesOpen;/// Why the last change to the properties did not work.
- ApplicationError? get propertyError;/// What the caret is in, and so what the keyboard bar may do.
+ ApplicationError? get propertyError;/// The last pick was dropped because the front matter changed under it.
+ bool get propertyDropped;/// What the caret is in, and so what the keyboard bar may do.
  EditorContext? get context;/// What is offered where the caret is, if anything.
  Completion? get completion;/// Where the person asked to go (a link followed), for the screen to go
 /// to; it says so with `destinationHandled` when it has.
@@ -876,16 +918,16 @@ $EditorStateCopyWith<EditorState> get copyWith => _$EditorStateCopyWithImpl<Edit
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditorState&&(identical(other.noteId, noteId) || other.noteId == noteId)&&(identical(other.status, status) || other.status == status)&&(identical(other.document, document) || other.document == document)&&(identical(other.snapshot, snapshot) || other.snapshot == snapshot)&&(identical(other.save, save) || other.save == save)&&const DeepCollectionEquality().equals(other.properties, properties)&&(identical(other.propertiesOpen, propertiesOpen) || other.propertiesOpen == propertiesOpen)&&(identical(other.propertyError, propertyError) || other.propertyError == propertyError)&&(identical(other.context, context) || other.context == context)&&(identical(other.completion, completion) || other.completion == completion)&&(identical(other.destination, destination) || other.destination == destination)&&(identical(other.linkError, linkError) || other.linkError == linkError)&&(identical(other.reloadSeq, reloadSeq) || other.reloadSeq == reloadSeq)&&(identical(other.attached, attached) || other.attached == attached)&&(identical(other.attachSeq, attachSeq) || other.attachSeq == attachSeq)&&const DeepCollectionEquality().equals(other.attachProblems, attachProblems)&&(identical(other.wordGoalSetting, wordGoalSetting) || other.wordGoalSetting == wordGoalSetting)&&(identical(other.defaultWordGoal, defaultWordGoal) || other.defaultWordGoal == defaultWordGoal)&&(identical(other.effectiveWordGoal, effectiveWordGoal) || other.effectiveWordGoal == effectiveWordGoal)&&(identical(other.wordGoalError, wordGoalError) || other.wordGoalError == wordGoalError)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is EditorState&&(identical(other.noteId, noteId) || other.noteId == noteId)&&(identical(other.status, status) || other.status == status)&&(identical(other.document, document) || other.document == document)&&(identical(other.snapshot, snapshot) || other.snapshot == snapshot)&&(identical(other.save, save) || other.save == save)&&const DeepCollectionEquality().equals(other.properties, properties)&&(identical(other.propertiesOpen, propertiesOpen) || other.propertiesOpen == propertiesOpen)&&(identical(other.propertyError, propertyError) || other.propertyError == propertyError)&&(identical(other.propertyDropped, propertyDropped) || other.propertyDropped == propertyDropped)&&(identical(other.context, context) || other.context == context)&&(identical(other.completion, completion) || other.completion == completion)&&(identical(other.destination, destination) || other.destination == destination)&&(identical(other.linkError, linkError) || other.linkError == linkError)&&(identical(other.reloadSeq, reloadSeq) || other.reloadSeq == reloadSeq)&&(identical(other.attached, attached) || other.attached == attached)&&(identical(other.attachSeq, attachSeq) || other.attachSeq == attachSeq)&&const DeepCollectionEquality().equals(other.attachProblems, attachProblems)&&(identical(other.wordGoalSetting, wordGoalSetting) || other.wordGoalSetting == wordGoalSetting)&&(identical(other.defaultWordGoal, defaultWordGoal) || other.defaultWordGoal == defaultWordGoal)&&(identical(other.effectiveWordGoal, effectiveWordGoal) || other.effectiveWordGoal == effectiveWordGoal)&&(identical(other.wordGoalError, wordGoalError) || other.wordGoalError == wordGoalError)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,noteId,status,document,snapshot,save,const DeepCollectionEquality().hash(properties),propertiesOpen,propertyError,context,completion,destination,linkError,reloadSeq,attached,attachSeq,const DeepCollectionEquality().hash(attachProblems),wordGoalSetting,defaultWordGoal,effectiveWordGoal,wordGoalError,error]);
+int get hashCode => Object.hashAll([runtimeType,noteId,status,document,snapshot,save,const DeepCollectionEquality().hash(properties),propertiesOpen,propertyError,propertyDropped,context,completion,destination,linkError,reloadSeq,attached,attachSeq,const DeepCollectionEquality().hash(attachProblems),wordGoalSetting,defaultWordGoal,effectiveWordGoal,wordGoalError,error]);
 
 @override
 String toString() {
-  return 'EditorState(noteId: $noteId, status: $status, document: $document, snapshot: $snapshot, save: $save, properties: $properties, propertiesOpen: $propertiesOpen, propertyError: $propertyError, context: $context, completion: $completion, destination: $destination, linkError: $linkError, reloadSeq: $reloadSeq, attached: $attached, attachSeq: $attachSeq, attachProblems: $attachProblems, wordGoalSetting: $wordGoalSetting, defaultWordGoal: $defaultWordGoal, effectiveWordGoal: $effectiveWordGoal, wordGoalError: $wordGoalError, error: $error)';
+  return 'EditorState(noteId: $noteId, status: $status, document: $document, snapshot: $snapshot, save: $save, properties: $properties, propertiesOpen: $propertiesOpen, propertyError: $propertyError, propertyDropped: $propertyDropped, context: $context, completion: $completion, destination: $destination, linkError: $linkError, reloadSeq: $reloadSeq, attached: $attached, attachSeq: $attachSeq, attachProblems: $attachProblems, wordGoalSetting: $wordGoalSetting, defaultWordGoal: $defaultWordGoal, effectiveWordGoal: $effectiveWordGoal, wordGoalError: $wordGoalError, error: $error)';
 }
 
 
@@ -896,7 +938,7 @@ abstract mixin class $EditorStateCopyWith<$Res>  {
   factory $EditorStateCopyWith(EditorState value, $Res Function(EditorState) _then) = _$EditorStateCopyWithImpl;
 @useResult
 $Res call({
- String noteId, EditorStatus status, EditorDocument? document, EditorSnapshot? snapshot, SaveState? save, List<Property> properties, bool propertiesOpen, ApplicationError? propertyError, EditorContext? context, Completion? completion, EditorDestination? destination, ApplicationError? linkError, int reloadSeq, EditOutcome? attached, int attachSeq, List<ApplicationError> attachProblems, core.GoalSetting? wordGoalSetting, int? defaultWordGoal, int? effectiveWordGoal, ApplicationError? wordGoalError, ApplicationError? error
+ String noteId, EditorStatus status, EditorDocument? document, EditorSnapshot? snapshot, SaveState? save, List<Property> properties, bool propertiesOpen, ApplicationError? propertyError, bool propertyDropped, EditorContext? context, Completion? completion, EditorDestination? destination, ApplicationError? linkError, int reloadSeq, EditOutcome? attached, int attachSeq, List<ApplicationError> attachProblems, core.GoalSetting? wordGoalSetting, int? defaultWordGoal, int? effectiveWordGoal, ApplicationError? wordGoalError, ApplicationError? error
 });
 
 
@@ -913,7 +955,7 @@ class _$EditorStateCopyWithImpl<$Res>
 
 /// Create a copy of EditorState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? noteId = null,Object? status = null,Object? document = freezed,Object? snapshot = freezed,Object? save = freezed,Object? properties = null,Object? propertiesOpen = null,Object? propertyError = freezed,Object? context = freezed,Object? completion = freezed,Object? destination = freezed,Object? linkError = freezed,Object? reloadSeq = null,Object? attached = freezed,Object? attachSeq = null,Object? attachProblems = null,Object? wordGoalSetting = freezed,Object? defaultWordGoal = freezed,Object? effectiveWordGoal = freezed,Object? wordGoalError = freezed,Object? error = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? noteId = null,Object? status = null,Object? document = freezed,Object? snapshot = freezed,Object? save = freezed,Object? properties = null,Object? propertiesOpen = null,Object? propertyError = freezed,Object? propertyDropped = null,Object? context = freezed,Object? completion = freezed,Object? destination = freezed,Object? linkError = freezed,Object? reloadSeq = null,Object? attached = freezed,Object? attachSeq = null,Object? attachProblems = null,Object? wordGoalSetting = freezed,Object? defaultWordGoal = freezed,Object? effectiveWordGoal = freezed,Object? wordGoalError = freezed,Object? error = freezed,}) {
   return _then(_self.copyWith(
 noteId: null == noteId ? _self.noteId : noteId // ignore: cast_nullable_to_non_nullable
 as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
@@ -923,7 +965,8 @@ as EditorSnapshot?,save: freezed == save ? _self.save : save // ignore: cast_nul
 as SaveState?,properties: null == properties ? _self.properties : properties // ignore: cast_nullable_to_non_nullable
 as List<Property>,propertiesOpen: null == propertiesOpen ? _self.propertiesOpen : propertiesOpen // ignore: cast_nullable_to_non_nullable
 as bool,propertyError: freezed == propertyError ? _self.propertyError : propertyError // ignore: cast_nullable_to_non_nullable
-as ApplicationError?,context: freezed == context ? _self.context : context // ignore: cast_nullable_to_non_nullable
+as ApplicationError?,propertyDropped: null == propertyDropped ? _self.propertyDropped : propertyDropped // ignore: cast_nullable_to_non_nullable
+as bool,context: freezed == context ? _self.context : context // ignore: cast_nullable_to_non_nullable
 as EditorContext?,completion: freezed == completion ? _self.completion : completion // ignore: cast_nullable_to_non_nullable
 as Completion?,destination: freezed == destination ? _self.destination : destination // ignore: cast_nullable_to_non_nullable
 as EditorDestination?,linkError: freezed == linkError ? _self.linkError : linkError // ignore: cast_nullable_to_non_nullable
@@ -1105,10 +1148,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String noteId,  EditorStatus status,  EditorDocument? document,  EditorSnapshot? snapshot,  SaveState? save,  List<Property> properties,  bool propertiesOpen,  ApplicationError? propertyError,  EditorContext? context,  Completion? completion,  EditorDestination? destination,  ApplicationError? linkError,  int reloadSeq,  EditOutcome? attached,  int attachSeq,  List<ApplicationError> attachProblems,  core.GoalSetting? wordGoalSetting,  int? defaultWordGoal,  int? effectiveWordGoal,  ApplicationError? wordGoalError,  ApplicationError? error)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String noteId,  EditorStatus status,  EditorDocument? document,  EditorSnapshot? snapshot,  SaveState? save,  List<Property> properties,  bool propertiesOpen,  ApplicationError? propertyError,  bool propertyDropped,  EditorContext? context,  Completion? completion,  EditorDestination? destination,  ApplicationError? linkError,  int reloadSeq,  EditOutcome? attached,  int attachSeq,  List<ApplicationError> attachProblems,  core.GoalSetting? wordGoalSetting,  int? defaultWordGoal,  int? effectiveWordGoal,  ApplicationError? wordGoalError,  ApplicationError? error)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _EditorState() when $default != null:
-return $default(_that.noteId,_that.status,_that.document,_that.snapshot,_that.save,_that.properties,_that.propertiesOpen,_that.propertyError,_that.context,_that.completion,_that.destination,_that.linkError,_that.reloadSeq,_that.attached,_that.attachSeq,_that.attachProblems,_that.wordGoalSetting,_that.defaultWordGoal,_that.effectiveWordGoal,_that.wordGoalError,_that.error);case _:
+return $default(_that.noteId,_that.status,_that.document,_that.snapshot,_that.save,_that.properties,_that.propertiesOpen,_that.propertyError,_that.propertyDropped,_that.context,_that.completion,_that.destination,_that.linkError,_that.reloadSeq,_that.attached,_that.attachSeq,_that.attachProblems,_that.wordGoalSetting,_that.defaultWordGoal,_that.effectiveWordGoal,_that.wordGoalError,_that.error);case _:
   return orElse();
 
 }
@@ -1126,10 +1169,10 @@ return $default(_that.noteId,_that.status,_that.document,_that.snapshot,_that.sa
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String noteId,  EditorStatus status,  EditorDocument? document,  EditorSnapshot? snapshot,  SaveState? save,  List<Property> properties,  bool propertiesOpen,  ApplicationError? propertyError,  EditorContext? context,  Completion? completion,  EditorDestination? destination,  ApplicationError? linkError,  int reloadSeq,  EditOutcome? attached,  int attachSeq,  List<ApplicationError> attachProblems,  core.GoalSetting? wordGoalSetting,  int? defaultWordGoal,  int? effectiveWordGoal,  ApplicationError? wordGoalError,  ApplicationError? error)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String noteId,  EditorStatus status,  EditorDocument? document,  EditorSnapshot? snapshot,  SaveState? save,  List<Property> properties,  bool propertiesOpen,  ApplicationError? propertyError,  bool propertyDropped,  EditorContext? context,  Completion? completion,  EditorDestination? destination,  ApplicationError? linkError,  int reloadSeq,  EditOutcome? attached,  int attachSeq,  List<ApplicationError> attachProblems,  core.GoalSetting? wordGoalSetting,  int? defaultWordGoal,  int? effectiveWordGoal,  ApplicationError? wordGoalError,  ApplicationError? error)  $default,) {final _that = this;
 switch (_that) {
 case _EditorState():
-return $default(_that.noteId,_that.status,_that.document,_that.snapshot,_that.save,_that.properties,_that.propertiesOpen,_that.propertyError,_that.context,_that.completion,_that.destination,_that.linkError,_that.reloadSeq,_that.attached,_that.attachSeq,_that.attachProblems,_that.wordGoalSetting,_that.defaultWordGoal,_that.effectiveWordGoal,_that.wordGoalError,_that.error);case _:
+return $default(_that.noteId,_that.status,_that.document,_that.snapshot,_that.save,_that.properties,_that.propertiesOpen,_that.propertyError,_that.propertyDropped,_that.context,_that.completion,_that.destination,_that.linkError,_that.reloadSeq,_that.attached,_that.attachSeq,_that.attachProblems,_that.wordGoalSetting,_that.defaultWordGoal,_that.effectiveWordGoal,_that.wordGoalError,_that.error);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1146,10 +1189,10 @@ return $default(_that.noteId,_that.status,_that.document,_that.snapshot,_that.sa
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String noteId,  EditorStatus status,  EditorDocument? document,  EditorSnapshot? snapshot,  SaveState? save,  List<Property> properties,  bool propertiesOpen,  ApplicationError? propertyError,  EditorContext? context,  Completion? completion,  EditorDestination? destination,  ApplicationError? linkError,  int reloadSeq,  EditOutcome? attached,  int attachSeq,  List<ApplicationError> attachProblems,  core.GoalSetting? wordGoalSetting,  int? defaultWordGoal,  int? effectiveWordGoal,  ApplicationError? wordGoalError,  ApplicationError? error)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String noteId,  EditorStatus status,  EditorDocument? document,  EditorSnapshot? snapshot,  SaveState? save,  List<Property> properties,  bool propertiesOpen,  ApplicationError? propertyError,  bool propertyDropped,  EditorContext? context,  Completion? completion,  EditorDestination? destination,  ApplicationError? linkError,  int reloadSeq,  EditOutcome? attached,  int attachSeq,  List<ApplicationError> attachProblems,  core.GoalSetting? wordGoalSetting,  int? defaultWordGoal,  int? effectiveWordGoal,  ApplicationError? wordGoalError,  ApplicationError? error)?  $default,) {final _that = this;
 switch (_that) {
 case _EditorState() when $default != null:
-return $default(_that.noteId,_that.status,_that.document,_that.snapshot,_that.save,_that.properties,_that.propertiesOpen,_that.propertyError,_that.context,_that.completion,_that.destination,_that.linkError,_that.reloadSeq,_that.attached,_that.attachSeq,_that.attachProblems,_that.wordGoalSetting,_that.defaultWordGoal,_that.effectiveWordGoal,_that.wordGoalError,_that.error);case _:
+return $default(_that.noteId,_that.status,_that.document,_that.snapshot,_that.save,_that.properties,_that.propertiesOpen,_that.propertyError,_that.propertyDropped,_that.context,_that.completion,_that.destination,_that.linkError,_that.reloadSeq,_that.attached,_that.attachSeq,_that.attachProblems,_that.wordGoalSetting,_that.defaultWordGoal,_that.effectiveWordGoal,_that.wordGoalError,_that.error);case _:
   return null;
 
 }
@@ -1161,7 +1204,7 @@ return $default(_that.noteId,_that.status,_that.document,_that.snapshot,_that.sa
 
 
 class _EditorState implements EditorState {
-  const _EditorState({this.noteId = '', this.status = EditorStatus.opening, this.document, this.snapshot, this.save, final  List<Property> properties = const <Property>[], this.propertiesOpen = false, this.propertyError, this.context, this.completion, this.destination, this.linkError, this.reloadSeq = 0, this.attached, this.attachSeq = 0, final  List<ApplicationError> attachProblems = const <ApplicationError>[], this.wordGoalSetting, this.defaultWordGoal, this.effectiveWordGoal, this.wordGoalError, this.error}): _properties = properties,_attachProblems = attachProblems;
+  const _EditorState({this.noteId = '', this.status = EditorStatus.opening, this.document, this.snapshot, this.save, final  List<Property> properties = const <Property>[], this.propertiesOpen = false, this.propertyError, this.propertyDropped = false, this.context, this.completion, this.destination, this.linkError, this.reloadSeq = 0, this.attached, this.attachSeq = 0, final  List<ApplicationError> attachProblems = const <ApplicationError>[], this.wordGoalSetting, this.defaultWordGoal, this.effectiveWordGoal, this.wordGoalError, this.error}): _properties = properties,_attachProblems = attachProblems;
   
 
 /// The note being edited.
@@ -1188,6 +1231,8 @@ class _EditorState implements EditorState {
 @override@JsonKey() final  bool propertiesOpen;
 /// Why the last change to the properties did not work.
 @override final  ApplicationError? propertyError;
+/// The last pick was dropped because the front matter changed under it.
+@override@JsonKey() final  bool propertyDropped;
 /// What the caret is in, and so what the keyboard bar may do.
 @override final  EditorContext? context;
 /// What is offered where the caret is, if anything.
@@ -1230,16 +1275,16 @@ _$EditorStateCopyWith<_EditorState> get copyWith => __$EditorStateCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _EditorState&&(identical(other.noteId, noteId) || other.noteId == noteId)&&(identical(other.status, status) || other.status == status)&&(identical(other.document, document) || other.document == document)&&(identical(other.snapshot, snapshot) || other.snapshot == snapshot)&&(identical(other.save, save) || other.save == save)&&const DeepCollectionEquality().equals(other._properties, _properties)&&(identical(other.propertiesOpen, propertiesOpen) || other.propertiesOpen == propertiesOpen)&&(identical(other.propertyError, propertyError) || other.propertyError == propertyError)&&(identical(other.context, context) || other.context == context)&&(identical(other.completion, completion) || other.completion == completion)&&(identical(other.destination, destination) || other.destination == destination)&&(identical(other.linkError, linkError) || other.linkError == linkError)&&(identical(other.reloadSeq, reloadSeq) || other.reloadSeq == reloadSeq)&&(identical(other.attached, attached) || other.attached == attached)&&(identical(other.attachSeq, attachSeq) || other.attachSeq == attachSeq)&&const DeepCollectionEquality().equals(other._attachProblems, _attachProblems)&&(identical(other.wordGoalSetting, wordGoalSetting) || other.wordGoalSetting == wordGoalSetting)&&(identical(other.defaultWordGoal, defaultWordGoal) || other.defaultWordGoal == defaultWordGoal)&&(identical(other.effectiveWordGoal, effectiveWordGoal) || other.effectiveWordGoal == effectiveWordGoal)&&(identical(other.wordGoalError, wordGoalError) || other.wordGoalError == wordGoalError)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _EditorState&&(identical(other.noteId, noteId) || other.noteId == noteId)&&(identical(other.status, status) || other.status == status)&&(identical(other.document, document) || other.document == document)&&(identical(other.snapshot, snapshot) || other.snapshot == snapshot)&&(identical(other.save, save) || other.save == save)&&const DeepCollectionEquality().equals(other._properties, _properties)&&(identical(other.propertiesOpen, propertiesOpen) || other.propertiesOpen == propertiesOpen)&&(identical(other.propertyError, propertyError) || other.propertyError == propertyError)&&(identical(other.propertyDropped, propertyDropped) || other.propertyDropped == propertyDropped)&&(identical(other.context, context) || other.context == context)&&(identical(other.completion, completion) || other.completion == completion)&&(identical(other.destination, destination) || other.destination == destination)&&(identical(other.linkError, linkError) || other.linkError == linkError)&&(identical(other.reloadSeq, reloadSeq) || other.reloadSeq == reloadSeq)&&(identical(other.attached, attached) || other.attached == attached)&&(identical(other.attachSeq, attachSeq) || other.attachSeq == attachSeq)&&const DeepCollectionEquality().equals(other._attachProblems, _attachProblems)&&(identical(other.wordGoalSetting, wordGoalSetting) || other.wordGoalSetting == wordGoalSetting)&&(identical(other.defaultWordGoal, defaultWordGoal) || other.defaultWordGoal == defaultWordGoal)&&(identical(other.effectiveWordGoal, effectiveWordGoal) || other.effectiveWordGoal == effectiveWordGoal)&&(identical(other.wordGoalError, wordGoalError) || other.wordGoalError == wordGoalError)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,noteId,status,document,snapshot,save,const DeepCollectionEquality().hash(_properties),propertiesOpen,propertyError,context,completion,destination,linkError,reloadSeq,attached,attachSeq,const DeepCollectionEquality().hash(_attachProblems),wordGoalSetting,defaultWordGoal,effectiveWordGoal,wordGoalError,error]);
+int get hashCode => Object.hashAll([runtimeType,noteId,status,document,snapshot,save,const DeepCollectionEquality().hash(_properties),propertiesOpen,propertyError,propertyDropped,context,completion,destination,linkError,reloadSeq,attached,attachSeq,const DeepCollectionEquality().hash(_attachProblems),wordGoalSetting,defaultWordGoal,effectiveWordGoal,wordGoalError,error]);
 
 @override
 String toString() {
-  return 'EditorState(noteId: $noteId, status: $status, document: $document, snapshot: $snapshot, save: $save, properties: $properties, propertiesOpen: $propertiesOpen, propertyError: $propertyError, context: $context, completion: $completion, destination: $destination, linkError: $linkError, reloadSeq: $reloadSeq, attached: $attached, attachSeq: $attachSeq, attachProblems: $attachProblems, wordGoalSetting: $wordGoalSetting, defaultWordGoal: $defaultWordGoal, effectiveWordGoal: $effectiveWordGoal, wordGoalError: $wordGoalError, error: $error)';
+  return 'EditorState(noteId: $noteId, status: $status, document: $document, snapshot: $snapshot, save: $save, properties: $properties, propertiesOpen: $propertiesOpen, propertyError: $propertyError, propertyDropped: $propertyDropped, context: $context, completion: $completion, destination: $destination, linkError: $linkError, reloadSeq: $reloadSeq, attached: $attached, attachSeq: $attachSeq, attachProblems: $attachProblems, wordGoalSetting: $wordGoalSetting, defaultWordGoal: $defaultWordGoal, effectiveWordGoal: $effectiveWordGoal, wordGoalError: $wordGoalError, error: $error)';
 }
 
 
@@ -1250,7 +1295,7 @@ abstract mixin class _$EditorStateCopyWith<$Res> implements $EditorStateCopyWith
   factory _$EditorStateCopyWith(_EditorState value, $Res Function(_EditorState) _then) = __$EditorStateCopyWithImpl;
 @override @useResult
 $Res call({
- String noteId, EditorStatus status, EditorDocument? document, EditorSnapshot? snapshot, SaveState? save, List<Property> properties, bool propertiesOpen, ApplicationError? propertyError, EditorContext? context, Completion? completion, EditorDestination? destination, ApplicationError? linkError, int reloadSeq, EditOutcome? attached, int attachSeq, List<ApplicationError> attachProblems, core.GoalSetting? wordGoalSetting, int? defaultWordGoal, int? effectiveWordGoal, ApplicationError? wordGoalError, ApplicationError? error
+ String noteId, EditorStatus status, EditorDocument? document, EditorSnapshot? snapshot, SaveState? save, List<Property> properties, bool propertiesOpen, ApplicationError? propertyError, bool propertyDropped, EditorContext? context, Completion? completion, EditorDestination? destination, ApplicationError? linkError, int reloadSeq, EditOutcome? attached, int attachSeq, List<ApplicationError> attachProblems, core.GoalSetting? wordGoalSetting, int? defaultWordGoal, int? effectiveWordGoal, ApplicationError? wordGoalError, ApplicationError? error
 });
 
 
@@ -1267,7 +1312,7 @@ class __$EditorStateCopyWithImpl<$Res>
 
 /// Create a copy of EditorState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? noteId = null,Object? status = null,Object? document = freezed,Object? snapshot = freezed,Object? save = freezed,Object? properties = null,Object? propertiesOpen = null,Object? propertyError = freezed,Object? context = freezed,Object? completion = freezed,Object? destination = freezed,Object? linkError = freezed,Object? reloadSeq = null,Object? attached = freezed,Object? attachSeq = null,Object? attachProblems = null,Object? wordGoalSetting = freezed,Object? defaultWordGoal = freezed,Object? effectiveWordGoal = freezed,Object? wordGoalError = freezed,Object? error = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? noteId = null,Object? status = null,Object? document = freezed,Object? snapshot = freezed,Object? save = freezed,Object? properties = null,Object? propertiesOpen = null,Object? propertyError = freezed,Object? propertyDropped = null,Object? context = freezed,Object? completion = freezed,Object? destination = freezed,Object? linkError = freezed,Object? reloadSeq = null,Object? attached = freezed,Object? attachSeq = null,Object? attachProblems = null,Object? wordGoalSetting = freezed,Object? defaultWordGoal = freezed,Object? effectiveWordGoal = freezed,Object? wordGoalError = freezed,Object? error = freezed,}) {
   return _then(_EditorState(
 noteId: null == noteId ? _self.noteId : noteId // ignore: cast_nullable_to_non_nullable
 as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
@@ -1277,7 +1322,8 @@ as EditorSnapshot?,save: freezed == save ? _self.save : save // ignore: cast_nul
 as SaveState?,properties: null == properties ? _self._properties : properties // ignore: cast_nullable_to_non_nullable
 as List<Property>,propertiesOpen: null == propertiesOpen ? _self.propertiesOpen : propertiesOpen // ignore: cast_nullable_to_non_nullable
 as bool,propertyError: freezed == propertyError ? _self.propertyError : propertyError // ignore: cast_nullable_to_non_nullable
-as ApplicationError?,context: freezed == context ? _self.context : context // ignore: cast_nullable_to_non_nullable
+as ApplicationError?,propertyDropped: null == propertyDropped ? _self.propertyDropped : propertyDropped // ignore: cast_nullable_to_non_nullable
+as bool,context: freezed == context ? _self.context : context // ignore: cast_nullable_to_non_nullable
 as EditorContext?,completion: freezed == completion ? _self.completion : completion // ignore: cast_nullable_to_non_nullable
 as Completion?,destination: freezed == destination ? _self.destination : destination // ignore: cast_nullable_to_non_nullable
 as EditorDestination?,linkError: freezed == linkError ? _self.linkError : linkError // ignore: cast_nullable_to_non_nullable

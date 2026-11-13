@@ -114,6 +114,20 @@ abstract interface class EditorDocument {
     int? index,
   });
 
+  /// Writes what a picker picked into row [index], which the picker showed
+  /// as the property [key] holding [original]. When the front matter
+  /// changed under the pick nothing is written and the outcome is not
+  /// applied. The properties come back either way.
+  Future<Either<ApplicationError, PickOutcome>> pickProperty({
+    required int index,
+    required String key,
+    required String original,
+    required PropertyChoice choice,
+  });
+
+  /// Every time zone the zone picker lists, in order.
+  Future<List<ZoneRow>> zones();
+
   /// Removes the property in row [index].
   Future<Either<ApplicationError, List<Property>>> removeProperty(int index);
 

@@ -3406,6 +3406,41 @@ class MigrationOutcome {
           stopped == other.stopped;
 }
 
+class Moment {
+  final int year;
+  final int month;
+  final int day;
+  final int hour;
+  final int minute;
+
+  const Moment({
+    required this.year,
+    required this.month,
+    required this.day,
+    required this.hour,
+    required this.minute,
+  });
+
+  @override
+  int get hashCode =>
+      year.hashCode ^
+      month.hashCode ^
+      day.hashCode ^
+      hour.hashCode ^
+      minute.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Moment &&
+          runtimeType == other.runtimeType &&
+          year == other.year &&
+          month == other.month &&
+          day == other.day &&
+          hour == other.hour &&
+          minute == other.minute;
+}
+
 class MonthGrid {
   final int year;
   final int month;
@@ -4305,6 +4340,35 @@ class PersonRow {
           verified == other.verified;
 }
 
+enum PickKind {
+  select,
+  person,
+  date,
+  dateTime,
+  dateTimeZone,
+}
+
+class PickOutcome {
+  final bool applied;
+  final List<Property> properties;
+
+  const PickOutcome({
+    required this.applied,
+    required this.properties,
+  });
+
+  @override
+  int get hashCode => applied.hashCode ^ properties.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PickOutcome &&
+          runtimeType == other.runtimeType &&
+          applied == other.applied &&
+          properties == other.properties;
+}
+
 class PlannedNote {
   final String id;
   final String rev;
@@ -4801,17 +4865,23 @@ class Property {
   final PropertyKind kind;
   final String text;
   final List<String> items;
+  final PropertyPick? pick;
 
   const Property({
     required this.key,
     required this.kind,
     required this.text,
     required this.items,
+    this.pick,
   });
 
   @override
   int get hashCode =>
-      key.hashCode ^ kind.hashCode ^ text.hashCode ^ items.hashCode;
+      key.hashCode ^
+      kind.hashCode ^
+      text.hashCode ^
+      items.hashCode ^
+      pick.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -4821,7 +4891,31 @@ class Property {
           key == other.key &&
           kind == other.kind &&
           text == other.text &&
-          items == other.items;
+          items == other.items &&
+          pick == other.pick;
+}
+
+@freezed
+sealed class PropertyChoice with _$PropertyChoice {
+  const PropertyChoice._();
+
+  const factory PropertyChoice.clear() = PropertyChoice_Clear;
+  const factory PropertyChoice.option({
+    required String text,
+  }) = PropertyChoice_Option;
+  const factory PropertyChoice.day({
+    required Moment moment,
+  }) = PropertyChoice_Day;
+  const factory PropertyChoice.moment({
+    required Moment moment,
+  }) = PropertyChoice_Moment;
+  const factory PropertyChoice.zoned({
+    required Moment moment,
+    required String zone,
+  }) = PropertyChoice_Zoned;
+  const factory PropertyChoice.zone({
+    required String zone,
+  }) = PropertyChoice_Zone;
 }
 
 enum PropertyKind {
@@ -4829,8 +4923,53 @@ enum PropertyKind {
   number,
   bool,
   date,
+  dateTime,
+  dateTimeZone,
   list,
   raw,
+}
+
+class PropertyPick {
+  final PickKind kind;
+  final List<String> rows;
+  final bool unlisted;
+  final Moment? moment;
+  final String? zone;
+  final bool zoneSet;
+  final String? label;
+
+  const PropertyPick({
+    required this.kind,
+    required this.rows,
+    required this.unlisted,
+    this.moment,
+    this.zone,
+    required this.zoneSet,
+    this.label,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      rows.hashCode ^
+      unlisted.hashCode ^
+      moment.hashCode ^
+      zone.hashCode ^
+      zoneSet.hashCode ^
+      label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PropertyPick &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          rows == other.rows &&
+          unlisted == other.unlisted &&
+          moment == other.moment &&
+          zone == other.zone &&
+          zoneSet == other.zoneSet &&
+          label == other.label;
 }
 
 @freezed
@@ -6949,4 +7088,25 @@ class WhenHint {
           label == other.label &&
           canonical == other.canonical &&
           repeats == other.repeats;
+}
+
+class ZoneRow {
+  final String name;
+  final String label;
+
+  const ZoneRow({
+    required this.name,
+    required this.label,
+  });
+
+  @override
+  int get hashCode => name.hashCode ^ label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ZoneRow &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          label == other.label;
 }

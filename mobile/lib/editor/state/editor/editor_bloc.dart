@@ -52,6 +52,7 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
     on<EditorCompletionDismissedEvent>(_onCompletionDismissed);
     on<EditorPropertiesToggledEvent>(_onPropertiesToggled);
     on<EditorPropertySetEvent>(_onPropertySet, transformer: sequential());
+    on<EditorPropertyPickedEvent>(_onPropertyPicked, transformer: sequential());
     on<EditorPropertyRemovedEvent>(
       _onPropertyRemoved,
       transformer: sequential(),
@@ -298,6 +299,41 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
     _adoptProperties(result, emit);
   }
 
+  Future<void> _onPropertyPicked(
+    EditorPropertyPickedEvent event,
+    Emitter<EditorState> emit,
+  ) async {
+    final document = _document;
+    if (document == null) {
+      return;
+    }
+    final result = await document.pickProperty(
+      index: event.index,
+      key: event.key,
+      original: event.original,
+      choice: event.choice,
+    );
+    result.fold(
+      (error) => emit(state.copyWith(propertyError: error)),
+      (outcome) {
+        emit(
+          state.copyWith(
+            properties: outcome.properties,
+            propertyError: null,
+            propertyDropped: !outcome.applied,
+            save: outcome.applied && state.save is! SaveState_Conflict
+                ? const SaveState.pending()
+                : state.save,
+          ),
+        );
+      },
+    );
+  }
+
+  /// Every time zone, for the zone picker.
+  Future<List<core.ZoneRow>> zones() async =>
+      await _document?.zones() ?? const <core.ZoneRow>[];
+
   Future<void> _onPropertyRemoved(
     EditorPropertyRemovedEvent event,
     Emitter<EditorState> emit,
@@ -352,6 +388,7 @@ class EditorBloc extends Bloc<EditorEvent, EditorState> {
         state.copyWith(
           properties: properties,
           propertyError: null,
+          propertyDropped: false,
           save: state.save is SaveState_Conflict
               ? state.save
               : const SaveState.pending(),

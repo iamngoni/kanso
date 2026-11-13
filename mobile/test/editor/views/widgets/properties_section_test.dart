@@ -56,6 +56,8 @@ Future<_Calls> _pump(
         onToggle: () => calls.toggles++,
         onSet: (key, value, {index}) => calls.sets.add('$index $key $value'),
         onRemove: calls.removed.add,
+        onPick: (index, key, original, choice) {},
+        loadZones: () async => const <ZoneRow>[],
       ),
     ),
   );
