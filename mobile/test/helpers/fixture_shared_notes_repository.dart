@@ -446,6 +446,9 @@ class FixtureSharedNotesRepository implements SharedNotesRepository {
         invitations: 0,
         commentNotes: <String>[],
         liveNotes: <String>[],
+        notebooks: <String>[],
+        bookInvitations: 0,
+        bookNotices: <String>[],
       ),
     );
   }

@@ -86,6 +86,7 @@ import 'core/models/repos/abs/renderer_repository.dart' as _i732;
 import 'core/models/repos/abs/review_prompt_repository.dart' as _i765;
 import 'core/models/repos/abs/schedule_repository.dart' as _i507;
 import 'core/models/repos/abs/session_repository.dart' as _i333;
+import 'core/models/repos/abs/shared_notebooks_repository.dart' as _i564;
 import 'core/models/repos/abs/shared_notes_repository.dart' as _i374;
 import 'core/models/repos/abs/store_review_repository.dart' as _i690;
 import 'core/models/repos/abs/sync_repository.dart' as _i601;
@@ -124,6 +125,7 @@ import 'core/models/repos/impl/rust_reminders_repository.dart' as _i429;
 import 'core/models/repos/impl/rust_renderer_repository.dart' as _i820;
 import 'core/models/repos/impl/rust_schedule_repository.dart' as _i294;
 import 'core/models/repos/impl/rust_session_repository.dart' as _i899;
+import 'core/models/repos/impl/rust_shared_notebooks_repository.dart' as _i899;
 import 'core/models/repos/impl/rust_shared_notes_repository.dart' as _i628;
 import 'core/models/repos/impl/rust_sync_repository.dart' as _i564;
 import 'core/models/repos/impl/rust_templates_repository.dart' as _i213;
@@ -275,9 +277,12 @@ import 'settings/state/word_goal_settings/word_goal_settings_bloc.dart'
 import 'sharing/state/comments/comments_bloc.dart' as _i295;
 import 'sharing/state/invitations/invitations_bloc.dart' as _i1;
 import 'sharing/state/join_link/join_link_bloc.dart' as _i676;
+import 'sharing/state/notebook_sharing/notebook_sharing_bloc.dart' as _i869;
 import 'sharing/state/share_note/share_note_bloc.dart' as _i252;
+import 'sharing/state/share_notebook/share_notebook_bloc.dart' as _i375;
 import 'sharing/state/shared_note_live/shared_note_live_bloc.dart' as _i361;
 import 'sharing/state/shared_note_status/shared_note_status_bloc.dart' as _i109;
+import 'sharing/state/shared_notebooks/shared_notebooks_bloc.dart' as _i137;
 import 'shell/state/focus_mode/focus_mode_bloc.dart' as _i427;
 import 'shell/state/library_pane/library_pane_bloc.dart' as _i612;
 import 'shell/state/note_creation/note_creation_bloc.dart' as _i34;
@@ -563,6 +568,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i732.RendererRepository>(
       () => _i820.RustRendererRepository(gh<_i832.KansoRenderer>()),
+    );
+    gh.lazySingleton<_i564.SharedNotebooksRepository>(
+      () => _i899.RustSharedNotebooksRepository(gh<_i315.KansoShared>()),
     );
     gh.lazySingleton<_i849.ReviewPrompt>(
       () => _i849.ReviewPrompt(
@@ -946,6 +954,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i274.DeviceApprovalBloc>(
       () => _i274.DeviceApprovalBloc(gh<_i465.ApprovalsRepository>()),
     );
+    gh.factory<_i375.ShareNotebookBloc>(
+      () => _i375.ShareNotebookBloc(
+        gh<_i564.SharedNotebooksRepository>(),
+        gh<_i374.SharedNotesRepository>(),
+      ),
+    );
     gh.factory<_i185.SyncStatusBloc>(
       () => _i185.SyncStatusBloc(gh<_i601.SyncRepository>()),
     );
@@ -1040,6 +1054,18 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i168.AccountBloc>(
       () => _i168.AccountBloc(gh<_i1035.AccountRepository>()),
+    );
+    gh.factory<_i869.NotebookSharingBloc>(
+      () => _i869.NotebookSharingBloc(
+        gh<_i564.SharedNotebooksRepository>(),
+        gh<_i374.SharedNotesRepository>(),
+      ),
+    );
+    gh.factory<_i137.SharedNotebooksBloc>(
+      () => _i137.SharedNotebooksBloc(
+        gh<_i564.SharedNotebooksRepository>(),
+        gh<_i374.SharedNotesRepository>(),
+      ),
     );
     gh.factory<_i252.ShareNoteBloc>(
       () => _i252.ShareNoteBloc(

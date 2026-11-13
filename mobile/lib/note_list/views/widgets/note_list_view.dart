@@ -25,6 +25,8 @@ import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../../core/views/widgets/kanso_swipe_host.dart';
 import '../../../notebook_home/views/widgets/notebook_home_card.dart';
 import '../../../notices/views/widgets/notice_card_host.dart';
+import '../../../sharing/state/notebook_sharing/notebook_sharing_bloc.dart';
+import '../../../sharing/utils/book_labels.dart';
 import '../../../tabs/state/tabs/tabs_bloc.dart';
 import '../../../whats_new/views/widgets/whats_new_host.dart';
 import '../../models/data/note_list_entry.dart';
@@ -70,6 +72,11 @@ class NoteListView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final now = clock.now();
+    // Who last edited each note, when the list is a shared notebook's.
+    final edits = context
+        .select<NotebookSharingBloc?, Map<String, NoteEditRow>>(
+          (sharing) => sharing?.state.edits ?? const <String, NoteEditRow>{},
+        );
     final today = localDayOf(now.millisecondsSinceEpoch);
     final byCreated = state.shape?.date == DateField.created;
     final entries = state.entries;
@@ -142,11 +149,18 @@ class NoteListView extends StatelessWidget {
                         NoteListRow(
                           row: row,
                           index: index,
-                          time: rowTimeLabel(
-                            l10n,
-                            byCreated ? row.createdMs : row.updatedMs,
-                            now: now,
-                          ),
+                          time: switch (edits[row.id]) {
+                            final edit? when !byCreated => editedByLabel(
+                              l10n,
+                              edit,
+                              now: now,
+                            ),
+                            _ => rowTimeLabel(
+                              l10n,
+                              byCreated ? row.createdMs : row.updatedMs,
+                              now: now,
+                            ),
+                          },
                           open: row.id == openNoteId,
                           checked: state.selecting
                               ? state.selected.contains(row.id)

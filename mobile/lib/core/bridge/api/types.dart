@@ -427,6 +427,293 @@ class BoardView {
           setup == other.setup;
 }
 
+class BookEndedRow {
+  final String notebookId;
+  final String copyName;
+  final String message;
+
+  const BookEndedRow({
+    required this.notebookId,
+    required this.copyName,
+    required this.message,
+  });
+
+  @override
+  int get hashCode =>
+      notebookId.hashCode ^ copyName.hashCode ^ message.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BookEndedRow &&
+          runtimeType == other.runtimeType &&
+          notebookId == other.notebookId &&
+          copyName == other.copyName &&
+          message == other.message;
+}
+
+class BookInvitationRow {
+  final String shareId;
+  final String from;
+  final BookRole role;
+  final bool invited;
+  final int atMs;
+
+  const BookInvitationRow({
+    required this.shareId,
+    required this.from,
+    required this.role,
+    required this.invited,
+    required this.atMs,
+  });
+
+  @override
+  int get hashCode =>
+      shareId.hashCode ^
+      from.hashCode ^
+      role.hashCode ^
+      invited.hashCode ^
+      atMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BookInvitationRow &&
+          runtimeType == other.runtimeType &&
+          shareId == other.shareId &&
+          from == other.from &&
+          role == other.role &&
+          invited == other.invited &&
+          atMs == other.atMs;
+}
+
+class BookMemberRow {
+  final String accountId;
+  final String username;
+  final BookRole role;
+  final bool me;
+  final BookStandingRow standing;
+  final String fingerprint;
+  final bool verified;
+  final List<BookRole> roles;
+  final bool removable;
+
+  const BookMemberRow({
+    required this.accountId,
+    required this.username,
+    required this.role,
+    required this.me,
+    required this.standing,
+    required this.fingerprint,
+    required this.verified,
+    required this.roles,
+    required this.removable,
+  });
+
+  @override
+  int get hashCode =>
+      accountId.hashCode ^
+      username.hashCode ^
+      role.hashCode ^
+      me.hashCode ^
+      standing.hashCode ^
+      fingerprint.hashCode ^
+      verified.hashCode ^
+      roles.hashCode ^
+      removable.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BookMemberRow &&
+          runtimeType == other.runtimeType &&
+          accountId == other.accountId &&
+          username == other.username &&
+          role == other.role &&
+          me == other.me &&
+          standing == other.standing &&
+          fingerprint == other.fingerprint &&
+          verified == other.verified &&
+          roles == other.roles &&
+          removable == other.removable;
+}
+
+enum BookRole {
+  owner,
+  manager,
+  editor,
+  commenter,
+  viewer,
+}
+
+class BookShareCheck {
+  final String name;
+  final int notes;
+  final int locked;
+  final String lockedName;
+  final List<String> leftOut;
+
+  const BookShareCheck({
+    required this.name,
+    required this.notes,
+    required this.locked,
+    required this.lockedName,
+    required this.leftOut,
+  });
+
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      notes.hashCode ^
+      locked.hashCode ^
+      lockedName.hashCode ^
+      leftOut.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BookShareCheck &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          notes == other.notes &&
+          locked == other.locked &&
+          lockedName == other.lockedName &&
+          leftOut == other.leftOut;
+}
+
+class BookShareInfo {
+  final String shareId;
+  final String notebookId;
+  final String name;
+  final BookRole myRole;
+  final String owner;
+  final List<BookMemberRow> members;
+  final List<BookRole> inviteRoles;
+  final bool owned;
+
+  const BookShareInfo({
+    required this.shareId,
+    required this.notebookId,
+    required this.name,
+    required this.myRole,
+    required this.owner,
+    required this.members,
+    required this.inviteRoles,
+    required this.owned,
+  });
+
+  @override
+  int get hashCode =>
+      shareId.hashCode ^
+      notebookId.hashCode ^
+      name.hashCode ^
+      myRole.hashCode ^
+      owner.hashCode ^
+      members.hashCode ^
+      inviteRoles.hashCode ^
+      owned.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BookShareInfo &&
+          runtimeType == other.runtimeType &&
+          shareId == other.shareId &&
+          notebookId == other.notebookId &&
+          name == other.name &&
+          myRole == other.myRole &&
+          owner == other.owner &&
+          members == other.members &&
+          inviteRoles == other.inviteRoles &&
+          owned == other.owned;
+}
+
+class BookShareProgress {
+  final String notebookId;
+  final int done;
+  final int total;
+
+  const BookShareProgress({
+    required this.notebookId,
+    required this.done,
+    required this.total,
+  });
+
+  @override
+  int get hashCode => notebookId.hashCode ^ done.hashCode ^ total.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BookShareProgress &&
+          runtimeType == other.runtimeType &&
+          notebookId == other.notebookId &&
+          done == other.done &&
+          total == other.total;
+}
+
+enum BookStandingRow {
+  member,
+  invited,
+  left,
+  unknown,
+}
+
+class BookSyncStatus {
+  final bool offline;
+  final int waiting;
+  final bool live;
+
+  const BookSyncStatus({
+    required this.offline,
+    required this.waiting,
+    required this.live,
+  });
+
+  @override
+  int get hashCode => offline.hashCode ^ waiting.hashCode ^ live.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BookSyncStatus &&
+          runtimeType == other.runtimeType &&
+          offline == other.offline &&
+          waiting == other.waiting &&
+          live == other.live;
+}
+
+class BookWords {
+  final String removeTitle;
+  final String removeBody;
+  final String leaveTitle;
+  final String stopTitle;
+
+  const BookWords({
+    required this.removeTitle,
+    required this.removeBody,
+    required this.leaveTitle,
+    required this.stopTitle,
+  });
+
+  @override
+  int get hashCode =>
+      removeTitle.hashCode ^
+      removeBody.hashCode ^
+      leaveTitle.hashCode ^
+      stopTitle.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BookWords &&
+          runtimeType == other.runtimeType &&
+          removeTitle == other.removeTitle &&
+          removeBody == other.removeBody &&
+          leaveTitle == other.leaveTitle &&
+          stopTitle == other.stopTitle;
+}
+
 class BriefNote {
   final String noteId;
   final String title;
@@ -3546,6 +3833,34 @@ sealed class NoteChange with _$NoteChange {
   const factory NoteChange.deleteForever() = NoteChange_DeleteForever;
 }
 
+class NoteEditRow {
+  final String noteId;
+  final String name;
+  final bool me;
+  final int atMs;
+
+  const NoteEditRow({
+    required this.noteId,
+    required this.name,
+    required this.me,
+    required this.atMs,
+  });
+
+  @override
+  int get hashCode =>
+      noteId.hashCode ^ name.hashCode ^ me.hashCode ^ atMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NoteEditRow &&
+          runtimeType == other.runtimeType &&
+          noteId == other.noteId &&
+          name == other.name &&
+          me == other.me &&
+          atMs == other.atMs;
+}
+
 class NoteHistory {
   final String currentTitle;
   final String currentBody;
@@ -5929,17 +6244,66 @@ enum ShareRole {
   viewer,
 }
 
+class SharedBookRow {
+  final String shareId;
+  final String notebookId;
+  final String name;
+  final BookRole myRole;
+  final String owner;
+  final List<String> members;
+  final BookSyncStatus status;
+
+  const SharedBookRow({
+    required this.shareId,
+    required this.notebookId,
+    required this.name,
+    required this.myRole,
+    required this.owner,
+    required this.members,
+    required this.status,
+  });
+
+  @override
+  int get hashCode =>
+      shareId.hashCode ^
+      notebookId.hashCode ^
+      name.hashCode ^
+      myRole.hashCode ^
+      owner.hashCode ^
+      members.hashCode ^
+      status.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SharedBookRow &&
+          runtimeType == other.runtimeType &&
+          shareId == other.shareId &&
+          notebookId == other.notebookId &&
+          name == other.name &&
+          myRole == other.myRole &&
+          owner == other.owner &&
+          members == other.members &&
+          status == other.status;
+}
+
 class SharedEvent {
   final List<String> noteIds;
   final int invitations;
   final List<String> commentNotes;
   final List<String> liveNotes;
+  final List<String> notebooks;
+  final int bookInvitations;
+  final List<String> bookNotices;
 
   const SharedEvent({
     required this.noteIds,
     required this.invitations,
     required this.commentNotes,
     required this.liveNotes,
+    required this.notebooks,
+    required this.bookInvitations,
+    required this.bookNotices,
   });
 
   @override
@@ -5947,7 +6311,10 @@ class SharedEvent {
       noteIds.hashCode ^
       invitations.hashCode ^
       commentNotes.hashCode ^
-      liveNotes.hashCode;
+      liveNotes.hashCode ^
+      notebooks.hashCode ^
+      bookInvitations.hashCode ^
+      bookNotices.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -5957,7 +6324,10 @@ class SharedEvent {
           noteIds == other.noteIds &&
           invitations == other.invitations &&
           commentNotes == other.commentNotes &&
-          liveNotes == other.liveNotes;
+          liveNotes == other.liveNotes &&
+          notebooks == other.notebooks &&
+          bookInvitations == other.bookInvitations &&
+          bookNotices == other.bookNotices;
 }
 
 class ShortcutEntry {

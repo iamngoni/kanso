@@ -17,7 +17,7 @@ use kanso_store::SharedStatus;
 
 use super::Engine;
 use super::book::Ctx;
-use super::book_people::wraps_for;
+use super::book_people::{Rotated, wraps_for};
 use super::book_sync::{read_base, split_outgoing};
 use crate::api::{CollabError, MANIFEST_STREAM, NewBookList, Result};
 use crate::book_members::{self, is_well_formed, link_hash, open_next};
@@ -102,6 +102,13 @@ pub fn may_change_role(mine: Role, from: Role, to: Role) -> bool {
     }
 }
 
+/// The refusal for a role someone else changed while this one was asked.
+pub(super) fn changed_meanwhile(name: &str) -> CollabError {
+    CollabError::Refused(format!(
+        "{name}'s role changed meanwhile. Look at it again and choose."
+    ))
+}
+
 impl Engine {
     // ------------------------------------------------------------- inviting
 
@@ -151,7 +158,11 @@ impl Engine {
     /// wrap for the new role); lowering one starts a new epoch, since they
     /// still hold the key their old role opened.
     pub fn set_book_role(&self, share_id: &str, account: &str, role: Role) -> Result<()> {
-        let ctx = self.book_ctx(share_id)?;
+        // What to do is decided on the server's list, not the one this
+        // device last held: it may say they have the role asked already
+        // when someone changed it since.
+        let mut ctx = self.book_ctx(share_id)?;
+        self.refresh_chain(&mut ctx)?;
         let me = self.account.caller.account_id.clone();
         let mine = ctx.role(&me).filter(|r| r.may_manage()).ok_or_else(|| {
             CollabError::Refused("Only the notebook's owner or a manager can change roles.".into())
@@ -178,43 +189,88 @@ impl Engine {
                 "Only the owner can change a manager's role, or make a manager.".into()
             }));
         }
-        if role < member.role {
-            return self.rotate_book(
-                share_id,
-                BTreeSet::new(),
-                BTreeMap::from([(account.to_owned(), role)]),
-                true,
-            );
+        // Raise or lower as the list this device holds says; when a newer
+        // list moved them the other way meanwhile, the other path once.
+        let mut lower = role < member.role;
+        for _ in 0..2 {
+            let turned = if lower {
+                self.lower_role(share_id, account, role)?
+            } else {
+                self.raise_role(share_id, account, role)?
+            };
+            if !turned {
+                return Ok(());
+            }
+            lower = !lower;
         }
-        let account = account.to_owned();
-        self.amend_book(share_id, &mut |ctx, _| {
+        Err(changed_meanwhile(&member.username))
+    }
+
+    /// Lowers a member's role with a new epoch. `true` when a newer list
+    /// put them below `role` meanwhile: it is a raise now.
+    fn lower_role(&self, share_id: &str, account: &str, role: Role) -> Result<bool> {
+        let rotated = self.rotate_book_inner(
+            share_id,
+            BTreeSet::new(),
+            BTreeMap::from([(account.to_owned(), role)]),
+            true,
+        )?;
+        Ok(rotated == Rotated::RoleMoved(account.to_owned()))
+    }
+
+    /// Raises a member's role in the epoch. `true` when a newer list put
+    /// them above `role` meanwhile: it is a lowering now.
+    fn raise_role(&self, share_id: &str, account: &str, role: Role) -> Result<bool> {
+        let me = self.account.caller.account_id.clone();
+        let mut above = false;
+        self.amend_book(share_id, &mut |ctx, mine| {
+            above = false;
             let mut members = ctx.chain.head.list.members.clone();
             let Some(member) = members.iter_mut().find(|m| m.account == account) else {
                 return Err(CollabError::Refused(
                     "That person isn't in the notebook.".into(),
                 ));
             };
-            if member.role >= role {
-                // Raised (or lowered, which wants a new epoch) meanwhile.
+            if member.role == role {
                 return Ok(None);
+            }
+            if member.role > role {
+                above = true;
+                return Ok(None);
+            }
+            if account == me || !may_change_role(mine, member.role, role) {
+                return Err(changed_meanwhile(&member.username));
             }
             member.role = role;
             Ok(Some(members))
-        })
+        })?;
+        Ok(above)
     }
 
     /// Declines an invitation to a notebook this device hasn't joined. The
     /// owner and managers see it as declined until one of their devices
     /// takes the account off the signed list.
     pub fn decline_book(&self, share_id: &str) -> Result<()> {
+        let in_it = || CollabError::Refused("You're in that notebook: leave it instead.".into());
         if self
             .store
             .shared_book(share_id)?
             .is_some_and(|row| row.status == SharedStatus::Active)
         {
-            return Err(CollabError::Refused(
-                "You're in that notebook: leave it instead.".into(),
-            ));
+            return Err(in_it());
+        }
+        // Another device of the account may have accepted it already: what
+        // the server says decides, never this device's library alone.
+        match self
+            .api
+            .books(&self.account.caller)?
+            .into_iter()
+            .find(|b| b.share_id == share_id)
+        {
+            Some(book) if book.status == "invited" => {}
+            Some(_) => return Err(in_it()),
+            // Nothing waits: declined or cancelled already.
+            None => return Ok(()),
         }
         match self.api.leave_book(&self.account.caller, share_id) {
             Ok(()) | Err(CollabError::Api { status: 404, .. }) => Ok(()),
@@ -295,6 +351,28 @@ impl Engine {
                     self.refresh_chain(&mut now)?;
                     if our_hash.as_deref() == Some(now.chain.head.hash.as_str()) {
                         return Ok(());
+                    }
+                }
+                // Someone the list keeps no longer has an account: they are
+                // cut with a new key, and the change goes on the new head.
+                Err(err) if err.code() == Some("member_gone") => {
+                    let account = err.extra_str("account").map(str::to_owned).ok_or(err)?;
+                    let Some(gone) = head.list.member(&account) else {
+                        return Err(CollabError::Protocol(
+                            "the server named someone the notebook doesn't list".into(),
+                        ));
+                    };
+                    let name = gone.username.clone();
+                    if let Err(cut) = self.rotate_book(
+                        share_id,
+                        BTreeSet::from([account]),
+                        BTreeMap::new(),
+                        false,
+                    ) {
+                        return Err(CollabError::Refused(format!(
+                            "{name} no longer has a Kanso account, and Kanso couldn't take \
+                             them out of the notebook ({cut}). Remove {name} from it first."
+                        )));
                     }
                 }
                 Err(err) => return Err(err),

@@ -16,6 +16,8 @@ import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_message_card.dart';
 import '../../../gen/l10n/app_localizations.dart';
 import '../../../notebook_home/views/widgets/parent_only_home.dart';
+import '../../../sharing/state/notebook_sharing/notebook_sharing_bloc.dart';
+import '../../../sharing/utils/book_labels.dart';
 import '../../models/data/note_list_status.dart';
 import '../../state/note_list/note_list_bloc.dart';
 import 'empty_place_pane.dart';
@@ -59,6 +61,11 @@ class NoteListBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final place = state.place;
+    // A shared notebook's list says whether it is up to date, under its
+    // title as in its bar.
+    final sharing = context.select<NotebookSharingBloc?, BookSyncStatus?>(
+      (bloc) => bloc?.state.status,
+    );
     return switch (state.status) {
       NoteListStatus.loading => const LoadingListPane(),
       NoteListStatus.failed => Center(
@@ -92,7 +99,10 @@ class NoteListBody extends StatelessWidget {
         bottomClearance: bottomClearance,
         largeTitle: largeTitle ? placeTitle(l10n, place, index) : null,
         largeSubtitle: largeTitle
-            ? l10n.noteListCount(state.rows.length)
+            ? <String>[
+                l10n.noteListCount(state.rows.length),
+                if (sharing case final status?) bookStatusLabel(l10n, status),
+              ].join(' · ')
             : null,
         beside: beside,
       ),

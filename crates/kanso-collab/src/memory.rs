@@ -91,6 +91,9 @@ struct State {
     offline: usize,
     /// Requests that succeed before `offline` begins.
     grace: usize,
+    /// Notebook appends that are stored but whose answer never arrives (the
+    /// connection or the app died after the server took them).
+    lost_replies: usize,
     now: i64,
     /// Lists naming members whose keys aren't their account's are taken
     /// (tests of a client against a server that doesn't check).
@@ -154,6 +157,15 @@ impl MemoryCollab {
             share.members.remove(account_id);
             share.wraps.retain(|(account, _), _| account != account_id);
         }
+    }
+
+    /// The next `n` notebook appends are stored, but their answers are lost
+    /// on the way back, as when the app is killed mid-push.
+    pub fn lose_book_replies(&self, n: usize) {
+        self.state
+            .lock()
+            .expect("memory server poisoned")
+            .lost_replies = n;
     }
 
     /// The next `n` requests fail as if offline.

@@ -794,7 +794,7 @@ impl Engine {
             return Ok(());
         };
         let mut result = crate::book_model::BookSync::default();
-        self.sync_note_stream(&mut ctx, stream, role, &mut result)?;
+        self.sync_note_stream(&mut ctx, stream, role, false, &mut result)?;
         self.save_ctx(&mut ctx)
     }
 
@@ -882,7 +882,7 @@ impl Engine {
         }
         let doc = CollabDoc::load(&row.state).map_err(|e| CollabError::Crypto(e.to_string()))?;
         let mut result = crate::book_model::BookSync::default();
-        let edited = self.settle_note(&mut ctx, &mut row, &doc, false, role, &mut result)?;
+        let edited = self.settle_note(&mut ctx, &mut row, &doc, false, false, role, &mut result)?;
         self.save_ctx(&mut ctx)?;
         Ok(edited)
     }

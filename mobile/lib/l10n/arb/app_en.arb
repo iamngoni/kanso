@@ -10160,5 +10160,254 @@
   "scheduleLocked": "That note is locked. Unlock it to change it.",
   "@scheduleLocked": {
     "description": "Said when a tick or a move found the note locked."
+  },
+  "shareNotebookTitle": "Share “{name}”",
+  "@shareNotebookTitle": {
+    "description": "The title of a notebook's Share sheet.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "shareNotebookTitlePlain": "Share notebook",
+  "@shareNotebookTitlePlain": {
+    "description": "The Share sheet's title before the notebook's name is known."
+  },
+  "shareNotebookAction": "Share notebook…",
+  "@shareNotebookAction": {
+    "description": "The notebook actions entry that opens its Share sheet."
+  },
+  "shareNotebookIntro": "Invite people by their Kanso username. Everyone here sees every note in this notebook, its board, schedule and templates. It stays end-to-end encrypted: your sync server passes it on without reading it.",
+  "@shareNotebookIntro": {
+    "description": "What sharing a notebook means, at the top of its Share sheet."
+  },
+  "shareNotebookSignedOut": "Sharing a notebook lets people you choose read, comment on or edit its notes with you, end-to-end encrypted. It needs a Kanso account: sign in, or create one, then share.",
+  "@shareNotebookSignedOut": {
+    "description": "The Share notebook sheet while no account is signed in."
+  },
+  "shareNotebookEmpty": "This notebook has no notes to share yet. Write one first.",
+  "@shareNotebookEmpty": {
+    "description": "A notebook with nothing in it can't be shared yet."
+  },
+  "shareNotebookLocked": "{count, plural, =1{Locked notes can't be in a shared notebook. 1 locked note will stay in a private “{name}” notebook.} other{Locked notes can't be in a shared notebook. {count} locked notes will stay in a private “{name}” notebook.}}",
+  "@shareNotebookLocked": {
+    "description": "Before sharing: the locked notes stay out, in a private notebook named after this one.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "shareNotebookLeftOut": "Not shared: {titles}. They're shared on their own, or canvases.",
+  "@shareNotebookLeftOut": {
+    "description": "Before sharing: the notes left out of a shared notebook.",
+    "placeholders": {
+      "titles": {
+        "type": "String"
+      }
+    }
+  },
+  "shareNotebookNotes": "{count, plural, =1{1 note goes in.} other{{count} notes go in.}}",
+  "@shareNotebookNotes": {
+    "description": "Before sharing: how many notes the shared notebook will hold.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shareNotebookShare": "Share",
+  "@shareNotebookShare": {
+    "description": "The button that shares the notebook with the first person."
+  },
+  "shareNotebookSharing": "Sharing {name}… {done} of {total}",
+  "@shareNotebookSharing": {
+    "description": "While a notebook's notes go up.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "shareNotebookShared": "Shared “{name}” with {username}. It shows for them once they accept.",
+  "@shareNotebookShared": {
+    "description": "Said once a notebook is shared with its first person.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "shareNotebookInvited": "Invited {username}. The notebook shows for them once they accept.",
+  "@shareNotebookInvited": {
+    "description": "Said once someone is invited to a shared notebook.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "shareNotebookRemoved": "Removed {username}. The notebook has a new key.",
+  "@shareNotebookRemoved": {
+    "description": "Said once someone is removed from a shared notebook.",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "shareNotebookLeave": "Leave",
+  "@shareNotebookLeave": {
+    "description": "Leaves a notebook someone else shared."
+  },
+  "shareNotebookStop": "Stop sharing",
+  "@shareNotebookStop": {
+    "description": "Stops sharing a notebook this account owns."
+  },
+  "shareNotebookStopBody": "Everyone in it, you included, keeps a private copy of its notes. Nobody's edits reach the others any more.",
+  "@shareNotebookStopBody": {
+    "description": "Under the question that confirms stopping sharing a notebook."
+  },
+  "shareNotebookLeaveBody": "Your copy is a private notebook from now on. To come back, someone in it invites you again.",
+  "@shareNotebookLeaveBody": {
+    "description": "Under the question that confirms leaving a notebook."
+  },
+  "shareNotebookRemoveConfirm": "Remove",
+  "@shareNotebookRemoveConfirm": {
+    "description": "Confirms removing someone from a shared notebook."
+  },
+  "shareNotebookRemoveMember": "Remove from notebook…",
+  "@shareNotebookRemoveMember": {
+    "description": "The member menu entry that removes someone from a shared notebook."
+  },
+  "shareNotebookInviteRoleLabel": "Role for the person you invite",
+  "@shareNotebookInviteRoleLabel": {
+    "description": "What a screen reader calls the role picker of the invite field."
+  },
+  "bookRoleName": "{role, select, owner{Owner} manager{Manager} editor{Can edit} commenter{Can comment} other{Can view}}",
+  "@bookRoleName": {
+    "description": "A role in a shared notebook, as the desktop names it.",
+    "placeholders": {
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "bookMemberInvited": "Invited, hasn't accepted yet",
+  "@bookMemberInvited": {
+    "description": "Under someone invited to a shared notebook who hasn't joined."
+  },
+  "bookMemberLeft": "Left or declined",
+  "@bookMemberLeft": {
+    "description": "Under someone who left a shared notebook or declined it."
+  },
+  "libraryShared": "Shared",
+  "@libraryShared": {
+    "description": "The library's section of shared notebooks."
+  },
+  "sharedNotebookInvitation": "{owner} invited you to a notebook · {role}",
+  "@sharedNotebookInvitation": {
+    "description": "An invitation to a shared notebook, in the library.",
+    "placeholders": {
+      "owner": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "sharedNotebookElsewhere": "A notebook {owner} shared with you · {role}",
+  "@sharedNotebookElsewhere": {
+    "description": "A notebook another device of this account joined, in the library.",
+    "placeholders": {
+      "owner": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "sharedNotebookAccept": "Accept",
+  "@sharedNotebookAccept": {
+    "description": "Joins a notebook someone shared."
+  },
+  "sharedNotebookOpenHere": "Open here",
+  "@sharedNotebookOpenHere": {
+    "description": "Joins on this device a notebook another device joined."
+  },
+  "sharedNotebookDecline": "Decline",
+  "@sharedNotebookDecline": {
+    "description": "Declines an invitation to a notebook."
+  },
+  "bookStatusUpToDate": "Up to date",
+  "@bookStatusUpToDate": {
+    "description": "A shared notebook with nothing waiting to go."
+  },
+  "bookStatusOffline": "Offline",
+  "@bookStatusOffline": {
+    "description": "A shared notebook that couldn't be reached, with nothing waiting."
+  },
+  "bookStatusWaiting": "{count, plural, =1{1 change waiting} other{{count} changes waiting}}",
+  "@bookStatusWaiting": {
+    "description": "How many notes of a shared notebook hold changes that haven't gone out.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookStatusOfflineWaiting": "Offline · {count, plural, =1{1 change waiting} other{{count} changes waiting}}",
+  "@bookStatusOfflineWaiting": {
+    "description": "A shared notebook that couldn't be reached, and what waits to go.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noteEditedBy": "Edited by {name} · {when}",
+  "@noteEditedBy": {
+    "description": "Who last changed a note of a shared notebook, and when.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "noteEditedByYou": "Edited by you · {when}",
+  "@noteEditedByYou": {
+    "description": "This account last changed a note of a shared notebook.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "sharedNotebookMembers": "{count, plural, =1{1 person} other{{count} people}}",
+  "@sharedNotebookMembers": {
+    "description": "How many people a shared notebook has.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }
