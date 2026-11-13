@@ -1704,6 +1704,8 @@ pub enum CompletionKind {
     Wiki,
     /// `#` and a tag.
     Tag,
+    /// `@` and a date, or a repeat after one.
+    Date,
 }
 
 /// One choice of a completion.

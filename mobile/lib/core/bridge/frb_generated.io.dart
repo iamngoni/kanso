@@ -54,6 +54,7 @@ import 'api/voice.dart';
 import 'api/voice_capture.dart';
 import 'api/voice_capture_types.dart';
 import 'api/whats_new_types.dart';
+import 'api/when.dart';
 import 'api/word_goal.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -1090,6 +1091,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Completion dco_decode_box_autoadd_completion(dynamic raw);
 
   @protected
+  DateChoices dco_decode_box_autoadd_date_choices(dynamic raw);
+
+  @protected
   DayDate dco_decode_box_autoadd_day_date(dynamic raw);
 
   @protected
@@ -1363,6 +1367,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   VoiceSettings dco_decode_box_autoadd_voice_settings(dynamic raw);
 
   @protected
+  WhenHint dco_decode_box_autoadd_when_hint(dynamic raw);
+
+  @protected
   BriefNote dco_decode_brief_note(dynamic raw);
 
   @protected
@@ -1466,6 +1473,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   CursorMark dco_decode_cursor_mark(dynamic raw);
+
+  @protected
+  DateChoice dco_decode_date_choice(dynamic raw);
+
+  @protected
+  DateChoices dco_decode_date_choices(dynamic raw);
 
   @protected
   DateField dco_decode_date_field(dynamic raw);
@@ -1811,6 +1824,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<CursorMark> dco_decode_list_cursor_mark(dynamic raw);
+
+  @protected
+  List<DateChoice> dco_decode_list_date_choice(dynamic raw);
 
   @protected
   List<DeviceRow> dco_decode_list_device_row(dynamic raw);
@@ -2454,6 +2470,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Completion? dco_decode_opt_box_autoadd_completion(dynamic raw);
 
   @protected
+  DateChoices? dco_decode_opt_box_autoadd_date_choices(dynamic raw);
+
+  @protected
   DayDate? dco_decode_opt_box_autoadd_day_date(dynamic raw);
 
   @protected
@@ -2613,6 +2632,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   VoiceNoteInfo? dco_decode_opt_box_autoadd_voice_note_info(dynamic raw);
+
+  @protected
+  WhenHint? dco_decode_opt_box_autoadd_when_hint(dynamic raw);
 
   @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
@@ -3339,6 +3361,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   VoiceTidy dco_decode_voice_tidy(dynamic raw);
+
+  @protected
+  WhenHint dco_decode_when_hint(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -4249,6 +4274,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   Completion sse_decode_box_autoadd_completion(SseDeserializer deserializer);
 
   @protected
+  DateChoices sse_decode_box_autoadd_date_choices(SseDeserializer deserializer);
+
+  @protected
   DayDate sse_decode_box_autoadd_day_date(SseDeserializer deserializer);
 
   @protected
@@ -4600,6 +4628,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  WhenHint sse_decode_box_autoadd_when_hint(SseDeserializer deserializer);
+
+  @protected
   BriefNote sse_decode_brief_note(SseDeserializer deserializer);
 
   @protected
@@ -4703,6 +4734,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   CursorMark sse_decode_cursor_mark(SseDeserializer deserializer);
+
+  @protected
+  DateChoice sse_decode_date_choice(SseDeserializer deserializer);
+
+  @protected
+  DateChoices sse_decode_date_choices(SseDeserializer deserializer);
 
   @protected
   DateField sse_decode_date_field(SseDeserializer deserializer);
@@ -5072,6 +5109,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<CursorMark> sse_decode_list_cursor_mark(SseDeserializer deserializer);
+
+  @protected
+  List<DateChoice> sse_decode_list_date_choice(SseDeserializer deserializer);
 
   @protected
   List<DeviceRow> sse_decode_list_device_row(SseDeserializer deserializer);
@@ -5865,6 +5905,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  DateChoices? sse_decode_opt_box_autoadd_date_choices(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DayDate? sse_decode_opt_box_autoadd_day_date(SseDeserializer deserializer);
 
   @protected
@@ -6102,6 +6147,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   VoiceNoteInfo? sse_decode_opt_box_autoadd_voice_note_info(
     SseDeserializer deserializer,
   );
+
+  @protected
+  WhenHint? sse_decode_opt_box_autoadd_when_hint(SseDeserializer deserializer);
 
   @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -6866,6 +6914,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   VoiceTidy sse_decode_voice_tidy(SseDeserializer deserializer);
+
+  @protected
+  WhenHint sse_decode_when_hint(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -7961,6 +8012,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_date_choices(
+    DateChoices self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_day_date(DayDate self, SseSerializer serializer);
 
   @protected
@@ -8468,6 +8525,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_when_hint(
+    WhenHint self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_brief_note(BriefNote self, SseSerializer serializer);
 
   @protected
@@ -8589,6 +8652,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_cursor_mark(CursorMark self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_date_choice(DateChoice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_date_choices(DateChoices self, SseSerializer serializer);
 
   @protected
   void sse_encode_date_field(DateField self, SseSerializer serializer);
@@ -9058,6 +9127,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_cursor_mark(
     List<CursorMark> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_date_choice(
+    List<DateChoice> self,
     SseSerializer serializer,
   );
 
@@ -10110,6 +10185,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_date_choices(
+    DateChoices? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_day_date(
     DayDate? self,
     SseSerializer serializer,
@@ -10409,6 +10490,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_voice_note_info(
     VoiceNoteInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_when_hint(
+    WhenHint? self,
     SseSerializer serializer,
   );
 
@@ -11344,6 +11431,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_voice_tidy(VoiceTidy self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_when_hint(WhenHint self, SseSerializer serializer);
 }
 
 // Section: wire_class

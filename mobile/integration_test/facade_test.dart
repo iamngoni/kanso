@@ -47,6 +47,7 @@ import '../test/core/bridge/suites/templates_suite.dart';
 import '../test/core/bridge/suites/themes_suite.dart';
 import '../test/core/bridge/suites/triage_suite.dart';
 import '../test/core/bridge/suites/voice_suite.dart';
+import '../test/core/bridge/suites/when_suite.dart';
 import '../test/helpers/biometric_answer.dart';
 
 /// Every call of the bridge, on a simulator or an emulator: the library the
@@ -113,6 +114,7 @@ void main() {
   publishSuite(openDeviceLibrary);
   remindersSuite(openDeviceLibrary);
   shortcutsSuite(openDeviceLibrary);
+  whenSuite(openDeviceLibrary);
   feedbackSuite(openDeviceLibrary);
 
   group('the platform verifier', () {

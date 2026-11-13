@@ -897,6 +897,7 @@ class CompletionItem {
 enum CompletionKind {
   wiki,
   tag,
+  date,
 }
 
 class CopiedLink {
@@ -982,6 +983,51 @@ class CursorMark {
           end == other.end &&
           light == other.light &&
           dark == other.dark;
+}
+
+class DateChoice {
+  final String label;
+  final String? detail;
+  final String insert;
+
+  const DateChoice({
+    required this.label,
+    this.detail,
+    required this.insert,
+  });
+
+  @override
+  int get hashCode => label.hashCode ^ detail.hashCode ^ insert.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DateChoice &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          detail == other.detail &&
+          insert == other.insert;
+}
+
+class DateChoices {
+  final int start;
+  final List<DateChoice> choices;
+
+  const DateChoices({
+    required this.start,
+    required this.choices,
+  });
+
+  @override
+  int get hashCode => start.hashCode ^ choices.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DateChoices &&
+          runtimeType == other.runtimeType &&
+          start == other.start &&
+          choices == other.choices;
 }
 
 enum DateField {
@@ -6712,4 +6758,39 @@ class VisibleNotebook {
           row == other.row &&
           open == other.open &&
           parent == other.parent;
+}
+
+class WhenHint {
+  final int start;
+  final int end;
+  final String label;
+  final String canonical;
+  final bool repeats;
+
+  const WhenHint({
+    required this.start,
+    required this.end,
+    required this.label,
+    required this.canonical,
+    required this.repeats,
+  });
+
+  @override
+  int get hashCode =>
+      start.hashCode ^
+      end.hashCode ^
+      label.hashCode ^
+      canonical.hashCode ^
+      repeats.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WhenHint &&
+          runtimeType == other.runtimeType &&
+          start == other.start &&
+          end == other.end &&
+          label == other.label &&
+          canonical == other.canonical &&
+          repeats == other.repeats;
 }

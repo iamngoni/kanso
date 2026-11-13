@@ -69,7 +69,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 560876257;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -184207284;
 
 // Section: executor
 
@@ -30187,6 +30187,37 @@ fn wire__crate__api__canvas__canvas_ink_preview_impl(
         },
     )
 }
+fn wire__crate__api__when__date_choices_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "date_choices",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_before_caret = <String>::sse_decode(&mut deserializer);
+            let api_now = <crate::api::types::LocalTime>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                let output_ok = crate::api::when::date_choices(api_before_caret, api_now)?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__voice__dictated_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -30532,6 +30563,38 @@ fn wire__crate__api__diagnostics__version_impl(
                     std::result::Result::Ok(output_ok)
                 })())
             }
+        },
+    )
+}
+fn wire__crate__api__when__when_parse_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "when_parse",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_line = <String>::sse_decode(&mut deserializer);
+            let api_now = <crate::api::types::LocalTime>::sse_decode(&mut deserializer);
+            let api_month_first = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                let output_ok = crate::api::when::when_parse(api_line, api_now, api_month_first)?;
+                std::result::Result::Ok(output_ok)
+            })())
         },
     )
 }
@@ -31105,6 +31168,17 @@ const _: fn() = || {
         let _: u32 = CursorMark.end;
         let _: u32 = CursorMark.light;
         let _: u32 = CursorMark.dark;
+    }
+    {
+        let DateChoice = None::<crate::api::types::DateChoice>.unwrap();
+        let _: String = DateChoice.label;
+        let _: Option<String> = DateChoice.detail;
+        let _: String = DateChoice.insert;
+    }
+    {
+        let DateChoices = None::<crate::api::types::DateChoices>.unwrap();
+        let _: u32 = DateChoices.start;
+        let _: Vec<crate::api::types::DateChoice> = DateChoices.choices;
     }
     {
         let DayDate = None::<crate::api::types::DayDate>.unwrap();
@@ -33707,6 +33781,14 @@ const _: fn() = || {
         let _: u64 = VoiceNoteInfo.duration_ms;
         let _: bool = VoiceNoteInfo.can_tidy;
     }
+    {
+        let WhenHint = None::<crate::api::types::WhenHint>.unwrap();
+        let _: u32 = WhenHint.start;
+        let _: u32 = WhenHint.end;
+        let _: String = WhenHint.label;
+        let _: String = WhenHint.canonical;
+        let _: bool = WhenHint.repeats;
+    }
 };
 
 // Section: related_funcs
@@ -36004,6 +36086,7 @@ impl SseDecode for crate::api::types::CompletionKind {
         return match inner {
             0 => crate::api::types::CompletionKind::Wiki,
             1 => crate::api::types::CompletionKind::Tag,
+            2 => crate::api::types::CompletionKind::Date,
             _ => unreachable!("Invalid variant for CompletionKind: {}", inner),
         };
     }
@@ -36051,6 +36134,32 @@ impl SseDecode for crate::api::types::CursorMark {
             end: var_end,
             light: var_light,
             dark: var_dark,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::DateChoice {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_detail = <Option<String>>::sse_decode(deserializer);
+        let mut var_insert = <String>::sse_decode(deserializer);
+        return crate::api::types::DateChoice {
+            label: var_label,
+            detail: var_detail,
+            insert: var_insert,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::DateChoices {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_start = <u32>::sse_decode(deserializer);
+        let mut var_choices = <Vec<crate::api::types::DateChoice>>::sse_decode(deserializer);
+        return crate::api::types::DateChoices {
+            start: var_start,
+            choices: var_choices,
         };
     }
 }
@@ -38042,6 +38151,18 @@ impl SseDecode for Vec<crate::api::types::CursorMark> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::types::CursorMark>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::types::DateChoice> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::types::DateChoice>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -41057,6 +41178,17 @@ impl SseDecode for Option<crate::api::types::Completion> {
     }
 }
 
+impl SseDecode for Option<crate::api::types::DateChoices> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::types::DateChoices>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::types::DayDate> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -41686,6 +41818,17 @@ impl SseDecode for Option<crate::api::voice_capture_types::VoiceNoteInfo> {
             return Some(
                 <crate::api::voice_capture_types::VoiceNoteInfo>::sse_decode(deserializer),
             );
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::types::WhenHint> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::types::WhenHint>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -46195,6 +46338,24 @@ impl SseDecode for crate::api::voice::VoiceTidy {
     }
 }
 
+impl SseDecode for crate::api::types::WhenHint {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_start = <u32>::sse_decode(deserializer);
+        let mut var_end = <u32>::sse_decode(deserializer);
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_canonical = <String>::sse_decode(deserializer);
+        let mut var_repeats = <bool>::sse_decode(deserializer);
+        return crate::api::types::WhenHint {
+            start: var_start,
+            end: var_end,
+            label: var_label,
+            canonical: var_canonical,
+            repeats: var_repeats,
+        };
+    }
+}
+
 fn pde_ffi_dispatcher_primary_impl(
     func_id: i32,
     port: flutter_rust_bridge::for_generated::MessagePort,
@@ -48536,10 +48697,10 @@ fn pde_ffi_dispatcher_primary_impl(
         576 => {
             wire__crate__api__diagnostics__backup_excluded_impl(port, ptr, rust_vec_len, data_len)
         }
-        584 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
-        586 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
-        588 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
-        589 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
+        585 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
+        587 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
+        589 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
+        590 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -48686,21 +48847,23 @@ fn pde_ffi_dispatcher_sync_impl(
         547 => wire__crate__api__sync__KansoSync_status_line_impl(ptr, rust_vec_len, data_len),
         577 => wire__crate__api__library__backups_summary_impl(ptr, rust_vec_len, data_len),
         578 => wire__crate__api__canvas__canvas_ink_preview_impl(ptr, rust_vec_len, data_len),
-        579 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
-        580 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
-        581 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
-        582 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
-        583 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
-        585 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
-        587 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
-        590 => {
+        579 => wire__crate__api__when__date_choices_impl(ptr, rust_vec_len, data_len),
+        580 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
+        581 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
+        582 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
+        583 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
+        584 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
+        586 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
+        588 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
+        591 => wire__crate__api__when__when_parse_impl(ptr, rust_vec_len, data_len),
+        592 => {
             wire__crate__api__word_goal__word_goal_format_count_impl(ptr, rust_vec_len, data_len)
         }
-        591 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
-        592 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
-        593 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
-        594 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
-        595 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
+        593 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
+        594 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
+        595 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
+        596 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
+        597 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -50802,6 +50965,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::CompletionK
         match self.0 {
             crate::api::types::CompletionKind::Wiki => 0.into_dart(),
             crate::api::types::CompletionKind::Tag => 1.into_dart(),
+            crate::api::types::CompletionKind::Date => 2.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -50882,6 +51046,49 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::CursorMark>
     for crate::api::types::CursorMark
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::CursorMark> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::DateChoice> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.label.into_into_dart().into_dart(),
+            self.0.detail.into_into_dart().into_dart(),
+            self.0.insert.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::DateChoice>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::DateChoice>>
+    for crate::api::types::DateChoice
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::DateChoice> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::DateChoices> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.start.into_into_dart().into_dart(),
+            self.0.choices.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::DateChoices>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::DateChoices>>
+    for crate::api::types::DateChoices
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::DateChoices> {
         self.into()
     }
 }
@@ -60157,6 +60364,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::voice::VoiceTidy>
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::WhenHint> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.start.into_into_dart().into_dart(),
+            self.0.end.into_into_dart().into_dart(),
+            self.0.label.into_into_dart().into_dart(),
+            self.0.canonical.into_into_dart().into_dart(),
+            self.0.repeats.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::WhenHint>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::WhenHint>>
+    for crate::api::types::WhenHint
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::WhenHint> {
+        self.into()
+    }
+}
 
 impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -61912,6 +62143,7 @@ impl SseEncode for crate::api::types::CompletionKind {
             match self {
                 crate::api::types::CompletionKind::Wiki => 0,
                 crate::api::types::CompletionKind::Tag => 1,
+                crate::api::types::CompletionKind::Date => 2,
                 _ => {
                     unimplemented!("");
                 }
@@ -61947,6 +62179,23 @@ impl SseEncode for crate::api::types::CursorMark {
         <u32>::sse_encode(self.end, serializer);
         <u32>::sse_encode(self.light, serializer);
         <u32>::sse_encode(self.dark, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::DateChoice {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.label, serializer);
+        <Option<String>>::sse_encode(self.detail, serializer);
+        <String>::sse_encode(self.insert, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::DateChoices {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.start, serializer);
+        <Vec<crate::api::types::DateChoice>>::sse_encode(self.choices, serializer);
     }
 }
 
@@ -63446,6 +63695,16 @@ impl SseEncode for Vec<crate::api::types::CursorMark> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::types::CursorMark>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::types::DateChoice> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::types::DateChoice>::sse_encode(item, serializer);
         }
     }
 }
@@ -65764,6 +66023,16 @@ impl SseEncode for Option<crate::api::types::Completion> {
     }
 }
 
+impl SseEncode for Option<crate::api::types::DateChoices> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::types::DateChoices>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::types::DayDate> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -66290,6 +66559,16 @@ impl SseEncode for Option<crate::api::voice_capture_types::VoiceNoteInfo> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::voice_capture_types::VoiceNoteInfo>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::types::WhenHint> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::types::WhenHint>::sse_encode(value, serializer);
         }
     }
 }
@@ -69674,6 +69953,17 @@ impl SseEncode for crate::api::voice::VoiceTidy {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::types::WhenHint {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.start, serializer);
+        <u32>::sse_encode(self.end, serializer);
+        <String>::sse_encode(self.label, serializer);
+        <String>::sse_encode(self.canonical, serializer);
+        <bool>::sse_encode(self.repeats, serializer);
     }
 }
 

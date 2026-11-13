@@ -1948,6 +1948,18 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 suggestion} other{{count} suggestions}}, {label} selected'**
   String completionAnnouncement(int count, String label);
 
+  /// The word at the end of the hint above the keyboard that shows the date found in a task; tapping the hint writes it into the task.
+  ///
+  /// In en, this message translates to:
+  /// **'Set'**
+  String get whenHintAction;
+
+  /// What a screen reader says for the hint above the keyboard that shows the date found at the end of a task.
+  ///
+  /// In en, this message translates to:
+  /// **'{date}. Double tap to write this date into the task.'**
+  String whenHintSemantics(String date);
+
   /// The title shown under an empty search.
   ///
   /// In en, this message translates to:

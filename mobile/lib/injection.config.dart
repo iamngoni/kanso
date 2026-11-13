@@ -165,7 +165,9 @@ import 'discovery/models/repos/abs/discovery_repository.dart' as _i673;
 import 'discovery/models/repos/impl/rust_discovery_repository.dart' as _i913;
 import 'editor/models/repos/abs/editor_repository.dart' as _i979;
 import 'editor/models/repos/abs/web_link_repository.dart' as _i272;
+import 'editor/models/repos/abs/when_repository.dart' as _i741;
 import 'editor/models/repos/impl/rust_editor_repository.dart' as _i606;
+import 'editor/models/repos/impl/rust_when_repository.dart' as _i773;
 import 'editor/models/repos/impl/url_launcher_web_link_repository.dart'
     as _i635;
 import 'editor/state/editor/editor_bloc.dart' as _i964;
@@ -397,6 +399,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i687.AgentTaskNotifier>(
       () => _i238.SystemAgentTaskNotifier(gh<_i874.ReminderNotifier>()),
     );
+    gh.lazySingleton<_i741.WhenRepository>(() => _i773.RustWhenRepository());
     gh.lazySingleton<_i146.FeedbackScreenshotRepository>(
       () => _i596.PhotoFeedbackScreenshotRepository(gh<_i183.ImagePicker>()),
     );
