@@ -8345,4 +8345,194 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get embargoGuardRail =>
       'Anyone who can read the note can still copy it. The embargo is a reminder, not a lock.';
+
+  @override
+  String shareNotebookTitle(String name) {
+    return 'Share “$name”';
+  }
+
+  @override
+  String get shareNotebookTitlePlain => 'Share notebook';
+
+  @override
+  String get shareNotebookAction => 'Share notebook…';
+
+  @override
+  String get shareNotebookIntro =>
+      'Invite people by their Kanso username. Everyone here sees every note in this notebook, its board, schedule and templates. It stays end-to-end encrypted: your sync server passes it on without reading it.';
+
+  @override
+  String get shareNotebookSignedOut =>
+      'Sharing a notebook lets people you choose read, comment on or edit its notes with you, end-to-end encrypted. It needs a Kanso account: sign in, or create one, then share.';
+
+  @override
+  String get shareNotebookEmpty =>
+      'This notebook has no notes to share yet. Write one first.';
+
+  @override
+  String shareNotebookLocked(int count, String name) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Locked notes can\'t be in a shared notebook. $count locked notes will stay in a private “$name” notebook.',
+      one:
+          'Locked notes can\'t be in a shared notebook. 1 locked note will stay in a private “$name” notebook.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String shareNotebookLeftOut(String titles) {
+    return 'Not shared: $titles. They\'re shared on their own, or canvases.';
+  }
+
+  @override
+  String shareNotebookNotes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count notes go in.',
+      one: '1 note goes in.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get shareNotebookShare => 'Share';
+
+  @override
+  String shareNotebookSharing(String name, int done, int total) {
+    return 'Sharing $name… $done of $total';
+  }
+
+  @override
+  String shareNotebookShared(String name, String username) {
+    return 'Shared “$name” with $username. It shows for them once they accept.';
+  }
+
+  @override
+  String shareNotebookInvited(String username) {
+    return 'Invited $username. The notebook shows for them once they accept.';
+  }
+
+  @override
+  String shareNotebookRemoved(String username) {
+    return 'Removed $username. The notebook has a new key.';
+  }
+
+  @override
+  String get shareNotebookLeave => 'Leave';
+
+  @override
+  String get shareNotebookStop => 'Stop sharing';
+
+  @override
+  String get shareNotebookStopBody =>
+      'Everyone in it, you included, keeps a private copy of its notes. Nobody\'s edits reach the others any more.';
+
+  @override
+  String get shareNotebookLeaveBody =>
+      'Your copy is a private notebook from now on. To come back, someone in it invites you again.';
+
+  @override
+  String get shareNotebookRemoveConfirm => 'Remove';
+
+  @override
+  String get shareNotebookRemoveMember => 'Remove from notebook…';
+
+  @override
+  String get shareNotebookInviteRoleLabel => 'Role for the person you invite';
+
+  @override
+  String bookRoleName(String role) {
+    String _temp0 = intl.Intl.selectLogic(
+      role,
+      {
+        'owner': 'Owner',
+        'manager': 'Manager',
+        'editor': 'Can edit',
+        'commenter': 'Can comment',
+        'other': 'Can view',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get bookMemberInvited => 'Invited, hasn\'t accepted yet';
+
+  @override
+  String get bookMemberLeft => 'Left or declined';
+
+  @override
+  String get libraryShared => 'Shared';
+
+  @override
+  String sharedNotebookInvitation(String owner, String role) {
+    return '$owner invited you to a notebook · $role';
+  }
+
+  @override
+  String sharedNotebookElsewhere(String owner, String role) {
+    return 'A notebook $owner shared with you · $role';
+  }
+
+  @override
+  String get sharedNotebookAccept => 'Accept';
+
+  @override
+  String get sharedNotebookOpenHere => 'Open here';
+
+  @override
+  String get sharedNotebookDecline => 'Decline';
+
+  @override
+  String get bookStatusUpToDate => 'Up to date';
+
+  @override
+  String get bookStatusOffline => 'Offline';
+
+  @override
+  String bookStatusWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count changes waiting',
+      one: '1 change waiting',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bookStatusOfflineWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count changes waiting',
+      one: '1 change waiting',
+    );
+    return 'Offline · $_temp0';
+  }
+
+  @override
+  String noteEditedBy(String name, String when) {
+    return 'Edited by $name · $when';
+  }
+
+  @override
+  String noteEditedByYou(String when) {
+    return 'Edited by you · $when';
+  }
+
+  @override
+  String sharedNotebookMembers(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people',
+      one: '1 person',
+    );
+    return '$_temp0';
+  }
 }

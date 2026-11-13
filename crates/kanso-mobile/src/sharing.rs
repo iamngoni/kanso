@@ -44,6 +44,7 @@ use crate::sharing_model::{
 use crate::stream::Listeners;
 use crate::syncing::SyncHandle;
 
+mod books;
 mod canvas;
 mod comments;
 
@@ -69,6 +70,16 @@ pub(crate) struct SharedState {
     first_seen: Mutex<HashMap<String, i64>>,
     /// The invitations the last event counted.
     told_invitations: Mutex<u32>,
+    /// Open notebook rooms, by share ID.
+    book_rooms: Mutex<HashMap<String, books::BookRoom>>,
+    /// Whether the last try to reach each shared notebook found no
+    /// connection, by share ID.
+    book_offline: Mutex<HashMap<String, bool>>,
+    /// When each notebook invitation was first seen, by share ID.
+    book_seen: Mutex<HashMap<String, i64>>,
+    /// The notebook invitations the last event counted.
+    told_book_invitations: Mutex<u32>,
+    book_progress: Listeners<crate::sharing_books_model::BookShareProgress>,
 }
 
 impl SharedState {
@@ -80,6 +91,11 @@ impl SharedState {
             listeners: Listeners::default(),
             first_seen: Mutex::new(HashMap::new()),
             told_invitations: Mutex::new(0),
+            book_rooms: Mutex::new(HashMap::new()),
+            book_offline: Mutex::new(HashMap::new()),
+            book_seen: Mutex::new(HashMap::new()),
+            told_book_invitations: Mutex::new(0),
+            book_progress: Listeners::default(),
         }
     }
 }
@@ -425,6 +441,8 @@ impl SharedNotes {
             let changes = store.subscribe();
             let comments_before = comment_counts(store);
             let result = engine.sync_all();
+            let mut books = SharedEvent::default();
+            self.sync_books(&engine, &mut books);
             notes.extend(store.shared_notes()?.into_iter().map(|note| note.note_id));
             let mut note_ids = Vec::new();
             while let Ok(change) = changes.try_recv() {
@@ -439,13 +457,21 @@ impl SharedNotes {
                 invitations,
                 comment_notes,
                 live_notes: Vec::new(),
+                notebooks: books.notebooks,
+                book_invitations: books.book_invitations,
+                book_notices: books.book_notices,
             };
             let news = {
                 let mut told = held(&self.inner.shared.told_invitations);
+                let mut told_books = held(&self.inner.shared.told_book_invitations);
                 let news = !event.note_ids.is_empty()
                     || !event.comment_notes.is_empty()
-                    || *told != invitations;
+                    || !event.notebooks.is_empty()
+                    || !event.book_notices.is_empty()
+                    || *told != invitations
+                    || *told_books != event.book_invitations;
                 *told = invitations;
+                *told_books = event.book_invitations;
                 news
             };
             if news {
@@ -469,6 +495,10 @@ impl SharedNotes {
     /// them. The app closes every room when it goes to the background.
     pub fn open_live(&self, note_id: String) -> Result<(), KansoError> {
         guard(|| {
+            self.refuse_locked(&note_id)?;
+            if let Some((share_id, stream)) = self.book_note(&note_id)? {
+                return self.open_book_live(note_id, share_id, stream);
+            }
             let (engine, share_id) = self.shared(&note_id)?;
             let mut rooms = held(&self.inner.shared.rooms);
             if let Some(room) = rooms.get(&note_id) {
@@ -589,6 +619,7 @@ impl SharedNotes {
     pub fn close_live(&self, note_id: String) {
         let room = held(&self.inner.shared.rooms).remove(&note_id);
         drop(room);
+        self.close_book_live(&note_id);
     }
 
     /// Leaves every room: the app went to the background, or the session
@@ -596,6 +627,7 @@ impl SharedNotes {
     pub(crate) fn close_all_live(&self) {
         let rooms = std::mem::take(&mut *held(&self.inner.shared.rooms));
         drop(rooms);
+        self.close_all_book_rooms();
     }
 
     /// Whether a note's room is open (and still running).
@@ -604,6 +636,7 @@ impl SharedNotes {
         held(&self.inner.shared.rooms)
             .get(note_id)
             .is_some_and(|room| !room.ended.load(Ordering::SeqCst))
+            || self.book_room_live(note_id)
     }
 
     /// The open note's editor text, merged with what other members wrote:
@@ -668,6 +701,13 @@ impl SharedNotes {
     pub fn live_status(&self, note_id: String) -> Result<Option<LiveStatus>, KansoError> {
         guard(|| {
             self.refuse_locked(&note_id)?;
+            if let Some((share_id, _)) = self.book_note(&note_id)? {
+                return match self.book_live_status(&note_id, &share_id) {
+                    Ok(status) => Ok(Some(status)),
+                    Err(KansoError::SignedOut) => Ok(marked_status(&self.inner.store, &note_id)),
+                    Err(err) => Err(err),
+                };
+            }
             let room = held(&self.inner.shared.rooms).get(&note_id).map(|room| {
                 (
                     room.engine.clone(),
@@ -732,6 +772,9 @@ impl SharedNotes {
     /// This device's caret in the open note (byte offsets of the body), sent
     /// to the others as presence.
     pub(crate) fn set_caret(&self, note_id: &str, anchor: usize, head: usize) {
+        if self.set_book_caret(note_id, anchor, head) {
+            return;
+        }
         let rooms = held(&self.inner.shared.rooms);
         if let Some(room) = rooms.get(note_id) {
             room.engine.set_caret(&room.share_id, anchor, head);
@@ -740,6 +783,9 @@ impl SharedNotes {
 
     /// Other members' carets in the open note.
     pub(crate) fn cursors(&self, note_id: &str) -> Vec<CursorRow> {
+        if let Some(cursors) = self.book_cursors(note_id) {
+            return cursors;
+        }
         let rooms = held(&self.inner.shared.rooms);
         let Some(room) = rooms.get(note_id) else {
             return Vec::new();
@@ -930,13 +976,10 @@ impl Pump {
         {
             return Ok(());
         }
-        let Ok(Some(note)) = store.note(&self.note_id) else {
-            return Ok(());
-        };
-        match self
-            .engine
-            .sync_editor(&self.share_id, &note.title, &note.body)
-        {
+        // The library's text is read under the note's lock: a copy read
+        // here could be older than a save made just after, and would be
+        // taken as an edit back to it.
+        match self.engine.sync_library(&self.share_id) {
             Err(CollabError::Refused(_)) => Err(()),
             _ => Ok(()),
         }

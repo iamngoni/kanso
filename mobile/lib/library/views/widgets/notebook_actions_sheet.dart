@@ -19,6 +19,7 @@ import '../../../draft/views/widgets/draft_from_group.dart';
 import '../../../injection.dart';
 import '../../../lock/state/lock_status/lock_status_bloc.dart';
 import '../../../publish/views/widgets/publish_sheet.dart';
+import '../../../sharing/views/widgets/share_notebook_sheet.dart';
 import 'library_actions.dart';
 import 'library_color_sheets.dart';
 import 'library_text_prompt_sheet.dart';
@@ -215,6 +216,13 @@ class NotebookActionsSheet extends StatelessWidget {
         KansoSheetGroup(
           dividerIndent: KansoSettingsRow.iconInset,
           children: <Widget>[
+            KansoSettingsRow(
+              icon: KansoIcons.users,
+              label: l10n.shareNotebookAction,
+              onTap: () => closeThen(
+                () => ShareNotebookSheet.show(host, notebook.id),
+              ),
+            ),
             KansoSettingsRow(
               icon: KansoIcons.externalLink,
               label: l10n.publishNotebookMenu,

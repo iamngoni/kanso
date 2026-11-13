@@ -69,7 +69,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -337770706;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1756060706;
 
 // Section: executor
 
@@ -26866,6 +26866,59 @@ fn wire__crate__api__shared__KansoShared_accept_impl(
         },
     )
 }
+fn wire__crate__api__shared__KansoShared_accept_book_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_accept_book",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_share_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::shared::KansoShared::accept_book(
+                        &*api_that_guard,
+                        api_share_id,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__shared__KansoShared_accept_new_key_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -27035,6 +27088,322 @@ fn wire__crate__api__shared__KansoShared_approve_request_impl(
         },
     )
 }
+fn wire__crate__api__shared__KansoShared_book_edits_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_book_edits",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_notebook_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::shared::KansoShared::book_edits(
+                        &*api_that_guard,
+                        api_notebook_id,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__shared__KansoShared_book_info_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_book_info",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_notebook_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::shared::KansoShared::book_info(
+                        &*api_that_guard,
+                        api_notebook_id,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__shared__KansoShared_book_invitations_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_book_invitations",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::shared::KansoShared::book_invitations(&*api_that_guard)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__shared__KansoShared_book_progress_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_book_progress",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_sink = <StreamSink<
+                crate::api::types::BookShareProgress,
+                flutter_rust_bridge::for_generated::SseCodec,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = Ok::<_, ()>({
+                        crate::api::shared::KansoShared::book_progress(&*api_that_guard, api_sink);
+                    })?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__shared__KansoShared_book_status_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_book_status",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_notebook_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::shared::KansoShared::book_status(
+                        &*api_that_guard,
+                        api_notebook_id,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__shared__KansoShared_book_words_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_book_words",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_name = <String>::sse_decode(&mut deserializer);
+            let api_who = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let mut api_that_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_that, 0, false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
+                    }
+                }
+                let api_that_guard = api_that_guard.unwrap();
+                let output_ok = Ok::<_, ()>(crate::api::shared::KansoShared::book_words(
+                    &*api_that_guard,
+                    api_name,
+                    api_who,
+                ))?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__shared__KansoShared_can_share_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -27080,6 +27449,59 @@ fn wire__crate__api__shared__KansoShared_can_share_impl(
                     let api_that_guard = api_that_guard.unwrap();
                     let output_ok =
                         crate::api::shared::KansoShared::can_share(&*api_that_guard, api_note_id)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__shared__KansoShared_can_share_book_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_can_share_book",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_notebook_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::shared::KansoShared::can_share_book(
+                        &*api_that_guard,
+                        api_notebook_id,
+                    )?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -27399,6 +27821,59 @@ fn wire__crate__api__shared__KansoShared_decline_impl(
                     let api_that_guard = api_that_guard.unwrap();
                     let output_ok =
                         crate::api::shared::KansoShared::decline(&*api_that_guard, api_share_id)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__shared__KansoShared_decline_book_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_decline_book",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_share_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::shared::KansoShared::decline_book(
+                        &*api_that_guard,
+                        api_share_id,
+                    )?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -27837,6 +28312,63 @@ fn wire__crate__api__shared__KansoShared_invite_impl(
         },
     )
 }
+fn wire__crate__api__shared__KansoShared_invite_to_book_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_invite_to_book",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_notebook_id = <String>::sse_decode(&mut deserializer);
+            let api_username = <String>::sse_decode(&mut deserializer);
+            let api_role = <crate::api::types::BookRole>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::shared::KansoShared::invite_to_book(
+                        &*api_that_guard,
+                        api_notebook_id,
+                        api_username,
+                        api_role,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__shared__KansoShared_join_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -27933,6 +28465,59 @@ fn wire__crate__api__shared__KansoShared_leave_impl(
                     let api_that_guard = api_that_guard.unwrap();
                     let output_ok =
                         crate::api::shared::KansoShared::leave(&*api_that_guard, api_note_id)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__shared__KansoShared_leave_book_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_leave_book",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_notebook_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::shared::KansoShared::leave_book(
+                        &*api_that_guard,
+                        api_notebook_id,
+                    )?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -28204,6 +28789,61 @@ fn wire__crate__api__shared__KansoShared_remove_impl(
         },
     )
 }
+fn wire__crate__api__shared__KansoShared_remove_from_book_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_remove_from_book",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_notebook_id = <String>::sse_decode(&mut deserializer);
+            let api_account_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::shared::KansoShared::remove_from_book(
+                        &*api_that_guard,
+                        api_notebook_id,
+                        api_account_id,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__shared__KansoShared_resolve_comment_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -28254,6 +28894,63 @@ fn wire__crate__api__shared__KansoShared_resolve_comment_impl(
                         api_note_id,
                         api_comment_id,
                         api_resolved,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__shared__KansoShared_set_book_role_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_set_book_role",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_notebook_id = <String>::sse_decode(&mut deserializer);
+            let api_account_id = <String>::sse_decode(&mut deserializer);
+            let api_role = <crate::api::types::BookRole>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::shared::KansoShared::set_book_role(
+                        &*api_that_guard,
+                        api_notebook_id,
+                        api_account_id,
+                        api_role,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -28374,6 +29071,112 @@ fn wire__crate__api__shared__KansoShared_share_impl(
         },
     )
 }
+fn wire__crate__api__shared__KansoShared_share_book_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_share_book",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_notebook_id = <String>::sse_decode(&mut deserializer);
+            let api_invites =
+                <Vec<(String, crate::api::types::BookRole)>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::shared::KansoShared::share_book(
+                        &*api_that_guard,
+                        api_notebook_id,
+                        api_invites,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__shared__KansoShared_shared_books_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_shared_books",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok =
+                        crate::api::shared::KansoShared::shared_books(&*api_that_guard)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__shared__KansoShared_stop_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -28419,6 +29222,59 @@ fn wire__crate__api__shared__KansoShared_stop_impl(
                     let api_that_guard = api_that_guard.unwrap();
                     let output_ok =
                         crate::api::shared::KansoShared::stop(&*api_that_guard, api_note_id)?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__shared__KansoShared_stop_book_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "KansoShared_stop_book",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<KansoShared>,
+            >>::sse_decode(&mut deserializer);
+            let api_notebook_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, crate::api::types::KansoError>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::shared::KansoShared::stop_book(
+                        &*api_that_guard,
+                        api_notebook_id,
+                    )?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -31654,6 +32510,70 @@ const _: fn() = || {
         let _: Option<crate::api::types::BoardSetup> = BoardView.setup;
     }
     {
+        let BookEndedRow = None::<crate::api::types::BookEndedRow>.unwrap();
+        let _: String = BookEndedRow.notebook_id;
+        let _: String = BookEndedRow.copy_name;
+        let _: String = BookEndedRow.message;
+    }
+    {
+        let BookInvitationRow = None::<crate::api::types::BookInvitationRow>.unwrap();
+        let _: String = BookInvitationRow.share_id;
+        let _: String = BookInvitationRow.from;
+        let _: crate::api::types::BookRole = BookInvitationRow.role;
+        let _: bool = BookInvitationRow.invited;
+        let _: i64 = BookInvitationRow.at_ms;
+    }
+    {
+        let BookMemberRow = None::<crate::api::types::BookMemberRow>.unwrap();
+        let _: String = BookMemberRow.account_id;
+        let _: String = BookMemberRow.username;
+        let _: crate::api::types::BookRole = BookMemberRow.role;
+        let _: bool = BookMemberRow.me;
+        let _: crate::api::types::BookStandingRow = BookMemberRow.standing;
+        let _: String = BookMemberRow.fingerprint;
+        let _: bool = BookMemberRow.verified;
+        let _: Vec<crate::api::types::BookRole> = BookMemberRow.roles;
+        let _: bool = BookMemberRow.removable;
+    }
+    {
+        let BookShareCheck = None::<crate::api::types::BookShareCheck>.unwrap();
+        let _: String = BookShareCheck.name;
+        let _: u32 = BookShareCheck.notes;
+        let _: u32 = BookShareCheck.locked;
+        let _: String = BookShareCheck.locked_name;
+        let _: Vec<String> = BookShareCheck.left_out;
+    }
+    {
+        let BookShareInfo = None::<crate::api::types::BookShareInfo>.unwrap();
+        let _: String = BookShareInfo.share_id;
+        let _: String = BookShareInfo.notebook_id;
+        let _: String = BookShareInfo.name;
+        let _: crate::api::types::BookRole = BookShareInfo.my_role;
+        let _: String = BookShareInfo.owner;
+        let _: Vec<crate::api::types::BookMemberRow> = BookShareInfo.members;
+        let _: Vec<crate::api::types::BookRole> = BookShareInfo.invite_roles;
+        let _: bool = BookShareInfo.owned;
+    }
+    {
+        let BookShareProgress = None::<crate::api::types::BookShareProgress>.unwrap();
+        let _: String = BookShareProgress.notebook_id;
+        let _: u32 = BookShareProgress.done;
+        let _: u32 = BookShareProgress.total;
+    }
+    {
+        let BookSyncStatus = None::<crate::api::types::BookSyncStatus>.unwrap();
+        let _: bool = BookSyncStatus.offline;
+        let _: u32 = BookSyncStatus.waiting;
+        let _: bool = BookSyncStatus.live;
+    }
+    {
+        let BookWords = None::<crate::api::types::BookWords>.unwrap();
+        let _: String = BookWords.remove_title;
+        let _: String = BookWords.remove_body;
+        let _: String = BookWords.leave_title;
+        let _: String = BookWords.stop_title;
+    }
+    {
         let BriefNote = None::<crate::api::types::BriefNote>.unwrap();
         let _: String = BriefNote.note_id;
         let _: String = BriefNote.title;
@@ -32862,6 +33782,13 @@ const _: fn() = || {
         }
         crate::api::types::NoteChange::Restore => {}
         crate::api::types::NoteChange::DeleteForever => {}
+    }
+    {
+        let NoteEditRow = None::<crate::api::types::NoteEditRow>.unwrap();
+        let _: String = NoteEditRow.note_id;
+        let _: String = NoteEditRow.name;
+        let _: bool = NoteEditRow.me;
+        let _: i64 = NoteEditRow.at_ms;
     }
     {
         let NoteHistory = None::<crate::api::types::NoteHistory>.unwrap();
@@ -34220,11 +35147,24 @@ const _: fn() = || {
         let _: i64 = ShareLinkRow.expires_ms;
     }
     {
+        let SharedBookRow = None::<crate::api::types::SharedBookRow>.unwrap();
+        let _: String = SharedBookRow.share_id;
+        let _: String = SharedBookRow.notebook_id;
+        let _: String = SharedBookRow.name;
+        let _: crate::api::types::BookRole = SharedBookRow.my_role;
+        let _: String = SharedBookRow.owner;
+        let _: Vec<String> = SharedBookRow.members;
+        let _: crate::api::types::BookSyncStatus = SharedBookRow.status;
+    }
+    {
         let SharedEvent = None::<crate::api::types::SharedEvent>.unwrap();
         let _: Vec<String> = SharedEvent.note_ids;
         let _: u32 = SharedEvent.invitations;
         let _: Vec<String> = SharedEvent.comment_notes;
         let _: Vec<String> = SharedEvent.live_notes;
+        let _: Vec<String> = SharedEvent.notebooks;
+        let _: u32 = SharedEvent.book_invitations;
+        let _: Vec<String> = SharedEvent.book_notices;
     }
     {
         let ShortcutEntry = None::<crate::api::types::ShortcutEntry>.unwrap();
@@ -35531,6 +36471,19 @@ impl SseDecode
 
 impl SseDecode
     for StreamSink<
+        crate::api::types::BookShareProgress,
+        flutter_rust_bridge::for_generated::SseCodec,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return StreamSink::deserialize(inner);
+    }
+}
+
+impl SseDecode
+    for StreamSink<
         crate::api::draft_types::DraftEvent,
         flutter_rust_bridge::for_generated::SseCodec,
     >
@@ -36384,6 +37337,179 @@ impl SseDecode for crate::api::types::BoardView {
             kind: var_kind,
             columns: var_columns,
             setup: var_setup,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::BookEndedRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_notebookId = <String>::sse_decode(deserializer);
+        let mut var_copyName = <String>::sse_decode(deserializer);
+        let mut var_message = <String>::sse_decode(deserializer);
+        return crate::api::types::BookEndedRow {
+            notebook_id: var_notebookId,
+            copy_name: var_copyName,
+            message: var_message,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::BookInvitationRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_shareId = <String>::sse_decode(deserializer);
+        let mut var_from = <String>::sse_decode(deserializer);
+        let mut var_role = <crate::api::types::BookRole>::sse_decode(deserializer);
+        let mut var_invited = <bool>::sse_decode(deserializer);
+        let mut var_atMs = <i64>::sse_decode(deserializer);
+        return crate::api::types::BookInvitationRow {
+            share_id: var_shareId,
+            from: var_from,
+            role: var_role,
+            invited: var_invited,
+            at_ms: var_atMs,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::BookMemberRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_accountId = <String>::sse_decode(deserializer);
+        let mut var_username = <String>::sse_decode(deserializer);
+        let mut var_role = <crate::api::types::BookRole>::sse_decode(deserializer);
+        let mut var_me = <bool>::sse_decode(deserializer);
+        let mut var_standing = <crate::api::types::BookStandingRow>::sse_decode(deserializer);
+        let mut var_fingerprint = <String>::sse_decode(deserializer);
+        let mut var_verified = <bool>::sse_decode(deserializer);
+        let mut var_roles = <Vec<crate::api::types::BookRole>>::sse_decode(deserializer);
+        let mut var_removable = <bool>::sse_decode(deserializer);
+        return crate::api::types::BookMemberRow {
+            account_id: var_accountId,
+            username: var_username,
+            role: var_role,
+            me: var_me,
+            standing: var_standing,
+            fingerprint: var_fingerprint,
+            verified: var_verified,
+            roles: var_roles,
+            removable: var_removable,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::BookRole {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::types::BookRole::Owner,
+            1 => crate::api::types::BookRole::Manager,
+            2 => crate::api::types::BookRole::Editor,
+            3 => crate::api::types::BookRole::Commenter,
+            4 => crate::api::types::BookRole::Viewer,
+            _ => unreachable!("Invalid variant for BookRole: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::BookShareCheck {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_notes = <u32>::sse_decode(deserializer);
+        let mut var_locked = <u32>::sse_decode(deserializer);
+        let mut var_lockedName = <String>::sse_decode(deserializer);
+        let mut var_leftOut = <Vec<String>>::sse_decode(deserializer);
+        return crate::api::types::BookShareCheck {
+            name: var_name,
+            notes: var_notes,
+            locked: var_locked,
+            locked_name: var_lockedName,
+            left_out: var_leftOut,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::BookShareInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_shareId = <String>::sse_decode(deserializer);
+        let mut var_notebookId = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_myRole = <crate::api::types::BookRole>::sse_decode(deserializer);
+        let mut var_owner = <String>::sse_decode(deserializer);
+        let mut var_members = <Vec<crate::api::types::BookMemberRow>>::sse_decode(deserializer);
+        let mut var_inviteRoles = <Vec<crate::api::types::BookRole>>::sse_decode(deserializer);
+        let mut var_owned = <bool>::sse_decode(deserializer);
+        return crate::api::types::BookShareInfo {
+            share_id: var_shareId,
+            notebook_id: var_notebookId,
+            name: var_name,
+            my_role: var_myRole,
+            owner: var_owner,
+            members: var_members,
+            invite_roles: var_inviteRoles,
+            owned: var_owned,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::BookShareProgress {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_notebookId = <String>::sse_decode(deserializer);
+        let mut var_done = <u32>::sse_decode(deserializer);
+        let mut var_total = <u32>::sse_decode(deserializer);
+        return crate::api::types::BookShareProgress {
+            notebook_id: var_notebookId,
+            done: var_done,
+            total: var_total,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::BookStandingRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::types::BookStandingRow::Member,
+            1 => crate::api::types::BookStandingRow::Invited,
+            2 => crate::api::types::BookStandingRow::Left,
+            3 => crate::api::types::BookStandingRow::Unknown,
+            _ => unreachable!("Invalid variant for BookStandingRow: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::BookSyncStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_offline = <bool>::sse_decode(deserializer);
+        let mut var_waiting = <u32>::sse_decode(deserializer);
+        let mut var_live = <bool>::sse_decode(deserializer);
+        return crate::api::types::BookSyncStatus {
+            offline: var_offline,
+            waiting: var_waiting,
+            live: var_live,
+        };
+    }
+}
+
+impl SseDecode for crate::api::types::BookWords {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_removeTitle = <String>::sse_decode(deserializer);
+        let mut var_removeBody = <String>::sse_decode(deserializer);
+        let mut var_leaveTitle = <String>::sse_decode(deserializer);
+        let mut var_stopTitle = <String>::sse_decode(deserializer);
+        return crate::api::types::BookWords {
+            remove_title: var_removeTitle,
+            remove_body: var_removeBody,
+            leave_title: var_leaveTitle,
+            stop_title: var_stopTitle,
         };
     }
 }
@@ -38969,6 +40095,44 @@ impl SseDecode for Vec<crate::api::types::BoardColumn> {
     }
 }
 
+impl SseDecode for Vec<crate::api::types::BookInvitationRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::types::BookInvitationRow>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::types::BookMemberRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::types::BookMemberRow>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::types::BookRole> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::types::BookRole>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::types::BriefNote> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -39668,6 +40832,18 @@ impl SseDecode for Vec<crate::api::cards_types::NoteCardView> {
             ans_.push(<crate::api::cards_types::NoteCardView>::sse_decode(
                 deserializer,
             ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::types::NoteEditRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::types::NoteEditRow>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -40510,6 +41686,20 @@ impl SseDecode for Vec<crate::api::types::Range16> {
     }
 }
 
+impl SseDecode for Vec<(String, crate::api::types::BookRole)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<(String, crate::api::types::BookRole)>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<(String, crate::api::types::ShareRole)> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -40739,6 +41929,18 @@ impl SseDecode for Vec<crate::api::types::ShareLinkRow> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::types::ShareLinkRow>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::types::SharedBookRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::types::SharedBookRow>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -41837,6 +43039,22 @@ impl SseDecode for crate::api::types::NoteChange {
     }
 }
 
+impl SseDecode for crate::api::types::NoteEditRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_noteId = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_me = <bool>::sse_decode(deserializer);
+        let mut var_atMs = <i64>::sse_decode(deserializer);
+        return crate::api::types::NoteEditRow {
+            note_id: var_noteId,
+            name: var_name,
+            me: var_me,
+            at_ms: var_atMs,
+        };
+    }
+}
+
 impl SseDecode for crate::api::types::NoteHistory {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -42212,6 +43430,30 @@ impl SseDecode for Option<crate::api::types::BoardSetup> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::types::BoardSetup>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::types::BookShareInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::types::BookShareInfo>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::types::BookSyncStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::types::BookSyncStatus>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -45393,6 +46635,15 @@ impl SseDecode
     }
 }
 
+impl SseDecode for (String, crate::api::types::BookRole) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_field0 = <String>::sse_decode(deserializer);
+        let mut var_field1 = <crate::api::types::BookRole>::sse_decode(deserializer);
+        return (var_field0, var_field1);
+    }
+}
+
 impl SseDecode for (String, crate::api::types::ShareRole) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -46281,6 +47532,28 @@ impl SseDecode for crate::api::types::ShareRole {
     }
 }
 
+impl SseDecode for crate::api::types::SharedBookRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_shareId = <String>::sse_decode(deserializer);
+        let mut var_notebookId = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_myRole = <crate::api::types::BookRole>::sse_decode(deserializer);
+        let mut var_owner = <String>::sse_decode(deserializer);
+        let mut var_members = <Vec<String>>::sse_decode(deserializer);
+        let mut var_status = <crate::api::types::BookSyncStatus>::sse_decode(deserializer);
+        return crate::api::types::SharedBookRow {
+            share_id: var_shareId,
+            notebook_id: var_notebookId,
+            name: var_name,
+            my_role: var_myRole,
+            owner: var_owner,
+            members: var_members,
+            status: var_status,
+        };
+    }
+}
+
 impl SseDecode for crate::api::types::SharedEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -46288,11 +47561,17 @@ impl SseDecode for crate::api::types::SharedEvent {
         let mut var_invitations = <u32>::sse_decode(deserializer);
         let mut var_commentNotes = <Vec<String>>::sse_decode(deserializer);
         let mut var_liveNotes = <Vec<String>>::sse_decode(deserializer);
+        let mut var_notebooks = <Vec<String>>::sse_decode(deserializer);
+        let mut var_bookInvitations = <u32>::sse_decode(deserializer);
+        let mut var_bookNotices = <Vec<String>>::sse_decode(deserializer);
         return crate::api::types::SharedEvent {
             note_ids: var_noteIds,
             invitations: var_invitations,
             comment_notes: var_commentNotes,
             live_notes: var_liveNotes,
+            notebooks: var_notebooks,
+            book_invitations: var_bookInvitations,
+            book_notices: var_bookNotices,
         };
     }
 }
@@ -49818,276 +51097,351 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         512 => wire__crate__api__shared__KansoShared_accept_impl(port, ptr, rust_vec_len, data_len),
-        513 => wire__crate__api__shared__KansoShared_accept_new_key_impl(
+        513 => wire__crate__api__shared__KansoShared_accept_book_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        514 => wire__crate__api__shared__KansoShared_add_comment_impl(
+        514 => wire__crate__api__shared__KansoShared_accept_new_key_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        515 => wire__crate__api__shared__KansoShared_approve_request_impl(
+        515 => wire__crate__api__shared__KansoShared_add_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        516 => {
+        516 => wire__crate__api__shared__KansoShared_approve_request_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        517 => {
+            wire__crate__api__shared__KansoShared_book_edits_impl(port, ptr, rust_vec_len, data_len)
+        }
+        518 => {
+            wire__crate__api__shared__KansoShared_book_info_impl(port, ptr, rust_vec_len, data_len)
+        }
+        519 => wire__crate__api__shared__KansoShared_book_invitations_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        520 => wire__crate__api__shared__KansoShared_book_progress_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        521 => wire__crate__api__shared__KansoShared_book_status_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        523 => {
             wire__crate__api__shared__KansoShared_can_share_impl(port, ptr, rust_vec_len, data_len)
         }
-        517 => wire__crate__api__shared__KansoShared_cancel_link_impl(
+        524 => wire__crate__api__shared__KansoShared_can_share_book_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        518 => {
+        525 => wire__crate__api__shared__KansoShared_cancel_link_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        526 => {
             wire__crate__api__shared__KansoShared_close_live_impl(port, ptr, rust_vec_len, data_len)
         }
-        519 => {
+        527 => {
             wire__crate__api__shared__KansoShared_comments_impl(port, ptr, rust_vec_len, data_len)
         }
-        520 => wire__crate__api__shared__KansoShared_comments_band_impl(
+        528 => wire__crate__api__shared__KansoShared_comments_band_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        521 => wire__crate__api__shared__KansoShared_create_link_impl(
+        529 => wire__crate__api__shared__KansoShared_create_link_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        522 => {
+        530 => {
             wire__crate__api__shared__KansoShared_decline_impl(port, ptr, rust_vec_len, data_len)
         }
-        523 => wire__crate__api__shared__KansoShared_decline_request_impl(
+        531 => wire__crate__api__shared__KansoShared_decline_book_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        524 => wire__crate__api__shared__KansoShared_delete_comment_impl(
+        532 => wire__crate__api__shared__KansoShared_decline_request_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        525 => wire__crate__api__shared__KansoShared_dismiss_problems_impl(
+        533 => wire__crate__api__shared__KansoShared_delete_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        526 => wire__crate__api__shared__KansoShared_edit_comment_impl(
+        534 => wire__crate__api__shared__KansoShared_dismiss_problems_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        527 => wire__crate__api__shared__KansoShared_events_impl(port, ptr, rust_vec_len, data_len),
-        528 => wire__crate__api__shared__KansoShared_info_impl(port, ptr, rust_vec_len, data_len),
-        529 => wire__crate__api__shared__KansoShared_invitations_impl(
+        535 => wire__crate__api__shared__KansoShared_edit_comment_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        530 => wire__crate__api__shared__KansoShared_invite_impl(port, ptr, rust_vec_len, data_len),
-        531 => wire__crate__api__shared__KansoShared_join_impl(port, ptr, rust_vec_len, data_len),
-        532 => wire__crate__api__shared__KansoShared_leave_impl(port, ptr, rust_vec_len, data_len),
-        533 => wire__crate__api__shared__KansoShared_live_status_impl(
+        536 => wire__crate__api__shared__KansoShared_events_impl(port, ptr, rust_vec_len, data_len),
+        537 => wire__crate__api__shared__KansoShared_info_impl(port, ptr, rust_vec_len, data_len),
+        538 => wire__crate__api__shared__KansoShared_invitations_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        534 => wire__crate__api__shared__KansoShared_lookup_person_impl(
+        539 => wire__crate__api__shared__KansoShared_invite_impl(port, ptr, rust_vec_len, data_len),
+        540 => wire__crate__api__shared__KansoShared_invite_to_book_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        535 => wire__crate__api__shared__KansoShared_open_comments_impl(
+        541 => wire__crate__api__shared__KansoShared_join_impl(port, ptr, rust_vec_len, data_len),
+        542 => wire__crate__api__shared__KansoShared_leave_impl(port, ptr, rust_vec_len, data_len),
+        543 => {
+            wire__crate__api__shared__KansoShared_leave_book_impl(port, ptr, rust_vec_len, data_len)
+        }
+        544 => wire__crate__api__shared__KansoShared_live_status_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        536 => {
+        545 => wire__crate__api__shared__KansoShared_lookup_person_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        546 => wire__crate__api__shared__KansoShared_open_comments_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        547 => {
             wire__crate__api__shared__KansoShared_open_live_impl(port, ptr, rust_vec_len, data_len)
         }
-        537 => wire__crate__api__shared__KansoShared_remove_impl(port, ptr, rust_vec_len, data_len),
-        538 => wire__crate__api__shared__KansoShared_resolve_comment_impl(
+        548 => wire__crate__api__shared__KansoShared_remove_impl(port, ptr, rust_vec_len, data_len),
+        549 => wire__crate__api__shared__KansoShared_remove_from_book_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        539 => {
+        550 => wire__crate__api__shared__KansoShared_resolve_comment_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        551 => wire__crate__api__shared__KansoShared_set_book_role_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        552 => {
             wire__crate__api__shared__KansoShared_set_role_impl(port, ptr, rust_vec_len, data_len)
         }
-        540 => wire__crate__api__shared__KansoShared_share_impl(port, ptr, rust_vec_len, data_len),
-        541 => wire__crate__api__shared__KansoShared_stop_impl(port, ptr, rust_vec_len, data_len),
-        542 => wire__crate__api__shared__KansoShared_sync_shared_impl(
+        553 => wire__crate__api__shared__KansoShared_share_impl(port, ptr, rust_vec_len, data_len),
+        554 => {
+            wire__crate__api__shared__KansoShared_share_book_impl(port, ptr, rust_vec_len, data_len)
+        }
+        555 => wire__crate__api__shared__KansoShared_shared_books_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        543 => wire__crate__api__shared__KansoShared_verify_person_impl(
+        556 => wire__crate__api__shared__KansoShared_stop_impl(port, ptr, rust_vec_len, data_len),
+        557 => {
+            wire__crate__api__shared__KansoShared_stop_book_impl(port, ptr, rust_vec_len, data_len)
+        }
+        558 => wire__crate__api__shared__KansoShared_sync_shared_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        544 => {
+        559 => wire__crate__api__shared__KansoShared_verify_person_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        560 => {
             wire__crate__api__sync__KansoSync_check_server_impl(port, ptr, rust_vec_len, data_len)
         }
-        545 => {
+        561 => {
             wire__crate__api__sync__KansoSync_default_server_impl(port, ptr, rust_vec_len, data_len)
         }
-        549 => {
+        565 => {
             wire__crate__api__sync__KansoSync_push_enabled_impl(port, ptr, rust_vec_len, data_len)
         }
-        550 => {
+        566 => {
             wire__crate__api__sync__KansoSync_refresh_push_impl(port, ptr, rust_vec_len, data_len)
         }
-        551 => {
+        567 => {
             wire__crate__api__sync__KansoSync_set_foreground_impl(port, ptr, rust_vec_len, data_len)
         }
-        552 => wire__crate__api__sync__KansoSync_set_push_enabled_impl(
+        568 => wire__crate__api__sync__KansoSync_set_push_enabled_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        553 => {
+        569 => {
             wire__crate__api__sync__KansoSync_set_push_token_impl(port, ptr, rust_vec_len, data_len)
         }
-        554 => {
+        570 => {
             wire__crate__api__sync__KansoSync_set_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        555 => wire__crate__api__sync__KansoSync_settings_impl(port, ptr, rust_vec_len, data_len),
-        556 => wire__crate__api__sync__KansoSync_sign_in_password_impl(
+        571 => wire__crate__api__sync__KansoSync_settings_impl(port, ptr, rust_vec_len, data_len),
+        572 => wire__crate__api__sync__KansoSync_sign_in_password_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        557 => wire__crate__api__sync__KansoSync_sign_out_impl(port, ptr, rust_vec_len, data_len),
-        558 => wire__crate__api__sync__KansoSync_status_impl(port, ptr, rust_vec_len, data_len),
-        560 => {
+        573 => wire__crate__api__sync__KansoSync_sign_out_impl(port, ptr, rust_vec_len, data_len),
+        574 => wire__crate__api__sync__KansoSync_status_impl(port, ptr, rust_vec_len, data_len),
+        576 => {
             wire__crate__api__sync__KansoSync_status_stream_impl(port, ptr, rust_vec_len, data_len)
         }
-        561 => wire__crate__api__sync__KansoSync_sync_now_impl(port, ptr, rust_vec_len, data_len),
-        562 => wire__crate__api__themes__KansoThemes_fit_impl(port, ptr, rust_vec_len, data_len),
-        563 => wire__crate__api__themes__KansoThemes_icon_themes_impl(
+        577 => wire__crate__api__sync__KansoSync_sync_now_impl(port, ptr, rust_vec_len, data_len),
+        578 => wire__crate__api__themes__KansoThemes_fit_impl(port, ptr, rust_vec_len, data_len),
+        579 => wire__crate__api__themes__KansoThemes_icon_themes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        564 => wire__crate__api__themes__KansoThemes_import_impl(port, ptr, rust_vec_len, data_len),
-        565 => wire__crate__api__themes__KansoThemes_import_icon_theme_impl(
+        580 => wire__crate__api__themes__KansoThemes_import_impl(port, ptr, rust_vec_len, data_len),
+        581 => wire__crate__api__themes__KansoThemes_import_icon_theme_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        566 => wire__crate__api__themes__KansoThemes_list_impl(port, ptr, rust_vec_len, data_len),
-        567 => {
+        582 => wire__crate__api__themes__KansoThemes_list_impl(port, ptr, rust_vec_len, data_len),
+        583 => {
             wire__crate__api__themes__KansoThemes_notices_impl(port, ptr, rust_vec_len, data_len)
         }
-        568 => wire__crate__api__themes__KansoThemes_styled_runs_impl(
+        584 => wire__crate__api__themes__KansoThemes_styled_runs_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        569 => wire__crate__api__triage__KansoTriage_card_impl(port, ptr, rust_vec_len, data_len),
-        570 => wire__crate__api__triage__KansoTriage_cards_impl(port, ptr, rust_vec_len, data_len),
-        571 => wire__crate__api__triage__KansoTriage_file_impl(port, ptr, rust_vec_len, data_len),
-        572 => wire__crate__api__triage__KansoTriage_plan_impl(port, ptr, rust_vec_len, data_len),
-        573 => wire__crate__api__triage__KansoTriage_refine_impl(port, ptr, rust_vec_len, data_len),
-        574 => wire__crate__api__triage__KansoTriage_reject_impl(port, ptr, rust_vec_len, data_len),
-        575 => {
+        585 => wire__crate__api__triage__KansoTriage_card_impl(port, ptr, rust_vec_len, data_len),
+        586 => wire__crate__api__triage__KansoTriage_cards_impl(port, ptr, rust_vec_len, data_len),
+        587 => wire__crate__api__triage__KansoTriage_file_impl(port, ptr, rust_vec_len, data_len),
+        588 => wire__crate__api__triage__KansoTriage_plan_impl(port, ptr, rust_vec_len, data_len),
+        589 => wire__crate__api__triage__KansoTriage_refine_impl(port, ptr, rust_vec_len, data_len),
+        590 => wire__crate__api__triage__KansoTriage_reject_impl(port, ptr, rust_vec_len, data_len),
+        591 => {
             wire__crate__api__triage__KansoTriage_resolve_impl(port, ptr, rust_vec_len, data_len)
         }
-        576 => wire__crate__api__triage__KansoTriage_set_settings_impl(
+        592 => wire__crate__api__triage__KansoTriage_set_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        577 => {
+        593 => {
             wire__crate__api__triage__KansoTriage_settings_impl(port, ptr, rust_vec_len, data_len)
         }
-        578 => wire__crate__api__triage__KansoTriage_status_impl(port, ptr, rust_vec_len, data_len),
-        579 => {
+        594 => wire__crate__api__triage__KansoTriage_status_impl(port, ptr, rust_vec_len, data_len),
+        595 => {
             wire__crate__api__triage__KansoTriage_unreject_impl(port, ptr, rust_vec_len, data_len)
         }
-        580 => wire__crate__api__voice_capture__KansoVoiceCapture_discard_drop_impl(
+        596 => wire__crate__api__voice_capture__KansoVoiceCapture_discard_drop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        581 => wire__crate__api__voice_capture__KansoVoiceCapture_drops_impl(
+        597 => wire__crate__api__voice_capture__KansoVoiceCapture_drops_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        582 => wire__crate__api__voice_capture__KansoVoiceCapture_note_info_impl(
+        598 => wire__crate__api__voice_capture__KansoVoiceCapture_note_info_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        583 => wire__crate__api__voice_capture__KansoVoiceCapture_quarantine_drop_impl(
+        599 => wire__crate__api__voice_capture__KansoVoiceCapture_quarantine_drop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        584 => wire__crate__api__voice_capture__KansoVoiceCapture_save_impl(
+        600 => wire__crate__api__voice_capture__KansoVoiceCapture_save_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        585 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_impl(
+        601 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        586 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_audio_only_impl(
+        602 => wire__crate__api__voice_capture__KansoVoiceCapture_save_drop_audio_only_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        587 => wire__crate__api__voice_capture__KansoVoiceCapture_tidy_note_impl(
+        603 => wire__crate__api__voice_capture__KansoVoiceCapture_tidy_note_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        588 => {
+        604 => {
             wire__crate__api__diagnostics__backup_excluded_impl(port, ptr, rust_vec_len, data_len)
         }
-        598 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
-        599 => wire__crate__api__editor__property_zones_impl(port, ptr, rust_vec_len, data_len),
-        601 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
-        603 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
-        604 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
+        614 => wire__crate__api__diagnostics__panic_probe_impl(port, ptr, rust_vec_len, data_len),
+        615 => wire__crate__api__editor__property_zones_impl(port, ptr, rust_vec_len, data_len),
+        617 => wire__crate__api__diagnostics__secrets_probe_impl(port, ptr, rust_vec_len, data_len),
+        619 => wire__crate__api__diagnostics__tls_ready_impl(port, ptr, rust_vec_len, data_len),
+        620 => wire__crate__api__diagnostics__version_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -50228,30 +51582,31 @@ fn pde_ffi_dispatcher_sync_impl(
         488 => wire__crate__api__recording__KansoRecording_pause_impl(ptr, rust_vec_len, data_len),
         489 => wire__crate__api__recording__KansoRecording_resume_impl(ptr, rust_vec_len, data_len),
         490 => wire__crate__api__recording__KansoRecording_status_impl(ptr, rust_vec_len, data_len),
-        546 => wire__crate__api__sync__KansoSync_interval_label_impl(ptr, rust_vec_len, data_len),
-        547 => wire__crate__api__sync__KansoSync_interval_options_impl(ptr, rust_vec_len, data_len),
-        548 => wire__crate__api__sync__KansoSync_interval_phrase_impl(ptr, rust_vec_len, data_len),
-        559 => wire__crate__api__sync__KansoSync_status_line_impl(ptr, rust_vec_len, data_len),
-        589 => wire__crate__api__library__backups_summary_impl(ptr, rust_vec_len, data_len),
-        590 => wire__crate__api__canvas__canvas_ink_preview_impl(ptr, rust_vec_len, data_len),
-        591 => wire__crate__api__when__capture_task_hint_impl(ptr, rust_vec_len, data_len),
-        592 => wire__crate__api__when__date_choices_impl(ptr, rust_vec_len, data_len),
-        593 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
-        594 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
-        595 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
-        596 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
-        597 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
-        600 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
-        602 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
-        605 => wire__crate__api__when__when_parse_impl(ptr, rust_vec_len, data_len),
-        606 => {
+        522 => wire__crate__api__shared__KansoShared_book_words_impl(ptr, rust_vec_len, data_len),
+        562 => wire__crate__api__sync__KansoSync_interval_label_impl(ptr, rust_vec_len, data_len),
+        563 => wire__crate__api__sync__KansoSync_interval_options_impl(ptr, rust_vec_len, data_len),
+        564 => wire__crate__api__sync__KansoSync_interval_phrase_impl(ptr, rust_vec_len, data_len),
+        575 => wire__crate__api__sync__KansoSync_status_line_impl(ptr, rust_vec_len, data_len),
+        605 => wire__crate__api__library__backups_summary_impl(ptr, rust_vec_len, data_len),
+        606 => wire__crate__api__canvas__canvas_ink_preview_impl(ptr, rust_vec_len, data_len),
+        607 => wire__crate__api__when__capture_task_hint_impl(ptr, rust_vec_len, data_len),
+        608 => wire__crate__api__when__date_choices_impl(ptr, rust_vec_len, data_len),
+        609 => wire__crate__api__voice__dictated_impl(ptr, rust_vec_len, data_len),
+        610 => wire__crate__api__import__import_kinds_for_impl(ptr, rust_vec_len, data_len),
+        611 => wire__crate__api__import__import_sources_impl(ptr, rust_vec_len, data_len),
+        612 => wire__crate__api__discovery__meaning_min_chars_impl(ptr, rust_vec_len, data_len),
+        613 => wire__crate__api__discovery__meaning_query_impl(ptr, rust_vec_len, data_len),
+        616 => wire__crate__api__library__replace_apply_label_impl(ptr, rust_vec_len, data_len),
+        618 => wire__crate__api__shortcuts__shortcut_catalog_impl(ptr, rust_vec_len, data_len),
+        621 => wire__crate__api__when__when_parse_impl(ptr, rust_vec_len, data_len),
+        622 => {
             wire__crate__api__word_goal__word_goal_format_count_impl(ptr, rust_vec_len, data_len)
         }
-        607 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
-        608 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
-        609 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
-        610 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
-        611 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
+        623 => wire__crate__api__word_goal__word_goal_label_impl(ptr, rust_vec_len, data_len),
+        624 => wire__crate__api__word_goal__word_goal_parse_impl(ptr, rust_vec_len, data_len),
+        625 => wire__crate__api__word_goal__word_goal_presets_impl(ptr, rust_vec_len, data_len),
+        626 => wire__crate__api__word_goal__word_goal_progress_impl(ptr, rust_vec_len, data_len),
+        627 => wire__crate__api__word_goal__word_goal_word_count_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -51601,6 +52956,245 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BoardView>>
     for crate::api::types::BoardView
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::BoardView> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::BookEndedRow> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.notebook_id.into_into_dart().into_dart(),
+            self.0.copy_name.into_into_dart().into_dart(),
+            self.0.message.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::BookEndedRow>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BookEndedRow>>
+    for crate::api::types::BookEndedRow
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::BookEndedRow> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::BookInvitationRow> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.share_id.into_into_dart().into_dart(),
+            self.0.from.into_into_dart().into_dart(),
+            self.0.role.into_into_dart().into_dart(),
+            self.0.invited.into_into_dart().into_dart(),
+            self.0.at_ms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::BookInvitationRow>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BookInvitationRow>>
+    for crate::api::types::BookInvitationRow
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::BookInvitationRow> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::BookMemberRow> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.account_id.into_into_dart().into_dart(),
+            self.0.username.into_into_dart().into_dart(),
+            self.0.role.into_into_dart().into_dart(),
+            self.0.me.into_into_dart().into_dart(),
+            self.0.standing.into_into_dart().into_dart(),
+            self.0.fingerprint.into_into_dart().into_dart(),
+            self.0.verified.into_into_dart().into_dart(),
+            self.0.roles.into_into_dart().into_dart(),
+            self.0.removable.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::BookMemberRow>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BookMemberRow>>
+    for crate::api::types::BookMemberRow
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::BookMemberRow> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::BookRole> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::types::BookRole::Owner => 0.into_dart(),
+            crate::api::types::BookRole::Manager => 1.into_dart(),
+            crate::api::types::BookRole::Editor => 2.into_dart(),
+            crate::api::types::BookRole::Commenter => 3.into_dart(),
+            crate::api::types::BookRole::Viewer => 4.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::BookRole>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BookRole>>
+    for crate::api::types::BookRole
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::BookRole> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::BookShareCheck> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.name.into_into_dart().into_dart(),
+            self.0.notes.into_into_dart().into_dart(),
+            self.0.locked.into_into_dart().into_dart(),
+            self.0.locked_name.into_into_dart().into_dart(),
+            self.0.left_out.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::BookShareCheck>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BookShareCheck>>
+    for crate::api::types::BookShareCheck
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::BookShareCheck> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::BookShareInfo> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.share_id.into_into_dart().into_dart(),
+            self.0.notebook_id.into_into_dart().into_dart(),
+            self.0.name.into_into_dart().into_dart(),
+            self.0.my_role.into_into_dart().into_dart(),
+            self.0.owner.into_into_dart().into_dart(),
+            self.0.members.into_into_dart().into_dart(),
+            self.0.invite_roles.into_into_dart().into_dart(),
+            self.0.owned.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::BookShareInfo>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BookShareInfo>>
+    for crate::api::types::BookShareInfo
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::BookShareInfo> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::BookShareProgress> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.notebook_id.into_into_dart().into_dart(),
+            self.0.done.into_into_dart().into_dart(),
+            self.0.total.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::BookShareProgress>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BookShareProgress>>
+    for crate::api::types::BookShareProgress
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::BookShareProgress> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::BookStandingRow> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::types::BookStandingRow::Member => 0.into_dart(),
+            crate::api::types::BookStandingRow::Invited => 1.into_dart(),
+            crate::api::types::BookStandingRow::Left => 2.into_dart(),
+            crate::api::types::BookStandingRow::Unknown => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::BookStandingRow>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BookStandingRow>>
+    for crate::api::types::BookStandingRow
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::BookStandingRow> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::BookSyncStatus> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.offline.into_into_dart().into_dart(),
+            self.0.waiting.into_into_dart().into_dart(),
+            self.0.live.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::BookSyncStatus>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BookSyncStatus>>
+    for crate::api::types::BookSyncStatus
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::BookSyncStatus> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::BookWords> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.remove_title.into_into_dart().into_dart(),
+            self.0.remove_body.into_into_dart().into_dart(),
+            self.0.leave_title.into_into_dart().into_dart(),
+            self.0.stop_title.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::BookWords>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BookWords>>
+    for crate::api::types::BookWords
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::BookWords> {
         self.into()
     }
 }
@@ -55730,6 +57324,29 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::NoteChange>
     for crate::api::types::NoteChange
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::types::NoteChange> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::NoteEditRow> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.note_id.into_into_dart().into_dart(),
+            self.0.name.into_into_dart().into_dart(),
+            self.0.me.into_into_dart().into_dart(),
+            self.0.at_ms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::NoteEditRow>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::NoteEditRow>>
+    for crate::api::types::NoteEditRow
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::NoteEditRow> {
         self.into()
     }
 }
@@ -60294,6 +61911,32 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::ShareRole>>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::SharedBookRow> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.share_id.into_into_dart().into_dart(),
+            self.0.notebook_id.into_into_dart().into_dart(),
+            self.0.name.into_into_dart().into_dart(),
+            self.0.my_role.into_into_dart().into_dart(),
+            self.0.owner.into_into_dart().into_dart(),
+            self.0.members.into_into_dart().into_dart(),
+            self.0.status.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::SharedBookRow>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::SharedBookRow>>
+    for crate::api::types::SharedBookRow
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::SharedBookRow> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::SharedEvent> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -60301,6 +61944,9 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::SharedEvent
             self.0.invitations.into_into_dart().into_dart(),
             self.0.comment_notes.into_into_dart().into_dart(),
             self.0.live_notes.into_into_dart().into_dart(),
+            self.0.notebooks.into_into_dart().into_dart(),
+            self.0.book_invitations.into_into_dart().into_dart(),
+            self.0.book_notices.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -62924,6 +64570,18 @@ impl SseEncode
 
 impl SseEncode
     for StreamSink<
+        crate::api::types::BookShareProgress,
+        flutter_rust_bridge::for_generated::SseCodec,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        unimplemented!("")
+    }
+}
+
+impl SseEncode
+    for StreamSink<
         crate::api::draft_types::DraftEvent,
         flutter_rust_bridge::for_generated::SseCodec,
     >
@@ -63586,6 +65244,131 @@ impl SseEncode for crate::api::types::BoardView {
         <crate::api::types::BoardKind>::sse_encode(self.kind, serializer);
         <Vec<crate::api::types::BoardColumn>>::sse_encode(self.columns, serializer);
         <Option<crate::api::types::BoardSetup>>::sse_encode(self.setup, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::BookEndedRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.notebook_id, serializer);
+        <String>::sse_encode(self.copy_name, serializer);
+        <String>::sse_encode(self.message, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::BookInvitationRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.share_id, serializer);
+        <String>::sse_encode(self.from, serializer);
+        <crate::api::types::BookRole>::sse_encode(self.role, serializer);
+        <bool>::sse_encode(self.invited, serializer);
+        <i64>::sse_encode(self.at_ms, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::BookMemberRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.account_id, serializer);
+        <String>::sse_encode(self.username, serializer);
+        <crate::api::types::BookRole>::sse_encode(self.role, serializer);
+        <bool>::sse_encode(self.me, serializer);
+        <crate::api::types::BookStandingRow>::sse_encode(self.standing, serializer);
+        <String>::sse_encode(self.fingerprint, serializer);
+        <bool>::sse_encode(self.verified, serializer);
+        <Vec<crate::api::types::BookRole>>::sse_encode(self.roles, serializer);
+        <bool>::sse_encode(self.removable, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::BookRole {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::types::BookRole::Owner => 0,
+                crate::api::types::BookRole::Manager => 1,
+                crate::api::types::BookRole::Editor => 2,
+                crate::api::types::BookRole::Commenter => 3,
+                crate::api::types::BookRole::Viewer => 4,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::types::BookShareCheck {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.name, serializer);
+        <u32>::sse_encode(self.notes, serializer);
+        <u32>::sse_encode(self.locked, serializer);
+        <String>::sse_encode(self.locked_name, serializer);
+        <Vec<String>>::sse_encode(self.left_out, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::BookShareInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.share_id, serializer);
+        <String>::sse_encode(self.notebook_id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <crate::api::types::BookRole>::sse_encode(self.my_role, serializer);
+        <String>::sse_encode(self.owner, serializer);
+        <Vec<crate::api::types::BookMemberRow>>::sse_encode(self.members, serializer);
+        <Vec<crate::api::types::BookRole>>::sse_encode(self.invite_roles, serializer);
+        <bool>::sse_encode(self.owned, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::BookShareProgress {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.notebook_id, serializer);
+        <u32>::sse_encode(self.done, serializer);
+        <u32>::sse_encode(self.total, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::BookStandingRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::types::BookStandingRow::Member => 0,
+                crate::api::types::BookStandingRow::Invited => 1,
+                crate::api::types::BookStandingRow::Left => 2,
+                crate::api::types::BookStandingRow::Unknown => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::types::BookSyncStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.offline, serializer);
+        <u32>::sse_encode(self.waiting, serializer);
+        <bool>::sse_encode(self.live, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::BookWords {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.remove_title, serializer);
+        <String>::sse_encode(self.remove_body, serializer);
+        <String>::sse_encode(self.leave_title, serializer);
+        <String>::sse_encode(self.stop_title, serializer);
     }
 }
 
@@ -65480,6 +67263,36 @@ impl SseEncode for Vec<crate::api::types::BoardColumn> {
     }
 }
 
+impl SseEncode for Vec<crate::api::types::BookInvitationRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::types::BookInvitationRow>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::types::BookMemberRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::types::BookMemberRow>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::types::BookRole> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::types::BookRole>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::types::BriefNote> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -66026,6 +67839,16 @@ impl SseEncode for Vec<crate::api::cards_types::NoteCardView> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::cards_types::NoteCardView>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::types::NoteEditRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::types::NoteEditRow>::sse_encode(item, serializer);
         }
     }
 }
@@ -66673,6 +68496,16 @@ impl SseEncode for Vec<crate::api::types::Range16> {
     }
 }
 
+impl SseEncode for Vec<(String, crate::api::types::BookRole)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <(String, crate::api::types::BookRole)>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<(String, crate::api::types::ShareRole)> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -66849,6 +68682,16 @@ impl SseEncode for Vec<crate::api::types::ShareLinkRow> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::types::ShareLinkRow>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::types::SharedBookRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::types::SharedBookRow>::sse_encode(item, serializer);
         }
     }
 }
@@ -67703,6 +69546,16 @@ impl SseEncode for crate::api::types::NoteChange {
     }
 }
 
+impl SseEncode for crate::api::types::NoteEditRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.note_id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <bool>::sse_encode(self.me, serializer);
+        <i64>::sse_encode(self.at_ms, serializer);
+    }
+}
+
 impl SseEncode for crate::api::types::NoteHistory {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -67977,6 +69830,26 @@ impl SseEncode for Option<crate::api::types::BoardSetup> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::types::BoardSetup>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::types::BookShareInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::types::BookShareInfo>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::types::BookSyncStatus> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::types::BookSyncStatus>::sse_encode(value, serializer);
         }
     }
 }
@@ -70472,6 +72345,14 @@ impl SseEncode
     }
 }
 
+impl SseEncode for (String, crate::api::types::BookRole) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.0, serializer);
+        <crate::api::types::BookRole>::sse_encode(self.1, serializer);
+    }
+}
+
 impl SseEncode for (String, crate::api::types::ShareRole) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -71107,6 +72988,19 @@ impl SseEncode for crate::api::types::ShareRole {
     }
 }
 
+impl SseEncode for crate::api::types::SharedBookRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.share_id, serializer);
+        <String>::sse_encode(self.notebook_id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <crate::api::types::BookRole>::sse_encode(self.my_role, serializer);
+        <String>::sse_encode(self.owner, serializer);
+        <Vec<String>>::sse_encode(self.members, serializer);
+        <crate::api::types::BookSyncStatus>::sse_encode(self.status, serializer);
+    }
+}
+
 impl SseEncode for crate::api::types::SharedEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -71114,6 +73008,9 @@ impl SseEncode for crate::api::types::SharedEvent {
         <u32>::sse_encode(self.invitations, serializer);
         <Vec<String>>::sse_encode(self.comment_notes, serializer);
         <Vec<String>>::sse_encode(self.live_notes, serializer);
+        <Vec<String>>::sse_encode(self.notebooks, serializer);
+        <u32>::sse_encode(self.book_invitations, serializer);
+        <Vec<String>>::sse_encode(self.book_notices, serializer);
     }
 }
 

@@ -13797,6 +13797,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Anyone who can read the note can still copy it. The embargo is a reminder, not a lock.'**
   String get embargoGuardRail;
+
+  /// The title of a notebook's Share sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Share “{name}”'**
+  String shareNotebookTitle(String name);
+
+  /// The Share sheet's title before the notebook's name is known.
+  ///
+  /// In en, this message translates to:
+  /// **'Share notebook'**
+  String get shareNotebookTitlePlain;
+
+  /// The notebook actions entry that opens its Share sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Share notebook…'**
+  String get shareNotebookAction;
+
+  /// What sharing a notebook means, at the top of its Share sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite people by their Kanso username. Everyone here sees every note in this notebook, its board, schedule and templates. It stays end-to-end encrypted: your sync server passes it on without reading it.'**
+  String get shareNotebookIntro;
+
+  /// The Share notebook sheet while no account is signed in.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing a notebook lets people you choose read, comment on or edit its notes with you, end-to-end encrypted. It needs a Kanso account: sign in, or create one, then share.'**
+  String get shareNotebookSignedOut;
+
+  /// A notebook with nothing in it can't be shared yet.
+  ///
+  /// In en, this message translates to:
+  /// **'This notebook has no notes to share yet. Write one first.'**
+  String get shareNotebookEmpty;
+
+  /// Before sharing: the locked notes stay out, in a private notebook named after this one.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Locked notes can\'t be in a shared notebook. 1 locked note will stay in a private “{name}” notebook.} other{Locked notes can\'t be in a shared notebook. {count} locked notes will stay in a private “{name}” notebook.}}'**
+  String shareNotebookLocked(int count, String name);
+
+  /// Before sharing: the notes left out of a shared notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Not shared: {titles}. They\'re shared on their own, or canvases.'**
+  String shareNotebookLeftOut(String titles);
+
+  /// Before sharing: how many notes the shared notebook will hold.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 note goes in.} other{{count} notes go in.}}'**
+  String shareNotebookNotes(int count);
+
+  /// The button that shares the notebook with the first person.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get shareNotebookShare;
+
+  /// While a notebook's notes go up.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing {name}… {done} of {total}'**
+  String shareNotebookSharing(String name, int done, int total);
+
+  /// Said once a notebook is shared with its first person.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared “{name}” with {username}. It shows for them once they accept.'**
+  String shareNotebookShared(String name, String username);
+
+  /// Said once someone is invited to a shared notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Invited {username}. The notebook shows for them once they accept.'**
+  String shareNotebookInvited(String username);
+
+  /// Said once someone is removed from a shared notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {username}. The notebook has a new key.'**
+  String shareNotebookRemoved(String username);
+
+  /// Leaves a notebook someone else shared.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get shareNotebookLeave;
+
+  /// Stops sharing a notebook this account owns.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop sharing'**
+  String get shareNotebookStop;
+
+  /// Under the question that confirms stopping sharing a notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Everyone in it, you included, keeps a private copy of its notes. Nobody\'s edits reach the others any more.'**
+  String get shareNotebookStopBody;
+
+  /// Under the question that confirms leaving a notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Your copy is a private notebook from now on. To come back, someone in it invites you again.'**
+  String get shareNotebookLeaveBody;
+
+  /// Confirms removing someone from a shared notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get shareNotebookRemoveConfirm;
+
+  /// The member menu entry that removes someone from a shared notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from notebook…'**
+  String get shareNotebookRemoveMember;
+
+  /// What a screen reader calls the role picker of the invite field.
+  ///
+  /// In en, this message translates to:
+  /// **'Role for the person you invite'**
+  String get shareNotebookInviteRoleLabel;
+
+  /// A role in a shared notebook, as the desktop names it.
+  ///
+  /// In en, this message translates to:
+  /// **'{role, select, owner{Owner} manager{Manager} editor{Can edit} commenter{Can comment} other{Can view}}'**
+  String bookRoleName(String role);
+
+  /// Under someone invited to a shared notebook who hasn't joined.
+  ///
+  /// In en, this message translates to:
+  /// **'Invited, hasn\'t accepted yet'**
+  String get bookMemberInvited;
+
+  /// Under someone who left a shared notebook or declined it.
+  ///
+  /// In en, this message translates to:
+  /// **'Left or declined'**
+  String get bookMemberLeft;
+
+  /// The library's section of shared notebooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared'**
+  String get libraryShared;
+
+  /// An invitation to a shared notebook, in the library.
+  ///
+  /// In en, this message translates to:
+  /// **'{owner} invited you to a notebook · {role}'**
+  String sharedNotebookInvitation(String owner, String role);
+
+  /// A notebook another device of this account joined, in the library.
+  ///
+  /// In en, this message translates to:
+  /// **'A notebook {owner} shared with you · {role}'**
+  String sharedNotebookElsewhere(String owner, String role);
+
+  /// Joins a notebook someone shared.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get sharedNotebookAccept;
+
+  /// Joins on this device a notebook another device joined.
+  ///
+  /// In en, this message translates to:
+  /// **'Open here'**
+  String get sharedNotebookOpenHere;
+
+  /// Declines an invitation to a notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline'**
+  String get sharedNotebookDecline;
+
+  /// A shared notebook with nothing waiting to go.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get bookStatusUpToDate;
+
+  /// A shared notebook that couldn't be reached, with nothing waiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get bookStatusOffline;
+
+  /// How many notes of a shared notebook hold changes that haven't gone out.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 change waiting} other{{count} changes waiting}}'**
+  String bookStatusWaiting(int count);
+
+  /// A shared notebook that couldn't be reached, and what waits to go.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline · {count, plural, =1{1 change waiting} other{{count} changes waiting}}'**
+  String bookStatusOfflineWaiting(int count);
+
+  /// Who last changed a note of a shared notebook, and when.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited by {name} · {when}'**
+  String noteEditedBy(String name, String when);
+
+  /// This account last changed a note of a shared notebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited by you · {when}'**
+  String noteEditedByYou(String when);
+
+  /// How many people a shared notebook has.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 person} other{{count} people}}'**
+  String sharedNotebookMembers(int count);
 }
 
 class _AppLocalizationsDelegate

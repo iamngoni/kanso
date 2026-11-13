@@ -870,6 +870,10 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  RustStreamSink<BookShareProgress>
+  dco_decode_StreamSink_book_share_progress_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<DraftEvent> dco_decode_StreamSink_draft_event_Sse(dynamic raw);
 
   @protected
@@ -1033,6 +1037,36 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   BoardView dco_decode_board_view(dynamic raw);
 
   @protected
+  BookEndedRow dco_decode_book_ended_row(dynamic raw);
+
+  @protected
+  BookInvitationRow dco_decode_book_invitation_row(dynamic raw);
+
+  @protected
+  BookMemberRow dco_decode_book_member_row(dynamic raw);
+
+  @protected
+  BookRole dco_decode_book_role(dynamic raw);
+
+  @protected
+  BookShareCheck dco_decode_book_share_check(dynamic raw);
+
+  @protected
+  BookShareInfo dco_decode_book_share_info(dynamic raw);
+
+  @protected
+  BookShareProgress dco_decode_book_share_progress(dynamic raw);
+
+  @protected
+  BookStandingRow dco_decode_book_standing_row(dynamic raw);
+
+  @protected
+  BookSyncStatus dco_decode_book_sync_status(dynamic raw);
+
+  @protected
+  BookWords dco_decode_book_words(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -1073,6 +1107,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   BoardSetup dco_decode_box_autoadd_board_setup(dynamic raw);
+
+  @protected
+  BookShareInfo dco_decode_box_autoadd_book_share_info(dynamic raw);
+
+  @protected
+  BookSyncStatus dco_decode_box_autoadd_book_sync_status(dynamic raw);
 
   @protected
   bool dco_decode_box_autoadd_bool(dynamic raw);
@@ -1819,6 +1859,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<BoardColumn> dco_decode_list_board_column(dynamic raw);
 
   @protected
+  List<BookInvitationRow> dco_decode_list_book_invitation_row(dynamic raw);
+
+  @protected
+  List<BookMemberRow> dco_decode_list_book_member_row(dynamic raw);
+
+  @protected
+  List<BookRole> dco_decode_list_book_role(dynamic raw);
+
+  @protected
   List<BriefNote> dco_decode_list_brief_note(dynamic raw);
 
   @protected
@@ -1984,6 +2033,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<NoteCardView> dco_decode_list_note_card_view(dynamic raw);
+
+  @protected
+  List<NoteEditRow> dco_decode_list_note_edit_row(dynamic raw);
 
   @protected
   List<NoteRow> dco_decode_list_note_row(dynamic raw);
@@ -2176,6 +2228,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<Range16> dco_decode_list_range_16(dynamic raw);
 
   @protected
+  List<(String, BookRole)> dco_decode_list_record_string_book_role(dynamic raw);
+
+  @protected
   List<(String, ShareRole)> dco_decode_list_record_string_share_role(
     dynamic raw,
   );
@@ -2230,6 +2285,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<ShareLinkRow> dco_decode_list_share_link_row(dynamic raw);
+
+  @protected
+  List<SharedBookRow> dco_decode_list_shared_book_row(dynamic raw);
 
   @protected
   List<ShortcutEntry> dco_decode_list_shortcut_entry(dynamic raw);
@@ -2439,6 +2497,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   NoteChange dco_decode_note_change(dynamic raw);
 
   @protected
+  NoteEditRow dco_decode_note_edit_row(dynamic raw);
+
+  @protected
   NoteHistory dco_decode_note_history(dynamic raw);
 
   @protected
@@ -2512,6 +2573,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   BoardSetup? dco_decode_opt_box_autoadd_board_setup(dynamic raw);
+
+  @protected
+  BookShareInfo? dco_decode_opt_box_autoadd_book_share_info(dynamic raw);
+
+  @protected
+  BookSyncStatus? dco_decode_opt_box_autoadd_book_sync_status(dynamic raw);
 
   @protected
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
@@ -3053,6 +3120,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   (Saved, CanvasView) dco_decode_record_saved_canvas_view(dynamic raw);
 
   @protected
+  (String, BookRole) dco_decode_record_string_book_role(dynamic raw);
+
+  @protected
   (String, ShareRole) dco_decode_record_string_share_role(dynamic raw);
 
   @protected
@@ -3201,6 +3271,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ShareRole dco_decode_share_role(dynamic raw);
+
+  @protected
+  SharedBookRow dco_decode_shared_book_row(dynamic raw);
 
   @protected
   SharedEvent dco_decode_shared_event(dynamic raw);
@@ -4120,6 +4193,10 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  RustStreamSink<BookShareProgress>
+  sse_decode_StreamSink_book_share_progress_Sse(SseDeserializer deserializer);
+
+  @protected
   RustStreamSink<DraftEvent> sse_decode_StreamSink_draft_event_Sse(
     SseDeserializer deserializer,
   );
@@ -4293,6 +4370,40 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   BoardView sse_decode_board_view(SseDeserializer deserializer);
 
   @protected
+  BookEndedRow sse_decode_book_ended_row(SseDeserializer deserializer);
+
+  @protected
+  BookInvitationRow sse_decode_book_invitation_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BookMemberRow sse_decode_book_member_row(SseDeserializer deserializer);
+
+  @protected
+  BookRole sse_decode_book_role(SseDeserializer deserializer);
+
+  @protected
+  BookShareCheck sse_decode_book_share_check(SseDeserializer deserializer);
+
+  @protected
+  BookShareInfo sse_decode_book_share_info(SseDeserializer deserializer);
+
+  @protected
+  BookShareProgress sse_decode_book_share_progress(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BookStandingRow sse_decode_book_standing_row(SseDeserializer deserializer);
+
+  @protected
+  BookSyncStatus sse_decode_book_sync_status(SseDeserializer deserializer);
+
+  @protected
+  BookWords sse_decode_book_words(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -4345,6 +4456,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   BoardSetup sse_decode_box_autoadd_board_setup(SseDeserializer deserializer);
+
+  @protected
+  BookShareInfo sse_decode_box_autoadd_book_share_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BookSyncStatus sse_decode_box_autoadd_book_sync_status(
+    SseDeserializer deserializer,
+  );
 
   @protected
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
@@ -5193,6 +5314,19 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<BoardColumn> sse_decode_list_board_column(SseDeserializer deserializer);
 
   @protected
+  List<BookInvitationRow> sse_decode_list_book_invitation_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<BookMemberRow> sse_decode_list_book_member_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<BookRole> sse_decode_list_book_role(SseDeserializer deserializer);
+
+  @protected
   List<BriefNote> sse_decode_list_brief_note(SseDeserializer deserializer);
 
   @protected
@@ -5408,6 +5542,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<NoteCardView> sse_decode_list_note_card_view(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<NoteEditRow> sse_decode_list_note_edit_row(SseDeserializer deserializer);
 
   @protected
   List<NoteRow> sse_decode_list_note_row(SseDeserializer deserializer);
@@ -5656,6 +5793,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<Range16> sse_decode_list_range_16(SseDeserializer deserializer);
 
   @protected
+  List<(String, BookRole)> sse_decode_list_record_string_book_role(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<(String, ShareRole)> sse_decode_list_record_string_share_role(
     SseDeserializer deserializer,
   );
@@ -5726,6 +5868,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<ShareLinkRow> sse_decode_list_share_link_row(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<SharedBookRow> sse_decode_list_shared_book_row(
     SseDeserializer deserializer,
   );
 
@@ -5963,6 +6110,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   NoteChange sse_decode_note_change(SseDeserializer deserializer);
 
   @protected
+  NoteEditRow sse_decode_note_edit_row(SseDeserializer deserializer);
+
+  @protected
   NoteHistory sse_decode_note_history(SseDeserializer deserializer);
 
   @protected
@@ -6040,6 +6190,16 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   BoardSetup? sse_decode_opt_box_autoadd_board_setup(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BookShareInfo? sse_decode_opt_box_autoadd_book_share_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BookSyncStatus? sse_decode_opt_box_autoadd_book_sync_status(
     SseDeserializer deserializer,
   );
 
@@ -6701,6 +6861,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  (String, BookRole) sse_decode_record_string_book_role(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   (String, ShareRole) sse_decode_record_string_share_role(
     SseDeserializer deserializer,
   );
@@ -6851,6 +7016,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ShareRole sse_decode_share_role(SseDeserializer deserializer);
+
+  @protected
+  SharedBookRow sse_decode_shared_book_row(SseDeserializer deserializer);
 
   @protected
   SharedEvent sse_decode_shared_event(SseDeserializer deserializer);
@@ -7890,6 +8058,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_book_share_progress_Sse(
+    RustStreamSink<BookShareProgress> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_draft_event_Sse(
     RustStreamSink<DraftEvent> self,
     SseSerializer serializer,
@@ -8106,6 +8280,51 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_board_view(BoardView self, SseSerializer serializer);
 
   @protected
+  void sse_encode_book_ended_row(BookEndedRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_book_invitation_row(
+    BookInvitationRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_book_member_row(BookMemberRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_book_role(BookRole self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_book_share_check(
+    BookShareCheck self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_book_share_info(BookShareInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_book_share_progress(
+    BookShareProgress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_book_standing_row(
+    BookStandingRow self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_book_sync_status(
+    BookSyncStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_book_words(BookWords self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -8175,6 +8394,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_box_autoadd_board_setup(
     BoardSetup self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_book_share_info(
+    BookShareInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_book_sync_status(
+    BookSyncStatus self,
     SseSerializer serializer,
   );
 
@@ -9298,6 +9529,21 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_book_invitation_row(
+    List<BookInvitationRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_book_member_row(
+    List<BookMemberRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_book_role(List<BookRole> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_brief_note(
     List<BriefNote> self,
     SseSerializer serializer,
@@ -9600,6 +9846,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_note_card_view(
     List<NoteCardView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_note_edit_row(
+    List<NoteEditRow> self,
     SseSerializer serializer,
   );
 
@@ -9943,6 +10195,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_list_range_16(List<Range16> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_record_string_book_role(
+    List<(String, BookRole)> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_record_string_share_role(
     List<(String, ShareRole)> self,
     SseSerializer serializer,
@@ -10044,6 +10302,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_share_link_row(
     List<ShareLinkRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_shared_book_row(
+    List<SharedBookRow> self,
     SseSerializer serializer,
   );
 
@@ -10348,6 +10612,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_note_change(NoteChange self, SseSerializer serializer);
 
   @protected
+  void sse_encode_note_edit_row(NoteEditRow self, SseSerializer serializer);
+
+  @protected
   void sse_encode_note_history(NoteHistory self, SseSerializer serializer);
 
   @protected
@@ -10441,6 +10708,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_board_setup(
     BoardSetup? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_book_share_info(
+    BookShareInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_book_sync_status(
+    BookSyncStatus? self,
     SseSerializer serializer,
   );
 
@@ -11270,6 +11549,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_record_string_book_role(
+    (String, BookRole) self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_record_string_share_role(
     (String, ShareRole) self,
     SseSerializer serializer,
@@ -11460,6 +11745,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_share_role(ShareRole self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_shared_book_row(SharedBookRow self, SseSerializer serializer);
 
   @protected
   void sse_encode_shared_event(SharedEvent self, SseSerializer serializer);

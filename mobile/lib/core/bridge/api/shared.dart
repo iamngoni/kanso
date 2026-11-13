@@ -13,6 +13,9 @@ import 'types.dart';
 abstract class KansoShared implements RustOpaqueInterface {
   Future<String> accept({required String shareId});
 
+  /// Joins the notebook; answers with its library ID.
+  Future<String> acceptBook({required String shareId});
+
   Future<PersonRow> acceptNewKey({
     required String username,
     required String fingerprint,
@@ -30,7 +33,28 @@ abstract class KansoShared implements RustOpaqueInterface {
     required String accountId,
   });
 
+  /// "Edited by" for the notes of a shared notebook.
+  Future<List<NoteEditRow>> bookEdits({required String notebookId});
+
+  /// A notebook's sharing; `None` when it isn't shared.
+  Future<BookShareInfo?> bookInfo({required String notebookId});
+
+  Future<List<BookInvitationRow>> bookInvitations();
+
+  /// How far a notebook being shared has got, until Dart stops listening.
+  Stream<BookShareProgress> bookProgress();
+
+  /// "Offline · 4 changes waiting" or "Up to date"; `None` when the
+  /// notebook isn't shared.
+  Future<BookSyncStatus?> bookStatus({required String notebookId});
+
+  /// The questions' words, the same as the desktop's.
+  BookWords bookWords({required String name, required String who});
+
   Future<void> canShare({required String noteId});
+
+  /// What sharing a notebook would do; refuses one that can't be shared.
+  Future<BookShareCheck> canShareBook({required String notebookId});
 
   Future<ShareInfo> cancelLink({
     required String noteId,
@@ -52,6 +76,8 @@ abstract class KansoShared implements RustOpaqueInterface {
   });
 
   Future<void> decline({required String shareId});
+
+  Future<void> declineBook({required String shareId});
 
   Future<ShareInfo> declineRequest({
     required String noteId,
@@ -85,9 +111,17 @@ abstract class KansoShared implements RustOpaqueInterface {
     required ShareRole role,
   });
 
+  Future<BookShareInfo> inviteToBook({
+    required String notebookId,
+    required String username,
+    required BookRole role,
+  });
+
   Future<JoinRow> join({required String link});
 
   Future<void> leave({required String noteId});
+
+  Future<BookEndedRow> leaveBook({required String notebookId});
 
   /// What the note's page says of its sharing; `None` when it isn't
   /// shared.
@@ -101,10 +135,21 @@ abstract class KansoShared implements RustOpaqueInterface {
 
   Future<ShareInfo> remove({required String noteId, required String accountId});
 
+  Future<BookShareInfo> removeFromBook({
+    required String notebookId,
+    required String accountId,
+  });
+
   Future<void> resolveComment({
     required String noteId,
     required String commentId,
     required bool resolved,
+  });
+
+  Future<BookShareInfo> setBookRole({
+    required String notebookId,
+    required String accountId,
+    required BookRole role,
   });
 
   Future<ShareInfo> setRole({
@@ -118,7 +163,17 @@ abstract class KansoShared implements RustOpaqueInterface {
     required List<(String, ShareRole)> invites,
   });
 
+  Future<BookShareInfo> shareBook({
+    required String notebookId,
+    required List<(String, BookRole)> invites,
+  });
+
+  /// The notebooks shared here, for the library's Shared section.
+  Future<List<SharedBookRow>> sharedBooks();
+
   Future<void> stop({required String noteId});
+
+  Future<BookEndedRow> stopBook({required String notebookId});
 
   Future<SharedEvent> syncShared();
 

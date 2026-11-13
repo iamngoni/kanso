@@ -195,6 +195,70 @@ void sharedSuite(OpenLibrary open) {
       );
     });
 
+    test('signed out, a notebook has no sharing, Shared section, edits or '
+        'status, and sharing one needs an account', () async {
+      final library = await open();
+      final shared = library.shared();
+      const book = 'book:none';
+      expect(await shared.sharedBooks(), isEmpty);
+      expect(await shared.bookEdits(notebookId: book), isEmpty);
+      expect(await shared.bookStatus(notebookId: book), isNull);
+      final signedOut = throwsA(isA<KansoError_SignedOut>());
+      await expectLater(shared.canShareBook(notebookId: book), signedOut);
+      await expectLater(
+        shared.shareBook(
+          notebookId: book,
+          invites: <(String, BookRole)>[('bob', BookRole.editor)],
+        ),
+        signedOut,
+      );
+      await expectLater(shared.bookInfo(notebookId: book), signedOut);
+      await expectLater(
+        shared.inviteToBook(
+          notebookId: book,
+          username: 'bob',
+          role: BookRole.viewer,
+        ),
+        signedOut,
+      );
+      await expectLater(
+        shared.setBookRole(
+          notebookId: book,
+          accountId: 'bob',
+          role: BookRole.commenter,
+        ),
+        signedOut,
+      );
+      await expectLater(
+        shared.removeFromBook(notebookId: book, accountId: 'bob'),
+        signedOut,
+      );
+      await expectLater(shared.leaveBook(notebookId: book), signedOut);
+      await expectLater(shared.stopBook(notebookId: book), signedOut);
+      await expectLater(shared.bookInvitations(), signedOut);
+      await expectLater(shared.acceptBook(shareId: 'share'), signedOut);
+      await expectLater(shared.declineBook(shareId: 'share'), signedOut);
+    });
+
+    test("a notebook's questions say what the desktop's say", () async {
+      final shared = (await open()).shared();
+      final words = shared.bookWords(name: 'Studio', who: 'Dan');
+      expect(words.removeTitle, 'Remove Dan from "Studio"?');
+      expect(words.removeBody, contains("changes the notebook's key"));
+      expect(words.leaveTitle, 'Leave "Studio"? You\'ll keep a private copy.');
+      expect(words.stopTitle, startsWith('Stop sharing "Studio"?'));
+    });
+
+    test('the sharing progress stream says nothing until a notebook is '
+        'shared', () async {
+      final shared = (await open()).shared();
+      final heard = <BookShareProgress>[];
+      final listening = shared.bookProgress().listen(heard.add);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      unawaited(listening.cancel());
+      expect(heard, isEmpty);
+    });
+
     test('the events stream says nothing until something is found', () async {
       final shared = (await open()).shared();
       final events = <SharedEvent>[];

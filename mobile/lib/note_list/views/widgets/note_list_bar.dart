@@ -18,6 +18,8 @@ import '../../../core/utils/place_labels.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_selection_bar.dart';
 import '../../../journal/utils/journal_flows.dart';
+import '../../../sharing/state/notebook_sharing/notebook_sharing_bloc.dart';
+import '../../../sharing/utils/book_labels.dart';
 import '../../models/data/note_list_status.dart';
 import '../../state/note_list/note_list_bloc.dart';
 import 'list_options_sheet.dart';
@@ -82,13 +84,20 @@ class NoteListBar extends StatelessWidget {
       );
     }
     final place = state.place;
+    // A shared notebook's list says whether it is up to date.
+    final sharing = context.select<NotebookSharingBloc?, BookSyncStatus?>(
+      (bloc) => bloc?.state.status,
+    );
     return NoteListTopBar(
       onNewNote: newNote,
       onNewNoteHeld: capture,
       titleShown: titleShown,
       title: placeTitle(l10n, place, index),
       subtitle: state.status == NoteListStatus.ready
-          ? l10n.noteListCount(state.rows.length)
+          ? <String>[
+              l10n.noteListCount(state.rows.length),
+              if (sharing case final status?) bookStatusLabel(l10n, status),
+            ].join(' · ')
           : null,
       // The notes made here go in the notebook the list shows.
       onNew: place is ListPlace_Trash
