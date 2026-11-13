@@ -229,8 +229,8 @@ Nothing is built until the owner (`iamngoni`) adds a label by hand.
 | Label added by `iamngoni` | On an issue labelled `from-app` and not `needs-triage` | Result |
 |---|---|---|
 | `build` | `size:s` | Sonnet builds it; the workflow opens a PR (`Closes #N`) |
-| `build` | `size:m` or `size:l`, no `plan-ok` yet | Sonnet writes a plan; the workflow posts it; the run ends |
-| `plan-ok` | `size:m`/`size:l` that already has `build` | Sonnet builds it; the workflow opens a PR |
+| `build` | `size:m` or `size:l`, no `plan-ok` yet | Opus writes a plan; the workflow posts it; the run ends |
+| `plan-ok` | `size:m`/`size:l` that already has `build` | Opus builds it; the workflow opens a PR |
 
 Then an **Opus** job reviews the PR, fixes the real findings on the same branch and writes its
 verdict, which the workflow posts. It is chained in the same workflow because a PR opened with `GITHUB_TOKEN` starts no
