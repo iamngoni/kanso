@@ -20,6 +20,7 @@ import '../../../core/views/widgets/kanso_large_title.dart';
 import '../../../injection.dart';
 import '../../../journal/views/widgets/journal_opener.dart';
 import '../../../journal/views/widgets/journal_strip.dart';
+import '../../../sharing/views/widgets/notebook_sharing_scope.dart';
 import '../../../shell/models/data/note_creation_failure.dart';
 import '../../../shell/state/note_creation/note_creation_bloc.dart';
 import '../../../triage/views/widgets/triage_bar.dart';
@@ -56,7 +57,16 @@ class NoteListPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return JournalOpener(child: _buildList(context));
+    return BlocSelector<NoteListBloc, NoteListState, String?>(
+      selector: (state) => switch (state.place) {
+        ListPlace_Notebook(:final id) => id,
+        _ => null,
+      },
+      builder: (context, notebookId) => NotebookSharingScope(
+        notebookId: notebookId,
+        child: JournalOpener(child: _buildList(context)),
+      ),
+    );
   }
 
   Widget _buildList(BuildContext context) {

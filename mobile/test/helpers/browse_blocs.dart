@@ -56,6 +56,7 @@ import 'fixture_journal_repository.dart';
 import 'fixture_library_repository.dart';
 import 'fixture_renderer_repository.dart';
 import 'fixture_session_repository.dart';
+import 'fixture_shared_notebooks_repository.dart';
 import 'fixture_shared_notes_repository.dart';
 import 'fixture_sync_repository.dart';
 import 'library_fixtures.dart';
@@ -223,6 +224,9 @@ class BrowseBlocs {
     // A note pane or a list pane carries a JournalOpener, which makes its
     // JournalBloc through GetIt. Direct widget tests do not go through the
     // app's page registration, so give them one here.
+    // The library's Shared section and a notebook's list make their own
+    // shared-notebook blocs through GetIt, as the app does.
+    registerSharedNotebooks(shared: sharedNotes);
     final journal = FixtureJournalRepository();
     if (getIt.isRegistered<JournalBloc>()) {
       getIt.unregister<JournalBloc>();

@@ -122,7 +122,7 @@ class KansoCore
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1709162860;
+  int get rustContentHash => -1558721266;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -2735,6 +2735,11 @@ abstract class KansoCoreApi extends BaseApi {
     required String shareId,
   });
 
+  Future<String> crateApiSharedKansoSharedAcceptBook({
+    required KansoShared that,
+    required String shareId,
+  });
+
   Future<PersonRow> crateApiSharedKansoSharedAcceptNewKey({
     required KansoShared that,
     required String username,
@@ -2755,9 +2760,43 @@ abstract class KansoCoreApi extends BaseApi {
     required String accountId,
   });
 
+  Future<List<NoteEditRow>> crateApiSharedKansoSharedBookEdits({
+    required KansoShared that,
+    required String notebookId,
+  });
+
+  Future<BookShareInfo?> crateApiSharedKansoSharedBookInfo({
+    required KansoShared that,
+    required String notebookId,
+  });
+
+  Future<List<BookInvitationRow>> crateApiSharedKansoSharedBookInvitations({
+    required KansoShared that,
+  });
+
+  Stream<BookShareProgress> crateApiSharedKansoSharedBookProgress({
+    required KansoShared that,
+  });
+
+  Future<BookSyncStatus?> crateApiSharedKansoSharedBookStatus({
+    required KansoShared that,
+    required String notebookId,
+  });
+
+  BookWords crateApiSharedKansoSharedBookWords({
+    required KansoShared that,
+    required String name,
+    required String who,
+  });
+
   Future<void> crateApiSharedKansoSharedCanShare({
     required KansoShared that,
     required String noteId,
+  });
+
+  Future<BookShareCheck> crateApiSharedKansoSharedCanShareBook({
+    required KansoShared that,
+    required String notebookId,
   });
 
   Future<ShareInfo> crateApiSharedKansoSharedCancelLink({
@@ -2789,6 +2828,11 @@ abstract class KansoCoreApi extends BaseApi {
   });
 
   Future<void> crateApiSharedKansoSharedDecline({
+    required KansoShared that,
+    required String shareId,
+  });
+
+  Future<void> crateApiSharedKansoSharedDeclineBook({
     required KansoShared that,
     required String shareId,
   });
@@ -2837,6 +2881,13 @@ abstract class KansoCoreApi extends BaseApi {
     required ShareRole role,
   });
 
+  Future<BookShareInfo> crateApiSharedKansoSharedInviteToBook({
+    required KansoShared that,
+    required String notebookId,
+    required String username,
+    required BookRole role,
+  });
+
   Future<JoinRow> crateApiSharedKansoSharedJoin({
     required KansoShared that,
     required String link,
@@ -2845,6 +2896,11 @@ abstract class KansoCoreApi extends BaseApi {
   Future<void> crateApiSharedKansoSharedLeave({
     required KansoShared that,
     required String noteId,
+  });
+
+  Future<BookEndedRow> crateApiSharedKansoSharedLeaveBook({
+    required KansoShared that,
+    required String notebookId,
   });
 
   Future<LiveStatus?> crateApiSharedKansoSharedLiveStatus({
@@ -2873,11 +2929,24 @@ abstract class KansoCoreApi extends BaseApi {
     required String accountId,
   });
 
+  Future<BookShareInfo> crateApiSharedKansoSharedRemoveFromBook({
+    required KansoShared that,
+    required String notebookId,
+    required String accountId,
+  });
+
   Future<void> crateApiSharedKansoSharedResolveComment({
     required KansoShared that,
     required String noteId,
     required String commentId,
     required bool resolved,
+  });
+
+  Future<BookShareInfo> crateApiSharedKansoSharedSetBookRole({
+    required KansoShared that,
+    required String notebookId,
+    required String accountId,
+    required BookRole role,
   });
 
   Future<ShareInfo> crateApiSharedKansoSharedSetRole({
@@ -2893,9 +2962,24 @@ abstract class KansoCoreApi extends BaseApi {
     required List<(String, ShareRole)> invites,
   });
 
+  Future<BookShareInfo> crateApiSharedKansoSharedShareBook({
+    required KansoShared that,
+    required String notebookId,
+    required List<(String, BookRole)> invites,
+  });
+
+  Future<List<SharedBookRow>> crateApiSharedKansoSharedSharedBooks({
+    required KansoShared that,
+  });
+
   Future<void> crateApiSharedKansoSharedStop({
     required KansoShared that,
     required String noteId,
+  });
+
+  Future<BookEndedRow> crateApiSharedKansoSharedStopBook({
+    required KansoShared that,
+    required String notebookId,
   });
 
   Future<SharedEvent> crateApiSharedKansoSharedSyncShared({
@@ -23203,6 +23287,44 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<String> crateApiSharedKansoSharedAcceptBook({
+    required KansoShared that,
+    required String shareId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(shareId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 512,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedAcceptBookConstMeta,
+        argValues: [that, shareId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedAcceptBookConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_accept_book",
+        argNames: ["that", "shareId"],
+      );
+
+  @override
   Future<PersonRow> crateApiSharedKansoSharedAcceptNewKey({
     required KansoShared that,
     required String username,
@@ -23221,7 +23343,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 512,
+            funcId: 513,
             port: port_,
           );
         },
@@ -23265,7 +23387,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 513,
+            funcId: 514,
             port: port_,
           );
         },
@@ -23305,7 +23427,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 514,
+            funcId: 515,
             port: port_,
           );
         },
@@ -23327,6 +23449,236 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<List<NoteEditRow>> crateApiSharedKansoSharedBookEdits({
+    required KansoShared that,
+    required String notebookId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(notebookId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 516,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_note_edit_row,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedBookEditsConstMeta,
+        argValues: [that, notebookId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedBookEditsConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_book_edits",
+        argNames: ["that", "notebookId"],
+      );
+
+  @override
+  Future<BookShareInfo?> crateApiSharedKansoSharedBookInfo({
+    required KansoShared that,
+    required String notebookId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(notebookId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 517,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_book_share_info,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedBookInfoConstMeta,
+        argValues: [that, notebookId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedBookInfoConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_book_info",
+        argNames: ["that", "notebookId"],
+      );
+
+  @override
+  Future<List<BookInvitationRow>> crateApiSharedKansoSharedBookInvitations({
+    required KansoShared that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 518,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_book_invitation_row,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedBookInvitationsConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedBookInvitationsConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_book_invitations",
+        argNames: ["that"],
+      );
+
+  @override
+  Stream<BookShareProgress> crateApiSharedKansoSharedBookProgress({
+    required KansoShared that,
+  }) {
+    final sink = RustStreamSink<BookShareProgress>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+              that,
+              serializer,
+            );
+            sse_encode_StreamSink_book_share_progress_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 519,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiSharedKansoSharedBookProgressConstMeta,
+          argValues: [that, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedBookProgressConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_book_progress",
+        argNames: ["that", "sink"],
+      );
+
+  @override
+  Future<BookSyncStatus?> crateApiSharedKansoSharedBookStatus({
+    required KansoShared that,
+    required String notebookId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(notebookId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 520,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_book_sync_status,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedBookStatusConstMeta,
+        argValues: [that, notebookId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedBookStatusConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_book_status",
+        argNames: ["that", "notebookId"],
+      );
+
+  @override
+  BookWords crateApiSharedKansoSharedBookWords({
+    required KansoShared that,
+    required String name,
+    required String who,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(name, serializer);
+          sse_encode_String(who, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 521,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_book_words,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSharedKansoSharedBookWordsConstMeta,
+        argValues: [that, name, who],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedBookWordsConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_book_words",
+        argNames: ["that", "name", "who"],
+      );
+
+  @override
   Future<void> crateApiSharedKansoSharedCanShare({
     required KansoShared that,
     required String noteId,
@@ -23343,7 +23695,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 515,
+            funcId: 522,
             port: port_,
           );
         },
@@ -23365,6 +23717,44 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<BookShareCheck> crateApiSharedKansoSharedCanShareBook({
+    required KansoShared that,
+    required String notebookId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(notebookId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 523,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_book_share_check,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedCanShareBookConstMeta,
+        argValues: [that, notebookId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedCanShareBookConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_can_share_book",
+        argNames: ["that", "notebookId"],
+      );
+
+  @override
   Future<ShareInfo> crateApiSharedKansoSharedCancelLink({
     required KansoShared that,
     required String noteId,
@@ -23383,7 +23773,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 516,
+            funcId: 524,
             port: port_,
           );
         },
@@ -23421,7 +23811,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 517,
+            funcId: 525,
             port: port_,
           );
         },
@@ -23459,7 +23849,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 518,
+            funcId: 526,
             port: port_,
           );
         },
@@ -23497,7 +23887,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 519,
+            funcId: 527,
             port: port_,
           );
         },
@@ -23539,7 +23929,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 520,
+            funcId: 528,
             port: port_,
           );
         },
@@ -23577,7 +23967,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 521,
+            funcId: 529,
             port: port_,
           );
         },
@@ -23595,6 +23985,44 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   TaskConstMeta get kCrateApiSharedKansoSharedDeclineConstMeta =>
       const TaskConstMeta(
         debugName: "KansoShared_decline",
+        argNames: ["that", "shareId"],
+      );
+
+  @override
+  Future<void> crateApiSharedKansoSharedDeclineBook({
+    required KansoShared that,
+    required String shareId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(shareId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 530,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedDeclineBookConstMeta,
+        argValues: [that, shareId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedDeclineBookConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_decline_book",
         argNames: ["that", "shareId"],
       );
 
@@ -23617,7 +24045,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 522,
+            funcId: 531,
             port: port_,
           );
         },
@@ -23657,7 +24085,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 523,
+            funcId: 532,
             port: port_,
           );
         },
@@ -23695,7 +24123,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 524,
+            funcId: 533,
             port: port_,
           );
         },
@@ -23737,7 +24165,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 525,
+            funcId: 534,
             port: port_,
           );
         },
@@ -23776,7 +24204,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 526,
+              funcId: 535,
               port: port_,
             );
           },
@@ -23816,7 +24244,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 527,
+            funcId: 536,
             port: port_,
           );
         },
@@ -23852,7 +24280,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 528,
+            funcId: 537,
             port: port_,
           );
         },
@@ -23894,7 +24322,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 529,
+            funcId: 538,
             port: port_,
           );
         },
@@ -23916,6 +24344,48 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<BookShareInfo> crateApiSharedKansoSharedInviteToBook({
+    required KansoShared that,
+    required String notebookId,
+    required String username,
+    required BookRole role,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(notebookId, serializer);
+          sse_encode_String(username, serializer);
+          sse_encode_book_role(role, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 539,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_book_share_info,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedInviteToBookConstMeta,
+        argValues: [that, notebookId, username, role],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedInviteToBookConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_invite_to_book",
+        argNames: ["that", "notebookId", "username", "role"],
+      );
+
+  @override
   Future<JoinRow> crateApiSharedKansoSharedJoin({
     required KansoShared that,
     required String link,
@@ -23932,7 +24402,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 530,
+            funcId: 540,
             port: port_,
           );
         },
@@ -23970,7 +24440,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 531,
+            funcId: 541,
             port: port_,
           );
         },
@@ -23992,6 +24462,44 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<BookEndedRow> crateApiSharedKansoSharedLeaveBook({
+    required KansoShared that,
+    required String notebookId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(notebookId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 542,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_book_ended_row,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedLeaveBookConstMeta,
+        argValues: [that, notebookId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedLeaveBookConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_leave_book",
+        argNames: ["that", "notebookId"],
+      );
+
+  @override
   Future<LiveStatus?> crateApiSharedKansoSharedLiveStatus({
     required KansoShared that,
     required String noteId,
@@ -24008,7 +24516,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 532,
+            funcId: 543,
             port: port_,
           );
         },
@@ -24046,7 +24554,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 533,
+            funcId: 544,
             port: port_,
           );
         },
@@ -24084,7 +24592,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 534,
+            funcId: 545,
             port: port_,
           );
         },
@@ -24122,7 +24630,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 535,
+            funcId: 546,
             port: port_,
           );
         },
@@ -24162,7 +24670,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 536,
+            funcId: 547,
             port: port_,
           );
         },
@@ -24181,6 +24689,46 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       const TaskConstMeta(
         debugName: "KansoShared_remove",
         argNames: ["that", "noteId", "accountId"],
+      );
+
+  @override
+  Future<BookShareInfo> crateApiSharedKansoSharedRemoveFromBook({
+    required KansoShared that,
+    required String notebookId,
+    required String accountId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(notebookId, serializer);
+          sse_encode_String(accountId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 548,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_book_share_info,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedRemoveFromBookConstMeta,
+        argValues: [that, notebookId, accountId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedRemoveFromBookConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_remove_from_book",
+        argNames: ["that", "notebookId", "accountId"],
       );
 
   @override
@@ -24204,7 +24752,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 537,
+            funcId: 549,
             port: port_,
           );
         },
@@ -24223,6 +24771,48 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       const TaskConstMeta(
         debugName: "KansoShared_resolve_comment",
         argNames: ["that", "noteId", "commentId", "resolved"],
+      );
+
+  @override
+  Future<BookShareInfo> crateApiSharedKansoSharedSetBookRole({
+    required KansoShared that,
+    required String notebookId,
+    required String accountId,
+    required BookRole role,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(notebookId, serializer);
+          sse_encode_String(accountId, serializer);
+          sse_encode_book_role(role, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 550,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_book_share_info,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedSetBookRoleConstMeta,
+        argValues: [that, notebookId, accountId, role],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedSetBookRoleConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_set_book_role",
+        argNames: ["that", "notebookId", "accountId", "role"],
       );
 
   @override
@@ -24246,7 +24836,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 538,
+            funcId: 551,
             port: port_,
           );
         },
@@ -24286,7 +24876,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 539,
+            funcId: 552,
             port: port_,
           );
         },
@@ -24308,6 +24898,82 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<BookShareInfo> crateApiSharedKansoSharedShareBook({
+    required KansoShared that,
+    required String notebookId,
+    required List<(String, BookRole)> invites,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(notebookId, serializer);
+          sse_encode_list_record_string_book_role(invites, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 553,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_book_share_info,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedShareBookConstMeta,
+        argValues: [that, notebookId, invites],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedShareBookConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_share_book",
+        argNames: ["that", "notebookId", "invites"],
+      );
+
+  @override
+  Future<List<SharedBookRow>> crateApiSharedKansoSharedSharedBooks({
+    required KansoShared that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 554,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_shared_book_row,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedSharedBooksConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedSharedBooksConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_shared_books",
+        argNames: ["that"],
+      );
+
+  @override
   Future<void> crateApiSharedKansoSharedStop({
     required KansoShared that,
     required String noteId,
@@ -24324,7 +24990,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 540,
+            funcId: 555,
             port: port_,
           );
         },
@@ -24346,6 +25012,44 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<BookEndedRow> crateApiSharedKansoSharedStopBook({
+    required KansoShared that,
+    required String notebookId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoShared(
+            that,
+            serializer,
+          );
+          sse_encode_String(notebookId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 556,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_book_ended_row,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiSharedKansoSharedStopBookConstMeta,
+        argValues: [that, notebookId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSharedKansoSharedStopBookConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoShared_stop_book",
+        argNames: ["that", "notebookId"],
+      );
+
+  @override
   Future<SharedEvent> crateApiSharedKansoSharedSyncShared({
     required KansoShared that,
   }) {
@@ -24360,7 +25064,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 541,
+            funcId: 557,
             port: port_,
           );
         },
@@ -24398,7 +25102,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 542,
+            funcId: 558,
             port: port_,
           );
         },
@@ -24436,7 +25140,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 543,
+            funcId: 559,
             port: port_,
           );
         },
@@ -24466,7 +25170,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 544,
+            funcId: 560,
             port: port_,
           );
         },
@@ -24497,7 +25201,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 545,
+            funcId: 561,
           )!;
         },
         codec: SseCodec(
@@ -24526,7 +25230,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 546,
+            funcId: 562,
           )!;
         },
         codec: SseCodec(
@@ -24556,7 +25260,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 547,
+            funcId: 563,
           )!;
         },
         codec: SseCodec(
@@ -24589,7 +25293,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 548,
+            funcId: 564,
             port: port_,
           );
         },
@@ -24623,7 +25327,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 549,
+            funcId: 565,
             port: port_,
           );
         },
@@ -24661,7 +25365,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 550,
+            funcId: 566,
             port: port_,
           );
         },
@@ -24699,7 +25403,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 551,
+            funcId: 567,
             port: port_,
           );
         },
@@ -24741,7 +25445,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 552,
+            funcId: 568,
             port: port_,
           );
         },
@@ -24781,7 +25485,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 553,
+            funcId: 569,
             port: port_,
           );
         },
@@ -24817,7 +25521,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 554,
+            funcId: 570,
             port: port_,
           );
         },
@@ -24861,7 +25565,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 555,
+            funcId: 571,
             port: port_,
           );
         },
@@ -24895,7 +25599,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 556,
+            funcId: 572,
             port: port_,
           );
         },
@@ -24929,7 +25633,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 557,
+            funcId: 573,
             port: port_,
           );
         },
@@ -24968,7 +25672,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 558,
+            funcId: 574,
           )!;
         },
         codec: SseCodec(
@@ -25006,7 +25710,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 559,
+              funcId: 575,
               port: port_,
             );
           },
@@ -25044,7 +25748,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 560,
+            funcId: 576,
             port: port_,
           );
         },
@@ -25086,7 +25790,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 561,
+            funcId: 577,
             port: port_,
           );
         },
@@ -25122,7 +25826,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 562,
+            funcId: 578,
             port: port_,
           );
         },
@@ -25160,7 +25864,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 563,
+            funcId: 579,
             port: port_,
           );
         },
@@ -25198,7 +25902,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 564,
+            funcId: 580,
             port: port_,
           );
         },
@@ -25234,7 +25938,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 565,
+            funcId: 581,
             port: port_,
           );
         },
@@ -25270,7 +25974,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 566,
+            funcId: 582,
             port: port_,
           );
         },
@@ -25316,7 +26020,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 567,
+            funcId: 583,
             port: port_,
           );
         },
@@ -25354,7 +26058,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 568,
+            funcId: 584,
             port: port_,
           );
         },
@@ -25392,7 +26096,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 569,
+            funcId: 585,
             port: port_,
           );
         },
@@ -25430,7 +26134,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 570,
+            funcId: 586,
             port: port_,
           );
         },
@@ -25468,7 +26172,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 571,
+            funcId: 587,
             port: port_,
           );
         },
@@ -25506,7 +26210,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 572,
+            funcId: 588,
             port: port_,
           );
         },
@@ -25548,7 +26252,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 573,
+            funcId: 589,
             port: port_,
           );
         },
@@ -25588,7 +26292,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 574,
+            funcId: 590,
             port: port_,
           );
         },
@@ -25626,7 +26330,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 575,
+            funcId: 591,
             port: port_,
           );
         },
@@ -25662,7 +26366,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 576,
+            funcId: 592,
             port: port_,
           );
         },
@@ -25698,7 +26402,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 577,
+            funcId: 593,
             port: port_,
           );
         },
@@ -25740,7 +26444,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 578,
+            funcId: 594,
             port: port_,
           );
         },
@@ -25780,7 +26484,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 579,
+            funcId: 595,
             port: port_,
           );
         },
@@ -25819,7 +26523,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 580,
+            funcId: 596,
             port: port_,
           );
         },
@@ -25857,7 +26561,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 581,
+            funcId: 597,
             port: port_,
           );
         },
@@ -25897,7 +26601,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 582,
+            funcId: 598,
             port: port_,
           );
         },
@@ -25937,7 +26641,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 583,
+            funcId: 599,
             port: port_,
           );
         },
@@ -25981,7 +26685,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 584,
+            funcId: 600,
             port: port_,
           );
         },
@@ -26022,7 +26726,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 585,
+            funcId: 601,
             port: port_,
           );
         },
@@ -26067,7 +26771,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 586,
+            funcId: 602,
             port: port_,
           );
         },
@@ -26098,7 +26802,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 587,
+            funcId: 603,
             port: port_,
           );
         },
@@ -26128,7 +26832,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 588,
+            funcId: 604,
           )!;
         },
         codec: SseCodec(
@@ -26162,7 +26866,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 589,
+            funcId: 605,
           )!;
         },
         codec: SseCodec(
@@ -26198,7 +26902,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 590,
+            funcId: 606,
           )!;
         },
         codec: SseCodec(
@@ -26232,7 +26936,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 591,
+            funcId: 607,
           )!;
         },
         codec: SseCodec(
@@ -26269,7 +26973,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 592,
+            funcId: 608,
           )!;
         },
         codec: SseCodec(
@@ -26298,7 +27002,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 593,
+            funcId: 609,
           )!;
         },
         codec: SseCodec(
@@ -26327,7 +27031,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 594,
+            funcId: 610,
           )!;
         },
         codec: SseCodec(
@@ -26356,7 +27060,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 595,
+            funcId: 611,
           )!;
         },
         codec: SseCodec(
@@ -26386,7 +27090,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 596,
+            funcId: 612,
           )!;
         },
         codec: SseCodec(
@@ -26416,7 +27120,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 597,
+            funcId: 613,
             port: port_,
           );
         },
@@ -26446,7 +27150,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 598,
+            funcId: 614,
             port: port_,
           );
         },
@@ -26481,7 +27185,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 599,
+            funcId: 615,
           )!;
         },
         codec: SseCodec(
@@ -26510,7 +27214,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 600,
+            funcId: 616,
             port: port_,
           );
         },
@@ -26540,7 +27244,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 601,
+            funcId: 617,
           )!;
         },
         codec: SseCodec(
@@ -26569,7 +27273,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 602,
+            funcId: 618,
             port: port_,
           );
         },
@@ -26599,7 +27303,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 603,
+            funcId: 619,
             port: port_,
           );
         },
@@ -26635,7 +27339,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 604,
+            funcId: 620,
           )!;
         },
         codec: SseCodec(
@@ -26664,7 +27368,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 605,
+            funcId: 621,
           )!;
         },
         codec: SseCodec(
@@ -26698,7 +27402,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 606,
+            funcId: 622,
           )!;
         },
         codec: SseCodec(
@@ -26728,7 +27432,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 607,
+            funcId: 623,
           )!;
         },
         codec: SseCodec(
@@ -26757,7 +27461,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 608,
+            funcId: 624,
           )!;
         },
         codec: SseCodec(
@@ -26791,7 +27495,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 609,
+            funcId: 625,
           )!;
         },
         codec: SseCodec(
@@ -26821,7 +27525,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 610,
+            funcId: 626,
           )!;
         },
         codec: SseCodec(
@@ -28125,6 +28829,13 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  RustStreamSink<BookShareProgress>
+  dco_decode_StreamSink_book_share_progress_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
   RustStreamSink<DraftEvent> dco_decode_StreamSink_draft_event_Sse(
     dynamic raw,
   ) {
@@ -28788,6 +29499,138 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  BookEndedRow dco_decode_book_ended_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return BookEndedRow(
+      notebookId: dco_decode_String(arr[0]),
+      copyName: dco_decode_String(arr[1]),
+      message: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  BookInvitationRow dco_decode_book_invitation_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return BookInvitationRow(
+      shareId: dco_decode_String(arr[0]),
+      from: dco_decode_String(arr[1]),
+      role: dco_decode_book_role(arr[2]),
+      invited: dco_decode_bool(arr[3]),
+      atMs: dco_decode_CastedPrimitive_i_64(arr[4]),
+    );
+  }
+
+  @protected
+  BookMemberRow dco_decode_book_member_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return BookMemberRow(
+      accountId: dco_decode_String(arr[0]),
+      username: dco_decode_String(arr[1]),
+      role: dco_decode_book_role(arr[2]),
+      me: dco_decode_bool(arr[3]),
+      standing: dco_decode_book_standing_row(arr[4]),
+      fingerprint: dco_decode_String(arr[5]),
+      verified: dco_decode_bool(arr[6]),
+      roles: dco_decode_list_book_role(arr[7]),
+      removable: dco_decode_bool(arr[8]),
+    );
+  }
+
+  @protected
+  BookRole dco_decode_book_role(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BookRole.values[raw as int];
+  }
+
+  @protected
+  BookShareCheck dco_decode_book_share_check(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return BookShareCheck(
+      name: dco_decode_String(arr[0]),
+      notes: dco_decode_u_32(arr[1]),
+      locked: dco_decode_u_32(arr[2]),
+      lockedName: dco_decode_String(arr[3]),
+      leftOut: dco_decode_list_String(arr[4]),
+    );
+  }
+
+  @protected
+  BookShareInfo dco_decode_book_share_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return BookShareInfo(
+      shareId: dco_decode_String(arr[0]),
+      notebookId: dco_decode_String(arr[1]),
+      name: dco_decode_String(arr[2]),
+      myRole: dco_decode_book_role(arr[3]),
+      owner: dco_decode_String(arr[4]),
+      members: dco_decode_list_book_member_row(arr[5]),
+      inviteRoles: dco_decode_list_book_role(arr[6]),
+      owned: dco_decode_bool(arr[7]),
+    );
+  }
+
+  @protected
+  BookShareProgress dco_decode_book_share_progress(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return BookShareProgress(
+      notebookId: dco_decode_String(arr[0]),
+      done: dco_decode_u_32(arr[1]),
+      total: dco_decode_u_32(arr[2]),
+    );
+  }
+
+  @protected
+  BookStandingRow dco_decode_book_standing_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BookStandingRow.values[raw as int];
+  }
+
+  @protected
+  BookSyncStatus dco_decode_book_sync_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return BookSyncStatus(
+      offline: dco_decode_bool(arr[0]),
+      waiting: dco_decode_u_32(arr[1]),
+      live: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  BookWords dco_decode_book_words(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return BookWords(
+      removeTitle: dco_decode_String(arr[0]),
+      removeBody: dco_decode_String(arr[1]),
+      leaveTitle: dco_decode_String(arr[2]),
+      stopTitle: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
@@ -28868,6 +29711,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   BoardSetup dco_decode_box_autoadd_board_setup(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_board_setup(raw);
+  }
+
+  @protected
+  BookShareInfo dco_decode_box_autoadd_book_share_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_book_share_info(raw);
+  }
+
+  @protected
+  BookSyncStatus dco_decode_box_autoadd_book_sync_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_book_sync_status(raw);
   }
 
   @protected
@@ -31444,6 +32299,24 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  List<BookInvitationRow> dco_decode_list_book_invitation_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_book_invitation_row).toList();
+  }
+
+  @protected
+  List<BookMemberRow> dco_decode_list_book_member_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_book_member_row).toList();
+  }
+
+  @protected
+  List<BookRole> dco_decode_list_book_role(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_book_role).toList();
+  }
+
+  @protected
   List<BriefNote> dco_decode_list_brief_note(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_brief_note).toList();
@@ -31775,6 +32648,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   List<NoteCardView> dco_decode_list_note_card_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_note_card_view).toList();
+  }
+
+  @protected
+  List<NoteEditRow> dco_decode_list_note_edit_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_note_edit_row).toList();
   }
 
   @protected
@@ -32202,6 +33081,16 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  List<(String, BookRole)> dco_decode_list_record_string_book_role(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_record_string_book_role)
+        .toList();
+  }
+
+  @protected
   List<(String, ShareRole)> dco_decode_list_record_string_share_role(
     dynamic raw,
   ) {
@@ -32319,6 +33208,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   List<ShareLinkRow> dco_decode_list_share_link_row(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_share_link_row).toList();
+  }
+
+  @protected
+  List<SharedBookRow> dco_decode_list_shared_book_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_shared_book_row).toList();
   }
 
   @protected
@@ -33017,6 +33912,20 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  NoteEditRow dco_decode_note_edit_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return NoteEditRow(
+      noteId: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      me: dco_decode_bool(arr[2]),
+      atMs: dco_decode_CastedPrimitive_i_64(arr[3]),
+    );
+  }
+
+  @protected
   NoteHistory dco_decode_note_history(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -33293,6 +34202,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   BoardSetup? dco_decode_opt_box_autoadd_board_setup(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_board_setup(raw);
+  }
+
+  @protected
+  BookShareInfo? dco_decode_opt_box_autoadd_book_share_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_book_share_info(raw);
+  }
+
+  @protected
+  BookSyncStatus? dco_decode_opt_box_autoadd_book_sync_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_book_sync_status(raw);
   }
 
   @protected
@@ -35457,6 +36378,19 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  (String, BookRole) dco_decode_record_string_book_role(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (
+      dco_decode_String(arr[0]),
+      dco_decode_book_role(arr[1]),
+    );
+  }
+
+  @protected
   (String, ShareRole) dco_decode_record_string_share_role(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -36169,16 +37103,36 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  SharedBookRow dco_decode_shared_book_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return SharedBookRow(
+      shareId: dco_decode_String(arr[0]),
+      notebookId: dco_decode_String(arr[1]),
+      name: dco_decode_String(arr[2]),
+      myRole: dco_decode_book_role(arr[3]),
+      owner: dco_decode_String(arr[4]),
+      members: dco_decode_list_String(arr[5]),
+      status: dco_decode_book_sync_status(arr[6]),
+    );
+  }
+
+  @protected
   SharedEvent dco_decode_shared_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return SharedEvent(
       noteIds: dco_decode_list_String(arr[0]),
       invitations: dco_decode_u_32(arr[1]),
       commentNotes: dco_decode_list_String(arr[2]),
       liveNotes: dco_decode_list_String(arr[3]),
+      notebooks: dco_decode_list_String(arr[4]),
+      bookInvitations: dco_decode_u_32(arr[5]),
+      bookNotices: dco_decode_list_String(arr[6]),
     );
   }
 
@@ -38576,6 +39530,13 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  RustStreamSink<BookShareProgress>
+  sse_decode_StreamSink_book_share_progress_Sse(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
   RustStreamSink<DraftEvent> sse_decode_StreamSink_draft_event_Sse(
     SseDeserializer deserializer,
   ) {
@@ -39268,6 +40229,160 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  BookEndedRow sse_decode_book_ended_row(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_notebookId = sse_decode_String(deserializer);
+    var var_copyName = sse_decode_String(deserializer);
+    var var_message = sse_decode_String(deserializer);
+    return BookEndedRow(
+      notebookId: var_notebookId,
+      copyName: var_copyName,
+      message: var_message,
+    );
+  }
+
+  @protected
+  BookInvitationRow sse_decode_book_invitation_row(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_shareId = sse_decode_String(deserializer);
+    var var_from = sse_decode_String(deserializer);
+    var var_role = sse_decode_book_role(deserializer);
+    var var_invited = sse_decode_bool(deserializer);
+    var var_atMs = sse_decode_CastedPrimitive_i_64(deserializer);
+    return BookInvitationRow(
+      shareId: var_shareId,
+      from: var_from,
+      role: var_role,
+      invited: var_invited,
+      atMs: var_atMs,
+    );
+  }
+
+  @protected
+  BookMemberRow sse_decode_book_member_row(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_accountId = sse_decode_String(deserializer);
+    var var_username = sse_decode_String(deserializer);
+    var var_role = sse_decode_book_role(deserializer);
+    var var_me = sse_decode_bool(deserializer);
+    var var_standing = sse_decode_book_standing_row(deserializer);
+    var var_fingerprint = sse_decode_String(deserializer);
+    var var_verified = sse_decode_bool(deserializer);
+    var var_roles = sse_decode_list_book_role(deserializer);
+    var var_removable = sse_decode_bool(deserializer);
+    return BookMemberRow(
+      accountId: var_accountId,
+      username: var_username,
+      role: var_role,
+      me: var_me,
+      standing: var_standing,
+      fingerprint: var_fingerprint,
+      verified: var_verified,
+      roles: var_roles,
+      removable: var_removable,
+    );
+  }
+
+  @protected
+  BookRole sse_decode_book_role(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return BookRole.values[inner];
+  }
+
+  @protected
+  BookShareCheck sse_decode_book_share_check(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_notes = sse_decode_u_32(deserializer);
+    var var_locked = sse_decode_u_32(deserializer);
+    var var_lockedName = sse_decode_String(deserializer);
+    var var_leftOut = sse_decode_list_String(deserializer);
+    return BookShareCheck(
+      name: var_name,
+      notes: var_notes,
+      locked: var_locked,
+      lockedName: var_lockedName,
+      leftOut: var_leftOut,
+    );
+  }
+
+  @protected
+  BookShareInfo sse_decode_book_share_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_shareId = sse_decode_String(deserializer);
+    var var_notebookId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_myRole = sse_decode_book_role(deserializer);
+    var var_owner = sse_decode_String(deserializer);
+    var var_members = sse_decode_list_book_member_row(deserializer);
+    var var_inviteRoles = sse_decode_list_book_role(deserializer);
+    var var_owned = sse_decode_bool(deserializer);
+    return BookShareInfo(
+      shareId: var_shareId,
+      notebookId: var_notebookId,
+      name: var_name,
+      myRole: var_myRole,
+      owner: var_owner,
+      members: var_members,
+      inviteRoles: var_inviteRoles,
+      owned: var_owned,
+    );
+  }
+
+  @protected
+  BookShareProgress sse_decode_book_share_progress(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_notebookId = sse_decode_String(deserializer);
+    var var_done = sse_decode_u_32(deserializer);
+    var var_total = sse_decode_u_32(deserializer);
+    return BookShareProgress(
+      notebookId: var_notebookId,
+      done: var_done,
+      total: var_total,
+    );
+  }
+
+  @protected
+  BookStandingRow sse_decode_book_standing_row(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return BookStandingRow.values[inner];
+  }
+
+  @protected
+  BookSyncStatus sse_decode_book_sync_status(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_offline = sse_decode_bool(deserializer);
+    var var_waiting = sse_decode_u_32(deserializer);
+    var var_live = sse_decode_bool(deserializer);
+    return BookSyncStatus(
+      offline: var_offline,
+      waiting: var_waiting,
+      live: var_live,
+    );
+  }
+
+  @protected
+  BookWords sse_decode_book_words(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_removeTitle = sse_decode_String(deserializer);
+    var var_removeBody = sse_decode_String(deserializer);
+    var var_leaveTitle = sse_decode_String(deserializer);
+    var var_stopTitle = sse_decode_String(deserializer);
+    return BookWords(
+      removeTitle: var_removeTitle,
+      removeBody: var_removeBody,
+      leaveTitle: var_leaveTitle,
+      stopTitle: var_stopTitle,
+    );
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
@@ -39360,6 +40475,22 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   BoardSetup sse_decode_box_autoadd_board_setup(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_board_setup(deserializer));
+  }
+
+  @protected
+  BookShareInfo sse_decode_box_autoadd_book_share_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_book_share_info(deserializer));
+  }
+
+  @protected
+  BookSyncStatus sse_decode_box_autoadd_book_sync_status(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_book_sync_status(deserializer));
   }
 
   @protected
@@ -42207,6 +43338,46 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  List<BookInvitationRow> sse_decode_list_book_invitation_row(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <BookInvitationRow>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_book_invitation_row(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<BookMemberRow> sse_decode_list_book_member_row(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <BookMemberRow>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_book_member_row(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<BookRole> sse_decode_list_book_role(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <BookRole>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_book_role(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<BriefNote> sse_decode_list_brief_note(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -42920,6 +44091,20 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     var ans_ = <NoteCardView>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_note_card_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<NoteEditRow> sse_decode_list_note_edit_row(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <NoteEditRow>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_note_edit_row(deserializer));
     }
     return ans_;
   }
@@ -43739,6 +44924,20 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  List<(String, BookRole)> sse_decode_list_record_string_book_role(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <(String, BookRole)>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_record_string_book_role(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<(String, ShareRole)> sse_decode_list_record_string_share_role(
     SseDeserializer deserializer,
   ) {
@@ -43973,6 +45172,20 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     var ans_ = <ShareLinkRow>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_share_link_row(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<SharedBookRow> sse_decode_list_shared_book_row(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SharedBookRow>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_shared_book_row(deserializer));
     }
     return ans_;
   }
@@ -44931,6 +46144,21 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  NoteEditRow sse_decode_note_edit_row(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_noteId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_me = sse_decode_bool(deserializer);
+    var var_atMs = sse_decode_CastedPrimitive_i_64(deserializer);
+    return NoteEditRow(
+      noteId: var_noteId,
+      name: var_name,
+      me: var_me,
+      atMs: var_atMs,
+    );
+  }
+
+  @protected
   NoteHistory sse_decode_note_history(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_currentTitle = sse_decode_String(deserializer);
@@ -45279,6 +46507,32 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_board_setup(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BookShareInfo? sse_decode_opt_box_autoadd_book_share_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_book_share_info(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BookSyncStatus? sse_decode_opt_box_autoadd_book_sync_status(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_book_sync_status(deserializer));
     } else {
       return null;
     }
@@ -48014,6 +49268,16 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  (String, BookRole) sse_decode_record_string_book_role(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_String(deserializer);
+    var var_field1 = sse_decode_book_role(deserializer);
+    return (var_field0, var_field1);
+  }
+
+  @protected
   (String, ShareRole) sse_decode_record_string_share_role(
     SseDeserializer deserializer,
   ) {
@@ -48762,17 +50026,44 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  SharedBookRow sse_decode_shared_book_row(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_shareId = sse_decode_String(deserializer);
+    var var_notebookId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_myRole = sse_decode_book_role(deserializer);
+    var var_owner = sse_decode_String(deserializer);
+    var var_members = sse_decode_list_String(deserializer);
+    var var_status = sse_decode_book_sync_status(deserializer);
+    return SharedBookRow(
+      shareId: var_shareId,
+      notebookId: var_notebookId,
+      name: var_name,
+      myRole: var_myRole,
+      owner: var_owner,
+      members: var_members,
+      status: var_status,
+    );
+  }
+
+  @protected
   SharedEvent sse_decode_shared_event(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_noteIds = sse_decode_list_String(deserializer);
     var var_invitations = sse_decode_u_32(deserializer);
     var var_commentNotes = sse_decode_list_String(deserializer);
     var var_liveNotes = sse_decode_list_String(deserializer);
+    var var_notebooks = sse_decode_list_String(deserializer);
+    var var_bookInvitations = sse_decode_u_32(deserializer);
+    var var_bookNotices = sse_decode_list_String(deserializer);
     return SharedEvent(
       noteIds: var_noteIds,
       invitations: var_invitations,
       commentNotes: var_commentNotes,
       liveNotes: var_liveNotes,
+      notebooks: var_notebooks,
+      bookInvitations: var_bookInvitations,
+      bookNotices: var_bookNotices,
     );
   }
 
@@ -51329,6 +52620,23 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_StreamSink_book_share_progress_Sse(
+    RustStreamSink<BookShareProgress> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_book_share_progress,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_StreamSink_draft_event_Sse(
     RustStreamSink<DraftEvent> self,
     SseSerializer serializer,
@@ -52029,6 +53337,119 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_book_ended_row(BookEndedRow self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.notebookId, serializer);
+    sse_encode_String(self.copyName, serializer);
+    sse_encode_String(self.message, serializer);
+  }
+
+  @protected
+  void sse_encode_book_invitation_row(
+    BookInvitationRow self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.shareId, serializer);
+    sse_encode_String(self.from, serializer);
+    sse_encode_book_role(self.role, serializer);
+    sse_encode_bool(self.invited, serializer);
+    sse_encode_CastedPrimitive_i_64(self.atMs, serializer);
+  }
+
+  @protected
+  void sse_encode_book_member_row(
+    BookMemberRow self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.accountId, serializer);
+    sse_encode_String(self.username, serializer);
+    sse_encode_book_role(self.role, serializer);
+    sse_encode_bool(self.me, serializer);
+    sse_encode_book_standing_row(self.standing, serializer);
+    sse_encode_String(self.fingerprint, serializer);
+    sse_encode_bool(self.verified, serializer);
+    sse_encode_list_book_role(self.roles, serializer);
+    sse_encode_bool(self.removable, serializer);
+  }
+
+  @protected
+  void sse_encode_book_role(BookRole self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_book_share_check(
+    BookShareCheck self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_u_32(self.notes, serializer);
+    sse_encode_u_32(self.locked, serializer);
+    sse_encode_String(self.lockedName, serializer);
+    sse_encode_list_String(self.leftOut, serializer);
+  }
+
+  @protected
+  void sse_encode_book_share_info(
+    BookShareInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.shareId, serializer);
+    sse_encode_String(self.notebookId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_book_role(self.myRole, serializer);
+    sse_encode_String(self.owner, serializer);
+    sse_encode_list_book_member_row(self.members, serializer);
+    sse_encode_list_book_role(self.inviteRoles, serializer);
+    sse_encode_bool(self.owned, serializer);
+  }
+
+  @protected
+  void sse_encode_book_share_progress(
+    BookShareProgress self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.notebookId, serializer);
+    sse_encode_u_32(self.done, serializer);
+    sse_encode_u_32(self.total, serializer);
+  }
+
+  @protected
+  void sse_encode_book_standing_row(
+    BookStandingRow self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_book_sync_status(
+    BookSyncStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.offline, serializer);
+    sse_encode_u_32(self.waiting, serializer);
+    sse_encode_bool(self.live, serializer);
+  }
+
+  @protected
+  void sse_encode_book_words(BookWords self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.removeTitle, serializer);
+    sse_encode_String(self.removeBody, serializer);
+    sse_encode_String(self.leaveTitle, serializer);
+    sse_encode_String(self.stopTitle, serializer);
+  }
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
@@ -52141,6 +53562,24 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_board_setup(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_book_share_info(
+    BookShareInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_book_share_info(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_book_sync_status(
+    BookSyncStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_book_sync_status(self, serializer);
   }
 
   @protected
@@ -54604,6 +56043,42 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_list_book_invitation_row(
+    List<BookInvitationRow> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_book_invitation_row(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_book_member_row(
+    List<BookMemberRow> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_book_member_row(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_book_role(
+    List<BookRole> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_book_role(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_brief_note(
     List<BriefNote> self,
     SseSerializer serializer,
@@ -55251,6 +56726,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_note_card_view(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_note_edit_row(
+    List<NoteEditRow> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_note_edit_row(item, serializer);
     }
   }
 
@@ -55993,6 +57480,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_list_record_string_book_role(
+    List<(String, BookRole)> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_record_string_book_role(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_record_string_share_role(
     List<(String, ShareRole)> self,
     SseSerializer serializer,
@@ -56202,6 +57701,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_share_link_row(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_shared_book_row(
+    List<SharedBookRow> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_shared_book_row(item, serializer);
     }
   }
 
@@ -56971,6 +58482,15 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_note_edit_row(NoteEditRow self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.noteId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_bool(self.me, serializer);
+    sse_encode_CastedPrimitive_i_64(self.atMs, serializer);
+  }
+
+  @protected
   void sse_encode_note_history(NoteHistory self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.currentTitle, serializer);
@@ -57244,6 +58764,32 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_board_setup(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_book_share_info(
+    BookShareInfo? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_book_share_info(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_book_sync_status(
+    BookSyncStatus? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_book_sync_status(self, serializer);
     }
   }
 
@@ -59535,6 +61081,16 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_record_string_book_role(
+    (String, BookRole) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.$1, serializer);
+    sse_encode_book_role(self.$2, serializer);
+  }
+
+  @protected
   void sse_encode_record_string_share_role(
     (String, ShareRole) self,
     SseSerializer serializer,
@@ -60070,12 +61626,30 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_shared_book_row(
+    SharedBookRow self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.shareId, serializer);
+    sse_encode_String(self.notebookId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_book_role(self.myRole, serializer);
+    sse_encode_String(self.owner, serializer);
+    sse_encode_list_String(self.members, serializer);
+    sse_encode_book_sync_status(self.status, serializer);
+  }
+
+  @protected
   void sse_encode_shared_event(SharedEvent self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_String(self.noteIds, serializer);
     sse_encode_u_32(self.invitations, serializer);
     sse_encode_list_String(self.commentNotes, serializer);
     sse_encode_list_String(self.liveNotes, serializer);
+    sse_encode_list_String(self.notebooks, serializer);
+    sse_encode_u_32(self.bookInvitations, serializer);
+    sse_encode_list_String(self.bookNotices, serializer);
   }
 
   @protected
@@ -65166,6 +66740,10 @@ class KansoSharedImpl extends RustOpaque implements KansoShared {
   Future<String> accept({required String shareId}) => KansoCore.instance.api
       .crateApiSharedKansoSharedAccept(that: this, shareId: shareId);
 
+  /// Joins the notebook; answers with its library ID.
+  Future<String> acceptBook({required String shareId}) => KansoCore.instance.api
+      .crateApiSharedKansoSharedAcceptBook(that: this, shareId: shareId);
+
   Future<PersonRow> acceptNewKey({
     required String username,
     required String fingerprint,
@@ -65197,8 +66775,51 @@ class KansoSharedImpl extends RustOpaque implements KansoShared {
     accountId: accountId,
   );
 
+  /// "Edited by" for the notes of a shared notebook.
+  Future<List<NoteEditRow>> bookEdits({required String notebookId}) => KansoCore
+      .instance
+      .api
+      .crateApiSharedKansoSharedBookEdits(that: this, notebookId: notebookId);
+
+  /// A notebook's sharing; `None` when it isn't shared.
+  Future<BookShareInfo?> bookInfo({required String notebookId}) => KansoCore
+      .instance
+      .api
+      .crateApiSharedKansoSharedBookInfo(that: this, notebookId: notebookId);
+
+  Future<List<BookInvitationRow>> bookInvitations() =>
+      KansoCore.instance.api.crateApiSharedKansoSharedBookInvitations(
+        that: this,
+      );
+
+  /// How far a notebook being shared has got, until Dart stops listening.
+  Stream<BookShareProgress> bookProgress() =>
+      KansoCore.instance.api.crateApiSharedKansoSharedBookProgress(
+        that: this,
+      );
+
+  /// "Offline · 4 changes waiting" or "Up to date"; `None` when the
+  /// notebook isn't shared.
+  Future<BookSyncStatus?> bookStatus({required String notebookId}) => KansoCore
+      .instance
+      .api
+      .crateApiSharedKansoSharedBookStatus(that: this, notebookId: notebookId);
+
+  /// The questions' words, the same as the desktop's.
+  BookWords bookWords({required String name, required String who}) => KansoCore
+      .instance
+      .api
+      .crateApiSharedKansoSharedBookWords(that: this, name: name, who: who);
+
   Future<void> canShare({required String noteId}) => KansoCore.instance.api
       .crateApiSharedKansoSharedCanShare(that: this, noteId: noteId);
+
+  /// What sharing a notebook would do; refuses one that can't be shared.
+  Future<BookShareCheck> canShareBook({required String notebookId}) =>
+      KansoCore.instance.api.crateApiSharedKansoSharedCanShareBook(
+        that: this,
+        notebookId: notebookId,
+      );
 
   Future<ShareInfo> cancelLink({
     required String noteId,
@@ -65237,6 +66858,9 @@ class KansoSharedImpl extends RustOpaque implements KansoShared {
 
   Future<void> decline({required String shareId}) => KansoCore.instance.api
       .crateApiSharedKansoSharedDecline(that: this, shareId: shareId);
+
+  Future<void> declineBook({required String shareId}) => KansoCore.instance.api
+      .crateApiSharedKansoSharedDeclineBook(that: this, shareId: shareId);
 
   Future<ShareInfo> declineRequest({
     required String noteId,
@@ -65298,11 +66922,27 @@ class KansoSharedImpl extends RustOpaque implements KansoShared {
     role: role,
   );
 
+  Future<BookShareInfo> inviteToBook({
+    required String notebookId,
+    required String username,
+    required BookRole role,
+  }) => KansoCore.instance.api.crateApiSharedKansoSharedInviteToBook(
+    that: this,
+    notebookId: notebookId,
+    username: username,
+    role: role,
+  );
+
   Future<JoinRow> join({required String link}) => KansoCore.instance.api
       .crateApiSharedKansoSharedJoin(that: this, link: link);
 
   Future<void> leave({required String noteId}) => KansoCore.instance.api
       .crateApiSharedKansoSharedLeave(that: this, noteId: noteId);
+
+  Future<BookEndedRow> leaveBook({required String notebookId}) => KansoCore
+      .instance
+      .api
+      .crateApiSharedKansoSharedLeaveBook(that: this, notebookId: notebookId);
 
   /// What the note's page says of its sharing; `None` when it isn't
   /// shared.
@@ -65331,6 +66971,15 @@ class KansoSharedImpl extends RustOpaque implements KansoShared {
     accountId: accountId,
   );
 
+  Future<BookShareInfo> removeFromBook({
+    required String notebookId,
+    required String accountId,
+  }) => KansoCore.instance.api.crateApiSharedKansoSharedRemoveFromBook(
+    that: this,
+    notebookId: notebookId,
+    accountId: accountId,
+  );
+
   Future<void> resolveComment({
     required String noteId,
     required String commentId,
@@ -65340,6 +66989,17 @@ class KansoSharedImpl extends RustOpaque implements KansoShared {
     noteId: noteId,
     commentId: commentId,
     resolved: resolved,
+  );
+
+  Future<BookShareInfo> setBookRole({
+    required String notebookId,
+    required String accountId,
+    required BookRole role,
+  }) => KansoCore.instance.api.crateApiSharedKansoSharedSetBookRole(
+    that: this,
+    notebookId: notebookId,
+    accountId: accountId,
+    role: role,
   );
 
   Future<ShareInfo> setRole({
@@ -65362,8 +67022,28 @@ class KansoSharedImpl extends RustOpaque implements KansoShared {
     invites: invites,
   );
 
+  Future<BookShareInfo> shareBook({
+    required String notebookId,
+    required List<(String, BookRole)> invites,
+  }) => KansoCore.instance.api.crateApiSharedKansoSharedShareBook(
+    that: this,
+    notebookId: notebookId,
+    invites: invites,
+  );
+
+  /// The notebooks shared here, for the library's Shared section.
+  Future<List<SharedBookRow>> sharedBooks() =>
+      KansoCore.instance.api.crateApiSharedKansoSharedSharedBooks(
+        that: this,
+      );
+
   Future<void> stop({required String noteId}) => KansoCore.instance.api
       .crateApiSharedKansoSharedStop(that: this, noteId: noteId);
+
+  Future<BookEndedRow> stopBook({required String notebookId}) => KansoCore
+      .instance
+      .api
+      .crateApiSharedKansoSharedStopBook(that: this, notebookId: notebookId);
 
   Future<SharedEvent> syncShared() =>
       KansoCore.instance.api.crateApiSharedKansoSharedSyncShared(

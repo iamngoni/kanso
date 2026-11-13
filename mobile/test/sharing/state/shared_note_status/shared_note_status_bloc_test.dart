@@ -44,6 +44,9 @@ SharedEvent _event({
   invitations: 0,
   commentNotes: const <String>[],
   liveNotes: liveNotes,
+  notebooks: <String>[],
+  bookInvitations: 0,
+  bookNotices: <String>[],
 );
 
 void main() {

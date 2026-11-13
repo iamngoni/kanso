@@ -117,6 +117,14 @@ pub struct SharedEvent {
     /// problem, or saw someone's cursor move: ask for their
     /// [`LiveStatus`] and cursors again.
     pub live_notes: Vec<String>,
+    /// Shared notebooks whose notes, people or sync status changed, by
+    /// library ID: read them again.
+    pub notebooks: Vec<String>,
+    /// Notebook invitations waiting now.
+    pub book_invitations: u32,
+    /// What to tell about notebooks that ended here: "You were removed
+    /// from "Studio". Your copy is in "Studio (no longer shared)"."
+    pub book_notices: Vec<String>,
 }
 
 /// What the page of a shared note says of its sharing, as the desktop's

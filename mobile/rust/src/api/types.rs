@@ -50,6 +50,10 @@ pub use kanso_mobile::{
     TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow, VisibleNotebook, ZoneRow,
 };
 pub use kanso_mobile::{
+    BookEndedRow, BookInvitationRow, BookMemberRow, BookRole, BookShareCheck, BookShareInfo,
+    BookShareProgress, BookStandingRow, BookSyncStatus, BookWords, NoteEditRow, SharedBookRow,
+};
+pub use kanso_mobile::{
     IconThemeImport, InstalledIconThemeRow, ThemeImport, ThemeNotice, ThemeOrigin, ThemeRow,
 };
 
@@ -1327,6 +1331,117 @@ pub struct _SharedEvent {
     pub invitations: u32,
     pub comment_notes: Vec<String>,
     pub live_notes: Vec<String>,
+    pub notebooks: Vec<String>,
+    pub book_invitations: u32,
+    pub book_notices: Vec<String>,
+}
+
+#[frb(mirror(BookRole))]
+pub enum _BookRole {
+    Owner,
+    Manager,
+    Editor,
+    Commenter,
+    Viewer,
+}
+
+#[frb(mirror(BookStandingRow))]
+pub enum _BookStandingRow {
+    Member,
+    Invited,
+    Left,
+    Unknown,
+}
+
+#[frb(mirror(BookMemberRow))]
+pub struct _BookMemberRow {
+    pub account_id: String,
+    pub username: String,
+    pub role: BookRole,
+    pub me: bool,
+    pub standing: BookStandingRow,
+    pub fingerprint: String,
+    pub verified: bool,
+    pub roles: Vec<BookRole>,
+    pub removable: bool,
+}
+
+#[frb(mirror(BookShareInfo))]
+pub struct _BookShareInfo {
+    pub share_id: String,
+    pub notebook_id: String,
+    pub name: String,
+    pub my_role: BookRole,
+    pub owner: String,
+    pub members: Vec<BookMemberRow>,
+    pub invite_roles: Vec<BookRole>,
+    pub owned: bool,
+}
+
+#[frb(mirror(BookShareCheck))]
+pub struct _BookShareCheck {
+    pub name: String,
+    pub notes: u32,
+    pub locked: u32,
+    pub locked_name: String,
+    pub left_out: Vec<String>,
+}
+
+#[frb(mirror(BookShareProgress))]
+pub struct _BookShareProgress {
+    pub notebook_id: String,
+    pub done: u32,
+    pub total: u32,
+}
+
+#[frb(mirror(BookInvitationRow))]
+pub struct _BookInvitationRow {
+    pub share_id: String,
+    pub from: String,
+    pub role: BookRole,
+    pub invited: bool,
+    pub at_ms: i64,
+}
+
+#[frb(mirror(BookSyncStatus))]
+pub struct _BookSyncStatus {
+    pub offline: bool,
+    pub waiting: u32,
+    pub live: bool,
+}
+
+#[frb(mirror(SharedBookRow))]
+pub struct _SharedBookRow {
+    pub share_id: String,
+    pub notebook_id: String,
+    pub name: String,
+    pub my_role: BookRole,
+    pub owner: String,
+    pub members: Vec<String>,
+    pub status: BookSyncStatus,
+}
+
+#[frb(mirror(NoteEditRow))]
+pub struct _NoteEditRow {
+    pub note_id: String,
+    pub name: String,
+    pub me: bool,
+    pub at_ms: i64,
+}
+
+#[frb(mirror(BookEndedRow))]
+pub struct _BookEndedRow {
+    pub notebook_id: String,
+    pub copy_name: String,
+    pub message: String,
+}
+
+#[frb(mirror(BookWords))]
+pub struct _BookWords {
+    pub remove_title: String,
+    pub remove_body: String,
+    pub leave_title: String,
+    pub stop_title: String,
 }
 
 #[frb(mirror(LiveStatus))]

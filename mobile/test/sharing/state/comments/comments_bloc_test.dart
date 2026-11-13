@@ -110,6 +110,9 @@ void main() {
             invitations: 0,
             commentNotes: <String>[_note],
             liveNotes: <String>[],
+            notebooks: <String>[],
+            bookInvitations: 0,
+            bookNotices: <String>[],
           ),
         );
         final now = await bloc.stream.firstWhere((s) => s.comments.isNotEmpty);
@@ -127,6 +130,9 @@ void main() {
           invitations: 0,
           commentNotes: <String>['note:other'],
           liveNotes: <String>[],
+          notebooks: <String>[],
+          bookInvitations: 0,
+          bookNotices: <String>[],
         ),
       );
       await pumpEventQueue();
