@@ -19,7 +19,7 @@ use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{ActiveTheme as _, Icon, Sizable as _, StyledExt as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
-use kanso_collab::{BookLiveNotice, Engine, NoteEdit};
+use kanso_collab::{BookLiveNotice, Engine, NoteEdit, book_copy};
 use kanso_store::SharedStatus;
 
 use crate::book_share_model::{
@@ -45,6 +45,7 @@ pub fn sync_books(engine: &Engine) -> BookNews {
                 if let Some(ended) = sync.ended {
                     news.ended.push(ended.message);
                 }
+                news.brought_back.extend(sync.brought_back);
             }
             Err(err) if err.is_offline() => news.offline = true,
             Err(err) => eprintln!("kanso: syncing shared notebook {share_id}: {err}"),
@@ -100,7 +101,17 @@ pub fn take_news(news: BookNews, cx: &mut App) {
     for message in news.ended {
         notify_windows(move || Notification::info(message.clone()), cx);
     }
+    tell_brought_back(&news.brought_back, cx);
     cx.refresh_windows();
+}
+
+/// Tells the person that notes they deleted are back, because someone
+/// edited them before seeing them go (the phone says the same).
+fn tell_brought_back(titles: &[String], cx: &mut App) {
+    for title in titles {
+        let message = book_copy::brought_back_notice(title);
+        notify_windows(move || Notification::info(message.clone()), cx);
+    }
 }
 
 /// Reads the notebooks and edits again from the library (after a step on
@@ -264,6 +275,10 @@ fn on_live(batch: Vec<BookLiveNotice>, cx: &mut App) {
                 cx.refresh_windows();
             }
             BookLiveNotice::Ended { .. } => ended = true,
+            BookLiveNotice::BroughtBack { titles, .. } => {
+                notes = true;
+                tell_brought_back(&titles, cx);
+            }
         }
     }
     if notes {

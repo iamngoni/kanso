@@ -339,6 +339,39 @@ fn an_edit_brings_back_a_note_deleted_or_trashed_on_another_device_in_every_orde
     }
 }
 
+/// The person who deleted a note an edit brought back is told, by its
+/// title, whatever the order; nobody else is.
+#[test]
+fn whoever_deleted_a_note_an_edit_brought_back_is_told_in_every_order() {
+    for order in orders() {
+        let s = studio();
+        s.delete(0, "Old");
+        s.trash(2, "Shots");
+        s.edit(1, "Old", |t| format!("{t}edited by B\n"));
+        s.edit(1, "Shots", |t| format!("{t}two B\n"));
+        let mut told: [Vec<String>; 3] = Default::default();
+        let mut sync_one = |d: usize| {
+            let sync = s.d(d).engine.sync_book(&s.share).unwrap();
+            told[d].extend(sync.brought_back);
+        };
+        for d in order {
+            sync_one(d);
+        }
+        for _ in 0..3 {
+            for d in 0..3 {
+                sync_one(d);
+            }
+        }
+        assert_eq!(told[0], ["Old"], "{order:?}");
+        assert!(told[1].is_empty(), "{order:?}: {:?}", told[1]);
+        assert_eq!(told[2], ["Shots"], "{order:?}");
+        assert_eq!(
+            crate::book_copy::brought_back_notice("Old"),
+            "\"Old\" was edited after you deleted it, so it's back."
+        );
+    }
+}
+
 #[test]
 fn a_deletion_nobody_answers_with_an_edit_holds_and_lands_in_every_trash() {
     for order in orders() {

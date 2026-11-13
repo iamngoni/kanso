@@ -517,6 +517,12 @@ impl Engine {
 
     /// Tells the app what a sync changed.
     fn told(&self, share_id: &str, sync: &crate::book_model::BookSync, notify: &BookNotify) {
+        if !sync.brought_back.is_empty() {
+            notify(BookLiveNotice::BroughtBack {
+                share_id: share_id.to_owned(),
+                titles: sync.brought_back.clone(),
+            });
+        }
         if sync.notes_written > 0 || sync.notes_trashed > 0 || sync.pulled > 0 {
             notify(BookLiveNotice::Notes {
                 share_id: share_id.to_owned(),

@@ -428,6 +428,12 @@ impl SharedNotes {
                         event.book_notices.push(ended.message.clone());
                         self.close_book_room(&share_id);
                     }
+                    // Notes deleted here that someone's edit brought back.
+                    event.book_notices.extend(
+                        sync.brought_back
+                            .iter()
+                            .map(|t| book_copy::brought_back_notice(t)),
+                    );
                     sync.pulled > 0 || sync.pushed > 0 || sync.ended.is_some()
                 }
                 Err(_) => false,
@@ -457,6 +463,12 @@ impl SharedNotes {
             .shared_book(&stream.share_id)?
             .is_some_and(|row| row.status == SharedStatus::Active);
         Ok(active.then_some((stream.share_id, stream.stream)))
+    }
+
+    /// Whether `note_id` is a note of a notebook shared here: its editor
+    /// merges a collaborator's edit that doesn't touch the typing in.
+    pub(crate) fn in_shared_book(&self, note_id: &str) -> bool {
+        self.book_note(note_id).ok().flatten().is_some()
     }
 
     /// Opens the room of the notebook `note_id` is in (once per notebook)
@@ -822,6 +834,14 @@ fn book_notify(
                     ..base
                 }
             }
+            BookLiveNotice::BroughtBack { titles, .. } => SharedEvent {
+                notebooks: notebook(),
+                book_notices: titles
+                    .iter()
+                    .map(|t| book_copy::brought_back_notice(t))
+                    .collect(),
+                ..base
+            },
         };
         inner.shared.listeners.send(event);
     })

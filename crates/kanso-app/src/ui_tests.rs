@@ -247,6 +247,51 @@ fn keeping_mine_over_a_change_elsewhere_keeps_theirs_in_history(cx: &mut TestApp
     );
 }
 
+/// Marks note `id` as a note of a shared notebook this account edits in.
+fn mark_notebook_note(f: &Fixture, id: &str) {
+    f.store
+        .put(
+            DocType::Note,
+            json!({"_id": id, kanso_core::model::SHARE_FIELD: {
+                "shareId": "s_1", "role": "edit", "ownerName": "ana",
+                "book": true, "stream": "st_1",
+            }}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+}
+
+#[gpui_kit::test]
+fn a_notebook_edit_apart_from_the_typing_merges(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let id = f.notes[0].clone();
+    mark_notebook_note(&f, &id);
+    f.select(cx, &id);
+    f.type_body(cx, "start, mine");
+    // A collaborator's edit at the other end arrives.
+    f.edit_elsewhere(cx, &id, "The start");
+    assert!(!f.editor(cx, |e, _| e.has_incoming()), "nothing to ask");
+    assert_eq!(f.editor(cx, |e, cx| e.body_for_test(cx)), "The start, mine");
+    cx.executor().advance_clock(Duration::from_secs(2));
+    cx.run_until_parked();
+    assert_eq!(note_body(&f.store, &id), "The start, mine");
+}
+
+#[gpui_kit::test]
+fn a_notebook_edit_that_meets_the_typing_asks(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let id = f.notes[0].clone();
+    mark_notebook_note(&f, &id);
+    f.select(cx, &id);
+    f.type_body(cx, "start, mine");
+    f.edit_elsewhere(cx, &id, "start, theirs");
+    assert!(f.editor(cx, |e, _| e.has_incoming()), "asks which to keep");
+    cx.executor().advance_clock(Duration::from_secs(2));
+    cx.run_until_parked();
+    assert_eq!(note_body(&f.store, &id), "start, theirs");
+}
+
 #[gpui_kit::test]
 fn using_theirs_keeps_my_draft_in_history(cx: &mut TestAppContext) {
     let f = setup(cx);

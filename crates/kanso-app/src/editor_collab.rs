@@ -1046,6 +1046,67 @@ impl NoteEditor {
             .map(|b| (b.share_id.as_str(), b.stream.as_str()))
     }
 
+    /// A collaborator's version of a note of a shared notebook arrived over
+    /// unsaved typing: when no change of theirs touches a change typed here
+    /// (`merge_apart`), both are kept, theirs going in as splices that leave
+    /// the caret where it was, and the merge is saved as typing is. Only
+    /// edits that meet are asked about. Whether it was merged.
+    // no-prop-test: editor glue; `merge_apart` has the properties, and
+    // `a_notebook_edit_apart_from_the_typing_merges` types through it.
+    pub(super) fn book_merge_in(
+        &mut self,
+        latest: &kanso_core::Note,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(note) = self.note.as_ref() else {
+            return false;
+        };
+        if book_stream(&note.extra).is_none()
+            || self.canvas_body.is_some()
+            || note.is_locked()
+            || latest.is_locked()
+            || latest.book_id != note.book_id
+        {
+            return false;
+        }
+        let now = self.current_text(cx);
+        let Some(title) = kanso_collab::merge_apart(&note.title, &now.0, &latest.title) else {
+            return false;
+        };
+        let Some(body) = kanso_collab::merge_apart(&note.body, &now.1, &latest.body) else {
+            return false;
+        };
+        let (title_edits, body_edits) = (splices(&now.0, &title), splices(&now.1, &body));
+        self.note = Some(latest.clone());
+        self.incoming = None;
+        if !title_edits.is_empty() {
+            self.title.update(cx, |state, cx| {
+                let range = state.selected_range();
+                let head = state.cursor();
+                let anchor = if head == range.start {
+                    range.end
+                } else {
+                    range.start
+                };
+                for edit in &title_edits {
+                    state.set_selected_range(edit.at..edit.at + edit.delete, cx);
+                    state.replace(edit.insert.clone(), window, cx);
+                }
+                let (anchor, head) = map_selection(anchor, head, &title_edits);
+                state.set_selected_range(anchor..head, cx);
+            });
+        }
+        if !body_edits.is_empty() {
+            self.splice_body(&body_edits, window, cx);
+        }
+        if self.has_unsaved_edits(cx) {
+            self.schedule_autosave(cx);
+        }
+        cx.notify();
+        true
+    }
+
     /// Tells the notebook's room where the caret is, when it moved.
     fn book_caret(&mut self, cx: &mut Context<Self>) {
         let Some(open) = self.book_note.as_mut() else {
