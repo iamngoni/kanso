@@ -16,6 +16,13 @@ abstract class CaptureInboxState with _$CaptureInboxState {
     /// How many notes saves have made since the app started.
     @Default(0) int savedCount,
 
+    /// The task lines the last save added, from "Add Kanso task" run while
+    /// the app was closed.
+    @Default(<String>[]) List<String> tasks,
+
+    /// How many tasks saves have added since the app started.
+    @Default(0) int taskCount,
+
     /// How many items the last save kept to try again.
     @Default(0) int kept,
 

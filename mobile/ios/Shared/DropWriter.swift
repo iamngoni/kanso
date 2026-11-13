@@ -98,6 +98,26 @@ final class DropWriter {
   func finish(
     subject: String? = nil, text: String? = nil, url: String? = nil, html: String? = nil
   ) throws -> URL {
+    var fields: [String: Any] = [:]
+    for (key, value) in [("subject", subject), ("text", text), ("url", url), ("html", html)] {
+      if let value, !value.isEmpty { fields[key] = value }
+    }
+    return try seal(fields)
+  }
+
+  /// Writes `drop.json` for a task drop (`"kind": "task"`, see
+  /// `mobile/docs/capture.md`) and renames the folder. `line` is the task
+  /// line the Rust parser wrote; `day` (`YYYY-MM-DD`) and `time` (`HH:MM`)
+  /// are the phone's local date and time it was captured at, for which
+  /// daily note it goes in; `target` is `dailyNote` or `inbox`.
+  @discardableResult
+  func finishTask(line: String, day: String, time: String, target: String) throws -> URL {
+    try seal(["kind": "task", "line": line, "day": day, "time": time, "target": target])
+  }
+
+  /// Writes `drop.json` with `fields`, the version, the time and the files,
+  /// then renames the folder.
+  private func seal(_ fields: [String: Any]) throws -> URL {
     lock.lock()
     defer { lock.unlock() }
     guard !closed else { throw DropError.closed }
@@ -106,9 +126,7 @@ final class DropWriter {
       "version": 1,
       "createdAt": Int64((Date().timeIntervalSince1970 * 1000).rounded()),
     ]
-    for (key, value) in [("subject", subject), ("text", text), ("url", url), ("html", html)] {
-      if let value, !value.isEmpty { json[key] = value }
-    }
+    json.merge(fields) { _, new in new }
     if !files.isEmpty { json["files"] = files }
 
     let data = try JSONSerialization.data(withJSONObject: json, options: [.sortedKeys])
@@ -128,6 +146,20 @@ final class DropWriter {
     let writer = try DropWriter(inbox: inbox)
     do {
       return try writer.finish(subject: subject, text: text, url: url)
+    } catch {
+      writer.discard()
+      throw error
+    }
+  }
+
+  /// Writes a task drop alone (`finishTask(line:day:time:target:)`).
+  @discardableResult
+  static func writeTask(
+    in inbox: URL, line: String, day: String, time: String, target: String
+  ) throws -> URL {
+    let writer = try DropWriter(inbox: inbox)
+    do {
+      return try writer.finishTask(line: line, day: day, time: time, target: target)
     } catch {
       writer.discard()
       throw error

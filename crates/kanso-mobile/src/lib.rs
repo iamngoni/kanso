@@ -130,6 +130,8 @@ mod gallery_store;
 mod history;
 mod icons;
 pub mod import;
+pub mod intents;
+mod intents_model;
 mod journal;
 mod library;
 mod library_admin;
@@ -236,6 +238,7 @@ pub use feedback::MobileFeedback;
 pub use feedback_model::*;
 pub use gallery::Gallery;
 pub use gallery_model::*;
+pub use intents_model::*;
 pub use kanso_engine::account::cost_model::CostSummary;
 pub use kanso_engine::text_stats::{format_count, word_count};
 pub use kanso_engine::word_goal::{

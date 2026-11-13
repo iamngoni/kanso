@@ -2082,6 +2082,7 @@ pub enum _DiagramRenderer {
 #[frb(mirror(DropsSaved))]
 pub struct _DropsSaved {
     pub notes: Vec<String>,
+    pub tasks: Vec<String>,
     pub problems: Vec<String>,
     pub kept: u32,
 }

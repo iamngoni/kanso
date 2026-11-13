@@ -31270,12 +31270,13 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   DropsSaved dco_decode_drops_saved(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return DropsSaved(
       notes: dco_decode_list_String(arr[0]),
-      problems: dco_decode_list_String(arr[1]),
-      kept: dco_decode_u_32(arr[2]),
+      tasks: dco_decode_list_String(arr[1]),
+      problems: dco_decode_list_String(arr[2]),
+      kept: dco_decode_u_32(arr[3]),
     );
   }
 
@@ -42199,9 +42200,15 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   DropsSaved sse_decode_drops_saved(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_notes = sse_decode_list_String(deserializer);
+    var var_tasks = sse_decode_list_String(deserializer);
     var var_problems = sse_decode_list_String(deserializer);
     var var_kept = sse_decode_u_32(deserializer);
-    return DropsSaved(notes: var_notes, problems: var_problems, kept: var_kept);
+    return DropsSaved(
+      notes: var_notes,
+      tasks: var_tasks,
+      problems: var_problems,
+      kept: var_kept,
+    );
   }
 
   @protected
@@ -55264,6 +55271,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   void sse_encode_drops_saved(DropsSaved self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_String(self.notes, serializer);
+    sse_encode_list_String(self.tasks, serializer);
     sse_encode_list_String(self.problems, serializer);
     sse_encode_u_32(self.kept, serializer);
   }

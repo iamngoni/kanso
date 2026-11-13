@@ -7,3 +7,4 @@
 cc 3c107b058777586f407d009996a0d757257a8d3171fc9eca2680882c4f5874bc # shrinks to name = ":"
 cc 0c8f309fcfd930f048f62e5c6d19260d0186697233ea1ff932644c86777cd287 # shrinks to books = ["aA"], notes = [(0, "")], existing = [("aa", "")]
 cc fbe36adcb09dd31b41fd9813c6c9987cc3f64bc293c9212f8c3d90d2c18ea915 # shrinks to title = "a", tag = "b", user_title = "A", user_tag = "B", owner = "a", status_ix = 0, pinned = false, prose = ""
+cc 4607d2f314bc3d7f0d7fa8f21606e3b463c88586c321d654aba58435c49a59c4 # shrinks to books = ["a"], notes = [], existing = []
