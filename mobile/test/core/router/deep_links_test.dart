@@ -4,6 +4,8 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glados/glados.dart' show Glados, any;
+// The generators on `any` are extensions; this brings them in.
+import 'package:glados/glados.dart' as glados_generators;
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/browse_location.dart';
 import 'package:kanso/core/router/deep_links.dart';
@@ -99,6 +101,23 @@ void main() {
           BrowseLocation.parse(Uri.parse(redirectLocation(link)!)),
           BrowseLocation.place(const ListPlace.all(), noteId: id),
         );
+      },
+    );
+
+    // "Search Kanso" (iOS App Intent, #390) opens kanso://open/search?q=….
+    Glados<String>(any.letterOrDigits, kansoExploreConfig()).test(
+      'a search link from an App Intent keeps its words',
+      (words) {
+        final query = '$words fri';
+        final link = Uri(
+          scheme: 'kanso',
+          host: 'open',
+          path: '/search',
+          queryParameters: <String, String>{'q': query},
+        );
+        final landed = Uri.parse(redirectLocation(link)!);
+        expect(landed.path, '/search');
+        expect(landed.queryParameters['q'], query);
       },
     );
 

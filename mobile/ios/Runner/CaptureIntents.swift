@@ -58,7 +58,7 @@ struct AddToKansoIntent: AppIntent {
 
   /// Writes the text as a drop (a link on its own goes in the drop's `url`)
   /// and asks the library to save it. Returns a sentence about what happened.
-  private static func save(_ text: String) -> String {
+  static func save(_ text: String) -> String {
     guard let location = KansoLibraryLocation.shared() else {
       return "Kanso couldn't open its library."
     }
@@ -111,5 +111,41 @@ struct KansoShortcuts: AppShortcutsProvider {
       ],
       shortTitle: "Capture Voice Note",
       systemImageName: "mic.fill")
+    // #390: the four actions Raycast has on the desktop (KansoIntents.swift).
+    // "Capture in Kanso" is the voice note's phrase already, so the text
+    // capture is asked for in other words.
+    AppShortcut(
+      intent: CaptureInKansoIntent(),
+      phrases: [
+        "Quick capture in \(.applicationName)",
+        "Capture text in \(.applicationName)",
+      ],
+      shortTitle: "Capture in Kanso",
+      systemImageName: "square.and.arrow.down")
+    AppShortcut(
+      intent: AddKansoTaskIntent(),
+      phrases: [
+        "Add \(.applicationName) task",
+        "Add a task in \(.applicationName)",
+        "New task in \(.applicationName)",
+      ],
+      shortTitle: "Add Kanso task",
+      systemImageName: "checklist")
+    AppShortcut(
+      intent: SearchKansoIntent(),
+      phrases: [
+        "Search \(.applicationName)",
+        "Search my notes in \(.applicationName)",
+      ],
+      shortTitle: "Search Kanso",
+      systemImageName: "magnifyingglass")
+    AppShortcut(
+      intent: OpenKansoNoteIntent(),
+      phrases: [
+        "Open \(.applicationName) note",
+        "Open a note in \(.applicationName)",
+      ],
+      shortTitle: "Open Kanso note",
+      systemImageName: "doc.text")
   }
 }

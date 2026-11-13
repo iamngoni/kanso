@@ -32909,6 +32909,7 @@ const _: fn() = || {
     {
         let DropsSaved = None::<crate::api::types::DropsSaved>.unwrap();
         let _: Vec<String> = DropsSaved.notes;
+        let _: Vec<String> = DropsSaved.tasks;
         let _: Vec<String> = DropsSaved.problems;
         let _: u32 = DropsSaved.kept;
     }
@@ -38489,10 +38490,12 @@ impl SseDecode for crate::api::types::DropsSaved {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_notes = <Vec<String>>::sse_decode(deserializer);
+        let mut var_tasks = <Vec<String>>::sse_decode(deserializer);
         let mut var_problems = <Vec<String>>::sse_decode(deserializer);
         let mut var_kept = <u32>::sse_decode(deserializer);
         return crate::api::types::DropsSaved {
             notes: var_notes,
+            tasks: var_tasks,
             problems: var_problems,
             kept: var_kept,
         };
@@ -54506,6 +54509,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::DropsSaved>
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.0.notes.into_into_dart().into_dart(),
+            self.0.tasks.into_into_dart().into_dart(),
             self.0.problems.into_into_dart().into_dart(),
             self.0.kept.into_into_dart().into_dart(),
         ]
@@ -66012,6 +66016,7 @@ impl SseEncode for crate::api::types::DropsSaved {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<String>>::sse_encode(self.notes, serializer);
+        <Vec<String>>::sse_encode(self.tasks, serializer);
         <Vec<String>>::sse_encode(self.problems, serializer);
         <u32>::sse_encode(self.kept, serializer);
     }

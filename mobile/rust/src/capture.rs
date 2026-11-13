@@ -21,6 +21,7 @@
 //! | Field | Type | Meaning |
 //! |---|---|---|
 //! | `notes` | array of strings | The IDs of the notes made, oldest item first. A note an earlier try already made is here too. |
+//! | `tasks` | array of strings | The task lines added from `task` drops ("Add Kanso task" with the app closed), oldest first. |
 //! | `problems` | array of strings | What was left out or refused, a sentence each, for the caller to show. Also why saving failed altogether, when it did. |
 //! | `kept` | number | Items kept to try again later (a busy database, a disk error, or an item a newer Kanso wrote). |
 //!
@@ -193,7 +194,7 @@ mod tests {
         // Nothing waiting.
         assert_eq!(
             call(library.as_ptr(), inbox.as_ptr()).unwrap(),
-            r#"{"notes":[],"problems":[],"kept":0}"#
+            r#"{"notes":[],"tasks":[],"problems":[],"kept":0}"#
         );
 
         // A real drop: a note and a PDF.
@@ -209,7 +210,7 @@ mod tests {
         let answer = call(library.as_ptr(), inbox.as_ptr()).unwrap();
         assert_eq!(
             answer,
-            format!(r#"{{"notes":["note:cap-{id}"],"problems":[],"kept":0}}"#)
+            format!(r#"{{"notes":["note:cap-{id}"],"tasks":[],"problems":[],"kept":0}}"#)
         );
         assert!(!folder.exists());
     }
@@ -229,7 +230,7 @@ mod tests {
             kanso_string_free(result);
             text
         };
-        assert_eq!(text, r#"{"notes":[],"problems":[],"kept":0}"#);
+        assert_eq!(text, r#"{"notes":[],"tasks":[],"problems":[],"kept":0}"#);
     }
 
     proptest! {

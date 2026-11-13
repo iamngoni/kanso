@@ -120,4 +120,61 @@ final class DropWriterTests: XCTestCase {
     XCTAssertEqual(DropWriter.fileExtension(named: "x", fallbackName: "y", type: "application/pdf"), "pdf")
     XCTAssertEqual(DropWriter.fileExtension(named: "x", fallbackName: "y", type: nil), "bin")
   }
+
+  // #390 slice 18: "Add Kanso task" leaves a task drop.
+  func testATaskDropCarriesItsLineDayAndTarget() throws {
+    let line = "- [ ] film Pixel review @2026-11-13T15:00 every week"
+    let folder = try DropWriter.writeTask(
+      in: inbox, line: line, day: "2026-11-12", time: "09:41", target: "inbox")
+    XCTAssertEqual(try names(in: folder), ["drop.json"])
+    let json = try readJSON(folder.appendingPathComponent("drop.json"))
+    XCTAssertEqual(json["version"] as? Int, 1)
+    XCTAssertEqual(json["kind"] as? String, "task")
+    XCTAssertEqual(json["line"] as? String, line)
+    XCTAssertEqual(json["day"] as? String, "2026-11-12")
+    XCTAssertEqual(json["time"] as? String, "09:41")
+    XCTAssertEqual(json["target"] as? String, "inbox")
+    XCTAssertNil(json["files"])
+    XCTAssertNotNil(json["createdAt"] as? Int64)
+  }
+
+  func testIntentHelpers() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/London"))
+    let date = try XCTUnwrap(
+      calendar.date(from: DateComponents(year: 2026, month: 3, day: 4, hour: 7, minute: 5)))
+    let (day, time) = KansoIntentCore.localDayAndTime(date, calendar: calendar)
+    XCTAssertEqual(day, "2026-03-04")
+    XCTAssertEqual(time, "07:05")
+
+    XCTAssertTrue(KansoIntentCore.monthFirst(region: "US"))
+    XCTAssertFalse(KansoIntentCore.monthFirst(region: "GB"))
+    XCTAssertFalse(KansoIntentCore.monthFirst(region: nil))
+
+    XCTAssertEqual(KansoIntentCore.taskTarget(from: nil), "dailyNote")
+    XCTAssertEqual(
+      KansoIntentCore.taskTarget(from: Data(#"{"captureTaskTarget":"inbox"}"#.utf8)), "inbox")
+    XCTAssertEqual(
+      KansoIntentCore.taskTarget(from: Data(#"{"captureTaskTarget":"desk"}"#.utf8)), "dailyNote")
+
+    XCTAssertEqual(
+      KansoIntentCore.searchLink(" film pixel ")?.absoluteString,
+      "kanso://open/search?q=film%20pixel")
+    XCTAssertEqual(
+      KansoIntentCore.noteLink("note:abc")?.absoluteString, "kanso://open/note/note:abc")
+    XCTAssertNil(KansoIntentCore.noteLink("a/b"))
+
+    XCTAssertEqual(KansoIntentCore.reading(of: nil), .unavailable)
+    XCTAssertEqual(KansoIntentCore.reading(of: Data("null".utf8)), .noTask)
+    let answer = Data(
+      #"{"line":"- [ ] a","words":"a","when":null,"confirmation":"Added: a"}"#.utf8)
+    XCTAssertEqual(
+      KansoIntentCore.reading(of: answer),
+      .task(TaskPreview(line: "- [ ] a", words: "a", when: nil, confirmation: "Added: a")))
+
+    let notes = KansoIntentCore.decodeNotes(
+      Data(#"{"notes":[{"id":"note:1","title":"Pixel","notebook":"Inbox"}]}"#.utf8))
+    XCTAssertEqual(notes.map(\.id), ["note:1"])
+    XCTAssertTrue(KansoIntentCore.decodeNotes(Data("{}".utf8)).isEmpty)
+  }
 }

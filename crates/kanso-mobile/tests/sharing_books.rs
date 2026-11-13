@@ -12,8 +12,7 @@ use std::time::{Duration, Instant};
 use kanso_collab::memory::MemoryCollab;
 use kanso_mobile::{
     BookRole, BookStandingRow, KansoError, Library, ListPlace, ListQuery, MemorySecrets, NewNote,
-    PersonLookup,
-    SharedEvent, SharedNotes,
+    PersonLookup, SharedEvent, SharedNotes,
 };
 use kanso_sync::{DEFAULT_SERVER, DeviceIdentity, MemoryServer, Password};
 
@@ -177,7 +176,10 @@ fn a_notebook_is_shared_its_invitation_accepted_and_its_notes_read() {
     let book = alice.notebook_with("Studio", &[("Brief", "Pixel review"), ("Shots", "B-roll")]);
 
     let check = alice.shared().can_share_book(book.clone()).unwrap();
-    assert_eq!((check.name.as_str(), check.notes, check.locked), ("Studio", 2, 0));
+    assert_eq!(
+        (check.name.as_str(), check.notes, check.locked),
+        ("Studio", 2, 0)
+    );
     assert_eq!(check.locked_name, "Studio (locked)");
     assert!(alice.shared().book_info(book.clone()).unwrap().is_none());
 
@@ -198,7 +200,12 @@ fn a_notebook_is_shared_its_invitation_accepted_and_its_notes_read() {
     assert!(info.owned);
     assert_eq!(
         info.invite_roles,
-        [BookRole::Manager, BookRole::Editor, BookRole::Commenter, BookRole::Viewer]
+        [
+            BookRole::Manager,
+            BookRole::Editor,
+            BookRole::Commenter,
+            BookRole::Viewer
+        ]
     );
     let who: Vec<_> = info
         .members
@@ -246,7 +253,11 @@ fn a_notebook_is_shared_its_invitation_accepted_and_its_notes_read() {
     // Bob, an editor, may not invite or change anyone.
     let his = bob.shared().book_info(bobs).unwrap().unwrap();
     assert!(his.invite_roles.is_empty() && !his.owned);
-    assert!(his.members.iter().all(|m| m.roles.is_empty() && !m.removable));
+    assert!(
+        his.members
+            .iter()
+            .all(|m| m.roles.is_empty() && !m.removable)
+    );
 }
 
 // no-prop-test: the people calls against a server.
@@ -259,11 +270,7 @@ fn people_are_invited_given_roles_and_removed() {
     bob.sync();
 
     // A manager invites below Manager.
-    let as_manager = bob
-        .shared()
-        .book_info(bobs.clone())
-        .unwrap()
-        .unwrap();
+    let as_manager = bob.shared().book_info(bobs.clone()).unwrap().unwrap();
     assert_eq!(
         as_manager.invite_roles,
         [BookRole::Editor, BookRole::Commenter, BookRole::Viewer]
@@ -282,7 +289,12 @@ fn people_are_invited_given_roles_and_removed() {
         carol_row.roles,
         [BookRole::Editor, BookRole::Commenter, BookRole::Viewer]
     );
-    let share = carol.shared().book_invitations().unwrap().remove(0).share_id;
+    let share = carol
+        .shared()
+        .book_invitations()
+        .unwrap()
+        .remove(0)
+        .share_id;
     let carols = carol.shared().accept_book(share).unwrap();
     assert_eq!(carol.body(&carol.note_in(&carols, "Shots")), "B-roll");
 
@@ -293,14 +305,22 @@ fn people_are_invited_given_roles_and_removed() {
         .shared()
         .set_book_role(book.clone(), account.clone(), BookRole::Editor)
         .unwrap();
-    let row = info.members.iter().find(|m| m.account_id == account).unwrap();
+    let row = info
+        .members
+        .iter()
+        .find(|m| m.account_id == account)
+        .unwrap();
     assert_eq!(row.role, BookRole::Editor);
     let info = alice
         .shared()
         .set_book_role(book.clone(), account.clone(), BookRole::Viewer)
         .unwrap();
     assert_eq!(
-        info.members.iter().find(|m| m.account_id == account).unwrap().role,
+        info.members
+            .iter()
+            .find(|m| m.account_id == account)
+            .unwrap()
+            .role,
         BookRole::Viewer
     );
 
@@ -308,12 +328,12 @@ fn people_are_invited_given_roles_and_removed() {
     let words = alice.shared().book_words("Studio".into(), "carol".into());
     assert_eq!(words.remove_title, "Remove carol from \"Studio\"?");
     assert!(words.remove_body.contains("changes the notebook's key"));
-    assert_eq!(words.leave_title, "Leave \"Studio\"? You'll keep a private copy.");
+    assert_eq!(
+        words.leave_title,
+        "Leave \"Studio\"? You'll keep a private copy."
+    );
 
-    let info = alice
-        .shared()
-        .remove_from_book(book, account)
-        .unwrap();
+    let info = alice.shared().remove_from_book(book, account).unwrap();
     assert!(info.members.iter().all(|m| m.username != "carol"));
     let event = carol.sync();
     assert!(
@@ -336,7 +356,11 @@ fn edited_by_names_who_changed_a_note_and_the_status_counts_whats_waiting() {
     let event = bob.sync();
     assert!(event.notebooks.contains(&bobs));
     assert_eq!(
-        bob.shared().book_status(bobs.clone()).unwrap().unwrap().waiting,
+        bob.shared()
+            .book_status(bobs.clone())
+            .unwrap()
+            .unwrap()
+            .waiting,
         0
     );
     let mine = bob.shared().book_edits(bobs).unwrap();
@@ -361,7 +385,11 @@ fn edited_by_names_who_changed_a_note_and_the_status_counts_whats_waiting() {
 #[test]
 fn leaving_keeps_a_copy_and_stopping_tells_everyone() {
     let world = world();
-    let (alice, bob, carol) = (world.phone("alice"), world.phone("bob"), world.phone("carol"));
+    let (alice, bob, carol) = (
+        world.phone("alice"),
+        world.phone("bob"),
+        world.phone("carol"),
+    );
     alice.find("bob");
     alice.find("carol");
     let book = alice.notebook_with("Studio", &[("Brief", "Pixel review")]);
@@ -392,7 +420,10 @@ fn leaving_keeps_a_copy_and_stopping_tells_everyone() {
     assert_eq!(left.copy_name, "Studio (no longer shared)");
     assert!(left.message.starts_with("You left \"Studio\""));
     assert!(bob.shared().shared_books().unwrap().is_empty());
-    assert_eq!(bob.body(&bob.note_in(&left.notebook_id, "Brief")), "Pixel review");
+    assert_eq!(
+        bob.body(&bob.note_in(&left.notebook_id, "Brief")),
+        "Pixel review"
+    );
 
     let stopped = alice.shared().stop_book(book).unwrap();
     assert!(stopped.message.contains("isn't shared any more"));
