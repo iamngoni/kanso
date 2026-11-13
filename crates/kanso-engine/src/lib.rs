@@ -132,6 +132,8 @@ pub mod recording_summary;
 pub mod recording_summary_model;
 pub mod replace;
 pub mod saving;
+pub mod schedule;
+mod schedule_model;
 pub mod shortcuts;
 pub mod sidebar;
 #[cfg(any(test, feature = "test-support"))]
