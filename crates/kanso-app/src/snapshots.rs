@@ -56,6 +56,7 @@ mod ai;
 mod api_keys;
 pub(crate) mod ask;
 mod discovery;
+mod inspector_properties;
 mod learn_modals;
 mod library_key;
 mod locking;
@@ -7399,6 +7400,7 @@ fn snapshots() {
         .chain(rename_speakers::SHOTS)
         .chain(recording_summary::SHOTS)
         .chain(plugins_panel::SHOTS)
+        .chain(inspector_properties::SHOTS)
     {
         let theme = if name.starts_with("dark-") {
             Dark

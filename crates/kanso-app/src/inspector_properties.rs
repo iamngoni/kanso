@@ -12,9 +12,11 @@ use gpui_kit::component::{Icon, Sizable as _, WindowExt as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::properties::{self, Value};
+use kanso_core::schema::PropertyDef;
 
 use crate::inspector::Inspector;
 use crate::locked::LockView;
+use crate::property_pick::{self, Pick};
 use crate::theme::{Colors, section_label};
 use crate::zoom::px;
 
@@ -49,12 +51,30 @@ impl Inspector {
         Some(editor.body_text(cx))
     }
 
+    /// What the open note's notebook says its properties are.
+    fn property_defs(&self, cx: &App) -> Vec<PropertyDef> {
+        let Some(id) = self.editor.read(cx).note_id().map(str::to_owned) else {
+            return Vec::new();
+        };
+        let book = match self.store.note(&id) {
+            Ok(Some(note)) => note.book_id,
+            _ => return Vec::new(),
+        };
+        self.store.notebook_properties(&book).unwrap_or_default()
+    }
+
     /// The Properties section: key and value rows, the one being edited as
     /// a field, and Add property.
-    pub(super) fn render_properties(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
+    pub(super) fn render_properties(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
         let body = self.property_source(cx)?;
         let colors = Colors::get(cx);
         let properties = properties::parse(&body);
+        let defs = self.property_defs(cx);
+        let members = self.property_members(cx);
         let section = section_label(div(), colors)
             .px(px(8.))
             .pt(px(10.))
@@ -78,21 +98,32 @@ impl Inspector {
                 duplicates.insert(key.to_lowercase());
             }
         }
+        let mut with_picker = std::collections::HashSet::new();
         for (ix, (key, value)) in properties.iter().enumerate() {
             let duplicate = duplicates.contains(&key.to_lowercase());
-            list = list.child(self.property_row(ix, key, value, duplicate, colors, cx));
+            let def = defs.iter().find(|def| def.key.eq_ignore_ascii_case(key));
+            let picker = property_pick::pick_for(def, value, &members);
+            if picker.is_some() {
+                with_picker.insert(ix);
+            }
+            list = list
+                .child(self.property_row(ix, key, value, picker, duplicate, colors, window, cx));
         }
+        self.pickers.retain(|ix, _| with_picker.contains(ix));
         list = list.child(self.add_property_row(properties.len(), colors, cx));
         Some(list.into_any_element())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn property_row(
         &mut self,
         ix: usize,
         key: &str,
         value: &Value,
+        picker: Option<Pick>,
         duplicate: bool,
         colors: &Colors,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let editing = self
@@ -118,6 +149,8 @@ impl Inspector {
                 .min_w_0()
                 .child(Input::new(&input).small())
                 .into_any_element()
+        } else if let Some(picker) = picker {
+            self.picker_view(ix, key, value, picker, window, cx)
         } else if value.is_raw() {
             // A value Kanso doesn't understand stays as written, and is
             // edited in the note itself.
@@ -191,7 +224,7 @@ impl Inspector {
             .id(ElementId::NamedInteger("property-row".into(), ix as u64))
             .w_full()
             .min_w_0()
-            .h(px(26.))
+            .min_h(px(26.))
             .gap(px(8.))
             .rounded(px(5.))
             .hover(|el| el.bg(colors.row_hover))
@@ -374,6 +407,40 @@ impl Inspector {
             return;
         }
         let value = properties::typed(text, Some(&like));
+        let next = properties::set_property_at(&body, index, &value);
+        if next != body {
+            self.editor
+                .update(cx, |editor, cx| editor.set_body(next, window, cx));
+        }
+        cx.notify();
+    }
+
+    /// Saves a value a picker picked for the row at `index`, under the same
+    /// check as a typed one: the row must still name `key` and hold
+    /// `original`, or the pick is dropped rather than written to another
+    /// property. A value the row already holds writes nothing.
+    pub(super) fn commit_value(
+        &mut self,
+        index: usize,
+        key: &str,
+        original: &Value,
+        value: Value,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let body = self.editor.read(cx).body_text(cx).to_string();
+        let Some((found, like)) = properties::parse(&body).into_iter().nth(index) else {
+            cx.notify();
+            return;
+        };
+        if !found.eq_ignore_ascii_case(key) || like != *original {
+            window.push_notification(
+                Notification::info("That property changed while you were editing it."),
+                cx,
+            );
+            cx.notify();
+            return;
+        }
         let next = properties::set_property_at(&body, index, &value);
         if next != body {
             self.editor

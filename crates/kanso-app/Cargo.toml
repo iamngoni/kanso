@@ -66,6 +66,8 @@ ctrlc = { version = "3", features = ["termination"] }
 # Pasted and dropped images go into the store as base64 attachments.
 base64.workspace = true
 chrono.workspace = true
+# The zone a new date-and-time property starts in.
+iana-time-zone = "0.1"
 fastrand.workspace = true
 # `kanso account sign-in` asks for the password without echoing it.
 rpassword = "7"

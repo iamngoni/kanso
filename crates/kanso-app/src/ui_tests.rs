@@ -63,6 +63,14 @@ fn setup(cx: &mut TestAppContext) -> Fixture {
     let app_store = store.clone();
     let (window, workspace) = cx.update(|cx| {
         gpui_kit::init(cx);
+        // A dialog slides in on the wall clock, not the test's: its buttons
+        // are where the first frame put them only if the click comes within
+        // a few milliseconds of it. A slow run (the whole suite on a busy
+        // machine) clicked where the button had been, and the sheet tests
+        // failed there and passed alone. Reduced motion settles every
+        // dialog on its first frame, so a click finds it wherever the clock
+        // is.
+        cx.set_reduce_motion(true);
         cx.set_global(AppState {
             store: app_store,
             data_dir,
@@ -3097,6 +3105,307 @@ fn a_property_edit_is_dropped_when_the_row_changed(cx: &mut TestAppContext) {
     assert!(body.contains("x: 7\n"), "{body}");
 }
 
+/// A notebook with the property list `defs`, and the open note in it with
+/// `body`, the inspector's Outline tab showing. Returns the inspector.
+fn property_picker_fixture(
+    f: &Fixture,
+    cx: &mut TestAppContext,
+    defs: &[kanso_core::schema::PropertyDef],
+    body: &str,
+) -> Entity<crate::inspector::Inspector> {
+    use crate::config::InspectorTab;
+
+    let book = f.store.note(&f.notes[0]).unwrap().unwrap().book_id;
+    f.store
+        .set_notebook_properties(&book, defs, Origin::Ui)
+        .unwrap();
+    f.select(cx, &f.notes[0]);
+    f.type_body(cx, body);
+    let inspector = f.workspace(cx, |workspace, _| workspace.inspector.clone());
+    f.window
+        .update(cx, |_, _, cx| {
+            f.workspace.update(cx, |workspace, cx| {
+                workspace.show_inspector(Some(InspectorTab::Outline), cx)
+            })
+        })
+        .unwrap();
+    f.draw(cx);
+    inspector
+}
+
+fn property_def(
+    key: &str,
+    kind: kanso_core::schema::PropertyType,
+    options: &[&str],
+) -> kanso_core::schema::PropertyDef {
+    kanso_core::schema::PropertyDef {
+        key: key.into(),
+        kind,
+        options: options.iter().map(|o| (*o).to_owned()).collect(),
+    }
+}
+
+/// What a person picks in a dropdown: the control says so, and the row
+/// is drawn again.
+fn pick_row(
+    f: &Fixture,
+    cx: &mut TestAppContext,
+    dropdown: &Entity<crate::inspector::Dropdown>,
+    row: &str,
+) {
+    use crate::inspector::DropdownEvent;
+    let row = gpui_kit::SharedString::from(row.to_owned());
+    cx.update(|cx| {
+        dropdown.update(cx, |_, cx| cx.emit(DropdownEvent::Confirm(Some(row))));
+    });
+    cx.run_until_parked();
+    f.draw(cx);
+}
+
+/// What a person picks in a calendar: the control says so, and the row is
+/// drawn again.
+fn pick_moment(
+    f: &Fixture,
+    cx: &mut TestAppContext,
+    picker: &Entity<gpui_kit::component::date_picker::DatePickerState>,
+    at: &str,
+) {
+    use gpui_kit::component::date_picker::{DatePickerEvent, DateTime};
+    let at = chrono::NaiveDateTime::parse_from_str(at, "%Y-%m-%d %H:%M").unwrap();
+    cx.update(|cx| {
+        picker.update(cx, |_, cx| {
+            cx.emit(DatePickerEvent::Change(DateTime::Single(Some(at))))
+        });
+    });
+    cx.run_until_parked();
+    f.draw(cx);
+}
+
+/// The value a dropdown shows.
+fn shown(cx: &mut TestAppContext, dropdown: &Entity<crate::inspector::Dropdown>) -> Option<String> {
+    cx.read(|cx| dropdown.read(cx).selected_value().map(|v| v.to_string()))
+}
+
+// no-prop-test: drives one window; `property_pick` has the properties.
+#[gpui_kit::test]
+fn a_select_property_is_picked_from_the_notebooks_options(cx: &mut TestAppContext) {
+    use kanso_core::schema::PropertyType;
+
+    let f = setup(cx);
+    let defs = [property_def(
+        "stage",
+        PropertyType::Select,
+        &["Idea", "Scripting", "Shooting"],
+    )];
+    let inspector = property_picker_fixture(
+        &f,
+        cx,
+        &defs,
+        "---\nstage: Idea\nsponsor: Acme\n---\n# Note\n\nBody\n",
+    );
+    {
+        let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+        assert!(vcx.debug_bounds("property-stage").is_some());
+        // A property the notebook does not define stays a text field.
+        assert!(vcx.debug_bounds("property-sponsor").is_some());
+    }
+    let stage = cx
+        .read(|cx| inspector.read(cx).dropdown_for_test(0))
+        .expect("the stage row has a dropdown");
+    assert!(
+        cx.read(|cx| inspector.read(cx).dropdown_for_test(1))
+            .is_none()
+    );
+    assert_eq!(shown(cx, &stage).as_deref(), Some("Idea"));
+
+    pick_row(&f, cx, &stage, "Shooting");
+    let body = f.editor(cx, |editor, cx| editor.body_for_test(cx));
+    assert!(body.contains("stage: Shooting\nsponsor: Acme\n"), "{body}");
+    assert!(body.ends_with("# Note\n\nBody\n"), "{body}");
+    // The dropdown shows what the note now says.
+    assert_eq!(shown(cx, &stage).as_deref(), Some("Shooting"));
+
+    // A value the notebook does not list is kept and shown, not replaced.
+    f.type_body(cx, "---\nstage: Archived\n---\n# Note\n");
+    f.draw(cx);
+    let stage = cx
+        .read(|cx| inspector.read(cx).dropdown_for_test(0))
+        .unwrap();
+    assert_eq!(shown(cx, &stage).as_deref(), Some("Archived"));
+}
+
+// no-prop-test: drives one window; `property_pick` has the properties.
+#[gpui_kit::test]
+fn a_date_property_is_picked_on_a_calendar(cx: &mut TestAppContext) {
+    use kanso_core::schema::PropertyType;
+
+    let f = setup(cx);
+    let defs = [property_def("review", PropertyType::Date, &[])];
+    let inspector = property_picker_fixture(
+        &f,
+        cx,
+        &defs,
+        "---\nstage: Idea\nreview:\n---\n# Note\n\nBody\n",
+    );
+    let picker = cx
+        .read(|cx| inspector.read(cx).date_picker_for_test(1))
+        .expect("the empty review row has a date picker");
+    pick_moment(&f, cx, &picker, "2026-11-18 00:00");
+    let body = f.editor(cx, |editor, cx| editor.body_for_test(cx));
+    assert!(body.contains("stage: Idea\nreview: 2026-11-18\n"), "{body}");
+    assert!(body.ends_with("# Note\n\nBody\n"), "{body}");
+
+    // A later pick replaces it, without touching the rest.
+    pick_moment(&f, cx, &picker, "2026-12-01 00:00");
+    let body = f.editor(cx, |editor, cx| editor.body_for_test(cx));
+    assert!(body.contains("review: 2026-12-01\n---\n"), "{body}");
+}
+
+// no-prop-test: drives one window; `property_pick` has the properties.
+#[gpui_kit::test]
+fn a_date_time_property_is_picked_with_its_time(cx: &mut TestAppContext) {
+    use kanso_core::schema::PropertyType;
+
+    let f = setup(cx);
+    let defs = [property_def("publish", PropertyType::DateTime, &[])];
+    let inspector = property_picker_fixture(
+        &f,
+        cx,
+        &defs,
+        "---\npublish: 2026-11-18T09:00\n---\n# Note\n",
+    );
+    let picker = cx
+        .read(|cx| inspector.read(cx).date_picker_for_test(0))
+        .expect("the publish row has a picker");
+    pick_moment(&f, cx, &picker, "2026-11-19 14:30");
+    let body = f.editor(cx, |editor, cx| editor.body_for_test(cx));
+    assert!(body.contains("publish: 2026-11-19T14:30\n"), "{body}");
+}
+
+// no-prop-test: drives one window; `property_pick` has the properties.
+#[gpui_kit::test]
+fn a_zoned_property_is_picked_with_its_time_and_zone(cx: &mut TestAppContext) {
+    use kanso_core::schema::PropertyType;
+
+    let f = setup(cx);
+    let defs = [property_def("embargo", PropertyType::DateTimeZone, &[])];
+    let inspector = property_picker_fixture(
+        &f,
+        cx,
+        &defs,
+        "---\nembargo: 2026-11-18T09:00 America/New_York\n---\n# Note\n",
+    );
+    let zone = cx
+        .read(|cx| inspector.read(cx).zone_picker_for_test(0))
+        .expect("the embargo row has a zone picker");
+    assert_eq!(shown(cx, &zone).as_deref(), Some("America/New_York"));
+
+    // Another zone keeps the wall-clock time.
+    pick_row(&f, cx, &zone, "Europe/London");
+    let body = f.editor(cx, |editor, cx| editor.body_for_test(cx));
+    assert!(
+        body.contains("embargo: 2026-11-18T09:00 Europe/London\n"),
+        "{body}"
+    );
+
+    // A new time goes in the zone the dropdown is on.
+    let picker = cx
+        .read(|cx| inspector.read(cx).date_picker_for_test(0))
+        .unwrap();
+    pick_moment(&f, cx, &picker, "2026-11-20 10:15");
+    let body = f.editor(cx, |editor, cx| editor.body_for_test(cx));
+    assert!(
+        body.contains("embargo: 2026-11-20T10:15 Europe/London\n"),
+        "{body}"
+    );
+}
+
+// no-prop-test: drives one window; `property_pick` has the properties.
+#[gpui_kit::test]
+fn a_person_property_is_picked_from_a_shared_notes_people(cx: &mut TestAppContext) {
+    use kanso_core::schema::PropertyType;
+
+    let f = setup(cx);
+    let defs = [property_def("owner", PropertyType::Person, &[])];
+    let inspector = property_picker_fixture(&f, cx, &defs, "---\nowner:\n---\n# Note\n");
+    // Outside a shared note a person is typed.
+    {
+        let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+        assert!(vcx.debug_bounds("property-owner").is_some());
+    }
+    assert!(
+        cx.read(|cx| inspector.read(cx).dropdown_for_test(0))
+            .is_none()
+    );
+
+    f.window
+        .update(cx, |_, _, cx| {
+            inspector.update(cx, |inspector, cx| {
+                inspector.set_members_for_test(vec!["amy".into(), "bo".into()]);
+                cx.notify();
+            })
+        })
+        .unwrap();
+    f.draw(cx);
+    let owner = cx
+        .read(|cx| inspector.read(cx).dropdown_for_test(0))
+        .expect("a shared note's people are offered");
+    pick_row(&f, cx, &owner, "bo");
+    let body = f.editor(cx, |editor, cx| editor.body_for_test(cx));
+    assert!(body.contains("owner: bo\n"), "{body}");
+}
+
+// no-prop-test: drives one window; `property_pick` has the properties.
+#[gpui_kit::test]
+fn a_pick_is_dropped_when_the_front_matter_changed_under_it(cx: &mut TestAppContext) {
+    use kanso_core::schema::PropertyType;
+
+    let f = setup(cx);
+    let defs = [property_def(
+        "stage",
+        PropertyType::Select,
+        &["Idea", "Shooting"],
+    )];
+    let inspector =
+        property_picker_fixture(&f, cx, &defs, "---\nstage: Idea\n---\n# Note\n\nBody\n");
+    let stage = cx
+        .read(|cx| inspector.read(cx).dropdown_for_test(0))
+        .unwrap();
+
+    // A line typed above moves the row before the pick arrives: it must not
+    // land on whichever property is now first.
+    f.type_body(cx, "---\nnew: 1\nstage: Idea\n---\n# Note\n\nBody\n");
+    let before = f.editor(cx, |editor, cx| editor.body_for_test(cx));
+    cx.update(|cx| {
+        stage.update(cx, |_, cx| {
+            cx.emit(crate::inspector::DropdownEvent::Confirm(Some(
+                "Shooting".into(),
+            )))
+        });
+    });
+    cx.run_until_parked();
+    let after = f.editor(cx, |editor, cx| editor.body_for_test(cx));
+    assert_eq!(after, before);
+
+    // Drawn again, the row is found where it is, and the pick writes.
+    f.draw(cx);
+    let stage = cx
+        .read(|cx| inspector.read(cx).dropdown_for_test(1))
+        .expect("the stage row moved down one");
+    pick_row(&f, cx, &stage, "Shooting");
+    let body = f.editor(cx, |editor, cx| editor.body_for_test(cx));
+    assert!(body.contains("new: 1\nstage: Shooting\n"), "{body}");
+
+    // Front matter half typed (no closing line yet) has no rows, so no
+    // picker is left to write into it.
+    f.type_body(cx, "---\nstage: Idea\n");
+    f.draw(cx);
+    assert!(
+        cx.read(|cx| inspector.read(cx).dropdown_for_test(0))
+            .is_none()
+    );
+}
+
 #[gpui_kit::test]
 fn adding_a_raw_property_is_refused(cx: &mut TestAppContext) {
     use crate::config::InspectorTab;
@@ -5476,6 +5785,8 @@ fn the_plain_library_notice_shows_only_while_the_library_is_plain(cx: &mut TestA
     f.draw(&mut vcx);
     assert!(vcx.debug_bounds("notice-detail").is_some());
     assert!(vcx.debug_bounds("notice-steps").is_some());
+    // A slow machine gets to the click late: the sheet must not have slid.
+    std::thread::sleep(std::time::Duration::from_millis(400));
     let bounds = vcx.debug_bounds("notice-sheet-dismiss").unwrap();
     vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
     f.draw(&mut vcx);

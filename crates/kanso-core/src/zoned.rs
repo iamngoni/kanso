@@ -67,6 +67,21 @@ pub fn zone(name: &str) -> Option<Tz> {
     Tz::from_str(name).ok()
 }
 
+/// Every zone the tz database names, in alphabetical order, for a picker.
+pub fn zone_names() -> Vec<&'static str> {
+    let mut names: Vec<&'static str> = chrono_tz::TZ_VARIANTS.iter().map(|tz| tz.name()).collect();
+    names.sort_unstable();
+    names.dedup();
+    names
+}
+
+/// A zone as a person reads it: the city or region without its area and
+/// underscores (`America/New_York` is `New York`). A name with no area
+/// (`UTC`) stays as it is.
+pub fn zone_label(name: &str) -> String {
+    name.rsplit('/').next().unwrap_or(name).replace('_', " ")
+}
+
 /// Reads `YYYY-MM-DDTHH:MM Zone/Name`.
 pub fn parse_zoned(text: &str) -> Option<ZonedTime> {
     let (local, zone_name) = text.split_once(' ')?;
@@ -267,6 +282,16 @@ mod tests {
     }
 
     #[test]
+    fn zones_are_listed_in_order_and_labelled_for_people() {
+        let names = zone_names();
+        assert!(names.windows(2).all(|pair| pair[0] < pair[1]));
+        assert!(names.contains(&"America/New_York") && names.contains(&"UTC"));
+        assert_eq!(zone_label("America/New_York"), "New York");
+        assert_eq!(zone_label("America/Argentina/Buenos_Aires"), "Buenos Aires");
+        assert_eq!(zone_label("UTC"), "UTC");
+    }
+
+    #[test]
     fn offsets_follow_the_season() {
         let winter = at("2026-01-15T12:00 UTC").utc_ms().unwrap();
         let summer = at("2026-07-15T12:00 UTC").utc_ms().unwrap();
@@ -313,6 +338,19 @@ mod tests {
             failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("regressions"))),
             ..ProptestConfig::default()
         })]
+
+        /// Every listed zone is one the reader accepts, and reads as a
+        /// label with no area or underscore, so a picker's rows are never
+        /// blank.
+        #[test]
+        fn prop_every_listed_zone_is_readable_and_labelled(
+            name in proptest::sample::select(zone_names()),
+        ) {
+            prop_assert!(zone(name).is_some());
+            let label = zone_label(name);
+            prop_assert!(!label.is_empty());
+            prop_assert!(!label.contains('_') && !label.contains('/'));
+        }
 
         /// The text form reads back as the same value.
         #[test]
