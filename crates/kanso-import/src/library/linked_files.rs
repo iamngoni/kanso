@@ -61,8 +61,10 @@ pub struct Refreshed {
 
 /// `links` with `link` recorded: it replaces any link of the same note and
 /// any link of the same file, so a note follows one file and a file feeds
-/// one note. Two files with the same name in different folders make the
-/// same note; the one opened last is the one it follows. Pure.
+/// one note. A note is keyed by its file's full path, so two files with the
+/// same name in different folders make two notes; should two paths still
+/// meet in one note, the one recorded last is the one it follows (and
+/// [`replaced_file`] says so first). Pure.
 pub fn record_link(links: &[LinkedFile], link: LinkedFile) -> Vec<LinkedFile> {
     let mut out: Vec<LinkedFile> = links
         .iter()
@@ -71,6 +73,16 @@ pub fn record_link(links: &[LinkedFile], link: LinkedFile) -> Vec<LinkedFile> {
         .collect();
     out.push(link);
     out
+}
+
+/// The file `link`'s note followed until now, when recording `link` makes it
+/// follow another one, so the user is told rather than one being picked
+/// silently. `None` when the note is new or follows the same file. Pure.
+pub fn replaced_file<'a>(links: &'a [LinkedFile], link: &LinkedFile) -> Option<&'a Path> {
+    links
+        .iter()
+        .find(|l| l.note == link.note && l.path != link.path)
+        .map(|l| l.path.as_path())
 }
 
 /// When `path` was last changed, in ms since 1970, if it can be read.
@@ -96,7 +108,10 @@ pub fn refresh_linked_files(
             kept.push(link.clone());
             continue;
         }
-        let refresh = if modified.is_none() && !link.path.is_file() {
+        // Not there, no longer a file, or not readable any more (moved, a
+        // drive not mounted, permission taken away): skip it quietly and try
+        // again next time.
+        let refresh = if modified.is_none() || !link.path.is_file() {
             Refresh::Missing
         } else {
             refresh_one(link, store)
@@ -265,6 +280,121 @@ mod tests {
         assert_eq!(body(&store, &link.note), before);
     }
 
+    #[test]
+    fn a_folder_where_the_file_was_is_skipped_quietly() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(dir.path());
+        let file = dir.path().join("plan.md");
+        std::fs::write(&file, "# Plan\n\nfirst").unwrap();
+        let link = open(&file, &store);
+        let before = body(&store, &link.note);
+        std::fs::remove_file(&file).unwrap();
+        std::fs::create_dir(&file).unwrap();
+        let (kept, done) = refresh_linked_files(std::slice::from_ref(&link), &store);
+        assert_eq!(done[0].refresh, Refresh::Missing);
+        assert_eq!(kept, vec![link.clone()]);
+        assert_eq!(body(&store, &link.note), before);
+    }
+
+    #[test]
+    fn a_path_that_was_never_valid_is_skipped_quietly() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(dir.path());
+        for path in ["", "\0", "/no/such/dir/x.md", "relative/x.md"] {
+            let link = LinkedFile {
+                note: "note:gone".into(),
+                path: PathBuf::from(path),
+                modified_ms: Some(1),
+            };
+            let (kept, done) = refresh_linked_files(std::slice::from_ref(&link), &store);
+            assert_eq!(done[0].refresh, Refresh::Missing, "{path:?}");
+            assert_eq!(kept, vec![link]);
+        }
+    }
+
+    /// A file that can no longer be read (its permission taken away, or a
+    /// sandbox that no longer grants it) leaves the note alone and keeps
+    /// the link with its old time, so it is tried again later.
+    #[cfg(unix)]
+    #[test]
+    fn an_unreadable_file_leaves_the_note_and_keeps_the_link() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(dir.path());
+        let file = dir.path().join("plan.md");
+        std::fs::write(&file, "# Plan\n\nfirst").unwrap();
+        let link = open(&file, &store);
+        let before = body(&store, &link.note);
+        change(&file, "# Plan\n\nsecond", &link);
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o000)).unwrap();
+        if std::fs::read(&file).is_ok() {
+            // Running as root: permissions don't stop the read.
+            return;
+        }
+        let (kept, done) = refresh_linked_files(std::slice::from_ref(&link), &store);
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(
+            matches!(done[0].refresh, Refresh::Failed(_)),
+            "{:?}",
+            done[0].refresh
+        );
+        assert_eq!(kept, vec![link.clone()]);
+        assert_eq!(body(&store, &link.note), before);
+    }
+
+    #[test]
+    fn same_named_files_in_two_folders_make_two_notes() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(dir.path());
+        std::fs::create_dir(dir.path().join("a")).unwrap();
+        std::fs::create_dir(dir.path().join("b")).unwrap();
+        let a = dir.path().join("a").join("notes.md");
+        let b = dir.path().join("b").join("notes.md");
+        std::fs::write(&a, "# Notes\n\nfrom a").unwrap();
+        std::fs::write(&b, "# Notes\n\nfrom b").unwrap();
+        let first = open(&a, &store);
+        let links = record_link(&[], first.clone());
+        let second = open(&b, &store);
+        assert_ne!(second.note, first.note);
+        assert_eq!(replaced_file(&links, &second), None);
+        assert_eq!(record_link(&links, second).len(), 2);
+    }
+
+    /// A file opened through a symlink and then directly is one file: one
+    /// note, one link, nothing to tell.
+    #[cfg(unix)]
+    #[test]
+    fn a_file_opened_through_a_symlink_is_one_link() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(dir.path());
+        let real = dir.path().join("plan.md");
+        std::fs::write(&real, "# Plan\n\nfirst").unwrap();
+        let alias = dir.path().join("alias.md");
+        std::os::unix::fs::symlink(&real, &alias).unwrap();
+        let first = open(&alias, &store);
+        let links = record_link(&[], first.clone());
+        let second = open(&real, &store);
+        assert_eq!(second.note, first.note);
+        assert_eq!(second.path, first.path);
+        assert_eq!(replaced_file(&links, &second), None);
+        assert_eq!(record_link(&links, second).len(), 1);
+    }
+
+    #[test]
+    fn a_note_that_moves_to_another_file_names_the_old_one() {
+        let link = |path: &str| LinkedFile {
+            note: "note:x".into(),
+            path: PathBuf::from(path),
+            modified_ms: None,
+        };
+        let links = vec![link("/a/notes.md")];
+        assert_eq!(
+            replaced_file(&links, &link("/b/notes.md")),
+            Some(Path::new("/a/notes.md"))
+        );
+        assert_eq!(replaced_file(&links, &link("/a/notes.md")), None);
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig {
             rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
@@ -323,6 +453,32 @@ mod tests {
             prop_assert_eq!(paths.len(), list.len());
             if let Some(last) = links.last() {
                 prop_assert_eq!(record_link(&list, last.clone()), list);
+            }
+        }
+
+        /// `replaced_file` names a file exactly when recording drops a link
+        /// of the same note to another file, and that file is the dropped
+        /// one.
+        #[test]
+        fn prop_replaced_file_names_the_dropped_file(
+            links in proptest::collection::vec(link_strategy(), 0..12),
+            link in link_strategy(),
+        ) {
+            let mut list = Vec::new();
+            for l in &links {
+                list = record_link(&list, l.clone());
+            }
+            let replaced = replaced_file(&list, &link).map(Path::to_path_buf);
+            let after = record_link(&list, link.clone());
+            let dropped: Vec<_> = list
+                .iter()
+                .filter(|l| l.note == link.note && l.path != link.path && !after.contains(l))
+                .map(|l| l.path.clone())
+                .collect();
+            prop_assert!(dropped.len() <= 1);
+            prop_assert_eq!(replaced.clone(), dropped.first().cloned());
+            if let Some(path) = replaced {
+                prop_assert!(path != link.path);
             }
         }
     }

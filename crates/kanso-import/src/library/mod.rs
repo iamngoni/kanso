@@ -63,7 +63,9 @@ use serde_json::{Map, Value, json};
 use sha1::{Digest as _, Sha1};
 
 pub use detect::kinds_for;
-pub use linked_files::{LinkedFile, Refresh, Refreshed, record_link, refresh_linked_files};
+pub use linked_files::{
+    LinkedFile, Refresh, Refreshed, record_link, refresh_linked_files, replaced_file,
+};
 pub use open_files::{
     Opened, open_note_files, open_note_files_linked, staged_path, staging_folder_name,
 };

@@ -23,9 +23,11 @@ use kanso_import::library::words::{picks, progress_label, rejected_lines, skippe
 use kanso_import::library::{
     LibraryProgress, LibraryReport, LinkedFile, Refresh, Refreshed, SourceKind, apple_notes,
     import_source, open_note_files_linked, preview, record_link, refresh_linked_files,
+    replaced_file,
 };
 use kanso_store::Store;
 
+use crate::config::ImportSettings;
 use crate::paths;
 use crate::theme::{Colors, Rgb};
 use crate::workspace::AppState;
@@ -643,7 +645,9 @@ async fn open_and_report(
         .spawn(async move { open_note_files_linked(&paths, &store) })
         .await;
     cx.update(|window, cx| {
-        record_links(opened.linked, cx);
+        for notice in record_links(opened.linked, cx) {
+            window.push_notification(Notification::warning(notice), cx);
+        }
         match opened.last {
             Some(id) => {
                 on_opened(id, window, cx);
@@ -662,17 +666,53 @@ async fn open_and_report(
 }
 
 /// Remembers the files just opened, so their notes can follow them (issue
-/// #432). Kept whether or not following is on, so turning it on later
-/// covers what was opened before.
-fn record_links(linked: Vec<LinkedFile>, cx: &mut App) {
+/// #432), and returns a notice for each note that now follows another file.
+/// Kept whether or not following is on, so turning it on later covers what
+/// was opened before.
+fn record_links(linked: Vec<LinkedFile>, cx: &mut App) -> Vec<String> {
     if linked.is_empty() {
-        return;
+        return Vec::new();
     }
+    let mut notices = Vec::new();
     AppState::update_config(cx, |config| {
-        for link in linked {
-            config.import.linked_files = record_link(&config.import.linked_files, link);
-        }
+        let (links, said) = record_all(&config.import.linked_files, linked);
+        config.import.linked_files = links;
+        notices = said;
     });
+    notices
+}
+
+/// `links` with each of `linked` recorded in turn, and a notice for each
+/// note that stops following one file for another. Notes are keyed by the
+/// file's full path, so this is rare (a file reached by another spelling
+/// of its path), but the user is told which one it follows rather than one
+/// being picked silently. Pure.
+fn record_all(links: &[LinkedFile], linked: Vec<LinkedFile>) -> (Vec<LinkedFile>, Vec<String>) {
+    let mut links = links.to_vec();
+    let mut notices = Vec::new();
+    for link in linked {
+        if let Some(old) = replaced_file(&links, &link) {
+            notices.push(switched_file_notice(old, &link.path));
+        }
+        links = record_link(&links, link);
+    }
+    (links, notices)
+}
+
+/// The notice for a note that now follows `new` instead of `old`. Pure.
+fn switched_file_notice(old: &Path, new: &Path) -> String {
+    format!(
+        "{} and {} make the same note, so it now follows {} only.",
+        new.display(),
+        old.display(),
+        new.display(),
+    )
+}
+
+fn file_name(path: &Path) -> String {
+    path.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }
 
 /// Set while a refresh runs, so coming back to the window twice in a row
@@ -682,17 +722,17 @@ static REFRESHING: AtomicBool = AtomicBool::new(false);
 /// Imports again each opened file that changed since it was read, when
 /// Settings › General › Import says to. Runs in the background and says
 /// nothing unless a note stopped following its file because it was changed
-/// in Kanso. Coming back to the window is when it runs; never on a timer.
+/// in Kanso. A file that is gone or can't be read is skipped quietly and
+/// tried again next time. Coming back to the window is when it runs; never
+/// on a timer.
 pub fn refresh_opened_files(window: &mut Window, cx: &mut App) {
     let state = cx.global::<AppState>();
-    let settings = &state.config.import;
-    if !settings.refresh_opened_files
-        || settings.linked_files.is_empty()
-        || REFRESHING.swap(true, Ordering::SeqCst)
-    {
+    let Some(links) = links_to_refresh(&state.config.import) else {
+        return;
+    };
+    if REFRESHING.swap(true, Ordering::SeqCst) {
         return;
     }
-    let links = settings.linked_files.clone();
     let store = state.store.clone();
     window
         .spawn(cx, async move |cx| {
@@ -707,16 +747,8 @@ pub fn refresh_opened_files(window: &mut Window, cx: &mut App) {
                     return;
                 }
                 AppState::update_config(cx, |config| {
-                    // Links recorded while this ran are kept as they are.
-                    let mut now: Vec<LinkedFile> = config
-                        .import
-                        .linked_files
-                        .iter()
-                        .filter(|l| !looked_at.iter().any(|o| o.note == l.note))
-                        .cloned()
-                        .collect();
-                    now.extend(kept);
-                    config.import.linked_files = now;
+                    config.import.linked_files =
+                        merge_refreshed(&config.import.linked_files, &looked_at, kept);
                 });
                 for line in stopped_following(&done) {
                     window.push_notification(Notification::info(line), cx);
@@ -729,30 +761,56 @@ pub fn refresh_opened_files(window: &mut Window, cx: &mut App) {
         .detach();
 }
 
+/// The links a refresh looks at: all of them when following is on, none
+/// (`None`) when it is off or nothing was opened. Pure.
+fn links_to_refresh(settings: &ImportSettings) -> Option<Vec<LinkedFile>> {
+    (settings.refresh_opened_files && !settings.linked_files.is_empty())
+        .then(|| settings.linked_files.clone())
+}
+
+/// The stored links after a refresh that started from `looked_at` and
+/// returned `kept`. A link recorded or changed while the refresh ran (a file
+/// opened meanwhile) wins over what the refresh says about the same note or
+/// file. Pure.
+fn merge_refreshed(
+    now: &[LinkedFile],
+    looked_at: &[LinkedFile],
+    kept: Vec<LinkedFile>,
+) -> Vec<LinkedFile> {
+    let mut out: Vec<LinkedFile> = now
+        .iter()
+        .filter(|l| !looked_at.contains(l))
+        .cloned()
+        .collect();
+    for link in kept {
+        if !out
+            .iter()
+            .any(|l| l.note == link.note || l.path == link.path)
+        {
+            out.push(link);
+        }
+    }
+    out
+}
+
 /// One line per note that stopped following its file, for the notice.
 /// Pure.
 fn stopped_following(done: &[Refreshed]) -> Vec<String> {
     done.iter()
         .filter(|r| r.refresh == Refresh::EditedInKanso)
         .map(|r| {
-            let name = r
-                .path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default();
-            format!("{name} changed on disk, but its note was edited in Kanso, so it keeps your edits and no longer follows the file.")
+            format!(
+                "{} changed on disk, but its note was edited in Kanso, so it keeps your edits and no longer follows the file.",
+                file_name(&r.path)
+            )
         })
         .collect()
-}
 }
 
 /// Imports each Markdown file; returns the last note and what went wrong
 /// with the others.
 #[cfg(test)]
-fn open_paths(
-    paths: &[PathBuf],
-    store: &Store,
-) -> anyhow::Result<(Option<String>, Vec<String>)> {
+fn open_paths(paths: &[PathBuf], store: &Store) -> anyhow::Result<(Option<String>, Vec<String>)> {
     Ok(kanso_import::library::open_note_files(paths, store))
 }
 
@@ -886,6 +944,333 @@ mod tests {
 
     use super::{Cli, SourceKind, parse_cli};
     use proptest::prelude::*;
+
+    mod opened_files {
+        use std::collections::HashSet;
+        use std::path::{Path, PathBuf};
+
+        use kanso_core::DocType;
+        use kanso_import::library::{
+            LinkedFile, Refresh, Refreshed, open_note_files_linked, refresh_linked_files,
+        };
+        use kanso_store::{Origin, Put, Store};
+        use proptest::prelude::*;
+        use serde_json::json;
+
+        use super::super::{links_to_refresh, merge_refreshed, record_all, stopped_following};
+        use crate::config::ImportSettings;
+
+        fn open(file: &Path, store: &Store) -> LinkedFile {
+            let opened = open_note_files_linked(&[file.to_path_buf()], store);
+            assert!(opened.problems.is_empty(), "{:?}", opened.problems);
+            opened.linked.into_iter().next().expect("a link")
+        }
+
+        /// Writes `text` with a later modification time, as an editor
+        /// saving a moment later would.
+        fn change(file: &Path, text: &str, link: &LinkedFile) {
+            std::fs::write(file, text).unwrap();
+            let later = std::time::UNIX_EPOCH
+                + std::time::Duration::from_millis(link.modified_ms.unwrap_or(0) as u64 + 5_000);
+            std::fs::File::options()
+                .write(true)
+                .open(file)
+                .unwrap()
+                .set_modified(later)
+                .unwrap();
+        }
+
+        /// What `refresh_opened_files` does once the window comes back,
+        /// without the window: pick the links, refresh them, store the
+        /// result and say what stopped following.
+        fn refresh(settings: &mut ImportSettings, store: &Store) -> Vec<String> {
+            let Some(links) = links_to_refresh(settings) else {
+                return Vec::new();
+            };
+            let (kept, done) = refresh_linked_files(&links, store);
+            if done.is_empty() {
+                return Vec::new();
+            }
+            settings.linked_files = merge_refreshed(&settings.linked_files, &links, kept);
+            stopped_following(&done)
+        }
+
+        #[test]
+        fn following_is_on_by_default() {
+            assert!(ImportSettings::default().refresh_opened_files);
+        }
+
+        #[test]
+        fn a_changed_file_updates_its_note_when_the_window_comes_back() {
+            let dir = tempfile::tempdir().unwrap();
+            let store = Store::open(dir.path().join("db.sqlite")).unwrap();
+            let file = dir.path().join("plan.md");
+            std::fs::write(&file, "# Plan\n\nfirst").unwrap();
+            let link = open(&file, &store);
+            let mut settings = ImportSettings::default();
+            let (links, notices) = record_all(&[], vec![link.clone()]);
+            assert!(notices.is_empty());
+            settings.linked_files = links;
+            change(&file, "# Plan\n\nsecond", &link);
+            assert!(refresh(&mut settings, &store).is_empty());
+            let body = store.note(&link.note).unwrap().unwrap().body;
+            assert!(body.contains("second") && !body.contains("first"), "{body}");
+            assert_eq!(settings.linked_files.len(), 1);
+            // Nothing changed since: the second time reads nothing.
+            let before = settings.clone();
+            assert!(refresh(&mut settings, &store).is_empty());
+            assert_eq!(settings, before);
+        }
+
+        #[test]
+        fn nothing_is_read_when_following_is_off() {
+            let dir = tempfile::tempdir().unwrap();
+            let store = Store::open(dir.path().join("db.sqlite")).unwrap();
+            let file = dir.path().join("plan.md");
+            std::fs::write(&file, "# Plan\n\nfirst").unwrap();
+            let link = open(&file, &store);
+            let mut settings = ImportSettings {
+                refresh_opened_files: false,
+                linked_files: vec![link.clone()],
+            };
+            change(&file, "# Plan\n\nsecond", &link);
+            assert!(refresh(&mut settings, &store).is_empty());
+            assert!(
+                store
+                    .note(&link.note)
+                    .unwrap()
+                    .unwrap()
+                    .body
+                    .contains("first")
+            );
+            assert_eq!(settings.linked_files, vec![link]);
+        }
+
+        #[test]
+        fn a_note_edited_in_kanso_says_it_stopped_following() {
+            let dir = tempfile::tempdir().unwrap();
+            let store = Store::open(dir.path().join("db.sqlite")).unwrap();
+            let file = dir.path().join("plan.md");
+            std::fs::write(&file, "# Plan\n\nfirst").unwrap();
+            let link = open(&file, &store);
+            store
+                .put(
+                    DocType::Note,
+                    json!({"_id": link.note, "body": "mine"}),
+                    Put::Merge,
+                    Origin::Ui,
+                )
+                .unwrap();
+            let mut settings = ImportSettings {
+                refresh_opened_files: true,
+                linked_files: vec![link.clone()],
+            };
+            change(&file, "# Plan\n\nsecond", &link);
+            let notices = refresh(&mut settings, &store);
+            assert_eq!(notices.len(), 1);
+            assert!(
+                notices[0].starts_with("plan.md changed on disk"),
+                "{}",
+                notices[0]
+            );
+            assert!(settings.linked_files.is_empty());
+            assert_eq!(store.note(&link.note).unwrap().unwrap().body, "mine");
+        }
+
+        /// Stored paths that are gone, are now a folder, or never were
+        /// valid are skipped without a word and kept for next time.
+        #[test]
+        fn unreadable_stored_paths_are_skipped_quietly() {
+            let dir = tempfile::tempdir().unwrap();
+            let store = Store::open(dir.path().join("db.sqlite")).unwrap();
+            let folder = dir.path().join("now-a-folder.md");
+            std::fs::create_dir(&folder).unwrap();
+            let links: Vec<LinkedFile> = [
+                dir.path().join("gone.md"),
+                folder,
+                PathBuf::new(),
+                PathBuf::from("\0"),
+            ]
+            .into_iter()
+            .enumerate()
+            .map(|(i, path)| LinkedFile {
+                note: format!("note:{i}"),
+                path,
+                modified_ms: Some(1),
+            })
+            .collect();
+            let mut settings = ImportSettings {
+                refresh_opened_files: true,
+                linked_files: links.clone(),
+            };
+            assert!(refresh(&mut settings, &store).is_empty());
+            assert_eq!(settings.linked_files, links);
+        }
+
+        #[test]
+        fn same_named_files_in_two_folders_follow_both_quietly() {
+            let dir = tempfile::tempdir().unwrap();
+            let store = Store::open(dir.path().join("db.sqlite")).unwrap();
+            let a = dir.path().join("a");
+            let b = dir.path().join("b");
+            std::fs::create_dir(&a).unwrap();
+            std::fs::create_dir(&b).unwrap();
+            std::fs::write(a.join("notes.md"), "# Notes\n\nfrom a").unwrap();
+            std::fs::write(b.join("notes.md"), "# Notes\n\nfrom b").unwrap();
+            let first = open(&a.join("notes.md"), &store);
+            let second = open(&b.join("notes.md"), &store);
+            let (links, notices) = record_all(&[], vec![first.clone(), second.clone()]);
+            assert!(notices.is_empty(), "{notices:?}");
+            assert_eq!(links, vec![first, second]);
+        }
+
+        /// Should a note ever move to another file, the user is told which
+        /// one it follows now.
+        #[test]
+        fn a_note_moving_to_another_file_is_announced() {
+            let link = |path: &str| LinkedFile {
+                note: "note:x".into(),
+                path: PathBuf::from(path),
+                modified_ms: None,
+            };
+            let (links, notices) = record_all(&[link("/a/notes.md")], vec![link("/b/notes.md")]);
+            assert_eq!(links, vec![link("/b/notes.md")]);
+            assert_eq!(
+                notices,
+                vec![
+                    "/b/notes.md and /a/notes.md make the same note, so it now follows /b/notes.md only."
+                        .to_owned()
+                ]
+            );
+        }
+
+        fn link_strategy() -> impl Strategy<Value = LinkedFile> {
+            ("[a-c]", "[x-z]", proptest::option::of(0i64..3)).prop_map(
+                |(note, path, modified_ms)| LinkedFile {
+                    note,
+                    path: PathBuf::from("/d").join(path).join("n.md"),
+                    modified_ms,
+                },
+            )
+        }
+
+        fn refresh_strategy() -> impl Strategy<Value = Refresh> {
+            prop_oneof![
+                Just(Refresh::Updated),
+                Just(Refresh::Unchanged),
+                Just(Refresh::EditedInKanso),
+                Just(Refresh::NoteDeleted),
+                Just(Refresh::Missing),
+                "[a-z]{0,8}".prop_map(Refresh::Failed),
+            ]
+        }
+
+        fn unique(links: &[LinkedFile]) -> bool {
+            let notes: HashSet<_> = links.iter().map(|l| &l.note).collect();
+            let paths: HashSet<_> = links.iter().map(|l| &l.path).collect();
+            notes.len() == links.len() && paths.len() == links.len()
+        }
+
+        proptest! {
+            #![proptest_config(ProptestConfig::with_cases(256))]
+
+            /// A refresh runs exactly when following is on and something
+            /// was opened, and then looks at every link.
+            #[test]
+            fn prop_links_to_refresh_only_when_on(
+                on in any::<bool>(),
+                links in proptest::collection::vec(link_strategy(), 0..6),
+            ) {
+                let settings = ImportSettings { refresh_opened_files: on, linked_files: links.clone() };
+                match links_to_refresh(&settings) {
+                    Some(picked) => {
+                        prop_assert!(on);
+                        prop_assert_eq!(picked, links);
+                    }
+                    None => prop_assert!(!on || links.is_empty()),
+                }
+            }
+
+            /// Recording keeps one link per note and per file, ends with
+            /// the last one, and says something exactly when a note moves
+            /// to another file.
+            #[test]
+            fn prop_record_all_announces_each_switch(
+                start in proptest::collection::vec(link_strategy(), 0..6),
+                linked in proptest::collection::vec(link_strategy(), 0..6),
+            ) {
+                let (start, _) = record_all(&[], start);
+                prop_assert!(unique(&start));
+                let mut switches = 0;
+                let mut list = start.clone();
+                for link in &linked {
+                    if list.iter().any(|l| l.note == link.note && l.path != link.path) {
+                        switches += 1;
+                    }
+                    list = kanso_import::library::record_link(&list, link.clone());
+                }
+                let (links, notices) = record_all(&start, linked.clone());
+                prop_assert!(unique(&links));
+                prop_assert_eq!(&links, &list);
+                prop_assert_eq!(notices.len(), switches);
+                if let Some(last) = linked.last() {
+                    prop_assert!(links.contains(last));
+                }
+            }
+
+            /// After a refresh, a link opened meanwhile always survives,
+            /// links stay one per note and file, and with nothing opened
+            /// meanwhile the result is what the refresh kept.
+            #[test]
+            fn prop_merge_refreshed_keeps_links_opened_meanwhile(
+                looked_at in proptest::collection::vec(link_strategy(), 0..6),
+                keep in proptest::collection::vec(any::<bool>(), 6),
+                meanwhile in proptest::collection::vec(link_strategy(), 0..4),
+            ) {
+                let (looked_at, _) = record_all(&[], looked_at);
+                let kept: Vec<LinkedFile> = looked_at
+                    .iter()
+                    .zip(&keep)
+                    .filter(|(_, k)| **k)
+                    .map(|(l, _)| LinkedFile { modified_ms: Some(9), ..l.clone() })
+                    .collect();
+                prop_assert_eq!(
+                    merge_refreshed(&looked_at, &looked_at, kept.clone()),
+                    kept.clone()
+                );
+                let (now, _) = record_all(&looked_at, meanwhile);
+                let merged = merge_refreshed(&now, &looked_at, kept.clone());
+                prop_assert!(unique(&merged));
+                for link in now.iter().filter(|l| !looked_at.contains(l)) {
+                    prop_assert!(merged.contains(link));
+                }
+                for link in &merged {
+                    prop_assert!(now.contains(link) || kept.contains(link));
+                }
+            }
+
+            /// One notice per note edited in Kanso, naming its file, and
+            /// none for anything else.
+            #[test]
+            fn prop_stopped_following_names_each_edited_note(
+                done in proptest::collection::vec((link_strategy(), refresh_strategy()), 0..8),
+            ) {
+                let done: Vec<Refreshed> = done
+                    .into_iter()
+                    .map(|(l, refresh)| Refreshed { note: l.note, path: l.path, refresh })
+                    .collect();
+                let lines = stopped_following(&done);
+                let edited: Vec<_> = done
+                    .iter()
+                    .filter(|r| r.refresh == Refresh::EditedInKanso)
+                    .collect();
+                prop_assert_eq!(lines.len(), edited.len());
+                for line in &lines {
+                    prop_assert!(line.starts_with("n.md changed on disk"));
+                }
+            }
+        }
+    }
 
     /// Opening a file the system handed over and opening it again from
     /// the picker is one note, with the file's new text.

@@ -1477,6 +1477,18 @@ mod tests {
                     briefs: Default::default(),
                     discovery: DiscoverySettings::default(),
                     inbox: super::InboxSettings::default(),
+                    import: super::ImportSettings {
+                        refresh_opened_files: !sidebar,
+                        linked_files: if login {
+                            vec![kanso_import::library::LinkedFile {
+                                note: "note:opened".to_owned(),
+                                path: std::path::PathBuf::from("/tmp/notes.md"),
+                                modified_ms: Some(i64::from(version)),
+                            }]
+                        } else {
+                            vec![]
+                        },
+                    },
                     people_projects: Default::default(),
                     voice: VoiceSettings::default(),
                     locked: LockedSettings::default(),

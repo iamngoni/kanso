@@ -50,9 +50,12 @@ pub fn open_note_files_linked(paths: &[PathBuf], store: &Store) -> Opened {
         match import_markdown_file(path, store) {
             Ok(report) if report.is_clean() => {
                 if let Some(note) = &report.first_note {
+                    // The note is keyed by the real path, so the link is
+                    // too: a file reached through a symlink or another
+                    // spelling is still one file.
                     linked.push(LinkedFile {
                         note: note.clone(),
-                        path: path.clone(),
+                        path: path.canonicalize().unwrap_or_else(|_| path.clone()),
                         modified_ms,
                     });
                 }
