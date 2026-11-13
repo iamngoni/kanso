@@ -403,3 +403,186 @@ proptest! {
         prop_assert_eq!(name_in_chain(&chain, &account(&a)), Some(renamed));
     }
 }
+
+// ------------------------------------------------- slice 38 review fixes
+
+/// A notebook shared with a manager and a member at `start`. Just before
+/// the owner's next list reaches the server, the manager moves the member
+/// to `between`, so the owner decided on a list that is no longer the
+/// head. The devices and the share.
+fn racing(start: Role, between: Role) -> (MemoryCollab, Device, Device, Device, String) {
+    let server = MemoryCollab::new();
+    let (owner, manager, member) = (
+        device(&server, 1, 1),
+        device(&server, 2, 1),
+        device(&server, 3, 1),
+    );
+    let book = studio(&owner);
+    let share = shared(
+        &owner,
+        &[(&manager, Role::Manager), (&member, start)],
+        &book,
+    );
+    if between != start {
+        let (engine, share, who) = (manager.engine.clone(), share.clone(), account(&member));
+        server.before_book_list(move || {
+            engine.set_book_role(&share, &who, between).unwrap();
+        });
+    }
+    (server, owner, manager, member, share)
+}
+
+#[test]
+fn a_raise_that_meets_a_newer_raise_lowers_instead() {
+    // The owner sees View and asks for Comment; the manager raised them to
+    // Edit first, so Comment is a lowering now.
+    let (_server, owner, _manager, member, share) = racing(Role::View, Role::Edit);
+    owner
+        .engine
+        .set_book_role(&share, &account(&member), Role::Comment)
+        .unwrap();
+    assert_eq!(role_in(&owner, &share, &member), Some(Role::Comment));
+    // The lowering started a new epoch: the member's Edit key is behind.
+    assert_eq!(epoch_of(&owner, &share), 2);
+}
+
+#[test]
+fn a_lowering_that_meets_a_newer_lowering_raises_instead() {
+    // The owner sees Edit and asks for Comment; the manager lowered them to
+    // View first, so Comment is a raise now.
+    let (_server, owner, _manager, member, share) = racing(Role::Edit, Role::View);
+    owner
+        .engine
+        .set_book_role(&share, &account(&member), Role::Comment)
+        .unwrap();
+    assert_eq!(role_in(&owner, &share, &member), Some(Role::Comment));
+}
+
+#[test]
+fn a_role_already_given_on_a_stale_list_is_still_sent() {
+    // The manager raised them to Comment; the owner, not synced since,
+    // still holds View and asks for View.
+    let server = MemoryCollab::new();
+    let (owner, manager, member) = (
+        device(&server, 1, 1),
+        device(&server, 2, 1),
+        device(&server, 3, 1),
+    );
+    let book = studio(&owner);
+    let share = shared(
+        &owner,
+        &[(&manager, Role::Manager), (&member, Role::View)],
+        &book,
+    );
+    manager
+        .engine
+        .set_book_role(&share, &account(&member), Role::Comment)
+        .unwrap();
+    owner
+        .engine
+        .set_book_role(&share, &account(&member), Role::View)
+        .unwrap();
+    member.engine.sync_book(&share).unwrap();
+    assert_eq!(role_in(&member, &share, &member), Some(Role::View));
+}
+
+#[test]
+fn an_explicit_demotion_to_a_higher_role_is_refused() {
+    let server = MemoryCollab::new();
+    let (owner, member) = (device(&server, 1, 1), device(&server, 2, 1));
+    let book = studio(&owner);
+    let share = shared(&owner, &[(&member, Role::View)], &book);
+    let refused = owner.engine.rotate_book(
+        &share,
+        Default::default(),
+        BTreeMap::from([(account(&member), Role::Edit)]),
+        true,
+    );
+    assert!(
+        matches!(&refused, Err(CollabError::Refused(words))
+            if words == "user2's role changed meanwhile. Look at it again and choose."),
+        "{refused:?}"
+    );
+    assert_eq!(role_in(&owner, &share, &member), Some(Role::View));
+    assert_eq!(epoch_of(&owner, &share), 1);
+}
+
+#[test]
+fn an_invite_after_a_member_deleted_their_account_cuts_them_first() {
+    let server = MemoryCollab::new();
+    let (owner, gone, newcomer) = (
+        device(&server, 1, 1),
+        device(&server, 2, 1),
+        device(&server, 3, 1),
+    );
+    let book = studio(&owner);
+    let share = shared(&owner, &[(&gone, Role::Edit)], &book);
+    owner.engine.person("user3").unwrap();
+    server.delete_account(&account(&gone));
+    owner
+        .engine
+        .invite_to_book(&share, &[("user3".into(), Role::Comment)])
+        .unwrap();
+    assert_eq!(role_in(&owner, &share, &gone), None);
+    assert_eq!(role_in(&owner, &share, &newcomer), Some(Role::Comment));
+    // Cutting them took a new key; the newcomer opens it.
+    assert_eq!(epoch_of(&owner, &share), 2);
+    assert_eq!(newcomer.engine.join_book(&share).unwrap().notes, 2);
+    // A raise after it goes through as well.
+    owner
+        .engine
+        .set_book_role(&share, &account(&newcomer), Role::Edit)
+        .unwrap();
+    assert_eq!(role_in(&owner, &share, &newcomer), Some(Role::Edit));
+}
+
+#[test]
+fn declining_on_another_device_after_accepting_is_refused() {
+    let server = MemoryCollab::new();
+    let owner = device(&server, 1, 1);
+    let (here, there) = (device(&server, 2, 1), device(&server, 2, 2));
+    let book = studio(&owner);
+    owner.engine.person("user2").unwrap();
+    let share = owner
+        .engine
+        .share_book(&book, &[("user2".into(), Role::Edit)], false, &mut |_| {})
+        .unwrap()
+        .share_id;
+    here.engine.join_book(&share).unwrap();
+    // The second device hasn't synced: its library doesn't hold the
+    // notebook, but the server knows the account is in it.
+    let refused = there.engine.decline_book(&share);
+    assert!(
+        matches!(&refused, Err(CollabError::Refused(words))
+            if words == "You're in that notebook: leave it instead."),
+        "{refused:?}"
+    );
+    let view = owner.engine.book_view_fresh(&share).unwrap();
+    let them = view.members.iter().find(|m| !m.me).unwrap();
+    assert_eq!(them.standing, MemberStanding::Member);
+    // Declining something no longer waiting does nothing.
+    there.engine.decline_book("AAAAAAAAAAAAAAAAAAAAAA").unwrap();
+}
+
+proptest! {
+    #![proptest_config(crate::tests::config(24))]
+
+    /// However a manager moved a member meanwhile, the role the owner asks
+    /// for (from the list it held before) is the role the member ends with.
+    #[test]
+    fn prop_the_role_asked_for_wins_over_one_changed_meanwhile(
+        start in prop::sample::select(vec![Role::View, Role::Comment, Role::Edit]),
+        between in prop::sample::select(vec![Role::View, Role::Comment, Role::Edit]),
+        asked in prop::sample::select(vec![Role::View, Role::Comment, Role::Edit]),
+    ) {
+        let (_server, owner, _manager, member, share) = racing(start, between);
+        owner
+            .engine
+            .set_book_role(&share, &account(&member), asked)
+            .unwrap();
+        prop_assert_eq!(role_in(&owner, &share, &member), Some(asked));
+        // The member's device agrees after a sync.
+        member.engine.sync_book(&share).unwrap();
+        prop_assert_eq!(role_in(&member, &share, &member), Some(asked));
+    }
+}

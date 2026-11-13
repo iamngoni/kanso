@@ -26,6 +26,15 @@ use crate::book_model::BookKey;
 use crate::codec::{b64, unb64, unb64_array};
 use crate::model::{Member, Role};
 
+/// What a rotation did.
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum Rotated {
+    Done,
+    /// An explicit demotion found this account below the role asked for:
+    /// a newer list moved them meanwhile, and nothing was sent.
+    RoleMoved(String),
+}
+
 /// Times a list is signed and sent again before giving up.
 const ATTEMPTS: usize = 8;
 
@@ -93,10 +102,32 @@ impl Engine {
     pub(super) fn rotate_book(
         &self,
         share_id: &str,
-        mut cut: BTreeSet<String>,
+        cut: BTreeSet<String>,
         demote: BTreeMap<String, Role>,
         explicit: bool,
     ) -> Result<()> {
+        match self.rotate_book_inner(share_id, cut, demote, explicit)? {
+            Rotated::Done => Ok(()),
+            Rotated::RoleMoved(account) => {
+                let name = self
+                    .book_ctx(share_id)
+                    .ok()
+                    .and_then(|ctx| super::book_roster::name_in_chain(&ctx.chain, &account))
+                    .unwrap_or(account);
+                Err(super::book_roster::changed_meanwhile(&name))
+            }
+        }
+    }
+
+    /// [`Engine::rotate_book`], saying when an explicit demotion found the
+    /// member already below the role asked for.
+    pub(super) fn rotate_book_inner(
+        &self,
+        share_id: &str,
+        mut cut: BTreeSet<String>,
+        demote: BTreeMap<String, Role>,
+        explicit: bool,
+    ) -> Result<Rotated> {
         let me = self.account.caller.account_id.clone();
         let identity = self.identity()?;
         let mut head_hint: Option<u64> = None;
@@ -171,10 +202,14 @@ impl Engine {
                 }
                 if *role < member.role {
                     lowered.insert(account.clone(), *role);
+                } else if explicit && *role > member.role {
+                    // A newer list put them below what was asked: lowering
+                    // them now would be a raise in disguise.
+                    return Ok(Rotated::RoleMoved(account.clone()));
                 }
             }
             if cut.is_empty() && lowered.is_empty() {
-                return Ok(());
+                return Ok(Rotated::Done);
             }
             let epoch = head.list.epoch + 1;
             let previous = ctx.keys.get(&head.list.epoch).cloned().ok_or_else(|| {
@@ -238,7 +273,7 @@ impl Engine {
                     history_link: Some(b64(&link)),
                 },
             ) {
-                Ok(()) => return self.take_new_epoch(share_id),
+                Ok(()) => return self.take_new_epoch(share_id).map(|()| Rotated::Done),
                 // Someone wrote meanwhile: signed again from the head the
                 // server names.
                 Err(err) if err.code() == Some("head_moved") => {
@@ -250,7 +285,7 @@ impl Engine {
                     let mut now = self.book_ctx(share_id)?;
                     self.refresh_chain(&mut now)?;
                     if our_hash.as_deref() == Some(now.chain.head.hash.as_str()) {
-                        return Ok(());
+                        return Ok(Rotated::Done);
                     }
                 }
                 // Someone the list keeps no longer has an account: cut
