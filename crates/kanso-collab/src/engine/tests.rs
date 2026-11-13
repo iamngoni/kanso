@@ -36,7 +36,22 @@ fn hex_id(prefix: &str, n: u8) -> String {
 pub(super) fn device(server: &MemoryCollab, n: u8, device: u8) -> Device {
     let dir = TempDir::new().unwrap();
     let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
-    let account = Account {
+    let engine = Arc::new(Engine::new(
+        store.clone(),
+        Arc::new(server.clone()),
+        account_of(n, device),
+    ));
+    engine.identity().unwrap();
+    Device {
+        engine,
+        store,
+        _dir: dir,
+    }
+}
+
+/// The account device `device` of account `n` signs in with.
+fn account_of(n: u8, device: u8) -> Account {
+    Account {
         caller: Caller {
             server: SERVER.into(),
             account_id: hex_id("a", n),
@@ -48,17 +63,32 @@ pub(super) fn device(server: &MemoryCollab, n: u8, device: u8) -> Device {
             identity_key: Zeroizing::new([n; 32]),
             vault_key: Zeroizing::new([n.wrapping_add(100); 32]),
         },
-    };
-    let engine = Arc::new(Engine::new(
-        store.clone(),
-        Arc::new(server.clone()),
-        account,
-    ));
-    engine.identity().unwrap();
-    Device {
-        engine,
-        store,
-        _dir: dir,
+    }
+}
+
+impl Device {
+    /// The app killed and started again: a new engine (nothing held in
+    /// memory) on the same library, the database reopened.
+    pub(super) fn restarted(self, server: &MemoryCollab, n: u8, device: u8) -> Device {
+        let Device {
+            engine,
+            store,
+            _dir,
+        } = self;
+        drop(engine);
+        drop(store);
+        let store = Arc::new(Store::open(_dir.path().join("kanso.db")).unwrap());
+        let engine = Arc::new(Engine::new(
+            store.clone(),
+            Arc::new(server.clone()),
+            account_of(n, device),
+        ));
+        engine.identity().unwrap();
+        Device {
+            engine,
+            store,
+            _dir,
+        }
     }
 }
 
@@ -1200,6 +1230,20 @@ fn rebase_keeps_a_local_edit_and_the_remote_one() {
     assert_eq!(rebase("abc", "abXc", "Zabc"), "ZabXc");
     assert_eq!(rebase("abc", "abc", "Zabc"), "Zabc");
     assert_eq!(rebase("abc", "ab", "abc"), "ab");
+}
+
+/// Regression (#390 slice 40): a local edit over a range someone else
+/// rewrote meanwhile replaced what they wrote. Both stay now, as text
+/// merges by character.
+#[test]
+fn rebase_never_removes_what_the_remote_edit_wrote() {
+    // The same word replaced on two devices: both replacements stay.
+    let both = rebase("Intro text", "Lead text", "Help text");
+    assert!(both.contains("Lead") && both.contains("Help"), "{both:?}");
+    assert!(!both.contains("Intro"), "{both:?}");
+    // Text deleted here that someone typed into meanwhile: what they typed
+    // stays, the rest goes.
+    assert_eq!(rebase("abcd", "", "abXcd"), "X");
 }
 
 /// One step of the model.

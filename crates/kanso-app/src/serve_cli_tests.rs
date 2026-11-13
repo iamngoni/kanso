@@ -189,11 +189,15 @@ fn signed_in_it_syncs_what_the_api_wrote() {
         )
         .unwrap();
     let driver = lab.start().expect("the driver runs");
+    // The sync is over once it says so: the server has the documents a
+    // moment before the driver's report is said, and stopping in between
+    // left the line unsaid (the test was flaky in a loaded run).
     assert!(
-        eventually(|| !lab.server.plain_view(&session).docs().is_empty()),
+        eventually(|| lab.said().contains("kanso serve: synced,")),
         "{}",
         lab.said()
     );
+    assert!(!lab.server.plain_view(&session).docs().is_empty());
     driver.stop();
     let said = lab.said();
     assert!(said.contains("signed in as alice"), "{said}");

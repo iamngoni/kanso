@@ -976,13 +976,10 @@ impl Pump {
         {
             return Ok(());
         }
-        let Ok(Some(note)) = store.note(&self.note_id) else {
-            return Ok(());
-        };
-        match self
-            .engine
-            .sync_editor(&self.share_id, &note.title, &note.body)
-        {
+        // The library's text is read under the note's lock: a copy read
+        // here could be older than a save made just after, and would be
+        // taken as an edit back to it.
+        match self.engine.sync_library(&self.share_id) {
             Err(CollabError::Refused(_)) => Err(()),
             _ => Ok(()),
         }

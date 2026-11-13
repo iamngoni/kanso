@@ -50,6 +50,16 @@ pub(super) fn split_outgoing(stream: &str) -> (&str, Kind) {
     }
 }
 
+/// Whether `after` drops or changes the value of a property `before` has.
+fn replaces_a_property(before: &str, after: &str) -> bool {
+    let (was, now) = (
+        kanso_core::properties::parse(before),
+        kanso_core::properties::parse(after),
+    );
+    was.iter()
+        .any(|(key, value)| kanso_core::properties::get(&now, key) != Some(value))
+}
+
 fn write_base(text: &Text) -> String {
     serde_json::to_string(&[&text.0, &text.1]).expect("serializes")
 }
@@ -333,7 +343,13 @@ impl Engine {
             }
         }
         for stream in &listed {
-            self.sync_note_stream(ctx, stream, role, result)?;
+            // Listed as not deleted: a change from someone brings it back
+            // from this library's trash, where it was put before that
+            // change was seen.
+            let undeleted = manifest
+                .note(stream)
+                .is_some_and(|n| n.deleted_at.is_none());
+            self.sync_note_stream(ctx, stream, role, undeleted, result)?;
         }
         if role.may_edit() {
             self.mark_gone_notes(ctx, &manifest)?;
@@ -692,12 +708,14 @@ impl Engine {
     // --------------------------------------------------------------- notes
 
     /// Pulls a note's log and settles the library's text with it. Whether
-    /// the note was edited here (its edits are in the outbox).
+    /// the note was edited here (its edits are in the outbox). `undeleted`:
+    /// the manifest lists the note as not deleted ([`Engine::settle_note`]).
     pub(super) fn sync_note_stream(
         &self,
         ctx: &mut Ctx,
         stream: &str,
         role: Role,
+        undeleted: bool,
         result: &mut BookSync,
     ) -> Result<bool> {
         let Some(mut row) = self.store.book_stream(&ctx.row.share_id, stream)? else {
@@ -710,7 +728,7 @@ impl Engine {
             &mut |update| doc.apply(update).is_ok_and(|m| !m.is_empty()),
             result,
         )?;
-        self.settle_note(ctx, &mut row, &doc, changed, role, result)
+        self.settle_note(ctx, &mut row, &doc, changed, undeleted, role, result)
     }
 
     /// Pulls a note's log without taking local edits (after a push).
@@ -728,18 +746,30 @@ impl Engine {
         let role = ctx
             .role(&self.account.caller.account_id)
             .unwrap_or(Role::View);
-        self.settle_note(ctx, &mut row, &doc, changed, role, result)?;
+        self.settle_note(ctx, &mut row, &doc, changed, false, role, result)?;
         Ok(())
     }
 
     /// Takes the library's edits of a note (against its base) into its
     /// document, and writes the document's text to the library.
+    ///
+    /// A note put in this library's trash comes back to the notebook when
+    /// someone changed it meanwhile (`changed`) and the manifest still lists
+    /// it (`undeleted`): the edit wins, as it does over a deletion. A note
+    /// the manifest lists deleted stays in the trash: the deletion was
+    /// someone's who had seen the change.
+    ///
+    /// A merge that replaces a value of a property the library's text had
+    /// keeps that text as a version first, unthrottled: two moves of the
+    /// same card end on one stage, and the history holds the other.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn settle_note(
         &self,
         ctx: &mut Ctx,
         row: &mut BookStream,
         doc: &CollabDoc,
         changed: bool,
+        undeleted: bool,
         role: Role,
         result: &mut BookSync,
     ) -> Result<bool> {
@@ -748,6 +778,7 @@ impl Engine {
         };
         let share_id = ctx.row.share_id.clone();
         let mut edited = false;
+        let mut kept = false;
         for _ in 0..5 {
             let note = self.store.note(&note_id)?;
             let rev = note.as_ref().and_then(|n| n.rev.clone());
@@ -797,6 +828,13 @@ impl Engine {
                 edited = true;
             }
             let (title, text) = clamp_text(doc.text(Field::Title), doc.note_text());
+            if !kept
+                && let Some((_, before)) = &local
+                && replaces_a_property(before, &text)
+            {
+                kept = true;
+                self.keep_version(&note_id)?;
+            }
             let written = self.store.write_shared_text(&SharedText {
                 note_id: &note_id,
                 title: &title,
@@ -809,6 +847,20 @@ impl Engine {
             match written {
                 Ok(_) => {
                     if local.as_ref() != Some(&(title.clone(), text.clone())) {
+                        result.notes_written += 1;
+                    }
+                    if changed
+                        && undeleted
+                        && note
+                            .as_ref()
+                            .is_some_and(|n| n.book_id == kanso_core::TRASH_BOOK_ID)
+                    {
+                        self.store.put(
+                            DocType::Note,
+                            json!({"_id": note_id, "bookId": ctx.row.book_id}),
+                            Put::Merge,
+                            Origin::Collab,
+                        )?;
                         result.notes_written += 1;
                     }
                     row.base = write_base(&(title, text));
@@ -827,6 +879,21 @@ impl Engine {
         Err(CollabError::Refused(
             "The note kept changing while it was being merged.".into(),
         ))
+    }
+
+    /// Keeps a note as it is now in its history.
+    fn keep_version(&self, note_id: &str) -> Result<()> {
+        let Some(doc) = self.store.get(note_id)? else {
+            return Ok(());
+        };
+        match self
+            .store
+            .record_revision(note_id, &doc.rev, &doc.fields, Origin::Collab)
+        {
+            // A locked note's versions are sealed: it isn't shared anyway.
+            Ok(()) | Err(StoreError::Invalid(_)) => Ok(()),
+            Err(err) => Err(err.into()),
+        }
     }
 
     fn persist_note_row(&self, row: &mut BookStream, doc: &CollabDoc) -> Result<()> {
