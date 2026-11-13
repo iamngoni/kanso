@@ -84,6 +84,7 @@ import 'core/models/repos/abs/reminder_notifier.dart' as _i874;
 import 'core/models/repos/abs/reminders_repository.dart' as _i58;
 import 'core/models/repos/abs/renderer_repository.dart' as _i732;
 import 'core/models/repos/abs/review_prompt_repository.dart' as _i765;
+import 'core/models/repos/abs/schedule_repository.dart' as _i507;
 import 'core/models/repos/abs/session_repository.dart' as _i333;
 import 'core/models/repos/abs/shared_notes_repository.dart' as _i374;
 import 'core/models/repos/abs/store_review_repository.dart' as _i690;
@@ -121,6 +122,7 @@ import 'core/models/repos/impl/rust_library_repository.dart' as _i152;
 import 'core/models/repos/impl/rust_notices_repository.dart' as _i136;
 import 'core/models/repos/impl/rust_reminders_repository.dart' as _i429;
 import 'core/models/repos/impl/rust_renderer_repository.dart' as _i820;
+import 'core/models/repos/impl/rust_schedule_repository.dart' as _i294;
 import 'core/models/repos/impl/rust_session_repository.dart' as _i899;
 import 'core/models/repos/impl/rust_shared_notes_repository.dart' as _i628;
 import 'core/models/repos/impl/rust_sync_repository.dart' as _i564;
@@ -259,6 +261,7 @@ import 'reminders/utils/reminders_coordinator.dart' as _i303;
 import 'replace/models/repos/abs/replace_repository.dart' as _i608;
 import 'replace/models/repos/impl/rust_replace_repository.dart' as _i1;
 import 'replace/state/replace_notes/replace_notes_bloc.dart' as _i1028;
+import 'schedule/state/schedule/schedule_bloc.dart' as _i518;
 import 'search/state/search/search_bloc.dart' as _i696;
 import 'settings/state/about/about_bloc.dart' as _i380;
 import 'settings/state/backup_notice/backup_notice_bloc.dart' as _i897;
@@ -572,6 +575,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i704.PaletteRepository>(
       () => _i97.RustPaletteRepository(gh<_i455.KansoLibrary>()),
     );
+    gh.lazySingleton<_i507.ScheduleRepository>(
+      () => _i294.RustScheduleRepository(gh<_i455.KansoLibrary>()),
+    );
     gh.factory<_i696.SearchBloc>(
       () => _i696.SearchBloc(
         gh<_i38.LibraryRepository>(),
@@ -866,6 +872,14 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i601.SyncRepository>(
       () => _i564.RustSyncRepository(gh<_i591.KansoSync>()),
+    );
+    gh.factory<_i518.ScheduleBloc>(
+      () => _i518.ScheduleBloc(
+        gh<_i507.ScheduleRepository>(),
+        gh<_i38.LibraryRepository>(),
+        gh<_i1056.HapticsRepository>(),
+        gh<_i985.UndoNoticeBloc>(),
+      ),
     );
     gh.factory<_i284.VoiceNoteBloc>(
       () => _i284.VoiceNoteBloc(gh<_i525.VoiceCaptureRepository>()),

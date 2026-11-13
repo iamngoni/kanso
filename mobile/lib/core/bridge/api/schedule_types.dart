@@ -49,6 +49,7 @@ class ScheduleRow {
   final String bookId;
   final int? line;
   final String text;
+  final String title;
   final DayDate date;
   final String? time;
   final String? zone;
@@ -64,6 +65,7 @@ class ScheduleRow {
     required this.bookId,
     this.line,
     required this.text,
+    required this.title,
     required this.date,
     this.time,
     this.zone,
@@ -81,6 +83,7 @@ class ScheduleRow {
       bookId.hashCode ^
       line.hashCode ^
       text.hashCode ^
+      title.hashCode ^
       date.hashCode ^
       time.hashCode ^
       zone.hashCode ^
@@ -100,6 +103,7 @@ class ScheduleRow {
           bookId == other.bookId &&
           line == other.line &&
           text == other.text &&
+          title == other.title &&
           date == other.date &&
           time == other.time &&
           zone == other.zone &&
