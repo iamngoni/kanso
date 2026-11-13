@@ -221,10 +221,14 @@ enum KansoIntentCore {
   /// library, `null` is no task.
   static func reading(of answer: Data?) -> TaskReading {
     guard let answer else { return .unavailable }
-    guard let preview = try? JSONDecoder().decode(TaskPreview?.self, from: answer) else {
+    let preview: TaskPreview?
+    do {
+      preview = try JSONDecoder().decode(TaskPreview?.self, from: answer)
+    } catch {
       return .unavailable
     }
-    return preview.map(TaskReading.task) ?? .noTask
+    guard let preview else { return .noTask }
+    return .task(preview)
   }
 
   /// The notes "Open Kanso note" may offer for `query`. None when the
