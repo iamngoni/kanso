@@ -27,3 +27,15 @@ DateChoices? dateChoices({
   beforeCaret: beforeCaret,
   now: now,
 );
+
+/// How the date and repeat at the end of `text` read in Quick Capture's Task
+/// mode (`Fri 13 Nov, 15:00 · every week`), or `None`.
+String? captureTaskHint({
+  required String text,
+  required LocalTime now,
+  required bool monthFirst,
+}) => KansoCore.instance.api.crateApiWhenCaptureTaskHint(
+  text: text,
+  now: now,
+  monthFirst: monthFirst,
+);

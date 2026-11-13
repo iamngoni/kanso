@@ -66,6 +66,35 @@ void whenSuite(OpenLibrary open) {
     });
   });
 
+  group('captureTaskHint', () {
+    test('reads the date and repeat at the end of a typed task', () {
+      expect(
+        captureTaskHint(
+          text: 'film Pixel review fri 3pm every week',
+          now: _now,
+          monthFirst: false,
+        ),
+        'Fri 23 Oct, 15:00 · every week',
+      );
+    });
+
+    test('says nothing for words with no date, or a date alone', () {
+      for (final text in <String>['film review', 'fri', '  ']) {
+        expect(
+          captureTaskHint(text: text, now: _now, monthFirst: false),
+          isNull,
+        );
+      }
+    });
+
+    test('reads 11/14 as the phone says', () {
+      expect(
+        captureTaskHint(text: 'pay 14/11', now: _now, monthFirst: false),
+        captureTaskHint(text: 'pay 11/14', now: _now, monthFirst: true),
+      );
+    });
+  });
+
   group('dateChoices', () {
     test('lists the days after an @ in a task', () {
       final found = dateChoices(beforeCaret: '- [ ] ring @', now: _now);

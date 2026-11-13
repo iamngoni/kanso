@@ -18,14 +18,7 @@ use crate::library::Library;
 use crate::model::LocalTime;
 use crate::when_model::{DateChoice, DateChoices, WhenHint};
 
-/// The repeats the `@` list offers once a date is written: the row's words
-/// and what it writes.
-pub const REPEAT_CHOICES: [(&str, &str); 4] = [
-    ("Every day", "every day"),
-    ("Every week", "every week"),
-    ("Every weekday", "every weekday"),
-    ("Every month", "every month"),
-];
+pub use kanso_engine::tasks::REPEAT_CHOICES;
 
 fn units(text: &str, bytes: usize) -> u32 {
     text[..bytes].encode_utf16().count().min(u32::MAX as usize) as u32

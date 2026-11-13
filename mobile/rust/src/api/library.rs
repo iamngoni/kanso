@@ -5,11 +5,11 @@
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    AttachmentFile, CaptureOutcome, Changed, ColorChoice, CopiedLink, DropsSaved, FoldState,
-    GoalSetting, Hit, IconChoice, ImportEvent, KansoError, Library, LibraryOverview, ListQuery,
-    LocalTime, NewNote, NoteChange, NoteList, NoteView, NotebookRow, OpenedDocuments, OpenedFile,
-    Property, Saved, SearchScope, Share, StatusChoice, Table, TagPlaces, TagRow, TaskBoard,
-    TaskListQuery, Ticked, VisibleNotebook,
+    AttachmentFile, CaptureOutcome, CaptureTarget, Changed, ColorChoice, CopiedLink, DropsSaved,
+    FoldState, GoalSetting, Hit, IconChoice, ImportEvent, KansoError, Library, LibraryOverview,
+    ListQuery, LocalTime, NewNote, NoteChange, NoteList, NoteView, NotebookRow, OpenedDocuments,
+    OpenedFile, Property, Saved, SearchScope, Share, StatusChoice, Table, TagPlaces, TagRow,
+    TaskBoard, TaskCaptured, TaskListQuery, Ticked, VisibleNotebook,
 };
 use kanso_mobile::{PdfEdited, PdfHighlightChange, PdfNotes};
 // A note's history, Replace in all notes and the backups.
@@ -305,6 +305,19 @@ impl KansoLibrary {
     /// Saves something shared from inside the app as a note in the Inbox.
     pub fn capture(&self, share: Share) -> Result<CaptureOutcome, KansoError> {
         self.0.capture(share)
+    }
+
+    /// Saves `text` as one task, written as a task line at the end of
+    /// today's daily note or the Inbox's task note (`target`). `now` is the
+    /// phone's local time; `month_first` reads `11/14` as November 14th.
+    pub fn capture_task(
+        &self,
+        text: String,
+        target: CaptureTarget,
+        now: LocalTime,
+        month_first: bool,
+    ) -> Result<TaskCaptured, KansoError> {
+        self.0.capture_task(&text, target, now, month_first)
     }
 
     /// The ID of today's daily note at the phone's local time `now`, made

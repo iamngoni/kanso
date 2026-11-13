@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../capture/state/capture_task/capture_task_cubit.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_page.dart';
 import '../../../injection.dart';
@@ -75,6 +76,9 @@ class JournalSettingsPage extends StatelessWidget {
           create: (_) =>
               getIt<DailyTemplateBloc>()
                 ..add(const DailyTemplateEvent.started()),
+        ),
+        BlocProvider<CaptureTaskCubit>(
+          create: (_) => getIt<CaptureTaskCubit>()..started(),
         ),
         BlocProvider<RemindersSettingsBloc>(
           create: (_) =>

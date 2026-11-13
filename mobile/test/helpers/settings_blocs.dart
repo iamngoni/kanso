@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart' show addTearDown;
 import 'package:kanso/ai_settings/state/ai_status/ai_status_bloc.dart';
+import 'package:kanso/capture/state/capture_task/capture_task_cubit.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/library_index_status.dart';
 import 'package:kanso/core/models/data/load_status.dart';
@@ -41,6 +42,7 @@ import 'fixture_push_repository.dart';
 import 'fixture_reminders_repository.dart';
 import 'fixture_session_repository.dart';
 import 'fixture_sync_repository.dart';
+import 'mock_repositories.dart';
 import 'page_fixtures.dart';
 import 'seeded_account_blocs.dart';
 import 'seeded_appearance_bloc.dart';
@@ -249,6 +251,12 @@ class SettingsBlocs {
     BlocProvider<LockStatusBloc>.value(value: lock),
     BlocProvider<BiometricsBloc>.value(value: biometrics),
     BlocProvider<DailyTemplateBloc>.value(value: dailyTemplate),
+    BlocProvider<CaptureTaskCubit>(
+      create: (_) => CaptureTaskCubit(
+        MockCaptureRepository(),
+        SeededPreferencesRepository(const Preferences()),
+      )..started(),
+    ),
     BlocProvider<RemindersSettingsBloc>.value(value: reminders),
     BlocProvider<PushSettingBloc>.value(value: push),
     BlocProvider<DiscoverySettingsBloc>.value(value: discoverySettings),

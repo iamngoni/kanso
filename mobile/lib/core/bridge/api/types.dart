@@ -704,6 +704,11 @@ class CaptureOutcome {
           problems == other.problems;
 }
 
+enum CaptureTarget {
+  dailyNote,
+  inbox,
+}
+
 @freezed
 sealed class CardKey with _$CardKey {
   const CardKey._();
@@ -6466,6 +6471,27 @@ class TaskBoard {
           groups == other.groups;
 }
 
+class TaskCaptured {
+  final String noteId;
+  final String line;
+
+  const TaskCaptured({
+    required this.noteId,
+    required this.line,
+  });
+
+  @override
+  int get hashCode => noteId.hashCode ^ line.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TaskCaptured &&
+          runtimeType == other.runtimeType &&
+          noteId == other.noteId &&
+          line == other.line;
+}
+
 enum TaskGroupKind {
   overdue,
   today,
@@ -6486,6 +6512,7 @@ class TaskItem {
   final bool checked;
   final String? dueLabel;
   final DueTone? dueTone;
+  final String? repeatLabel;
 
   const TaskItem({
     required this.key,
@@ -6499,6 +6526,7 @@ class TaskItem {
     required this.checked,
     this.dueLabel,
     this.dueTone,
+    this.repeatLabel,
   });
 
   @override
@@ -6513,7 +6541,8 @@ class TaskItem {
       sourceText.hashCode ^
       checked.hashCode ^
       dueLabel.hashCode ^
-      dueTone.hashCode;
+      dueTone.hashCode ^
+      repeatLabel.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -6530,7 +6559,8 @@ class TaskItem {
           sourceText == other.sourceText &&
           checked == other.checked &&
           dueLabel == other.dueLabel &&
-          dueTone == other.dueTone;
+          dueTone == other.dueTone &&
+          repeatLabel == other.repeatLabel;
 }
 
 class TaskListQuery {

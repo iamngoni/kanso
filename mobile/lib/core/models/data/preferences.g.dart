@@ -58,6 +58,14 @@ _Preferences _$PreferencesFromJson(Map<String, dynamic> json) => _Preferences(
       : ReviewPromptRecord.fromJson(
           json['reviewPrompt'] as Map<String, dynamic>,
         ),
+  captureAsTask: json['captureAsTask'] as bool? ?? false,
+  captureTaskTarget:
+      $enumDecodeNullable(
+        _$CaptureTargetEnumMap,
+        json['captureTaskTarget'],
+        unknownValue: CaptureTarget.dailyNote,
+      ) ??
+      CaptureTarget.dailyNote,
   pdfOriginalPages:
       (json['pdfOriginalPages'] as Map<String, dynamic>?)?.map(
         (k, e) => MapEntry(k, e as bool),
@@ -90,6 +98,8 @@ Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
       'resurfaceCloseness': instance.resurfaceCloseness,
       'onThisDay': instance.onThisDay,
       'reviewPrompt': instance.reviewPrompt.toJson(),
+      'captureAsTask': instance.captureAsTask,
+      'captureTaskTarget': _$CaptureTargetEnumMap[instance.captureTaskTarget]!,
       'pdfOriginalPages': instance.pdfOriginalPages,
     };
 
@@ -102,4 +112,9 @@ const _$SortKeyEnumMap = {
   SortKey.updated: 'updated',
   SortKey.created: 'created',
   SortKey.title: 'title',
+};
+
+const _$CaptureTargetEnumMap = {
+  CaptureTarget.dailyNote: 'dailyNote',
+  CaptureTarget.inbox: 'inbox',
 };

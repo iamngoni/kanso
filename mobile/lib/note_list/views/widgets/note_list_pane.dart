@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../capture/models/data/capture_first_row.dart';
+import '../../../capture/state/capture_task/capture_task_cubit.dart';
 import '../../../capture/views/widgets/capture_sheet.dart';
 import '../../../core/bridge/api/types.dart';
 import '../../../core/configs/kanso_icons.dart';
@@ -16,6 +17,7 @@ import '../../../core/state/capture_inbox/capture_inbox_bloc.dart';
 import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_large_title.dart';
+import '../../../injection.dart';
 import '../../../journal/views/widgets/journal_opener.dart';
 import '../../../journal/views/widgets/journal_strip.dart';
 import '../../../shell/models/data/note_creation_failure.dart';
@@ -92,6 +94,8 @@ class NoteListPane extends StatelessWidget {
                         onSource: (source) => context
                             .read<NoteCreationBloc>()
                             .add(NoteCreationEvent.captured(source)),
+                        // Task mode, as the desktop's Quick Capture has it.
+                        tasks: getIt<CaptureTaskCubit>(),
                       );
                       // The button is afloat over a phone's list, except while
                       // notes are being chosen.

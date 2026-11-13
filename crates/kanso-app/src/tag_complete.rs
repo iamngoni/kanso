@@ -179,6 +179,8 @@ impl CompletionProvider for NoteCompletion {
         }
         (!new_text.contains('\n')
             && (new_text.contains(['#', '@'])
+                // A space after a task's date offers its repeats.
+                || new_text == " "
                 || self.in_tag.get()
                 || self.in_date.get()
                 || self.in_mention.get()))

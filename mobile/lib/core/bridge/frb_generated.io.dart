@@ -1433,6 +1433,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   CaptureOutcome dco_decode_capture_outcome(dynamic raw);
 
   @protected
+  CaptureTarget dco_decode_capture_target(dynamic raw);
+
+  @protected
   CardKey dco_decode_card_key(dynamic raw);
 
   @protected
@@ -3258,6 +3261,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   TaskBoard dco_decode_task_board(dynamic raw);
 
   @protected
+  TaskCaptured dco_decode_task_captured(dynamic raw);
+
+  @protected
   TaskCard dco_decode_task_card(dynamic raw);
 
   @protected
@@ -4713,6 +4719,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   CaptureOutcome sse_decode_capture_outcome(SseDeserializer deserializer);
+
+  @protected
+  CaptureTarget sse_decode_capture_target(SseDeserializer deserializer);
 
   @protected
   CardKey sse_decode_card_key(SseDeserializer deserializer);
@@ -6830,6 +6839,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   TaskBoard sse_decode_task_board(SseDeserializer deserializer);
 
   @protected
+  TaskCaptured sse_decode_task_captured(SseDeserializer deserializer);
+
+  @protected
   TaskCard sse_decode_task_card(SseDeserializer deserializer);
 
   @protected
@@ -8648,6 +8660,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
     CaptureOutcome self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_capture_target(CaptureTarget self, SseSerializer serializer);
 
   @protected
   void sse_encode_card_key(CardKey self, SseSerializer serializer);
@@ -11364,6 +11379,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_task_board(TaskBoard self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_task_captured(TaskCaptured self, SseSerializer serializer);
 
   @protected
   void sse_encode_task_card(TaskCard self, SseSerializer serializer);

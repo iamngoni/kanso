@@ -416,6 +416,13 @@ impl NoteEditor {
         true
     }
 
+    /// Whether Vim has the keys: its Normal or Visual mode is on.
+    pub(super) fn vim_has_keys(&self) -> bool {
+        self.vim
+            .as_ref()
+            .is_some_and(|state| state.session.mode() != Mode::Insert)
+    }
+
     /// The block caret over the character under Normal (and Visual) mode's
     /// cursor, drawn over the text editor once it has laid out.
     // no-prop-test: painting; the Vim snapshots show it.

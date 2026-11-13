@@ -11,19 +11,22 @@ import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_checkbox.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
 import 'task_due_chip.dart';
+import 'task_repeat_chip.dart';
 
 /// A task: its box, its text (struck through and muted once done), its due
 /// date and, quietly under them, the note and notebook it is in.
 ///
 /// One node for a screen reader, which reads the task, says whether it is
 /// done and can open the note, tick the task off or clear it. Pressing the
-/// box ticks; pressing the rest opens the note. [open] is the task whose
-/// note is open beside the list, [focused] the one the keyboard is on.
+/// box ticks; pressing the rest opens the note, holding it shows the whole
+/// text. A repeating task has a chip with how it repeats. [open] is the task
+/// whose note is open beside the list, [focused] the one the keyboard is on.
 class TaskRow extends StatelessWidget {
   const TaskRow({
     required this.task,
     required this.onTick,
     required this.onOpen,
+    this.onLongPress,
     this.open = false,
     this.focused = false,
     super.key,
@@ -32,6 +35,10 @@ class TaskRow extends StatelessWidget {
   final TaskItem task;
   final VoidCallback onTick;
   final VoidCallback onOpen;
+
+  /// What holding the row does: shows the task's whole text. None, and a
+  /// long press does nothing.
+  final VoidCallback? onLongPress;
   final bool open;
   final bool focused;
 
@@ -42,10 +49,12 @@ class TaskRow extends StatelessWidget {
     final typography = context.typography;
     final due = task.dueLabel;
     final tone = task.dueTone;
+    final repeat = task.repeatLabel;
     final whereLine = l10n.tasksRowContext(task.noteTitle, task.notebookName);
     final spoken = <String>[
       task.text,
       if (due != null) l10n.tasksRowDue(due),
+      if (repeat != null) l10n.tasksRepeatSemantics(repeat),
       whereLine,
     ].join(', ');
     return Semantics(
@@ -59,6 +68,8 @@ class TaskRow extends StatelessWidget {
           label: task.checked ? l10n.tasksTickBack : l10n.tasksTickOff,
         ): onTick,
         CustomSemanticsAction(label: l10n.tasksOpenNote): onOpen,
+        if (onLongPress != null)
+          CustomSemanticsAction(label: l10n.tasksShowDetail): onLongPress!,
       },
       child: ExcludeSemantics(
         child: Container(
@@ -84,6 +95,7 @@ class TaskRow extends StatelessWidget {
               Expanded(
                 child: KansoPressable(
                   onTap: onOpen,
+                  onLongPress: onLongPress,
                   child: Padding(
                     padding: const EdgeInsetsDirectional.only(
                       end: KansoSpacing.md,
@@ -112,6 +124,10 @@ class TaskRow extends StatelessWidget {
                           children: <Widget>[
                             if (due != null && tone != null) ...<Widget>[
                               TaskDueChip(label: due, tone: tone),
+                              const SizedBox(width: KansoSpacing.xs),
+                            ],
+                            if (repeat != null) ...<Widget>[
+                              TaskRepeatChip(label: repeat, done: task.checked),
                               const SizedBox(width: KansoSpacing.xs),
                             ],
                             Expanded(

@@ -291,6 +291,8 @@ mod voice;
 mod voice_commands;
 mod voice_state;
 mod voice_tidy;
+mod when_hint;
+mod when_hint_model;
 mod wikilinks;
 mod word_goal;
 mod workspace;

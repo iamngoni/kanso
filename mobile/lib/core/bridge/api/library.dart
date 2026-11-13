@@ -98,6 +98,16 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// Saves something shared from inside the app as a note in the Inbox.
   Future<CaptureOutcome> capture({required Share share});
 
+  /// Saves `text` as one task, written as a task line at the end of
+  /// today's daily note or the Inbox's task note (`target`). `now` is the
+  /// phone's local time; `month_first` reads `11/14` as November 14th.
+  Future<TaskCaptured> captureTask({
+    required String text,
+    required CaptureTarget target,
+    required LocalTime now,
+    required bool monthFirst,
+  });
+
   KansoCards cards();
 
   Future<Changed> change({
