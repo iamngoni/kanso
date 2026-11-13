@@ -7,7 +7,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:clock/clock.dart';
-import 'package:dartz/dartz.dart' show Left;
+import 'package:dartz/dartz.dart' show Either, Left;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
@@ -27,6 +27,10 @@ export '../../../core/models/data/preview_themes.dart';
 part 'preview_bloc.freezed.dart';
 part 'preview_event.dart';
 part 'preview_state.dart';
+
+/// The address a due chip's "Stop repeating" taps, with the task's place in
+/// the note's task list after it (`kanso-stop-repeat:2`).
+const String stopRepeatingLink = 'kanso-stop-repeat:';
 
 /// The body size of the page, in points: the desktop preview's.
 const double previewBaseTextSize = 18;
@@ -188,6 +192,23 @@ class PreviewBloc extends Bloc<PreviewEvent, PreviewState> {
     Emitter<PreviewState> emit,
   ) async {
     final noteId = state.noteId;
+    // "Stop repeating" from a due chip's menu names its task by place.
+    if (event.url.startsWith(stopRepeatingLink)) {
+      final index = int.tryParse(
+        event.url.substring(stopRepeatingLink.length),
+      );
+      if (index != null && index >= 0) {
+        await _write(
+          () => _library.stopRepeatingAt(
+            noteId: noteId,
+            index: index,
+            baseRev: state.rev,
+          ),
+          emit,
+        );
+      }
+      return;
+    }
     final target = await _renderer.linkTarget(noteId, event.url);
     if (emit.isDone) {
       return;
@@ -263,12 +284,23 @@ class PreviewBloc extends Bloc<PreviewEvent, PreviewState> {
 
   /// Ticks the [index]-th box against the blocks shown: one write, with the
   /// Undo notice. Blocks older than the note are drawn again instead.
-  Future<void> _tick(int index, Emitter<PreviewState> emit) async {
-    final result = await _library.toggleTaskAt(
+  Future<void> _tick(int index, Emitter<PreviewState> emit) => _write(
+    () => _library.toggleTaskAt(
       noteId: state.noteId,
       index: index,
       baseRev: state.rev,
-    );
+    ),
+    emit,
+  );
+
+  /// A task write from the page ([write]): its Undo notice when it changed
+  /// the note, and the blocks drawn again. Blocks older than the note are
+  /// drawn again instead.
+  Future<void> _write(
+    Future<Either<ApplicationError, Ticked>> Function() write,
+    Emitter<PreviewState> emit,
+  ) async {
+    final result = await write();
     if (emit.isDone) {
       return;
     }

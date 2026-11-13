@@ -1,17 +1,28 @@
 //! Adding a task to a note: the end of a note, today's daily note, or the
-//! Inbox's task list. Used by the local API's `kanso-add-task`.
+//! Inbox's task list. Used by the local API's `kanso-add-task`, and the
+//! Inbox's task list is the same note Quick Capture's Task mode writes to.
 
 use kanso_core::dates::DateTime;
 use kanso_core::roles::Role;
-use rusqlite::OptionalExtension;
 use serde_json::{Value, json};
 
 use crate::write::{load_row, rewrite_note};
 use crate::{Origin, Put, Result, Store, StoreError};
 use kanso_core::DocType;
+use kanso_core::model::TRASH_BOOK_ID;
 
-/// The title of the note in the Inbox that holds tasks added there.
-pub const INBOX_TASKS_TITLE: &str = "Tasks";
+/// The note in the Inbox that tasks added there collect in, from the local
+/// API and from Quick Capture alike. A fixed ID, so every device adds to
+/// the same note once they sync.
+pub const INBOX_TASKS_ID: &str = "note:inbox-tasks";
+
+/// The title that note is made with.
+pub const INBOX_TASKS_TITLE: &str = "Inbox tasks";
+
+/// The title the local API used to give its own Inbox task note. A note
+/// with it in the Inbox is folded into [`INBOX_TASKS_ID`] when that note is
+/// next used, so tasks added before the two were one aren't left behind.
+pub const LEGACY_INBOX_TASKS_TITLE: &str = "Tasks";
 
 /// Where a new task goes.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -20,7 +31,7 @@ pub enum TaskTarget {
     Note(String),
     /// The daily note for the day of `now`, made when missing.
     Daily,
-    /// The note titled [`INBOX_TASKS_TITLE`] in the Inbox, made when missing.
+    /// The Inbox's task note ([`INBOX_TASKS_ID`]), made when missing.
     Inbox,
 }
 
@@ -81,28 +92,86 @@ impl Store {
         })
     }
 
-    /// The Inbox's task list note, made (with the Inbox) when missing.
-    fn inbox_tasks_note(&self, origin: Origin) -> Result<String> {
+    /// The Inbox's task note ([`INBOX_TASKS_ID`]): made (with the Inbox)
+    /// when missing, brought back from the trash when it was deleted, and
+    /// with any older [`LEGACY_INBOX_TASKS_TITLE`] note in the Inbox folded
+    /// into it ([`merge_task_bodies`]) and that note moved to the trash.
+    /// Nothing is folded while the Inbox or either note is locked.
+    pub fn inbox_tasks_note(&self, origin: Origin) -> Result<String> {
         let inbox = self.role_book(Role::Inbox, origin)?;
-        let found: Option<String> = self.read(|conn| {
-            Ok(conn
-                .query_row(
-                    "SELECT id FROM docs WHERE type = 'note' AND deleted = 0
-                     AND book_id = ?1 AND title = ?2 ORDER BY id LIMIT 1",
-                    [&inbox, INBOX_TASKS_TITLE],
-                    |row| row.get(0),
-                )
-                .optional()?)
+        let mut body = match self.note(INBOX_TASKS_ID)? {
+            None => {
+                self.put(
+                    DocType::Note,
+                    json!({"_id": INBOX_TASKS_ID, "title": INBOX_TASKS_TITLE, "body": "", "bookId": inbox}),
+                    Put::Upsert,
+                    origin,
+                )?;
+                String::new()
+            }
+            Some(note) if note.book_id == TRASH_BOOK_ID => {
+                self.put(
+                    DocType::Note,
+                    json!({"_id": INBOX_TASKS_ID, "bookId": inbox}),
+                    Put::Merge,
+                    origin,
+                )?;
+                note.body
+            }
+            Some(note) => note.body,
+        };
+        let legacy: Vec<String> = self.read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT id FROM docs WHERE type = 'note' AND deleted = 0
+                 AND book_id = ?1 AND title = ?2 AND id <> ?3 ORDER BY id",
+            )?;
+            let ids = stmt
+                .query_map([&inbox, LEGACY_INBOX_TASKS_TITLE, INBOX_TASKS_ID], |row| {
+                    row.get(0)
+                })?
+                .collect::<std::result::Result<Vec<String>, _>>()?;
+            Ok(ids)
         })?;
-        if let Some(id) = found {
-            return Ok(id);
+        // Locked words aren't plain text to move.
+        if self.note_is_locked(INBOX_TASKS_ID)? || self.locked_books()?.contains(&inbox) {
+            return Ok(INBOX_TASKS_ID.to_owned());
         }
-        let made = self.put(
-            DocType::Note,
-            json!({ "title": INBOX_TASKS_TITLE, "body": "", "bookId": inbox }),
-            Put::Upsert,
-            origin,
-        )?;
-        Ok(made.id)
+        for id in legacy {
+            if self.note_is_locked(&id)? {
+                continue;
+            }
+            let Some(old) = self.note(&id)? else { continue };
+            body = merge_task_bodies(&body, &old.body);
+            self.put(
+                DocType::Note,
+                json!({"_id": INBOX_TASKS_ID, "body": body}),
+                Put::Merge,
+                origin,
+            )?;
+            self.put(
+                DocType::Note,
+                json!({"_id": id, "bookId": TRASH_BOOK_ID}),
+                Put::Merge,
+                origin,
+            )?;
+        }
+        Ok(INBOX_TASKS_ID.to_owned())
     }
+}
+
+/// `into` with `from`'s lines after it: a line break between the two when
+/// `into` doesn't end in one, and nothing added when `from` is blank.
+pub fn merge_task_bodies(into: &str, from: &str) -> String {
+    if from.trim().is_empty() {
+        return into.to_owned();
+    }
+    let mut out = into.to_owned();
+    if !out.is_empty() && !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out.push_str(from);
+    if !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out
 }

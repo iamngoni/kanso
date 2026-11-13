@@ -138,7 +138,10 @@ pub use restore::{
 };
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
-pub use task_add::{INBOX_TASKS_TITLE, TaskAdded, TaskTarget};
+pub use task_add::{
+    INBOX_TASKS_ID, INBOX_TASKS_TITLE, LEGACY_INBOX_TASKS_TITLE, TaskAdded, TaskTarget,
+    merge_task_bodies,
+};
 pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow, TickResult, TickUndo, local_today};
 pub use trash_model::{Emptied, FileDrop, TrashCounts};
 pub use triage::{INBOX_TRIAGED_FIELD, InboxNote, TriagePool};
