@@ -663,7 +663,7 @@ impl TasksView {
     }
 }
 
-fn writes_held(cx: &App) -> bool {
+pub(crate) fn writes_held(cx: &App) -> bool {
     cx.try_global::<crate::services::Services>()
         .is_some_and(|services| services.writes_held)
 }

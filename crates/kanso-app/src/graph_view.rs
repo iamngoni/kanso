@@ -968,6 +968,7 @@ impl Workspace {
     pub(crate) fn show_graph(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.close_settings(window, cx);
         self.close_board(window, cx);
+        self.close_schedule(window, cx);
         self.set_focus_mode(false, window, cx);
         if !self.graph_open {
             crate::metrics::record(cx, crate::metrics::Feature::GraphOpened);

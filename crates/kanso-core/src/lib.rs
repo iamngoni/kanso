@@ -31,6 +31,7 @@ pub mod reminders;
 pub mod repeat;
 pub mod repeat_model;
 pub mod replace;
+pub mod reschedule;
 pub mod rev;
 pub mod review_doc;
 pub mod revisit;

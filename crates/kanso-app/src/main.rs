@@ -205,6 +205,10 @@ mod resurface;
 mod review_queue;
 #[cfg(test)]
 mod review_tests;
+mod schedule_model;
+#[cfg(test)]
+mod schedule_tests;
+mod schedule_view;
 mod seal_migration;
 mod secrets;
 mod security_key_flow;

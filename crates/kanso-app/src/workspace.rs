@@ -285,6 +285,7 @@ fn view_menu(cx: &App) -> Vec<MenuItem> {
         MenuItem::action("Triage Inbox", crate::triage_view::ShowTriage),
         MenuItem::action("People & Projects", crate::people_view::ShowPeople),
         MenuItem::action("Review Flashcards", crate::flashcards_view::ShowFlashcards),
+        MenuItem::action("Schedule", crate::schedule_view::ShowSchedule),
         MenuItem::action("Focus Mode", ToggleFocusMode),
         MenuItem::action("Search All Notes", SearchAllNotes),
         MenuItem::action("Replace in All Notes…", crate::replace::ReplaceInNotes),
@@ -501,6 +502,10 @@ pub struct Workspace {
     /// Review over the window while open (`flashcards_view.rs`).
     pub(crate) flashcards: Option<Entity<crate::flashcards_view::FlashcardsView>>,
     pub(crate) flashcards_open: bool,
+    /// The Schedule over the window while open (`schedule_view.rs`).
+    pub(crate) schedule: Option<Entity<crate::schedule_view::ScheduleView>>,
+    pub(crate) schedule_open: bool,
+    pub(crate) _schedule_events: Option<Subscription>,
     /// Draft, Make Flashcards and Quiz Me (`learn_view.rs`).
     pub(crate) learn: Option<Entity<crate::learn_view::LearnView>>,
     pub(crate) learn_open: bool,
@@ -685,6 +690,7 @@ impl Workspace {
                 LibraryEvent::Shown => {
                     this.close_triage(window, cx);
                     this.close_people(window, cx);
+                    this.close_schedule(window, cx);
                     // A page takes the keyboard once the filter has changed.
                     cx.defer_in(window, |this, window, cx| {
                         if matches!(
@@ -922,6 +928,9 @@ impl Workspace {
             triage: None,
             flashcards: None,
             flashcards_open: false,
+            schedule: None,
+            schedule_open: false,
+            _schedule_events: None,
             learn: None,
             learn_open: false,
             learn_modal: Default::default(),
@@ -2897,6 +2906,9 @@ impl Render for Workspace {
             if let Some(view) = self.flashcards.clone().filter(|_| self.flashcards_open) {
                 view.update(cx, |view, cx| view.set_frame(width, list_inset, cx));
             }
+            if let Some(view) = self.schedule.clone().filter(|_| self.schedule_open) {
+                view.update(cx, |view, cx| view.set_frame(width, list_inset, cx));
+            }
         }
         self.editor
             .update(cx, |editor, cx| editor.set_focus_mode(focus_mode, cx));
@@ -3191,7 +3203,11 @@ impl Render for Workspace {
                     this.change_notes(&[id], trash, window, cx);
                 }
             }))
-            .on_action(cx.listener(|_, _: &UndoLastChange, window, cx| {
+            .on_action(cx.listener(|this, _: &UndoLastChange, window, cx| {
+                // The Schedule takes back its own last change first.
+                if this_schedule_undo(this, cx) {
+                    return;
+                }
                 // Nothing to take back: the key goes on to whatever else
                 // binds it.
                 if !crate::note_batch::undo_latest(window, cx) {
@@ -3479,6 +3495,7 @@ impl Render for Workspace {
             .map(|el| crate::triage_view::on_actions(el, cx))
             .map(|el| crate::people_view::on_actions(el, cx))
             .map(|el| crate::flashcards_view::on_actions(el, cx))
+            .map(|el| crate::schedule_view::on_actions(el, cx))
             .map(|el| crate::learn_view::on_actions(el, cx))
             .map(|el| crate::digest_view::on_actions(el, cx))
             // Off macOS, Kanso's own title bar with the menus.
@@ -3622,6 +3639,10 @@ impl Render for Workspace {
                 self,
                 if focus_mode { 0. } else { leading },
             ))
+            .children(crate::schedule_view::overlay(
+                self,
+                if focus_mode { 0. } else { leading },
+            ))
             .children(crate::learn_view::overlay(
                 self,
                 if focus_mode { 0. } else { leading },
@@ -3660,4 +3681,16 @@ fn set_book_field(
     };
     store.put(DocType::Book, book, Put::Upsert, Origin::Ui)?;
     Ok(())
+}
+
+/// Takes the Schedule's last change back while it is open. `true` when it did.
+fn this_schedule_undo(workspace: &Workspace, cx: &mut Context<Workspace>) -> bool {
+    match workspace
+        .schedule
+        .clone()
+        .filter(|_| workspace.schedule_open)
+    {
+        Some(view) => view.update(cx, |view, cx| view.undo(cx)),
+        None => false,
+    }
 }

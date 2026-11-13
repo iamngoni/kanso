@@ -16,12 +16,12 @@ use crate::config::AppConfig;
 use crate::services::Services;
 use crate::workspace::{AppState, Workspace};
 
-struct Fixture {
+pub(crate) struct Fixture {
     _dir: tempfile::TempDir,
-    store: Arc<Store>,
-    window: AnyWindowHandle,
-    workspace: Entity<Workspace>,
-    notes: [String; 2],
+    pub(crate) store: Arc<Store>,
+    pub(crate) window: AnyWindowHandle,
+    pub(crate) workspace: Entity<Workspace>,
+    pub(crate) notes: [String; 2],
 }
 
 fn note_body(store: &Store, id: &str) -> String {
@@ -40,7 +40,7 @@ fn persisted(store: &Store, ids: &[String], text: &str) -> bool {
     })
 }
 
-fn setup(cx: &mut TestAppContext) -> Fixture {
+pub(crate) fn setup(cx: &mut TestAppContext) -> Fixture {
     let dir = tempfile::tempdir().unwrap();
     let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
     let book = store
@@ -147,7 +147,7 @@ impl Fixture {
     }
 
     /// Draws, so focus, actions and element bounds find the views.
-    fn draw(&self, cx: &mut TestAppContext) {
+    pub(crate) fn draw(&self, cx: &mut TestAppContext) {
         cx.run_until_parked();
         self.window
             .update(cx, |_, window, cx| {
@@ -4271,7 +4271,7 @@ fn an_empty_page_explains_itself(cx: &mut TestAppContext) {
     assert!(vcx.debug_bounds("page-empty").is_some());
 }
 
-fn settle(f: &Fixture, vcx: &mut gpui_kit::VisualTestContext) {
+pub(crate) fn settle(f: &Fixture, vcx: &mut gpui_kit::VisualTestContext) {
     vcx.executor().advance_clock(Duration::from_millis(600));
     vcx.run_until_parked();
     for _ in 0..3 {

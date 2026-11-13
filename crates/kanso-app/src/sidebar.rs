@@ -267,6 +267,33 @@ impl Sidebar {
             })
     }
 
+    /// Schedule: the calendar of dated tasks and notes.
+    // no-prop-test: drawing; the Schedule snapshots show the view it opens.
+    fn schedule_row(&self, cx: &mut Context<Self>) -> Stateful<Div> {
+        let colors = Colors::get(cx);
+        let icon = self.icon(Icon::new(Lucide::CalendarDays), cx);
+        div()
+            .id("schedule")
+            .debug_selector(|| "schedule-row".into())
+            .h(px(ROW_HEIGHT))
+            .flex()
+            .flex_none()
+            .items_center()
+            .gap(px(10.))
+            .mx_2()
+            .pr(px(8.))
+            .pl(px(10.))
+            .rounded(px(6.))
+            .text_size(px(13.5))
+            .cursor_pointer()
+            .hover(|el| el.bg(colors.sidebar_hover))
+            .child(icon)
+            .child(div().flex_1().min_w_0().truncate().child("Schedule"))
+            .on_click(|_, window, cx| {
+                window.dispatch_action(Box::new(crate::schedule_view::ShowSchedule), cx)
+            })
+    }
+
     /// Collapses the sidebar to its icon rail, or opens it again.
     pub fn set_collapsed(&mut self, collapsed: bool, cx: &mut Context<Self>) {
         if self.collapsed != collapsed {
@@ -1789,6 +1816,7 @@ impl Render for Sidebar {
             cx,
         ));
         list = list.child(self.tasks_row(cx));
+        list = list.child(self.schedule_row(cx));
         if let Some(waiting) = self.review {
             list = list.child(self.review_row(waiting, cx));
         }

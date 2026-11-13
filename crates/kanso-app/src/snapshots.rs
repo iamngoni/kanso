@@ -68,6 +68,7 @@ mod record_sheet;
 mod recording_sheet;
 mod recording_summary;
 mod rename_speakers;
+mod schedule;
 mod voice;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead
@@ -6039,6 +6040,11 @@ fn snapshots() {
             size: size(px(1440.), px(1300.)),
             ..shot("dark-overview-week", Dark, Edit, overview_week)
         },
+        // The Schedule (#390 slice 27): the month and the week, both themes.
+        shot("dark-schedule-month", Dark, Edit, schedule::month),
+        shot("light-schedule-month", Light, Edit, schedule::month),
+        shot("dark-schedule-week", Dark, Edit, schedule::week),
+        shot("light-schedule-week", Light, Edit, schedule::week),
         shot("dark-tasks", Dark, Split, tasks_view),
         shot("light-tasks", Light, Split, tasks_view),
         shot("dark-board", Dark, Edit, status_board),
@@ -7584,8 +7590,11 @@ fn snapshots() {
         let dialog_open = cx
             .update_window(window, |_, window, cx| window.has_active_dialog(cx))
             .unwrap();
-        let page_open =
-            cx.update(|cx| workspace.read(cx).library.read(cx).filter == Filter::Overview);
+        // The Schedule fills the window beside the sidebar in the editor's
+        // surface, as a page does.
+        let schedule_open = cx.update(|cx| workspace.read(cx).schedule_open);
+        let page_open = schedule_open
+            || cx.update(|cx| workspace.read(cx).library.read(cx).filter == Filter::Overview);
         if dialog_open {
             check_dialog(&image, shot, shot.dialog_width);
         } else if page_open {

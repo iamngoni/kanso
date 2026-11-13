@@ -4,12 +4,15 @@
 
 use chrono::{Datelike as _, Local, TimeZone as _};
 use kanso_core::dates::{Date, DateTime};
+use kanso_core::model::LOCK_FIELD;
 use kanso_core::reminders::{ACK_FIELD, Acks, acknowledge, acks_value, read_acks, task_key};
+use kanso_core::reschedule::set_task_due;
 use kanso_core::tasks::{TaskEdit, set_task_checked, task_items};
 use rusqlite::params;
 use rusqlite::types::Value as SqlValue;
 use serde_json::Value;
 
+use crate::note_property_model::PropertyEdit;
 use crate::write::{load_row, rewrite_note};
 use crate::{Origin, Result, Store, StoreError};
 
@@ -242,6 +245,62 @@ impl Store {
                     })
                 }
             }
+        })
+    }
+
+    /// Moves the due date of the task with text `text` (looked for on `line`
+    /// first, as [`Store::set_task_checked`] does) to `day`, in one write:
+    /// its time and repeat stay. `None` when the task is gone or has no due
+    /// date; nothing is written when it is on that day already. A sealed note
+    /// is refused ([`StoreError::Invalid`]). The edit puts the note back
+    /// through [`Store::undo_note_property`].
+    pub fn set_task_due(
+        &self,
+        id: &str,
+        line: u32,
+        text: &str,
+        day: Date,
+        now_ms: i64,
+        origin: Origin,
+    ) -> Result<Option<PropertyEdit>> {
+        self.write(|tx, changes| {
+            let row = load_row(tx, id)?
+                .filter(|r| !r.deleted)
+                .ok_or(StoreError::NotFound)?;
+            if row.fields.contains_key(LOCK_FIELD) {
+                return Err(StoreError::Invalid("This note is locked.".into()));
+            }
+            let before = row
+                .fields
+                .get("body")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned();
+            let before_updated_at = row
+                .fields
+                .get("updatedAt")
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
+            let after = match set_task_due(&before, line, text, day) {
+                TaskEdit::Missing => return Ok(None),
+                TaskEdit::Unchanged => before.clone(),
+                TaskEdit::Changed(after) => after,
+            };
+            let changed = after != before;
+            if changed {
+                let body = after.clone();
+                rewrite_note(tx, id, origin, changes, |fields| {
+                    fields.insert("body".into(), body.into());
+                    fields.insert("updatedAt".into(), now_ms.into());
+                })?;
+            }
+            Ok(Some(PropertyEdit {
+                note_id: id.to_owned(),
+                before_body: before,
+                before_updated_at,
+                after_body: after,
+                changed,
+            }))
         })
     }
 
