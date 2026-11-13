@@ -4,7 +4,7 @@
   "title": "Kanso",
   "description": "Capture notes and tasks into Kanso, and find your notes, from Raycast.",
   "icon": "extension-icon.png",
-  "author": "iamngoni",
+  "author": "ngonidzashe_mangudya",
   "categories": ["Productivity", "Applications"],
   "license": "MIT",
   "platforms": ["macOS", "Windows"],
