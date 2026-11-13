@@ -9,8 +9,10 @@ Settings › Local API › Server.
 program that can start Kanso. There is no username or password for the API any more
 (see [Upgrading from the old login](#upgrading-from-the-old-login)).
 
-Keys are made and kept in the app, in Settings › Local API › **API keys**. A server
-library (`kanso serve`) has no Settings; see [Headless](#headless).
+Keys are made and kept in the app, in Settings › Local API › **API keys**. An app on
+this computer, such as the Raycast extension, can also ask for a key itself, and you
+allow it with one click; see [Pairing an app](#pairing-an-app). A server library
+(`kanso serve`) has no Settings; see [Headless](#headless).
 
 ## Making a key
 
@@ -53,6 +55,84 @@ When a request is refused, the group shows for 24 hours: "Something tried to rea
 Kanso without a valid key at 14:05." It says nothing about the program, because that
 could be faked.
 
+## Pairing an app
+
+An app on this computer can ask Kanso for a key, so nobody has to copy one. The
+Raycast extension is the first to do it. Pairing only ever makes an **Add and tick
+only** key (see [Add and tick only](#add-and-tick-only)), whatever the app asks for.
+
+1. The app asks. Kanso comes to the front with a sheet:
+
+   > **Raycast wants to connect**
+   >
+   > An app on this Mac calling itself “Raycast” asks for a key.
+   >
+   > Code **482 913**. Check that Raycast shows the same code.
+   >
+   > It will be able to: search and read notes · add notes and tasks · tick tasks.
+   > It will not be able to change or delete existing text.
+   >
+   > Notebooks: All notebooks. Locked notes are never shown to a key.
+   >
+   > **Don't Allow** · **Allow**
+
+2. The app shows the same six-digit code while it waits. Allow only when the codes
+   match and you started the request yourself. The name on the sheet is what the app
+   calls itself, and Kanso can't check it.
+3. **Allow** makes the key and hands it to the app, once. **Don't Allow** tells the
+   app no. A request nobody answers expires after 2 minutes. Escape closes the sheet
+   without answering, and the request then expires.
+
+If a second app asks while a request waits, the sheet warns "Two apps asked for a key.
+Deny unless you just started this from Raycast." and **Don't Allow** becomes the main
+button. One of the two may be a program hoping you allow it in a hurry.
+
+### Paired apps
+
+Settings › Local API lists paired apps in a group of their own, **Paired apps**, apart
+from the keys you made. Each row reads "Raycast · Added 12 Nov · Last used 2 min ago",
+or "Never used" until the app first calls Kanso. **Revoke** asks "Disconnect Raycast?",
+with "It stops working right away. Run a Kanso command in Raycast to connect again."
+A paired key is refused on its next request after that, like any revoked key.
+
+### The pairing routes
+
+These are the only routes that take no key, so they are narrow:
+
+```
+POST /pair            {"client": "raycast", "name": "Raycast", "access": "capture", "books": null, "secret": "<32 characters>"}
+  -> 202 {"request": "<id>", "code": "482913", "expires": 120}
+
+GET  /pair/<request>  with the header X-Kanso-Pair-Secret: <the same secret>
+  -> 202 {"state": "waiting"}
+   | 200 {"state": "allowed", "key": "kcl_…", "id": "<key id>"}
+   | 403 {"state": "denied"}
+   | 410 {"state": "expired"} or {"state": "gone"}
+```
+
+- `client` is 1 to 32 lowercase letters, digits or dashes. `name` is what the sheet
+  shows: 1 to 60 characters, with no control or invisible characters. `secret` is 32
+  base64url characters that the app makes and keeps; Kanso keeps only its SHA-256.
+  `books` is a list of notebook IDs, or `null` for every notebook.
+- `access` may be left out or be `"capture"`. Asking for more is refused with `403`:
+  "Pairing can only make a key that adds notes and ticks tasks. Create a key with more
+  access in Settings › Local API."
+- The app polls `GET /pair/<request>` with its secret, about once a second. A wrong
+  request ID or secret is `404`, the same as a request that doesn't exist.
+- The key comes out once, to the first poll after Allow, with `Cache-Control:
+  no-store`. A later poll gets `410` `gone`. A key nobody fetches within 30 seconds of
+  Allow is revoked, and the poll gets `410` `expired`.
+- **Only from this computer.** A caller that isn't `127.0.0.1` or `::1` is refused,
+  even when **Address** is set to more: "Pairing works only from this computer. Create
+  a key in Settings › Local API instead." The `Host` header must be `localhost`,
+  `127.0.0.1` or `[::1]`. A request with an `Origin` header is refused, "Pairing is for
+  apps, not web pages.", so a web page can't pair.
+- **One request at a time.** While one waits, another is `429`, "A request is already
+  waiting in Kanso." At most 5 requests are taken in a minute; the next is `429`, "Too
+  many pairing requests. Wait a minute and try again."
+
+Nothing about pairing is logged: not the key, the secret or the request ID.
+
 ## What a key may do
 
 | Access | MCP tools | REST |
@@ -78,6 +158,46 @@ What no key sees, whatever its access, because Kanso answers "not found":
 Notebooks and tags show a count of the notes that key can see, not the library's.
 Publish, share and lock fields are left out of every document. A key limited to some
 notebooks writes only into them, and no key renames or deletes `#ai-exclude`.
+
+### Add and tick only
+
+This access is called `capture` in code and on the command line
+(`kanso api-key create --access capture`), and it is the only one pairing makes. It
+reads like a Read key, with fewer tools, and it adds:
+
+| MCP tool | REST | What it does |
+|---|---|---|
+| `create-note` | `POST /notes` | A new note, saved at once. It may set only `bookId`, `title`, `body`, `status` and `tags`. Any other field, `_id` and `_rev` included, is `403`: "This key can only add a new note, with a notebook, title, text, status and tags. It can't set `…`, or change a note that is there." The trash and the Templates notebook are refused |
+| `kanso-add-task` | none | Adds one task line at the end of a note. Takes `text` (one line), and `noteId` or `target`, not both: `daily` is today's daily note, made when missing, and the default; `inbox` is the note titled Tasks in the Inbox, made when missing. `dateOrder` is `dmy` (the default) or `mdy`, for dates written with a slash. Returns `noteId`, `line` (0-based), `task` (the line written), `due`, `repeat`, `label` and `uri` |
+| `kanso-parse-when` | none | Reads the date, time and repeat at the end of a line of task text, as `kanso-add-task` would, and writes nothing. Returns `text` (the words before the date), `due`, `repeat` and `label`; with no date, the text and three `null`s |
+| `kanso-set-task-done` | none | Ticks a task, given `noteId`, `line` and its exact `text`. Only with `done: true`: clearing a checkbox is `403`, "This key can tick a task but not clear its checkbox. Pass `done: true`." Ticking a repeating task also writes the next one above it |
+
+`kanso-add-task` turns the date and repeat typed at the end of the text into Kanso's
+own tokens, with the same reader as the app (the words it knows are on the
+[help page](https://kansoapp.app/help#tasks)). This call:
+
+```json
+{"text": "film Pixel review fri 3pm every week", "target": "daily"}
+```
+
+writes `- [ ] film Pixel review @2026-11-14T15:00 every week` and returns, with the
+rest, `"label": "Fri 14 Nov, 15:00 · every week"`. Text that doesn't end in a date is
+written as it is. A repeat needs a date before it, so `water plants every week` is
+plain text. These are refused:
+
+- a text that is only a date: "Say what the task is, as well as when: the text is only
+  a date."
+- a text with a line break: "A task is one line: send each task in its own call."
+- a locked note, or one outside the key's notebooks: not found.
+
+A Capture key reads with `read-note`, `search-notes`, `list-notes`, `list-notebooks`,
+`list-templates` and the `kanso-` read tools: tasks, outlines, properties, backlinks,
+links, mentions, open loops, tags, versions, related notes, query views, canvases, sync
+status and the Ask tools. It doesn't have `read-backlinks`, `list-tags`, `read-tag` or
+`read-book`, or anything to do with attachments, files or PDFs. On REST it has `GET`
+and `HEAD` on the note, notebook and tag routes, and `POST /notes`; every other write is
+`403`. A tool or route added to Kanso later is refused to Capture keys until someone
+decides what Capture may do with it.
 
 ## Canvases
 
@@ -231,6 +351,55 @@ curl -H "Authorization: Bearer kcl_…" "http://127.0.0.1:19840/notes?limit=5"
 
 A tool that only accepts a username and password can send HTTP Basic with **any
 username and the key as the password**. A key opens every route (REST and `/mcp`).
+
+### Raycast
+
+The Kanso extension for Raycast (`integrations/raycast`, for macOS and Windows) has four
+commands, and a fifth to connect:
+
+| Command | What it does |
+|---|---|
+| **Quick Capture** | Saves a note. The first line is the title and the rest is the note. **Notebook** starts at the Inbox. The toast, "Saved to Inbox", has **Open in Kanso** |
+| **Add Task** | Adds one task. The line under the field shows how Kanso reads the date, such as "Fri 14 Nov, 15:00 · every week", or "No date or repeat. It will be saved as written." **Put it in** offers Today's daily note (the default), the Inbox task list or a recent note. The toast says "Task added · Fri 14 Nov 15:00 · every week" |
+| **Search Notes** | Searches your notes, with a preview. Enter opens the note in Kanso. **Copy Link** copies its `kanso://open/note/<id>` link and **Copy Title** its title. **Add Task Here** adds a task to a note that already has tasks |
+| **Open Note** | Lists recently updated notes. Enter opens one in Kanso |
+| **Connect to Kanso** | Pairs again, or **Paste a Key** to use a key made by hand |
+
+The first time any command runs, it asks to connect: "Kanso must be open on this
+computer. Raycast will ask Kanso for a key that can add notes and tasks, search, and
+open notes." **Connect** starts [pairing](#pairing-an-app) and shows "Waiting for
+Kanso…" with the code. Choose **Allow** in Kanso, and Raycast says "Connected to Kanso".
+Raycast keeps the key in its own encrypted storage.
+
+The extension's preferences are **Local API Port** (19840 unless you changed it) and
+**Key (Optional)**: a `kcl_…` key made by hand under Settings › Local API › API keys,
+which wins over a paired key. Make that key **Add and tick only**; Raycast needs no more.
+
+| Raycast says | Fix |
+|---|---|
+| "Kanso isn't open. Open Kanso, then try again." | open Kanso (the **Open Kanso** action does it) |
+| "Kanso's local API is off. Turn it on in Kanso › Settings › Local API." | turn the server on |
+| "Something else answers on port …, and it isn't Kanso. Set the port shown in Kanso › Settings › Local API." | set **Local API Port** |
+| "Kanso said no. Run any Kanso command to try again." | run a command and choose **Allow** |
+| "Kanso didn't answer in time." | run a command and answer within 2 minutes |
+| "A request is already waiting in Kanso" | if you didn't start it, choose **Don't Allow** in Kanso |
+| "Kanso already handed over the key" | revoke the Raycast key in Settings › Local API, then connect again |
+| "Kanso no longer knows this key. Connect again." | the key was revoked: run any command to pair again |
+
+### Opening Kanso from a link
+
+Kanso opens `kanso://open` links from Raycast, a script (`open "kanso://open/new"` on
+macOS) or another app. They take no key, and they only open or show something: none
+reads, changes or saves a note. The phone app reads the same links.
+
+| Link | Opens |
+|---|---|
+| `kanso://open/note/<id>` | the note |
+| `kanso://open/notebook/<id>` | the notebook's list |
+| `kanso://open/search?q=<words>` | a search of every note |
+| `kanso://open/new` | the Quick Capture window, empty |
+
+A link starts Kanso when it isn't running. A link Kanso doesn't know does nothing.
 
 ### Kanso's own agents
 
