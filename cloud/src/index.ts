@@ -122,6 +122,7 @@ import * as githubWebhook from "./github_webhook";
 import { pepperKeys } from "./crypto";
 import type { Env } from "./env";
 import { error, isContentType, methodNotAllowed, notFound } from "./http";
+import { BOOK_PROTOCOL_HEADER, CLIENT_TOO_OLD, MIN_BOOK_PROTOCOL, bookProtocolOf } from "./protocol";
 import * as identity from "./identity";
 import * as providers from "./providers";
 import { bindingFilter } from "./limits";
@@ -375,6 +376,13 @@ export async function handle(request: Request, env: Env, now: number, matched?: 
 		if (matched) matched.name = name;
 		const method = route.methods[request.method];
 		if (!method) return methodNotAllowed(Object.keys(route.methods).join(", "));
+		// Every shared-notebook route is named `collab_book…`; a client too old for them is told how to fix it.
+		if (name.startsWith("collab_book")) {
+			const level = bookProtocolOf(request.headers.get(BOOK_PROTOCOL_HEADER));
+			if (level === null || level < MIN_BOOK_PROTOCOL) {
+				return error(426, "client_too_old", CLIENT_TOO_OLD, { min_protocol: MIN_BOOK_PROTOCOL, protocol: level });
+			}
+		}
 		if (route.binding) {
 			const limited = await bindingFilter(env.AUTH_LIMITER, request);
 			if (limited) return limited;

@@ -58,6 +58,11 @@ abstract interface class SharedNotebooksRepository {
   /// The words of the notebook's questions, the same as the desktop's.
   BookWords words(String name, String who);
 
+  /// "Update Kanso to open this shared notebook." once the sync server said
+  /// this Kanso is too old for shared notebooks; null until then. The
+  /// desktop's words.
+  String? updateLine();
+
   /// Notebooks shared with this account that this device hasn't joined.
   Future<Either<ApplicationError, List<BookInvitationRow>>> invitations();
 

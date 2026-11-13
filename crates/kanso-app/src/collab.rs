@@ -363,6 +363,9 @@ pub fn error_text(err: &CollabError) -> String {
             "The notebook's history forked: two different lists of people follow the same one, so Kanso stopped."
                 .into()
         }
+        CollabError::Api { .. } if err.is_client_too_old() => {
+            kanso_collab::UPDATE_FOR_BOOKS.into()
+        }
         CollabError::Transport(_) => {
             "Couldn't reach your sync server. Check your connection and try again.".into()
         }

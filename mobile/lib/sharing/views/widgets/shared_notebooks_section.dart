@@ -19,6 +19,7 @@ import '../../../core/views/widgets/kanso_notice.dart';
 import '../../../core/views/widgets/kanso_pressable.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
 import '../../../injection.dart';
+import '../../../notices/state/notices_cubit.dart';
 import '../../state/shared_notebooks/shared_notebooks_bloc.dart';
 import '../../utils/book_labels.dart';
 import 'book_avatars.dart';
@@ -59,21 +60,39 @@ class _SharedNotebooksView extends StatelessWidget {
     );
   }
 
+  NoticesCubit? _notices(BuildContext context) {
+    try {
+      return context.read<NoticesCubit>();
+    } on ProviderNotFoundException {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return BlocConsumer<SharedNotebooksBloc, SharedNotebooksState>(
-      listenWhen: (before, after) => before.joined != after.joined,
+      listenWhen: (before, after) =>
+          before.joined != after.joined ||
+          (before.updateLine == null) != (after.updateLine == null),
       listener: (context, state) {
         final joined = state.joined;
         if (joined != null) {
           _open(context, joined);
         }
+        if (state.updateLine != null) {
+          // The server just said this Kanso is too old: the update notice
+          // applies now, not only at the next launch. Only a signed-in
+          // phone asks the server about notebooks.
+          _notices(context)?.refresh(signedIn: true);
+        }
       },
       builder: (context, state) {
+        final updateLine = state.updateLine;
         if (state.books.isEmpty &&
             state.invitations.isEmpty &&
-            state.notices.isEmpty) {
+            state.notices.isEmpty &&
+            updateLine == null) {
           return const SizedBox.shrink();
         }
         final bloc = context.read<SharedNotebooksBloc>();
@@ -96,6 +115,7 @@ class _SharedNotebooksView extends StatelessWidget {
                       bloc.add(const SharedNotebooksEvent.noticeRead()),
                 ),
               ),
+            if (updateLine != null) _UpdateNeededTile(text: updateLine),
             for (final invitation in state.invitations)
               _InvitationTile(
                 key: ValueKey<String>('book-invitation-${invitation.shareId}'),
@@ -242,6 +262,46 @@ class _SharedBookRow extends StatelessWidget {
 
 /// An invitation to a notebook: who it is from and the role, with Accept
 /// (or Open here, for one another device joined) and Decline.
+/// Where an invitation would be when this Kanso is too old to open one:
+/// "Update Kanso to open this shared notebook." The desktop's line.
+class _UpdateNeededTile extends StatelessWidget {
+  const _UpdateNeededTile({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      key: const ValueKey<String>('book-update-needed'),
+      margin: const EdgeInsets.fromLTRB(
+        KansoSpacing.sm,
+        0,
+        KansoSpacing.sm,
+        KansoSpacing.xs,
+      ),
+      padding: const EdgeInsets.all(KansoSpacing.sm),
+      decoration: BoxDecoration(
+        color: colors.elevated,
+        borderRadius: KansoRadii.mediumBorder,
+        border: Border.all(color: colors.divider),
+      ),
+      child: Row(
+        children: <Widget>[
+          KansoIcon(KansoIcons.download, size: 18, color: colors.textSecondary),
+          const SizedBox(width: KansoSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: context.typography.secondary.copyWith(color: colors.text),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _InvitationTile extends StatelessWidget {
   const _InvitationTile({
     required this.invitation,

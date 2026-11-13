@@ -993,6 +993,7 @@ export const INVITE_HTML = `<!doctype html>
 <h1>You're invited to a shared note</h1>
 <p>Open Kanso, choose <strong>Join a shared note…</strong>, and paste this link.</p>
 <p>The note opens only in Kanso: this page can't read it, and neither can the server.</p>
+<p>Invited to a shared notebook? An older Kanso can't open it. <strong>Update Kanso</strong> to open this shared notebook.</p>
 </div></main>
 </body>
 </html>

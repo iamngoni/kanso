@@ -274,6 +274,14 @@ impl SharedNotes {
 
     // --------------------------------------------------------- invitations
 
+    /// What the Shared section says where invitations would be once the
+    /// sync server refused this Kanso as too old for shared notebooks
+    /// (`426 client_too_old`): "Update Kanso to open this shared notebook.",
+    /// the desktop's words. None while the server is happy.
+    pub fn book_update_line(&self) -> Option<String> {
+        update_line(kanso_collab::client_refused())
+    }
+
     /// Notebooks shared with this account that this device hasn't joined:
     /// invitations, and ones another of its devices joined.
     pub fn book_invitations(&self) -> Result<Vec<BookInvitationRow>, KansoError> {
@@ -824,8 +832,23 @@ fn book_notify(
     })
 }
 
+/// The Shared section's update line, given whether the server refused this
+/// Kanso.
+fn update_line(refused: bool) -> Option<String> {
+    refused.then(|| kanso_collab::UPDATE_FOR_INVITATION.to_owned())
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_update_line_shows_only_once_the_server_refused_and_says_to_update() {
+        assert_eq!(super::update_line(false), None);
+        assert_eq!(
+            super::update_line(true).as_deref(),
+            Some("Update Kanso to open this shared notebook.")
+        );
+    }
+
     use kanso_collab::MemberStanding;
     use proptest::prelude::*;
 

@@ -88,6 +88,7 @@ class SharedNotebooksBloc
           books: const <SharedBookRow>[],
           invitations: const <BookInvitationRow>[],
           notices: kept,
+          updateLine: null,
         ),
       );
       return;
@@ -106,6 +107,8 @@ class SharedNotebooksBloc
           ],
         ),
         notices: kept,
+        // Asked after the server was: its refusal is what sets it.
+        updateLine: _books.updateLine(),
       ),
     );
   }
