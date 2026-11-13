@@ -361,19 +361,61 @@ sealed class BoardLane with _$BoardLane {
   }) = BoardLane_Status;
   const factory BoardLane.todo() = BoardLane_Todo;
   const factory BoardLane.done() = BoardLane_Done;
+  const factory BoardLane.value({
+    required String value,
+  }) = BoardLane_Value;
+  const factory BoardLane.unset() = BoardLane_Unset;
+  const factory BoardLane.unlisted() = BoardLane_Unlisted;
+}
+
+class BoardSetup {
+  final String bookId;
+  final String? group;
+  final List<String> groupable;
+  final List<String> lanes;
+  final bool showUnset;
+
+  const BoardSetup({
+    required this.bookId,
+    this.group,
+    required this.groupable,
+    required this.lanes,
+    required this.showUnset,
+  });
+
+  @override
+  int get hashCode =>
+      bookId.hashCode ^
+      group.hashCode ^
+      groupable.hashCode ^
+      lanes.hashCode ^
+      showUnset.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BoardSetup &&
+          runtimeType == other.runtimeType &&
+          bookId == other.bookId &&
+          group == other.group &&
+          groupable == other.groupable &&
+          lanes == other.lanes &&
+          showUnset == other.showUnset;
 }
 
 class BoardView {
   final BoardKind kind;
   final List<BoardColumn> columns;
+  final BoardSetup? setup;
 
   const BoardView({
     required this.kind,
     required this.columns,
+    this.setup,
   });
 
   @override
-  int get hashCode => kind.hashCode ^ columns.hashCode;
+  int get hashCode => kind.hashCode ^ columns.hashCode ^ setup.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -381,7 +423,8 @@ class BoardView {
       other is BoardView &&
           runtimeType == other.runtimeType &&
           kind == other.kind &&
-          columns == other.columns;
+          columns == other.columns &&
+          setup == other.setup;
 }
 
 class BriefNote {
@@ -675,10 +718,16 @@ sealed class CardKey with _$CardKey {
   }) = CardKey_Task;
 }
 
-enum CardMoved {
-  changed,
-  unchanged,
-  missing,
+@freezed
+sealed class CardMoved with _$CardMoved {
+  const CardMoved._();
+
+  const factory CardMoved.changed({
+    String? message,
+    int? undo,
+  }) = CardMoved_Changed;
+  const factory CardMoved.unchanged() = CardMoved_Unchanged;
+  const factory CardMoved.missing() = CardMoved_Missing;
 }
 
 class Changed {
@@ -2329,6 +2378,83 @@ sealed class KansoError with _$KansoError implements FrbException {
   const factory KansoError.internal({
     required String message,
   }) = KansoError_Internal;
+}
+
+@freezed
+sealed class LaneChange with _$LaneChange {
+  const LaneChange._();
+
+  const factory LaneChange.rename({
+    required String from,
+    required String to,
+  }) = LaneChange_Rename;
+  const factory LaneChange.move({
+    required int from,
+    required int to,
+  }) = LaneChange_Move;
+  const factory LaneChange.add({
+    required String name,
+  }) = LaneChange_Add;
+  const factory LaneChange.remove({
+    required String lane,
+    String? moveTo,
+  }) = LaneChange_Remove;
+}
+
+class LaneEdited {
+  final List<String> lanes;
+  final int rewritten;
+  final String message;
+  final int undo;
+
+  const LaneEdited({
+    required this.lanes,
+    required this.rewritten,
+    required this.message,
+    required this.undo,
+  });
+
+  @override
+  int get hashCode =>
+      lanes.hashCode ^ rewritten.hashCode ^ message.hashCode ^ undo.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LaneEdited &&
+          runtimeType == other.runtimeType &&
+          lanes == other.lanes &&
+          rewritten == other.rewritten &&
+          message == other.message &&
+          undo == other.undo;
+}
+
+class LaneRemoval {
+  final int notes;
+  final String prompt;
+  final String? target;
+  final List<String> targets;
+
+  const LaneRemoval({
+    required this.notes,
+    required this.prompt,
+    this.target,
+    required this.targets,
+  });
+
+  @override
+  int get hashCode =>
+      notes.hashCode ^ prompt.hashCode ^ target.hashCode ^ targets.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LaneRemoval &&
+          runtimeType == other.runtimeType &&
+          notes == other.notes &&
+          prompt == other.prompt &&
+          target == other.target &&
+          targets == other.targets;
 }
 
 class LibraryOverview {

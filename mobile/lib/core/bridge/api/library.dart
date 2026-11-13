@@ -79,6 +79,13 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   Future<BoardView> board({required BoardKind kind, required ListQuery query});
 
+  /// What removing `lane` asks first: how many notes are in it, the words,
+  /// and where they go by default.
+  Future<LaneRemoval> boardLaneRemoval({
+    required String bookId,
+    required String lane,
+  });
+
   Future<BriefView> brief();
 
   Future<List<PlannedNotice>> briefPlan({required bool canNotify});
@@ -171,6 +178,13 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   /// Opens note `id` for editing. Locked while it is locked and closed.
   Future<KansoEditor> edit({required String id});
+
+  /// Renames, reorders, adds or removes a lane of the notebook's board.
+  Future<LaneEdited> editBoardLanes({
+    required String bookId,
+    required LaneChange change,
+    required int nowMs,
+  });
 
   /// Deletes every note in the trash for good, locked ones and their
   /// sealed attachments too; says how many notes.
@@ -478,6 +492,13 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required SearchScope scope,
     required int limit,
   });
+
+  /// Groups notebook `book_id`'s board by a select property, or by status
+  /// when `by` is `None`.
+  Future<void> setBoardGroup({required String bookId, String? by});
+
+  /// Shows or hides the lane of notes with no value while it is empty.
+  Future<void> setBoardShowUnset({required String bookId, required bool show_});
 
   Future<BriefPrefs> setBriefPrefs({required BriefPrefs prefs});
 

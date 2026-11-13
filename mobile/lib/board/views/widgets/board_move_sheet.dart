@@ -48,7 +48,10 @@ class BoardMoveSheet extends StatelessWidget {
           title: l10n.boardMoveSheetTitle,
           actionLabel: l10n.searchCancel,
         ),
-        for (final column in columns)
+        // A card can't be moved to the lane of values no lane has.
+        for (final column in columns.where(
+          (column) => column.lane is! BoardLane_Unlisted,
+        ))
           KansoCheckRow(
             label: l10n.laneName(column),
             checked: column.lane == current,

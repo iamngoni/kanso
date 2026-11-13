@@ -270,7 +270,10 @@ fn moves_that_do_nothing_or_cannot_be_made() {
     );
     assert_eq!(
         library.move_card(note(&ids[0]), status("dropped"), 5),
-        Ok(CardMoved::Changed)
+        Ok(CardMoved::Changed {
+            message: None,
+            undo: None
+        })
     );
     assert_eq!(library.note(&ids[0]).unwrap().status, "dropped");
     assert!(matches!(
@@ -296,7 +299,10 @@ fn moves_that_do_nothing_or_cannot_be_made() {
     );
     assert_eq!(
         library.move_card(task("one", 1), BoardLane::Done, 5),
-        Ok(CardMoved::Changed)
+        Ok(CardMoved::Changed {
+            message: None,
+            undo: None
+        })
     );
     assert_eq!(
         library.note(&ids[0]).unwrap().body.as_deref(),
@@ -342,7 +348,7 @@ proptest! {
             let expected = if model[note] == names[lane] {
                 CardMoved::Unchanged
             } else {
-                CardMoved::Changed
+                CardMoved::Changed { message: None, undo: None }
             };
             prop_assert_eq!(moved, expected);
             model[note] = names[lane].to_owned();
@@ -390,7 +396,7 @@ proptest! {
             let moved = library.move_card(key, lane, 9).unwrap();
             prop_assert_eq!(
                 moved,
-                if model[task] == done { CardMoved::Unchanged } else { CardMoved::Changed }
+                if model[task] == done { CardMoved::Unchanged } else { CardMoved::Changed { message: None, undo: None } }
             );
             model[task] = done;
             prop_assert_eq!(library.note(&id).unwrap().body.unwrap(), body(&model));

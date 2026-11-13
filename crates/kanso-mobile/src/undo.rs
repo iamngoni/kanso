@@ -46,6 +46,12 @@ pub(crate) enum Undoable {
         /// put back, which takes both lines away in one write.
         restore: Option<TickUndo>,
     },
+    /// A card moved to a lane of a notebook's property board: its note's
+    /// property, put back in one write.
+    Property(kanso_engine::board::MoveUndo),
+    /// A lane edit of a property board: the board, the property list and
+    /// each note it rewrote.
+    Lanes(kanso_engine::board_settings::SettingsUndo),
 }
 
 /// The changes kept for Undo, newest last.
@@ -154,6 +160,14 @@ impl Library {
                     &new_tags,
                     kanso_core::now_ms(),
                 )? as u32),
+                Undoable::Property(undo) => Ok(u32::from(kanso_engine::board::undo_move(
+                    &self.inner.store,
+                    &undo,
+                )?)),
+                Undoable::Lanes(undo) => {
+                    kanso_engine::board_settings::undo_lane_edit(&self.inner.store, &undo)?;
+                    Ok(undo.edits.len() as u32)
+                }
                 Undoable::Task {
                     note_id,
                     line,

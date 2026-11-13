@@ -30,4 +30,35 @@ class RustBoardRepository implements BoardRepository {
     BoardLane lane,
     int nowMs,
   ) => attempt(() => _library.moveCard(card: card, to: lane, nowMs: nowMs));
+
+  @override
+  Future<Either<ApplicationError, Unit>> setGroup(String bookId, String? by) =>
+      attempt(() async {
+        await _library.setBoardGroup(bookId: bookId, by: by);
+        return unit;
+      });
+
+  @override
+  Future<Either<ApplicationError, Unit>> setShowUnset(
+    String bookId, {
+    required bool show,
+  }) => attempt(() async {
+    await _library.setBoardShowUnset(bookId: bookId, show_: show);
+    return unit;
+  });
+
+  @override
+  Future<Either<ApplicationError, LaneRemoval>> laneRemoval(
+    String bookId,
+    String lane,
+  ) => attempt(() => _library.boardLaneRemoval(bookId: bookId, lane: lane));
+
+  @override
+  Future<Either<ApplicationError, LaneEdited>> editLanes(
+    String bookId,
+    LaneChange change,
+    int nowMs,
+  ) => attempt(
+    () => _library.editBoardLanes(bookId: bookId, change: change, nowMs: nowMs),
+  );
 }
