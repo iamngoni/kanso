@@ -122,6 +122,7 @@ export function books(token: string) {
 	const base = (id: string) => `/v2/collab/books/${id}`;
 	return {
 		create: (body: unknown) => as("/v2/collab/books", { json: body }),
+		mine: () => as("/v2/collab/books"),
 		get: (id: string, query = "") => as(`${base(id)}${query}`),
 		list: (id: string, body: unknown) => as(`${base(id)}/epoch`, { json: body }),
 		link: (id: string, body: unknown) => as(`${base(id)}/links`, { json: body }),

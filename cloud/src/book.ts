@@ -408,6 +408,37 @@ export const createBook = route(async (request, env, now, session) => {
 	return json({ share_id: shareId, epoch: 1, rev: 1 }, 201);
 });
 
+// --------------------------------------------------------------------- list
+
+/**
+ * `GET /v2/collab/books`: every notebook the caller is invited to or in,
+ * with no share ID needed: `{books: [{share_id, owner, owner_username, role,
+ * status, epoch, rev}]}`, oldest first. Notebooks the caller left or declined
+ * are not listed. The signed chain and wraps come from `GET .../<id>`.
+ */
+export const listBooks = route(async (_request, env, now, session) => {
+	const limited = await count(env.DB, "book-read-account", accountKey("book-read-account", session.accountId), now);
+	if (limited) return limited;
+	const rows = await env.DB.prepare(
+		`SELECT s.id, s.owner_id, o.username AS owner_username, s.epoch, s.head_rev, m.role, m.status
+  FROM book_members m JOIN book_shares s ON s.id = m.share_id JOIN accounts o ON o.id = s.owner_id
+  WHERE m.account_id = ?1 AND m.status != 'left' AND s.stopped_at IS NULL ORDER BY s.created_at, s.id`,
+	)
+		.bind(session.accountId)
+		.all<{ id: string; owner_id: string; owner_username: string; epoch: number; head_rev: number; role: string; status: string }>();
+	return json({
+		books: rows.results.map((r) => ({
+			share_id: r.id,
+			owner: r.owner_id,
+			owner_username: r.owner_username,
+			role: r.role,
+			status: r.status,
+			epoch: r.epoch,
+			rev: r.head_rev,
+		})),
+	});
+});
+
 // ---------------------------------------------------------------------- get
 
 /**

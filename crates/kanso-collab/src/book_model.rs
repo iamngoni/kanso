@@ -79,6 +79,8 @@ pub struct BookSync {
     pub pushed: usize,
     /// Notes whose text the library took from the notebook.
     pub notes_written: usize,
+    /// Notes another member deleted that moved to this library's trash.
+    pub notes_trashed: usize,
     /// This account is no longer in the notebook.
     pub removed: bool,
     /// The notebook ended here during this sync (removed, or it was

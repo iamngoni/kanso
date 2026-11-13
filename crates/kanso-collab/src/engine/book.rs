@@ -39,13 +39,19 @@ use crate::model::{Header, Kind, Member, Role};
 pub const SHARE_BATCH: usize = 50;
 
 /// The notebook fields, besides its name, a shared notebook carries in its
-/// manifest (as JSON text, one key each).
-pub const BOOK_FIELDS: [&str; 4] = [
-    "kansoProperties",
-    "kansoBoard",
-    "kansoSchedule",
-    "kansoTemplates",
-];
+/// manifest (as JSON text, one key each). The property list
+/// (`kansoProperties`) is carried one property per key, see
+/// [`crate::book_props`].
+pub const BOOK_FIELDS: [&str; 3] = ["kansoBoard", "kansoSchedule", "kansoTemplates"];
+
+/// A comment is queued in a notebook's outbox under `<note stream>.c`.
+pub const COMMENT_SUFFIX: &str = ".c";
+
+/// Where a notebook note's comments are kept in the library: the same table
+/// as a shared note's, under `<share id>/<note stream>`.
+pub(crate) fn comment_key(share_id: &str, stream: &str) -> String {
+    format!("{share_id}/{stream}")
+}
 
 /// A notebook as this device holds it for one step: its row, the keys it
 /// has and its checked chain.
@@ -964,6 +970,38 @@ impl Engine {
         for field in BOOK_FIELDS {
             if let Some(value) = book.extra.get(field) {
                 out.insert(field.to_owned(), value.to_string());
+            }
+        }
+        out.extend(crate::book_props::split(
+            book.extra.get(kanso_core::schema::FIELD),
+        ));
+        Ok(out)
+    }
+
+    /// The notebooks this account is invited to and hasn't accepted, from
+    /// the server, with no share id to ask for: join one with
+    /// [`Engine::join_book`].
+    pub fn book_invitations(&self) -> Result<Vec<crate::api::BookSummary>> {
+        Ok(self
+            .api
+            .books(&self.account.caller)?
+            .into_iter()
+            .filter(|b| b.status == "invited")
+            .collect())
+    }
+
+    /// Notebooks this account is in (or invited to) that this device hasn't
+    /// joined: an invitation, or a notebook another device of the account
+    /// joined.
+    pub fn joinable_books(&self) -> Result<Vec<crate::api::BookSummary>> {
+        let mut out = Vec::new();
+        for book in self.api.books(&self.account.caller)? {
+            let here = self
+                .store
+                .shared_book(&book.share_id)?
+                .is_some_and(|row| row.status == SharedStatus::Active);
+            if !here {
+                out.push(book);
             }
         }
         Ok(out)

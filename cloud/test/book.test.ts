@@ -187,6 +187,35 @@ describe("reading a notebook", () => {
 	});
 });
 
+describe("listing your notebooks", () => {
+	it("lists invitations and memberships with no share ID, and nobody else's", async () => {
+		const one = await shareBook(alice, [{ account: bob, role: "edit" }], false);
+		const two = await shareBook(carol, [{ account: bob, role: "view" }, { account: dave, role: "view" }], true);
+		const mine = await books(bob.token).mine();
+		expect(mine.status).toBe(200);
+		expect(mine.body.books).toHaveLength(2);
+		const byId = new Map<string, { status: string; role: string; owner: string; owner_username: string; rev: number; epoch: number }>(
+			mine.body.books.map((b: { share_id: string }) => [b.share_id, b]),
+		);
+		expect(byId.get(one.id)).toMatchObject({ status: "invited", role: "edit", owner: alice.creds.accountId, owner_username: "alice", rev: 1, epoch: 1 });
+		expect(byId.get(two.id)).toMatchObject({ status: "member", role: "view", owner_username: "carol" });
+		// Someone in neither sees nothing; the owner sees their own notebook.
+		expect((await books(alice.token).mine()).body.books.map((b: { share_id: string }) => b.share_id)).toEqual([one.id]);
+		expect((await books(dave.token).mine()).body.books.map((b: { share_id: string }) => b.share_id)).toEqual([two.id]);
+		expect((await callJson("/v2/collab/books")).status).toBe(401);
+	});
+
+	it("drops a notebook once it is declined, left or stopped", async () => {
+		const one = await shareBook(alice, [{ account: bob, role: "edit" }], false);
+		const two = await shareBook(alice, [{ account: bob, role: "edit" }], true);
+		expect((await books(bob.token).mine()).body.books).toHaveLength(2);
+		expect((await books(bob.token).leave(one.id)).status).toBe(204);
+		expect((await books(bob.token).mine()).body.books.map((b: { share_id: string }) => b.share_id)).toEqual([two.id]);
+		expect((await books(alice.token).stop(two.id)).status).toBe(204);
+		expect((await books(bob.token).mine()).body.books).toEqual([]);
+	});
+});
+
 describe("the chain of member lists", () => {
 	it("appends the next list in the same epoch: new members are invited and get a wrap; the chain reads back in order", async () => {
 		const book = await shareBook(alice, [{ account: bob, role: "edit" }]);

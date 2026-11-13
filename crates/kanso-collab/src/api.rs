@@ -389,6 +389,21 @@ pub struct BookMemberStatus {
     pub status: String,
 }
 
+/// One row of `GET /v2/collab/books`: a notebook the caller is invited to or
+/// in, found without knowing its share id.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BookSummary {
+    pub share_id: String,
+    /// The owner's account id and username.
+    pub owner: String,
+    pub owner_username: String,
+    pub role: Role,
+    /// `member` or `invited`.
+    pub status: String,
+    pub epoch: u32,
+    pub rev: u32,
+}
+
 /// `POST /v2/collab/books/<id>/epoch`: the next signed list. Within an epoch
 /// the wraps are for those added or given another role; a new epoch carries
 /// one for every listed member and a history link.
@@ -472,6 +487,86 @@ pub trait LiveLink: Send {
     fn recv(&mut self, wait: Duration) -> Result<Option<LiveEvent>>;
 }
 
+/// What a notebook's live connection delivers (`cloud/src/book_room.ts`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BookLiveEvent {
+    /// `{"type":"hello"}`: the notebook's head and epoch, on connect.
+    Hello { head: u64, epoch: u32 },
+    /// A note's stream is open on this socket; `head` is that stream's last
+    /// sequence, to catch up from over HTTP.
+    Opened { stream: String, head: u64 },
+    /// An entry the room stored in a stream, the caller's own included.
+    Stored {
+        stream: String,
+        seq: u64,
+        envelope: Vec<u8>,
+    },
+    /// Someone else's presence in a stream, never stored.
+    Presence { stream: String, envelope: Vec<u8> },
+    /// The notebook moved to a new epoch.
+    Epoch(u32),
+    /// A frame the room refused.
+    Error { code: String },
+    /// The caller was removed, or sharing stopped; the room closes.
+    Closed { reason: String },
+}
+
+/// One live connection to a notebook's room. The manifest is always open;
+/// a note's stream is opened (at most 32 at a time) before it is written.
+pub trait BookLiveLink: Send {
+    fn open(&mut self, stream: &str) -> Result<()>;
+    fn close(&mut self, stream: &str) -> Result<()>;
+    /// Sends one envelope to a stream.
+    fn send(&mut self, stream: &str, envelope: &[u8]) -> Result<()>;
+    /// The next event, waiting at most `wait`; `None` when nothing came.
+    fn recv(&mut self, wait: Duration) -> Result<Option<BookLiveEvent>>;
+}
+
+/// A stream id as the room's frames carry it: 16 bytes.
+pub fn stream_bytes(stream: &str) -> Option<[u8; 16]> {
+    crate::codec::unb64_array::<16>(stream)
+}
+
+/// Parses a notebook room's binary frame: `stream || u64(seq) || envelope`;
+/// seq 0 is presence.
+pub fn parse_book_frame(frame: &[u8]) -> Option<BookLiveEvent> {
+    let stream = crate::codec::b64(frame.get(..16)?);
+    let seq = u64::from_be_bytes(frame.get(16..24)?.try_into().ok()?);
+    let envelope = frame[24..].to_vec();
+    Some(if seq == 0 {
+        BookLiveEvent::Presence { stream, envelope }
+    } else {
+        BookLiveEvent::Stored {
+            stream,
+            seq,
+            envelope,
+        }
+    })
+}
+
+/// Parses a notebook room's text frame.
+pub fn parse_book_control(text: &str) -> Option<BookLiveEvent> {
+    let value: Value = serde_json::from_str(text).ok()?;
+    let number = |key: &str| value.get(key).and_then(Value::as_u64);
+    match value.get("type")?.as_str()? {
+        "opened" => Some(BookLiveEvent::Opened {
+            stream: value.get("stream")?.as_str()?.to_owned(),
+            head: number("head")?,
+        }),
+        "hello" | "epoch" | "error" | "closed" => {
+            let event = parse_control(text)?;
+            Some(match event {
+                LiveEvent::Hello { head, epoch } => BookLiveEvent::Hello { head, epoch },
+                LiveEvent::Epoch(epoch) => BookLiveEvent::Epoch(epoch),
+                LiveEvent::Error { code } => BookLiveEvent::Error { code },
+                LiveEvent::Closed { reason } => BookLiveEvent::Closed { reason },
+                _ => return None,
+            })
+        }
+        _ => None,
+    }
+}
+
 /// Parses a room's binary frame: `u64(seq) || envelope`; seq 0 is presence.
 pub fn parse_frame(frame: &[u8]) -> Option<LiveEvent> {
     let seq = u64::from_be_bytes(frame.get(..8)?.try_into().ok()?);
@@ -545,6 +640,12 @@ pub trait CollabApi: Send + Sync {
 
     // Shared notebooks (`/v2/collab/books`).
 
+    /// `GET /v2/collab/books`: every notebook the caller is invited to or in
+    /// (not those left or declined), oldest first; no share id needed.
+    fn books(&self, caller: &Caller) -> Result<Vec<BookSummary>>;
+    /// Opens the notebook's live room: one socket for the manifest and every
+    /// note stream opened on it.
+    fn book_live(&self, caller: &Caller, share_id: &str) -> Result<Box<dyn BookLiveLink>>;
     /// Shares a notebook; 409 `share_id_taken`, `share_retired`.
     fn create_book(&self, caller: &Caller, book: &NewBook) -> Result<BookCreated>;
     /// The chain from `since_rev` (1 for all of it), the caller's wraps and

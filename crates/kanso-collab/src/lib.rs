@@ -17,6 +17,7 @@ pub mod book_manifest;
 pub mod book_members;
 pub mod book_members_model;
 pub mod book_model;
+pub mod book_props;
 pub mod canvas_doc;
 pub mod codec;
 pub mod comments;
@@ -33,7 +34,10 @@ pub mod memory;
 pub mod model;
 pub mod shared_doc;
 
-pub use api::{Caller, CollabApi, CollabError};
+pub use api::{
+    BookLiveEvent, BookLiveLink, BookSummary, Caller, CollabApi, CollabError, parse_book_control,
+    parse_book_frame,
+};
 pub use book_manifest::{ManifestDoc, ManifestNote};
 pub use book_members_model::{
     BookChainHead, BookListError, BookMemberList, BookPin, SignedBookList,
