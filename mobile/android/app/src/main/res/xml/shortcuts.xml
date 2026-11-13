@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Capture, Add task and Search come first: most launchers show four.
+         new_note keeps its id so a pinned copy keeps working. -->
     <shortcut
         android:shortcutId="new_note"
         android:enabled="true"
@@ -9,6 +11,31 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:data="kanso://open/new"
+            android:targetPackage="app.kanso.kanso"
+            android:targetClass="app.kanso.kanso.MainActivity" />
+    </shortcut>
+    <!-- The capture sheet in Task mode, over where the app is. -->
+    <shortcut
+        android:shortcutId="add_task"
+        android:enabled="true"
+        android:icon="@drawable/ic_list_checks_shortcut"
+        android:shortcutShortLabel="@string/shortcut_task_short"
+        android:shortcutLongLabel="@string/shortcut_task_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="kanso://open/new?task=1"
+            android:targetPackage="app.kanso.kanso"
+            android:targetClass="app.kanso.kanso.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="search"
+        android:enabled="true"
+        android:icon="@drawable/ic_search_shortcut"
+        android:shortcutShortLabel="@string/shortcut_search_short"
+        android:shortcutLongLabel="@string/shortcut_search_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="kanso://open/search"
             android:targetPackage="app.kanso.kanso"
             android:targetClass="app.kanso.kanso.MainActivity" />
     </shortcut>
