@@ -7,6 +7,7 @@
 //! declares them (`crates/kanso-mobile/src/model.rs`, `errors.rs`).
 
 use flutter_rust_bridge::frb;
+pub use kanso_mobile::WhenHint;
 // Public: the generated code names these types by this module's path.
 pub use kanso_mobile::{
     AccountDetails, AccountState, AccountStep, AiSummary, ApprovalPhase, ApprovalPrompt,
@@ -14,20 +15,20 @@ pub use kanso_mobile::{
     BoardKind, BoardLane, BoardView, BriefNote, BriefPrefs, BriefReminder, BriefView, BuiltinTheme,
     CalendarDay, CaptureOutcome, CardKey, CardMoved, Changed, ColorChoice, ColorRow,
     CommentPlacement, CommentRow, Completion, CompletionItem, CompletionKind, CopiedLink,
-    CostSummary, CursorMark, DateField, DayDate, DeviceRow, DiagramKind, DiagramRenderer,
-    DiscoveryMeasure, DropsSaved, DueChipRow, DueTone, EditCommand, EditOutcome, EditorContext,
-    EditorEvent, EditorRun, EditorSnapshot, ExportedPage, FilesMigration, FoldState, FormatKind,
-    GalleryColors, GalleryItem, GalleryKind, GoalSetting, GraphEdgeRow, GraphFilter, GraphLayout,
-    GraphNodeRow, GraphRequest, HistoryState, Hit, IconChoice, IconThemeRow, ImageToRead,
-    ImportEvent, ImportFound, ImportPhase, ImportProgress, ImportSource, ImportSummary,
-    InterruptedLock, InvitationRow, JoinRow, KansoError, LibraryOverview, LinkTarget,
-    LinkedProviderRow, ListPlace, ListQuery, ListShape, LiveBatch, LiveDocBlock, LiveDocBlockKind,
-    LiveDocLink, LiveDocLinkKind, LiveDocMarker, LiveDocMarkerKind, LiveDocStyle, LiveDocStyleKind,
-    LiveDocWidget, LiveDocument, LiveKind, LiveLine, LiveRun, LiveStatus, LocalTime,
-    LockCopyNotice, LockEvent, LockReason, LockState, LockStatus, LockSummary, LockedInfo,
-    LoopAction, LoopProposal, LoopScan, MadeNote, MeaningResult, MemberRow, MentionSpan,
-    MigrationOutcome, MonthGrid, NewNote, NoteChange, NoteList, NoteMeaning, NoteRow, NoteView,
-    NotebookRole, NotebookRow, OnThisDayRow, OpenLoopItem, OpenLoopKind, OpenLoopsBoard,
+    CostSummary, CursorMark, DateChoice, DateChoices, DateField, DayDate, DeviceRow, DiagramKind,
+    DiagramRenderer, DiscoveryMeasure, DropsSaved, DueChipRow, DueTone, EditCommand, EditOutcome,
+    EditorContext, EditorEvent, EditorRun, EditorSnapshot, ExportedPage, FilesMigration, FoldState,
+    FormatKind, GalleryColors, GalleryItem, GalleryKind, GoalSetting, GraphEdgeRow, GraphFilter,
+    GraphLayout, GraphNodeRow, GraphRequest, HistoryState, Hit, IconChoice, IconThemeRow,
+    ImageToRead, ImportEvent, ImportFound, ImportPhase, ImportProgress, ImportSource,
+    ImportSummary, InterruptedLock, InvitationRow, JoinRow, KansoError, LibraryOverview,
+    LinkTarget, LinkedProviderRow, ListPlace, ListQuery, ListShape, LiveBatch, LiveDocBlock,
+    LiveDocBlockKind, LiveDocLink, LiveDocLinkKind, LiveDocMarker, LiveDocMarkerKind, LiveDocStyle,
+    LiveDocStyleKind, LiveDocWidget, LiveDocument, LiveKind, LiveLine, LiveRun, LiveStatus,
+    LocalTime, LockCopyNotice, LockEvent, LockReason, LockState, LockStatus, LockSummary,
+    LockedInfo, LoopAction, LoopProposal, LoopScan, MadeNote, MeaningResult, MemberRow,
+    MentionSpan, MigrationOutcome, MonthGrid, NewNote, NoteChange, NoteList, NoteMeaning, NoteRow,
+    NoteView, NotebookRole, NotebookRow, OnThisDayRow, OpenLoopItem, OpenLoopKind, OpenLoopsBoard,
     OpenedDocuments, OpenedFile, PairingCode, PaletteDto, PasskeyFailure, PasskeyRequest,
     PasskeyRequestKind, PasskeyRow, PdfHighlightChange, PdfHighlightRow, PdfInkRow, PdfNotes,
     PersonLookup, PersonRow, PlannedNotice, PreviewAlign, PreviewBlock, PreviewCanvasNotice,
@@ -1618,6 +1619,7 @@ pub struct _LiveDocWidget {
 pub enum _CompletionKind {
     Wiki,
     Tag,
+    Date,
 }
 
 #[frb(mirror(CompletionItem))]
@@ -2417,4 +2419,26 @@ pub struct _PlannedNotice {
     pub day: u32,
     pub hour: u32,
     pub minute: u32,
+}
+
+#[frb(mirror(WhenHint))]
+pub struct _WhenHint {
+    pub start: u32,
+    pub end: u32,
+    pub label: String,
+    pub canonical: String,
+    pub repeats: bool,
+}
+
+#[frb(mirror(DateChoice))]
+pub struct _DateChoice {
+    pub label: String,
+    pub detail: Option<String>,
+    pub insert: String,
+}
+
+#[frb(mirror(DateChoices))]
+pub struct _DateChoices {
+    pub start: u32,
+    pub choices: Vec<DateChoice>,
 }

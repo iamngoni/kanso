@@ -1333,6 +1333,19 @@
       }
     }
   },
+  "whenHintAction": "Set",
+  "@whenHintAction": {
+    "description": "The word at the end of the hint above the keyboard that shows the date found in a task; tapping the hint writes it into the task."
+  },
+  "whenHintSemantics": "{date}. Double tap to write this date into the task.",
+  "@whenHintSemantics": {
+    "description": "What a screen reader says for the hint above the keyboard that shows the date found at the end of a task.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "searchIdleTitle": "Search your notes",
   "@searchIdleTitle": {
     "description": "The title shown under an empty search."

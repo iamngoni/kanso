@@ -54,6 +54,7 @@ import 'api/voice.dart';
 import 'api/voice_capture.dart';
 import 'api/voice_capture_types.dart';
 import 'api/whats_new_types.dart';
+import 'api/when.dart';
 import 'api/word_goal.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -120,7 +121,7 @@ class KansoCore
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 560876257;
+  int get rustContentHash => -184207284;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -3055,6 +3056,11 @@ abstract class KansoCoreApi extends BaseApi {
     required List<PenSample> samples,
   });
 
+  DateChoices? crateApiWhenDateChoices({
+    required String beforeCaret,
+    required LocalTime now,
+  });
+
   Dictated? crateApiVoiceDictated({
     required String before,
     String? after,
@@ -3084,6 +3090,12 @@ abstract class KansoCoreApi extends BaseApi {
   Future<bool> crateApiDiagnosticsTlsReady();
 
   Future<String> crateApiDiagnosticsVersion();
+
+  WhenHint? crateApiWhenWhenParse({
+    required String line,
+    required LocalTime now,
+    required bool monthFirst,
+  });
 
   String crateApiWordGoalWordGoalFormatCount({required int count});
 
@@ -25638,6 +25650,39 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  DateChoices? crateApiWhenDateChoices({
+    required String beforeCaret,
+    required LocalTime now,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(beforeCaret, serializer);
+          sse_encode_box_autoadd_local_time(now, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 579,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_date_choices,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiWhenDateChoicesConstMeta,
+        argValues: [beforeCaret, now],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWhenDateChoicesConstMeta => const TaskConstMeta(
+    debugName: "date_choices",
+    argNames: ["beforeCaret", "now"],
+  );
+
+  @override
   Dictated? crateApiVoiceDictated({
     required String before,
     String? after,
@@ -25655,7 +25700,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 579,
+            funcId: 580,
           )!;
         },
         codec: SseCodec(
@@ -25684,7 +25729,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 580,
+            funcId: 581,
           )!;
         },
         codec: SseCodec(
@@ -25713,7 +25758,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 581,
+            funcId: 582,
           )!;
         },
         codec: SseCodec(
@@ -25742,7 +25787,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 582,
+            funcId: 583,
           )!;
         },
         codec: SseCodec(
@@ -25772,7 +25817,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 583,
+            funcId: 584,
           )!;
         },
         codec: SseCodec(
@@ -25802,7 +25847,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 584,
+            funcId: 585,
             port: port_,
           );
         },
@@ -25837,7 +25882,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 585,
+            funcId: 586,
           )!;
         },
         codec: SseCodec(
@@ -25866,7 +25911,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 586,
+            funcId: 587,
             port: port_,
           );
         },
@@ -25896,7 +25941,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 587,
+            funcId: 588,
           )!;
         },
         codec: SseCodec(
@@ -25925,7 +25970,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 588,
+            funcId: 589,
             port: port_,
           );
         },
@@ -25955,7 +26000,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 589,
+            funcId: 590,
             port: port_,
           );
         },
@@ -25976,6 +26021,41 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   );
 
   @override
+  WhenHint? crateApiWhenWhenParse({
+    required String line,
+    required LocalTime now,
+    required bool monthFirst,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(line, serializer);
+          sse_encode_box_autoadd_local_time(now, serializer);
+          sse_encode_bool(monthFirst, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 591,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_when_hint,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiWhenWhenParseConstMeta,
+        argValues: [line, now, monthFirst],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWhenWhenParseConstMeta => const TaskConstMeta(
+    debugName: "when_parse",
+    argNames: ["line", "now", "monthFirst"],
+  );
+
+  @override
   String crateApiWordGoalWordGoalFormatCount({required int count}) {
     return handler.executeSync(
       SyncTask(
@@ -25985,7 +26065,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 590,
+            funcId: 592,
           )!;
         },
         codec: SseCodec(
@@ -26019,7 +26099,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 591,
+            funcId: 593,
           )!;
         },
         codec: SseCodec(
@@ -26049,7 +26129,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 592,
+            funcId: 594,
           )!;
         },
         codec: SseCodec(
@@ -26078,7 +26158,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 593,
+            funcId: 595,
           )!;
         },
         codec: SseCodec(
@@ -26112,7 +26192,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 594,
+            funcId: 596,
           )!;
         },
         codec: SseCodec(
@@ -26142,7 +26222,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 595,
+            funcId: 597,
           )!;
         },
         codec: SseCodec(
@@ -28210,6 +28290,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  DateChoices dco_decode_box_autoadd_date_choices(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_date_choices(raw);
+  }
+
+  @protected
   DayDate dco_decode_box_autoadd_day_date(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_day_date(raw);
@@ -28756,6 +28842,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  WhenHint dco_decode_box_autoadd_when_hint(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_when_hint(raw);
+  }
+
+  @protected
   BriefNote dco_decode_brief_note(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -29261,6 +29353,31 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       end: dco_decode_u_32(arr[3]),
       light: dco_decode_u_32(arr[4]),
       dark: dco_decode_u_32(arr[5]),
+    );
+  }
+
+  @protected
+  DateChoice dco_decode_date_choice(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return DateChoice(
+      label: dco_decode_String(arr[0]),
+      detail: dco_decode_opt_String(arr[1]),
+      insert: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  DateChoices dco_decode_date_choices(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return DateChoices(
+      start: dco_decode_u_32(arr[0]),
+      choices: dco_decode_list_date_choice(arr[1]),
     );
   }
 
@@ -30687,6 +30804,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   List<CursorMark> dco_decode_list_cursor_mark(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_cursor_mark).toList();
+  }
+
+  @protected
+  List<DateChoice> dco_decode_list_date_choice(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_date_choice).toList();
   }
 
   @protected
@@ -32425,6 +32548,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  DateChoices? dco_decode_opt_box_autoadd_date_choices(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_date_choices(raw);
+  }
+
+  @protected
   DayDate? dco_decode_opt_box_autoadd_day_date(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_day_date(raw);
@@ -32746,6 +32875,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   VoiceNoteInfo? dco_decode_opt_box_autoadd_voice_note_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_voice_note_info(raw);
+  }
+
+  @protected
+  WhenHint? dco_decode_opt_box_autoadd_when_hint(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_when_hint(raw);
   }
 
   @protected
@@ -36184,6 +36319,21 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  WhenHint dco_decode_when_hint(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return WhenHint(
+      start: dco_decode_u_32(arr[0]),
+      end: dco_decode_u_32(arr[1]),
+      label: dco_decode_String(arr[2]),
+      canonical: dco_decode_String(arr[3]),
+      repeats: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_String(deserializer);
@@ -38305,6 +38455,14 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  DateChoices sse_decode_box_autoadd_date_choices(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_date_choices(deserializer));
+  }
+
+  @protected
   DayDate sse_decode_box_autoadd_day_date(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_day_date(deserializer));
@@ -38949,6 +39107,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  WhenHint sse_decode_box_autoadd_when_hint(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_when_hint(deserializer));
+  }
+
+  @protected
   BriefNote sse_decode_brief_note(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_noteId = sse_decode_String(deserializer);
@@ -39489,6 +39653,23 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       light: var_light,
       dark: var_dark,
     );
+  }
+
+  @protected
+  DateChoice sse_decode_date_choice(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_label = sse_decode_String(deserializer);
+    var var_detail = sse_decode_opt_String(deserializer);
+    var var_insert = sse_decode_String(deserializer);
+    return DateChoice(label: var_label, detail: var_detail, insert: var_insert);
+  }
+
+  @protected
+  DateChoices sse_decode_date_choices(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_start = sse_decode_u_32(deserializer);
+    var var_choices = sse_decode_list_date_choice(deserializer);
+    return DateChoices(start: var_start, choices: var_choices);
   }
 
   @protected
@@ -41152,6 +41333,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     var ans_ = <CursorMark>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_cursor_mark(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DateChoice> sse_decode_list_date_choice(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DateChoice>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_date_choice(deserializer));
     }
     return ans_;
   }
@@ -44010,6 +44203,19 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  DateChoices? sse_decode_opt_box_autoadd_date_choices(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_date_choices(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   DayDate? sse_decode_opt_box_autoadd_day_date(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -44667,6 +44873,17 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_voice_note_info(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  WhenHint? sse_decode_opt_box_autoadd_when_hint(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_when_hint(deserializer));
     } else {
       return null;
     }
@@ -48325,6 +48542,23 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  WhenHint sse_decode_when_hint(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_start = sse_decode_u_32(deserializer);
+    var var_end = sse_decode_u_32(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_canonical = sse_decode_String(deserializer);
+    var var_repeats = sse_decode_bool(deserializer);
+    return WhenHint(
+      start: var_start,
+      end: var_end,
+      label: var_label,
+      canonical: var_canonical,
+      repeats: var_repeats,
+    );
+  }
+
+  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -50633,6 +50867,15 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_box_autoadd_date_choices(
+    DateChoices self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_date_choices(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_day_date(DayDate self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_day_date(self, serializer);
@@ -51416,6 +51659,15 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_box_autoadd_when_hint(
+    WhenHint self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_when_hint(self, serializer);
+  }
+
+  @protected
   void sse_encode_brief_note(BriefNote self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.noteId, serializer);
@@ -51794,6 +52046,21 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_u_32(self.end, serializer);
     sse_encode_u_32(self.light, serializer);
     sse_encode_u_32(self.dark, serializer);
+  }
+
+  @protected
+  void sse_encode_date_choice(DateChoice self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.label, serializer);
+    sse_encode_opt_String(self.detail, serializer);
+    sse_encode_String(self.insert, serializer);
+  }
+
+  @protected
+  void sse_encode_date_choices(DateChoices self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.start, serializer);
+    sse_encode_list_date_choice(self.choices, serializer);
   }
 
   @protected
@@ -53085,6 +53352,18 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_cursor_mark(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_date_choice(
+    List<DateChoice> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_date_choice(item, serializer);
     }
   }
 
@@ -55525,6 +55804,19 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_date_choices(
+    DateChoices? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_date_choices(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_day_date(
     DayDate? self,
     SseSerializer serializer,
@@ -56195,6 +56487,19 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_voice_note_info(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_when_hint(
+    WhenHint? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_when_hint(self, serializer);
     }
   }
 
@@ -58939,6 +59244,16 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   void sse_encode_voice_tidy(VoiceTidy self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_when_hint(WhenHint self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.start, serializer);
+    sse_encode_u_32(self.end, serializer);
+    sse_encode_String(self.label, serializer);
+    sse_encode_String(self.canonical, serializer);
+    sse_encode_bool(self.repeats, serializer);
   }
 }
 

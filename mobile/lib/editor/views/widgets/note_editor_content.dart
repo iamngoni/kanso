@@ -53,10 +53,13 @@ import '../../models/data/flush_reason.dart';
 import '../../models/data/outside_side.dart';
 import '../../models/data/word_goal_choice.dart';
 import '../../models/repos/abs/editor_repository.dart';
+import '../../models/repos/abs/when_repository.dart';
 import '../../state/editor/editor_bloc.dart';
 import '../../utils/live_document/live_preview_drawer.dart';
+import '../../utils/when_date_order.dart';
 import '../controllers/kanso_markdown_controller.dart';
 import '../controllers/live_layout_controller.dart';
+import '../controllers/when_assist.dart';
 import 'completion_host.dart';
 import 'editor_conflict_strip.dart';
 import 'editor_destination_scope.dart';
@@ -71,6 +74,7 @@ import 'markdown_editor.dart';
 import 'outside_text.dart';
 import 'properties_section.dart';
 import 'remote_carets.dart';
+import 'when_hint_chip.dart';
 import 'word_goal_picker_sheet.dart';
 
 /// Counts the inserted Unicode characters between two editor snapshots.
@@ -113,8 +117,12 @@ class NoteEditorContent extends StatefulWidget {
     this.caretEnd,
     this.scroll = 0,
     this.focusTitle = false,
+    this.whenRepository,
     super.key,
   });
+
+  /// The typed-date parser; the app's own when there is none.
+  final WhenRepository? whenRepository;
 
   /// The note open for editing.
   final EditorDocument document;
@@ -184,6 +192,10 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
   late final EditorBloc editor;
   late final NoteBloc note;
   late final KansoMarkdownController controller;
+
+  /// The typed-date hint and the `@` list; null where the app has no
+  /// parser registered.
+  WhenAssist? whenAssist;
   late final MarkdownEditorTextTarget textTarget;
   late final TextEditingController title;
   late final FocusNode textFocus;
@@ -343,6 +355,20 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
       tellResurface();
     }
     textFocus = FocusNode(debugLabel: 'Note text');
+    final dates =
+        widget.whenRepository ??
+        (getIt.isRegistered<WhenRepository>() ? getIt<WhenRepository>() : null);
+    if (dates != null) {
+      whenAssist = WhenAssist(
+        controller: controller,
+        repository: dates,
+        monthFirst: monthFirstFor(
+          WidgetsBinding.instance.platformDispatcher.locale,
+        ),
+        enabled: () => !readOnly && textFocus.hasFocus,
+      );
+      textFocus.addListener(whenAssist!.refresh);
+    }
     titleFocus = FocusNode(debugLabel: 'Note title');
     // The page's place is kept from its top; with text before the window it
     // is from the editor, and the caret is shown as the field takes focus.
@@ -619,6 +645,11 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
       ..removeListener(scheduleWordCount);
     wordCount.dispose();
     titleFocus.dispose();
+    final dates = whenAssist;
+    if (dates != null) {
+      textFocus.removeListener(dates.refresh);
+      dates.dispose();
+    }
     textFocus.dispose();
     title.dispose();
     stopLive();
@@ -908,9 +939,10 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
                     FlushReason.shortcut,
                   ),
                 ),
-                onDismissCompletion: () => editor.add(
-                  const EditorEvent.completionDismissed(),
-                ),
+                onDismissCompletion: () {
+                  whenAssist?.dismissCompletion();
+                  editor.add(const EditorEvent.completionDismissed());
+                },
                 onEscape: () {
                   textFocus.unfocus();
                   note.add(
@@ -1052,8 +1084,10 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
                 onSave: () => editor.add(
                   const EditorEvent.flushRequested(FlushReason.shortcut),
                 ),
-                onDismissCompletion: () =>
-                    editor.add(const EditorEvent.completionDismissed()),
+                onDismissCompletion: () {
+                  whenAssist?.dismissCompletion();
+                  editor.add(const EditorEvent.completionDismissed());
+                },
                 onEscape: () {
                   textFocus.unfocus();
                   note.add(const NoteEvent.modeChanged(NoteMode.preview));
@@ -1397,6 +1431,9 @@ class _NoteEditorContentState extends State<NoteEditorContent> {
                         noteId: note.state.noteId,
                         onLink: linkTo,
                       ),
+                      // The date found at the end of the task being typed.
+                      if (whenAssist case final dates?)
+                        WhenHintBar(assist: dates),
                       BlocBuilder<EditorBloc, EditorState>(
                         buildWhen: (before, now) =>
                             before.context != now.context,

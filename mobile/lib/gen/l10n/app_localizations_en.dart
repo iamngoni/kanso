@@ -1038,6 +1038,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get whenHintAction => 'Set';
+
+  @override
+  String whenHintSemantics(String date) {
+    return '$date. Double tap to write this date into the task.';
+  }
+
+  @override
   String get searchIdleTitle => 'Search your notes';
 
   @override

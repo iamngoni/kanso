@@ -193,6 +193,8 @@ mod voice_capture_model;
 mod voice_model;
 mod whats_new;
 mod whats_new_model;
+mod when;
+mod when_model;
 mod word_goals;
 
 pub use account::{AccountHandle, check_new_password};
@@ -269,6 +271,8 @@ pub use voice::dictated;
 pub use voice_capture_model::*;
 pub use voice_model::{Dictated, VoiceSettings, VoiceTidy};
 pub use whats_new_model::*;
+pub use when::REPEAT_CHOICES;
+pub use when_model::*;
 
 /// Where secrets live: the seam the Keychain, the Keystore and the tests'
 /// memory store stand behind.
