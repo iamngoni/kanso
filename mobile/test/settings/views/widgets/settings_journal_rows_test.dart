@@ -5,15 +5,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/capture/state/capture_task/capture_task_cubit.dart';
+import 'package:kanso/core/bridge/api/types.dart';
+import 'package:kanso/core/configs/kanso_icons.dart';
 import 'package:kanso/core/models/data/application_error.dart';
+import 'package:kanso/core/models/data/preferences.dart';
 import 'package:kanso/core/models/data/reminder_permission.dart';
 import 'package:kanso/core/state/appearance/appearance_bloc.dart';
+import 'package:kanso/core/views/widgets/kanso_check_row.dart';
+import 'package:kanso/core/views/widgets/kanso_icon.dart';
 import 'package:kanso/core/views/widgets/kanso_settings_row.dart';
 import 'package:kanso/core/views/widgets/kanso_switch.dart';
 import 'package:kanso/settings/views/widgets/journal_settings_pane.dart';
 
 import '../../../helpers/close_bloc_later.dart';
 import '../../../helpers/fixture_library_repository.dart';
+import '../../../helpers/mock_repositories.dart';
 import '../../../helpers/page_fixtures.dart';
 import '../../../helpers/pump_routed.dart';
 import '../../../helpers/register_page_blocs.dart';
@@ -45,6 +52,73 @@ Future<SettingsBlocs> _pump(
 }
 
 void main() {
+  group('Captured tasks', () {
+    Future<SeededPreferencesRepository> pumpWith(
+      WidgetTester tester,
+      Preferences preferences,
+    ) async {
+      final saved = SeededPreferencesRepository(preferences);
+      final cubit = CaptureTaskCubit(MockCaptureRepository(), saved);
+      addTearDown(cubit.close);
+      await cubit.started();
+      final page = PageFixtures();
+      final blocs = await SettingsBlocs.start(fixtures: page);
+      final appearance = SeededAppearanceBloc(const AppearanceState());
+      closeBlocLater(appearance);
+      registerPageBlocsWithFixtures(FixtureLibraryRepository(), fixtures: page);
+      await pumpRouted(
+        tester,
+        BlocProvider<AppearanceBloc>.value(
+          value: appearance,
+          child: blocs.provide(
+            BlocProvider<CaptureTaskCubit>.value(
+              value: cubit,
+              child: const JournalSettingsPane(),
+            ),
+          ),
+        ),
+        size: const Size(393, 1600),
+      );
+      await tester.pumpAndSettle();
+      return saved;
+    }
+
+    Finder checkIn(String label) => find.descendant(
+      of: find.ancestor(
+        of: find.text(label),
+        matching: find.byType(KansoCheckRow),
+      ),
+      matching: find.byWidgetPredicate(
+        (widget) => widget is KansoIcon && widget.icon == KansoIcons.check,
+      ),
+    );
+
+    testWidgets(
+      'go to the daily note until Inbox is chosen, as on the desktop',
+      (
+        tester,
+      ) async {
+        final saved = await pumpWith(tester, const Preferences());
+        expect(find.text('Captured tasks go to'), findsOneWidget);
+        expect(checkIn('Today’s daily note'), findsOneWidget);
+        expect(checkIn('Inbox'), findsNothing);
+        await tester.tap(find.text('Inbox'));
+        await tester.pumpAndSettle();
+        expect(checkIn('Inbox'), findsOneWidget);
+        expect(checkIn('Today’s daily note'), findsNothing);
+        expect(saved.current.captureTaskTarget, CaptureTarget.inbox);
+      },
+    );
+
+    testWidgets('show the saved place', (tester) async {
+      await pumpWith(
+        tester,
+        const Preferences(captureTaskTarget: CaptureTarget.inbox),
+      );
+      expect(checkIn('Inbox'), findsOneWidget);
+    });
+  });
+
   group('Daily notes', () {
     testWidgets('the daily template is None until one is chosen', (
       tester,

@@ -9745,5 +9745,109 @@
         "type": "String"
       }
     }
+  },
+  "captureModeSemantics": "Capture as",
+  "@captureModeSemantics": {
+    "description": "The Note | Task switch at the top of the capture sheet, for a screen reader."
+  },
+  "captureModeNote": "Note",
+  "@captureModeNote": {
+    "description": "The capture sheet's mode that makes a note."
+  },
+  "captureModeTask": "Task",
+  "@captureModeTask": {
+    "description": "The capture sheet's mode that adds one task."
+  },
+  "captureTaskHint": "What needs doing? Try “call Sam fri 3pm”",
+  "@captureTaskHint": {
+    "description": "The hint in the capture sheet's task field while it is empty."
+  },
+  "captureTaskFieldSemantics": "Task",
+  "@captureTaskFieldSemantics": {
+    "description": "What a screen reader says for the capture sheet's task field."
+  },
+  "captureTaskAdd": "Add task",
+  "@captureTaskAdd": {
+    "description": "The button of the capture sheet's Task mode."
+  },
+  "captureTaskPlaceDaily": "today’s daily note",
+  "@captureTaskPlaceDaily": {
+    "description": "Where a captured task goes, said after \"Added to\" or \"Goes to\"."
+  },
+  "captureTaskPlaceInbox": "the Inbox",
+  "@captureTaskPlaceInbox": {
+    "description": "Where a captured task goes, said after \"Added to\" or \"Goes to\"."
+  },
+  "captureTaskGoesTo": "Goes to {place}",
+  "@captureTaskGoesTo": {
+    "description": "The line under the capture sheet's task field.",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "captureTaskAdded": "Added to {place}",
+  "@captureTaskAdded": {
+    "description": "The line that says a captured task was written.",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "captureTaskNothing": "There is no task in that text.",
+  "@captureTaskNothing": {
+    "description": "Said when Add task is pressed on an empty field."
+  },
+  "captureTaskLocked": "That place is locked, so the task wasn’t added. Unlock it, or change where tasks go in Settings.",
+  "@captureTaskLocked": {
+    "description": "Said when a captured task cannot be written because its notebook is locked."
+  },
+  "captureTaskFailed": "The task couldn’t be added. Try again.",
+  "@captureTaskFailed": {
+    "description": "Said when a captured task could not be written."
+  },
+  "captureTaskHintSemantics": "Reads as {date}",
+  "@captureTaskHintSemantics": {
+    "description": "What a screen reader says for the date line under the capture sheet's task field.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsCaptureTasks": "Captured tasks go to",
+  "@settingsCaptureTasks": {
+    "description": "The setting for where a task typed into Quick Capture is written."
+  },
+  "settingsCaptureTasksDaily": "Today’s daily note",
+  "@settingsCaptureTasksDaily": {
+    "description": "A choice of where captured tasks go."
+  },
+  "settingsCaptureTasksInbox": "Inbox",
+  "@settingsCaptureTasksInbox": {
+    "description": "A choice of where captured tasks go."
+  },
+  "settingsCaptureTasksDetail": "Tasks added in the capture sheet’s Task mode are written at the end of this note, as on the desktop.",
+  "@settingsCaptureTasksDetail": {
+    "description": "The footer under the captured tasks setting."
+  },
+  "tasksRepeatSemantics": "Repeats {repeat}",
+  "@tasksRepeatSemantics": {
+    "description": "A repeating task's repeat, for a screen reader and the long-press sheet.",
+    "placeholders": {
+      "repeat": {
+        "type": "String"
+      }
+    }
+  },
+  "tasksDetailTitle": "Task",
+  "@tasksDetailTitle": {
+    "description": "The title of the sheet a long press on a task opens."
+  },
+  "tasksShowDetail": "Show full task",
+  "@tasksShowDetail": {
+    "description": "The action that shows a task's whole text, for a screen reader; a long press does it too."
   }
 }

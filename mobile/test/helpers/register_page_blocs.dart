@@ -10,6 +10,7 @@ import 'package:kanso/backups/state/backups/backups_bloc.dart';
 import 'package:kanso/board/state/board/board_bloc.dart';
 import 'package:kanso/canvas/models/repos/abs/canvas_repository.dart';
 import 'package:kanso/canvas/state/canvas/canvas_bloc.dart';
+import 'package:kanso/capture/state/capture_task/capture_task_cubit.dart';
 import 'package:kanso/core/state/undo_notice/undo_notice_bloc.dart';
 import 'package:kanso/editor/state/editor/editor_bloc.dart';
 import 'package:kanso/feedback/state/my_feedback/my_feedback_bloc.dart';
@@ -70,6 +71,7 @@ import 'fixture_session_repository.dart';
 import 'fixture_shared_notes_repository.dart';
 import 'fixture_system_share_repository.dart';
 import 'fixture_themes_repository.dart';
+import 'mock_repositories.dart';
 import 'page_fixtures.dart';
 import 'seeded_appearance_bloc.dart';
 
@@ -329,6 +331,12 @@ void _registerPageBlocs({
   register<CalendarBloc>(() => CalendarBloc(page.journal));
   register<TemplatePickerBloc>(() => TemplatePickerBloc(page.journal));
   register<DailyTemplateBloc>(() => DailyTemplateBloc(page.journal));
+  register<CaptureTaskCubit>(
+    () => CaptureTaskCubit(
+      MockCaptureRepository(),
+      ForgetfulPreferencesRepository(),
+    ),
+  );
   register<BoardBloc>(() => BoardBloc(page.boards, library));
   register<WordGoalSettingsBloc>(() => WordGoalSettingsBloc(library));
 

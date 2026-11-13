@@ -395,6 +395,9 @@ pub struct TaskItem {
     pub due_label: Option<String>,
     /// The chip's tone; `None` for a task without a date.
     pub due_tone: Option<DueTone>,
+    /// How the task repeats, as the desktop words it (`every week`,
+    /// `every 2 weeks after done`); `None` for a task that does not repeat.
+    pub repeat_label: Option<String>,
 }
 
 /// A group of the Tasks place, with its tasks.

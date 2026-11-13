@@ -159,7 +159,14 @@ pub(crate) fn item(row: &TaskRow, notebook_name: Option<&String>, now: DateTime)
             Tone::Overdue => DueTone::Overdue,
             Tone::Done => DueTone::Done,
         }),
+        repeat_label: repeat_label(&row.text),
     }
+}
+
+/// How the task whose words are `text` repeats: the `every …` right after
+/// its due date, as the desktop words it. `None` when it does not repeat.
+pub(crate) fn repeat_label(text: &str) -> Option<String> {
+    kanso_core::repeat::repeat_token(text).map(|(_, repeat)| repeat.to_string())
 }
 
 /// The group a heading names.

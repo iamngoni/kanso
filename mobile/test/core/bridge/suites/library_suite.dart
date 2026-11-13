@@ -979,6 +979,103 @@ void librarySuite(OpenLibrary open) {
       expect(await library.overdueTasks(), 1);
     });
 
+    test('a repeating task has its repeat, and ticking it writes the next '
+        'one above it', () async {
+      final library = await open();
+      final id = await makeNote(
+        library,
+        'Studio',
+        '- [ ] Film Pixel review @2020-01-01T15:00 every week\n'
+            '- [ ] Plain @2020-01-01\n',
+      );
+      const query = TaskListQuery(showDone: false, kept: <String>[]);
+      final board = await library.tasks(query: query);
+      final items = board.groups.expand((group) => group.items).toList();
+      final film = items.singleWhere(
+        (item) => item.text == 'Film Pixel review',
+      );
+      expect(film.repeatLabel, 'every week');
+      expect(
+        items.singleWhere((item) => item.text == 'Plain').repeatLabel,
+        isNull,
+      );
+
+      final ticked = await library.setTask(
+        noteId: id,
+        line: film.line,
+        text: film.sourceText,
+        checked: true,
+      );
+      expect(ticked, isA<Ticked_Changed>());
+      final lines = (await library.note(id: id)).body!.trimRight().split('\n');
+      // The next one above, open and still repeating; this one ticked, with
+      // no repeat left on it; the other task untouched.
+      expect(lines, hasLength(3));
+      expect(lines[0], startsWith('- [ ] Film Pixel review @'));
+      expect(lines[0], endsWith('T15:00 every week'));
+      expect(lines[0], isNot(contains('@2020-01-01')));
+      expect(lines[1], '- [x] Film Pixel review @2020-01-01T15:00');
+      expect(lines[2], '- [ ] Plain @2020-01-01');
+      final again = await library.tasks(query: query);
+      final next = again.groups
+          .expand((group) => group.items)
+          .singleWhere((item) => item.text == 'Film Pixel review');
+      expect(next.repeatLabel, 'every week');
+      // Undo takes both lines back in one go.
+      expect(await library.undo(ticket: (ticked as Ticked_Changed).undo), 1);
+      expect(
+        (await library.note(id: id)).body,
+        '- [ ] Film Pixel review @2020-01-01T15:00 every week\n'
+        '- [ ] Plain @2020-01-01\n',
+      );
+    });
+
+    test("captures a task into today's daily note or the Inbox", () async {
+      final library = await open();
+      const now = LocalTime(
+        year: 2026,
+        month: 10,
+        day: 20,
+        hour: 10,
+        minute: 0,
+        second: 0,
+      );
+      final daily = await library.captureTask(
+        text: 'film Pixel review fri 3pm every week',
+        target: CaptureTarget.dailyNote,
+        now: now,
+        monthFirst: false,
+      );
+      expect(
+        daily.line,
+        '- [ ] film Pixel review @2026-10-23T15:00 every week',
+      );
+      expect(daily.noteId, await library.todayNote(now: now));
+      expect(
+        (await library.note(id: daily.noteId)).body,
+        endsWith('${daily.line}\n'),
+      );
+
+      final inbox = await library.captureTask(
+        text: 'todo buy tape tomorrow',
+        target: CaptureTarget.inbox,
+        now: now,
+        monthFirst: false,
+      );
+      expect(inbox.line, '- [ ] buy tape @2026-10-21');
+      expect(inbox.noteId, isNot(daily.noteId));
+      expect((await library.note(id: inbox.noteId)).body, '${inbox.line}\n');
+      await expectLater(
+        library.captureTask(
+          text: '  ',
+          target: CaptureTarget.inbox,
+          now: now,
+          monthFirst: false,
+        ),
+        throwsA(isA<KansoError_Invalid>()),
+      );
+    });
+
     test('leaves the tasks of locked notes out', () async {
       final library = await open();
       final visible = await makeNote(library, 'Seen', '- [ ] open @2020-01-01');
@@ -1302,6 +1399,20 @@ void librarySuite(OpenLibrary open) {
         (await library.updateNotices(signedInToSync: true)).card,
         isNull,
       );
+    });
+  });
+
+  group("what's new", () {
+    test('is nothing on a first run; marking it seen is harmless', () async {
+      final library = await open();
+      final cache = await Directory.systemTemp.createTemp('kanso_whats_new_');
+      addTearDown(() => cache.delete(recursive: true));
+      // A library that never ran an older version has no update to
+      // describe: nothing is shown and nothing is fetched.
+      expect(await library.whatsNew(cacheDir: cache.path), isNull);
+      await library.markWhatsNewSeen();
+      await library.markWhatsNewSeen();
+      expect(await library.whatsNew(cacheDir: cache.path), isNull);
     });
   });
 }

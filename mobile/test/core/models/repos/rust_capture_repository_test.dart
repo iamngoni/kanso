@@ -22,8 +22,8 @@ void main() {
   late ExternalChanges external;
   late RustCaptureRepository repository;
 
-  setUpAll(
-    () => registerFallbackValue(
+  setUpAll(() {
+    registerFallbackValue(
       const LocalTime(
         year: 2026,
         month: 1,
@@ -32,8 +32,9 @@ void main() {
         minute: 0,
         second: 0,
       ),
-    ),
-  );
+    );
+    registerFallbackValue(CaptureTarget.dailyNote);
+  });
 
   setUp(() {
     library = _MockLibrary();
@@ -47,6 +48,60 @@ void main() {
   });
 
   group('RustCaptureRepository', () {
+    test("captures a task with the phone's clock and date order", () async {
+      const captured = TaskCaptured(noteId: 'note:daily', line: '- [ ] x');
+      when(
+        () => library.captureTask(
+          text: any(named: 'text'),
+          target: any(named: 'target'),
+          now: any(named: 'now'),
+          monthFirst: any(named: 'monthFirst'),
+        ),
+      ).thenAnswer((_) async => captured);
+      expect(
+        await repository.captureTask(
+          text: 'x fri',
+          target: CaptureTarget.inbox,
+          now: DateTime(2026, 10, 20, 10, 5, 7),
+          monthFirst: true,
+        ),
+        const Right<Object, TaskCaptured>(captured),
+      );
+      verify(
+        () => library.captureTask(
+          text: 'x fri',
+          target: CaptureTarget.inbox,
+          now: const LocalTime(
+            year: 2026,
+            month: 10,
+            day: 20,
+            hour: 10,
+            minute: 5,
+            second: 7,
+          ),
+          monthFirst: true,
+        ),
+      ).called(1);
+    });
+
+    test('a locked place is a locked error', () async {
+      when(
+        () => library.captureTask(
+          text: any(named: 'text'),
+          target: any(named: 'target'),
+          now: any(named: 'now'),
+          monthFirst: any(named: 'monthFirst'),
+        ),
+      ).thenThrow(const KansoError.locked());
+      final result = await repository.captureTask(
+        text: 'x',
+        target: CaptureTarget.dailyNote,
+        now: DateTime(2026),
+        monthFirst: false,
+      );
+      expect(result.fold((error) => error, (_) => null), isA<LockedError>());
+    });
+
     test("saves the drops in the library folder's inbox", () async {
       const saved = DropsSaved(
         notes: <String>['note:cap-a'],

@@ -13221,6 +13221,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{agent} said'**
   String agentSessionAgentSaid(String agent);
+
+  /// The Note | Task switch at the top of the capture sheet, for a screen reader.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture as'**
+  String get captureModeSemantics;
+
+  /// The capture sheet's mode that makes a note.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get captureModeNote;
+
+  /// The capture sheet's mode that adds one task.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get captureModeTask;
+
+  /// The hint in the capture sheet's task field while it is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'What needs doing? Try “call Sam fri 3pm”'**
+  String get captureTaskHint;
+
+  /// What a screen reader says for the capture sheet's task field.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get captureTaskFieldSemantics;
+
+  /// The button of the capture sheet's Task mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Add task'**
+  String get captureTaskAdd;
+
+  /// Where a captured task goes, said after "Added to" or "Goes to".
+  ///
+  /// In en, this message translates to:
+  /// **'today’s daily note'**
+  String get captureTaskPlaceDaily;
+
+  /// Where a captured task goes, said after "Added to" or "Goes to".
+  ///
+  /// In en, this message translates to:
+  /// **'the Inbox'**
+  String get captureTaskPlaceInbox;
+
+  /// The line under the capture sheet's task field.
+  ///
+  /// In en, this message translates to:
+  /// **'Goes to {place}'**
+  String captureTaskGoesTo(String place);
+
+  /// The line that says a captured task was written.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to {place}'**
+  String captureTaskAdded(String place);
+
+  /// Said when Add task is pressed on an empty field.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no task in that text.'**
+  String get captureTaskNothing;
+
+  /// Said when a captured task cannot be written because its notebook is locked.
+  ///
+  /// In en, this message translates to:
+  /// **'That place is locked, so the task wasn’t added. Unlock it, or change where tasks go in Settings.'**
+  String get captureTaskLocked;
+
+  /// Said when a captured task could not be written.
+  ///
+  /// In en, this message translates to:
+  /// **'The task couldn’t be added. Try again.'**
+  String get captureTaskFailed;
+
+  /// What a screen reader says for the date line under the capture sheet's task field.
+  ///
+  /// In en, this message translates to:
+  /// **'Reads as {date}'**
+  String captureTaskHintSemantics(String date);
+
+  /// The setting for where a task typed into Quick Capture is written.
+  ///
+  /// In en, this message translates to:
+  /// **'Captured tasks go to'**
+  String get settingsCaptureTasks;
+
+  /// A choice of where captured tasks go.
+  ///
+  /// In en, this message translates to:
+  /// **'Today’s daily note'**
+  String get settingsCaptureTasksDaily;
+
+  /// A choice of where captured tasks go.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox'**
+  String get settingsCaptureTasksInbox;
+
+  /// The footer under the captured tasks setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks added in the capture sheet’s Task mode are written at the end of this note, as on the desktop.'**
+  String get settingsCaptureTasksDetail;
+
+  /// A repeating task's repeat, for a screen reader and the long-press sheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeats {repeat}'**
+  String tasksRepeatSemantics(String repeat);
+
+  /// The title of the sheet a long press on a task opens.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get tasksDetailTitle;
+
+  /// The action that shows a task's whole text, for a screen reader; a long press does it too.
+  ///
+  /// In en, this message translates to:
+  /// **'Show full task'**
+  String get tasksShowDetail;
 }
 
 class _AppLocalizationsDelegate

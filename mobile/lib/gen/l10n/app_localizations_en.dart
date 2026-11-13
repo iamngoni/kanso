@@ -8005,4 +8005,77 @@ class AppLocalizationsEn extends AppLocalizations {
   String agentSessionAgentSaid(String agent) {
     return '$agent said';
   }
+
+  @override
+  String get captureModeSemantics => 'Capture as';
+
+  @override
+  String get captureModeNote => 'Note';
+
+  @override
+  String get captureModeTask => 'Task';
+
+  @override
+  String get captureTaskHint => 'What needs doing? Try “call Sam fri 3pm”';
+
+  @override
+  String get captureTaskFieldSemantics => 'Task';
+
+  @override
+  String get captureTaskAdd => 'Add task';
+
+  @override
+  String get captureTaskPlaceDaily => 'today’s daily note';
+
+  @override
+  String get captureTaskPlaceInbox => 'the Inbox';
+
+  @override
+  String captureTaskGoesTo(String place) {
+    return 'Goes to $place';
+  }
+
+  @override
+  String captureTaskAdded(String place) {
+    return 'Added to $place';
+  }
+
+  @override
+  String get captureTaskNothing => 'There is no task in that text.';
+
+  @override
+  String get captureTaskLocked =>
+      'That place is locked, so the task wasn’t added. Unlock it, or change where tasks go in Settings.';
+
+  @override
+  String get captureTaskFailed => 'The task couldn’t be added. Try again.';
+
+  @override
+  String captureTaskHintSemantics(String date) {
+    return 'Reads as $date';
+  }
+
+  @override
+  String get settingsCaptureTasks => 'Captured tasks go to';
+
+  @override
+  String get settingsCaptureTasksDaily => 'Today’s daily note';
+
+  @override
+  String get settingsCaptureTasksInbox => 'Inbox';
+
+  @override
+  String get settingsCaptureTasksDetail =>
+      'Tasks added in the capture sheet’s Task mode are written at the end of this note, as on the desktop.';
+
+  @override
+  String tasksRepeatSemantics(String repeat) {
+    return 'Repeats $repeat';
+  }
+
+  @override
+  String get tasksDetailTitle => 'Task';
+
+  @override
+  String get tasksShowDetail => 'Show full task';
 }
