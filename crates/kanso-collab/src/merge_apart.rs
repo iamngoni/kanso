@@ -27,7 +27,7 @@ pub fn merge_apart(base: &str, mine: &str, theirs: &str) -> Option<String> {
     // Apart, every splice has offsets in `base`: made from the end, each
     // leaves the offsets before it as they were.
     let mut all: Vec<Splice> = ours.into_iter().chain(other).collect();
-    all.sort_by(|a, b| b.at.cmp(&a.at));
+    all.sort_by_key(|splice| std::cmp::Reverse(splice.at));
     let mut out = base.to_owned();
     apply_splices(&mut out, &all);
     Some(out)
@@ -42,11 +42,21 @@ mod tests {
     #[test]
     fn edits_apart_merge_and_edits_on_the_same_words_dont() {
         assert_eq!(
-            merge_apart("Pixel review", "Pixel review from Alice", "Bob's pixel review").as_deref(),
+            merge_apart(
+                "Pixel review",
+                "Pixel review from Alice",
+                "Bob's pixel review"
+            )
+            .as_deref(),
             Some("Bob's pixel review from Alice")
         );
         assert_eq!(
-            merge_apart("one\ntwo\nthree\n", "one!\ntwo\nthree\n", "one\ntwo\nthree?\n").as_deref(),
+            merge_apart(
+                "one\ntwo\nthree\n",
+                "one!\ntwo\nthree\n",
+                "one\ntwo\nthree?\n"
+            )
+            .as_deref(),
             Some("one!\ntwo\nthree?\n")
         );
         assert_eq!(merge_apart("cat", "cut", "cot"), None);

@@ -642,11 +642,8 @@ impl Engine {
                 && manifest
                     .note(&stream.stream)
                     .is_some_and(|n| n.deleted_at.is_none())
-                && let Some(update) = manifest.mark_deleted(
-                    &stream.stream,
-                    now_ms(),
-                    &self.account.caller.account_id,
-                )
+                && let Some(update) =
+                    manifest.mark_deleted(&stream.stream, now_ms(), &self.account.caller.account_id)
             {
                 self.store
                     .push_book_outbox(&share_id, MANIFEST_STREAM, &update)?;

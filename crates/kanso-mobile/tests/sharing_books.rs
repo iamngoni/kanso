@@ -585,7 +585,10 @@ fn edits_that_meet_in_a_notebook_note_ask_which_to_keep() {
     bob.sync();
     alice.sync();
     let snap = session.snapshot().unwrap();
-    assert_eq!(snap.save, kanso_mobile::SaveState::Conflict { deleted: false });
+    assert_eq!(
+        snap.save,
+        kanso_mobile::SaveState::Conflict { deleted: false }
+    );
     assert_eq!(snap.text, "Pixel review from Alice");
     // Their version comes in when asked for.
     let theirs = session.use_theirs().unwrap();
@@ -607,7 +610,10 @@ fn a_note_deleted_here_and_edited_there_comes_back_saying_so() {
         event.book_notices,
         ["\"Brief\" was edited after you deleted it, so it's back."]
     );
-    assert_eq!(alice.body(&alice.note_in(&book, "Brief")), "Pixel review, cut 3");
+    assert_eq!(
+        alice.body(&alice.note_in(&book, "Brief")),
+        "Pixel review, cut 3"
+    );
     // Bob, who deleted nothing, is told nothing.
     assert!(bob.sync().book_notices.is_empty());
 }
