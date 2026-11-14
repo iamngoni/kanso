@@ -12,6 +12,8 @@ import '../../../core/services/preview_theme_fitter.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/utils/preview_themes_of.dart';
 import '../../../core/views/widgets/kanso_feedback.dart';
+import '../../../embargo/models/data/embargo_gate.dart';
+import '../../../embargo/views/widgets/embargo_sheet.dart';
 import '../../../injection.dart';
 import '../../../metrics/models/repos/abs/usage_metrics_repository.dart';
 import '../../state/export/note_pdf_exporter.dart';
@@ -30,6 +32,15 @@ Future<void> exportNotePdf(
   final origin = exportOriginOf(context);
   // The themes the note's preview is drawn in, taken while the menu is open.
   final themes = previewThemesOf(context);
+  // A note under embargo asks first.
+  final go = await confirmEmbargo(
+    context,
+    noteId: noteId,
+    gate: EmbargoGate.export,
+  );
+  if (!go || !context.mounted) {
+    return;
+  }
   final progress = OverlayEntry(
     builder: (_) => NoteExportProgress(label: l10n.noteExportPreparing),
   );

@@ -61,7 +61,7 @@
   },
   {
     "name": "kanso-add-task",
-    "description": "Add one task to a note, as a `- [ ] …` line after the note's last line. Nothing else in the note changes. A date and repeat at the end of the text are written as Kanso's own tokens: `film Pixel review fri 3pm every week` becomes `- [ ] film Pixel review @2026-11-13T15:00 every week`. Text that ends in no date is added as it is. Say where it goes with `noteId` (that note), or `target` (`daily`: today's daily note, made when missing, which is the default; `inbox`: the note titled Tasks in the Inbox, made when missing), not both. Returns the note's ID, the task's 0-based line, the line written, and its due date, repeat and a short label when it has them. A locked note is refused.",
+    "description": "Add one task to a note, as a `- [ ] …` line after the note's last line. Nothing else in the note changes. A date and repeat at the end of the text are written as Kanso's own tokens: `film Pixel review fri 3pm every week` becomes `- [ ] film Pixel review @2026-11-13T15:00 every week`. Text that ends in no date is added as it is. Say where it goes with `noteId` (that note), or `target` (`daily`: today's daily note, made when missing, which is the default; `inbox`: the Inbox's task note, Inbox tasks, which Quick Capture also adds to, made when missing), not both. Returns the note's ID, the task's 0-based line, the line written, and its due date, repeat and a short label when it has them. A locked note is refused.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
@@ -480,7 +480,7 @@
   },
   {
     "name": "kanso-export-html",
-    "description": "Export a note as one self-contained HTML page, as Kanso's \"Export as web page\" does. TeX math ($…$ and $$…$$), Mermaid diagrams and Excalidraw drawings are drawn as inline SVG, attached images are embedded as data URIs, and the page has no scripts and loads nothing from the network. Returns the HTML.",
+    "description": "Export a note as one self-contained HTML page, as Kanso's \"Export as web page\" does. TeX math ($…$ and $$…$$), Mermaid diagrams and Excalidraw drawings are drawn as inline SVG, attached images are embedded as data URIs, and the page has no scripts and loads nothing from the network. Returns the HTML. A note whose `embargo` property is still to come is refused unless ignoreEmbargo is true.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
@@ -497,6 +497,11 @@
             "light",
             "dark"
           ]
+        },
+        "ignoreEmbargo": {
+          "type": "boolean",
+          "default": false,
+          "description": "Export the note even though its embargo has not lifted yet. Only set this when the person asked to export it before the embargo date."
         }
       },
       "required": [

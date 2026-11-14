@@ -173,14 +173,18 @@ export const TOPICS: readonly Topic[] = [
         </pre>
         <p>
           So the note keeps a record of each time. One undo takes both changes back, and unticking the old line leaves the new
-          one. To stop a task repeating, delete its <code>every …</code> words. As before, only a task with a time reminds you;
+          one. To stop a task repeating, open its date's menu (right-click the date on a computer, tap it on a phone) and choose{" "}
+          <strong>Stop Repeating</strong>. Kanso removes the <code>every …</code> words and keeps the date. Deleting those
+          words yourself does the same. As before, only a task with a time reminds you;
           a repeating one reminds you each time, and ticking it from the reminder writes the next one too.
         </p>
         <p>
           Quick Capture (<strong>⌃⌥Space</strong> on a computer, the capture sheet on a phone) has a <strong>Note | Task</strong>{" "}
           switch. In Task mode the whole text is one task, with the same hint under the field. Tasks go to today's daily note, or
           to the Inbox if you choose that under <strong>Captured tasks go to</strong> (Settings › General › Quick capture on a
-          computer, Settings on a phone).
+          computer, Settings on a phone). Inbox tasks collect in one note in the Inbox, <strong>Inbox tasks</strong>, whether
+          they come from Quick Capture, Raycast or an agent. Tasks an older version of Raycast or an agent put in a note called
+          "Tasks" in the Inbox are moved into it the next time a task goes to the Inbox, and the old note goes to the trash.
         </p>
       </>
     ),

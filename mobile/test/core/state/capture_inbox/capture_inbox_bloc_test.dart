@@ -7,19 +7,22 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glados/glados.dart' as glados;
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/state/capture_inbox/capture_inbox_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../../helpers/mock_repositories.dart';
+import '../../../helpers/property.dart';
 
 Either<ApplicationError, DropsSaved> _saved(
   List<String> notes, {
+  List<String> tasks = const <String>[],
   List<String> problems = const <String>[],
   int kept = 0,
 }) => Right<ApplicationError, DropsSaved>(
-  DropsSaved(notes: notes, problems: problems, kept: kept),
+  DropsSaved(notes: notes, tasks: tasks, problems: problems, kept: kept),
 );
 
 void main() {
@@ -55,6 +58,58 @@ void main() {
         ),
       ],
       verify: (_) => verify(() => capture.saveDrops()).called(1),
+    );
+
+    blocTest<CaptureInboxBloc, CaptureInboxState>(
+      'reports the tasks "Add Kanso task" left while the app was closed',
+      setUp: () => when(() => capture.saveDrops()).thenAnswer(
+        (_) async => _saved(
+          <String>['note:cap-a'],
+          tasks: <String>[
+            '- [ ] film Pixel review @2026-11-13T15:00 every week',
+          ],
+        ),
+      ),
+      build: build,
+      act: (bloc) => bloc.add(const CaptureInboxEvent.saveRequested()),
+      expect: () => const <CaptureInboxState>[
+        CaptureInboxState(saving: true),
+        CaptureInboxState(
+          saved: <String>['note:cap-a'],
+          savedCount: 1,
+          tasks: <String>[
+            '- [ ] film Pixel review @2026-11-13T15:00 every week',
+          ],
+          taskCount: 1,
+        ),
+      ],
+    );
+
+    glados.Glados<List<int>>(
+      glados.any.list(glados.any.intInRange(0, 4)),
+      kansoExploreConfig(),
+    ).test(
+      "the task count is every save's tasks added up, the list the last one",
+      (counts) async {
+        final answers = <Either<ApplicationError, DropsSaved>>[
+          for (final (save, count) in counts.indexed)
+            _saved(
+              <String>[],
+              tasks: <String>[for (var i = 0; i < count; i++) '- [ ] $save.$i'],
+            ),
+        ];
+        final local = MockCaptureRepository();
+        when(local.saveDrops).thenAnswer((_) async => answers.removeAt(0));
+        final bloc = CaptureInboxBloc(local);
+        for (var i = 0; i < counts.length; i++) {
+          bloc.add(const CaptureInboxEvent.saveRequested());
+          await bloc.stream.firstWhere((state) => !state.saving);
+        }
+        expect(bloc.state.taskCount, counts.fold<int>(0, (a, b) => a + b));
+        expect(bloc.state.tasks.length, counts.isEmpty ? 0 : counts.last);
+        expect(bloc.state.savedCount, 0);
+        await bloc.close();
+      },
     );
 
     blocTest<CaptureInboxBloc, CaptureInboxState>(

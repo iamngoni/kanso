@@ -5,8 +5,12 @@
     <string name="share_nothing">There was nothing to save.</string>
     <string name="share_failed">Kanso couldn\'t save this. Try again.</string>
 
-    <string name="shortcut_new_short">New note</string>
-    <string name="shortcut_new_long">Write a new note</string>
+    <string name="shortcut_new_short">Capture</string>
+    <string name="shortcut_new_long">Capture a new note</string>
+    <string name="shortcut_task_short">Add task</string>
+    <string name="shortcut_task_long">Add a task</string>
+    <string name="shortcut_search_short">Search</string>
+    <string name="shortcut_search_long">Search your notes</string>
     <string name="shortcut_voice_short">Voice note</string>
     <string name="shortcut_voice_long">Record a voice note</string>
     <string name="shortcut_today_short">Today</string>
@@ -20,6 +24,7 @@
     <string name="tile_voice_label">Voice note</string>
     <string name="tile_voice_idle">Tap to record</string>
     <string name="tile_voice_recording">Recording</string>
+    <string name="tile_task_label">Add task</string>
 
     <string name="recording_channel_name">Recording</string>
     <string name="recording_notification_title">Kanso is recording</string>

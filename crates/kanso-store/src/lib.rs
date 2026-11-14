@@ -14,6 +14,8 @@ mod cards_model;
 pub mod collab;
 mod derived;
 mod doc;
+mod embargo;
+mod embargo_model;
 mod embed;
 mod encrypt;
 mod encrypt_backups;
@@ -79,6 +81,7 @@ pub use collab::model::{
 pub use collab::{LOCKED_SHARED, SharedCanvas, SharedText};
 pub use derived::{Backlink, DERIVED_VERSION, DERIVED_VERSION_KEY, HeadingHit};
 pub use doc::{Attachment, Doc};
+pub use embargo_model::EmbargoNote;
 pub use embed::{
     EmbeddedNote, EmbeddedPassage, Embedder, EmbeddingQueue, MODEL_KEY as EMBED_MODEL_KEY,
     PendingEmbedding, RelatedNote, content_hash, cosine, embed_text, top_k,
@@ -138,7 +141,10 @@ pub use restore::{
 };
 pub use roles::{DAILY_TEMPLATE_FIELD, DailyNote, FromTemplate, NewNote};
 pub use sync::{ApplyOutcome, SyncDoc, SyncGuard, SyncState};
-pub use task_add::{INBOX_TASKS_TITLE, TaskAdded, TaskTarget};
+pub use task_add::{
+    INBOX_TASKS_ID, INBOX_TASKS_TITLE, LEGACY_INBOX_TASKS_TITLE, TaskAdded, TaskTarget,
+    merge_task_bodies,
+};
 pub use tasks::{CheckOff, ReminderTask, TaskQuery, TaskRow, TickResult, TickUndo, local_today};
 pub use trash_model::{Emptied, FileDrop, TrashCounts};
 pub use triage::{INBOX_TRIAGED_FIELD, InboxNote, TriagePool};

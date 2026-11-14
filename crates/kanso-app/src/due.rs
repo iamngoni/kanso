@@ -16,6 +16,7 @@ use gpui_kit::base::text::{
     markdown_ast,
 };
 use gpui_kit::component::input::EditorState;
+use gpui_kit::component::menu::{ContextMenuExt as _, PopupMenuItem};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::tasks::Due;
@@ -29,6 +30,15 @@ pub use kanso_engine::tasks::{
     ChipColor, Tone, chip_label, date_choices, date_query, long_label, marks, parse_due_link,
     repeat_choices, repeat_query, tone,
 };
+
+/// The chip menu's item (and the editor's) that ends a task's repeat.
+pub const STOP_REPEATING: &str = "Stop Repeating";
+
+/// "Stop Repeating" from the editor's text menu, for the task on the
+/// caret's line.
+#[derive(Clone, Debug, Default, PartialEq, Action)]
+#[action(namespace = kanso, no_json)]
+pub struct StopRepeating;
 
 /// What marks a repeating task's chip, after its date: `Fri 14 Nov 15:00 ↻`.
 pub const REPEAT_MARK: &str = "\u{21bb}";
@@ -68,14 +78,43 @@ struct Chip {
     due: Due,
     checked: bool,
     repeat: Option<Repeat>,
+    /// The whole line of the shown text the chip is on: what names its task
+    /// to "Stop Repeating".
+    line: String,
 }
 
 /// Draws the links due dates become: a small rounded chip with the date in
-/// words, tinted by how near it is.
-pub struct DueChip;
+/// words, tinted by how near it is. An open repeating task's chip has a
+/// menu with "Stop Repeating", which asks the editor through `edits`.
+pub struct DueChip {
+    edits: crate::preview::ResizeSender,
+}
 
 impl DueChip {
     pub const NAME: &'static str = "kanso-due-chip";
+
+    pub fn new(edits: crate::preview::ResizeSender) -> Self {
+        Self { edits }
+    }
+}
+
+/// The line of `source` that byte `at` is on, without its line break.
+pub fn line_around(source: &str, at: usize) -> &str {
+    let at = at.min(source.len());
+    let start = source[..at].rfind('\n').map_or(0, |i| i + 1);
+    let end = source[at..].find('\n').map_or(source.len(), |i| at + i);
+    source[start..end].trim_end_matches('\r')
+}
+
+/// `note` with "Stop Repeating" done for a chip on the line of `shown` (the
+/// preview's text of `note`, which has the same lines) that reads `line`:
+/// the first such line whose task in `note` is open and repeats.
+pub fn stop_repeating_shown(note: &str, shown: &str, line: &str) -> Option<String> {
+    shown
+        .split('\n')
+        .enumerate()
+        .filter(|(_, text)| text.trim_end_matches('\r') == line)
+        .find_map(|(ix, _)| kanso_core::tick::stop_repeating(note, ix as u32))
 }
 
 /// A chip's text and fill colors for `tone`.
@@ -117,6 +156,10 @@ impl MarkdownPlugin for DueChip {
         };
         let (due, checked, repeat) = parse_due_link(&link.url)?;
         let source = cx.node_source(node).unwrap_or_default().to_owned();
+        let line = node
+            .position()
+            .map(|at| line_around(cx.source(), at.start.offset).to_owned())
+            .unwrap_or_default();
         Some(
             MarkdownNode::new(
                 Self::NAME,
@@ -124,6 +167,7 @@ impl MarkdownPlugin for DueChip {
                     due,
                     checked,
                     repeat,
+                    line,
                 },
             )
             .text(format!("@{}", due.format()))
@@ -180,6 +224,27 @@ impl MarkdownPlugin for DueChip {
             .tooltip(move |window, cx| {
                 gpui_kit::component::tooltip::Tooltip::new(tooltip.clone()).build(window, cx)
             });
+        // An open repeating task's chip menu: "Stop Repeating" keeps the
+        // date and drops the `every …` words.
+        let element = if chip.repeat.is_some() && !chip.checked && !chip.line.is_empty() {
+            let edits = self.edits.clone();
+            let line = chip.line.clone();
+            element
+                .context_menu(move |menu, _, _| {
+                    let edits = edits.clone();
+                    let line = line.clone();
+                    menu.item(PopupMenuItem::new(STOP_REPEATING).on_click(move |_, _, _| {
+                        edits
+                            .try_send(crate::preview::PreviewEdit::StopRepeating {
+                                shown_line: line.clone(),
+                            })
+                            .ok();
+                    }))
+                })
+                .into_any_element()
+        } else {
+            element.into_any_element()
+        };
         Some(InlineElement::new(element))
     }
 }
@@ -313,4 +378,91 @@ pub fn completions(text: &Rope, offset: usize, cx: &App) -> Option<Vec<Completio
         })
         .collect::<Vec<_>>();
     (!items.is_empty()).then_some(items)
+}
+
+#[cfg(test)]
+mod stop_tests {
+    use super::{line_around, rewrite_for_preview, stop_repeating_shown};
+    use gpui_kit::SharedString;
+    use proptest::prelude::*;
+    use proptest::test_runner::{Config, RngAlgorithm, RngSeed};
+
+    fn shown(note: &str) -> String {
+        rewrite_for_preview(&SharedString::from(note.to_owned())).to_string()
+    }
+
+    #[test]
+    fn a_chip_names_its_task_by_its_shown_line() {
+        let note = "# Week\n- [ ] meds @2026-11-13 every day\n- [ ] walk @2026-11-13 every day\n";
+        let page = shown(note);
+        let line = page.lines().nth(2).unwrap();
+        let at = page.find(line).unwrap() + line.find('@').unwrap();
+        assert_eq!(line_around(&page, at), line);
+        assert_eq!(
+            stop_repeating_shown(note, &page, line).unwrap(),
+            "# Week\n- [ ] meds @2026-11-13 every day\n- [ ] walk @2026-11-13\n"
+        );
+        // A line that isn't there, or doesn't repeat, does nothing.
+        assert_eq!(stop_repeating_shown(note, &page, "# Week"), None);
+        assert_eq!(stop_repeating_shown(note, &page, "gone"), None);
+    }
+
+    fn config() -> Config {
+        Config {
+            cases: 256,
+            rng_seed: RngSeed::Fixed(20_261_017),
+            rng_algorithm: RngAlgorithm::ChaCha,
+            failure_persistence: None,
+            ..Config::default()
+        }
+    }
+
+    fn gen_line() -> impl Strategy<Value = String> {
+        (
+            prop_oneof![Just("- [ ] "), Just("- [x] "), Just("text ")],
+            "[a-z]{1,6}",
+            prop_oneof![
+                Just(""),
+                Just(" every week"),
+                Just(" every 2 days after done")
+            ],
+        )
+            .prop_map(|(lead, words, rule)| format!("{lead}{words} @2026-11-13{rule}"))
+    }
+
+    proptest! {
+        #![proptest_config(config())]
+
+        /// A chip's shown line stops the repeat of a task on a line that
+        /// reads the same and nothing else.
+        #[test]
+        fn prop_a_shown_line_stops_its_own_task(
+            lines in prop::collection::vec(gen_line(), 1..6),
+            pick in any::<prop::sample::Index>(),
+        ) {
+            let note = format!("{}\n", lines.join("\n"));
+            let page = shown(&note);
+            let ix = pick.index(lines.len());
+            let line = page.lines().nth(ix).unwrap();
+            let offset: usize = page.lines().take(ix).map(|l| l.len() + 1).sum();
+            prop_assert_eq!(line_around(&page, offset + line.len() / 2), line);
+            match stop_repeating_shown(&note, &page, line) {
+                Some(out) => {
+                    let changed: Vec<usize> = note.lines().zip(out.lines()).enumerate()
+                        .filter(|(_, (a, b))| a != b).map(|(i, _)| i).collect();
+                    prop_assert_eq!(changed.len(), 1);
+                    prop_assert_eq!(page.lines().nth(changed[0]).unwrap(), line);
+                    prop_assert!(!out.lines().nth(changed[0]).unwrap().contains("every"));
+                }
+                None => {
+                    for (i, shown_line) in page.lines().enumerate() {
+                        if shown_line == line {
+                            let raw = note.lines().nth(i).unwrap();
+                            prop_assert!(!(raw.starts_with("- [ ] ") && raw.contains("every")));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

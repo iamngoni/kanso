@@ -515,6 +515,9 @@ impl NoteEditor {
                             this.sketch_to_canvas(&id, window, cx)
                         }
                         PreviewEdit::OpenFile(url) => this.open_file_link(&url, window, cx),
+                        PreviewEdit::StopRepeating { shown_line } => {
+                            this.stop_repeating_shown(&shown_line, window, cx)
+                        }
                     })
                     .is_err()
                 {
@@ -3129,6 +3132,14 @@ impl NoteEditor {
             .menu_with_disabled("Paste", !editable, Box::new(Paste))
             .separator()
             .menu("Select All", Box::new(SelectAll));
+        // A repeating task's date chip is drawn on the caret's line: its
+        // menu item is here too.
+        if editable && !self.lock.is_closed() && self.repeating_task_on_caret_line(cx).is_some() {
+            menu = menu.separator().menu(
+                crate::due::STOP_REPEATING,
+                Box::new(crate::due::StopRepeating),
+            );
+        }
         // The inline assistant works on a selection, while AI is on.
         let assists = self.inline_menu(cx);
         if !assists.is_empty() {
@@ -3869,6 +3880,57 @@ impl NoteEditor {
         if ticked {
             crate::metrics::record(cx, crate::metrics::Feature::TaskToggled);
         }
+    }
+
+    /// "Stop Repeating" from a due chip's menu in the preview: the open
+    /// repeating task on the shown line that reads `shown_line` keeps its
+    /// date and loses its `every …` words, as one undo step.
+    // no-prop-test: glue; `kanso_core::tick::stop_repeating` and
+    // `due::stop_repeating_shown` have the properties.
+    fn stop_repeating_shown(
+        &mut self,
+        shown_line: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.takes_preview_edits(cx) {
+            return;
+        }
+        let shown = self.preview.read(cx).shown().clone();
+        self.smart_edit(window, cx, |_, text, selection| {
+            let stopped = crate::due::stop_repeating_shown(text, &shown, shown_line)?;
+            body_edit(text, &stopped, selection)
+        });
+    }
+
+    /// The line (0-based) of the caret, when an open repeating task is on
+    /// it: what the text menu's "Stop Repeating" acts on.
+    fn repeating_task_on_caret_line(&self, cx: &App) -> Option<u32> {
+        let state = self.body.read(cx);
+        let text = state.value();
+        let at = state.selected_range().start.min(text.len());
+        let line = text[..at].matches('\n').count() as u32;
+        kanso_core::tick::stop_repeating(&text, line).map(|_| line)
+    }
+
+    /// "Stop Repeating" from the text's menu, for the task on the caret's
+    /// line, as one undo step.
+    // no-prop-test: glue; `kanso_core::tick::stop_repeating` has the properties.
+    fn stop_repeating(
+        &mut self,
+        _: &crate::due::StopRepeating,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.note.is_none() || self.text_read_only || self.lock.is_closed() {
+            return;
+        }
+        self.smart_edit(window, cx, |_, text, selection| {
+            let at = selection.start.min(text.len());
+            let line = text[..at].matches('\n').count() as u32;
+            let stopped = kanso_core::tick::stop_repeating(text, line)?;
+            body_edit(text, &stopped, selection)
+        });
     }
 
     /// Whether the preview may rewrite the note's text: it is open for
@@ -5104,6 +5166,44 @@ impl NoteEditor {
             )
     }
 
+    /// The open note's embargo while it is in force, read from the note as
+    /// last saved (a typed date shows once it is saved).
+    pub fn embargo(&self, cx: &App) -> Option<kanso_core::embargo::Embargo> {
+        let note = self.note.as_ref()?;
+        let now = Clock::now_ms(cx);
+        kanso_core::embargo::check(&note.body, now, Clock::local_ms(cx, now))
+    }
+
+    /// The line under the title of a note under embargo: "Embargoed until
+    /// Tue 18 Nov, 09:00 New York."
+    // no-prop-test: drawing; `kanso_core::embargo` carries the logic.
+    fn render_embargo_banner(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let embargo = self.embargo(cx)?;
+        let colors = Colors::get(cx);
+        Some(
+            h_flex()
+                .flex_none()
+                .gap_2()
+                .items_center()
+                .mx(px(TEXT_INSET - 12.))
+                .my_1()
+                .px(px(12.))
+                .py(px(6.))
+                .rounded(px(6.))
+                .bg(Hsla::from(colors.warning).opacity(0.14))
+                .text_size(px(12.5))
+                .text_color(colors.text)
+                .debug_selector(|| "embargo-banner".into())
+                .child(
+                    Icon::new(Lucide::Pause)
+                        .size(px(13.))
+                        .text_color(colors.warning),
+                )
+                .child(div().flex_1().min_w_0().child(embargo.banner()))
+                .into_any_element(),
+        )
+    }
+
     /// A quiet line when another note says nearly the same as this one,
     /// with Open, Merge and a way to say they're different.
     fn render_twin_banner(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -6031,6 +6131,7 @@ impl Render for NoteEditor {
             .capture_action(cx.listener(Self::on_enter))
             .capture_action(cx.listener(Self::on_paste))
             .on_action(cx.listener(Self::correct_spelling))
+            .on_action(cx.listener(Self::stop_repeating))
             .on_action(cx.listener(Self::inline_assist))
             .on_action(cx.listener(Self::learn_spelling))
             .on_action(cx.listener(Self::ignore_spelling))
@@ -6211,6 +6312,7 @@ impl Render for NoteEditor {
             .bg(colors.editor)
             .child(top)
             .when(trashed, |el| el.child(self.render_trash_banner(cx)))
+            .when(!trashed, |el| el.children(self.render_embargo_banner(cx)))
             .when_some(self.incoming.as_ref(), |el, incoming| {
                 let deleted = matches!(incoming, Incoming::Deleted);
                 el.child(self.render_incoming_banner(deleted, cx))

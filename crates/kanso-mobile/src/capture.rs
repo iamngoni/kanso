@@ -20,11 +20,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
+use kanso_core::dates::{Date, DateTime};
 use kanso_core::model::{MAX_ATTACHMENT_SIZE, MAX_PDF_SIZE};
 use kanso_engine::attach::too_large_file;
 use kanso_engine::capture::{
     CaptureError, MAX_SHARED_FILES, Shared, SharedFile, is_drop_id, save_shared,
 };
+use kanso_engine::capture_task::{TaskTarget, save_task_line};
 use kanso_import::library::notes_html::{placeholder, share_markdown};
 use kanso_store::{Origin, Store};
 use serde_json::Value;
@@ -63,7 +65,7 @@ impl Library {
     pub fn save_drops(&self, inbox: &Path) -> Result<DropsSaved, KansoError> {
         guard(|| {
             let saved = save_drops_at(&self.inner.store, inbox, SystemTime::now())?;
-            if !saved.notes.is_empty() {
+            if !saved.notes.is_empty() || !saved.tasks.is_empty() {
                 self.inner
                     .metrics()
                     .count(crate::metrics::Feature::QuickCapture);
@@ -165,13 +167,14 @@ pub fn save_inbox(
 
 impl DropsSaved {
     /// The JSON the C entry returns:
-    /// `{"notes": [...], "problems": [...], "kept": 0}`.
+    /// `{"notes": [...], "tasks": [...], "problems": [...], "kept": 0}`.
     pub fn to_json(&self) -> String {
         // Written in this order whatever the JSON library's map keeps.
         let list = |items: &[String]| Value::from(items).to_string();
         format!(
-            r#"{{"notes":{},"problems":{},"kept":{}}}"#,
+            r#"{{"notes":{},"tasks":{},"problems":{},"kept":{}}}"#,
             list(&self.notes),
+            list(&self.tasks),
             list(&self.problems),
             self.kept
         )
@@ -202,6 +205,8 @@ enum Unreadable {
 enum Fate {
     /// Saved, or already saved: the note's ID, and what was left out.
     Saved(String, Vec<String>),
+    /// A task drop's line, written into a note.
+    Task(String),
     /// Never to be saved; say why.
     Refused(String),
     /// Try again later; say why.
@@ -284,6 +289,10 @@ fn save_drops_at(store: &Store, inbox: &Path, now: SystemTime) -> Result<DropsSa
                 saved.notes.push(note);
                 saved.problems.extend(problems);
             }
+            Fate::Task(line) => {
+                remove(&drop.folder);
+                saved.tasks.push(line);
+            }
             Fate::Refused(problem) => {
                 remove(&drop.folder);
                 saved.problems.push(problem);
@@ -315,6 +324,9 @@ fn save_one(store: &Store, drop: &Found) -> Fate {
             );
         }
     };
+    if manifest.get("kind").and_then(Value::as_str) == Some(TASK_KIND) {
+        return save_task_drop(store, manifest);
+    }
     let (shared, mut problems) = match shared_from(manifest, &drop.folder) {
         Ok(read) => read,
         Err(err) => {
@@ -345,6 +357,87 @@ fn save_one(store: &Store, drop: &Found) -> Fate {
         }
         Err(err) => Fate::Kept(format!(
             "A shared item couldn't be saved yet ({err}). It will be tried again."
+        )),
+    }
+}
+
+/// What a task drop's `drop.json` says it is.
+const TASK_KIND: &str = "task";
+
+/// What a task drop asks for: its line, written at its target in the daily
+/// note of the day it was captured.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct TaskDrop {
+    pub line: String,
+    pub target: TaskTarget,
+    pub at: DateTime,
+}
+
+/// Reads a task drop (`"kind": "task"`, see `mobile/docs/capture.md`):
+/// `line`, the task line the parser wrote; `day`, the phone's local date
+/// it was captured on (`YYYY-MM-DD`), with `time` (`HH:MM`) when given;
+/// `target`, `dailyNote` (the default) or `inbox`. `None` when the line
+/// isn't one task line or the day isn't a date. Pure.
+pub(crate) fn task_drop(manifest: &Value) -> Option<TaskDrop> {
+    let text = |key: &str| manifest.get(key).and_then(Value::as_str);
+    let line = kanso_engine::capture_task::checked_task_line(text("line")?)?.to_owned();
+    let date = Date::parse_iso(text("day")?)?;
+    let (hour, minute) = match text("time") {
+        None => (0, 0),
+        Some(time) => {
+            let (hour, minute) = time.split_once(':')?;
+            let (hour, minute) = (hour.parse::<u32>().ok()?, minute.parse::<u32>().ok()?);
+            if hour > 23 || minute > 59 {
+                return None;
+            }
+            (hour, minute)
+        }
+    };
+    let target = match text("target") {
+        None | Some("dailyNote") => TaskTarget::DailyNote,
+        Some("inbox") => TaskTarget::Inbox,
+        Some(_) => return None,
+    };
+    Some(TaskDrop {
+        line,
+        target,
+        at: DateTime {
+            date,
+            hour,
+            minute,
+            second: 0,
+        },
+    })
+}
+
+/// Writes a task drop's line. A drop that can't be read, or whose place is
+/// locked, is refused and the task's words are said, so the person can add
+/// it by hand; a failure that may pass keeps it.
+///
+/// Unlike a share, a task written twice is two lines: a crash between the
+/// write and the folder's removal leaves a duplicate the person can see and
+/// delete, never a lost task.
+fn save_task_drop(store: &Store, manifest: &Value) -> Fate {
+    let Some(task) = task_drop(manifest) else {
+        return Fate::Refused("A task from Shortcuts couldn't be read and was discarded.".into());
+    };
+    match save_task_line(store, &task.line, task.target, task.at, Origin::Ui) {
+        Ok(_) => Fate::Task(task.line),
+        Err(CaptureError::Locked) => {
+            let place = match task.target {
+                TaskTarget::DailyNote => "The Journal",
+                TaskTarget::Inbox => "The Inbox",
+            };
+            let words = task.line.trim_start_matches("- [ ] ");
+            Fate::Refused(format!(
+                "{place} is locked, so a task from Shortcuts wasn't added: “{words}”."
+            ))
+        }
+        Err(err) if err.is_final() => Fate::Refused(format!(
+            "A task from Shortcuts couldn't be added ({err}) and was discarded."
+        )),
+        Err(err) => Fate::Kept(format!(
+            "A task from Shortcuts couldn't be added yet ({err}). It will be tried again."
         )),
     }
 }

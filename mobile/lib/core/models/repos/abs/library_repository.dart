@@ -124,6 +124,16 @@ abstract interface class LibraryRepository {
     required String baseRev,
   });
 
+  /// "Stop repeating" from a due chip's menu: the [index]-th task of the
+  /// note [noteId], as the preview drawn at [baseRev] numbered it, loses
+  /// its `every …` words and keeps its date, in one write. A
+  /// [ConflictError] when the note has changed since.
+  Future<Either<ApplicationError, Ticked>> stopRepeatingAt({
+    required String noteId,
+    required int index,
+    required String baseRev,
+  });
+
   /// The highlights each PDF has in the note [noteId] (the list its
   /// preview's "4 highlights" line opens).
   Future<Either<ApplicationError, List<PdfNotes>>> pdfHighlights(String noteId);

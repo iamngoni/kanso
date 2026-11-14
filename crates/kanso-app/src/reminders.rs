@@ -18,7 +18,7 @@ use gpui_kit::component::switch::Switch;
 use gpui_kit::*;
 use kanso_core::dates::DateTime;
 use kanso_engine::tasks::reminders::{
-    self, ACTIONS, Answer, MAX_WAIT, SHOWN_META, Shown, parse_shown,
+    self, ACTIONS, Answer, MARK_DONE, MAX_WAIT, SHOWN_META, Shown, parse_shown,
 };
 use kanso_store::{ReminderTask, Store};
 
@@ -52,8 +52,10 @@ fn notification_for(task: &ReminderTask, today: kanso_core::dates::Date) -> Syst
         tag: said.tag.into(),
         title: said.title.into(),
         body: said.body.into(),
+        // An embargo's lift notice has nothing to tick off.
         actions: ACTIONS
             .iter()
+            .filter(|(id, _)| !reminders::is_lift_notice(&task.key) || *id != MARK_DONE)
             .map(|(id, label)| SystemNotificationAction {
                 id: (*id).into(),
                 label: (*label).into(),
@@ -119,6 +121,21 @@ pub fn init(store: Arc<Store>, open_window: fn(&mut App), cx: &mut App) {
     .detach();
 }
 
+/// Reminders over `store` on the test platform, which shows notifications
+/// without an app bundle.
+#[cfg(test)]
+pub(crate) fn install_for_test(store: Arc<Store>, cx: &mut App) {
+    cx.set_global(Reminders {
+        store,
+        on_screen: HashMap::new(),
+        shown: BTreeMap::new(),
+        open_window: |_| {},
+        generation: 0,
+        assume_app: true,
+    });
+    cx.on_system_notification_response(respond);
+}
+
 /// The tasks may have changed: look again soon.
 pub fn poke(cx: &mut App) {
     if cx.has_global::<Reminders>() {
@@ -137,7 +154,9 @@ pub fn check(cx: &mut App) -> Duration {
     let now_local = Clock::local_ms(cx, now_ms);
     let today = DateTime::from_local_ms(now_local).date;
     let store = cx.global::<Reminders>().store.clone();
-    let tasks = store.reminder_tasks().unwrap_or_default();
+    // Tasks with a time, and the embargoes' lift notices.
+    let tasks =
+        reminders::reminder_tasks(&store, &|utc| Clock::local_ms(cx, utc)).unwrap_or_default();
     let notes: Vec<(SystemNotification, Shown)> =
         reminders::due(&tasks, &cx.global::<Reminders>().shown, now_local)
             .into_iter()

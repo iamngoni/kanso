@@ -152,7 +152,8 @@ impl KansoShared {
 
     /// How far a notebook being shared has got, until Dart stops listening.
     pub fn book_progress(&self, sink: StreamSink<BookShareProgress>) {
-        self.0.book_progress(move |progress| sink.add(progress).is_ok());
+        self.0
+            .book_progress(move |progress| sink.add(progress).is_ok());
     }
 
     /// A notebook's sharing; `None` when it isn't shared.
@@ -198,6 +199,13 @@ impl KansoShared {
     #[frb(sync)]
     pub fn book_words(&self, name: String, who: String) -> BookWords {
         self.0.book_words(name, who)
+    }
+
+    /// "Update Kanso to open this shared notebook." once the server said
+    /// this Kanso is too old for shared notebooks; null until then.
+    #[frb(sync)]
+    pub fn book_update_line(&self) -> Option<String> {
+        self.0.book_update_line()
     }
 
     pub fn book_invitations(&self) -> Result<Vec<BookInvitationRow>, KansoError> {

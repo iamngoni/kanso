@@ -103,13 +103,16 @@ class PreviewList extends StatelessWidget {
   }) {
     final scope = PreviewScope.of(context);
     final style = scope.style;
-    Widget nested(List<PreviewBlock> blocks) => PreviewScope.nested(
-      context,
-      depth: scope.depth + 1,
-      style: item.task?.checked ?? false
-          ? style.withText(style.taskDone)
-          : null,
-      child: PreviewBlocks(blocks, tight: tight),
+    Widget nested(List<PreviewBlock> blocks) => PreviewTaskPlace(
+      index: item.task?.index,
+      child: PreviewScope.nested(
+        context,
+        depth: scope.depth + 1,
+        style: item.task?.checked ?? false
+            ? style.withText(style.taskDone)
+            : null,
+        child: PreviewBlocks(blocks, tight: tight),
+      ),
     );
     Widget beside(Widget lead, List<PreviewBlock> blocks) => Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,4 +233,26 @@ class PreviewTaskCheckbox extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The place in the note's task list of the task whose text is below it
+/// ([index]; null in an item that isn't a task, or a box that can't be
+/// ticked from here): what a due chip on that line names when it asks to
+/// stop repeating.
+class PreviewTaskPlace extends InheritedWidget {
+  const PreviewTaskPlace({
+    required this.index,
+    required super.child,
+    super.key,
+  });
+
+  final int? index;
+
+  /// The task place around [context], or null outside a task item.
+  static int? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<PreviewTaskPlace>()?.index;
+
+  @override
+  bool updateShouldNotify(PreviewTaskPlace oldWidget) =>
+      index != oldWidget.index;
 }

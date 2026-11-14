@@ -14,6 +14,7 @@ import 'cards.dart';
 import 'discovery.dart';
 import 'draft.dart';
 import 'editor.dart';
+import 'embargo_types.dart';
 import 'feedback.dart';
 import 'gallery.dart';
 import 'linking.dart';
@@ -202,6 +203,15 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required String bookId,
     required LaneChange change,
     required int nowMs,
+  });
+
+  /// The embargo of note `note_id` while it is in force at `now_utc_ms`,
+  /// in a phone whose local time is that plus `offset_ms`; `None` when
+  /// it has none or it has lifted.
+  Future<EmbargoView?> embargo({
+    required String noteId,
+    required int nowUtcMs,
+    required int offsetMs,
   });
 
   /// Deletes every note in the trash for good, locked ones and their
@@ -601,6 +611,15 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// The statuses a note can have, and what the desktop calls them.
   static List<StatusChoice> statuses() =>
       KansoCore.instance.api.crateApiLibraryKansoLibraryStatuses();
+
+  /// "Stop repeating" from a due chip's menu: the `index`-th task of a
+  /// note drawn at `base_rev` loses its `every …` words and keeps its due
+  /// date.
+  Future<Ticked> stopRepeatingAt({
+    required String noteId,
+    required int index,
+    required String baseRev,
+  });
 
   KansoSync syncing();
 

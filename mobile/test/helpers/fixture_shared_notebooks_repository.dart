@@ -88,6 +88,10 @@ class FixtureSharedNotebooksRepository implements SharedNotebooksRepository {
   final Map<String, List<NoteEditRow>> editsOf = <String, List<NoteEditRow>>{};
   final Map<String, BookSyncStatus> statuses = <String, BookSyncStatus>{};
 
+  /// What the Shared section says once the server refused this Kanso as too
+  /// old for shared notebooks; null while it is happy.
+  String? updateLineText;
+
   /// No account is signed in: every call fails with [SignedOutError].
   bool signedOut = false;
 
@@ -348,6 +352,9 @@ class FixtureSharedNotebooksRepository implements SharedNotebooksRepository {
         'Stop sharing "$name"? Everyone keeps a private copy of its notes '
         'as they are now.',
   );
+
+  @override
+  String? updateLine() => updateLineText;
 
   @override
   Future<Either<ApplicationError, List<BookInvitationRow>>>

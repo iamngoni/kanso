@@ -6,7 +6,7 @@ import { env } from "cloudflare:workers";
 import { type AdminIO, type Report, type RestoreTarget, type StatementResult, admin } from "../src/accounts";
 import { hashToken, sha256Hex } from "../src/crypto";
 import { type Env, handle } from "../src/index";
-import { MAX_SEALED_FILE, base64url, fromBase64url } from "../src/protocol";
+import { BOOK_PROTOCOL, BOOK_PROTOCOL_HEADER, MAX_SEALED_FILE, base64url, fromBase64url } from "../src/protocol";
 
 /** The fixtures' start: a UTC midnight. */
 export const START = 1_800_057_600_000;
@@ -59,6 +59,8 @@ export function request(path: string, init: Call = {}): Request {
 	const headers = new Headers(init.headers);
 	if (init.token !== undefined) headers.set("authorization", `Bearer ${init.token}`);
 	if (init.ip !== undefined) headers.set("cf-connecting-ip", init.ip);
+	// A current client states its shared-notebook level on every request; a test of an old one sets its own.
+	if (!headers.has(BOOK_PROTOCOL_HEADER)) headers.set(BOOK_PROTOCOL_HEADER, String(BOOK_PROTOCOL));
 	let body = init.body ?? null;
 	if (init.json !== undefined) {
 		body = JSON.stringify(init.json);

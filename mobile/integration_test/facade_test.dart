@@ -25,6 +25,7 @@ import '../test/core/bridge/suites/cards_suite.dart';
 import '../test/core/bridge/suites/diagnostics_suite.dart';
 import '../test/core/bridge/suites/discovery_suite.dart';
 import '../test/core/bridge/suites/editor_suite.dart';
+import '../test/core/bridge/suites/embargo_suite.dart';
 import '../test/core/bridge/suites/feedback_suite.dart';
 import '../test/core/bridge/suites/gallery_suite.dart';
 import '../test/core/bridge/suites/journal_suite.dart';
@@ -115,6 +116,7 @@ void main() {
   remindersSuite(openDeviceLibrary);
   shortcutsSuite(openDeviceLibrary);
   whenSuite(openDeviceLibrary);
+  embargoSuite(openDeviceLibrary);
   feedbackSuite(openDeviceLibrary);
 
   group('the platform verifier', () {

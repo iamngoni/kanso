@@ -22,6 +22,7 @@ import '../../../core/utils/note_liveness.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_icon_button.dart';
 import '../../../core/views/widgets/kanso_top_bar.dart';
+import '../../../embargo/views/widgets/embargo_strip.dart';
 import '../../../injection.dart';
 import '../../../journal/views/widgets/day_stepper.dart';
 import '../../../journal/views/widgets/journal_opener.dart';
@@ -274,6 +275,12 @@ class NotePane extends StatelessWidget {
                         ),
                       if (hasStatus && readable && !focusActive)
                         SharedNoteStatusStrip(gutter: gutter),
+                      if (readable && !focusActive)
+                        EmbargoStrip(
+                          noteId: shown.noteId,
+                          revision: note.rev,
+                          gutter: gutter,
+                        ),
                       if (readable && !focusActive)
                         VoiceTidyStrip(
                           noteId: shown.noteId,

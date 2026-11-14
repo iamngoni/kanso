@@ -5,6 +5,7 @@
 use std::io;
 use std::time::Duration;
 
+use kanso_sync::wire::{BOOK_PROTOCOL, BOOK_PROTOCOL_HEADER};
 use kanso_sync::ws::{Stream, WsError};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -26,6 +27,11 @@ use crate::model::PublicIdentity;
 /// base64url) and a little more.
 const MAX_RESPONSE: u64 = 12 * 1024 * 1024;
 const USER_AGENT: &str = concat!("kanso-sync/", env!("CARGO_PKG_VERSION"));
+
+/// What every request says of this client's shared-notebook level.
+fn level() -> String {
+    BOOK_PROTOCOL.to_string()
+}
 
 /// The Worker's shared-note routes.
 #[derive(Clone, Copy, Debug, Default)]
@@ -94,6 +100,7 @@ fn get(caller: &Caller, path: &str) -> Result<Option<Vec<u8>>> {
     answer(
         agent(&target)?
             .get(target)
+            .header(BOOK_PROTOCOL_HEADER, level())
             .header("authorization", caller.authorization.as_str())
             .call(),
     )
@@ -104,6 +111,7 @@ fn delete(caller: &Caller, path: &str) -> Result<()> {
     answer(
         agent(&target)?
             .delete(target)
+            .header(BOOK_PROTOCOL_HEADER, level())
             .header("authorization", caller.authorization.as_str())
             .call(),
     )
@@ -124,6 +132,7 @@ fn send_json<T: Serialize>(
     };
     answer(
         request
+            .header(BOOK_PROTOCOL_HEADER, level())
             .header("authorization", caller.authorization.as_str())
             .header("content-type", "application/json")
             .send(&bytes[..]),
@@ -139,6 +148,7 @@ fn send_bytes(
     let target = url(caller, path);
     let mut request = agent(&target)?
         .post(target)
+        .header(BOOK_PROTOCOL_HEADER, level())
         .header("authorization", caller.authorization.as_str())
         .header("content-type", "application/octet-stream");
     if let Some(seq) = base_seq {
@@ -417,7 +427,10 @@ impl WsLink {
         let socket = kanso_sync::ws::connect(
             &caller.server,
             path,
-            &[("authorization", caller.authorization.as_str())],
+            &[
+                ("authorization", caller.authorization.as_str()),
+                (BOOK_PROTOCOL_HEADER, level().as_str()),
+            ],
         )
         .map_err(|err| match err {
             WsError::Request(message) => CollabError::Protocol(message),
@@ -628,6 +641,25 @@ mod tests {
         assert!(lower.contains("content-type: application/octet-stream"));
         assert!(!lower.contains("\norigin:"));
         assert!(request.ends_with("envelope"));
+    }
+
+    #[test]
+    fn every_request_states_its_level_and_a_too_old_answer_is_the_refusal() {
+        let (server, asked) = one_answer(
+            "HTTP/1.1 426 Upgrade Required\r\ncontent-type: application/json\r\ncontent-length: 63\r\nconnection: close\r\n\r\n{\"error\":\"client_too_old\",\"message\":\"Update Kanso to use it.\"}\n",
+        );
+        let err = HttpCollab.books(&caller(server)).unwrap_err();
+        let request = asked.recv().unwrap().to_ascii_lowercase();
+        assert!(request.starts_with("get /v2/collab/books "), "{request}");
+        assert!(
+            request.contains(&format!("{BOOK_PROTOCOL_HEADER}: {BOOK_PROTOCOL}")),
+            "{request}"
+        );
+        assert!(err.is_client_too_old(), "{err:?}");
+        assert!(crate::old_client::client_refused());
+        // A plain upgrade demand is not the refusal.
+        let upgrade = CollabError::api(426, "upgrade_required", serde_json::json!({}));
+        assert!(!upgrade.is_client_too_old());
     }
 
     #[test]

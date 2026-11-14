@@ -104,6 +104,9 @@ pub struct ShareSheet {
     copied: bool,
     /// Stop sharing or Leave was pressed once; the next press does it.
     confirm_end: bool,
+    /// The note is under embargo and Make link was pressed: what the sheet
+    /// asks before making one.
+    embargo_ask: Option<kanso_core::embargo::Ask>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -322,9 +325,47 @@ impl ShareSheet {
         });
     }
 
+    /// What the sheet asks before making a link to a note under embargo,
+    /// while it asks.
+    #[cfg(test)]
+    pub fn embargo_ask(&self) -> Option<&kanso_core::embargo::Ask> {
+        self.embargo_ask.as_ref()
+    }
+
+    /// Makes an invite link, first asking when the note is under embargo.
+    pub fn make_link(&mut self, cx: &mut Context<Self>) {
+        if self.busy.is_some() || self.share_id.is_none() {
+            return;
+        }
+        let body = self
+            .editor
+            .read(cx)
+            .export_text(cx)
+            .map(|(_, body)| body)
+            .unwrap_or_default();
+        match crate::embargo_gate::ask_for(&body, kanso_core::embargo::Gate::ShareLink, cx) {
+            Some(ask) => {
+                self.embargo_ask = Some(ask);
+                cx.notify();
+            }
+            None => self.make_link_now(cx),
+        }
+    }
+
+    /// Makes the link past the embargo, as "Make link anyway" does.
+    pub fn make_link_anyway(&mut self, cx: &mut Context<Self>) {
+        self.embargo_ask = None;
+        self.make_link_now(cx);
+    }
+
+    fn keep_embargo(&mut self, cx: &mut Context<Self>) {
+        self.embargo_ask = None;
+        cx.notify();
+    }
+
     /// Makes an invite link with the chosen role and expiry. Its secret is
     /// only known here: the link shows until the sheet closes.
-    fn make_link(&mut self, cx: &mut Context<Self>) {
+    fn make_link_now(&mut self, cx: &mut Context<Self>) {
         let Some(share) = self.share_id.clone() else {
             return;
         };
@@ -908,6 +949,35 @@ impl ShareSheet {
                                     .on_click(cx.listener(|this, _, _, cx| this.make_link(cx))),
                             ),
                     )
+                    .when_some(self.embargo_ask.clone(), |el, ask| {
+                        el.child(
+                            crate::publish::embargo_box(&ask, "link-embargo", colors).child(
+                                h_flex()
+                                    .pt_1()
+                                    .gap_2()
+                                    .justify_end()
+                                    .child(
+                                        Button::new("link-embargo-cancel")
+                                            .small()
+                                            .label("Cancel")
+                                            .debug_selector(|| "link-embargo-cancel".into())
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.keep_embargo(cx)
+                                            })),
+                                    )
+                                    .child(
+                                        Button::new("link-embargo-go")
+                                            .small()
+                                            .primary()
+                                            .label(ask.confirm.clone())
+                                            .debug_selector(|| "link-embargo-go".into())
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.make_link_anyway(cx)
+                                            })),
+                                    ),
+                            ),
+                        )
+                    })
                     .when_some(self.made_link.clone(), |el, link| {
                         el.child(
                             h_flex()
@@ -1219,6 +1289,7 @@ pub fn open_share(
             done: None,
             copied: false,
             confirm_end: false,
+            embargo_ask: None,
             _subscriptions: subscriptions,
         };
         sheet.reload(cx);

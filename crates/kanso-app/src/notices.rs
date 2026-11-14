@@ -55,6 +55,7 @@ pub fn build_context(
     signed_in_to_sync: bool,
     library_key_saved: bool,
     library_plain: bool,
+    server_refused_client: bool,
 ) -> NoticeContext {
     NoticeContext {
         current,
@@ -63,6 +64,7 @@ pub fn build_context(
         signed_in_to_sync,
         library_key_saved,
         library_plain,
+        server_refused_client,
     }
 }
 
@@ -87,6 +89,9 @@ fn context(cx: &App) -> NoticeContext {
         // Set once, as the library opens: the secret store refused its key or
         // there wasn't room to encrypt it.
         cx.has_global::<PlainLibrary>(),
+        // The sync server said so on the last shared-notebook sync.
+        cx.try_global::<crate::collab_model::Collab>()
+            .is_some_and(|collab| collab.book_update_needed),
     )
 }
 

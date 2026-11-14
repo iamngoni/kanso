@@ -2229,8 +2229,56 @@ impl Workspace {
     }
 
     /// Asks for a folder, then exports `only` those notes, or all of them.
-    fn export(&mut self, only: Option<Vec<String>>, window: &mut Window, cx: &mut Context<Self>) {
+    /// Chosen notes under embargo ask first; the whole library, a backup,
+    /// does not.
+    pub(crate) fn export(
+        &mut self,
+        only: Option<Vec<String>>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.flush(cx);
+        let ask = only
+            .as_deref()
+            .and_then(|ids| self.embargo_ask_for_notes(ids, cx));
+        let this = cx.entity().downgrade();
+        crate::embargo_gate::confirm_then(ask, window, cx, move |window, cx| {
+            this.update(cx, |this, cx| this.export_now(only, window, cx))
+                .ok();
+        });
+    }
+
+    /// What asking before exporting the notes `ids` says, when any is under
+    /// embargo: the one that lifts first, and how many are held back.
+    // no-prop-test: delegates to kanso_core::embargo, tested there; the
+    // embargo tests export a held-back note.
+    fn embargo_ask_for_notes(&self, ids: &[String], cx: &App) -> Option<kanso_core::embargo::Ask> {
+        let now = crate::clock::Clock::now_ms(cx);
+        let local = crate::clock::Clock::local_ms(cx, now);
+        let held: Vec<kanso_core::embargo::Embargo> = ids
+            .iter()
+            .filter_map(|id| self.store.note(id).ok().flatten())
+            .filter_map(|note| kanso_core::embargo::check(&note.body, now, local))
+            .collect();
+        let first = held
+            .iter()
+            .min_by_key(|embargo| embargo.remaining_ms(now, local))?;
+        let mut ask = first.ask(kanso_core::embargo::Gate::Export, now, local);
+        if ids.len() > 1 {
+            ask.title = match held.len() {
+                1 => "1 of these notes is under embargo".to_owned(),
+                n => format!("{n} of these notes are under embargo"),
+            };
+        }
+        Some(ask)
+    }
+
+    fn export_now(
+        &mut self,
+        only: Option<Vec<String>>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let store = self.store.clone();
         let picked = cx.prompt_for_paths(PathPromptOptions {
             files: false,
@@ -2280,18 +2328,22 @@ impl Workspace {
 
     /// Exports the open note as a web page, or as a PDF, in the preview's
     /// theme.
-    fn export_page(&mut self, pdf: bool, window: &mut Window, cx: &mut Context<Self>) {
+    /// A note under embargo asks first.
+    pub(crate) fn export_page(&mut self, pdf: bool, window: &mut Window, cx: &mut Context<Self>) {
         self.flush(cx);
         let Some((title, body)) = self.editor.read(cx).export_text(cx) else {
             return;
         };
         let note = self.editor.read(cx).note_id().map(str::to_owned);
         let store = self.store.clone();
-        if pdf {
-            crate::export_html::export_pdf(store, title, body, note, window, cx);
-        } else {
-            crate::export_html::export_html(store, title, body, note, window, cx);
-        }
+        let ask = crate::embargo_gate::ask_for(&body, kanso_core::embargo::Gate::Export, cx);
+        crate::embargo_gate::confirm_then(ask, window, cx, move |window, cx| {
+            if pdf {
+                crate::export_html::export_pdf(store, title, body, note, window, cx);
+            } else {
+                crate::export_html::export_html(store, title, body, note, window, cx);
+            }
+        });
     }
 
     /// Shows the open note as `mode`, as the View menu does.

@@ -176,6 +176,8 @@ import 'editor/models/repos/impl/rust_when_repository.dart' as _i773;
 import 'editor/models/repos/impl/url_launcher_web_link_repository.dart'
     as _i635;
 import 'editor/state/editor/editor_bloc.dart' as _i964;
+import 'embargo/models/repos/abs/embargo_repository.dart' as _i454;
+import 'embargo/models/repos/impl/rust_embargo_repository.dart' as _i284;
 import 'feedback/models/repos/abs/feedback_repository.dart' as _i15;
 import 'feedback/models/repos/abs/feedback_screenshot_repository.dart' as _i146;
 import 'feedback/models/repos/impl/photo_feedback_screenshot_repository.dart'
@@ -579,6 +581,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i80.AboutRepository>(),
         gh<_i288.CrashReportRepository>(),
       ),
+    );
+    gh.lazySingleton<_i454.EmbargoRepository>(
+      () => _i284.RustEmbargoRepository(gh<_i455.KansoLibrary>()),
     );
     gh.lazySingleton<_i704.PaletteRepository>(
       () => _i97.RustPaletteRepository(gh<_i455.KansoLibrary>()),

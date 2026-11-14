@@ -1,4 +1,5 @@
 use kanso_core::dates::{Date, DateTime};
+use kanso_core::model::TRASH_BOOK_ID;
 use kanso_core::tasks::task_items;
 use proptest::prelude::*;
 use proptest::test_runner::{Config, RngAlgorithm, RngSeed};
@@ -222,6 +223,49 @@ fn a_trashed_inbox_task_note_comes_back() {
     assert_eq!(note.body, "- [ ] one\n- [ ] two\n");
 }
 
+/// Quick Capture and the local API share one Inbox task note: tasks the
+/// API left in its old "Tasks" note are folded in ahead of the new one.
+#[test]
+fn the_api_and_quick_capture_share_the_inbox_task_note() {
+    let (_dir, store) = fresh();
+    let inbox = store.role_book(Role::Inbox, Origin::Ui).unwrap();
+    let old = store
+        .put(
+            DocType::Note,
+            json!({"title": kanso_store::LEGACY_INBOX_TASKS_TITLE, "body": "- [ ] from raycast\n", "bookId": inbox}),
+            Put::Upsert,
+            Origin::Api,
+        )
+        .unwrap()
+        .id;
+    let id = save_task(
+        &store,
+        "call Sam",
+        TaskTarget::Inbox,
+        now(),
+        DateOrder::DayMonth,
+        Origin::Ui,
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(id, INBOX_TASKS_ID);
+    let added = store
+        .add_task(
+            &kanso_store::TaskTarget::Inbox,
+            "- [ ] from the api",
+            now(),
+            1,
+            Origin::Api,
+        )
+        .unwrap();
+    assert_eq!(added.note_id, INBOX_TASKS_ID);
+    assert_eq!(
+        store.note(INBOX_TASKS_ID).unwrap().unwrap().body,
+        "- [ ] from raycast\n- [ ] call Sam\n- [ ] from the api\n"
+    );
+    assert_eq!(store.note(&old).unwrap().unwrap().book_id, TRASH_BOOK_ID);
+}
+
 /// A locked Inbox or a locked Journal takes no task.
 #[test]
 fn locked_notebooks_refuse_tasks() {
@@ -338,5 +382,142 @@ proptest! {
         let mut want = existing.clone();
         want.push(new);
         prop_assert_eq!(texts, want);
+    }
+}
+
+#[test]
+fn previews_confirm_like_the_spec() {
+    let preview = |t: &str| task_preview(t, now(), DateOrder::DayMonth);
+    let dated = preview("film Pixel review fri 3pm every week").unwrap();
+    assert_eq!(
+        dated.line,
+        "- [ ] film Pixel review @2026-11-13T15:00 every week"
+    );
+    assert_eq!(dated.words, "film Pixel review");
+    assert_eq!(
+        dated.confirmation(),
+        "Added: film Pixel review \u{b7} Fri 13 Nov 15:00 \u{b7} every week"
+    );
+    let plain = preview("buy milk").unwrap();
+    assert_eq!(plain.when, None);
+    assert_eq!(plain.confirmation(), "Added: buy milk");
+    let day_only = preview("call Sam tomorrow").unwrap();
+    assert_eq!(day_only.confirmation(), "Added: call Sam \u{b7} Fri 13 Nov");
+    assert_eq!(preview("  "), None);
+}
+
+#[test]
+fn checked_lines() {
+    assert_eq!(checked_task_line(" - [ ] a \n"), Some("- [ ] a"));
+    assert_eq!(checked_task_line("- [ ] "), None);
+    assert_eq!(checked_task_line("- [x] a"), None);
+    assert_eq!(checked_task_line("# a"), None);
+    assert_eq!(checked_task_line("- [ ] a\n- [ ] b"), None);
+    assert_eq!(checked_task_line("- [ ] a\rb"), None);
+    let long = format!("- [ ] {}", "a".repeat(MAX_TASK_LINE));
+    assert_eq!(checked_task_line(&long), None);
+}
+
+/// A line written from a drop lands where the typed task would, and a line
+/// that isn't one task is refused with nothing written.
+#[test]
+fn a_task_line_from_a_drop() {
+    let (_dir, store) = fresh();
+    let id = save_task_line(
+        &store,
+        "- [ ] film Pixel review @2026-11-13T15:00 every week",
+        TaskTarget::Inbox,
+        now(),
+        Origin::Ui,
+    )
+    .unwrap();
+    assert_eq!(id, INBOX_TASKS_ID);
+    assert_eq!(
+        store.note(&id).unwrap().unwrap().body,
+        "- [ ] film Pixel review @2026-11-13T15:00 every week\n"
+    );
+    let err = save_task_line(
+        &store,
+        "# not a task",
+        TaskTarget::DailyNote,
+        now(),
+        Origin::Ui,
+    )
+    .unwrap_err();
+    assert!(matches!(err, CaptureError::Store(StoreError::Invalid(_))));
+    assert!(store.daily_dates().unwrap().is_empty());
+}
+
+proptest! {
+    #![proptest_config(Config {
+        cases: 256,
+        rng_seed: RngSeed::Fixed(20_261_017),
+        rng_algorithm: RngAlgorithm::ChaCha,
+        failure_persistence: None,
+        ..Config::default()
+    })]
+
+    /// The preview's line is the line that is written, its confirmation
+    /// names the words, and it carries a date exactly when the hint does.
+    #[test]
+    fn prop_preview_agrees_with_the_line(
+        text in "[a-z \n]{0,30}",
+        phrase in prop::sample::select(vec!["", " fri 3pm", " tomorrow", " 14 nov", " fri 3pm every week"]),
+    ) {
+        let typed = format!("{text}{phrase}");
+        let preview = task_preview(&typed, now(), DateOrder::DayMonth);
+        prop_assert_eq!(preview.as_ref().map(|p| p.line.clone()), task_line(&typed, now(), DateOrder::DayMonth));
+        prop_assert_eq!(
+            preview.as_ref().and_then(|p| p.when.clone()).is_some(),
+            task_hint(&typed, now(), DateOrder::DayMonth).is_some()
+        );
+        if let Some(preview) = preview {
+            let start = format!("Added: {}", preview.words);
+            prop_assert!(preview.confirmation().starts_with(&start));
+            prop_assert!(!preview.confirmation().contains(", "));
+        }
+    }
+
+    /// Every line the parser writes passes the check unchanged.
+    #[test]
+    fn prop_every_task_line_is_checked_through(text in "[a-z0-9\\[\\] :*+\n-]{0,80}") {
+        if let Some(task) = task_line(&text, now(), DateOrder::DayMonth) {
+            prop_assert_eq!(checked_task_line(&task), Some(task.as_str()));
+        }
+    }
+
+    /// Whatever a drop says, what passes the check is one open task line
+    /// with words.
+    #[test]
+    fn prop_checked_lines_are_one_open_task(line in "[- \\[\\]xa-z\n\r]{0,40}") {
+        if let Some(checked) = checked_task_line(&line) {
+            prop_assert!(!checked.contains(['\n', '\r']));
+            let items = task_items(checked);
+            prop_assert_eq!(items.len(), 1);
+            prop_assert!(!items[0].checked);
+        }
+    }
+
+    /// Writing the parsed line gives the same note as saving the typed text.
+    #[test]
+    fn prop_saving_the_line_is_saving_the_text(
+        text in "[a-z]{1,8}( [a-z]{1,8}){0,3}",
+        phrase in prop::sample::select(vec!["", " fri 3pm", " tomorrow every week"]),
+        inbox in any::<bool>(),
+    ) {
+        let typed = format!("{text}{phrase}");
+        let target = if inbox { TaskTarget::Inbox } else { TaskTarget::DailyNote };
+        let (_a, typed_store) = fresh();
+        let (_b, line_store) = fresh();
+        let typed_id = save_task(&typed_store, &typed, target, now(), DateOrder::DayMonth, Origin::Ui)
+            .unwrap()
+            .unwrap();
+        let line = task_line(&typed, now(), DateOrder::DayMonth).unwrap();
+        let line_id = save_task_line(&line_store, &line, target, now(), Origin::Ui).unwrap();
+        prop_assert_eq!(&typed_id, &line_id);
+        prop_assert_eq!(
+            typed_store.note(&typed_id).unwrap().unwrap().body,
+            line_store.note(&line_id).unwrap().unwrap().body
+        );
     }
 }
