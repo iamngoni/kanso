@@ -274,6 +274,14 @@ impl SharedNotes {
 
     // --------------------------------------------------------- invitations
 
+    /// What the Shared section says where invitations would be once the
+    /// sync server refused this Kanso as too old for shared notebooks
+    /// (`426 client_too_old`): "Update Kanso to open this shared notebook.",
+    /// the desktop's words. None while the server is happy.
+    pub fn book_update_line(&self) -> Option<String> {
+        update_line(kanso_collab::client_refused())
+    }
+
     /// Notebooks shared with this account that this device hasn't joined:
     /// invitations, and ones another of its devices joined.
     pub fn book_invitations(&self) -> Result<Vec<BookInvitationRow>, KansoError> {
@@ -428,6 +436,12 @@ impl SharedNotes {
                         event.book_notices.push(ended.message.clone());
                         self.close_book_room(&share_id);
                     }
+                    // Notes deleted here that someone's edit brought back.
+                    event.book_notices.extend(
+                        sync.brought_back
+                            .iter()
+                            .map(|t| book_copy::brought_back_notice(t)),
+                    );
                     sync.pulled > 0 || sync.pushed > 0 || sync.ended.is_some()
                 }
                 Err(_) => false,
@@ -457,6 +471,12 @@ impl SharedNotes {
             .shared_book(&stream.share_id)?
             .is_some_and(|row| row.status == SharedStatus::Active);
         Ok(active.then_some((stream.share_id, stream.stream)))
+    }
+
+    /// Whether `note_id` is a note of a notebook shared here: its editor
+    /// merges a collaborator's edit that doesn't touch the typing in.
+    pub(crate) fn in_shared_book(&self, note_id: &str) -> bool {
+        self.book_note(note_id).ok().flatten().is_some()
     }
 
     /// Opens the room of the notebook `note_id` is in (once per notebook)
@@ -819,13 +839,36 @@ fn book_notify(
                     ..base
                 }
             }
+            BookLiveNotice::BroughtBack { titles, .. } => SharedEvent {
+                notebooks: notebook(),
+                book_notices: titles
+                    .iter()
+                    .map(|t| book_copy::brought_back_notice(t))
+                    .collect(),
+                ..base
+            },
         };
         inner.shared.listeners.send(event);
     })
 }
 
+/// The Shared section's update line, given whether the server refused this
+/// Kanso.
+fn update_line(refused: bool) -> Option<String> {
+    refused.then(|| kanso_collab::UPDATE_FOR_INVITATION.to_owned())
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_update_line_shows_only_once_the_server_refused_and_says_to_update() {
+        assert_eq!(super::update_line(false), None);
+        assert_eq!(
+            super::update_line(true).as_deref(),
+            Some("Update Kanso to open this shared notebook.")
+        );
+    }
+
     use kanso_collab::MemberStanding;
     use proptest::prelude::*;
 

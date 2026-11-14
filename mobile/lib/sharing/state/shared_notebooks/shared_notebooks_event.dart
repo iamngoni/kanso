@@ -9,7 +9,8 @@ sealed class SharedNotebooksEvent with _$SharedNotebooksEvent {
   /// Read the section, then again as syncs report news.
   const factory SharedNotebooksEvent.started() = SharedNotebooksStartedEvent;
 
-  /// Read it again; [notices] are what a sync said of notebooks that ended.
+  /// Read it again; [notices] are what a sync said: notebooks that ended,
+  /// and notes deleted here that an edit brought back.
   const factory SharedNotebooksEvent.refreshed({
     @Default(<String>[]) List<String> notices,
   }) = SharedNotebooksRefreshedEvent;

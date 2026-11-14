@@ -15,10 +15,11 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use kanso_core::dates::Date;
+use kanso_core::embargo;
 use kanso_core::reminders::{GRACE_MS, Timed, due_now, next_wake, timed};
 use kanso_core::repeat::repeat_token;
 use kanso_core::tasks::{Due, due_label};
-use kanso_store::{Origin, ReminderTask, Store};
+use kanso_store::{EmbargoNote, Origin, ReminderTask, Store};
 
 use super::display_text;
 
@@ -86,6 +87,14 @@ pub fn reminder(task: &ReminderTask, today: Date) -> Reminder {
     } else {
         task.note_title.clone()
     };
+    // An embargo's lift notice: "Embargo lifted: Pixel 11 review".
+    if embargo::is_reminder_key(&task.key) {
+        return Reminder {
+            tag: task.key.clone(),
+            title: task.text.clone(),
+            body: format!("{when} · {title}"),
+        };
+    }
     // A repeating task's reminder says so: `Today 09:00 · every week · Plans`.
     let body = match repeat_token(&task.text) {
         Some((_, repeat)) => format!("{when} · {repeat} · {title}"),
@@ -98,12 +107,56 @@ pub fn reminder(task: &ReminderTask, today: Date) -> Reminder {
     }
 }
 
-/// The timed tasks among `tasks`, with their times.
+/// The timed tasks among `tasks`, with their times, each known by its own
+/// key (an embargo's lift notice has one of its own).
 fn timed_tasks(tasks: &[ReminderTask]) -> Vec<(Timed, &ReminderTask)> {
     tasks
         .iter()
-        .filter_map(|t| Some((timed(&t.note_id, &t.text, &t.due, false)?, t)))
+        .filter_map(|t| {
+            let mut at = timed(&t.note_id, &t.text, &t.due, false)?;
+            at.key.clone_from(&t.key);
+            Some((at, t))
+        })
         .collect()
+}
+
+/// Whether reminder `key` is an embargo's lift notice, which has nothing
+/// to tick off: it offers Dismiss alone.
+pub fn is_lift_notice(key: &str) -> bool {
+    embargo::is_reminder_key(key)
+}
+
+/// The lift notices of the embargoes in `notes`, as reminders: "Embargo
+/// lifted: Pixel 11 review", due when each lifts in local time (`local_of`
+/// turns a UTC instant into local milliseconds), opening the note at its
+/// top. One whose zone is unknown has none. Pure.
+pub fn embargo_tasks(notes: &[EmbargoNote], local_of: &dyn Fn(i64) -> i64) -> Vec<ReminderTask> {
+    notes
+        .iter()
+        .filter_map(|note| {
+            let lifts = note.embargo.lifts_local_ms(local_of)?;
+            Some(ReminderTask {
+                note_id: note.note_id.clone(),
+                note_title: note.note_title.clone(),
+                line: 0,
+                text: embargo::lifted_title(&note.note_title),
+                due: embargo::due_text(lifts),
+                key: embargo::reminder_key(&note.note_id, &note.embargo),
+                acks: note.acks.clone(),
+            })
+        })
+        .collect()
+}
+
+/// Everything that may remind: the open timed tasks, then the embargoes'
+/// lift notices (see [`embargo_tasks`]).
+pub fn reminder_tasks(
+    store: &Store,
+    local_of: &dyn Fn(i64) -> i64,
+) -> kanso_store::Result<Vec<ReminderTask>> {
+    let mut tasks = store.reminder_tasks()?;
+    tasks.extend(embargo_tasks(&store.embargo_notes()?, local_of));
+    Ok(tasks)
 }
 
 /// The reminders to show at local time `now_local` (ms): due at or before
@@ -621,6 +674,116 @@ mod tests {
                 prop_assert_eq!(shown.get(key), Some(&now));
             }
             prop_assert!(shown.values().all(|at| now - at <= 2 * GRACE_MS));
+        }
+    }
+
+    /// The embargo's lift notice is a reminder like a task's: due when the
+    /// embargo lifts, shown once, silenced by an answer on any device, and
+    /// it ticks nothing off.
+    #[test]
+    fn an_embargo_lift_notice_is_scheduled_and_shown_when_it_lifts() {
+        let body =
+            "---\nembargo: 2026-10-22T05:00 America/New_York\n---\n- [ ] Cut @2026-10-22T18:00\n";
+        let (_dir, store) = store_with_note(body);
+        // UTC here: 05:00 in New York is 09:00.
+        let tasks = reminder_tasks(&store, &|utc| utc).unwrap();
+        let lift = tasks
+            .iter()
+            .find(|t| is_lift_notice(&t.key))
+            .expect("the embargo reminds");
+        assert_eq!(lift.key, "note:a#embargo@2026-10-22T05:00 America/New_York");
+        assert_eq!(lift.due, "2026-10-22T09:00");
+        assert_eq!(lift.text, "Embargo lifted: Plans");
+        let said = reminder(lift, Date::new(2026, 10, 22).unwrap());
+        assert_eq!(said.title, "Embargo lifted: Plans");
+        assert_eq!(said.body, "Today 09:00 · Plans");
+
+        // Still to come before it lifts: scheduled, not shown.
+        let before = local("2026-10-22T08:00");
+        assert!(due(&tasks, &BTreeMap::new(), before).is_empty());
+        let coming = upcoming(
+            &tasks,
+            &BTreeMap::new(),
+            before,
+            Duration::from_secs(86_400),
+            10,
+        );
+        assert_eq!(coming[0].task.key, lift.key);
+        assert_eq!(coming[0].at_local_ms, local("2026-10-22T09:00"));
+        // When it lifts, it is shown.
+        let now = local("2026-10-22T09:00") + 1;
+        let shown_now = due(&tasks, &BTreeMap::new(), now);
+        assert_eq!(shown_now.len(), 1);
+        assert_eq!(shown_now[0].key, lift.key);
+
+        // Mark Done on a lift notice ticks nothing; the answer is kept.
+        acknowledge(
+            &store,
+            &Shown::new(lift, NOW),
+            &lift.key,
+            Answer::MarkDone,
+            NOW,
+        );
+        let note = store.note("note:a").unwrap().unwrap();
+        assert_eq!(note.body, body);
+        let tasks = reminder_tasks(&store, &|utc| utc).unwrap();
+        assert!(due(&tasks, &BTreeMap::new(), now).is_empty());
+        // Answering a task later keeps the embargo's answer.
+        let cut = tasks.iter().find(|t| t.text.starts_with("Cut")).unwrap();
+        store
+            .ack_reminder("note:a", &cut.key, NOW, Origin::Ui)
+            .unwrap();
+        let tasks = reminder_tasks(&store, &|utc| utc).unwrap();
+        assert!(due(&tasks, &BTreeMap::new(), now).is_empty());
+        // A note in the trash says nothing.
+        let mut gone = store.note("note:a").unwrap().unwrap();
+        gone.book_id = "trash".into();
+        store
+            .put(
+                DocType::Note,
+                serde_json::to_value(&gone).unwrap(),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+        assert!(store.embargo_notes().unwrap().is_empty());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(128))]
+
+        /// A lift notice falls due on the minute the embargo lifts in local
+        /// time, whatever the device's offset, and is known by the
+        /// embargo's own key.
+        #[test]
+        fn prop_lift_notices_fall_due_when_the_embargo_lifts(
+            minutes in 0i64..60 * 24 * 40,
+            offset_min in -14i64 * 60..14 * 60,
+        ) {
+            let utc = local("2026-10-22T00:00") + minutes * 60_000;
+            let written = kanso_core::zoned::from_utc_ms(utc, "Europe/London").unwrap();
+            let embargo = kanso_core::embargo::from_value(
+                &kanso_core::properties::Value::DateTimeZone(written.text()),
+            )
+            .unwrap();
+            let note = EmbargoNote {
+                note_id: "note:a".into(),
+                note_title: "Plans".into(),
+                book_id: "book:a".into(),
+                embargo: embargo.clone(),
+                acks: BTreeMap::new(),
+            };
+            let offset = offset_min * 60_000;
+            let tasks = embargo_tasks(std::slice::from_ref(&note), &|at| at + offset);
+            prop_assert_eq!(tasks.len(), 1);
+            let at = utc + offset;
+            prop_assert_eq!(Due::parse(&tasks[0].due).unwrap().local_ms(), at);
+            prop_assert_eq!(
+                &tasks[0].key,
+                &kanso_core::embargo::reminder_key("note:a", &embargo)
+            );
+            prop_assert!(due(&tasks, &BTreeMap::new(), at - 1).is_empty());
+            prop_assert_eq!(due(&tasks, &BTreeMap::new(), at).len(), 1);
         }
     }
 }

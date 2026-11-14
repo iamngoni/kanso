@@ -2,6 +2,8 @@
 // Created 2026-10-28.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -17,7 +19,10 @@ import '../../../core/views/widgets/kanso_copy_button.dart';
 import '../../../core/views/widgets/kanso_inline_message.dart';
 import '../../../core/views/widgets/kanso_progress.dart';
 import '../../../core/views/widgets/kanso_section_header.dart';
+import '../../../embargo/models/data/embargo_gate.dart';
+import '../../../embargo/views/widgets/embargo_sheet.dart';
 import '../../../injection.dart';
+import '../../models/data/publish_view_model.dart';
 import '../../state/publish/publish_bloc.dart';
 
 /// The mobile note or notebook site publish sheet.
@@ -70,6 +75,23 @@ class PublishSheet extends StatelessWidget {
         child: const PublishSheet(),
       ),
     );
+  }
+
+  /// Publishes, or updates, what [view] shows. A note under embargo asks
+  /// first, and is published only on "Publish anyway".
+  Future<void> _publish(BuildContext context, PublishViewModel view) async {
+    final bloc = context.read<PublishBloc>();
+    if (!view.notebook) {
+      final go = await confirmEmbargo(
+        context,
+        noteId: view.id,
+        gate: EmbargoGate.publish,
+      );
+      if (!go) {
+        return;
+      }
+    }
+    bloc.add(PublishEvent.publish(view.expiry));
   }
 
   @override
@@ -203,9 +225,7 @@ class PublishSheet extends StatelessWidget {
                         label: view.notebook
                             ? l10n.publishUpdateSite
                             : l10n.publishUpdate,
-                        onPressed: () => context.read<PublishBloc>().add(
-                          PublishEvent.publish(view.expiry),
-                        ),
+                        onPressed: () => unawaited(_publish(context, view)),
                       ),
                     const SizedBox(height: KansoSpacing.xs),
                     KansoCopyButton(
@@ -232,9 +252,7 @@ class PublishSheet extends StatelessWidget {
                             ? l10n.publishUpdateSite
                             : l10n.publishUpdate),
                   onPressed: view.refusal == null
-                      ? () => context.read<PublishBloc>().add(
-                          PublishEvent.publish(view.expiry),
-                        )
+                      ? () => unawaited(_publish(context, view))
                       : null,
                 ),
             ],

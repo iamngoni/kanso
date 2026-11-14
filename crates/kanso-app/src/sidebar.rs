@@ -1840,10 +1840,13 @@ impl Render for Sidebar {
             ));
         }
         list = list.children(self.shared_row(cx));
-        // Shared notebooks joined here, and invitations to more.
+        // Shared notebooks joined here, and invitations to more (or, when
+        // the server said this Kanso is too old for them, the update line).
         if cx
             .try_global::<crate::collab_model::Collab>()
-            .is_some_and(|c| !c.books.is_empty() || !c.book_invitations.is_empty())
+            .is_some_and(|c| {
+                !c.books.is_empty() || !c.book_invitations.is_empty() || c.book_update_needed
+            })
         {
             let selected = (!self.settings_open).then(|| self.library.read(cx).filter.clone());
             let section = crate::shared_books::render_section(

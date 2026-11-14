@@ -312,6 +312,9 @@ impl Engine {
             .filter(|n| n.deleted_at.is_some())
             .map(|n| n.id)
             .collect();
+        // Notes this account deleted here, with their text then: an edit
+        // from someone that brings one back is told.
+        let deleted_here = self.deleted_here(ctx, &manifest)?;
         let mut apply_manifest = |update: &[u8]| manifest.apply(update).unwrap_or(false);
         self.pull_into(ctx, &mut manifest_row, &mut apply_manifest, result)?;
         if role.may_edit() {
@@ -354,6 +357,7 @@ impl Engine {
         if role.may_edit() {
             self.mark_gone_notes(ctx, &manifest)?;
         }
+        self.tell_brought_back(ctx, deleted_here, result)?;
         // An edit to a note someone deleted brings it back.
         let mut revive = Vec::new();
         let queued = self.queued_streams(&share_id)?;
@@ -550,6 +554,78 @@ impl Engine {
         Ok(())
     }
 
+    /// The notes of the notebook this account deleted on this device (gone
+    /// from the library, or in its trash), by log, with their text when they
+    /// went. One the manifest lists as deleted by someone else, or by a
+    /// device that didn't say who, isn't: that deletion wasn't this
+    /// person's.
+    fn deleted_here(
+        &self,
+        ctx: &Ctx,
+        manifest: &ManifestDoc,
+    ) -> Result<std::collections::HashMap<String, Text>> {
+        let me = &self.account.caller.account_id;
+        let mut out = std::collections::HashMap::new();
+        for row in self.store.book_streams(&ctx.row.share_id)? {
+            let (Some(note_id), Some(base)) = (&row.note_id, read_base(&row)) else {
+                continue;
+            };
+            if row.base.is_empty() {
+                continue;
+            }
+            let mine = match manifest.note(&row.stream) {
+                Some(listed) => match listed.deleted_at {
+                    // Not pushed yet: only this device knows.
+                    None => true,
+                    Some(_) => listed.deleted_by.as_deref() == Some(me.as_str()),
+                },
+                None => false,
+            };
+            if !mine {
+                continue;
+            }
+            match self.store.note(note_id)? {
+                None => {
+                    out.insert(row.stream.clone(), base);
+                }
+                Some(note) if note.book_id == kanso_core::TRASH_BOOK_ID => {
+                    out.insert(row.stream.clone(), (note.title, note.body));
+                }
+                Some(_) => {}
+            }
+        }
+        Ok(out)
+    }
+
+    /// Of the notes this account deleted, the ones someone's edit brought
+    /// back to the notebook in this sync: their titles go in `result`.
+    fn tell_brought_back(
+        &self,
+        ctx: &Ctx,
+        deleted_here: std::collections::HashMap<String, Text>,
+        result: &mut BookSync,
+    ) -> Result<()> {
+        let mut back = Vec::new();
+        for (stream, before) in deleted_here {
+            let Some(note_id) = self
+                .store
+                .book_stream(&ctx.row.share_id, &stream)?
+                .and_then(|row| row.note_id)
+            else {
+                continue;
+            };
+            if let Some(note) = self.store.note(&note_id)?
+                && note.book_id == ctx.row.book_id
+                && (note.title.clone(), note.body.clone()) != before
+            {
+                back.push(note.title);
+            }
+        }
+        back.sort();
+        result.brought_back.extend(back);
+        Ok(())
+    }
+
     /// Notes that are gone from the notebook here (deleted, or moved out),
     /// with nothing new from anyone, are marked deleted in the manifest.
     fn mark_gone_notes(&self, ctx: &Ctx, manifest: &ManifestDoc) -> Result<()> {
@@ -566,7 +642,11 @@ impl Engine {
                 && manifest
                     .note(&stream.stream)
                     .is_some_and(|n| n.deleted_at.is_none())
-                && let Some(update) = manifest.set_deleted(&stream.stream, Some(now_ms()))
+                && let Some(update) = manifest.mark_deleted(
+                    &stream.stream,
+                    now_ms(),
+                    &self.account.caller.account_id,
+                )
             {
                 self.store
                     .push_book_outbox(&share_id, MANIFEST_STREAM, &update)?;

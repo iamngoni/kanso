@@ -5,7 +5,7 @@
 //! ```text
 //! root
 //! ├─ book:  Y.Map<field, string>          name, and the notebook's other fields as JSON
-//! └─ notes: Y.Map<note id, Y.Map>         created_by, created_at, deleted_at?
+//! └─ notes: Y.Map<note id, Y.Map>         created_by, created_at, deleted_at?, deleted_by?
 //! ```
 //!
 //! Every field is its own map key, so two people changing different ones
@@ -31,6 +31,9 @@ pub struct ManifestNote {
     pub created_by: String,
     pub created_at: i64,
     pub deleted_at: Option<i64>,
+    /// The account that deleted it, when the deleting device said (older
+    /// ones didn't): so that person can be told an edit brought it back.
+    pub deleted_by: Option<String>,
 }
 
 pub struct ManifestDoc {
@@ -143,6 +146,10 @@ impl ManifestDoc {
                     created_by,
                     created_at: number(map.get(&txn, "created_at")).unwrap_or(0),
                     deleted_at: number(map.get(&txn, "deleted_at")),
+                    deleted_by: match map.get(&txn, "deleted_by") {
+                        Some(Out::Any(Any::String(by))) => Some(by.to_string()),
+                        _ => None,
+                    },
                 })
             })
             .collect();
@@ -187,6 +194,16 @@ impl ManifestDoc {
     /// Marks a note deleted, or brings it back (`None`). The update to send;
     /// `None` when the note is unknown or already so.
     pub fn set_deleted(&self, id: &str, deleted_at: Option<i64>) -> Option<Vec<u8>> {
+        self.set_deleted_by(id, deleted_at.map(|at| (at, None)))
+    }
+
+    /// [`Self::set_deleted`], saying who deleted it.
+    pub fn mark_deleted(&self, id: &str, at: i64, by: &str) -> Option<Vec<u8>> {
+        self.set_deleted_by(id, Some((at, Some(by))))
+    }
+
+    fn set_deleted_by(&self, id: &str, deleted: Option<(i64, Option<&str>)>) -> Option<Vec<u8>> {
+        let deleted_at = deleted.map(|(at, _)| at);
         let now = self.note(id)?;
         if now.deleted_at.is_some() == deleted_at.is_some() {
             return None;
@@ -195,12 +212,16 @@ impl ManifestDoc {
         let Some(Out::YMap(map)) = self.notes.get(&txn, id) else {
             return None;
         };
-        match deleted_at {
-            Some(at) => {
+        match deleted {
+            Some((at, by)) => {
                 map.insert(&mut txn, "deleted_at", at);
+                if let Some(by) = by {
+                    map.insert(&mut txn, "deleted_by", by);
+                }
             }
             None => {
                 map.remove(&mut txn, "deleted_at");
+                map.remove(&mut txn, "deleted_by");
             }
         }
         Some(txn.encode_update_v1())
@@ -229,10 +250,17 @@ mod tests {
         assert_eq!(b.fields().get("name").map(String::as_str), Some("Studio"));
         assert_eq!(b.notes(), a.notes());
         assert_eq!(b.note("n2").unwrap().deleted_at, Some(20));
+        assert_eq!(b.note("n2").unwrap().deleted_by, None);
         // An edit brings a deleted note back.
         let back = b.set_deleted("n2", None).unwrap();
         a.apply(&back).unwrap();
         assert_eq!(a.note("n2").unwrap().deleted_at, None);
+        // Who deleted it goes with the deletion, and away with it.
+        let marked = a.mark_deleted("n2", 30, "a_1").unwrap();
+        b.apply(&marked).unwrap();
+        assert_eq!(b.note("n2").unwrap().deleted_by.as_deref(), Some("a_1"));
+        b.apply(&a.set_deleted("n2", None).unwrap()).unwrap();
+        assert_eq!(b.note("n2").unwrap().deleted_by, None);
         let loaded = ManifestDoc::load(&a.encode_state()).unwrap();
         assert_eq!(loaded.notes(), a.notes());
         assert_eq!(ManifestDoc::new().apply(b"junk"), Err(DocError::Malformed));

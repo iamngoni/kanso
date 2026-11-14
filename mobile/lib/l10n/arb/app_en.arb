@@ -10177,6 +10177,88 @@
   "@scheduleLocked": {
     "description": "Said when a tick or a move found the note locked."
   },
+  "embargoBanner": "Embargoed until {when}",
+  "@embargoBanner": {
+    "description": "The banner under a note's title while its embargo is in force.",
+    "placeholders": {
+      "when": {
+        "type": "String",
+        "example": "Wed 18 Nov, 09:00 New York"
+      }
+    }
+  },
+  "embargoBannerLifts": "Lifts {inWords}",
+  "@embargoBannerLifts": {
+    "description": "Under the embargo banner: how far off the lift is.",
+    "placeholders": {
+      "inWords": {
+        "type": "String",
+        "example": "in 5 days"
+      }
+    }
+  },
+  "embargoAskTitle": "This note is under embargo",
+  "@embargoAskTitle": {
+    "description": "Title of the question before publishing, sharing by link or exporting a note under embargo."
+  },
+  "embargoAskPublish": "Embargo lifts {when} ({inWords}). Publish anyway?",
+  "@embargoAskPublish": {
+    "description": "The question before publishing a note under embargo.",
+    "placeholders": {
+      "when": {
+        "type": "String",
+        "example": "Wed 18 Nov, 09:00 New York"
+      },
+      "inWords": {
+        "type": "String",
+        "example": "in 5 days"
+      }
+    }
+  },
+  "embargoAskShareLink": "Embargo lifts {when} ({inWords}). Make a share link anyway?",
+  "@embargoAskShareLink": {
+    "description": "The question before making an invite link to a note under embargo.",
+    "placeholders": {
+      "when": {
+        "type": "String",
+        "example": "Wed 18 Nov, 09:00 New York"
+      },
+      "inWords": {
+        "type": "String",
+        "example": "in 5 days"
+      }
+    }
+  },
+  "embargoAskExport": "Embargo lifts {when} ({inWords}). Export anyway?",
+  "@embargoAskExport": {
+    "description": "The question before exporting a note under embargo.",
+    "placeholders": {
+      "when": {
+        "type": "String",
+        "example": "Wed 18 Nov, 09:00 New York"
+      },
+      "inWords": {
+        "type": "String",
+        "example": "in 5 days"
+      }
+    }
+  },
+  "embargoPublishAnyway": "Publish anyway",
+  "@embargoPublishAnyway": {
+    "description": "Publishes a note under embargo."
+  },
+  "embargoShareLinkAnyway": "Make link anyway",
+  "@embargoShareLinkAnyway": {
+    "description": "Makes an invite link to a note under embargo."
+  },
+  "embargoExportAnyway": "Export anyway",
+  "@embargoExportAnyway": {
+    "description": "Exports a note under embargo."
+  },
+  "embargoGuardRail": "Anyone who can read the note can still copy it. The embargo is a reminder, not a lock.",
+  "@embargoGuardRail": {
+    "description": "Small print under the embargo question."
+  },
   "shareNotebookTitle": "Share “{name}”",
   "@shareNotebookTitle": {
     "description": "The title of a notebook's Share sheet.",

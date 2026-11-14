@@ -190,6 +190,47 @@ export const TOPICS: readonly Topic[] = [
     ),
   },
   {
+    id: "phone-shortcuts",
+    title: "Capturing from anywhere on a phone",
+    body: (
+      <>
+        <p>
+          On an iPhone or iPad, Kanso adds four actions to Spotlight, the Shortcuts app, Siri and the Action button, alongside New
+          Note, Open Today's Note, Add to Kanso and Capture Voice Note:
+        </p>
+        <ul className="grid gap-1 pl-5 list-disc">
+          <li>
+            <strong>Capture in Kanso</strong> saves text as a note in your Inbox; its first line becomes the title. Say "Quick
+            capture in Kanso" to Siri.
+          </li>
+          <li>
+            <strong>Add Kanso task</strong> adds a task, reading a date and repeat at the end the way the app does, and says what
+            it added: "Added: film Pixel review · Fri 14 Nov 15:00 · every week". It goes where{" "}
+            <strong>Captured tasks go to</strong> says: today's daily note or the Inbox. If the library can't be opened just then,
+            the task waits and Kanso adds it the next time it opens.
+          </li>
+          <li>
+            <strong>Search Kanso</strong> opens the app's search on the words you give it.
+          </li>
+          <li>
+            <strong>Open Kanso note</strong> opens a note you pick from your notes. Locked notes, and notes in a locked notebook,
+            are never offered.
+          </li>
+        </ul>
+        <p>
+          Each one asks you to unlock the phone first, and Kanso's own lock still applies when the app opens.
+        </p>
+        <p>
+          On Android, touch and hold Kanso's icon for <strong>Capture</strong>, <strong>Add task</strong>,{" "}
+          <strong>Search</strong>, <strong>Voice note</strong> and <strong>Today</strong>; drag one to the home screen to keep it
+          there. <strong>Add task</strong> opens the capture sheet in Task mode over whatever you had open in Kanso. There is also
+          an <strong>Add task</strong> tile for Quick Settings: edit your tiles and drag it in. Tapping it on the lock screen asks
+          you to unlock first.
+        </p>
+      </>
+    ),
+  },
+  {
     id: "studio",
     title: "Running a video studio",
     body: (
@@ -214,6 +255,14 @@ export const TOPICS: readonly Topic[] = [
           <strong>Properties.</strong> In the note's inspector, or its properties on a phone, a select property such as{" "}
           <code>stage</code> is a list to choose from, a date opens a calendar, a date and time adds a clock and a time zone, and
           a person property lists people.
+        </p>
+        <p>
+          <strong>Embargo.</strong> Give a note an <code>embargo</code> date, and until then a banner under its title says
+          "Embargoed until Wed 18 Nov, 09:00 New York." Publishing it, making a share link to it or exporting it first asks, for
+          example "Embargo lifts Wed 18 Nov, 09:00 New York (in 5 days). Publish anyway?", and goes ahead only if you choose{" "}
+          <strong>Publish anyway</strong>, <strong>Make link anyway</strong> or <strong>Export anyway</strong>. When the embargo
+          lifts, Kanso reminds you: "Embargo lifted: Pixel 11 review". An embargo with a time zone lifts at the same moment
+          everywhere; one without lifts at that time wherever you are.
         </p>
         <p>
           <strong>The Schedule.</strong> View › Schedule, or Schedule in the sidebar, on a computer; Schedule in the library on a
@@ -338,6 +387,13 @@ export const TOPICS: readonly Topic[] = [
           a notice, "Update Kanso on every device for shared notes", and an older app may show shared notes without their
           properties until it is updated. Update Kanso on every computer and phone you use, and ask the people you share with to
           do the same.
+        </p>
+        <p>
+          A Kanso that is too old for shared notebooks is told so by the sync server. Your notes keep syncing as before; only
+          shared notebooks, and invitations to them, wait. The Shared section says "Update Kanso to open this shared notebook."
+          where an invitation would be, and a notice, <strong>Update Kanso to use shared notebooks</strong>, lists the steps:
+          install the latest version (Settings › Updates on a computer, the App Store or Google Play on a phone), restart Kanso
+          and open the Shared section again, then update your other devices too.
         </p>
       </>
     ),

@@ -25,7 +25,33 @@ pub const NOTICES: &[Notice] = &[
     LIBRARY_ENCRYPTED,
     LIBRARY_PLAIN,
     SHARED_PROPERTIES,
+    SHARED_NOTEBOOKS_UPDATE,
 ];
+
+/// The ID of the shared notebooks update notice. Never reused.
+pub const SHARED_NOTEBOOKS_UPDATE_ID: &str = "shared-notebooks-update-0.10";
+
+/// The sync server only takes shared-notebook requests from a Kanso new
+/// enough to speak their protocol, and said this one isn't (issue #390).
+/// Notes sync as before; only shared notebooks wait for the update.
+const SHARED_NOTEBOOKS_UPDATE: Notice = Notice {
+    id: SHARED_NOTEBOOKS_UPDATE_ID,
+    since: semver::Version::new(0, 10, 8),
+    title: "Update Kanso to use shared notebooks",
+    what_changed: "The sync server no longer takes shared-notebook requests from this version of Kanso. Your notes keep syncing; only shared notebooks, and invitations to them, wait until Kanso is updated.",
+    steps: &[
+        "Open Settings \u{203a} Updates and install the latest version of Kanso.",
+        "Restart Kanso, then open the Shared section to see your shared notebooks and any invitations.",
+        "Update Kanso on your other computers and phones too, so they keep up with shared notebooks.",
+    ],
+    action: Some(NoticeAction::OpenSettings(NoticePage::Updates)),
+    applies: server_refused_client,
+    platforms: Platforms::Both,
+};
+
+fn server_refused_client(ctx: &NoticeContext) -> bool {
+    ctx.server_refused_client
+}
 
 /// The ID of the shared notes' properties notice. Never reused.
 pub const SHARED_PROPERTIES_ID: &str = "shared-properties-0.10";
@@ -162,6 +188,7 @@ impl NoticeContext {
             signed_in_to_sync: false,
             library_key_saved: false,
             library_plain: false,
+            server_refused_client: false,
         }
     }
 }
@@ -370,17 +397,19 @@ mod tests {
             any::<bool>(),
             any::<bool>(),
             any::<bool>(),
+            any::<bool>(),
         )
-            .prop_map(|(current, previous, had_login, signed_in, saved, plain)| {
-                NoticeContext {
+            .prop_map(
+                |(current, previous, had_login, signed_in, saved, plain, refused)| NoticeContext {
                     current,
                     previous,
                     had_login,
                     signed_in_to_sync: signed_in,
                     library_key_saved: saved,
                     library_plain: plain,
-                }
-            })
+                    server_refused_client: refused,
+                },
+            )
     }
 
     fn platform() -> impl Strategy<Value = Platform> {
@@ -400,6 +429,30 @@ mod tests {
             assert!(!notice.what_changed.is_empty(), "{}", notice.id);
             assert!(!notice.steps.is_empty(), "{} has no steps", notice.id);
         }
+    }
+
+    #[test]
+    fn the_update_notice_shows_on_both_apps_only_once_the_server_refused_the_client() {
+        let mut ctx = NoticeContext::new(Version::new(0, 10, 8));
+        ctx.library_key_saved = true;
+        let state = NoticeState::default();
+        for platform in [Platform::Desktop, Platform::Phones] {
+            assert!(banner(NOTICES, &ctx, platform, &state).is_none());
+        }
+        ctx.server_refused_client = true;
+        for platform in [Platform::Desktop, Platform::Phones] {
+            let pick = banner(NOTICES, &ctx, platform, &state).unwrap();
+            assert_eq!(pick.notice.id, SHARED_NOTEBOOKS_UPDATE_ID);
+            assert!(pick.notice.title.starts_with("Update Kanso"));
+        }
+        // Dismissing hides the banner on that device and keeps it listed.
+        let mut dismissed = NoticeState::default();
+        dismissed.dismiss(SHARED_NOTEBOOKS_UPDATE_ID);
+        assert!(banner(NOTICES, &ctx, Platform::Desktop, &dismissed).is_none());
+        assert_eq!(
+            listed(NOTICES, &ctx, Platform::Desktop, &dismissed).len(),
+            1
+        );
     }
 
     #[test]
@@ -590,6 +643,7 @@ mod tests {
         assert!(steps.contains("people you share"), "{steps}");
         // It is for someone who can have shared notes: signed in to sync.
         let mut ctx = NoticeContext::new(Version::new(0, 10, 8));
+        ctx.library_key_saved = true;
         for platform in [Platform::Desktop, Platform::Phones] {
             assert!(!notice.applies_to(&ctx, platform));
         }

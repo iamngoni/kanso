@@ -4917,6 +4917,15 @@ random bytes as 22 base64url characters, chosen by the owner's device.
 | DELETE | `/v2/collab/notifications/<id>` | recipient | 204 |
 | GET | `/j/<link_id>` | public | A static page: "Open Kanso, choose Join a shared note…, and paste this link." It never reads D1 |
 
+**Old clients and shared notebooks.** Every `/v2/collab/books…` route needs `x-kanso-book-protocol:
+<n>`, the shared-notebook level the client speaks (this Kanso sends 1). A request without it, or
+with a level below the Worker's minimum, is refused before anything else with 426 `client_too_old`
+`{message, min_protocol, protocol}`, whose message says how to fix it: "Update Kanso to use shared
+notebooks…". The routes stay under `/v2`; only a breaking change to them raises the minimum, and
+it ships with an update notice. The apps keep the notes syncing, show the same words, put "Update
+Kanso to open this shared notebook." where an invitation would be, and show the dismissible
+"Update Kanso to use shared notebooks" notice (`shared-notebooks-update-0.10`).
+
 **Who sees what.** Someone not in a share gets 404 on all of its routes; an invited account that
 hasn't accepted gets 404 on the log, snapshots, `/live` and notifications too. Owner-only routes
 answer a member 403 `forbidden_role`. Errors are `{"error": <code>, "message", …}`; besides those

@@ -31,7 +31,15 @@ impl Library {
         guard(|| {
             let current = Version::parse(&crate::diagnostics::version())
                 .map_err(|err| KansoError::storage(err.to_string()))?;
-            card(&self.inner.store, NOTICES, &current, signed_in_to_sync)
+            // The server's "update Kanso for shared notebooks" lasts the run:
+            // the engine's HTTP client noted it when it answered 426.
+            card(
+                &self.inner.store,
+                NOTICES,
+                &current,
+                signed_in_to_sync,
+                kanso_collab::client_refused(),
+            )
         })
     }
 
@@ -71,6 +79,7 @@ fn context(
     store: &Store,
     current: &Version,
     signed_in_to_sync: bool,
+    server_refused_client: bool,
 ) -> Result<NoticeContext, KansoError> {
     let last_run = store.meta(LAST_RUN_META)?;
     let remembered = store.meta(PREVIOUS_META)?;
@@ -95,6 +104,7 @@ fn context(
         library_key_saved: true,
         // The phones' library stays on stock SQLite; the OS protects it.
         library_plain: false,
+        server_refused_client,
     })
 }
 
@@ -104,8 +114,9 @@ fn card(
     list: &[Notice],
     current: &Version,
     signed_in_to_sync: bool,
+    server_refused_client: bool,
 ) -> Result<PhoneNotices, KansoError> {
-    let ctx = context(store, current, signed_in_to_sync)?;
+    let ctx = context(store, current, signed_in_to_sync, server_refused_client)?;
     let state = read_state(store)?;
     Ok(
         match notices::banner(list, &ctx, Platform::Phones, &state) {
@@ -200,7 +211,7 @@ mod tests {
     fn the_card_shows_the_newest_notice_for_phones() {
         let (_dir, store) = store();
         let now = Version::new(0, 10, 0);
-        let shown = card(&store, &list(), &now, true).unwrap();
+        let shown = card(&store, &list(), &now, true, false).unwrap();
         assert_eq!(shown.card.as_ref().unwrap().id, "fixture-a-0.10");
         assert_eq!(shown.total, 2);
         assert_eq!(shown.count_label, "1 of 2");
@@ -208,11 +219,11 @@ mod tests {
         assert_eq!(card_.action_kind, PhoneNoticeActionKind::OpenSettings);
         assert_eq!(card_.action_target, "account");
         // Signed out, A doesn't apply.
-        let shown = card(&store, &list(), &now, false).unwrap();
+        let shown = card(&store, &list(), &now, false, false).unwrap();
         assert_eq!(shown.card.unwrap().id, "fixture-b-0.10");
         assert_eq!(shown.count_label, "");
         // Before its version, nothing.
-        let shown = card(&store, &list(), &Version::new(0, 9, 4), true).unwrap();
+        let shown = card(&store, &list(), &Version::new(0, 9, 4), true, false).unwrap();
         assert!(shown.card.is_none() && shown.total == 0);
         // The shipped list has one thing for phones: update every device
         // for shared notes, for someone signed in to sync, from the release
@@ -220,7 +231,7 @@ mod tests {
         // which phones don't have.
         for signed_in in [true, false] {
             for version in [&now, &Version::new(0, 10, 3), &Version::new(1, 0, 0)] {
-                let shown = card(&store, NOTICES, version, signed_in).unwrap();
+                let shown = card(&store, NOTICES, version, signed_in, false).unwrap();
                 if signed_in && *version >= Version::new(0, 10, 8) {
                     assert_eq!(shown.card.unwrap().id, "shared-properties-0.10");
                     assert_eq!(shown.total, 1);
@@ -232,16 +243,51 @@ mod tests {
     }
 
     #[test]
+    fn a_refused_phone_gets_the_update_card_with_how_to_fix_it() {
+        let (dir, store) = store();
+        let now = Version::new(0, 10, 8);
+        // Nothing until the server says so, signed in or not.
+        for signed_in in [true, false] {
+            let shown = card(&store, NOTICES, &now, signed_in, false).unwrap();
+            assert_ne!(
+                shown.card.map(|c| c.id).as_deref(),
+                Some(kanso_core::notices::SHARED_NOTEBOOKS_UPDATE_ID)
+            );
+        }
+        let shown = card(&store, NOTICES, &now, false, true).unwrap();
+        let notice = shown.card.unwrap();
+        assert_eq!(notice.id, kanso_core::notices::SHARED_NOTEBOOKS_UPDATE_ID);
+        assert!(notice.title.starts_with("Update Kanso"));
+        assert!(!notice.steps.is_empty());
+        assert_eq!(notice.action_kind, PhoneNoticeActionKind::OpenSettings);
+        assert_eq!(notice.action_target, "updates");
+        // Dismiss puts it away on this phone, for good.
+        change(&store, |s| {
+            s.dismiss(kanso_core::notices::SHARED_NOTEBOOKS_UPDATE_ID)
+        })
+        .unwrap();
+        drop(store);
+        let store = Store::open(dir.path().join("library.db")).unwrap();
+        let shown = card(&store, NOTICES, &now, false, true).unwrap();
+        assert!(shown.card.is_none() && shown.total == 0);
+    }
+
+    #[test]
     fn dismissing_persists_in_the_library() {
         let (dir, store) = store();
         let now = Version::new(0, 10, 0);
         change(&store, |s| s.dismiss("fixture-a-0.10")).unwrap();
         drop(store);
         let store = Store::open(dir.path().join("library.db")).unwrap();
-        let shown = card(&store, &list(), &now, true).unwrap();
+        let shown = card(&store, &list(), &now, true, false).unwrap();
         assert_eq!(shown.card.unwrap().id, "fixture-b-0.10");
         change(&store, |s| s.mark_fixed("fixture-b-0.10")).unwrap();
-        assert!(card(&store, &list(), &now, true).unwrap().card.is_none());
+        assert!(
+            card(&store, &list(), &now, true, false)
+                .unwrap()
+                .card
+                .is_none()
+        );
     }
 
     #[test]
@@ -250,7 +296,12 @@ mod tests {
         store.set_meta(STATE_META, "{not json").unwrap();
         assert_eq!(read_state(&store).unwrap(), NoticeState::default());
         let now = Version::new(0, 10, 0);
-        assert!(card(&store, &list(), &now, true).unwrap().card.is_some());
+        assert!(
+            card(&store, &list(), &now, true, false)
+                .unwrap()
+                .card
+                .is_some()
+        );
     }
 
     #[test]
@@ -258,10 +309,10 @@ mod tests {
         let (_dir, store) = store();
         store.set_meta(LAST_RUN_META, "0.9.4").unwrap();
         let now = Version::new(0, 10, 0);
-        let ctx = context(&store, &now, false).unwrap();
+        let ctx = context(&store, &now, false, false).unwrap();
         assert_eq!(ctx.previous, Some(Version::new(0, 9, 4)));
         // The next launch of the same version still knows it.
-        let ctx = context(&store, &now, false).unwrap();
+        let ctx = context(&store, &now, false, false).unwrap();
         assert_eq!(ctx.previous, Some(Version::new(0, 9, 4)));
     }
 
@@ -279,8 +330,8 @@ mod tests {
             for &ix in &fix {
                 change(&store, |s| s.mark_fixed(list[ix].id)).unwrap();
             }
-            let first = card(&store, &list, &now, true).unwrap();
-            let second = card(&store, &list, &now, true).unwrap();
+            let first = card(&store, &list, &now, true, false).unwrap();
+            let second = card(&store, &list, &now, true, false).unwrap();
             prop_assert_eq!(&first, &second);
             if let Some(shown) = &first.card {
                 prop_assert!(!dismiss.iter().any(|&ix| list[ix].id == shown.id));

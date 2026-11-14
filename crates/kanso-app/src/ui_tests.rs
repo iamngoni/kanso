@@ -247,6 +247,51 @@ fn keeping_mine_over_a_change_elsewhere_keeps_theirs_in_history(cx: &mut TestApp
     );
 }
 
+/// Marks note `id` as a note of a shared notebook this account edits in.
+fn mark_notebook_note(f: &Fixture, id: &str) {
+    f.store
+        .put(
+            DocType::Note,
+            json!({"_id": id, kanso_core::model::SHARE_FIELD: {
+                "shareId": "s_1", "role": "edit", "ownerName": "ana",
+                "book": true, "stream": "st_1",
+            }}),
+            Put::Merge,
+            Origin::Ui,
+        )
+        .unwrap();
+}
+
+#[gpui_kit::test]
+fn a_notebook_edit_apart_from_the_typing_merges(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let id = f.notes[0].clone();
+    mark_notebook_note(&f, &id);
+    f.select(cx, &id);
+    f.type_body(cx, "start, mine");
+    // A collaborator's edit at the other end arrives.
+    f.edit_elsewhere(cx, &id, "The start");
+    assert!(!f.editor(cx, |e, _| e.has_incoming()), "nothing to ask");
+    assert_eq!(f.editor(cx, |e, cx| e.body_for_test(cx)), "The start, mine");
+    cx.executor().advance_clock(Duration::from_secs(2));
+    cx.run_until_parked();
+    assert_eq!(note_body(&f.store, &id), "The start, mine");
+}
+
+#[gpui_kit::test]
+fn a_notebook_edit_that_meets_the_typing_asks(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let id = f.notes[0].clone();
+    mark_notebook_note(&f, &id);
+    f.select(cx, &id);
+    f.type_body(cx, "start, mine");
+    f.edit_elsewhere(cx, &id, "start, theirs");
+    assert!(f.editor(cx, |e, _| e.has_incoming()), "asks which to keep");
+    cx.executor().advance_clock(Duration::from_secs(2));
+    cx.run_until_parked();
+    assert_eq!(note_body(&f.store, &id), "start, theirs");
+}
+
 #[gpui_kit::test]
 fn using_theirs_keeps_my_draft_in_history(cx: &mut TestAppContext) {
     let f = setup(cx);
@@ -5665,6 +5710,69 @@ fn an_update_notice_shows_until_it_is_dismissed(cx: &mut TestAppContext) {
     let saved = f.saved_config().notices;
     assert_eq!(saved.fixed, ["fixture-first-0.9"]);
     assert_eq!(saved.dismissed.len(), 2);
+}
+
+/// The shipped "Update Kanso to use shared notebooks" notice, with its
+/// version lowered to the one the tests run as (it starts with the release
+/// after this one).
+fn shared_notebooks_notice() -> &'static [kanso_core::notices::Notice] {
+    use kanso_core::notices::{NOTICES, SHARED_NOTEBOOKS_UPDATE_ID};
+    let mut notice = NOTICES
+        .iter()
+        .find(|n| n.id == SHARED_NOTEBOOKS_UPDATE_ID)
+        .expect("the shipped list has it")
+        .clone();
+    notice.since = semver::Version::new(0, 10, 0);
+    Box::leak(Box::new([notice]))
+}
+
+/// When the sync server says this Kanso is too old for shared notebooks, the
+/// Shared section says "Update Kanso to open this shared notebook." and a
+/// dismissible banner says how to fix it; Dismiss hides the banner for good
+/// and the section keeps its line. Nothing shows while the server is happy.
+// no-prop-test: drives one window; the rules are properties in kanso-core.
+#[gpui_kit::test]
+fn an_old_kanso_is_told_to_update_for_shared_notebooks(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.select(cx, &f.notes[0]);
+    f.draw(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    vcx.update(|_, cx| {
+        cx.set_global(crate::notices::NoticeBoard {
+            list: shared_notebooks_notice(),
+            previous: None,
+        });
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+    assert_eq!(vcx.debug_bounds("book-update-needed"), None);
+
+    vcx.update(|_, cx| {
+        cx.default_global::<crate::collab_model::Collab>()
+            .book_update_needed = true;
+        cx.refresh_windows();
+    });
+    f.draw(&mut vcx);
+    let pick = vcx.read(crate::notices::banner).unwrap();
+    assert_eq!(
+        pick.notice.id,
+        kanso_core::notices::SHARED_NOTEBOOKS_UPDATE_ID
+    );
+    assert!(pick.notice.title.starts_with("Update Kanso"));
+    assert!(vcx.debug_bounds("notice-banner").is_some());
+    assert!(vcx.debug_bounds("notice-dismiss").is_some());
+    assert!(vcx.debug_bounds("book-update-needed").is_some());
+
+    let bounds = vcx.debug_bounds("notice-dismiss").unwrap();
+    vcx.simulate_click(bounds.center(), gpui_kit::Modifiers::none());
+    f.draw(&mut vcx);
+    assert_eq!(vcx.debug_bounds("notice-banner"), None);
+    assert!(vcx.debug_bounds("book-update-needed").is_some());
+    assert_eq!(
+        f.saved_config().notices.dismissed,
+        [kanso_core::notices::SHARED_NOTEBOOKS_UPDATE_ID]
+    );
 }
 
 /// How to fix's own buttons: Mark as fixed puts the notice away (banner and

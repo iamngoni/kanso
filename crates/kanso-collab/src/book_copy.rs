@@ -39,6 +39,17 @@ pub fn owner_notice(name: &str) -> String {
     format!("\"{name}\" isn't shared any more. Everyone keeps a private copy.")
 }
 
+/// What a person is told when a note they deleted from a shared notebook
+/// is back, because someone edited it before they saw it go.
+pub fn brought_back_notice(title: &str) -> String {
+    let title = title.trim();
+    if title.is_empty() {
+        "A note was edited after you deleted it, so it's back.".to_owned()
+    } else {
+        format!("\"{title}\" was edited after you deleted it, so it's back.")
+    }
+}
+
 /// What a person is told once a notebook has ended for them.
 pub fn ended_notice(reason: BookEndReason, name: &str) -> String {
     let copy = copy_name(name);

@@ -23,6 +23,8 @@ pub mod discovery;
 pub mod draft;
 pub mod draft_types;
 pub mod editor;
+pub mod embargo;
+pub mod embargo_types;
 pub mod feedback;
 pub mod gallery;
 pub mod import;

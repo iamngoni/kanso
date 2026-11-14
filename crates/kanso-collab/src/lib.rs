@@ -31,7 +31,9 @@ pub mod identity;
 pub mod keys;
 pub mod members;
 pub mod memory;
+pub mod merge_apart;
 pub mod model;
+pub mod old_client;
 pub mod shared_doc;
 
 pub use api::{
@@ -51,7 +53,9 @@ pub use doc::{CollabDoc, Field, Merged, apply_splices, remap, splices};
 pub use engine::{Account, Engine, LiveHandle};
 pub use identity::{Identity, IdentityError, Published, Verified, check_public, fingerprint};
 pub use keys::{LinkSecret, NoteKey, invite_link, parse_invite_link};
+pub use merge_apart::merge_apart;
 pub use model::*;
+pub use old_client::{UPDATE_FOR_BOOKS, UPDATE_FOR_INVITATION, client_refused};
 pub use shared_doc::SharedDoc;
 
 #[cfg(test)]

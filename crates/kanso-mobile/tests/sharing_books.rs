@@ -523,3 +523,91 @@ fn a_notebook_note_shows_where_the_others_caret_is_by_their_list_name() {
     assert!(!bob.shared().is_live(&his));
     assert!(bob_session.remote_cursors().unwrap().is_empty());
 }
+
+/// Types `text` at the end of the session's visible text.
+fn type_at_end(session: &kanso_mobile::EditorSession, text: &str) {
+    let snap = session.snapshot().unwrap();
+    let end = snap.text.encode_utf16().count() as u32;
+    let after = end + text.encode_utf16().count() as u32;
+    session
+        .apply(kanso_mobile::TextChange {
+            base_version: snap.version,
+            start: end,
+            end,
+            text: text.into(),
+            selection: kanso_mobile::Range16 {
+                start: after,
+                end: after,
+            },
+            composing: None,
+        })
+        .unwrap();
+}
+
+// no-prop-test: a walk against a server; the merge's properties are in
+// kanso-collab's `merge_apart`.
+#[test]
+fn typing_in_a_notebook_note_never_overwrites_a_collaborators_edit() {
+    let (_world, alice, bob, book, bobs) = studio(BookRole::Editor);
+    let alices = alice.note_in(&book, "Brief");
+    let his = bob.note_in(&bobs, "Brief");
+    let session = alice.library.edit(&alices).unwrap();
+    // Alice types at the end; nothing saved yet.
+    type_at_end(&session, " from Alice");
+    // Bob changes the start, and it reaches Alice's library.
+    bob.edit(&his, "Bob's pixel review");
+    bob.sync();
+    alice.sync();
+    // Edits that don't overlap merge: no question, both kept.
+    let snap = session.snapshot().unwrap();
+    assert!(
+        !matches!(snap.save, kanso_mobile::SaveState::Conflict { .. }),
+        "{:?}",
+        snap.save
+    );
+    assert_eq!(snap.text, "Bob's pixel review from Alice");
+    // Leaving the note saves the merge.
+    session.close().unwrap();
+    assert_eq!(alice.body(&alices), "Bob's pixel review from Alice");
+}
+
+// no-prop-test: a walk against a server; the merge's properties are in
+// kanso-collab's `merge_apart`.
+#[test]
+fn edits_that_meet_in_a_notebook_note_ask_which_to_keep() {
+    let (_world, alice, bob, book, bobs) = studio(BookRole::Editor);
+    let alices = alice.note_in(&book, "Brief");
+    let his = bob.note_in(&bobs, "Brief");
+    let session = alice.library.edit(&alices).unwrap();
+    // Both type at the end of the same words.
+    type_at_end(&session, " from Alice");
+    bob.edit(&his, "Pixel review from Bob");
+    bob.sync();
+    alice.sync();
+    let snap = session.snapshot().unwrap();
+    assert_eq!(snap.save, kanso_mobile::SaveState::Conflict { deleted: false });
+    assert_eq!(snap.text, "Pixel review from Alice");
+    // Their version comes in when asked for.
+    let theirs = session.use_theirs().unwrap();
+    assert_eq!(theirs.text, "Pixel review from Bob");
+}
+
+// no-prop-test: a walk against a server; the orders are in kanso-collab's
+// `book_conflict_tests`.
+#[test]
+fn a_note_deleted_here_and_edited_there_comes_back_saying_so() {
+    let (_world, alice, bob, book, bobs) = studio(BookRole::Editor);
+    let alices = alice.note_in(&book, "Brief");
+    let his = bob.note_in(&bobs, "Brief");
+    alice.library.trash(&alices).unwrap();
+    bob.edit(&his, "Pixel review, cut 3");
+    bob.sync();
+    let event = alice.sync();
+    assert_eq!(
+        event.book_notices,
+        ["\"Brief\" was edited after you deleted it, so it's back."]
+    );
+    assert_eq!(alice.body(&alice.note_in(&book, "Brief")), "Pixel review, cut 3");
+    // Bob, who deleted nothing, is told nothing.
+    assert!(bob.sync().book_notices.is_empty());
+}

@@ -322,12 +322,13 @@ Change a PDF highlight color and/or comment. An empty comment clears it.
 
 ### `kanso-export-html`
 
-Export a note as one self-contained HTML page, as Kanso's "Export as web page" does. TeX math ($…$ and $$…$$), Mermaid diagrams and Excalidraw drawings are drawn as inline SVG, attached images are embedded as data URIs, and the page has no scripts and loads nothing from the network. Returns the HTML.
+Export a note as one self-contained HTML page, as Kanso's "Export as web page" does. TeX math ($…$ and $$…$$), Mermaid diagrams and Excalidraw drawings are drawn as inline SVG, attached images are embedded as data URIs, and the page has no scripts and loads nothing from the network. Returns the HTML. A note whose `embargo` property is still to come is refused unless ignoreEmbargo is true.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `noteId` | `string` | yes | ID of the note to export. It can be found as `_id` in the note docs. It always starts with `note:`. |
 | `theme` | `light` \| `dark` | no | The colors of the page: Kanso's light (paper) or dark (graphite) theme. (default `"light"`) |
+| `ignoreEmbargo` | `boolean` | no | Export the note even though its embargo has not lifted yet. Only set this when the person asked to export it before the embargo date. (default `false`) |
 
 ### `kanso-get-outline`
 

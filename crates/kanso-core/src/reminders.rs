@@ -69,9 +69,11 @@ pub fn acks_value(acks: &Acks) -> Value {
 pub const ACK_KEEP_MS: i64 = 30 * 24 * 3_600_000;
 
 /// When the reminder `key` fell due, in local milliseconds: read from the
-/// `@<due>` the key ends with. `None` for a key without one.
+/// `@<due>` the key ends with (an embargo's may name a zone after it, which
+/// is left out: close enough to prune by). `None` for a key without one.
 pub fn key_due_ms(key: &str) -> Option<i64> {
     let (_, due) = key.rsplit_once('@')?;
+    let due = due.split(' ').next().unwrap_or(due);
     Some(Due::parse(due)?.local_ms())
 }
 

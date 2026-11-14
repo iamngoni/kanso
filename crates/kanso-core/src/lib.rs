@@ -10,6 +10,8 @@ pub mod cards;
 pub mod dates;
 pub mod due_phrase;
 pub mod due_phrase_model;
+pub mod embargo;
+pub mod embargo_model;
 pub mod entities;
 pub mod excerpt;
 pub mod home;

@@ -53,6 +53,9 @@ pub struct NoticeContext {
     /// This library is still a plain file: encrypting it didn't happen (the
     /// system's key store refused the key, or the disk was too small).
     pub library_plain: bool,
+    /// The sync server refused this Kanso's shared-notebook requests as too
+    /// old (`426 client_too_old`) since it started.
+    pub server_refused_client: bool,
 }
 
 /// A change that breaks something people rely on, and the steps to fix what

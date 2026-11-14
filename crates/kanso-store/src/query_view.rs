@@ -330,26 +330,34 @@ mod tests {
                 )
                 .unwrap();
         }
-        let started = std::time::Instant::now();
-        let notes: Vec<ViewNote> = store
-            .query_view_notes()
-            .unwrap()
-            .into_iter()
-            .map(ViewNote::from)
-            .collect();
-        let spec = query_view::parse(
-            "from: status:active\ncolumns: rating, book\nsort: rating desc\nlimit: 50",
-        )
-        .unwrap();
-        let rows = query_view::evaluate(&spec, &notes, None);
-        let elapsed = started.elapsed();
-        assert_eq!(rows.len(), 50);
-        // Debug builds are slow; a release build is well under 100 ms.
+        let answer = || {
+            let started = std::time::Instant::now();
+            let notes: Vec<ViewNote> = store
+                .query_view_notes()
+                .unwrap()
+                .into_iter()
+                .map(ViewNote::from)
+                .collect();
+            let spec = query_view::parse(
+                "from: status:active\ncolumns: rating, book\nsort: rating desc\nlimit: 50",
+            )
+            .unwrap();
+            let rows = query_view::evaluate(&spec, &notes, None);
+            assert_eq!(rows.len(), 50);
+            started.elapsed()
+        };
+        // The fastest of a few runs: the work is the same each time, so the
+        // fastest is what it costs, and a run the scheduler put aside on a
+        // busy machine (load averages of 400 stalled single runs past the
+        // limit) doesn't count. A query that really got slower is slow in
+        // every run and still fails. A debug build takes about 50 ms; a
+        // release build is well under that.
+        let elapsed = (0..5).map(|_| answer()).min().unwrap();
         assert!(
             elapsed < std::time::Duration::from_millis(500),
             "{elapsed:?}"
         );
-        eprintln!("5000 notes answered in {elapsed:?}");
+        eprintln!("5000 notes answered in {elapsed:?} at best");
     }
 
     #[test]
