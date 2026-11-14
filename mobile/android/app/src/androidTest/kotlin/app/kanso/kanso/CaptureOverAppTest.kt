@@ -100,10 +100,16 @@ class CaptureOverAppTest {
         app.startActivity(TaskTileService.addTaskIntent(app))
         waitForObject(By.pkg(kanso).clazz("android.widget.EditText"), "the Task field")
         assertOverSettings()
-        device.pressBack() // the keyboard
-        device.pressBack() // the sheet
+        // Back closes the keyboard when it is up, then the sheet; never more,
+        // or Settings would be left too.
+        repeat(2) {
+            if (device.hasObject(By.pkg(kanso))) {
+                device.pressBack()
+                device.wait(Until.gone(By.pkg(kanso)), 3_000)
+            }
+        }
         assertTrue("the sheet did not finish", device.wait(Until.gone(By.pkg(kanso)), 20_000))
-        assertTrue(device.hasObject(By.pkg(settings).depth(0)))
+        assertTrue("Settings is not in front again", device.hasObject(By.pkg(settings).depth(0)))
     }
 
     @Test
