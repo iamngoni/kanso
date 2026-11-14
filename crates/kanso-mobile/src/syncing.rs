@@ -29,6 +29,7 @@ use crate::boundary::{guard, held};
 use crate::errors::KansoError;
 use crate::library::Inner;
 use crate::model::{ServerInfo, SyncPhase, SyncProblemKind, SyncReportRow, SyncStatus};
+use crate::sharing::SharedNotes;
 use crate::sync_model::SyncAccount;
 use crate::sync_words::{details_of, reason_kind};
 
@@ -186,7 +187,8 @@ impl SyncHandle {
     }
 
     /// Syncs now: pulls what other devices wrote and pushes what was written
-    /// here. If a sync is already running, says so (`queued`) and returns.
+    /// here, then the shared notes and notebooks, as the scheduler's round
+    /// does. If a sync is already running, says so (`queued`) and returns.
     pub fn sync_now(&self) -> Result<SyncReportRow, KansoError> {
         guard(|| match self.run(Arc::new(AtomicBool::new(false))) {
             Ran::NotSignedIn => Err(KansoError::SignedOut),
@@ -195,13 +197,21 @@ impl SyncHandle {
                 queued: true,
                 ..SyncReportRow::default()
             }),
-            Ran::Done(report) => Ok(SyncReportRow {
-                pulled: count(report.pulled),
-                pushed: count(report.pushed),
-                conflicts: count(report.conflicts()),
-                pending: count(report.pending),
-                queued: false,
-            }),
+            Ran::Done(report) => {
+                // What others wrote in shared notebooks comes too; its own
+                // failure (offline, signed out) waits for the next round.
+                let _ = SharedNotes {
+                    inner: self.inner.clone(),
+                }
+                .sync_shared();
+                Ok(SyncReportRow {
+                    pulled: count(report.pulled),
+                    pushed: count(report.pushed),
+                    conflicts: count(report.conflicts()),
+                    pending: count(report.pending),
+                    queued: false,
+                })
+            }
             Ran::Failed(err) => Err(sync_error(&err)),
         })
     }

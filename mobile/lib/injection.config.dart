@@ -276,6 +276,7 @@ import 'settings/state/licences/licences_bloc.dart' as _i570;
 import 'settings/state/sync_settings/sync_settings_bloc.dart' as _i794;
 import 'settings/state/word_goal_settings/word_goal_settings_bloc.dart'
     as _i893;
+import 'sharing/services/book_notice_inbox.dart' as _i750;
 import 'sharing/state/comments/comments_bloc.dart' as _i295;
 import 'sharing/state/invitations/invitations_bloc.dart' as _i1;
 import 'sharing/state/join_link/join_link_bloc.dart' as _i676;
@@ -1066,12 +1067,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i374.SharedNotesRepository>(),
       ),
     );
-    gh.factory<_i137.SharedNotebooksBloc>(
-      () => _i137.SharedNotebooksBloc(
-        gh<_i564.SharedNotebooksRepository>(),
-        gh<_i374.SharedNotesRepository>(),
-      ),
-    );
     gh.factory<_i252.ShareNoteBloc>(
       () => _i252.ShareNoteBloc(
         gh<_i374.SharedNotesRepository>(),
@@ -1121,6 +1116,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i109.SharedNoteStatusBloc>(
       () => _i109.SharedNoteStatusBloc(gh<_i374.SharedNotesRepository>()),
     );
+    gh.lazySingleton<_i750.BookNoticeInbox>(
+      () => _i750.BookNoticeInbox(gh<_i374.SharedNotesRepository>()),
+    );
     gh.factory<_i54.AgentReviewBloc>(
       () => _i54.AgentReviewBloc(gh<_i214.AgentTasksRepository>()),
     );
@@ -1153,6 +1151,13 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i657.DictationBloc(
         gh<_i872.DictationRepository>(),
         gh<_i426.DictationTextRules>(),
+      ),
+    );
+    gh.factory<_i137.SharedNotebooksBloc>(
+      () => _i137.SharedNotebooksBloc(
+        gh<_i564.SharedNotebooksRepository>(),
+        gh<_i374.SharedNotesRepository>(),
+        gh<_i750.BookNoticeInbox>(),
       ),
     );
     return this;
