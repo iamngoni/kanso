@@ -32,6 +32,9 @@ pub struct BookNews {
     pub edits: Vec<kanso_collab::NoteEdit>,
     /// What to tell the person about notebooks that ended here.
     pub ended: Vec<String>,
+    /// Titles of notes this account deleted that someone's edit brought
+    /// back.
+    pub brought_back: Vec<String>,
     /// A notebook's sync got no answer from the server.
     pub offline: bool,
     /// The server refused this Kanso as too old for shared notebooks: the

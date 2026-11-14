@@ -81,6 +81,9 @@ pub struct BookSync {
     pub notes_written: usize,
     /// Notes another member deleted that moved to this library's trash.
     pub notes_trashed: usize,
+    /// Notes this account deleted that someone edited meanwhile, so they
+    /// are back: their titles, for [`crate::book_copy::brought_back_notice`].
+    pub brought_back: Vec<String>,
     /// This account is no longer in the notebook.
     pub removed: bool,
     /// The notebook ended here during this sync (removed, or it was
