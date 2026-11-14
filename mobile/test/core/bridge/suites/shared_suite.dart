@@ -240,6 +240,12 @@ void sharedSuite(OpenLibrary open) {
       await expectLater(shared.declineBook(shareId: 'share'), signedOut);
     });
 
+    test('until the server says this Kanso is too old, there is no update '
+        'line', () async {
+      final shared = (await open()).shared();
+      expect(shared.bookUpdateLine(), isNull);
+    });
+
     test("a notebook's questions say what the desktop's say", () async {
       final shared = (await open()).shared();
       final words = shared.bookWords(name: 'Studio', who: 'Dan');

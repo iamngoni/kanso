@@ -228,6 +228,18 @@ with the differences below. Four tools and routes are only for canvases.
 A Read or Suggest key can list and read canvases but not change them: a suggestion can't
 edit a canvas. A key limited to some notebooks must pass `bookId` to `kanso-create-canvas`.
 
+## Embargo
+
+A note can carry an `embargo` property: a date and time with a time zone
+(`embargo: 2026-11-18T09:00 America/New_York`), a date and time, or a day. Until it lifts, `kanso-export-html` refuses
+the note with a tool error that says when it lifts and how to go ahead: "This note is under
+embargo until Wed 18 Nov, 09:00 New York (in 5 days). Exporting it would hand it out early.
+To export it anyway, call kanso-export-html again with "ignoreEmbargo": true." Pass
+`"ignoreEmbargo": true` only when the person asked for the note before its embargo date.
+An embargo with a time zone lifts at the same moment everywhere; one without lifts at that
+time on the computer's clock. Once it has lifted, the property changes nothing. Reading,
+searching and editing the note are never affected.
+
 ## PDFs
 
 PDF text tools read the saved per-page extraction, including OCR text. They do not read a
@@ -425,6 +437,7 @@ Each message says how to fix it, because a refused agent never shows Kanso's win
 | A key that can't write tries to | `403` `forbidden` (REST), or a tool error (MCP): "This key can read your notes but not change them. In Kanso, open Settings › Local API › API keys and create a key that can read and write." (a suggest key says it "can suggest edits through MCP but not change notes directly"; an add-and-tick key says it "can add notes and tasks and tick tasks, but it can't change or delete what is already there") | make a key that can read and write |
 | A key without attachment access asks for one | "This key can read but has no access to attachments. In Kanso, open Settings › Local API › API keys and create a key that can read and write." | make a key that can read and write |
 | A key limited to some notebooks writes elsewhere | "This key is limited to some notebooks, and … is not one of them. In Kanso, open Settings › Local API › API keys and create a key for the notebooks you need." | make a key for those notebooks |
+| `kanso-export-html` on a note whose embargo hasn't lifted | a tool error: "This note is under embargo until … (in …). Exporting it would hand it out early. To export it anyway, call kanso-export-html again with "ignoreEmbargo": true." | wait for the embargo, or pass `"ignoreEmbargo": true` if the person asked for it early |
 | `kanso mcp` can't read `config.json` | error `-32000`: "Kanso's settings at … can't be read. Open Kanso once to repair them, then restart this agent." | open Kanso once |
 
 A note, notebook or tag a key can't see is "not found" (404), the same as one that

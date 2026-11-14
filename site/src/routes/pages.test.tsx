@@ -73,7 +73,7 @@ describe("Help", () => {
 
   it("covers the topics the apps point people to", () => {
     render(<Help />);
-    for (const title of ["Syncing, and adding a device", "Locked notes", "Your library key", "Dates and repeating tasks", "Running a video studio", "Connecting an agent or a script", "Sharing", "Sharing a notebook", "Crash reports", "Deleting your account", "Getting support"]) {
+    for (const title of ["Syncing, and adding a device", "Locked notes", "Your library key", "Dates and repeating tasks", "Running a video studio", "Capturing from anywhere on a phone", "Connecting an agent or a script", "Sharing", "Sharing a notebook", "Crash reports", "Deleting your account", "Getting support"]) {
       expect(screen.getByRole("heading", { level: 2, name: title })).toBeInTheDocument();
     }
   });
@@ -91,6 +91,19 @@ describe("Help", () => {
     }
     expect(within(topic("shared-notebooks")).getByText("Stop sharing")).toBeInTheDocument();
     expect(within(topic("sharing")).getByRole("link", { name: "Sharing a notebook" })).toHaveAttribute("href", "#shared-notebooks");
+  });
+
+  it("explains the embargo, the old-app warning and the phone shortcuts", () => {
+    const { container } = render(<Help />);
+    const topic = (id: string) => container.querySelector(`section#${id}`) as HTMLElement;
+    expect(within(topic("studio")).getByText("Publish anyway")).toBeInTheDocument();
+    expect(within(topic("studio")).getByText(/Embargoed until Wed 18 Nov, 09:00 New York/)).toBeInTheDocument();
+    expect(within(topic("shared-notebooks")).getByText("Update Kanso to use shared notebooks")).toBeInTheDocument();
+    expect(within(topic("shared-notebooks")).getByText(/Update Kanso to open this shared notebook\./)).toBeInTheDocument();
+    for (const action of ["Capture in Kanso", "Add Kanso task", "Search Kanso", "Open Kanso note"]) {
+      expect(within(topic("phone-shortcuts")).getByText(action)).toBeInTheDocument();
+    }
+    expect(within(topic("phone-shortcuts")).getAllByText("Add task").length).toBeGreaterThan(0);
   });
 
   it("points to GitHub issues for support and says what crash reports leave out", () => {
