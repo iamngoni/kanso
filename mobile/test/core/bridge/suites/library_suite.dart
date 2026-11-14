@@ -1161,6 +1161,43 @@ void librarySuite(OpenLibrary open) {
       );
     });
 
+    test('"Stop repeating" drops the every words, keeps the date, and '
+        'Undo puts them back', () async {
+      final library = await open();
+      const original =
+          '- [ ] film @2099-11-14T15:00 every week #video\n'
+          '- [ ] edit @2099-11-15\n';
+      final id = await makeNote(library, 'Shoots', original);
+      final rev = (await library.note(id: id)).rev;
+      final stopped = await library.stopRepeatingAt(
+        noteId: id,
+        index: 0,
+        baseRev: rev,
+      );
+      expect(stopped, isA<Ticked_Changed>());
+      expect(
+        (await library.note(id: id)).body,
+        '- [ ] film @2099-11-14T15:00 #video\n- [ ] edit @2099-11-15\n',
+      );
+      // A page drawn before the change is out of date.
+      await expectLater(
+        library.stopRepeatingAt(noteId: id, index: 0, baseRev: rev),
+        throwsA(isA<KansoError_Conflict>()),
+      );
+      final now = (stopped as Ticked_Changed).rev;
+      // A task with no repeat is left alone; one that is not there is missing.
+      expect(
+        await library.stopRepeatingAt(noteId: id, index: 1, baseRev: now),
+        isA<Ticked_Unchanged>(),
+      );
+      expect(
+        await library.stopRepeatingAt(noteId: id, index: 9, baseRev: now),
+        isA<Ticked_Missing>(),
+      );
+      expect(await library.undo(ticket: stopped.undo), 1);
+      expect((await library.note(id: id)).body, original);
+    });
+
     test('a wiki-link to no note makes it, once', () async {
       final library = await open();
       final from = await makeNote(library, 'From', '[[Seed]]');

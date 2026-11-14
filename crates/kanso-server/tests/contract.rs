@@ -7,8 +7,9 @@
 //!
 //! Skipped, with a message, when `node` is not available. Set `KANSO_NODE`
 //! to pick a node binary and `KANSO_MCP_SERVER_JS` to point at the
-//! server's `dist/index.js`; otherwise the npx cache is tried, then
-//! `npx -y @inkdropapp/mcp-server@1.6.0`.
+//! server's `dist/index.js`; otherwise the npx cache is searched for that
+//! exact version (a newer one cached beside it is never used), then
+//! `npx -y @inkdropapp/mcp-server@1.6.0` fetches it.
 
 mod common;
 
@@ -110,14 +111,8 @@ fn node_server_command() -> Result<Command, String> {
     }
     let script = std::env::var_os("KANSO_MCP_SERVER_JS")
         .map(PathBuf::from)
-        .or_else(|| {
-            home().map(|h| {
-                h.join(".npm/_npx/bf42cecc764f1052/node_modules")
-                    .join(MCP_PACKAGE)
-                    .join("dist/index.js")
-            })
-        })
-        .filter(|p| p.is_file());
+        .filter(|p| p.is_file())
+        .or_else(cached_pinned_server);
     if let Some(script) = script {
         let mut command = Command::new(node);
         command.arg(script);
@@ -132,6 +127,32 @@ fn node_server_command() -> Result<Command, String> {
     let mut command = Command::new(npx);
     command.args(["-y", &format!("{MCP_PACKAGE}@{MCP_PACKAGE_VERSION}")]);
     Ok(command)
+}
+
+/// The pinned server's `dist/index.js` in the npx cache, if npx has fetched
+/// that version. npx keeps one folder per package spec, so a newer release
+/// fetched for something else sits beside it; only the folder whose
+/// `package.json` says [`MCP_PACKAGE_VERSION`] is used.
+fn cached_pinned_server() -> Option<PathBuf> {
+    let cache = home()?.join(".npm/_npx");
+    let mut found: Vec<PathBuf> = std::fs::read_dir(cache)
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path().join("node_modules").join(MCP_PACKAGE))
+        .filter(|package| pinned_version(package))
+        .map(|package| package.join("dist/index.js"))
+        .filter(|script| script.is_file())
+        .collect();
+    found.sort();
+    found.into_iter().next()
+}
+
+/// Whether the package folder holds exactly [`MCP_PACKAGE_VERSION`].
+fn pinned_version(package: &Path) -> bool {
+    std::fs::read_to_string(package.join("package.json"))
+        .ok()
+        .and_then(|text| serde_json::from_str::<Value>(&text).ok())
+        .is_some_and(|manifest| manifest["version"] == MCP_PACKAGE_VERSION)
 }
 
 impl NodeMcp {
