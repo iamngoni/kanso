@@ -10,6 +10,7 @@ import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/repos/abs/shared_notebooks_repository.dart';
 import 'package:kanso/core/models/repos/abs/shared_notes_repository.dart';
 import 'package:kanso/injection.dart';
+import 'package:kanso/sharing/services/book_notice_inbox.dart';
 import 'package:kanso/sharing/state/notebook_sharing/notebook_sharing_bloc.dart';
 import 'package:kanso/sharing/state/share_notebook/share_notebook_bloc.dart';
 import 'package:kanso/sharing/state/shared_notebooks/shared_notebooks_bloc.dart';
@@ -437,7 +438,11 @@ FixtureSharedNotebooksRepository registerSharedNotebooks({
   }
 
   swap<SharedNotebooksRepository>(() => repository, factory: false);
-  swap<SharedNotebooksBloc>(() => SharedNotebooksBloc(repository, notes));
+  final inbox = BookNoticeInbox(notes);
+  swap<BookNoticeInbox>(() => inbox, factory: false);
+  swap<SharedNotebooksBloc>(
+    () => SharedNotebooksBloc(repository, notes, inbox),
+  );
   swap<NotebookSharingBloc>(() => NotebookSharingBloc(repository, notes));
   swap<ShareNotebookBloc>(() => ShareNotebookBloc(repository, notes));
   return repository;

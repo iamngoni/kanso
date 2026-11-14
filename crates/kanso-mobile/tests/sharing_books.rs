@@ -617,3 +617,29 @@ fn a_note_deleted_here_and_edited_there_comes_back_saying_so() {
     // Bob, who deleted nothing, is told nothing.
     assert!(bob.sync().book_notices.is_empty());
 }
+
+// no-prop-test: one walk against a server; what Sync now runs is the
+// scheduler's round, whose rules are properties in src/schedule.rs.
+#[test]
+fn sync_now_brings_the_shared_notebooks_too() {
+    let (_world, alice, bob, book, bobs) = studio(BookRole::Editor);
+    let his = bob.note_in(&bobs, "Brief");
+    bob.edit(&his, "Pixel review, cut 4");
+    bob.sync();
+    let told = Arc::new(Mutex::new(Vec::new()));
+    let heard = told.clone();
+    alice.shared().events(move |event| {
+        heard.lock().unwrap().push(event);
+        true
+    });
+    // The person pulls to refresh, or taps Sync now in Settings.
+    alice.library.sync().sync_now().unwrap();
+    assert_eq!(
+        alice.body(&alice.note_in(&book, "Brief")),
+        "Pixel review, cut 4"
+    );
+    assert!(
+        told.lock().unwrap().iter().any(|e| !e.notebooks.is_empty()),
+        "the Shared section is told"
+    );
+}

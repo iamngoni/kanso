@@ -13,6 +13,7 @@ import '../../../core/models/data/load_status.dart';
 import '../../../core/models/repos/abs/shared_notebooks_repository.dart';
 import '../../../core/models/repos/abs/shared_notes_repository.dart';
 import '../../models/data/share_problem.dart';
+import '../../services/book_notice_inbox.dart';
 import '../../utils/share_problem_of.dart';
 
 part 'shared_notebooks_bloc.freezed.dart';
@@ -25,33 +26,35 @@ part 'shared_notebooks_state.dart';
 ///
 /// Read when it starts and again whenever a sync of shared notes or a
 /// notebook's room says something changed. What a sync says of a notebook
-/// that ended here ("You were removed from "Studio". Your copy is in …")
-/// is kept in [SharedNotebooksState.notices] until it is read.
+/// that ended here ("You were removed from "Studio". Your copy is in …"),
+/// or of a note deleted here that an edit brought back, is kept by the
+/// [BookNoticeInbox] (which hears syncs while this section isn't built) and
+/// shown in [SharedNotebooksState.notices] until it is read.
 @injectable
 class SharedNotebooksBloc
     extends Bloc<SharedNotebooksEvent, SharedNotebooksState> {
-  SharedNotebooksBloc(this._books, this._shared)
+  SharedNotebooksBloc(this._books, this._shared, this._inbox)
     : super(const SharedNotebooksState()) {
     on<SharedNotebooksStartedEvent>(_onStarted, transformer: restartable());
     on<SharedNotebooksRefreshedEvent>(
-      (event, emit) => _read(emit, notices: event.notices),
+      (event, emit) => _read(emit),
       transformer: restartable(),
     );
     on<SharedNotebooksAcceptedEvent>(_onAccepted, transformer: concurrent());
     on<SharedNotebooksDeclinedEvent>(_onDeclined, transformer: concurrent());
-    on<SharedNotebooksNoticeReadEvent>(
-      (event, emit) => emit(
-        state.copyWith(
-          notices: state.notices.skip(1).toList(),
-          joined: null,
-          problem: null,
-        ),
-      ),
-    );
+    on<SharedNotebooksNoticeReadEvent>((event, emit) {
+      if (state.notices.isNotEmpty) {
+        _inbox.dismissFirst();
+      }
+      emit(
+        state.copyWith(notices: _inbox.notices, joined: null, problem: null),
+      );
+    });
   }
 
   final SharedNotebooksRepository _books;
   final SharedNotesRepository _shared;
+  final BookNoticeInbox _inbox;
 
   /// The invitations answered here.
   final Set<String> _answered = <String>{};
@@ -60,27 +63,30 @@ class SharedNotebooksBloc
     SharedNotebooksStartedEvent event,
     Emitter<SharedNotebooksState> emit,
   ) async {
+    _inbox.start();
     await _read(emit);
-    await emit.onEach<SharedEvent>(
-      _shared.events(),
-      onData: (news) {
-        if (news.bookNotices.isNotEmpty) {
-          add(SharedNotebooksEvent.refreshed(notices: news.bookNotices));
-        } else if (news.notebooks.isNotEmpty ||
-            news.bookInvitations != state.invitations.length) {
-          add(const SharedNotebooksEvent.refreshed());
-        }
-      },
-    );
+    await Future.wait(<Future<void>>[
+      emit.onEach<SharedEvent>(
+        _shared.events(),
+        onData: (news) {
+          if (news.bookNotices.isNotEmpty ||
+              news.notebooks.isNotEmpty ||
+              news.bookInvitations != state.invitations.length) {
+            add(const SharedNotebooksEvent.refreshed());
+          }
+        },
+      ),
+      emit.onEach<List<String>>(
+        _inbox.changes,
+        onData: (notices) => emit(state.copyWith(notices: notices)),
+      ),
+    ]);
   }
 
-  Future<void> _read(
-    Emitter<SharedNotebooksState> emit, {
-    List<String> notices = const <String>[],
-  }) async {
+  Future<void> _read(Emitter<SharedNotebooksState> emit) async {
     final books = await _books.sharedBooks();
     final invitations = await _books.invitations();
-    final kept = <String>[...state.notices, ...notices];
+    final kept = _inbox.notices;
     if (books.fold((error) => error is SignedOutError, (_) => false)) {
       emit(
         state.copyWith(

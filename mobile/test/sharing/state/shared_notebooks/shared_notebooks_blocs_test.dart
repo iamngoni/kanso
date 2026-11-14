@@ -9,6 +9,7 @@ import 'package:kanso/core/models/data/load_status.dart';
 import 'package:kanso/sharing/models/data/book_prompt.dart';
 import 'package:kanso/sharing/models/data/share_problem.dart';
 import 'package:kanso/sharing/models/data/share_sheet_status.dart';
+import 'package:kanso/sharing/services/book_notice_inbox.dart';
 import 'package:kanso/sharing/state/notebook_sharing/notebook_sharing_bloc.dart';
 import 'package:kanso/sharing/state/share_notebook/share_notebook_bloc.dart';
 import 'package:kanso/sharing/state/shared_notebooks/shared_notebooks_bloc.dart';
@@ -59,10 +60,13 @@ BookInvitationRow _invitation(String shareId) => BookInvitationRow(
 void main() {
   late FixtureSharedNotebooksRepository books;
   late FixtureSharedNotesRepository people;
+  late BookNoticeInbox inbox;
 
   setUp(() {
     books = FixtureSharedNotebooksRepository();
     people = FixtureSharedNotesRepository();
+    inbox = BookNoticeInbox(people);
+    addTearDown(inbox.close);
   });
 
   group('SharedNotebooksBloc', () {
@@ -70,7 +74,7 @@ void main() {
       books
         ..books = <SharedBookRow>[_book('book:1')]
         ..invitationList = <BookInvitationRow>[_invitation('s9')];
-      final bloc = SharedNotebooksBloc(books, people)
+      final bloc = SharedNotebooksBloc(books, people, inbox)
         ..add(const SharedNotebooksEvent.started());
       addTearDown(bloc.close);
       await settle();
@@ -83,7 +87,7 @@ void main() {
       books
         ..books = <SharedBookRow>[_book('book:1')]
         ..signedOut = true;
-      final bloc = SharedNotebooksBloc(books, people)
+      final bloc = SharedNotebooksBloc(books, people, inbox)
         ..add(const SharedNotebooksEvent.started());
       addTearDown(bloc.close);
       await settle();
@@ -94,7 +98,7 @@ void main() {
 
     test('accepting joins and names the notebook to open', () async {
       books.invitationList = <BookInvitationRow>[_invitation('s9')];
-      final bloc = SharedNotebooksBloc(books, people)
+      final bloc = SharedNotebooksBloc(books, people, inbox)
         ..add(const SharedNotebooksEvent.started());
       addTearDown(bloc.close);
       await settle();
@@ -110,7 +114,7 @@ void main() {
       books
         ..invitationList = <BookInvitationRow>[_invitation('s9')]
         ..failure = const ApplicationError.network(message: 'offline');
-      final bloc = SharedNotebooksBloc(books, people)
+      final bloc = SharedNotebooksBloc(books, people, inbox)
         ..add(const SharedNotebooksEvent.started());
       addTearDown(bloc.close);
       await settle();
@@ -123,7 +127,7 @@ void main() {
 
     test('declining drops the invitation', () async {
       books.invitationList = <BookInvitationRow>[_invitation('s9')];
-      final bloc = SharedNotebooksBloc(books, people)
+      final bloc = SharedNotebooksBloc(books, people, inbox)
         ..add(const SharedNotebooksEvent.started());
       addTearDown(bloc.close);
       await settle();
@@ -134,7 +138,7 @@ void main() {
     });
 
     test('keeps each notice from a sync until it is read', () async {
-      final bloc = SharedNotebooksBloc(books, people)
+      final bloc = SharedNotebooksBloc(books, people, inbox)
         ..add(const SharedNotebooksEvent.started());
       addTearDown(bloc.close);
       await settle();
@@ -148,8 +152,40 @@ void main() {
       expect(bloc.state.notices, <String>['two']);
     });
 
+    test('shows a notice a sync said before the section was built', () async {
+      // The drawer holding the section is closed: only the inbox listens.
+      inbox.start();
+      people.eventsController.add(
+        _event(bookNotices: <String>['"Brief" is back']),
+      );
+      await settle();
+      final bloc = SharedNotebooksBloc(books, people, inbox)
+        ..add(const SharedNotebooksEvent.started());
+      addTearDown(bloc.close);
+      await settle();
+      expect(bloc.state.notices, <String>['"Brief" is back']);
+    });
+
+    test('a notice read is gone the next time the section is built', () async {
+      final first = SharedNotebooksBloc(books, people, inbox)
+        ..add(const SharedNotebooksEvent.started());
+      await settle();
+      people.eventsController.add(_event(bookNotices: <String>['one']));
+      await settle();
+      expect(first.state.notices, <String>['one']);
+      first.add(const SharedNotebooksEvent.noticeRead());
+      await settle();
+      await first.close();
+      final again = SharedNotebooksBloc(books, people, inbox)
+        ..add(const SharedNotebooksEvent.started());
+      addTearDown(again.close);
+      await settle();
+      expect(again.state.notices, isEmpty);
+      expect(inbox.notices, isEmpty);
+    });
+
     test('a sync that brings an invitation reads them again', () async {
-      final bloc = SharedNotebooksBloc(books, people)
+      final bloc = SharedNotebooksBloc(books, people, inbox)
         ..add(const SharedNotebooksEvent.started());
       addTearDown(bloc.close);
       await settle();

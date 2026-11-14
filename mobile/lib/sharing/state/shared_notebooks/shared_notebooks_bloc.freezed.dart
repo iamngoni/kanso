@@ -128,11 +128,11 @@ return noticeRead(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( List<String> notices)?  refreshed,TResult Function( String shareId)?  accepted,TResult Function( String shareId)?  declined,TResult Function()?  noticeRead,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function()?  refreshed,TResult Function( String shareId)?  accepted,TResult Function( String shareId)?  declined,TResult Function()?  noticeRead,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case SharedNotebooksStartedEvent() when started != null:
 return started();case SharedNotebooksRefreshedEvent() when refreshed != null:
-return refreshed(_that.notices);case SharedNotebooksAcceptedEvent() when accepted != null:
+return refreshed();case SharedNotebooksAcceptedEvent() when accepted != null:
 return accepted(_that.shareId);case SharedNotebooksDeclinedEvent() when declined != null:
 return declined(_that.shareId);case SharedNotebooksNoticeReadEvent() when noticeRead != null:
 return noticeRead();case _:
@@ -153,11 +153,11 @@ return noticeRead();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( List<String> notices)  refreshed,required TResult Function( String shareId)  accepted,required TResult Function( String shareId)  declined,required TResult Function()  noticeRead,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function()  refreshed,required TResult Function( String shareId)  accepted,required TResult Function( String shareId)  declined,required TResult Function()  noticeRead,}) {final _that = this;
 switch (_that) {
 case SharedNotebooksStartedEvent():
 return started();case SharedNotebooksRefreshedEvent():
-return refreshed(_that.notices);case SharedNotebooksAcceptedEvent():
+return refreshed();case SharedNotebooksAcceptedEvent():
 return accepted(_that.shareId);case SharedNotebooksDeclinedEvent():
 return declined(_that.shareId);case SharedNotebooksNoticeReadEvent():
 return noticeRead();}
@@ -174,11 +174,11 @@ return noticeRead();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( List<String> notices)?  refreshed,TResult? Function( String shareId)?  accepted,TResult? Function( String shareId)?  declined,TResult? Function()?  noticeRead,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function()?  refreshed,TResult? Function( String shareId)?  accepted,TResult? Function( String shareId)?  declined,TResult? Function()?  noticeRead,}) {final _that = this;
 switch (_that) {
 case SharedNotebooksStartedEvent() when started != null:
 return started();case SharedNotebooksRefreshedEvent() when refreshed != null:
-return refreshed(_that.notices);case SharedNotebooksAcceptedEvent() when accepted != null:
+return refreshed();case SharedNotebooksAcceptedEvent() when accepted != null:
 return accepted(_that.shareId);case SharedNotebooksDeclinedEvent() when declined != null:
 return declined(_that.shareId);case SharedNotebooksNoticeReadEvent() when noticeRead != null:
 return noticeRead();case _:
@@ -225,73 +225,33 @@ String toString() {
 
 
 class SharedNotebooksRefreshedEvent implements SharedNotebooksEvent {
-  const SharedNotebooksRefreshedEvent({final  List<String> notices = const <String>[]}): _notices = notices;
+  const SharedNotebooksRefreshedEvent();
   
 
- final  List<String> _notices;
-@JsonKey() List<String> get notices {
-  if (_notices is EqualUnmodifiableListView) return _notices;
-  // ignore: implicit_dynamic_type
-  return EqualUnmodifiableListView(_notices);
-}
 
 
-/// Create a copy of SharedNotebooksEvent
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$SharedNotebooksRefreshedEventCopyWith<SharedNotebooksRefreshedEvent> get copyWith => _$SharedNotebooksRefreshedEventCopyWithImpl<SharedNotebooksRefreshedEvent>(this, _$identity);
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SharedNotebooksRefreshedEvent&&const DeepCollectionEquality().equals(other._notices, _notices));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SharedNotebooksRefreshedEvent);
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_notices));
+int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'SharedNotebooksEvent.refreshed(notices: $notices)';
+  return 'SharedNotebooksEvent.refreshed()';
 }
 
 
 }
 
-/// @nodoc
-abstract mixin class $SharedNotebooksRefreshedEventCopyWith<$Res> implements $SharedNotebooksEventCopyWith<$Res> {
-  factory $SharedNotebooksRefreshedEventCopyWith(SharedNotebooksRefreshedEvent value, $Res Function(SharedNotebooksRefreshedEvent) _then) = _$SharedNotebooksRefreshedEventCopyWithImpl;
-@useResult
-$Res call({
- List<String> notices
-});
 
 
-
-
-}
-/// @nodoc
-class _$SharedNotebooksRefreshedEventCopyWithImpl<$Res>
-    implements $SharedNotebooksRefreshedEventCopyWith<$Res> {
-  _$SharedNotebooksRefreshedEventCopyWithImpl(this._self, this._then);
-
-  final SharedNotebooksRefreshedEvent _self;
-  final $Res Function(SharedNotebooksRefreshedEvent) _then;
-
-/// Create a copy of SharedNotebooksEvent
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? notices = null,}) {
-  return _then(SharedNotebooksRefreshedEvent(
-notices: null == notices ? _self._notices : notices // ignore: cast_nullable_to_non_nullable
-as List<String>,
-  ));
-}
-
-
-}
 
 /// @nodoc
 

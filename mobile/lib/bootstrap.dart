@@ -19,6 +19,7 @@ import 'injection.dart';
 import 'metrics/models/repos/abs/usage_metrics_repository.dart';
 import 'providers.dart';
 import 'reminders/utils/reminders_coordinator.dart';
+import 'sharing/services/book_notice_inbox.dart';
 import 'window/models/repos/abs/note_window_repository.dart';
 import 'window/views/widgets/note_window_request_host.dart';
 import 'window/views/widgets/note_window_scope.dart';
@@ -37,6 +38,9 @@ Future<void> bootstrap(
   // before anything opens a note library.
   await KansoCore.init();
   await configureDependencies(environment.injectableName);
+  // Shared notebooks' notices are said once; this hears them from the start,
+  // before the drawer that shows them is ever built.
+  getIt<BookNoticeInbox>().start();
   // Dart errors are kept as scrubbed crash reports; integration tests keep
   // the framework's own handlers so a failure still fails the test.
   if (environment != AppEnvironment.integration) {
