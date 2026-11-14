@@ -1583,13 +1583,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String pdfNotesColor(String color) {
-    String _temp0 = intl.Intl.selectLogic(color, {
-      'yellow': 'Yellow',
-      'green': 'Green',
-      'blue': 'Blue',
-      'pink': 'Pink',
-      'other': 'Colour',
-    });
+    String _temp0 = intl.Intl.selectLogic(
+      color,
+      {
+        'yellow': 'Yellow',
+        'green': 'Green',
+        'blue': 'Blue',
+        'pink': 'Pink',
+        'other': 'Colour',
+      },
+    );
     return '$_temp0';
   }
 
@@ -3609,16 +3612,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String historyOrigin(String origin) {
-    String _temp0 = intl.Intl.selectLogic(origin, {
-      'ui': 'Edited in Kanso',
-      'api': 'Replaced through the API',
-      'sync': 'Replaced by sync',
-      'import': 'Replaced by an import',
-      'collab': 'Edited in a shared note',
-      'agent': 'Suggested by an agent, applied by you',
-      'plugin': 'Changed by a plugin',
-      'other': 'Saved version',
-    });
+    String _temp0 = intl.Intl.selectLogic(
+      origin,
+      {
+        'ui': 'Edited in Kanso',
+        'api': 'Replaced through the API',
+        'sync': 'Replaced by sync',
+        'import': 'Replaced by an import',
+        'collab': 'Edited in a shared note',
+        'agent': 'Suggested by an agent, applied by you',
+        'plugin': 'Changed by a plugin',
+        'other': 'Saved version',
+      },
+    );
     return '$_temp0';
   }
 
@@ -8303,6 +8309,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scheduleLocked => 'That note is locked. Unlock it to change it.';
 
   @override
+  String embargoBanner(String when) {
+    return 'Embargoed until $when';
+  }
+
+  @override
+  String embargoBannerLifts(String inWords) {
+    return 'Lifts $inWords';
+  }
+
+  @override
+  String get embargoAskTitle => 'This note is under embargo';
+
+  @override
+  String embargoAskPublish(String when, String inWords) {
+    return 'Embargo lifts $when ($inWords). Publish anyway?';
+  }
+
+  @override
+  String embargoAskShareLink(String when, String inWords) {
+    return 'Embargo lifts $when ($inWords). Make a share link anyway?';
+  }
+
+  @override
+  String embargoAskExport(String when, String inWords) {
+    return 'Embargo lifts $when ($inWords). Export anyway?';
+  }
+
+  @override
+  String get embargoPublishAnyway => 'Publish anyway';
+
+  @override
+  String get embargoShareLinkAnyway => 'Make link anyway';
+
+  @override
+  String get embargoExportAnyway => 'Export anyway';
+
+  @override
+  String get embargoGuardRail =>
+      'Anyone who can read the note can still copy it. The embargo is a reminder, not a lock.';
+
+  @override
   String shareNotebookTitle(String name) {
     return 'Share “$name”';
   }
@@ -8402,13 +8449,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String bookRoleName(String role) {
-    String _temp0 = intl.Intl.selectLogic(role, {
-      'owner': 'Owner',
-      'manager': 'Manager',
-      'editor': 'Can edit',
-      'commenter': 'Can comment',
-      'other': 'Can view',
-    });
+    String _temp0 = intl.Intl.selectLogic(
+      role,
+      {
+        'owner': 'Owner',
+        'manager': 'Manager',
+        'editor': 'Can edit',
+        'commenter': 'Can comment',
+        'other': 'Can view',
+      },
+    );
     return '$_temp0';
   }
 

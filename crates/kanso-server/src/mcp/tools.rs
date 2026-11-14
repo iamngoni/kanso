@@ -13,6 +13,7 @@
 use base64::Engine as _;
 use base64::engine::DecodePaddingMode;
 use base64::engine::general_purpose::{GeneralPurpose, GeneralPurposeConfig, STANDARD};
+use kanso_core::embargo;
 use kanso_core::id::with_prefix;
 use kanso_core::links::{LINK_SCHEME, NOTE_LINK_PREFIX};
 use kanso_core::model::{MAX_ATTACHMENT_SIZE, SUPPORTED_IMAGE_TYPES, attachment_limit, is_pdf};
@@ -536,10 +537,19 @@ fn create_from_template(store: &Store, args: &Args) -> ToolResult {
 }
 
 /// `kanso-export-html`: the note as a standalone page, in Kanso's light or
-/// dark theme.
+/// dark theme. A note under embargo is refused unless `ignoreEmbargo` is
+/// true, and the refusal says so.
 fn export_html(store: &Store, args: &Args, file_shown: &dyn Fn(&str) -> bool) -> ToolResult {
     let id = with_prefix(DocType::Note, str_arg(args, "noteId"));
     let note = api::get_doc(store, &id, None, false)?;
+    if !bool_arg(args, "ignoreEmbargo") {
+        let now = now_ms();
+        let offset = chrono::Local::now().offset().local_minus_utc();
+        let local = now + i64::from(offset) * 1000;
+        if let Some(found) = embargo::check(&js_string(note.get("body")), now, local) {
+            return Err(ToolError(embargo_refusal(&found, now, local)));
+        }
+    }
     let palette = match opt_str(args, "theme") {
         Some("dark") => kanso_render::Palette::DARK,
         _ => kanso_render::Palette::LIGHT,
@@ -561,6 +571,19 @@ fn export_html(store: &Store, args: &Args, file_shown: &dyn Fn(&str) -> bool) ->
         &attachments,
     );
     result(vec![text(html)])
+}
+
+/// Why `kanso-export-html` refused a note under embargo, and how to go
+/// ahead anyway.
+// no-prop-test: words around kanso_core::embargo's label and time left,
+// which are property-tested there.
+fn embargo_refusal(found: &embargo::Embargo, now: i64, local: i64) -> String {
+    format!(
+        "This note is under embargo until {} ({}). Exporting it would hand it out early. \
+         To export it anyway, call kanso-export-html again with \"ignoreEmbargo\": true.",
+        found.label(),
+        embargo::in_words(found.remaining_ms(now, local))
+    )
 }
 
 /// Lists tags with counts computed only from notes the caller may see.

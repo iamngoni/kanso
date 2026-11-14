@@ -61,7 +61,7 @@ impl Library {
             let store = &self.inner.store;
             let now_local = now_utc_ms.saturating_add(offset_ms);
             let today = DateTime::from_local_ms(now_local).date;
-            let tasks = self.reminder_tasks()?;
+            let tasks = self.reminder_tasks(offset_ms)?;
             let kept = store.meta(SHOWN_META)?;
             let mut shown = parse_shown(kept.as_deref());
 
@@ -151,7 +151,9 @@ impl Library {
         now_utc_ms: i64,
     ) -> Result<Option<TaskPlace>, KansoError> {
         guard(|| {
-            let tasks = self.reminder_tasks()?;
+            // A lift notice's key doesn't hang on the offset; its time does,
+            // and isn't needed here.
+            let tasks = self.reminder_tasks(0)?;
             let Some(task) = tasks.iter().find(|task| task.key == key) else {
                 return Ok(None);
             };
@@ -174,14 +176,15 @@ impl Library {
         })
     }
 
-    /// The open tasks with a time that can remind: not those of locked
-    /// notes, whether sealed or in a locked notebook that hasn't sealed them
-    /// yet.
-    pub(crate) fn reminder_tasks(&self) -> Result<Vec<ReminderTask>, KansoError> {
+    /// The open tasks with a time that can remind, and the embargoes' lift
+    /// notices, in a phone whose local time is UTC plus `offset_ms`: not
+    /// those of locked notes, whether sealed or in a locked notebook that
+    /// hasn't sealed them yet.
+    pub(crate) fn reminder_tasks(&self, offset_ms: i64) -> Result<Vec<ReminderTask>, KansoError> {
         let store = &self.inner.store;
         let locked_books = store.locked_books()?;
         let mut open: HashMap<String, bool> = HashMap::new();
-        let mut tasks = store.reminder_tasks()?;
+        let mut tasks = reminders::reminder_tasks(store, &|utc| utc.saturating_add(offset_ms))?;
         let mut failed = None;
         tasks.retain(|task| {
             *open
@@ -219,6 +222,7 @@ fn note_of(task: &ReminderTask, day: Date, at: DateTime) -> ReminderNote {
         title: said.title,
         body: said.body,
         fire_at: local_time_of(at),
-        actions: true,
+        // An embargo's lift notice has nothing to tick off: a tap opens it.
+        actions: !reminders::is_lift_notice(&task.key),
     }
 }

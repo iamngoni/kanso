@@ -17,6 +17,7 @@ import 'api/discovery.dart';
 import 'api/draft.dart';
 import 'api/draft_types.dart';
 import 'api/editor.dart';
+import 'api/embargo_types.dart';
 import 'api/feedback.dart';
 import 'api/gallery.dart';
 import 'api/import.dart';
@@ -1165,6 +1166,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   EditorSnapshot dco_decode_box_autoadd_editor_snapshot(dynamic raw);
 
   @protected
+  EmbargoView dco_decode_box_autoadd_embargo_view(dynamic raw);
+
+  @protected
   double dco_decode_box_autoadd_f_32(dynamic raw);
 
   @protected
@@ -1631,6 +1635,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   EditorSnapshot dco_decode_editor_snapshot(dynamic raw);
+
+  @protected
+  EmbargoView dco_decode_embargo_view(dynamic raw);
 
   @protected
   ExportedPage dco_decode_exported_page(dynamic raw);
@@ -2602,6 +2609,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   EditOutcome? dco_decode_opt_box_autoadd_edit_outcome(dynamic raw);
+
+  @protected
+  EmbargoView? dco_decode_opt_box_autoadd_embargo_view(dynamic raw);
 
   @protected
   double? dco_decode_opt_box_autoadd_f_32(dynamic raw);
@@ -4515,6 +4525,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  EmbargoView sse_decode_box_autoadd_embargo_view(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_box_autoadd_f_32(SseDeserializer deserializer);
 
   @protected
@@ -5063,6 +5076,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   EditorSnapshot sse_decode_editor_snapshot(SseDeserializer deserializer);
+
+  @protected
+  EmbargoView sse_decode_embargo_view(SseDeserializer deserializer);
 
   @protected
   ExportedPage sse_decode_exported_page(SseDeserializer deserializer);
@@ -6226,6 +6242,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   EditOutcome? sse_decode_opt_box_autoadd_edit_outcome(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EmbargoView? sse_decode_opt_box_autoadd_embargo_view(
     SseDeserializer deserializer,
   );
 
@@ -8476,6 +8497,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_embargo_view(
+    EmbargoView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_f_32(double self, SseSerializer serializer);
 
   @protected
@@ -9209,6 +9236,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
     EditorSnapshot self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_embargo_view(EmbargoView self, SseSerializer serializer);
 
   @protected
   void sse_encode_exported_page(ExportedPage self, SseSerializer serializer);
@@ -10747,6 +10777,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_opt_box_autoadd_edit_outcome(
     EditOutcome? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_embargo_view(
+    EmbargoView? self,
     SseSerializer serializer,
   );
 

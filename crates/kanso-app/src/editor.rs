@@ -5159,6 +5159,44 @@ impl NoteEditor {
             )
     }
 
+    /// The open note's embargo while it is in force, read from the note as
+    /// last saved (a typed date shows once it is saved).
+    pub fn embargo(&self, cx: &App) -> Option<kanso_core::embargo::Embargo> {
+        let note = self.note.as_ref()?;
+        let now = Clock::now_ms(cx);
+        kanso_core::embargo::check(&note.body, now, Clock::local_ms(cx, now))
+    }
+
+    /// The line under the title of a note under embargo: "Embargoed until
+    /// Tue 18 Nov, 09:00 New York."
+    // no-prop-test: drawing; `kanso_core::embargo` carries the logic.
+    fn render_embargo_banner(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let embargo = self.embargo(cx)?;
+        let colors = Colors::get(cx);
+        Some(
+            h_flex()
+                .flex_none()
+                .gap_2()
+                .items_center()
+                .mx(px(TEXT_INSET - 12.))
+                .my_1()
+                .px(px(12.))
+                .py(px(6.))
+                .rounded(px(6.))
+                .bg(Hsla::from(colors.warning).opacity(0.14))
+                .text_size(px(12.5))
+                .text_color(colors.text)
+                .debug_selector(|| "embargo-banner".into())
+                .child(
+                    Icon::new(Lucide::Pause)
+                        .size(px(13.))
+                        .text_color(colors.warning),
+                )
+                .child(div().flex_1().min_w_0().child(embargo.banner()))
+                .into_any_element(),
+        )
+    }
+
     /// A quiet line when another note says nearly the same as this one,
     /// with Open, Merge and a way to say they're different.
     fn render_twin_banner(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -6267,6 +6305,7 @@ impl Render for NoteEditor {
             .bg(colors.editor)
             .child(top)
             .when(trashed, |el| el.child(self.render_trash_banner(cx)))
+            .when(!trashed, |el| el.children(self.render_embargo_banner(cx)))
             .when_some(self.incoming.as_ref(), |el, incoming| {
                 let deleted = matches!(incoming, Incoming::Deleted);
                 el.child(self.render_incoming_banner(deleted, cx))
