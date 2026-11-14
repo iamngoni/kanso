@@ -10,7 +10,9 @@
 //! Edits autosave after a short pause. A change to the open note from
 //! elsewhere (the API, sync) reloads it quietly when there are no unsaved
 //! edits, and otherwise asks which version to keep. The losing version is
-//! kept in the note's history either way. Leaving the note or quitting
+//! kept in the note's history either way. In a shared notebook, a
+//! collaborator's edit that touches none of the typing is merged in instead
+//! of asked about (`editor_collab.rs`, `book_merge_in`). Leaving the note or quitting
 //! before answering keeps the editor's text.
 
 use std::cell::RefCell;
@@ -2510,6 +2512,11 @@ impl NoteEditor {
             }
             // A background read kept the handwriting's words, nothing else.
             if self.adopt_ink_text(&latest, cx) {
+                return;
+            }
+            // A collaborator's edit in a shared notebook that touches none
+            // of the typing goes in; only edits that meet are asked about.
+            if self.has_unsaved_edits(cx) && self.book_merge_in(&latest, window, cx) {
                 return;
             }
             Incoming::Changed(Box::new(latest))

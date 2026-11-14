@@ -27,6 +27,9 @@
 //! theirs, keeping theirs in the note's history) or
 //! [`EditorSession::use_theirs`] (which keeps the typed text in history).
 //! Changes made elsewhere to a note with no unsaved typing just reload it.
+//! In a shared notebook, a collaborator's edit that touches none of the
+//! typing is merged in (`kanso_collab::merge_apart`) and saved with no
+//! question, as the desktop does; only edits that meet are asked about.
 //!
 //! # Shared notes
 //!
@@ -55,7 +58,7 @@ use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 use kanso_collab::engine::rebase;
-use kanso_collab::{EditorMerge, apply_splices, remap, splices};
+use kanso_collab::{EditorMerge, apply_splices, merge_apart, remap, splices};
 use kanso_core::model::{LOCK_FIELD, TRASH_BOOK_ID};
 use kanso_core::properties;
 use kanso_core::{DocType, Note, now_ms};
@@ -483,6 +486,9 @@ struct State {
     /// What decides the editors of the property rows, read when the session
     /// opens and again when the properties are asked for.
     picks: PickContext,
+    /// The last write lost to a collaborator's version, and the session
+    /// merged it in: the merge is saved next.
+    merged: bool,
 }
 
 /// The text of a note as one session has it, handed to the other sessions
@@ -1243,6 +1249,7 @@ impl State {
             deferred: Vec::new(),
             echo: false,
             picks: PickContext::default(),
+            merged: false,
         }
     }
 
@@ -1909,6 +1916,85 @@ impl Shared {
         had_room
     }
 
+    /// Puts splices of the session's `now` text in it as someone else's
+    /// edits: the caret and the selection stay with their text, the history
+    /// starts over and the shell is sent the new text.
+    fn take_text(
+        st: &mut State,
+        events: &mut Vec<EditorEvent>,
+        now: (String, String),
+        title_edits: &[kanso_collab::Splice],
+        body_edits: &[kanso_collab::Splice],
+    ) {
+        if title_edits.is_empty() && body_edits.is_empty() {
+            return;
+        }
+        let (mut title, mut body) = now;
+        apply_splices(&mut title, title_edits);
+        apply_splices(&mut body, body_edits);
+        let before = st.hidden.len();
+        let start = remap(before + st.selection.start, body_edits);
+        let end = remap(before + st.selection.end, body_edits);
+        let (hidden, text) = split_front(&body);
+        let place = |at: usize| {
+            let mut at = at.saturating_sub(hidden.len()).min(text.len());
+            while !text.is_char_boundary(at) {
+                at -= 1;
+            }
+            at
+        };
+        st.selection = place(start).min(place(end))..place(start).max(place(end));
+        st.title = title;
+        st.hidden = hidden;
+        st.text = text;
+        st.index = Utf16Index::new(&st.text);
+        st.composing = false;
+        st.history.clear();
+        st.version += 1;
+        events.push(EditorEvent::Reloaded {
+            snapshot: st.snapshot(),
+        });
+    }
+
+    /// A collaborator's version of a note of a shared notebook arrived over
+    /// unsaved typing (the notebook's sync, or a save that lost the race):
+    /// when no change of theirs touches a change typed here, both are kept
+    /// and the merge is saved as typing is, with no question; otherwise
+    /// it is a real conflict, asked about as the desktop asks. Whether it
+    /// was merged.
+    fn merge_in(&self, st: &mut State, events: &mut Vec<EditorEvent>, latest: &Note) -> bool {
+        if st.lock != LockView::Plain
+            || latest.is_locked()
+            || latest.book_id != st.note.book_id
+            || !self.sharing().in_shared_book(&self.id)
+        {
+            return false;
+        }
+        let now = (st.title.clone(), st.full_body());
+        let Some(title) = merge_apart(&st.note.title, &now.0, &latest.title) else {
+            return false;
+        };
+        let Some(body) = merge_apart(&st.note.body, &now.1, &latest.body) else {
+            return false;
+        };
+        let (title_edits, body_edits) = (splices(&now.0, &title), splices(&now.1, &body));
+        st.note = latest.clone();
+        st.incoming = None;
+        Self::take_text(st, events, now, &title_edits, &body_edits);
+        if st.unsaved() {
+            st.save = SaveState::Pending;
+            st.autosave.changed(Instant::now());
+            self.inner.editors.wake();
+        } else {
+            st.autosave.saved();
+            st.save = saved_as(&st.note);
+            if let SaveState::Saved { rev, at_ms } = st.save.clone() {
+                events.push(EditorEvent::Saved { rev, at_ms });
+            }
+        }
+        true
+    }
+
     /// Puts a merge of `sent` in the session; the desktop editor's
     /// `collab_apply`. The caret and the selection stay with their text.
     fn take_merge(
@@ -1936,33 +2022,7 @@ impl Shared {
             .reveal(&mut latest);
             st.note = latest;
         }
-        if !title_edits.is_empty() || !body_edits.is_empty() {
-            let (mut title, mut body) = now;
-            apply_splices(&mut title, &title_edits);
-            apply_splices(&mut body, &body_edits);
-            let before = st.hidden.len();
-            let start = remap(before + st.selection.start, &body_edits);
-            let end = remap(before + st.selection.end, &body_edits);
-            let (hidden, text) = split_front(&body);
-            let place = |at: usize| {
-                let mut at = at.saturating_sub(hidden.len()).min(text.len());
-                while !text.is_char_boundary(at) {
-                    at -= 1;
-                }
-                at
-            };
-            st.selection = place(start).min(place(end))..place(start).max(place(end));
-            st.title = title;
-            st.hidden = hidden;
-            st.text = text;
-            st.index = Utf16Index::new(&st.text);
-            st.composing = false;
-            st.history.clear();
-            st.version += 1;
-            events.push(EditorEvent::Reloaded {
-                snapshot: st.snapshot(),
-            });
-        }
+        Self::take_text(st, events, now, &title_edits, &body_edits);
         if typed_since {
             st.save = SaveState::Pending;
             st.autosave.changed(Instant::now());
@@ -2154,6 +2214,7 @@ impl Shared {
     /// while it was under way. Says whether the note was written.
     fn finish(&self, st: &mut State, events: &mut Vec<EditorEvent>, done: Done) -> bool {
         st.writing = false;
+        st.merged = false;
         let written = match done {
             Done::Written { note, sealed_now } => {
                 if sealed_now {
@@ -2182,7 +2243,11 @@ impl Shared {
                 true
             }
             Done::Conflict(latest) => {
-                self.incoming(st, events, Incoming::Changed(latest));
+                if self.merge_in(st, events, &latest) {
+                    st.merged = true;
+                } else {
+                    self.incoming(st, events, Incoming::Changed(latest));
+                }
                 false
             }
             Done::Gone => false,
@@ -2258,6 +2323,10 @@ impl Shared {
             };
             let written = self.write(job, events);
             let mut st = held(&self.state);
+            // A collaborator's version merged in: the merge is saved now.
+            if std::mem::take(&mut st.merged) && taken.is_none() {
+                continue;
+            }
             if let Some(incoming) = taken
                 && !written
                 && st.incoming.is_none()
@@ -2473,6 +2542,9 @@ impl Shared {
                         .wrote(latest.rev.as_deref().unwrap_or_default())
                 {
                     st.note = latest;
+                    return;
+                }
+                if st.unsaved() && self.merge_in(st, events, &latest) {
                     return;
                 }
                 Incoming::Changed(Box::new(latest))
