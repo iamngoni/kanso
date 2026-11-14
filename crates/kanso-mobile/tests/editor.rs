@@ -978,6 +978,52 @@ fn a_note_deleted_elsewhere_can_be_kept_or_let_go() {
     }
 }
 
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(24))]
+
+    /// A change saved elsewhere reaches a session with nothing unsaved (a
+    /// collaborator's edit of a shared notebook's note, written to the
+    /// library by its sync): the caret stays with the words around it, so
+    /// text put in before it moves it on and text after it leaves it be.
+    /// It used to keep its offset, and the next letter typed landed inside
+    /// someone else's word.
+    #[test]
+    fn prop_a_reload_keeps_the_caret_with_its_text(
+        base in "[a-z]{2,12}( [a-z]{2,12}){1,4}",
+        inserted in " [A-Z]{1,8}",
+        caret_pick in any::<prop::sample::Index>(),
+        at_pick in any::<prop::sample::Index>(),
+    ) {
+        let phone = lone_phone();
+        let (mut typed, id) = Typed::open(&phone, &base);
+        // Typed and saved, as the phone was when the other edit came.
+        typed.type_over(base.len(), base.len(), ".");
+        typed.session.flush().unwrap();
+        let text = format!("{base}.");
+        let caret_at = caret_pick.index(text.len() + 1);
+        typed.session.select(caret(caret_at), false).unwrap();
+        let at = at_pick.index(text.len() + 1);
+        let events = listen(&typed.session);
+        let theirs = format!("{}{}{}", &text[..at], inserted, &text[at..]);
+        write_outside(&phone, &id, &theirs);
+        wait_until("the reload", || {
+            events.lock().unwrap().iter().any(|e| matches!(e, EditorEvent::Reloaded { .. }))
+        });
+        let snapshot = typed.session.snapshot().unwrap();
+        prop_assert_eq!(&snapshot.text, &theirs);
+        let shown = snapshot.selection.start as usize;
+        prop_assert_eq!(snapshot.selection.start, snapshot.selection.end);
+        if at < caret_at {
+            prop_assert_eq!(shown, caret_at + inserted.len());
+        } else if at > caret_at {
+            prop_assert_eq!(shown, caret_at);
+        } else {
+            // Put in right at the caret: either side of it keeps the words.
+            prop_assert!(shown == caret_at || shown == caret_at + inserted.len(), "{shown}");
+        }
+    }
+}
+
 // no-prop-test: a sync that only moved the revision, and a note with
 // nothing typed that reloads.
 #[test]

@@ -465,7 +465,10 @@ pub enum BookLiveNotice {
     Ended { share_id: String },
     /// Notes this account deleted are back, edited by someone before they
     /// saw it go: their titles ([`crate::book_copy::brought_back_notice`]).
-    BroughtBack { share_id: String, titles: Vec<String> },
+    BroughtBack {
+        share_id: String,
+        titles: Vec<String>,
+    },
 }
 
 /// What the live connection of an open shared note tells the app.

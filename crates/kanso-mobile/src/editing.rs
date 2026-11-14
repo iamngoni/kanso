@@ -2571,8 +2571,7 @@ impl Shared {
 
     /// Puts `note` in the session: its text is the session's now and the
     /// history starts over, as when the desktop editor shows a note. With
-    /// `keep_place` the selection stays where it was, as far as the text
-    /// reaches.
+    /// `keep_place` the selection stays with the text around it.
     fn show(&self, st: &mut State, note: Note, keep_place: bool) {
         let (hidden, text) = split_front(&note.body);
         st.lock = if note.is_locked() {
@@ -2582,20 +2581,15 @@ impl Shared {
         };
         st.title = note.title.clone();
         st.hidden = hidden;
-        st.text = text;
-        st.index = Utf16Index::new(&st.text);
+        // The caret goes with the words around it: text put in or taken
+        // out before it moves it, as a peer's typing does.
         st.selection = if keep_place {
-            let clamp = |at: usize| {
-                let mut at = at.min(st.text.len());
-                while !st.text.is_char_boundary(at) {
-                    at -= 1;
-                }
-                at
-            };
-            clamp(st.selection.start)..clamp(st.selection.end)
+            shifted(&st.text, &text, &st.selection)
         } else {
             0..0
         };
+        st.text = text;
+        st.index = Utf16Index::new(&st.text);
         st.composing = false;
         st.history.clear();
         st.autosave.saved();

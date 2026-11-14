@@ -373,7 +373,7 @@ fn a_closed_library_is_opened_for_the_call() {
     let json: Value = serde_json::from_str(&saved.to_json()).unwrap();
     assert_eq!(
         json,
-        json!({"notes": [format!("note:cap-{}", id(1))], "problems": [], "kept": 0})
+        json!({"notes": [format!("note:cap-{}", id(1))], "tasks": [], "problems": [], "kept": 0})
     );
 }
 
