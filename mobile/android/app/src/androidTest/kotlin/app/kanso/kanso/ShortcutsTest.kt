@@ -3,6 +3,7 @@ package app.kanso.kanso
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutManager
+import android.net.Uri
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
@@ -14,10 +15,11 @@ import org.junit.Test
 
 /**
  * The launcher's static shortcuts and the Add task tile's link (#390 slice
- * 19): Capture, Add task and Search come first and open Kanso's links in
- * `MainActivity`, and the Add task link brings Kanso forward. What the app
- * does with the link (the Task sheet over the current screen) is
- * `integration_test/shortcuts_flow_test.dart`.
+ * 19): Capture, Add task and Search come first. Capture and Add task open
+ * the capture sheet over the app on screen (`CaptureActivity`, see
+ * `CaptureOverAppTest`); the others open Kanso's links in `MainActivity`.
+ * The `kanso://open/new?task=1` link itself still opens in the app, where
+ * `integration_test/shortcuts_flow_test.dart` follows it.
  */
 class ShortcutsTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -35,22 +37,25 @@ class ShortcutsTest {
     }
 
     @Test
-    fun eachOpensItsLinkInMainActivity() {
+    fun eachOpensItsLink() {
+        val capture = CaptureActivity::class.java.name
+        val main = MainActivity::class.java.name
         val links = mapOf(
-            "new_note" to "kanso://open/new",
-            "add_task" to TaskTileService.ADD_TASK_LINK,
-            "search" to "kanso://open/search",
-            "voice_note" to "kanso://open/new?voice=1",
-            "today_note" to "kanso://open/daily",
+            "new_note" to (CaptureEngines.CAPTURE_LINK to capture),
+            "add_task" to (TaskTileService.ADD_TASK_LINK to capture),
+            "search" to ("kanso://open/search" to main),
+            "voice_note" to ("kanso://open/new?voice=1" to main),
+            "today_note" to ("kanso://open/daily" to main),
         )
         val byId = shortcuts().associateBy { it.id }
-        for ((id, link) in links) {
+        for ((id, target) in links) {
+            val (link, activity) = target
             val shortcut = byId[id]
             assertNotNull(id, shortcut)
             val intent = shortcut!!.intent!!
             assertEquals(id, Intent.ACTION_VIEW, intent.action)
             assertEquals(id, link, intent.dataString)
-            assertEquals(id, MainActivity::class.java.name, intent.component?.className)
+            assertEquals(id, activity, intent.component?.className)
         }
     }
 
@@ -61,16 +66,24 @@ class ShortcutsTest {
         assertEquals(shortcut.dataString, tile.dataString)
         assertEquals(shortcut.component?.className, tile.component?.className)
         val resolved = app.packageManager.resolveActivity(tile, 0)
-        assertEquals(MainActivity::class.java.name, resolved?.activityInfo?.name)
+        assertEquals(CaptureActivity::class.java.name, resolved?.activityInfo?.name)
     }
 
     @Test
-    fun theAddTaskLinkBringsKansoForward() {
+    fun theAddTaskLinkStillOpensInTheApp() {
+        // Another app's link, or `adb shell am start -d`: Kanso's own screen,
+        // where the router shows the Task sheet. The capture activity has no
+        // link of its own.
+        val link = Intent(Intent.ACTION_VIEW, Uri.parse(TaskTileService.ADD_TASK_LINK))
+            .setPackage(app.packageName)
+        val resolved = app.packageManager.resolveActivity(link, 0)
+        assertEquals(MainActivity::class.java.name, resolved?.activityInfo?.name)
         device.pressHome()
-        app.startActivity(TaskTileService.addTaskIntent(app))
+        app.startActivity(link.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         assertTrue(
             "Kanso did not come forward for the Add task link.",
             device.wait(Until.hasObject(By.pkg(app.packageName).depth(0)), 15_000),
         )
+        device.pressHome()
     }
 }
