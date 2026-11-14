@@ -142,6 +142,16 @@ void main() {
       expect(redirectLocation(Uri.parse('/note/n1')), '/notes/note/n1');
     });
 
+    test('reads a note id whose colon is escaped as the same note', () {
+      // The Open Kanso note intent builds its link with Foundation, which on
+      // iOS 27 writes the colon of `note:abc` as `%3A`; both spellings must
+      // open the same note.
+      expect(
+        redirectLocation(Uri.parse('kanso://open/note/note%3Aabc')),
+        redirectLocation(Uri.parse('kanso://open/note/note:abc')),
+      );
+    });
+
     test('opens a notebook', () {
       expect(
         redirectLocation(Uri.parse('kanso://open/notebook/b1')),

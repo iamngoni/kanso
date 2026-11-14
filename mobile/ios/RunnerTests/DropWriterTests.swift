@@ -160,8 +160,12 @@ final class DropWriterTests: XCTestCase {
     XCTAssertEqual(
       KansoIntentCore.searchLink(" film pixel ")?.absoluteString,
       "kanso://open/search?q=film%20pixel")
-    XCTAssertEqual(
-      KansoIntentCore.noteLink("note:abc")?.absoluteString, "kanso://open/note/note:abc")
+    // Foundation may write the colon as `%3A` (iOS 27 does); the app reads
+    // the decoded path either way, so compare that.
+    let link = try XCTUnwrap(KansoIntentCore.noteLink("note:abc"))
+    XCTAssertEqual(link.scheme, "kanso")
+    XCTAssertEqual(link.host, "open")
+    XCTAssertEqual(link.pathComponents, ["/", "note", "note:abc"])
     XCTAssertNil(KansoIntentCore.noteLink("a/b"))
 
     XCTAssertEqual(KansoIntentCore.reading(of: nil), .unavailable)
