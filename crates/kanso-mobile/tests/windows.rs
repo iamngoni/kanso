@@ -126,24 +126,32 @@ fn typing_in_one_window_shows_in_the_other_at_once_and_only_one_saves() {
         first.note(&id).unwrap().body.as_deref(),
         Some("Big hello world!")
     );
+    // The note window takes the save on the library's change thread, which
+    // tells its listener just after its state shows it (with the state let
+    // go first): wait for both.
     let end = Instant::now() + Duration::from_secs(10);
-    while !matches!(in_window.snapshot().unwrap().save, SaveState::Saved { .. }) {
-        assert!(Instant::now() < end, "the note window never saw the save");
+    loop {
+        let saved = matches!(in_window.snapshot().unwrap().save, SaveState::Saved { .. });
+        let heard = window_events.lock().unwrap().clone();
+        if saved
+            && heard
+                .iter()
+                .any(|event| matches!(event, EditorEvent::Saved { .. }))
+        {
+            assert!(
+                !heard
+                    .iter()
+                    .any(|event| matches!(event, EditorEvent::Incoming { .. })),
+                "a peer's save is not a change made elsewhere: {heard:?}"
+            );
+            break;
+        }
+        assert!(
+            Instant::now() < end,
+            "the note window never saw the save: {heard:?}"
+        );
         std::thread::sleep(Duration::from_millis(5));
     }
-    let heard = window_events.lock().unwrap();
-    assert!(
-        !heard
-            .iter()
-            .any(|event| matches!(event, EditorEvent::Incoming { .. })),
-        "a peer's save is not a change made elsewhere: {heard:?}"
-    );
-    assert!(
-        heard
-            .iter()
-            .any(|event| matches!(event, EditorEvent::Saved { .. }))
-    );
-    drop(heard);
     // The window that took the save has nothing left to write.
     in_window.tick(Instant::now() + Duration::from_secs(2));
     assert_eq!(

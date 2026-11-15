@@ -85,9 +85,16 @@ pub fn replaced_file<'a>(links: &'a [LinkedFile], link: &LinkedFile) -> Option<&
         .map(|l| l.path.as_path())
 }
 
-/// When `path` was last changed, in ms since 1970, if it can be read.
+/// When the file at `path` was last changed, in ms since 1970, if it is a
+/// file and its time can be read. A folder has no time here: in a file's
+/// place it could carry the file's old time (Windows keeps times to a clock
+/// tick of about 15 ms), and would then pass for the file unchanged.
 pub fn modified_ms(path: &Path) -> Option<i64> {
-    let modified = std::fs::metadata(path).ok()?.modified().ok()?;
+    let metadata = std::fs::metadata(path).ok()?;
+    if !metadata.is_file() {
+        return None;
+    }
+    let modified = metadata.modified().ok()?;
     let since = modified.duration_since(UNIX_EPOCH).ok()?;
     i64::try_from(since.as_millis()).ok()
 }
@@ -111,7 +118,7 @@ pub fn refresh_linked_files(
         // Not there, no longer a file, or not readable any more (moved, a
         // drive not mounted, permission taken away): skip it quietly and try
         // again next time.
-        let refresh = if modified.is_none() || !link.path.is_file() {
+        let refresh = if modified.is_none() {
             Refresh::Missing
         } else {
             refresh_one(link, store)
@@ -290,6 +297,18 @@ mod tests {
         let before = body(&store, &link.note);
         std::fs::remove_file(&file).unwrap();
         std::fs::create_dir(&file).unwrap();
+        // The folder may carry the file's old time to the ms, as it does on
+        // Windows when both come within one clock tick; it is skipped all
+        // the same.
+        let link = LinkedFile {
+            modified_ms: std::fs::metadata(&file)
+                .unwrap()
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                .and_then(|d| i64::try_from(d.as_millis()).ok()),
+            ..link
+        };
         let (kept, done) = refresh_linked_files(std::slice::from_ref(&link), &store);
         assert_eq!(done[0].refresh, Refresh::Missing);
         assert_eq!(kept, vec![link.clone()]);
