@@ -7,5 +7,5 @@
 export const APP_STORE_ID = "6828301844";
 export const APP_STORE_URL = `https://apps.apple.com/app/kanso-pocket/id${APP_STORE_ID}`;
 
-/** The Google Play listing; null while the app is in review. */
-export const ANDROID_URL: string | null = null;
+/** The Google Play listing; null hides every Android link. */
+export const ANDROID_URL: string | null = "https://play.google.com/store/apps/details?id=app.kanso.kanso";

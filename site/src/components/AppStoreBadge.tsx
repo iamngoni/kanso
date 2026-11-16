@@ -24,8 +24,13 @@ export function AppStoreBadge({ className }: { className?: string }) {
 export function AndroidStore({ url, className }: { url: string | null; className?: string }) {
   if (url) {
     return (
-      <a href={url} className={cn("ink-link", className)}>
-        Get it on Google Play
+      <a
+        href={url}
+        aria-label="Get Kanso Pocket on Google Play"
+        className={cn("-mx-[10px] -my-[11px] inline-block transition-opacity hover:opacity-85", className)}
+      >
+        {/* Google's badge carries its own clear space; the negative margins line it up with Apple's. */}
+        <img src="/badges/google-play.png" alt="Get it on Google Play" width="186" height="72" className="h-[72px] w-auto" />
       </a>
     );
   }
