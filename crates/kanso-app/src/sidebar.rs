@@ -129,6 +129,11 @@ pub struct Sidebar {
 impl EventEmitter<SidebarEvent> for Sidebar {}
 
 impl Sidebar {
+    /// What New Note makes from here: a canvas while the canvases show.
+    fn new_label(&self, cx: &App) -> &'static str {
+        crate::note_list::new_label(&self.library.read(cx).filter)
+    }
+
     pub fn new(library: Entity<Library>, cx: &mut Context<Self>) -> Self {
         cx.observe(&library, |this, library, cx| {
             let is_status = matches!(library.read(cx).filter, Filter::Status(_));
@@ -804,7 +809,7 @@ impl Sidebar {
                     .ghost()
                     .small()
                     .icon(Icon::new(Lucide::SquarePen).text_color(colors.text_secondary))
-                    .tooltip_with_action("New note", &NewNote, None)
+                    .tooltip_with_action(self.new_label(cx), &NewNote, None)
                     .on_click(cx.listener(|_, _, _, cx| cx.emit(SidebarEvent::NewNote))),
             )
     }
@@ -1478,7 +1483,7 @@ impl Sidebar {
             .rail_button(
                 "rail-compose",
                 Lucide::SquarePen,
-                "New note",
+                self.new_label(cx),
                 Some(Box::new(NewNote)),
                 false,
                 cx,

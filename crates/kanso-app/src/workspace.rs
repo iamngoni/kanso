@@ -45,6 +45,8 @@ actions!(
     kanso,
     [
         NewNote,
+        /// A plain note, even while the canvases show.
+        NewPlainNote,
         NewCanvas,
         NewNotebook,
         FocusSearch,
@@ -1063,8 +1065,11 @@ impl Workspace {
         }
     }
 
+    /// A new note; while the Canvases list shows, a canvas, so what is
+    /// made matches what is in view.
     fn new_note(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.create_note(false, window, cx);
+        let canvases = self.library.read(cx).filter == Filter::Canvases;
+        self.create_note(canvases, window, cx);
     }
 
     /// A canvas note (`doctype: "canvas"`, an empty document) where a note
@@ -1615,6 +1620,7 @@ impl Workspace {
     ) {
         match event {
             NoteListEvent::NewNote => self.new_note(window, cx),
+            NoteListEvent::NewCanvas => self.new_canvas(window, cx),
             NoteListEvent::OpenSelected => self
                 .editor
                 .update(cx, |editor, cx| editor.focus_body(window, cx)),
@@ -3037,6 +3043,9 @@ impl Render for Workspace {
             )
             .on_action(cx.listener(|this, _: &NewNote, window, cx| this.new_note(window, cx)))
             .on_action(cx.listener(|this, _: &NewCanvas, window, cx| this.new_canvas(window, cx)))
+            .on_action(cx.listener(|this, _: &NewPlainNote, window, cx| {
+                this.create_note(false, window, cx)
+            }))
             .on_action(cx.listener(|this, _: &NewNotebook, window, cx| {
                 this.on_sidebar_event(&SidebarEvent::NewBook { parent: None }, window, cx);
             }))

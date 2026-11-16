@@ -1022,6 +1022,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noteListNewNote => 'New note';
 
   @override
+  String get noteListNewCanvas => 'New canvas';
+
+  @override
   String get noteListNewNoteLocked =>
       'Unlock this notebook to add notes to it.';
 

@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../canvas/utils/new_canvas.dart';
 import '../../../capture/models/data/capture_first_row.dart';
 import '../../../capture/state/capture_task/capture_task_cubit.dart';
 import '../../../capture/views/widgets/capture_sheet.dart';
@@ -86,19 +87,32 @@ class NoteListPane extends StatelessWidget {
                     builder: (context, state) {
                       final bloc = context.read<NoteListBloc>();
                       final error = state.actionError;
-                      void newNote() => context.read<NoteCreationBloc>().add(
-                        NoteCreationEvent.requested(
-                          state.place,
-                          pinned: state.options.pinnedOnly,
-                        ),
-                      );
+                      // Among the canvases the button makes a canvas, so
+                      // what is made shows in the list it was made from.
+                      final canvases = state.place is ListPlace_Canvases;
+                      final newLabel = canvases
+                          ? l10n.noteListNewCanvas
+                          : l10n.noteListNewNote;
+                      void newNote() {
+                        if (canvases) {
+                          newCanvas(context);
+                          return;
+                        }
+                        context.read<NoteCreationBloc>().add(
+                          NoteCreationEvent.requested(
+                            state.place,
+                            pinned: state.options.pinnedOnly,
+                          ),
+                        );
+                      }
+
                       // Holding the new-note button offers the camera, photos
                       // and PDFs, each saved as a note of its own.
                       void capture() => CaptureSheet.show(
                         context,
                         first: CaptureFirstRow(
                           icon: KansoIcons.plus,
-                          label: l10n.noteListNewNote,
+                          label: newLabel,
                           onTap: newNote,
                         ),
                         onSource: (source) => context
@@ -219,6 +233,7 @@ class NoteListPane extends StatelessWidget {
                                 child: Center(
                                   child: NewNoteButton(
                                     onPressed: newNote,
+                                    label: newLabel,
                                     onLongPress: capture,
                                   ),
                                 ),

@@ -91,6 +91,8 @@ class NoteListBar extends StatelessWidget {
     return NoteListTopBar(
       onNewNote: newNote,
       onNewNoteHeld: capture,
+      // Among the canvases the plus makes a canvas.
+      newNoteLabel: place is ListPlace_Canvases ? l10n.noteListNewCanvas : null,
       titleShown: titleShown,
       title: placeTitle(l10n, place, index),
       subtitle: state.status == NoteListStatus.ready

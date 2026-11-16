@@ -27,6 +27,7 @@ class NoteListTopBar extends StatelessWidget {
     this.onOptions,
     this.onNewNote,
     this.onNewNoteHeld,
+    this.newNoteLabel,
     this.optionsLabel,
     this.titleShown,
     super.key,
@@ -41,6 +42,9 @@ class NoteListTopBar extends StatelessWidget {
   final VoidCallback? onOptions;
   final VoidCallback? onNewNote;
   final VoidCallback? onNewNoteHeld;
+
+  /// What the new-note plus says; "New note" when null.
+  final String? newNoteLabel;
 
   /// When the title shows, for a list whose large title scrolls with it.
   final ValueListenable<bool>? titleShown;
@@ -68,7 +72,7 @@ class NoteListTopBar extends StatelessWidget {
         if (onNewNote != null)
           KansoIconButton(
             icon: KansoIcons.plus,
-            semanticLabel: l10n.noteListNewNote,
+            semanticLabel: newNoteLabel ?? l10n.noteListNewNote,
             onPressed: onNewNote,
             onLongPress: onNewNoteHeld,
           ),

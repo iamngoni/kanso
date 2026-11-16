@@ -88,9 +88,21 @@ pub fn bind_keys(cx: &mut App) {
     ]);
 }
 
+/// What New Note makes from a list: a canvas while the canvases show, so
+/// what is made shows where it was made; a note everywhere else.
+pub(crate) fn new_label(filter: &Filter) -> &'static str {
+    if *filter == Filter::Canvases {
+        "New canvas"
+    } else {
+        "New note"
+    }
+}
+
 /// Note operations the workspace carries out.
 pub enum NoteListEvent {
     NewNote,
+    /// The list's new button while the canvases show.
+    NewCanvas,
     /// A choice from a note's menu, or its pin or trash button.
     Command(String, NoteCommand),
     /// A choice from the menu of several selected notes, for all of them.
@@ -1018,6 +1030,7 @@ impl NoteList {
         let colors = Colors::get(cx);
         let library = self.library.read(cx);
         let in_trash = library.filter == Filter::Trash;
+        let canvases = library.filter == Filter::Canvases;
         let sortable = sorts(&library.filter);
         let sort_library = self.library.clone();
         let several = selected_label(library.selection.count());
@@ -1029,42 +1042,59 @@ impl NoteList {
             .border_t_1()
             .border_color(colors.divider)
             .when(!in_trash, |el| {
-                el.child(
-                    Button::new("list-new-note")
-                        .ghost()
-                        .small()
-                        .icon(IconName::Plus)
-                        .label("New note")
-                        .text_color(colors.text_secondary)
-                        .tooltip_with_action("New note", &crate::workspace::NewNote, None)
-                        .on_click(cx.listener(|_, _, _, cx| cx.emit(NoteListEvent::NewNote))),
-                )
-                // The other ways to start a note.
-                .child(
-                    Button::new("list-new-more")
-                        .ghost()
-                        .xsmall()
-                        .icon(
-                            Icon::new(IconName::ChevronDown)
-                                .size(px(13.))
-                                .text_color(colors.text_muted),
-                        )
-                        .tooltip("More ways to start a note")
-                        .dropdown_menu_with_anchor(Anchor::BottomLeft, |menu, _, _| {
-                            menu.menu(
-                                "New from Template…",
-                                Box::new(crate::journal::NewFromTemplate),
+                // Among the canvases the button makes a canvas, as New
+                // Canvas does, so what it makes shows in the list.
+                let label = new_label(&library.filter);
+                let button = Button::new("list-new-note")
+                    .ghost()
+                    .small()
+                    .icon(IconName::Plus)
+                    .text_color(colors.text_secondary)
+                    .label(label);
+                let button = if canvases {
+                    button
+                        .tooltip_with_action(label, &crate::workspace::NewCanvas, None)
+                        .on_click(cx.listener(|_, _, _, cx| cx.emit(NoteListEvent::NewCanvas)))
+                } else {
+                    button
+                        .tooltip_with_action(label, &crate::workspace::NewNote, None)
+                        .on_click(cx.listener(|_, _, _, cx| cx.emit(NoteListEvent::NewNote)))
+                };
+                el.child(button)
+                    // The other ways to start a note.
+                    .child(
+                        Button::new("list-new-more")
+                            .ghost()
+                            .xsmall()
+                            .icon(
+                                Icon::new(IconName::ChevronDown)
+                                    .size(px(13.))
+                                    .text_color(colors.text_muted),
                             )
-                            .menu("Today's Note", Box::new(crate::journal::OpenToday))
-                            .menu(
-                                "Journal Calendar…",
-                                Box::new(crate::calendar_view::ShowCalendar),
-                            )
-                            .menu("Quick Note", Box::new(crate::journal::QuickCapture))
-                            .separator()
-                            .menu("New Template", Box::new(crate::journal::NewTemplate))
-                        }),
-                )
+                            .tooltip("More ways to start a note")
+                            .dropdown_menu_with_anchor(Anchor::BottomLeft, move |menu, _, _| {
+                                // Among the canvases a plain note is one of the
+                                // other ways to start.
+                                let menu = if canvases {
+                                    menu.menu("New Note", Box::new(crate::workspace::NewPlainNote))
+                                        .separator()
+                                } else {
+                                    menu
+                                };
+                                menu.menu(
+                                    "New from Template…",
+                                    Box::new(crate::journal::NewFromTemplate),
+                                )
+                                .menu("Today's Note", Box::new(crate::journal::OpenToday))
+                                .menu(
+                                    "Journal Calendar…",
+                                    Box::new(crate::calendar_view::ShowCalendar),
+                                )
+                                .menu("Quick Note", Box::new(crate::journal::QuickCapture))
+                                .separator()
+                                .menu("New Template", Box::new(crate::journal::NewTemplate))
+                            }),
+                    )
             })
             .child(
                 div()
@@ -1173,7 +1203,7 @@ impl NoteList {
             Filter::Canvases => quiet_empty(
                 Icon::new(Lucide::PenTool),
                 "No canvases".into(),
-                Some("Choose Note › New Canvas to start one.".into()),
+                Some("Choose New canvas below to start one.".into()),
                 colors,
             )
             .into_any_element(),
@@ -2049,6 +2079,56 @@ mod tests {
                     .collect()
             });
             assert_eq!(listed, [(true, NoteStatus::OnHold)]);
+        }
+
+        // no-prop-test: one window driven through three actions; the label
+        // is a two-way choice tested over every filter below.
+        /// Among the canvases New Note makes a canvas, so it shows in the
+        /// list; the menu's plain New Note still makes a note, and other
+        /// lists make notes as before.
+        #[gpui_kit::test]
+        fn new_note_among_the_canvases_makes_a_canvas(cx: &mut TestAppContext) {
+            use crate::workspace::NewPlainNote;
+
+            let f = setup(cx);
+            let library = f.library(cx);
+            let count = |cx: &mut TestAppContext| cx.read(|cx| library.read(cx).notes.len());
+            let dispatch = |cx: &mut TestAppContext, action: &dyn gpui::Action| {
+                let focus = cx.read(|cx| f.workspace.read(cx).note_list.read(cx).focus.clone());
+                f.window
+                    .update(cx, |_, window, cx| {
+                        focus.dispatch_action(action, window, cx)
+                    })
+                    .unwrap();
+                cx.run_until_parked();
+            };
+            library.update(cx, |library, cx| library.set_filter(Filter::Canvases, cx));
+            f.draw(cx);
+            assert_eq!(count(cx), 0);
+            dispatch(cx, &NewNote);
+            assert_eq!(count(cx), 1, "New Note made a canvas");
+            dispatch(cx, &NewPlainNote);
+            f.draw(cx);
+            assert_eq!(count(cx), 1, "the plain New Note made a note");
+
+            library.update(cx, |library, cx| library.set_filter(Filter::All, cx));
+            f.draw(cx);
+            let before = count(cx);
+            dispatch(cx, &NewNote);
+            f.draw(cx);
+            assert_eq!(count(cx), before + 1);
+            library.update(cx, |library, cx| library.set_filter(Filter::Canvases, cx));
+            f.draw(cx);
+            assert_eq!(count(cx), 1, "New Note in All made a note, not a canvas");
+        }
+
+        #[test]
+        fn the_new_button_says_canvas_only_among_the_canvases() {
+            use super::super::new_label;
+            assert_eq!(new_label(&Filter::Canvases), "New canvas");
+            for filter in [Filter::All, Filter::Pinned, Filter::Recent, Filter::Trash] {
+                assert_eq!(new_label(&filter), "New note", "{filter:?}");
+            }
         }
 
         /// Recent lists by edit time under day headers, whatever the sort,
