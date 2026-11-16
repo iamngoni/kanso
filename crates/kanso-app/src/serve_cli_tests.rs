@@ -330,3 +330,43 @@ fn problems_read_as_one_line() {
     assert!(line.starts_with("kanso serve: offline: "), "{line}");
     assert!(!line.contains('\n'));
 }
+
+#[test]
+fn an_agent_report_is_one_line_without_its_text() {
+    let report = kanso_server::AgentReport::new(
+        kanso_server::ReportKind::Bug,
+        "search-notes failed on my query",
+        Some("search-notes"),
+        Some("used list-notes"),
+    )
+    .unwrap();
+    assert_eq!(
+        agent_report_line(&report),
+        "kanso serve: an agent reported a problem (bug) about search-notes. It is kept in memory only; open the Kanso app to review and send reports."
+    );
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(256))]
+
+    /// Whatever the agent wrote, the log line is one line and holds none of
+    /// its summary or workaround, and no tool name that isn't one.
+    #[test]
+    fn prop_agent_report_line_never_holds_the_report_text(
+        summary in "[A-Z]{12,40}",
+        tool in proptest::option::of(".{0,30}"),
+        workaround in proptest::option::of("[A-Z]{12,40}"),
+    ) {
+        if let Ok(report) = kanso_server::AgentReport::new(
+            kanso_server::ReportKind::Idea, &summary, tool.as_deref(), workaround.as_deref()
+        ) {
+            let line = agent_report_line(&report);
+            prop_assert!(!line.contains('\n'));
+            prop_assert!(!line.contains(&report.summary));
+            if let Some(workaround) = &report.workaround {
+                prop_assert!(!line.contains(workaround.as_str()));
+            }
+            prop_assert!(line.starts_with("kanso serve: an agent reported a problem (idea)"));
+        }
+    }
+}

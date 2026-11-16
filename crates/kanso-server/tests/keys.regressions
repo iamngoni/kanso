@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc c4d1a1863ffaa3938d1378c5d015b620c526a943b9f26be22a95f0ed2ed4c6af # shrinks to suggest = false, body = Object {"name": String("Renamed")}, id = "note:n0", tool_arguments = []

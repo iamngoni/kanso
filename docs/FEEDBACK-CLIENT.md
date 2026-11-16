@@ -32,6 +32,16 @@ only if it matches the grammar the Worker enforces
 cannot reach it. Property tests check that note text never appears in the
 payload.
 
+### Reports from agents
+
+An agent can report a problem through the MCP tool `kanso-report-issue`
+(`docs/LOCAL-API.md`). Agents read notes, so their text could hold some, and
+there is no reliable way to scrub free text. So the tool never sends: the
+report waits in a queue in memory, and the app's notice opens this same sheet
+filled in (`feedback_sheet::open_prefilled`), with the agent's kind and text
+starting "Reported by an AI agent:". The person reads and edits it, and only
+their Send puts it in the outbox. The Worker's format does not change.
+
 ## The outbox
 
 A report is written to the on-device outbox before any network call. The id

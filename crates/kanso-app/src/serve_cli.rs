@@ -91,10 +91,21 @@ pub fn run_cli(data_dir: PathBuf, rest: &[String]) -> Result<()> {
         }
     };
     let sync_status = kanso_server::SyncStatus::default();
+    let tokens = kanso_server::TokenStore::new();
+    // No one is here to review an agent's report: say one came, never what
+    // it says (issue #447).
+    let reports = tokens.agent_reports().subscribe();
+    let _ = std::thread::Builder::new()
+        .name("kanso-agent-reports".into())
+        .spawn(move || {
+            while let Ok(report) = reports.recv_blocking() {
+                eprintln!("{}", agent_report_line(&report));
+            }
+        });
     let handle = kanso_server::spawn_with_sync_status(
         store.clone(),
         server,
-        kanso_server::TokenStore::new(),
+        tokens,
         keys,
         sync_status.clone(),
     );
@@ -653,6 +664,26 @@ pub fn signed_out_lines(reason: SignOutReason) -> Vec<String> {
         ),
         "             The library stays and the API keeps working. Run `kanso account sign-in` to sync again.".to_owned(),
     ]
+}
+
+/// The one line `kanso serve` prints for an agent's report: its kind, and
+/// the tool it names when that looks like a tool name. Never its text.
+pub fn agent_report_line(report: &kanso_server::AgentReport) -> String {
+    let tool = report
+        .tool
+        .as_deref()
+        .filter(|tool| {
+            (1..=64).contains(&tool.len())
+                && tool
+                    .bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+        })
+        .map(|tool| format!(" about {tool}"))
+        .unwrap_or_default();
+    format!(
+        "kanso serve: an agent reported a problem ({}){tool}. It is kept in memory only; open the Kanso app to review and send reports.",
+        report.kind.as_str()
+    )
 }
 
 #[cfg(test)]

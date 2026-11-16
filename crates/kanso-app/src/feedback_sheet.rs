@@ -752,12 +752,118 @@ pub fn open(window: &mut Window, cx: &mut App) -> Entity<FeedbackSheet> {
     sheet
 }
 
+/// The feedback kind of an agent report's kind.
+pub fn kind_of(kind: kanso_server::ReportKind) -> Kind {
+    match kind {
+        kanso_server::ReportKind::Bug => Kind::Bug,
+        kanso_server::ReportKind::Idea => Kind::Idea,
+        kanso_server::ReportKind::Question => Kind::Question,
+    }
+}
+
+/// Opens the sheet filled in with `kind` and `text` (an agent's report,
+/// issue #447). The person can edit it, and nothing is sent until they
+/// press Send, as with [`open`].
+// no-prop-test: opens a dialog; the report's text is property-tested in kanso-server.
+pub fn open_prefilled(
+    kind: Kind,
+    text: String,
+    window: &mut Window,
+    cx: &mut App,
+) -> Entity<FeedbackSheet> {
+    let sheet = open(window, cx);
+    sheet.update(cx, |sheet, cx| {
+        sheet.set_kind(kind, window, cx);
+        sheet
+            .text
+            .update(cx, |area, cx| area.set_value(text, window, cx));
+    });
+    sheet
+}
+
+/// Shows "An agent reported a problem" for `report`; its button opens the
+/// feedback sheet filled in with it and takes it out of the queue.
+// no-prop-test: shows a notification; open_prefilled is tested.
+pub fn notify_agent_report(
+    report: kanso_server::AgentReport,
+    reports: kanso_server::AgentReports,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    let notification =
+        Notification::info("An agent reported a problem. Review it before anything is sent.")
+            .autohide(false)
+            .action(move |_, _, _| {
+                let (report, reports) = (report.clone(), reports.clone());
+                Button::new("agent-report-review")
+                    .label("Review")
+                    .on_click(move |_, window, cx| {
+                        // Another window's notice may have opened it already.
+                        if reports.remove(&report) {
+                            open_prefilled(kind_of(report.kind), report.text(), window, cx);
+                        }
+                    })
+            });
+    window.push_notification(notification, cx);
+}
+
+/// Watches the agents' reports for this window and shows each new one.
+// no-prop-test: wiring between the queue and notify_agent_report.
+pub fn watch_agent_reports(
+    window: &mut Window,
+    cx: &mut Context<crate::workspace::Workspace>,
+) -> Option<Task<()>> {
+    let reports = cx
+        .try_global::<crate::services::Services>()
+        .map(|services| services.agent_tokens.agent_reports().clone())?;
+    let events = reports.subscribe();
+    Some(cx.spawn_in(window, async move |this, cx| {
+        while let Ok(report) = events.recv().await {
+            let reports = reports.clone();
+            let alive = this.update_in(cx, |_, window, cx| {
+                notify_agent_report(report, reports, window, cx);
+            });
+            if alive.is_err() {
+                break;
+            }
+        }
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{MAX_SCREENSHOT, can_send, chosen_from_file, counter, size_label};
     use crate::feedback_app;
     use kanso_engine::feedback;
     use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(256))]
+
+        /// Oracle: an agent report the server accepts is text the feedback
+        /// sheet's own rules (`feedback::clean_text`) leave exactly as it is,
+        /// so the prefilled sheet can be sent unchanged.
+        #[test]
+        fn prop_accepted_agent_reports_pass_clean_text_unchanged(
+            summary in prop_oneof![".{0,80}", "[\\PC\n\r]{0,60}", "[e\u{301}\u{e9}a ]{8,40}"],
+            tool in proptest::option::of("[a-z-]{0,20}"),
+            workaround in proptest::option::of("[\\PC\n]{0,60}"),
+            kind in prop::sample::select(vec![
+                kanso_server::ReportKind::Bug,
+                kanso_server::ReportKind::Idea,
+                kanso_server::ReportKind::Question,
+            ]),
+        ) {
+            if let Ok(report) = kanso_server::AgentReport::new(
+                kind, &summary, tool.as_deref(), workaround.as_deref()
+            ) {
+                let text = report.text();
+                prop_assert_eq!(feedback::clean_text(&text), Ok(text.clone()));
+                prop_assert!(can_send(text.chars().count(), None));
+                prop_assert_eq!(super::kind_of(kind).wire(), kind.as_str());
+            }
+        }
+    }
 
     #[test]
     fn the_counter_shows_after_3500() {

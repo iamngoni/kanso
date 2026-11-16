@@ -872,7 +872,9 @@ impl Workspace {
             }
         });
 
-        let reviews = crate::review_queue::watch(window, cx);
+        let mut reviews = crate::review_queue::watch(window, cx);
+        // An agent's problem report opens the feedback sheet, filled in.
+        reviews.extend(crate::feedback_sheet::watch_agent_reports(window, cx));
 
         let auto_lock = cx.spawn_in(window, async move |this, cx| {
             loop {

@@ -183,6 +183,43 @@ fn sending_saves_then_posts_once(cx: &mut TestAppContext) {
 }
 
 #[gpui_kit::test]
+fn an_agent_report_prefills_the_sheet_and_waits_for_send(cx: &mut TestAppContext) {
+    let rig = rig(cx, reply(201, r#"{"id":"x","status":"received"}"#));
+    let report = kanso_server::AgentReport::new(
+        kanso_server::ReportKind::Idea,
+        "A tool to list notes by date would help.",
+        Some("list-notes"),
+        None,
+    )
+    .unwrap();
+    let (kind, text) = (crate::feedback_sheet::kind_of(report.kind), report.text());
+    let sheet = rig
+        .window
+        .update(cx, move |_, window, cx| {
+            crate::feedback_sheet::open_prefilled(kind, text, window, cx)
+        })
+        .unwrap();
+    cx.run_until_parked();
+    let (kind, shown) = cx.read(|cx| {
+        let s = sheet.read(cx);
+        (s.kind, s.text.read(cx).value().to_string())
+    });
+    assert_eq!(kind, Kind::Idea);
+    assert_eq!(shown, report.text());
+    assert!(shown.starts_with("Reported by an AI agent:\n"));
+    assert!(crate::feedback_sheet::can_send(shown.chars().count(), None));
+    // Nothing leaves until the person presses Send.
+    assert!(rig.fake.seen.lock().unwrap().is_empty());
+    assert!(rig.store.feedback_all().unwrap().is_empty());
+    press_send(cx, &rig, &sheet);
+    let seen = rig.fake.seen.lock().unwrap().clone();
+    assert_eq!(seen.len(), 1);
+    let body: serde_json::Value = serde_json::from_slice(&seen[0].body).unwrap();
+    assert_eq!(body["kind"], "idea");
+    assert_eq!(body["text"], report.text());
+}
+
+#[gpui_kit::test]
 fn offline_keeps_the_report_waiting(cx: &mut TestAppContext) {
     let rig = rig(cx, Err("offline".into()));
     let sheet = open_sheet(cx, &rig);

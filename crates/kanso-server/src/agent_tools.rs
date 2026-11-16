@@ -15,7 +15,7 @@ use serde_json::Value;
 use crate::AppState;
 use crate::keyed::{self, Key};
 use crate::mcp::{READ_ONLY, suggest, task, tools};
-use crate::scope::{AgentScope, SUGGEST_TOOLS, TASK_TOOLS, Visibility};
+use crate::scope::{AgentScope, REPORT_TOOLS, SUGGEST_TOOLS, TASK_TOOLS, Visibility};
 use crate::tokens::{TokenId, TokenStore};
 
 /// Runs tool `name` for the agent holding `token` (minted in `tokens` for
@@ -78,6 +78,10 @@ pub(crate) fn call_with_state(
     if !scope.allows_tool(name) {
         return tools::error_result(READ_ONLY);
     }
+    // A report reads no notes, so it uses none of the read budget.
+    if REPORT_TOOLS.contains(&name) {
+        return crate::agent_reports::call(state.tokens.agent_reports(), arguments);
+    }
     if !state.tokens.charge(token) {
         return tools::error_result(
             "This question has used as many note lookups as it may. Answer from what you have read.",
@@ -131,6 +135,10 @@ pub(crate) fn call_for_key(
     name: &str,
     arguments: Option<&Value>,
 ) -> Value {
+    // Every key may report a problem; a report reads no notes.
+    if REPORT_TOOLS.contains(&name) {
+        return crate::agent_reports::call(state.tokens.agent_reports(), arguments);
+    }
     let Some(vis) = Visibility::new(&state.store, key.scope) else {
         return tools::error_result("Couldn't read the notes.");
     };

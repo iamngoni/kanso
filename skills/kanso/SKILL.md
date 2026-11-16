@@ -123,6 +123,9 @@ include it.
 
 **Sync**: `kanso-sync-status`, `kanso-sync-now`.
 
+**Report a problem**: `kanso-report-issue` (`kind` `bug`, `idea` or `question`; `summary`;
+optional `tool` and `workaround`). Every key has it.
+
 The `kanso-propose-*`, `kanso-list-proposed` and `kanso-task-done` tools exist only for agent tasks
 Kanso starts itself; an API key never gets them. Notes are also resources, with the note link prefix
 `inkdrop://note/<id>`.
@@ -176,6 +179,12 @@ show counts of what your key can see, not the library's. Attachments in a locked
 | Not found | Id wrong, or the note is locked, trashed, excluded or out of scope (see above). Search again before assuming. |
 | Connection refused | Kanso is closed or the server is off. Ask the user to open Kanso and enable Settings > Local API > Server. |
 | `kanso mcp`: "Kanso needs a key for this agent" | `KANSO_MCP_TOKEN` is not set in the client's config. |
+
+**Report problems you hit.** When a Kanso tool errors in a way the table above doesn't explain,
+behaves differently from its description, or makes you work around it, call `kanso-report-issue`
+once with a short description in your own words, then carry on with the user's task. Never put note
+text, titles or other content from the user's notes in it. The report waits in Kanso until the user
+reviews it and presses Send; nothing is sent without them.
 
 ## Limits
 
