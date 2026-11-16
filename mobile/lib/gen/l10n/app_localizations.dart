@@ -1936,6 +1936,12 @@ abstract class AppLocalizations {
   /// **'New note'**
   String get noteListNewNote;
 
+  /// What the add button of the note list does while the list shows the canvases.
+  ///
+  /// In en, this message translates to:
+  /// **'New canvas'**
+  String get noteListNewCanvas;
+
   /// The line shown when a new note was asked for in a notebook that is locked.
   ///
   /// In en, this message translates to:

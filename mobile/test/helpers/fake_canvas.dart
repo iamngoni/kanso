@@ -365,6 +365,20 @@ class FakeCanvasRepository implements CanvasRepository {
   @override
   bool isCanvas(String noteId) => canvases.contains(noteId);
 
+  /// The notebooks new canvases were asked for in, in order.
+  final List<String?> created = <String?>[];
+
+  @override
+  Future<CanvasResult<Saved>> create({
+    String? notebookId,
+    String title = '',
+  }) async {
+    created.add(notebookId);
+    return const Left<ApplicationError, Saved>(
+      ApplicationError.unexpected(message: 'fake'),
+    );
+  }
+
   @override
   Future<CanvasResult<CanvasDocument>> open(String noteId) async {
     final error = openError;

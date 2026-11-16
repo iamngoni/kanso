@@ -19,15 +19,23 @@ import '../../../core/views/widgets/kanso_pressable.dart';
 /// shadow under it. Held, it offers the camera, photos and PDFs
 /// ([onLongPress]).
 class NewNoteButton extends StatelessWidget {
-  const NewNoteButton({required this.onPressed, this.onLongPress, super.key});
+  const NewNoteButton({
+    required this.onPressed,
+    this.onLongPress,
+    this.label,
+    super.key,
+  });
 
   final VoidCallback onPressed;
   final VoidCallback? onLongPress;
 
+  /// What the button says; "New note" when null.
+  final String? label;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final label = context.l10n.noteListNewNote;
+    final label = this.label ?? context.l10n.noteListNewNote;
     return KansoPressable(
       onTap: onPressed,
       onLongPress: onLongPress,

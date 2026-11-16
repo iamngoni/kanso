@@ -1317,6 +1317,10 @@
   "@noteListNewNote": {
     "description": "What the add button of the note list does."
   },
+  "noteListNewCanvas": "New canvas",
+  "@noteListNewCanvas": {
+    "description": "What the add button of the note list does while the list shows the canvases."
+  },
   "noteListNewNoteLocked": "Unlock this notebook to add notes to it.",
   "@noteListNewNoteLocked": {
     "description": "The line shown when a new note was asked for in a notebook that is locked."

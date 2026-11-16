@@ -6,6 +6,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/canvas/models/repos/abs/canvas_repository.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/configs/kanso_icons.dart';
 import 'package:kanso/core/models/data/application_error.dart';
@@ -18,6 +19,7 @@ import 'package:kanso/core/views/widgets/kanso_large_title.dart';
 import 'package:kanso/core/views/widgets/kanso_scrim.dart';
 import 'package:kanso/core/views/widgets/kanso_skeleton.dart';
 import 'package:kanso/core/views/widgets/kanso_top_bar.dart';
+import 'package:kanso/injection.dart';
 import 'package:kanso/note_list/state/note_list/note_list_bloc.dart';
 import 'package:kanso/note_list/views/widgets/list_options_sheet.dart';
 import 'package:kanso/note_list/views/widgets/new_note_button.dart';
@@ -25,6 +27,7 @@ import 'package:kanso/note_list/views/widgets/note_list_pane.dart';
 import 'package:kanso/note_list/views/widgets/note_list_row.dart';
 
 import '../../../helpers/browse_blocs.dart';
+import '../../../helpers/fake_canvas.dart';
 import '../../../helpers/golden.dart';
 import '../../../helpers/library_fixtures.dart';
 import '../../../helpers/pump_routed.dart';
@@ -616,6 +619,45 @@ void main() {
       await tester.tap(find.byType(NewNoteButton));
       await tester.pump();
       expect(blocs.library.created.single.place, const ListPlace.pinned());
+    });
+
+    // no-prop-test: the list decides between two fixed outcomes; both
+    // lists are driven here and the other lists by the tests around it.
+    testWidgets('among the canvases the buttons make a canvas, not a note', (
+      tester,
+    ) async {
+      final canvases = FakeCanvasRepository();
+      if (getIt.isRegistered<CanvasRepository>()) {
+        getIt.unregister<CanvasRepository>();
+      }
+      getIt.registerSingleton<CanvasRepository>(canvases);
+      addTearDown(() => getIt.unregister<CanvasRepository>());
+      final blocs = await BrowseBlocs.start();
+      final list = await blocs.listOf(const ListPlace.canvases());
+      await atMockNow(
+        () => pumpRouted(
+          tester,
+          blocs.provide(const NoteListPane(), list: list),
+        ),
+      );
+      expect(find.text('New canvas'), findsOneWidget);
+      expect(find.text('New note'), findsNothing);
+      await tester.tap(find.byType(NewNoteButton));
+      await tester.pump();
+      expect(canvases.created, hasLength(1));
+      expect(blocs.library.created, isEmpty);
+
+      final beside = await blocs.listOf(const ListPlace.canvases());
+      await atMockNow(
+        () => pumpRouted(
+          tester,
+          blocs.provide(const NoteListPane(beside: true), list: beside),
+        ),
+      );
+      await tester.tap(find.bySemanticsLabel('New canvas'));
+      await tester.pump();
+      expect(canvases.created, hasLength(2));
+      expect(blocs.library.created, isEmpty);
     });
 
     testWidgets('beside the note the button is in the bar, not afloat', (
