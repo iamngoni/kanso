@@ -1008,6 +1008,48 @@
     }
   },
   {
+    "name": "kanso-report-issue",
+    "description": "Report a problem you hit while using Kanso's tools, so Kanso's developer hears about it. Use it when a Kanso tool returned an error, behaved differently from its description, or made you work around it. The report waits in Kanso until the person reviews it and presses Send; nothing is sent without them. Describe the problem in your own words and never include note text, titles or other content from the person's notes.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "bug",
+            "idea",
+            "question"
+          ],
+          "default": "bug",
+          "description": "bug: something failed or misbehaved. idea: a tool that is missing or could work better. question: something unclear."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 4000,
+          "description": "What happened and what you expected, without note content."
+        },
+        "tool": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "The name of the Kanso MCP tool involved, if any."
+        },
+        "workaround": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "How you worked around the problem, if you did."
+        }
+      },
+      "required": [
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
     "name": "kanso-resolve-wikilink",
     "description": "Find the note a wiki-link points at. Accepts `[[Title]]`, `[[Title#Heading]]` or `[[Title|alias]]`, with or without the brackets. Titles match without regard to case or extra spaces, among notes outside the trash; when several notes share a title, the one created first is the match. Returns the note's ID, title and `inkdrop://note/<id>` link, which is the form to write when linking to it, plus the heading's line when the link names a heading the note has.",
     "inputSchema": {

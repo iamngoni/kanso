@@ -187,6 +187,7 @@ async fn the_catalog_is_the_reads_and_the_three_that_add() {
     for name in &offered {
         assert!(
             ADDS.contains(&name.as_str())
+                || kanso_server::REPORT_TOOLS.contains(&name.as_str())
                 || (kanso_server::READ_TOOLS.contains(&name.as_str()) && !name.contains("pdf")),
             "{name} offered to a Capture key"
         );
@@ -197,6 +198,7 @@ async fn the_catalog_is_the_reads_and_the_three_that_add() {
         assert!(offered.contains(&name), "{name}");
     }
     assert!(offered.iter().any(|n| n == "kanso-add-task"));
+    assert!(offered.iter().any(|n| n == "kanso-report-issue"));
     assert!(offered.iter().any(|n| n == "kanso-parse-when"));
 }
 

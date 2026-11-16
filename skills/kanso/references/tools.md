@@ -557,6 +557,19 @@ Read the library's safe sync status without revealing account or device identifi
 
 No parameters.
 
+### `kanso-report-issue`
+
+Report a problem you hit while using Kanso's tools, so Kanso's developer hears about it. Use it when a Kanso tool returned an error, behaved differently from its description, or made you work around it. The report waits in Kanso until the person reviews it and presses Send; nothing is sent without them. Describe the problem in your own words and never include note text, titles or other content from the person's notes.
+
+Every key and every agent token has this tool. It reads no notes and does not count against a task's read budget.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `kind` | `"bug"` \| `"idea"` \| `"question"` | no | bug: something failed or misbehaved. idea: a tool that is missing or could work better. question: something unclear. (default `"bug"`) |
+| `summary` | `string` | yes | What happened and what you expected, without note content. 10 to 4,000 characters. |
+| `tool` | `string` | no | The name of the Kanso MCP tool involved, if any. |
+| `workaround` | `string` | no | How you worked around the problem, if you did. |
+
 ## Agent-task tools
 
 Only the token of an agent task that Kanso starts itself gets these. An API key never sees them. They stage proposals for the person to review and write nothing.

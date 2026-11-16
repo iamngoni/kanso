@@ -95,6 +95,8 @@ pub(crate) const TOOLS: &[(&str, Decision)] = &[
     ("kanso-set-task-done", Add),
     ("kanso-sync-now", Denied),
     ("kanso-sync-status", Read),
+    // Reads no notes and writes nothing: it queues a report for the person.
+    ("kanso-report-issue", Read),
     // The agent tasks' own tools: no key has them.
     ("kanso-propose-move", Denied),
     ("kanso-propose-merge", Denied),
@@ -316,7 +318,8 @@ mod tests {
         for (name, decision) in TOOLS {
             if *decision == Read {
                 assert!(
-                    crate::scope::READ_TOOLS.contains(name),
+                    crate::scope::READ_TOOLS.contains(name)
+                        || crate::scope::REPORT_TOOLS.contains(name),
                     "{name} is a Capture read but not a read tool"
                 );
                 assert!(

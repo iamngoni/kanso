@@ -573,7 +573,9 @@ pub fn apply_server_settings(cx: &mut App) {
                 let tokens = if config.bind.ip().is_loopback() {
                     services.agent_tokens.clone()
                 } else {
+                    // Keys' problem reports still reach the person.
                     TokenStore::new()
+                        .with_agent_reports(services.agent_tokens.agent_reports().clone())
                 };
                 let canvases: Arc<dyn kanso_server::SharedCanvases> =
                     services.shared_canvases.clone();

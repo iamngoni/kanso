@@ -89,6 +89,10 @@ pub const TASK_TOOLS: [&str; 4] = [
     "kanso-task-done",
 ];
 
+/// The tools every agent and every key is offered, whatever it may read
+/// or write: they read no notes and write nothing (issue #447).
+pub const REPORT_TOOLS: [&str; 1] = ["kanso-report-issue"];
+
 /// What an agent task may propose, set by the person on the New agent task
 /// sheet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -289,6 +293,7 @@ impl AgentScope {
             tools: tools
                 .iter()
                 .filter(|tool| READ_TOOLS.contains(tool))
+                .chain(REPORT_TOOLS.iter())
                 .map(|tool| (*tool).to_owned())
                 .collect(),
             suggests_as: None,
@@ -316,6 +321,7 @@ impl AgentScope {
     pub fn allows_tool(&self, name: &str) -> bool {
         self.tools.contains(name)
             && (READ_TOOLS.contains(&name)
+                || REPORT_TOOLS.contains(&name)
                 || (SUGGEST_TOOLS.contains(&name) && self.suggests_as.is_some())
                 || (TASK_TOOLS.contains(&name) && self.task.is_some()))
     }

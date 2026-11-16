@@ -14,7 +14,9 @@ use axum::body::Body;
 use axum::http::{Method, Request, StatusCode, header};
 use common::*;
 use kanso_core::DocType;
-use kanso_server::{AgentScope, READ_TOOLS, TokenStore, agents_router, router_with_tokens};
+use kanso_server::{
+    AgentScope, READ_TOOLS, REPORT_TOOLS, TokenStore, agents_router, router_with_tokens,
+};
 use kanso_store::{Origin, Put, Store};
 use proptest::prelude::*;
 use proptest::test_runner::{Config, FileFailurePersistence};
@@ -130,7 +132,7 @@ fn seal(store: &Store, id: &str) {
 }
 
 #[tokio::test]
-async fn an_ask_token_lists_five_tools_and_opens_mcp_alone() {
+async fn an_ask_token_lists_five_tools_and_the_report_and_opens_mcp_alone() {
     let agents = agents();
     let minted = agents.tokens.mint(AgentScope::ask(None));
     for router in [&agents.api, &agents.private] {
@@ -149,7 +151,8 @@ async fn an_ask_token_lists_five_tools_and_opens_mcp_alone() {
                 "search-notes",
                 "kanso-ask-read-lines",
                 "kanso-ask-search",
-                "kanso-ask-when"
+                "kanso-ask-when",
+                "kanso-report-issue"
             ]
         );
         // A tool it isn't given is refused, as read-only.
@@ -445,7 +448,9 @@ proptest! {
         // Every tool that isn't a read is in the calls above.
         for name in &every {
             prop_assert!(
-                READ_TOOLS.contains(&name.as_str()) || calls.iter().any(|(tool, _)| tool == name),
+                READ_TOOLS.contains(&name.as_str())
+                    || REPORT_TOOLS.contains(&name.as_str())
+                    || calls.iter().any(|(tool, _)| tool == name),
                 "{name} isn't tried"
             );
         }

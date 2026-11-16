@@ -29,6 +29,8 @@ serde_json.workspace = true
 sha2.workspace = true
 subtle = "2.6"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
+# An agent's problem report is cleaned as the feedback sheet cleans text.
+unicode-normalization.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

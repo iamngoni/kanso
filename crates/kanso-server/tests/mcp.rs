@@ -54,7 +54,7 @@ async fn lists_inkdrop_tools_before_kanso_tools_and_the_note_template() {
     let answer = rpc(&app.router, "tools/list", json!({})).await;
     let tools = answer["result"]["tools"].as_array().unwrap();
     // The 17, then Kanso's own.
-    assert_eq!(tools.len(), 58);
+    assert_eq!(tools.len(), 59);
     assert!(
         tools[18..]
             .iter()
@@ -1640,4 +1640,164 @@ async fn sync_status_is_a_call_tool_result() {
     let structured = &result["structuredContent"];
     assert!(structured.is_object(), "{result}");
     assert_eq!(&tool_json(&result), structured);
+}
+/// A JSON-RPC call to `/mcp` signed with bearer `secret` (a key or an
+/// agent's token); returns the `result`.
+async fn rpc_as(router: &axum::Router, secret: &str, method: &str, params: Value) -> Value {
+    let message = json!({ "jsonrpc": "2.0", "id": 1, "method": method, "params": params });
+    let request = Request::builder()
+        .method(Method::POST)
+        .uri("/mcp")
+        .header(header::AUTHORIZATION, format!("Bearer {secret}"))
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(message.to_string()))
+        .unwrap();
+    let response = send(router, request).await;
+    assert_eq!(response.status, StatusCode::OK);
+    response.json()["result"].clone()
+}
+
+fn names(result: &Value) -> Vec<String> {
+    result["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|tool| tool["name"].as_str().unwrap().to_owned())
+        .collect()
+}
+
+struct Reporting {
+    router: axum::Router,
+    tokens: kanso_server::TokenStore,
+    secrets: Vec<String>,
+    task_token: kanso_server::TokenId,
+    _dir: tempfile::TempDir,
+}
+
+/// A server with a read, a suggest, a write and a capture key, and a read,
+/// a suggest and a task token, in that order.
+fn reporting() -> Reporting {
+    use kanso_server::{AgentScope, KeyAccess, TaskLimits, TaskOps, TokenStore};
+    let dir = tempfile::tempdir().unwrap();
+    let store = std::sync::Arc::new(kanso_store::Store::open(dir.path().join("kanso.db")).unwrap());
+    let mut secrets = Vec::new();
+    for (ix, access) in [
+        KeyAccess::Read,
+        KeyAccess::Suggest,
+        KeyAccess::Write,
+        KeyAccess::Capture,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let key = format!("kcl_{}{ix}", "B".repeat(42));
+        save_key(&store, &key, access, None);
+        secrets.push(key);
+    }
+    let keys = kanso_server::KeyStore::open(store.clone()).unwrap();
+    let tokens = TokenStore::new();
+    for scope in [
+        AgentScope::with_tools(None, &kanso_server::READ_TOOLS),
+        AgentScope::ask_and_suggest(None, "Claude"),
+    ] {
+        secrets.push(tokens.mint(scope).token);
+    }
+    let task = tokens.changesets().next_id();
+    let limits = TaskLimits {
+        lifetime: std::time::Duration::from_secs(600),
+        calls: 50,
+        max_notes: 50,
+    };
+    let task_minted = tokens.mint(AgentScope::task(
+        None,
+        None,
+        "Claude",
+        task,
+        TaskOps::default(),
+        limits,
+    ));
+    secrets.push(task_minted.token);
+    let router = kanso_server::router_with_tokens(store, &config(), tokens.clone(), keys);
+    Reporting {
+        router,
+        tokens,
+        secrets,
+        task_token: task_minted.id,
+        _dir: dir,
+    }
+}
+
+#[tokio::test]
+async fn every_key_and_token_is_offered_the_report_tool_and_it_queues() {
+    let rig = reporting();
+    for (ix, secret) in rig.secrets.iter().enumerate() {
+        let listed = rpc_as(&rig.router, secret, "tools/list", json!({})).await;
+        assert!(
+            names(&listed).iter().any(|n| n == "kanso-report-issue"),
+            "caller {ix} isn't offered kanso-report-issue"
+        );
+        let result = rpc_as(
+            &rig.router,
+            secret,
+            "tools/call",
+            json!({ "name": "kanso-report-issue", "arguments": {
+                "summary": format!("search-notes failed for caller {ix}"),
+                "tool": "search-notes",
+            }}),
+        )
+        .await;
+        assert_eq!(result.get("isError"), None, "{result}");
+        assert!(text(&result, 0).contains("nothing is sent"), "{result}");
+    }
+    let queued = rig.tokens.agent_reports().list();
+    assert_eq!(queued.len(), rig.secrets.len());
+    assert_eq!(queued[0].kind, kanso_server::ReportKind::Bug);
+    assert_eq!(queued[0].tool.as_deref(), Some("search-notes"));
+    assert!(queued[0].text().starts_with("Reported by an AI agent:\n"));
+    // A report reads no notes: it uses none of the task's budget.
+    assert_eq!(rig.tokens.calls(rig.task_token), 0);
+    assert!(rig.tokens.reads(rig.task_token).is_empty());
+}
+
+#[tokio::test]
+async fn a_bad_report_is_refused_in_zods_words() {
+    let rig = reporting();
+    let secret = rig.secrets[4].clone();
+    let router = rig.router.clone();
+    let call = |arguments: Value| {
+        let (router, secret) = (router.clone(), secret.clone());
+        async move {
+            rpc_as(
+                &router,
+                &secret,
+                "tools/call",
+                json!({ "name": "kanso-report-issue", "arguments": arguments }),
+            )
+            .await
+        }
+    };
+    let short = call(json!({ "summary": "too short" })).await;
+    assert_eq!(short["isError"], true);
+    assert!(
+        text(&short, 0).contains("Too small: expected string to have >=10 characters"),
+        "{short}"
+    );
+    let long = call(json!({ "summary": "x".repeat(4001) })).await;
+    assert!(
+        text(&long, 0).contains("Too big: expected string to have <=4000 characters"),
+        "{long}"
+    );
+    let kind = call(json!({ "summary": "a real problem here", "kind": "rant" })).await;
+    assert_eq!(kind["isError"], true);
+    assert!(text(&kind, 0).contains("Invalid option"), "{kind}");
+    // The same report twice waits once.
+    let report = json!({ "summary": "list-notes ignored bookId", "kind": "question" });
+    call(report.clone()).await;
+    let again = call(report).await;
+    assert!(text(&again, 0).contains("already waiting"), "{again}");
+    assert_eq!(rig.tokens.agent_reports().len(), 1);
+    assert_eq!(
+        rig.tokens.agent_reports().list()[0].kind,
+        kanso_server::ReportKind::Question
+    );
 }

@@ -142,6 +142,9 @@ Nothing about pairing is logged: not the key, the secret or the request ID.
 | Add and tick only | the read tools, and three that add, saved at once: `create-note` (a new note only: no `_id`, no `_rev`, not the trash or Templates), `kanso-add-task` (appends one task) and `kanso-set-task-done` with `done: true`. A tool added later is refused until it is decided | `GET` and `HEAD`, and `POST /notes` with a new note. Every other route is `403` |
 | Read and write | every tool | every route |
 
+Every key and every agent token, whatever its access, also has `kanso-report-issue`
+(see [Agents' problem reports](#agents-problem-reports)).
+
 Add-and-tick keys can't edit, move, untick or delete anything that is already written.
 Read, suggest and add-and-tick keys have no access to attachments. A key that can write sees an
 attachment only when it sees every note that holds it. A key is never given local
@@ -498,6 +501,23 @@ How a release is held to this is in [RELEASING.md](RELEASING.md#breaking-changes
   reaching your notes by accident or without you knowing; they don't stop an attacker
   who already runs code as you. On the library file itself, see
   [Encryption on this computer](../README.md#encryption-on-this-computer).
+
+## Agents' problem reports
+
+`kanso-report-issue` lets an agent say that a tool failed, behaved unexpectedly or made it
+work around something (issue #447). It takes `kind` (`bug`, `idea` or `question`, `bug` by
+default), `summary` (10 to 4,000 characters), and optionally `tool` and `workaround`.
+
+The tool sends nothing and reads no notes, so it uses none of a token's read budget. The
+report waits in memory (at most 20; the same report twice waits once). The app shows "An
+agent reported a problem", and its button opens the Send feedback sheet filled in with the
+report, starting "Reported by an AI agent:". The person can edit the text, and nothing
+leaves the computer until they press Send. From there it goes through the usual feedback
+outbox ([FEEDBACK-CLIENT.md](FEEDBACK-CLIENT.md)).
+
+Under `kanso serve` no one is there to review a report: it is kept in memory and is lost
+when the process exits, and the server prints one line per report (its kind and the tool it
+names, never its text).
 
 ## Headless
 

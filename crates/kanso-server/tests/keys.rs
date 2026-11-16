@@ -328,6 +328,7 @@ proptest! {
             for name in &offered {
                 prop_assert!(
                     kanso_server::READ_TOOLS.contains(&name.as_str())
+                        || kanso_server::REPORT_TOOLS.contains(&name.as_str())
                         || (suggest && kanso_server::SUGGEST_TOOLS.contains(&name.as_str())),
                     "{} offered to {:?}", name, access
                 );

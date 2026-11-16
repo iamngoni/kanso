@@ -447,6 +447,7 @@ mod tests {
                 "kanso-read-pdf-page",
                 "kanso-read-version",
                 "kanso-related-notes",
+                "kanso-report-issue",
                 "kanso-resolve-wikilink",
                 "kanso-run-query-view",
                 "kanso-search-by-meaning",

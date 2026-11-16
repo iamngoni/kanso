@@ -430,7 +430,8 @@ fn the_task_tools_are_not_listed_to_the_full_api() {
             "search-notes",
             "kanso-ask-read-lines",
             "kanso-ask-search",
-            "kanso-ask-when"
+            "kanso-ask-when",
+            "kanso-report-issue"
         ]
     );
 }

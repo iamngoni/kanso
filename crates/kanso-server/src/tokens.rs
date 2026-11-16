@@ -138,6 +138,8 @@ pub struct TokenStore {
     /// The change sets of agent tasks, beside the tokens for the same
     /// reason.
     changesets: ChangeSets,
+    /// The problems agents reported, waiting for the person (issue #447).
+    agent_reports: crate::AgentReports,
 }
 
 impl Default for TokenStore {
@@ -168,6 +170,7 @@ impl TokenStore {
         TokenStore {
             reviews: ReviewQueue::with_clock(clock.clone()),
             changesets: ChangeSets::default(),
+            agent_reports: crate::AgentReports::new(),
             inner: Arc::new(Mutex::new(Inner {
                 entries: Vec::new(),
                 next_id: 1,
@@ -181,6 +184,18 @@ impl TokenStore {
     /// The review queue for the edits agents suggest.
     pub fn reviews(&self) -> &ReviewQueue {
         &self.reviews
+    }
+
+    /// The problems agents reported through `kanso-report-issue`.
+    pub fn agent_reports(&self) -> &crate::AgentReports {
+        &self.agent_reports
+    }
+
+    /// This store, putting agents' reports in `reports` instead of its own:
+    /// for a second server whose reports the person should still see.
+    pub fn with_agent_reports(mut self, reports: crate::AgentReports) -> TokenStore {
+        self.agent_reports = reports;
+        self
     }
 
     /// The change sets of the agent tasks.

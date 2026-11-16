@@ -18,6 +18,8 @@
 //! [`kanso_store::Store`], which is synchronous and is called on tokio's
 //! blocking pool.
 
+mod agent_report_model;
+mod agent_reports;
 pub mod agent_tools;
 mod api;
 mod auth;
@@ -53,6 +55,8 @@ use axum::middleware;
 use axum::routing::post;
 use kanso_store::Store;
 
+pub use agent_report_model::{AgentReport, ReportKind};
+pub use agent_reports::{AgentReports, MAX_PENDING as MAX_AGENT_REPORTS, Queued};
 pub use canvas::{CanvasChange, SharedCanvases};
 pub use changeset::{
     AppliedSet, ApplyFailure, ChangeSet, ChangeSets, Counts, MergeTarget, OpKind, OpState,
@@ -65,8 +69,8 @@ pub use pair::{PairError, PairEvent, Pairing, PendingPair};
 pub use proposal::{Applied, ApplyError, ChangeId, NewChange, ProposedChange};
 pub use review::{EXPIRY as REVIEW_EXPIRY, ReviewEvent, ReviewQueue};
 pub use scope::{
-    ASK_TOOLS, AgentScope, Caller, READ_TOOLS, SUGGEST_TOOLS, TASK_TOOLS, TaskLimits, TaskOps,
-    has_readable_notes, readable_notes,
+    ASK_TOOLS, AgentScope, Caller, READ_TOOLS, REPORT_TOOLS, SUGGEST_TOOLS, TASK_TOOLS, TaskLimits,
+    TaskOps, has_readable_notes, readable_notes,
 };
 pub use tokens::{Minted, ShownNote, TokenId, TokenStore};
 
