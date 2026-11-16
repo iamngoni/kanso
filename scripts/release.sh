@@ -5,8 +5,8 @@
 #       On a clean, up-to-date master: bumps [workspace.package] version and
 #       Cargo.lock, adds the release's section to CHANGELOG.md with
 #       git-cliff, makes the What's new video if release-media/<version>/
-#       has none (scripts/whats-new-video.sh; WHATS_NEW_BRIEF steers which
-#       items it shows), commits "chore(release): v<version>" with both and
+#       has none (scripts/whats-new-video.sh; WHATS_NEW_BRIEF steers its
+#       script), commits "chore(release): v<version>" with both and
 #       tags v<version>. --no-video ships without a video: emergencies only.
 #       It prints the push command; --push runs it. The pushed tag starts
 #       the release workflow, which builds, checks and publishes the release
@@ -166,23 +166,26 @@ cut() {
 	fi
 
 	# Whatever is in release-media/<v> is checked here rather than left out
-	# of the release by the workflow: an animated WebP up to 8 MB, alone.
+	# of the release by the workflow: an animated WebP up to 8 MB, and the
+	# script.md it was made from (kept for review; the workflow ignores it).
 	if [[ -d "$media" ]]; then
 		local file="$media/whats-new.webp" bad
-		bad=$(find "$media" -type f ! -path "$file" -print -quit)
+		bad=$(find "$media" -type f ! -path "$file" ! -path "$media/script.md" -print -quit)
 		if [[ -n "$bad" || ! -f "$file" ]]; then
 			undo
-			die "$media should hold whats-new.webp and nothing else (found ${bad:-no whats-new.webp})"
+			die "$media should hold whats-new.webp, script.md and nothing else (found ${bad:-no whats-new.webp})"
 		fi
-		local size head
+		local size riff webp
 		size=$(wc -c <"$file" | tr -d ' ')
-		head=$(head -c 12 "$file" | LC_ALL=C tr -c 'A-Z' '.')
-		if ((size > 8388608)) || [[ "$head" != RIFF....WEBP ]]; then
+		# A WebP file starts "RIFF", a 4-byte size (any bytes), then "WEBP".
+		riff=$(head -c 4 "$file")
+		webp=$(head -c 12 "$file" | tail -c 4)
+		if ((size > 8388608)) || [[ "$riff" != RIFF || "$webp" != WEBP ]]; then
 			undo
 			die "$file must be a WebP of at most 8 MB (it is $size bytes)"
 		fi
 		echo "What's new video: $file ($size bytes)"
-		git add "$file"
+		git add "$media"
 	fi
 
 	git add Cargo.toml Cargo.lock CHANGELOG.md

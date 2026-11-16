@@ -8,6 +8,7 @@ import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { cn } from "../lib/cn";
 import { AndroidStore, AppStoreBadge } from "../components/AppStoreBadge";
+import { WhatsNewVideo } from "../components/WhatsNewVideo";
 import { PLATFORMS, PLATFORM_NAMES, type MobileOs, type Platform } from "../lib/platform";
 import { RELEASES_URL, type Release, buildsFor, formatDate, formatSize } from "../lib/release";
 import { ANDROID_URL } from "../lib/stores";
@@ -73,6 +74,9 @@ export function Download({ release, platform, mobile = null }: DownloadProps) {
           .
         </p>
       )}
+
+      {/* The latest release's video, by its version line, when it has one. */}
+      {release?.videoUrl && <WhatsNewVideo url={release.videoUrl} version={release.version} className="mt-8" />}
 
       {mobile && <MobileSection mine className="mt-[clamp(3rem,7vw,5rem)]" />}
 

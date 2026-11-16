@@ -24,7 +24,14 @@ describe("parseReleaseNotes", () => {
       publishedAt: "2026-10-20T09:30:00Z",
       pageUrl: "https://github.com/iamngoni/kanso/releases/tag/v0.9.0",
       body: "Notes for v0.9.0",
+      videoUrl: null,
     });
+  });
+
+  it("carries a release's What's new video when it has one", () => {
+    const url = "https://github.com/iamngoni/kanso/releases/download/v0.10.9/Kanso-0.10.9-whats-new.webp";
+    const [note] = parseReleaseNotes([item("v0.10.9", undefined, { assets: [{ name: "Kanso-0.10.9-whats-new.webp", browser_download_url: url }] })]);
+    expect(note?.videoUrl).toBe(url);
   });
 
   it("leaves out drafts, prereleases, odd tags and bad dates", () => {

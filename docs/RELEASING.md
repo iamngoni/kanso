@@ -101,48 +101,67 @@ player, but its `img` decodes and loops animated WebP (and GIF) frames;
 Flutter's `Image` plays the same file on iOS and Android, so there is no
 second rendition (no MP4). WebP is far smaller than GIF at the same
 quality, and has no sound track, so the video is always muted; it loops.
-Both apps decode every frame into memory, so keep it small: 960x540,
-12 fps, 3 or 4 scenes of 7 seconds. WebP merges frames that don't change,
-so a UI video holds far fewer frames than its length suggests; the script
-refuses one over 300 frames.
+Both apps fetch it through the same checks, its size (at most 8 MB,
+`kanso_update::whats_new::MAX_MEDIA_BYTES`) and SHA-256 against the signed
+feed, and neither limits its length: the desktop sheet shows it in a 16:9
+box (`ObjectFit::Cover`), the phones in a 16:9 `AspectRatio`.
+
+**Memory sets the size.** Both apps decode every frame into memory as RGBA:
+frames x width x height x 4 bytes. So the video is **640x360 at 10 fps, at
+most 30 seconds and 300 frames**: 0.92 MB a frame, at most about 276 MB,
+and less in practice, since WebP merges frames that don't change (a UI
+video holds far fewer frames than its length suggests). The 960x540 at
+12 fps used before would be up to 746 MB for the same 30 seconds.
 
 ### How it's made
 
-`scripts/whats-new-video.sh <v> [--brief "…"]` (run by `release.sh`, or
-by hand to try one):
+The video shows nearly every user-facing change in the release, a scene
+each, about 2.5 seconds apiece. `scripts/whats-new-video.sh <v>
+[--brief "…"]` (run by `release.sh`, or by hand to try one):
 
 1. reads the release's notes from `CHANGELOG.md` (`kanso-release notes`,
-   the same notes the release page and the app show);
-2. copies `release-media/template/` (a HyperFrames project; its
+   the same notes the release page and the app show) and lists their
+   user-facing entries: everything under New, Changed, Improved, Fixed and
+   Breaking whose scope isn't internal (ci, refactor, tests, docs, site,
+   release, build, chore, deps, bench);
+2. has Claude Code, headless (`claude -p`), write the **video script**:
+   a scene per change, closely related changes grouped into one ("Collab:
+   shared properties" for two commits about it), each with a headline, a
+   one-line description, what the UI mock shows and the commits it covers.
+   A reviewed `release-media/<v>/script.md` already there is used instead.
+   `--brief` (or `WHATS_NEW_BRIEF=… scripts/release.sh …`) steers it;
+3. checks the script covers **every** user-facing entry's commit and has at
+   most 12 scenes (12 x 2.5 s = 30 s). A release with more changes has its
+   changes grouped further; one left out stops the script, never silently;
+4. copies `release-media/template/` (a HyperFrames project; its
    `compositions/example-s*.html` are 0.10.6's three scenes) to
-   `target/whats-new/<v>/`;
-3. asks Claude Code, headless (`claude -p`, with the hyperframes skills),
-   to pick the 3 or 4 user-facing New and Fixed items worth showing and to
-   write a scene for each, `compositions/s<N>.html`, modelled on the
-   examples: the "0N · v<v>" headline card on the left and a mock of
-   Kanso's UI using the feature on the right. `--brief` (or
-   `WHATS_NEW_BRIEF=… scripts/release.sh …`) says which items to show;
-4. writes `index.html` from the scenes, then lints, renders with the
-   pinned HyperFrames CLI and converts to WebP with ffmpeg:
+   `target/whats-new/<v>/` and has Claude Code, with the hyperframes skills,
+   write a scene per script scene in that style: the "0N · v<v>" headline
+   card on the left and a mock of Kanso's UI using the feature on the
+   right, with text large enough to read at 640x360;
+5. writes `index.html`, lints, renders with the pinned HyperFrames CLI and
+   converts with ffmpeg (or, when ffmpeg has no `libwebp_anim`, as
+   Homebrew's hasn't, ffmpeg's frames through `img2webp` with the same
+   settings):
 
    ```sh
-   ffmpeg -i whats-new.mp4 -vf "fps=12,scale=960:-2:flags=lanczos" -loop 0 \
+   ffmpeg -i whats-new.mp4 -vf "fps=10,scale=640:-2:flags=lanczos" -loop 0 \
      -c:v libwebp_anim -quality 70 -compression_level 6 -an whats-new.webp
    ```
 
-5. checks it is an animated WebP, 960x540, at most 8 MB and 300 frames;
-6. saves a still from each scene under
-   `target/whats-new/<v>/.hyperframes/artifacts/snapshots/`, and copies the
-   WebP to `release-media/<v>/whats-new.webp`.
+6. checks it is an animated WebP, 640x360, at most 8 MB and 300 frames;
+7. saves a still from each scene under
+   `target/whats-new/<v>/.hyperframes/artifacts/snapshots/`, and writes
+   `release-media/<v>/whats-new.webp` and `release-media/<v>/script.md`.
 
-It needs cargo, node, ffmpeg and the `claude` CLI with the hyperframes
-skills. **Look at the stills before pushing the tag**: `release.sh`
-commits the video with the release, so a scene with wrong words or a
-broken layout would ship. If one is wrong, delete the tag and release
-commit (`git tag -d v<v> && git reset --hard HEAD~1`), run the script
-again (or fix the scene in `target/whats-new/<v>/` and re-render), commit
-`release-media/<v>/whats-new.webp` on master, and cut again: a video
-that's already there is used as it is.
+It needs cargo, node, ffmpeg (or img2webp) and the `claude` CLI with the
+hyperframes skills. **Read the stills before pushing the tag**: `release.sh`
+commits the video and its script with the release, so a scene with wrong
+words or a broken layout would ship. If one is wrong, delete the tag and
+release commit (`git tag -d v<v> && git reset --hard HEAD~1`), fix the
+scene in `target/whats-new/<v>/` and re-render, or edit the script and run
+the script again; commit `release-media/<v>/` on master and cut again: a
+video that's already there is used as it is.
 
 A video can also be made any other way (a screen recording, say) and
 committed at `release-media/<v>/whats-new.webp` before cutting.
@@ -153,9 +172,9 @@ loudly; the release then has no video at all.
 
 ### Shipping it
 
-1. `release.sh` checks `release-media/<v>/` holds `whats-new.webp` and
-   nothing else, refuses a file that isn't WebP or is over 8 MB, and
-   commits it in `chore(release): v<v>`.
+1. `release.sh` checks `release-media/<v>/` holds `whats-new.webp` (and
+   its `script.md`) and nothing else, refuses a file that isn't WebP or is
+   over 8 MB, and commits them in `chore(release): v<v>`.
 2. The feed job copies it to `Kanso-<v>-whats-new.webp`, and
    `kanso-release feed --whats-new` adds its URL, SHA-256 and size to
    `latest.json` as `whats_new`, under the feed's signature; the publish

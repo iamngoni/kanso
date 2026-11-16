@@ -6,7 +6,7 @@
  * prereleases and tags that aren't versions are left out.
  */
 import { type Block, type Inline, parse } from "./markdown";
-import { RELEASES_URL } from "./release";
+import { RELEASES_URL, whatsNewUrl } from "./release";
 
 /** How many releases the page lists. */
 export const RELEASE_NOTES_COUNT = 20;
@@ -19,6 +19,8 @@ export interface ReleaseNote {
   readonly pageUrl: string;
   /** The release's Markdown, as written; empty when it has none. */
   readonly body: string;
+  /** The release's What's new video, or null when it has none. */
+  readonly videoUrl: string | null;
 }
 
 const VERSION = /^v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/;
@@ -41,6 +43,7 @@ export function parseReleaseNotes(json: unknown): ReleaseNote[] {
       publishedAt: published,
       pageUrl: `${RELEASES_URL}/tag/${tag as string}`,
       body: typeof item.body === "string" ? item.body : "",
+      videoUrl: whatsNewUrl(Array.isArray(item.assets) ? item.assets.filter(isRecord) : [], tag as string, version),
     });
   }
   return notes.sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt)).slice(0, RELEASE_NOTES_COUNT);
