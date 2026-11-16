@@ -339,6 +339,7 @@ session.
 
 Commands:
   (none)            Open the app
+  --version, -V     Print Kanso's version
   <file.md> ...     Open Markdown or text files as notes in the Inbox,
                     in the running Kanso if there is one
   serve             Run only the local API (REST and /mcp), without a
@@ -447,6 +448,9 @@ fn parse_args_from(args: impl IntoIterator<Item = String>) -> Result<Args> {
                 ))
             }
             "-h" | "--help" => command = Some("help".to_owned()),
+            // Treat the version switch as a top-level command only before
+            // parsing another command; after that it belongs to the command.
+            "-V" | "--version" if command.is_none() => command = Some("version".to_owned()),
             "--after-update" => after_update = true,
             // macOS adds this when launching from Finder.
             arg if arg.starts_with("-psn_") => {}
@@ -489,6 +493,11 @@ fn file_arguments(args: &[String]) -> Option<Vec<PathBuf>> {
         .collect()
 }
 
+/// What `kanso --version` prints.
+fn version_line() -> String {
+    format!("kanso {}", env!("CARGO_PKG_VERSION"))
+}
+
 fn main() -> Result<()> {
     #[cfg(windows)]
     if std::env::args().len() > 1 {
@@ -528,6 +537,10 @@ fn main() -> Result<()> {
         Some("mcp") => mcp_cli::run_cli(&args.data_dir, &args.rest),
         Some("api-key") => api_key_cli::run_cli(&args.data_dir, &args.rest),
         Some("plugin") => plugins::run_cli(&args.data_dir, &args.rest),
+        Some("version") => {
+            println!("{}", version_line());
+            Ok(())
+        }
         Some("help") => {
             println!("{USAGE}{DATA_DIR_NOTE}");
             Ok(())
@@ -1079,4 +1092,43 @@ fn quit(cx: &mut App) {
         services::stop_server(cx);
         cx.quit();
     });
+}
+
+#[cfg(test)]
+mod version_flag_tests {
+    use super::{parse_args_from, version_line};
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+            ..ProptestConfig::with_cases(128)
+        })]
+
+        /// `--version` / `-V` before any command asks for the version; after
+        /// a command it is that command's own argument.
+        #[test]
+        fn version_flag_only_counts_before_a_command(
+            short in any::<bool>(),
+            tail in prop::collection::vec("[a-z]{1,10}", 0..4),
+        ) {
+            let flag = if short { "-V" } else { "--version" };
+            let mut first = vec![flag.to_owned()];
+            first.extend(tail.iter().cloned());
+            let args = parse_args_from(first).unwrap();
+            prop_assert_eq!(args.command.as_deref(), Some("version"));
+
+            let args = parse_args_from(["serve".to_owned(), flag.to_owned()]).unwrap();
+            prop_assert_eq!(args.command.as_deref(), Some("serve"));
+            prop_assert_eq!(args.rest, [flag]);
+        }
+    }
+
+    #[test]
+    fn version_line_names_the_package_version() {
+        assert_eq!(
+            version_line(),
+            format!("kanso {}", env!("CARGO_PKG_VERSION"))
+        );
+    }
 }

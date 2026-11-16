@@ -87,7 +87,7 @@ pub(crate) fn call(
         ("kanso-parse-when", _) => parse_when(&args),
         ("kanso-list-open-loops", vis) => list_open_loops(store, vis, &args),
         ("kanso-related-notes", vis) => related_notes(store, vis, &args),
-        ("kanso-sync-status", _) => Ok(state.sync_status.value()),
+        ("kanso-sync-status", _) => Ok(call_tool_result(state.sync_status.value())),
         ("kanso-resolve-wikilink", vis) => resolve_wikilink(store, vis, &args),
         ("kanso-search-by-meaning", vis) => search_by_meaning(store, vis, &args),
         ("kanso-list-tags", vis) => list_visible_tags(store, vis),
@@ -336,7 +336,9 @@ fn call_full(state: &AppState, key: &Key, vis: &Visibility, name: &str, args: Ar
     let store = &*state.store;
     let file_shown = |id: &str| keyed::file_visible(key.scope, vis, id);
     match name {
-        "kanso-sync-now" => Ok(json!({ "accepted": state.sync_status.request_sync_now() })),
+        "kanso-sync-now" => Ok(call_tool_result(
+            json!({ "accepted": state.sync_status.request_sync_now() }),
+        )),
         "read-backlinks" => read_backlinks(store, vis, &args),
         "create-note" => upsert(store, DocType::Note, args),
         "kanso-create-canvas" => create_canvas(store, vis, args),
@@ -1028,6 +1030,61 @@ fn text(text: impl Into<String>) -> Value {
 
 fn result(blocks: Vec<Value>) -> ToolResult {
     Ok(json!({ "content": blocks }))
+}
+
+/// Ensures the transport always returns the MCP envelope clients read (#448).
+/// A domain object can also have a `content` field, so only preserve values
+/// whose keys and content blocks match the `CallToolResult` shape. Otherwise,
+/// keep the entire value readable as JSON and structured for clients that
+/// support structured results (which must be objects per the MCP spec).
+pub(crate) fn call_tool_result(value: Value) -> Value {
+    if is_call_tool_result(&value) {
+        return value;
+    }
+
+    let content = vec![text(pretty(&value))];
+    let mut answer = json!({ "content": content, "isError": false });
+    if value.is_object() {
+        answer["structuredContent"] = value;
+    }
+    answer
+}
+
+fn is_call_tool_result(value: &Value) -> bool {
+    let Some(fields) = value.as_object() else {
+        return false;
+    };
+    let Some(content) = fields.get("content").and_then(Value::as_array) else {
+        return false;
+    };
+
+    // MCP's envelope has no domain-specific fields. Requiring its complete
+    // field set prevents an unrelated object from being mistaken for one.
+    if fields.keys().any(|key| {
+        !matches!(
+            key.as_str(),
+            "content" | "structuredContent" | "isError" | "_meta"
+        )
+    }) {
+        return false;
+    }
+    if fields
+        .get("structuredContent")
+        .is_some_and(|structured| !structured.is_object())
+        || fields
+            .get("isError")
+            .is_some_and(|is_error| !is_error.is_boolean())
+        || fields.get("_meta").is_some_and(|meta| !meta.is_object())
+    {
+        return false;
+    }
+
+    content.iter().all(|block| {
+        matches!(
+            block.get("type").and_then(Value::as_str),
+            Some("text" | "image" | "audio" | "resource_link" | "resource")
+        )
+    })
 }
 
 pub(crate) fn error_result(message: impl Into<String>) -> Value {
@@ -2323,6 +2380,75 @@ fn ask_when(store: &Store, vis: &Visibility, args: &Args) -> ToolResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+
+    fn json_value() -> impl Strategy<Value = Value> {
+        let leaf = prop_oneof![
+            Just(Value::Null),
+            any::<bool>().prop_map(Value::from),
+            any::<i64>().prop_map(Value::from),
+            ".{0,12}".prop_map(Value::from),
+        ];
+        leaf.prop_recursive(3, 24, 4, |inner| {
+            prop_oneof![
+                prop::collection::vec(inner.clone(), 0..4).prop_map(Value::from),
+                prop::collection::btree_map("[a-z]{1,8}", inner, 0..4)
+                    .prop_map(|m| Value::Object(m.into_iter().collect())),
+            ]
+        })
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+            ..ProptestConfig::with_cases(256)
+        })]
+
+        /// Whatever a tool built, the answer has a `content` array; a bare
+        /// value round-trips through its text block, an object also through
+        /// `structuredContent`; and wrapping twice changes nothing (#448).
+        #[test]
+        fn call_tool_result_is_always_compliant(value in json_value()) {
+            let answer = call_tool_result(value.clone());
+            prop_assert!(answer["content"].is_array());
+            prop_assert_eq!(call_tool_result(answer.clone()), answer.clone());
+            if is_call_tool_result(&value) {
+                prop_assert_eq!(answer, value);
+            } else {
+                let shown: Value =
+                    serde_json::from_str(answer["content"][0]["text"].as_str().unwrap()).unwrap();
+                prop_assert_eq!(&shown, &value);
+                prop_assert_eq!(&answer["isError"], &json!(false));
+                match answer.get("structuredContent") {
+                    Some(structured) => prop_assert_eq!(structured, &value),
+                    None => prop_assert!(!value.is_object()),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn domain_object_with_content_field_is_wrapped_as_domain_data() {
+        let value = json!({
+            "id": "note:123",
+            "content": [{ "title": "A domain item" }],
+        });
+
+        let answer = call_tool_result(value.clone());
+
+        assert_eq!(answer["structuredContent"], value);
+        assert_eq!(answer["isError"], false);
+        assert_eq!(
+            serde_json::from_str::<Value>(answer["content"][0]["text"].as_str().unwrap()).unwrap(),
+            value
+        );
+    }
+
+    #[test]
+    fn existing_call_tool_result_with_typed_blocks_is_preserved() {
+        let value = json!({ "content": [{ "type": "text", "text": "ok" }] });
+        assert_eq!(call_tool_result(value.clone()), value);
+    }
 
     #[test]
     fn prefixes_count_utf16_units() {

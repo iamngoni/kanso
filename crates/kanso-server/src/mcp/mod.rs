@@ -271,25 +271,23 @@ fn call(
             let name = param("name").and_then(Value::as_str).ok_or_else(|| {
                 RpcError::invalid_params("Invalid params: `name` must be a string.")
             })?;
-            match caller {
+            let answer = match caller {
                 Caller::Key { .. } => {
                     let key = crate::keyed::Key::of(caller)
                         .map_err(|_| RpcError::internal("Internal error"))?;
-                    Ok(crate::agent_tools::call_for_key(
-                        state,
-                        &key,
-                        name,
-                        param("arguments"),
-                    ))
+                    crate::agent_tools::call_for_key(state, &key, name, param("arguments"))
                 }
-                Caller::Agent { token, scope } => Ok(crate::agent_tools::call_with_state(
+                Caller::Agent { token, scope } => crate::agent_tools::call_with_state(
                     state,
                     *token,
                     scope,
                     name,
                     param("arguments"),
-                )),
-            }
+                ),
+            };
+            // Every tool's answer leaves as a `CallToolResult`, whatever the
+            // tool built (#448).
+            Ok(tools::call_tool_result(answer))
         }
         "resources/list" => Ok(json!({ "resources": [] })),
         "resources/templates/list" => Ok(json!({
