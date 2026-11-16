@@ -1669,17 +1669,17 @@ fn search_notes(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolRes
         }),
         ..NoteQuery::default()
     };
-    let rows = api::list_notes(store, &query).map_err(search_error)?;
+    let rows = api::list_notes(store, &query).map_err(note_query_error)?;
     summaries(visible_rows(vis, rows, LIMIT))
 }
 
-/// A failed search in words: the reason, not `Fetch error [500]`, which
-/// agents read as Kanso being down (issue #449).
-fn search_error(err: ApiError) -> ToolError {
-    if err.status == axum::http::StatusCode::INTERNAL_SERVER_ERROR {
-        return ToolError(err.reason);
+/// A failed note query in words: the reason, not `Fetch error [500]`,
+/// which agents read as Kanso being down (issue #449).
+fn note_query_error(err: ApiError) -> ToolError {
+    if !err.status.is_server_error() {
+        return err.into();
     }
-    err.into()
+    ToolError(err.reason)
 }
 
 /// The keyword `list-notes` searches for: `bookId:<id> tagId:<tag>… <keyword>`.
@@ -1735,7 +1735,7 @@ fn list_notes(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResul
             .unwrap_or(true),
         doctype: None,
     };
-    let rows = api::list_notes(store, &query).map_err(search_error)?;
+    let rows = api::list_notes(store, &query).map_err(note_query_error)?;
     summaries(visible_rows(vis, rows, limit))
 }
 
