@@ -259,6 +259,15 @@ fn search_where(conn: &Connection, query: &Query, ocr: bool) -> Result<(String, 
 
 const BODY: &str = crate::schema::readable_body!("d.");
 
+/// Whether `err` is the search index pointing at a row it no longer holds.
+fn is_search_index_damage(err: &StoreError) -> bool {
+    matches!(
+        err,
+        StoreError::Sqlite(rusqlite::Error::SqliteFailure(e, Some(message)))
+            if e.code == rusqlite::ErrorCode::DatabaseCorrupt && message.starts_with("fts5:")
+    )
+}
+
 fn bind(params: &mut Vec<SqlValue>, value: String) -> &'static str {
     params.push(SqlValue::Text(value));
     "?"
@@ -533,14 +542,49 @@ impl Store {
 
     /// Notes matching a search, with full bodies.
     pub fn search(&self, params: &SearchParams) -> Result<Vec<Doc>> {
-        self.read(|conn| {
-            let (sql, values) = search_sql(conn, DOC_COLUMNS, params)?;
-            let mut stmt = conn.prepare(&sql)?;
-            let docs = stmt
-                .query_map(params_from_iter(values), doc_from_row)?
-                .collect::<rusqlite::Result<_>>()?;
-            Ok(docs)
+        self.with_search_index(|| {
+            self.read(|conn| {
+                let (sql, values) = search_sql(conn, DOC_COLUMNS, params)?;
+                let mut stmt = conn.prepare(&sql)?;
+                let docs = stmt
+                    .query_map(params_from_iter(values), doc_from_row)?
+                    .collect::<rusqlite::Result<_>>()?;
+                Ok(docs)
+            })
         })
+    }
+
+    /// Runs a search, and when the search index turns out damaged ("fts5:
+    /// missing row N from content table", issue #449) rebuilds it from the
+    /// notes and runs the search again. The index is checked when the store
+    /// opens, but it can be damaged while a long-running server has it open;
+    /// a search for a rare word may miss the damaged entries while common
+    /// words hit them.
+    fn with_search_index<T>(&self, search: impl Fn() -> Result<T>) -> Result<T> {
+        match search() {
+            Err(err) if is_search_index_damage(&err) => {
+                self.repair_search_index()?;
+                search()
+            }
+            other => other,
+        }
+    }
+
+    /// Rebuilds the search index if it is damaged; returns whether it did.
+    /// Runs on the writer connection (opening it if it was released), so it
+    /// waits for a write in progress and never races one. The notes
+    /// themselves are untouched: the index is rebuilt from them.
+    pub fn repair_search_index(&self) -> Result<bool> {
+        use std::sync::atomic::Ordering;
+        self.released.store(false, Ordering::SeqCst);
+        // A poisoned writer means a write panicked mid-transaction; the
+        // store treats that as a programmer error everywhere (see `write`).
+        let mut slot = self.writer.lock().expect("writer poisoned");
+        let conn = match slot.as_mut() {
+            Some(conn) => conn,
+            None => slot.insert(crate::schema::connect(&self.path, self.key.as_ref())?),
+        };
+        crate::write::repair_search_if_corrupt(conn)
     }
 
     /// Notes matching a search, in API form.
@@ -557,7 +601,7 @@ impl Store {
     /// first of them, so the list can show why a note matched.
     pub fn search_summaries(&self, params: &SearchParams) -> Result<Vec<NoteSummary>> {
         let terms: Vec<&str> = params.query.terms_for(Field::Body).collect();
-        self.read(|conn| {
+        self.with_search_index(|| self.read(|conn| {
             let window = if terms.is_empty() {
                 "NULL".to_owned()
             } else {
@@ -612,7 +656,7 @@ impl Store {
                 })
             })?;
             Ok(rows.collect::<rusqlite::Result<_>>()?)
-        })
+        }))
     }
 
     /// How many live notes outside the trash changed at or after

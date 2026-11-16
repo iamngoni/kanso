@@ -1669,7 +1669,17 @@ fn search_notes(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolRes
         }),
         ..NoteQuery::default()
     };
-    summaries(visible_rows(vis, api::list_notes(store, &query)?, LIMIT))
+    let rows = api::list_notes(store, &query).map_err(search_error)?;
+    summaries(visible_rows(vis, rows, LIMIT))
+}
+
+/// A failed search in words: the reason, not `Fetch error [500]`, which
+/// agents read as Kanso being down (issue #449).
+fn search_error(err: ApiError) -> ToolError {
+    if err.status == axum::http::StatusCode::INTERNAL_SERVER_ERROR {
+        return ToolError(err.reason);
+    }
+    err.into()
 }
 
 /// The keyword `list-notes` searches for: `bookId:<id> tagId:<tag>… <keyword>`.
@@ -1725,7 +1735,8 @@ fn list_notes(store: &Store, vis: Option<&Visibility>, args: &Args) -> ToolResul
             .unwrap_or(true),
         doctype: None,
     };
-    summaries(visible_rows(vis, api::list_notes(store, &query)?, limit))
+    let rows = api::list_notes(store, &query).map_err(search_error)?;
+    summaries(visible_rows(vis, rows, limit))
 }
 
 /// A canvas failure in words an agent can act on: what was refused and, for

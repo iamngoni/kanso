@@ -73,10 +73,26 @@ pub(crate) fn list_notes(store: &Store, query: &NoteQuery) -> ApiResult<Vec<Valu
         ..SearchParams::default()
     };
     Ok(store
-        .search_api(&params)?
+        .search_api(&params)
+        .map_err(search_failed)?
         .into_iter()
         .map(crate::canvas::summarize)
         .collect())
+}
+
+/// What a search that failed answers (issue #449): the store's error goes to
+/// the log (it names no note text, nor the words searched for), and the
+/// caller is told what failed rather than a bare 500.
+fn search_failed(err: kanso_store::StoreError) -> ApiError {
+    match err {
+        kanso_store::StoreError::Invalid(_) => err.into(),
+        err => {
+            eprintln!("kanso: note search failed: {err}");
+            ApiError::internal(format!(
+                "Kanso couldn't search the notes: {err}. Try again; if it keeps failing, restart Kanso so it can check its search index."
+            ))
+        }
+    }
 }
 
 /// `GET /loops`: open loops across notes (see `Store::open_loops`), as JSON.
