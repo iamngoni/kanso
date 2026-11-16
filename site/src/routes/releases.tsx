@@ -6,6 +6,7 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { ReleaseBody } from "../components/ReleaseBody";
+import { WhatsNewVideo } from "../components/WhatsNewVideo";
 import { RELEASES_URL, formatDate } from "../lib/release";
 import type { ReleaseNote } from "../lib/releases";
 import { getReleaseNotes } from "../server/fns";
@@ -68,6 +69,8 @@ export function ReleaseNotes({ releases }: { releases: readonly ReleaseNote[] | 
                   On GitHub
                 </a>
               </p>
+              {/* A release that carries a video leads with it, as the apps' What's new sheet does. */}
+              {release.videoUrl && <WhatsNewVideo url={release.videoUrl} version={release.version} className="mt-5" />}
               <div className="mt-5">
                 <ReleaseBody body={release.body} />
               </div>

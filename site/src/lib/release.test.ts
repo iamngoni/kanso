@@ -44,6 +44,16 @@ describe("parseRelease", () => {
     expect(r.checksumsUrl).toBe(`${BASE}/SHA256SUMS`);
     expect(r.builds).toHaveLength(5);
     expect(r.builds.map((b) => b.file)).not.toContain("Kanso-0.5.2-macos-arm64.app.tar.gz");
+    expect(r.videoUrl).toBeNull();
+  });
+
+  it("finds the What's new video, only from this repository's release downloads", () => {
+    const video = "Kanso-0.5.2-whats-new.webp";
+    const withVideo = (url: string) => parsed({ assets: [...fixture().assets, asset(video, 400_000, url)] });
+    expect(withVideo(`${BASE}/${video}`).videoUrl).toBe(`${BASE}/${video}`);
+    expect(withVideo(`https://evil.example/${video}`).videoUrl).toBeNull();
+    // Another release's video isn't this one's.
+    expect(parsed({ assets: [...fixture().assets, asset("Kanso-0.5.1-whats-new.webp")] }).videoUrl).toBeNull();
   });
 
   it("orders builds as the download page lists them, whatever the asset order", () => {

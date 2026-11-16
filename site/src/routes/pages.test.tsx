@@ -29,6 +29,7 @@ const note = (version: string, body: string) => ({
   version,
   publishedAt: "2026-10-20T09:30:00Z",
   pageUrl: `${RELEASES_URL}/tag/v${version}`,
+  videoUrl: null,
   body,
 });
 

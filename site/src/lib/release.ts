@@ -37,6 +37,8 @@ export interface Release {
   /** Never empty: a release with no recognisable build doesn't parse. */
   readonly builds: readonly [Build, ...Build[]];
   readonly checksumsUrl: string | null;
+  /** The release's What's new video (an animated WebP), or null when it has none. */
+  readonly videoUrl: string | null;
 }
 
 interface KindRule {
@@ -72,6 +74,16 @@ function trustedUrl(value: unknown, tag: string): string | null {
   }
 }
 
+/**
+ * The URL of the release's What's new video, `Kanso-<version>-whats-new.webp`
+ * (docs/RELEASING.md › What's new video), or null. Held to the same rule as a
+ * build: only a file in this repository's own release downloads.
+ */
+export function whatsNewUrl(assets: readonly Record<string, unknown>[], tag: string, version: string): string | null {
+  const asset = assets.find((a) => a.name === `Kanso-${version}-whats-new.webp`);
+  return asset ? trustedUrl(asset.browser_download_url, tag) : null;
+}
+
 /** The release, or null when the JSON isn't one this site can offer (a draft, a prerelease, no builds). */
 export function parseRelease(json: unknown): Release | null {
   if (!isRecord(json) || json.draft === true || json.prerelease === true) return null;
@@ -99,7 +111,7 @@ export function parseRelease(json: unknown): Release | null {
 
   const [first, ...rest] = builds;
   if (first === undefined) return null;
-  return { version, publishedAt, pageUrl: `${RELEASES_URL}/tag/${tag}`, builds: [first, ...rest], checksumsUrl };
+  return { version, publishedAt, pageUrl: `${RELEASES_URL}/tag/${tag}`, builds: [first, ...rest], checksumsUrl, videoUrl: whatsNewUrl(assets, tag, version) };
 }
 
 /** The builds for `platform`, primary first. */

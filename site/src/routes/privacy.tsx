@@ -82,7 +82,8 @@ export function Privacy() {
           </h2>
           <p className="mt-4 text-fg-2">
             No analytics, no cookies, no trackers, no forms. The server reads your browser's User-Agent to suggest the right
-            download and then forgets it.
+            download and then forgets it. A release's What's new video loads straight from Kanso's releases on GitHub, so
+            GitHub sees that request as it would a download.
           </p>
         </section>
 

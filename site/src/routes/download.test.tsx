@@ -18,6 +18,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 vi.mock("../server/fns", () => ({ getSiteData: vi.fn() }));
 
 import { ANDROID_URL, APP_STORE_URL } from "../lib/stores";
+import type { Release } from "../lib/release";
 import { Download } from "./download";
 
 describe("Download page, mobile section", () => {
@@ -36,5 +37,29 @@ describe("Download page, mobile section", () => {
     const heading = screen.getByRole("heading", { name: /Kanso Pocket, for your phone/ });
     const title = screen.getByRole("heading", { level: 1 });
     expect(title.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe("Download page, What's new video", () => {
+  const BASE = "https://github.com/iamngoni/kanso/releases/download/v0.10.9";
+  const release = (videoUrl: string | null): Release => ({
+    version: "0.10.9",
+    publishedAt: "2026-11-16T12:00:00Z",
+    pageUrl: "https://github.com/iamngoni/kanso/releases/tag/v0.10.9",
+    builds: [
+      { kind: "macos-dmg", platform: "macos", label: "Disk image (.dmg)", detail: "", file: "Kanso-0.10.9-macos-arm64.dmg", url: `${BASE}/Kanso-0.10.9-macos-arm64.dmg`, size: 50_000_000 },
+    ],
+    checksumsUrl: null,
+    videoUrl,
+  });
+
+  it("shows the latest release's video when it has one", () => {
+    render(<Download release={release(`${BASE}/Kanso-0.10.9-whats-new.webp`)} platform="macos" />);
+    expect(screen.getAllByAltText("What's new in Kanso 0.10.9")[0]).toHaveAttribute("src", `${BASE}/Kanso-0.10.9-whats-new.webp`);
+  });
+
+  it("shows none when the release has no video", () => {
+    render(<Download release={release(null)} platform="macos" />);
+    expect(screen.queryByAltText(/What's new in Kanso/)).toBeNull();
   });
 });
