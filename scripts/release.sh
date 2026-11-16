@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Cuts a Kanso release (docs/RELEASING.md).
 #
-#   scripts/release.sh <version> [--push]
+#   scripts/release.sh <version> [--push] [--no-video]
 #       On a clean, up-to-date master: bumps [workspace.package] version and
 #       Cargo.lock, adds the release's section to CHANGELOG.md with
-#       git-cliff, commits "chore(release): v<version>" and tags v<version>.
+#       git-cliff, makes the What's new video if release-media/<version>/
+#       has none (scripts/whats-new-video.sh; WHATS_NEW_BRIEF steers which
+#       items it shows), commits "chore(release): v<version>" with both and
+#       tags v<version>. --no-video ships without a video: emergencies only.
 #       It prints the push command; --push runs it. The pushed tag starts
 #       the release workflow, which builds, checks and publishes the release
 #       on its own; everyone's Kanso then picks it up.
@@ -23,7 +26,7 @@ die() {
 }
 
 usage() {
-	sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+	sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
 	exit 1
 }
 
@@ -70,7 +73,7 @@ publish() {
 }
 
 cut() {
-	local version=$1 push=$2 tag="v$1"
+	local version=$1 push=$2 video=$3 tag="v$1"
 	check_version "$version"
 
 	[[ "$(git rev-parse --abbrev-ref HEAD)" == "master" ]] || die "releases are cut from master"
@@ -133,26 +136,53 @@ cut() {
 		die "$version isn't released: fix the notices above (docs/RELEASING.md › Breaking changes), then run this again. CHANGELOG.md, Cargo.toml and Cargo.lock are as they were."
 	fi
 
-	# The What's new video, if this release has one (docs/RELEASING.md ›
-	# What's new video): committed at release-media/<v>/whats-new.webp, an
-	# animated WebP up to 8 MB. Anything else there is refused now rather than
-	# left out of the release by the workflow.
+	# What this run changed, put back when the release stops before its
+	# commit, so the tree is clean for the next try.
 	local media="release-media/$version"
+	undo() {
+		git checkout -q -- CHANGELOG.md Cargo.toml Cargo.lock
+		[[ -n "$made_video" ]] && rm -rf "$media"
+		return 0
+	}
+	local made_video=""
+
+	# The What's new video (docs/RELEASING.md › What's new video). Every
+	# release has one: a release without release-media/<v>/whats-new.webp
+	# makes it now, before the tag, and a failure stops the release.
+	if [[ "$video" == "--no-video" ]]; then
+		echo
+		echo "************************************************************"
+		echo "*  --no-video: $tag ships WITHOUT a What's new video.      "
+		echo "*  Emergencies only. Nobody sees what this release adds.   "
+		echo "************************************************************"
+		echo
+	elif [[ ! -f "$media/whats-new.webp" ]]; then
+		echo "Making the What's new video (scripts/whats-new-video.sh $version)…"
+		made_video=1
+		if ! scripts/whats-new-video.sh "$version" ${WHATS_NEW_BRIEF:+--brief "$WHATS_NEW_BRIEF"}; then
+			undo
+			die "$version isn't released: its What's new video couldn't be made (above). Fix it and run this again, or commit release-media/$version/whats-new.webp by hand. CHANGELOG.md, Cargo.toml and Cargo.lock are as they were."
+		fi
+	fi
+
+	# Whatever is in release-media/<v> is checked here rather than left out
+	# of the release by the workflow: an animated WebP up to 8 MB, alone.
 	if [[ -d "$media" ]]; then
-		local video="$media/whats-new.webp" bad
-		bad=$(find "$media" -type f ! -path "$video" -print -quit)
-		if [[ -n "$bad" || ! -f "$video" ]]; then
-			git checkout -q -- CHANGELOG.md Cargo.toml Cargo.lock
+		local file="$media/whats-new.webp" bad
+		bad=$(find "$media" -type f ! -path "$file" -print -quit)
+		if [[ -n "$bad" || ! -f "$file" ]]; then
+			undo
 			die "$media should hold whats-new.webp and nothing else (found ${bad:-no whats-new.webp})"
 		fi
 		local size head
-		size=$(wc -c <"$video" | tr -d ' ')
-		head=$(head -c 12 "$video" | LC_ALL=C tr -c 'A-Z' '.')
+		size=$(wc -c <"$file" | tr -d ' ')
+		head=$(head -c 12 "$file" | LC_ALL=C tr -c 'A-Z' '.')
 		if ((size > 8388608)) || [[ "$head" != RIFF....WEBP ]]; then
-			git checkout -q -- CHANGELOG.md Cargo.toml Cargo.lock
-			die "$video must be a WebP of at most 8 MB (it is $size bytes)"
+			undo
+			die "$file must be a WebP of at most 8 MB (it is $size bytes)"
 		fi
-		echo "What's new video: $video ($size bytes)"
+		echo "What's new video: $file ($size bytes)"
+		git add "$file"
 	fi
 
 	git add Cargo.toml Cargo.lock CHANGELOG.md
@@ -178,8 +208,16 @@ publish)
 	publish "$2"
 	;;
 *)
-	[[ $# -le 2 ]] || usage
-	[[ -z "${2:-}" || "${2:-}" == "--push" ]] || usage
-	cut "$1" "${2:-}"
+	# The flags after the version, in any order.
+	version=$1 push="" video=""
+	shift
+	for flag in "$@"; do
+		case "$flag" in
+		--push) push=--push ;;
+		--no-video) video=--no-video ;;
+		*) usage ;;
+		esac
+	done
+	cut "$version" "$push" "$video"
 	;;
 esac

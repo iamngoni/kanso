@@ -1,0 +1,60 @@
+<template>
+<style>
+  #s3-root{position:absolute;inset:0;background:#121210;font-family:Inter,sans-serif;color:#F1EFE7;overflow:hidden}
+  #s3-root .card{position:absolute;left:28px;top:28px;right:28px;bottom:28px;border-radius:22px;background:#1D1D1A;border:1px solid #3A3933;overflow:hidden}
+  #s3-root .left{position:absolute;left:64px;top:0;bottom:0;width:440px;display:flex;flex-direction:column;justify-content:center}
+  #s3-root .lbl{font-size:14px;letter-spacing:.08em;color:#959187;font-weight:600;font-family:'JetBrains Mono',monospace}
+  #s3-root h1{margin-top:18px;font-size:44px;line-height:50px;font-weight:700;letter-spacing:-.02em}
+  #s3-root .sub{margin-top:16px;font-size:18px;line-height:27px;color:#B7B3A8}
+  #s3-root .chip{margin-top:28px;align-self:flex-start;padding:7px 12px;border-radius:999px;background:rgba(123,170,120,.16);border:1px solid rgba(123,170,120,.45);color:#7BAA78;font-size:12.5px;font-weight:700;letter-spacing:.08em}
+  #s3-root .win{position:absolute;left:556px;top:56px;width:612px;height:552px;border-radius:14px;background:#282824;border:1px solid #3A3933;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.45)}
+  #s3-root .bar{height:36px;display:flex;align-items:center;gap:8px;padding:0 14px;background:#181816;border-bottom:1px solid #3A3933}
+  #s3-root .dot{width:11px;height:11px;border-radius:50%;background:#3A3933}
+  #s3-root .bar span{margin-left:10px;font-size:12px;color:#959187}
+  #s3-root .body{position:absolute;left:0;right:0;top:36px;bottom:0;padding:22px 28px}
+
+ #s3-root .win{top:150px;height:360px}
+ #s3-root .body{padding:22px 36px}
+ #s3-root .ov{font-size:22px;font-weight:700}
+ #s3-root .faint{margin-top:30px;display:flex;flex-direction:column;gap:12px;opacity:.5}
+ #s3-root .fl{height:10px;border-radius:5px;background:#30302B;width:82%} #s3-root .fl.s{width:58%}
+ #s3-root .coda{margin-top:44px;padding-top:22px;border-top:1px solid #3A3933;position:relative}
+ #s3-root .why{position:relative;height:20px}
+ #s3-root .old{position:absolute;left:0;top:2px;font-size:11.5px;font-weight:600;color:#959187}
+ #s3-root .new{position:absolute;left:0;top:0;font-size:12.5px;color:#959187;opacity:0}
+ #s3-root .ct{margin-top:8px;font-size:17px;line-height:24px;font-weight:600}
+ #s3-root .q{margin-top:6px;padding-left:14px;border-left:2px solid #3A3933;position:relative;height:24px;font-size:15px;line-height:24px;color:#B7B3A8}
+ #s3-root .qo,#s3-root .qn{position:absolute;left:14px;top:0;white-space:nowrap} #s3-root .qn{opacity:0}
+ #s3-root .mk{font-weight:400;color:#C49A5A}
+ #s3-root .acts{margin-top:10px;display:flex;gap:14px;font-size:12.5px;color:#869DB9} #s3-root .rv{color:#F1EFE7} #s3-root .nu{color:#B7B3A8}
+</style>
+<div id="s3-root" data-composition-id="s3" data-width="1280" data-height="720">
+ <div id="s3-card" class="card clip" data-start="0" data-duration="9.5">
+  <div class="left"><div id="s3-lbl" class="lbl">03 · v{{VERSION}}</div><h1 id="s3-h">Quotes read cleanly</h1><div id="s3-sub" class="sub">Markdown markers drop out of quotes, and “From the past” sits quieter.</div><div id="s3-chip" class="chip">NEW IN v{{VERSION}}</div></div>
+  <div id="s3-win" class="win"><div class="bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>Overview</span></div><div class="body">
+<div class="top"><div class="ov">Overview</div></div>
+<div class="faint"><div class="fl"></div><div class="fl s"></div><div class="fl"></div></div>
+<div class="coda">
+ <div class="why" data-layout-allow-overlap><span id="s3-old" class="old">A NOTE FROM THE PAST · A YEAR AGO TODAY</span><span id="s3-new" class="new">From the past · A year ago today</span></div>
+ <div class="ct">Lisbon offsite</div>
+ <div class="q" data-layout-allow-overlap><span id="s3-qold" class="qo">“<b class="mk">***</b>Status:<b class="mk">**</b> Draft, pick the venue by Friday”</span><span id="s3-qnew" class="qn">“Status: Draft, pick the venue by Friday”</span></div>
+ <div class="acts"><span>Open</span><span class="rv">Revisit in…</span><span class="nu">Not useful</span></div>
+</div></div></div>
+ </div>
+</div>
+<script>
+  const tl = gsap.timeline({ paused: true });
+  tl.fromTo("#s3-card",{opacity:0,scale:.97},{opacity:1,scale:1,duration:.6,ease:"power3.out"},0);
+  tl.fromTo(["#s3-lbl","#s3-h","#s3-sub","#s3-chip"],{opacity:0,y:14},{opacity:1,y:0,duration:.55,ease:"power3.out",stagger:.12},.25);
+  tl.fromTo("#s3-win",{opacity:0,x:40},{opacity:1,x:0,duration:.7,ease:"power3.out"},.45);
+  tl.to("#s3-card",{opacity:0,scale:.98,duration:.45,ease:"power2.in"},9.0);
+
+  tl.to(".mk",{opacity:0,duration:.4},3.4);
+  tl.to("#s3-qold",{opacity:0,duration:.35},3.9);
+  tl.fromTo("#s3-qnew",{opacity:0},{opacity:1,duration:.35},3.9);
+  tl.to("#s3-old",{opacity:0,duration:.4},5.6);
+  tl.fromTo("#s3-new",{opacity:0},{opacity:1,duration:.4},5.8);
+
+  window.__timelines["s3"] = tl;
+</script>
+</template>

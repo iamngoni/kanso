@@ -3,6 +3,29 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.10.9](https://github.com/iamngoni/kanso/compare/v0.10.8...v0.10.9) - 2026-11-16
+
+### New
+
+- **From 0.10.8:** Type a date in a task, like "tomorrow 3pm" or "every Monday", and it becomes its due date and time, with a hint you apply with Tab ([b76080f](https://github.com/iamngoni/kanso/commit/b76080f63b1dcccc5ed39c5a84275a3293efb909))
+- **From 0.10.8:** New in a Canvases list makes a canvas, not a note ([4fde906](https://github.com/iamngoni/kanso/commit/4fde906dcf553d8b919af630324ae30d89efb46c))
+- **From 0.10.8:** Shared notes and notebooks merge properties one key at a time, so two people can edit them at once ([e8c0f8e](https://github.com/iamngoni/kanso/commit/e8c0f8ed3da42cf69431780b736c8850716b6067))
+- **From 0.10.8:** An agent can report a problem with Kanso, and you read and approve the report before it is sent ([11712fe](https://github.com/iamngoni/kanso/commit/11712fe48739de9a43f3d6eae9317a9f9183adbf))
+- **From 0.10.8:** A Schedule view by month and week: tick tasks and drag them to another day ([afcf1d4](https://github.com/iamngoni/kanso/commit/afcf1d49cac732d9750604e40bba64bed37186c6))
+- **From 0.10.8:** Share a whole notebook, with roles, invitations and who edited what ([7120f31](https://github.com/iamngoni/kanso/commit/7120f316c79274a2e3dbfe81aaf5582253ba2868))
+- **From 0.10.8:** On iPhone, App Intents for capture, tasks, search and open ([f1486d1](https://github.com/iamngoni/kanso/commit/f1486d1fa2e0e3758fac3495c15f9d6a5ce3d07a))
+- Every release now opens with a short What's new video
+
+### Fixed
+
+- **From 0.10.8:** A damaged search index is rebuilt while Kanso runs, and a failed search says why ([1fe5ce6](https://github.com/iamngoni/kanso/commit/1fe5ce688293f657a216abf17750d8da21f96d71))
+- **From 0.10.8:** Every MCP tool answer is a proper CallToolResult, and `kanso --version` prints the version ([e0a3d24](https://github.com/iamngoni/kanso/commit/e0a3d248e566d325f9c169130eeaaa4c4f97f9a8))
+
+### Under the hood
+
+- **updates:** Both update sheets scroll long release notes ([4f42d38](https://github.com/iamngoni/kanso/commit/4f42d38c30b56cf5ca9d24515c63eb9b4f0935f3))
+- **release:** scripts/release.sh makes the What's new video with scripts/whats-new-video.sh
+
 ## [0.10.8](https://github.com/iamngoni/kanso/compare/v0.10.7...v0.10.8) - 2026-11-16
 
 ### Breaking

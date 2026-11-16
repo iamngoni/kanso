@@ -20,7 +20,7 @@ Every release carries, beside the downloads:
 | `Kanso-<v>-windows-x64-setup.exe` | the per-user installer (`packaging/windows/kanso.iss`, Inno Setup 6.7.3), for first installs |
 | `Kanso-<v>-linux-x64.tar.gz`, `…-linux-arm64.tar.gz` | the folder with `kanso`, the download and the update |
 | `latest.json` | the feed: schema 1, version, date, release page, notes, and for each platform the update's URL, SHA-256 and size; optionally `whats_new` (the video's URL, SHA-256 and size) and `earlier` (the notes of up to 12 releases before) |
-| `Kanso-<v>-whats-new.webp` | optional: the release's What's new video ([below](#whats-new-video)) |
+| `Kanso-<v>-whats-new.webp` | the release's What's new video ([below](#whats-new-video)) |
 | `latest.json.sig` | an Ed25519 signature over the feed's exact bytes, base64 |
 | `kanso_<v>-1_amd64.deb`, `…_arm64.deb` | the Debian packages, for apt ([apt repository](#the-apt-repository)) |
 | `apt-stable-*` | the apt repository's signed index: `Packages` per architecture, `Release`, `InRelease`, `Release.gpg` (once the apt key is set up) |
@@ -90,33 +90,76 @@ still be signed by a trusted key.
 
 ## What's new video
 
-From 0.10.7 a release may carry a short video that leads the What's new
-sheet (desktop and phones), above the notes. No video, and the sheet is as
-it was.
+From 0.10.7 a release carries a short video that leads the What's new
+sheet (desktop and phones), above the notes. From 0.10.9 making it is part
+of cutting the release: `scripts/release.sh` makes one whenever
+`release-media/<v>/whats-new.webp` isn't there, and a release whose video
+can't be made stops.
 
 **Format: animated WebP, one file, at most 8 MB.** GPUI has no video
 player, but its `img` decodes and loops animated WebP (and GIF) frames;
 Flutter's `Image` plays the same file on iOS and Android, so there is no
 second rendition (no MP4). WebP is far smaller than GIF at the same
 quality, and has no sound track, so the video is always muted; it loops.
-Both apps decode every frame into memory, so keep it short and small:
-about 960x540, 12-15 fps, under 10 seconds. For example, from a screen
-recording:
+Both apps decode every frame into memory, so keep it small: 960x540,
+12 fps, 3 or 4 scenes of 7 seconds. WebP merges frames that don't change,
+so a UI video holds far fewer frames than its length suggests; the script
+refuses one over 300 frames.
 
-```sh
-ffmpeg -i demo.mov -vf "fps=12,scale=960:-2:flags=lanczos" -loop 0 \
-  -c:v libwebp_anim -quality 70 -compression_level 6 -an whats-new.webp
-```
+### How it's made
 
-To ship one with release `<v>`:
+`scripts/whats-new-video.sh <v> [--brief "…"]` (run by `release.sh`, or
+by hand to try one):
 
-1. Commit it at **`release-media/<v>/whats-new.webp`** (nothing else in
-   that folder) on master before cutting the release. `scripts/release.sh`
-   refuses a file that isn't WebP or is over 8 MB.
-2. Cut the release as usual. The feed job copies it to
-   `Kanso-<v>-whats-new.webp`, and `kanso-release feed --whats-new` adds
-   its URL, SHA-256 and size to `latest.json` as `whats_new`, under the
-   feed's signature; the publish job uploads it with the other assets.
+1. reads the release's notes from `CHANGELOG.md` (`kanso-release notes`,
+   the same notes the release page and the app show);
+2. copies `release-media/template/` (a HyperFrames project; its
+   `compositions/example-s*.html` are 0.10.6's three scenes) to
+   `target/whats-new/<v>/`;
+3. asks Claude Code, headless (`claude -p`, with the hyperframes skills),
+   to pick the 3 or 4 user-facing New and Fixed items worth showing and to
+   write a scene for each, `compositions/s<N>.html`, modelled on the
+   examples: the "0N · v<v>" headline card on the left and a mock of
+   Kanso's UI using the feature on the right. `--brief` (or
+   `WHATS_NEW_BRIEF=… scripts/release.sh …`) says which items to show;
+4. writes `index.html` from the scenes, then lints, renders with the
+   pinned HyperFrames CLI and converts to WebP with ffmpeg:
+
+   ```sh
+   ffmpeg -i whats-new.mp4 -vf "fps=12,scale=960:-2:flags=lanczos" -loop 0 \
+     -c:v libwebp_anim -quality 70 -compression_level 6 -an whats-new.webp
+   ```
+
+5. checks it is an animated WebP, 960x540, at most 8 MB and 300 frames;
+6. saves a still from each scene under
+   `target/whats-new/<v>/.hyperframes/artifacts/snapshots/`, and copies the
+   WebP to `release-media/<v>/whats-new.webp`.
+
+It needs cargo, node, ffmpeg and the `claude` CLI with the hyperframes
+skills. **Look at the stills before pushing the tag**: `release.sh`
+commits the video with the release, so a scene with wrong words or a
+broken layout would ship. If one is wrong, delete the tag and release
+commit (`git tag -d v<v> && git reset --hard HEAD~1`), run the script
+again (or fix the scene in `target/whats-new/<v>/` and re-render), commit
+`release-media/<v>/whats-new.webp` on master, and cut again: a video
+that's already there is used as it is.
+
+A video can also be made any other way (a screen recording, say) and
+committed at `release-media/<v>/whats-new.webp` before cutting.
+
+`scripts/release.sh <v> --no-video` ships without one. It is for
+emergencies (a security fix that can't wait for a render) and says so
+loudly; the release then has no video at all.
+
+### Shipping it
+
+1. `release.sh` checks `release-media/<v>/` holds `whats-new.webp` and
+   nothing else, refuses a file that isn't WebP or is over 8 MB, and
+   commits it in `chore(release): v<v>`.
+2. The feed job copies it to `Kanso-<v>-whats-new.webp`, and
+   `kanso-release feed --whats-new` adds its URL, SHA-256 and size to
+   `latest.json` as `whats_new`, under the feed's signature; the publish
+   job uploads it with the other assets.
 
 The apps fetch it only from this repository's releases, with every
 redirect hop held to the same rules as an update, check its size and

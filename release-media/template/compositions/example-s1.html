@@ -1,0 +1,72 @@
+<template>
+<style>
+  #s1-root{position:absolute;inset:0;background:#121210;font-family:Inter,sans-serif;color:#F1EFE7;overflow:hidden}
+  #s1-root .card{position:absolute;left:28px;top:28px;right:28px;bottom:28px;border-radius:22px;background:#1D1D1A;border:1px solid #3A3933;overflow:hidden}
+  #s1-root .left{position:absolute;left:64px;top:0;bottom:0;width:440px;display:flex;flex-direction:column;justify-content:center}
+  #s1-root .lbl{font-size:14px;letter-spacing:.08em;color:#959187;font-weight:600;font-family:'JetBrains Mono',monospace}
+  #s1-root h1{margin-top:18px;font-size:44px;line-height:50px;font-weight:700;letter-spacing:-.02em}
+  #s1-root .sub{margin-top:16px;font-size:18px;line-height:27px;color:#B7B3A8}
+  #s1-root .chip{margin-top:28px;align-self:flex-start;padding:7px 12px;border-radius:999px;background:rgba(123,170,120,.16);border:1px solid rgba(123,170,120,.45);color:#7BAA78;font-size:12.5px;font-weight:700;letter-spacing:.08em}
+  #s1-root .win{position:absolute;left:556px;top:56px;width:612px;height:552px;border-radius:14px;background:#282824;border:1px solid #3A3933;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.45)}
+  #s1-root .bar{height:36px;display:flex;align-items:center;gap:8px;padding:0 14px;background:#181816;border-bottom:1px solid #3A3933}
+  #s1-root .dot{width:11px;height:11px;border-radius:50%;background:#3A3933}
+  #s1-root .bar span{margin-left:10px;font-size:12px;color:#959187}
+  #s1-root .body{position:absolute;left:0;right:0;top:36px;bottom:0;padding:22px 28px}
+
+ #s1-root .win{top:70px;height:524px}
+ #s1-root .ic{display:inline-flex;width:12px;height:12px;flex:none}
+ #s1-root svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+ #s1-root .hdr{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid #3A3933}
+ #s1-root .btn{display:flex;align-items:center;gap:4px;font-size:12.5px;color:#B7B3A8;padding:4px 8px;border-radius:6px}
+ #s1-root .btn svg{width:13px;height:13px}
+ #s1-root .ht{flex:1} #s1-root .t1{font-size:14px;font-weight:600} #s1-root .t2{font-size:12px;color:#959187;margin-top:2px}
+ #s1-root .ib{width:14px;height:14px;color:#959187}
+ #s1-root .blocks{display:flex;flex-direction:column;gap:14px;padding-top:16px}
+ #s1-root .lab{font-size:11.5px;font-weight:600;color:#959187;margin-bottom:3px}
+ #s1-root .bub{padding:8px;border-radius:8px;background:#30302B;font-size:13px;line-height:19px}
+ #s1-root .ghost{font-size:12px;color:#B7B3A8;font-weight:500}
+ #s1-root .thought{margin-top:6px;padding-left:10px;border-left:2px solid #3A3933;font-size:12.5px;line-height:18px;color:#959187}
+ #s1-root .g2{display:flex;flex-direction:column;gap:6px}
+ #s1-root .tool{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#B7B3A8}
+ #s1-root .tool .m{color:#959187} #s1-root .tt{flex:1}
+ #s1-root .sp{color:#959187} #s1-root .ok{color:#7BAA78;position:absolute;right:28px;opacity:0}
+ #s1-root .tool{position:relative} #s1-root .tool .ok{right:0}
+ #s1-root .perm{font-size:12px;line-height:17px;color:#959187}
+ #s1-root .agt{font-size:13px;line-height:19px;color:#F1EFE7}
+ #s1-root .prop{display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;border:1px solid #C49A5A}
+ #s1-root .pl{flex:1;font-size:13px} #s1-root .pb{padding:5px 12px;border-radius:6px;background:#4A6385;font-size:12.5px;font-weight:500}
+</style>
+<div id="s1-root" data-composition-id="s1" data-width="1280" data-height="720">
+ <div id="s1-card" class="card clip" data-start="0" data-duration="10.5">
+  <div class="left"><div id="s1-lbl" class="lbl">01 · v{{VERSION}}</div><h1 id="s1-h">Agent tasks keep every step</h1><div id="s1-sub" class="sub">Each task is a transcript now: what you asked, what it thought and every tool it ran.</div><div id="s1-chip" class="chip">NEW IN v{{VERSION}}</div></div>
+  <div id="s1-win" class="win"><div class="bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>Agent Session</span></div><div class="body">
+<div class="hdr"><div class="btn"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg><span>Tasks</span></div><div class="ht"><div class="t1">Merge my trips</div><div class="t2">Claude Agent</div></div><div class="ib"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M10 14L21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></div></div>
+<div class="blocks">
+ <div id="s1-you" class="blk"><div class="lab">You</div><div class="bub">Merge my Lisbon trip notes into one note.</div></div>
+ <div id="s1-th" class="blk"><div class="ghost">Thought for 4s <span id="s1-arr">▸</span></div><div id="s1-tht" class="thought">Three notes mention Lisbon. Read them first, then propose one merged note.</div></div>
+ <div id="s1-tools" class="blk g2"><div id="s1-t1" class="tool"><i class="ic m"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></i><div class="tt">Search notes: Lisbon</div><i id="s1-sp1" class="ic sp"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg></i><i id="s1-ok1" class="ic ok"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></i></div><div id="s1-t2" class="tool"><i class="ic m"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></i><div class="tt">Read Lisbon flights</div><i id="s1-sp2" class="ic sp"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg></i><i id="s1-ok2" class="ic ok"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></i></div><div id="s1-t3" class="tool"><i class="ic m"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></i><div class="tt">Read Lisbon — where to eat</div><i id="s1-sp3" class="ic sp"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg></i><i id="s1-ok3" class="ic ok"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></i></div></div>
+ <div id="s1-perm" class="perm">Allowed for this session: Read Lisbon — where to eat</div>
+ <div id="s1-ag" class="blk"><div class="lab">Agent</div><div class="agt">I read your three Lisbon notes and merged them into one.</div></div>
+ <div id="s1-prop" class="prop"><div class="pl">Round 1 · 1 new note, 1 merge</div><div class="pb">Review…</div></div>
+</div></div></div>
+ </div>
+</div>
+<script>
+  const tl = gsap.timeline({ paused: true });
+  tl.fromTo("#s1-card",{opacity:0,scale:.97},{opacity:1,scale:1,duration:.6,ease:"power3.out"},0);
+  tl.fromTo(["#s1-lbl","#s1-h","#s1-sub","#s1-chip"],{opacity:0,y:14},{opacity:1,y:0,duration:.55,ease:"power3.out",stagger:.12},.25);
+  tl.fromTo("#s1-win",{opacity:0,x:40},{opacity:1,x:0,duration:.7,ease:"power3.out"},.45);
+  tl.to("#s1-card",{opacity:0,scale:.98,duration:.45,ease:"power2.in"},10.0);
+
+  const seq=[["#s1-you",1.3],["#s1-th",2.1],["#s1-t1",3.2],["#s1-t2",4.0],["#s1-t3",4.8],["#s1-perm",5.4],["#s1-ag",6.0],["#s1-prop",7.0]];
+  seq.forEach(([s,t])=>tl.fromTo(s,{opacity:0,y:10},{opacity:1,y:0,duration:.4,ease:"power2.out"},t));
+  tl.fromTo("#s1-tht",{opacity:0,height:0},{opacity:1,height:36,duration:.4,ease:"power2.out"},2.6);
+  tl.set("#s1-arr",{textContent:"▾"},2.6);
+  [[1,3.2,3.9],[2,4.0,4.7],[3,4.8,6.2]].forEach(([i,a,b])=>{
+    tl.fromTo("#s1-sp"+i,{rotation:0},{rotation:360*((b-a)/1.1),duration:b-a,ease:"none"},a);
+    tl.set("#s1-sp"+i,{opacity:0},b); tl.fromTo("#s1-ok"+i,{opacity:0,scale:.4},{opacity:1,scale:1,duration:.25,ease:"back.out(2)"},b);
+  });
+
+  window.__timelines["s1"] = tl;
+</script>
+</template>
