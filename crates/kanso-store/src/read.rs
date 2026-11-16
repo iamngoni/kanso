@@ -259,6 +259,17 @@ fn search_where(conn: &Connection, query: &Query, ocr: bool) -> Result<(String, 
 
 const BODY: &str = crate::schema::readable_body!("d.");
 
+/// Whether `err` is the search index pointing at a row it no longer holds.
+/// SQLite reports the dangling entry as `SQLITE_CORRUPT_VTAB`; the `fts5:`
+/// prefix distinguishes that from corruption elsewhere in the database,
+/// which rebuilding this index would not fix.
+fn is_search_index_damage(err: &StoreError) -> bool {
+    let StoreError::Sqlite(rusqlite::Error::SqliteFailure(code, Some(message))) = err else {
+        return false;
+    };
+    code.code == rusqlite::ErrorCode::DatabaseCorrupt && message.starts_with("fts5:")
+}
+
 fn bind(params: &mut Vec<SqlValue>, value: String) -> &'static str {
     params.push(SqlValue::Text(value));
     "?"
@@ -533,14 +544,49 @@ impl Store {
 
     /// Notes matching a search, with full bodies.
     pub fn search(&self, params: &SearchParams) -> Result<Vec<Doc>> {
-        self.read(|conn| {
-            let (sql, values) = search_sql(conn, DOC_COLUMNS, params)?;
-            let mut stmt = conn.prepare(&sql)?;
-            let docs = stmt
-                .query_map(params_from_iter(values), doc_from_row)?
-                .collect::<rusqlite::Result<_>>()?;
-            Ok(docs)
+        self.with_search_index(|| {
+            self.read(|conn| {
+                let (sql, values) = search_sql(conn, DOC_COLUMNS, params)?;
+                let mut stmt = conn.prepare(&sql)?;
+                let docs = stmt
+                    .query_map(params_from_iter(values), doc_from_row)?
+                    .collect::<rusqlite::Result<_>>()?;
+                Ok(docs)
+            })
         })
+    }
+
+    /// Runs a search, and when the search index turns out damaged ("fts5:
+    /// missing row N from content table", issue #449) rebuilds it from the
+    /// notes and runs the search again. The index is checked when the store
+    /// opens, but it can be damaged while a long-running server has it open;
+    /// a search for a rare word may miss the damaged entries while common
+    /// words hit them.
+    fn with_search_index<T>(&self, search: impl Fn() -> Result<T>) -> Result<T> {
+        match search() {
+            Err(err) if is_search_index_damage(&err) => {
+                self.repair_search_index()?;
+                search()
+            }
+            other => other,
+        }
+    }
+
+    /// Rebuilds the search index if it is damaged; returns whether it did.
+    /// Runs on the writer connection (opening it if it was released), so it
+    /// waits for a write in progress and never races one. The notes
+    /// themselves are untouched: the index is rebuilt from them.
+    pub fn repair_search_index(&self) -> Result<bool> {
+        use std::sync::atomic::Ordering;
+        self.released.store(false, Ordering::SeqCst);
+        // A poisoned writer means a write panicked mid-transaction; the
+        // store treats that as a programmer error everywhere (see `write`).
+        let mut slot = self.writer.lock().expect("writer poisoned");
+        if slot.is_none() {
+            *slot = Some(crate::schema::connect(&self.path, self.key.as_ref())?);
+        }
+        let conn = slot.as_mut().expect("the writer was just opened");
+        crate::write::repair_search_if_corrupt(conn)
     }
 
     /// Notes matching a search, in API form.
@@ -557,61 +603,63 @@ impl Store {
     /// first of them, so the list can show why a note matched.
     pub fn search_summaries(&self, params: &SearchParams) -> Result<Vec<NoteSummary>> {
         let terms: Vec<&str> = params.query.terms_for(Field::Body).collect();
-        self.read(|conn| {
-            let window = if terms.is_empty() {
-                "NULL".to_owned()
-            } else {
-                format!("kanso_window({BODY}, ?)")
-            };
-            let locked = crate::schema::note_locked!("d.");
-            // A canvas's body is JSON: its list row reads the words the search
-            // index holds for it, and nothing at all while it is locked.
-            let head = format!(
-                "CASE WHEN json_extract(d.json, '$.doctype') = 'canvas' THEN \
-                 CASE WHEN {locked} THEN '' ELSE substr(IFNULL((SELECT body FROM notes_fts \
-                 WHERE note_id = d.id), ''), 1, {HEAD_CHARS}) END \
-                 ELSE substr({BODY}, 1, {HEAD_CHARS}) END"
-            );
-            // A note in a locked notebook counts no tasks, as a sealed one.
-            let columns = format!(
-                "d.id, d.rev, d.title, {head}, \
-                 d.book_id, d.status, json_extract(d.json, '$.tags'), d.pinned, d.updated_at, d.created_at, \
-                 {window}, CASE WHEN {locked} THEN 0 ELSE json_extract(d.json, '$.numOfCheckedTasks') END, \
-                 CASE WHEN {locked} THEN 0 ELSE json_extract(d.json, '$.numOfTasks') END, {locked}, \
-                 json_extract(d.json, '$.doctype') = 'canvas'"
-            );
-            let (sql, mut values) = search_sql(conn, &columns, params)?;
-            // The window's term comes first: its column is before the rest.
-            if let Some(first) = terms.first() {
-                values.insert(0, SqlValue::Text((*first).to_owned()));
-            }
-            let mut stmt = conn.prepare(&sql)?;
-            let rows = stmt.query_map(params_from_iter(values), |row| {
-                let tags: Option<String> = row.get(6)?;
-                let status: Option<String> = row.get(5)?;
-                let title = row.get::<_, Option<String>>(2)?.unwrap_or_default();
-                let head = row.get::<_, Option<String>>(3)?.unwrap_or_default();
-                let window = row.get::<_, Option<String>>(10)?;
-                Ok(NoteSummary {
-                    id: row.get(0)?,
-                    rev: row.get(1)?,
-                    snippet: excerpt_around(&title, &head, window.as_deref(), &terms),
-                    title,
-                    book_id: row.get::<_, Option<String>>(4)?.unwrap_or_default(),
-                    status: status.as_deref().and_then(NoteStatus::parse).unwrap_or_default(),
-                    tags: tags
-                        .and_then(|t| serde_json::from_str(&t).ok())
-                        .unwrap_or_default(),
-                    pinned: row.get::<_, Option<bool>>(7)?.unwrap_or(false),
-                    updated_at: row.get::<_, Option<i64>>(8)?.unwrap_or(0),
-                    created_at: row.get::<_, Option<i64>>(9)?.unwrap_or(0),
-                    tasks_done: row.get::<_, Option<u32>>(11)?.unwrap_or(0),
-                    tasks_total: row.get::<_, Option<u32>>(12)?.unwrap_or(0),
-                    locked: row.get(13)?,
-                    canvas: row.get::<_, Option<bool>>(14)?.unwrap_or(false),
-                })
-            })?;
-            Ok(rows.collect::<rusqlite::Result<_>>()?)
+        self.with_search_index(|| {
+            self.read(|conn| {
+                let window = if terms.is_empty() {
+                    "NULL".to_owned()
+                } else {
+                    format!("kanso_window({BODY}, ?)")
+                };
+                let locked = crate::schema::note_locked!("d.");
+                // A canvas's body is JSON: its list row reads the words the search
+                // index holds for it, and nothing at all while it is locked.
+                let head = format!(
+                    "CASE WHEN json_extract(d.json, '$.doctype') = 'canvas' THEN \
+                     CASE WHEN {locked} THEN '' ELSE substr(IFNULL((SELECT body FROM notes_fts \
+                     WHERE note_id = d.id), ''), 1, {HEAD_CHARS}) END \
+                     ELSE substr({BODY}, 1, {HEAD_CHARS}) END"
+                );
+                // A note in a locked notebook counts no tasks, as a sealed one.
+                let columns = format!(
+                    "d.id, d.rev, d.title, {head}, \
+                     d.book_id, d.status, json_extract(d.json, '$.tags'), d.pinned, d.updated_at, d.created_at, \
+                     {window}, CASE WHEN {locked} THEN 0 ELSE json_extract(d.json, '$.numOfCheckedTasks') END, \
+                     CASE WHEN {locked} THEN 0 ELSE json_extract(d.json, '$.numOfTasks') END, {locked}, \
+                     json_extract(d.json, '$.doctype') = 'canvas'"
+                );
+                let (sql, mut values) = search_sql(conn, &columns, params)?;
+                // The window's term comes first: its column is before the rest.
+                if let Some(first) = terms.first() {
+                    values.insert(0, SqlValue::Text((*first).to_owned()));
+                }
+                let mut stmt = conn.prepare(&sql)?;
+                let rows = stmt.query_map(params_from_iter(values), |row| {
+                    let tags: Option<String> = row.get(6)?;
+                    let status: Option<String> = row.get(5)?;
+                    let title = row.get::<_, Option<String>>(2)?.unwrap_or_default();
+                    let head = row.get::<_, Option<String>>(3)?.unwrap_or_default();
+                    let window = row.get::<_, Option<String>>(10)?;
+                    Ok(NoteSummary {
+                        id: row.get(0)?,
+                        rev: row.get(1)?,
+                        snippet: excerpt_around(&title, &head, window.as_deref(), &terms),
+                        title,
+                        book_id: row.get::<_, Option<String>>(4)?.unwrap_or_default(),
+                        status: status.as_deref().and_then(NoteStatus::parse).unwrap_or_default(),
+                        tags: tags
+                            .and_then(|t| serde_json::from_str(&t).ok())
+                            .unwrap_or_default(),
+                        pinned: row.get::<_, Option<bool>>(7)?.unwrap_or(false),
+                        updated_at: row.get::<_, Option<i64>>(8)?.unwrap_or(0),
+                        created_at: row.get::<_, Option<i64>>(9)?.unwrap_or(0),
+                        tasks_done: row.get::<_, Option<u32>>(11)?.unwrap_or(0),
+                        tasks_total: row.get::<_, Option<u32>>(12)?.unwrap_or(0),
+                        locked: row.get(13)?,
+                        canvas: row.get::<_, Option<bool>>(14)?.unwrap_or(false),
+                    })
+                })?;
+                    Ok(rows.collect::<rusqlite::Result<_>>()?)
+            })
         })
     }
 
