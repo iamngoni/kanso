@@ -97,9 +97,11 @@ async fn lists_inkdrop_tools_before_kanso_tools_and_the_note_template() {
 async fn sync_status_is_read_only_and_sync_now_is_a_write_tool() {
     let app = app();
     let status = tool(&app.router, "kanso-sync-status", json!({})).await;
-    assert_eq!(status, json!({ "signedIn": false }));
+    assert_eq!(status["structuredContent"], json!({ "signedIn": false }));
+    assert_eq!(tool_json(&status), json!({ "signedIn": false }));
     let requested = tool(&app.router, "kanso-sync-now", json!({})).await;
-    assert_eq!(requested, json!({ "accepted": false }));
+    assert_eq!(requested["structuredContent"], json!({ "accepted": false }));
+    assert_eq!(tool_json(&requested), json!({ "accepted": false }));
 }
 
 #[tokio::test]
@@ -1602,4 +1604,40 @@ async fn list_mentions_serves_only_visible_notes_and_never_the_page_cache() {
     )
     .await;
     assert!(text(&none, 0).contains("isn't a person or project page"));
+}
+
+/// Every tool answers `tools/call` with a `CallToolResult`: a `content` array,
+/// even when its arguments are refused (#448).
+#[tokio::test]
+async fn every_tool_answers_with_a_content_array() {
+    let app = app();
+    let listed = rpc(&app.router, "tools/list", json!({})).await;
+    let mut bare = Vec::new();
+    for listed_tool in listed["result"]["tools"].as_array().unwrap() {
+        let name = listed_tool["name"].as_str().unwrap();
+        let result = tool(&app.router, name, json!({})).await;
+        if !result["content"].is_array() {
+            bare.push(format!("{name}: {result}"));
+            continue;
+        }
+        if let Some(structured) = result.get("structuredContent") {
+            assert!(structured.is_object(), "{name}: {result}");
+            assert_eq!(result["isError"], false, "{name}: {result}");
+        }
+    }
+    assert!(
+        bare.is_empty(),
+        "tools without content:\n{}",
+        bare.join("\n")
+    );
+}
+
+#[tokio::test]
+async fn sync_status_is_a_call_tool_result() {
+    let app = app();
+    let result = tool(&app.router, "kanso-sync-status", json!({})).await;
+    assert_eq!(result["isError"], false, "{result}");
+    let structured = &result["structuredContent"];
+    assert!(structured.is_object(), "{result}");
+    assert_eq!(&tool_json(&result), structured);
 }

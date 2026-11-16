@@ -158,7 +158,7 @@ fn load_config(data_dir: &std::path::Path) -> anyhow::Result<config::AppConfig> 
         .map_err(|error| anyhow::anyhow!("reading {}: {error}", path.display()))
 }
 
-const USAGE: &str = "Usage: kanso <serve|account|service|api-key|mcp> [--data-dir <dir>] [options]\n\nRun Kanso's API and account tools without a desktop runtime.\n";
+const USAGE: &str = "Usage: kanso <serve|account|service|api-key|mcp> [--data-dir <dir>] [options]\n       kanso --version\n\nRun Kanso's API and account tools without a desktop runtime.\n";
 
 struct Args {
     command: Option<String>,
@@ -180,6 +180,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
                     .ok_or_else(|| anyhow::anyhow!("--data-dir needs a folder"))?;
             }
             "--help" | "-h" if command.is_none() => command = Some("help".to_owned()),
+            "--version" | "-V" if command.is_none() => command = Some("version".to_owned()),
             _ if command.is_none() => command = Some(arg),
             _ => rest.push(arg),
         }
@@ -201,6 +202,10 @@ fn main() -> anyhow::Result<()> {
         Some("account") => account_cli::run_cli(&data_dir, &rest),
         Some("api-key") => api_key_cli::run_cli(&data_dir, &rest),
         Some("mcp") => mcp_cli::run_cli(&data_dir, &rest),
+        Some("version") => {
+            println!("kanso {}", env!("CARGO_PKG_VERSION"));
+            Ok(())
+        }
         Some("help") | None => {
             println!("{USAGE}");
             Ok(())
@@ -230,6 +235,31 @@ mod tests {
             prop_assert_eq!(args.command.as_deref(), Some("serve"));
             prop_assert_eq!(args.data_dir, std::path::PathBuf::from(path));
             prop_assert_eq!(args.rest, ["--verbose", "--related-notes", "on"]);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+            ..ProptestConfig::with_cases(128)
+        })]
+
+        /// `--version` / `-V` before any command asks for the version; after
+        /// a command it is that command's own argument.
+        #[test]
+        fn prop_version_flag_only_counts_before_a_command(
+            short in any::<bool>(),
+            tail in prop::collection::vec("[a-z]{1,10}", 0..4),
+        ) {
+            let flag = if short { "-V" } else { "--version" };
+            let mut first = vec![flag.to_owned()];
+            first.extend(tail.iter().cloned());
+            let args = parse_args(first).unwrap();
+            prop_assert_eq!(args.command.as_deref(), Some("version"));
+
+            let args = parse_args(["serve".to_owned(), flag.to_owned()]).unwrap();
+            prop_assert_eq!(args.command.as_deref(), Some("serve"));
+            prop_assert_eq!(args.rest, [flag]);
         }
     }
 }

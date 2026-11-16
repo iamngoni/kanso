@@ -87,7 +87,7 @@ pub(crate) fn call(
         ("kanso-parse-when", _) => parse_when(&args),
         ("kanso-list-open-loops", vis) => list_open_loops(store, vis, &args),
         ("kanso-related-notes", vis) => related_notes(store, vis, &args),
-        ("kanso-sync-status", _) => Ok(state.sync_status.value()),
+        ("kanso-sync-status", _) => Ok(call_tool_result(state.sync_status.value())),
         ("kanso-resolve-wikilink", vis) => resolve_wikilink(store, vis, &args),
         ("kanso-search-by-meaning", vis) => search_by_meaning(store, vis, &args),
         ("kanso-list-tags", vis) => list_visible_tags(store, vis),
@@ -336,7 +336,9 @@ fn call_full(state: &AppState, key: &Key, vis: &Visibility, name: &str, args: Ar
     let store = &*state.store;
     let file_shown = |id: &str| keyed::file_visible(key.scope, vis, id);
     match name {
-        "kanso-sync-now" => Ok(json!({ "accepted": state.sync_status.request_sync_now() })),
+        "kanso-sync-now" => Ok(call_tool_result(
+            json!({ "accepted": state.sync_status.request_sync_now() }),
+        )),
         "read-backlinks" => read_backlinks(store, vis, &args),
         "create-note" => upsert(store, DocType::Note, args),
         "kanso-create-canvas" => create_canvas(store, vis, args),
@@ -1028,6 +1030,21 @@ fn text(text: impl Into<String>) -> Value {
 
 fn result(blocks: Vec<Value>) -> ToolResult {
     Ok(json!({ "content": blocks }))
+}
+
+/// Makes `value` a spec-compliant MCP `CallToolResult` (#448). A result that
+/// already has a `content` array is kept as it is; anything else becomes
+/// its JSON as a text block, plus `structuredContent` when it is an object
+/// (the spec allows only objects there).
+pub(crate) fn call_tool_result(value: Value) -> Value {
+    if value.get("content").is_some_and(Value::is_array) {
+        return value;
+    }
+    let mut answer = json!({ "content": [text(pretty(&value))], "isError": false });
+    if value.is_object() {
+        answer["structuredContent"] = value;
+    }
+    answer
 }
 
 pub(crate) fn error_result(message: impl Into<String>) -> Value {
@@ -2323,6 +2340,52 @@ fn ask_when(store: &Store, vis: &Visibility, args: &Args) -> ToolResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+
+    fn json_value() -> impl Strategy<Value = Value> {
+        let leaf = prop_oneof![
+            Just(Value::Null),
+            any::<bool>().prop_map(Value::from),
+            any::<i64>().prop_map(Value::from),
+            ".{0,12}".prop_map(Value::from),
+        ];
+        leaf.prop_recursive(3, 24, 4, |inner| {
+            prop_oneof![
+                prop::collection::vec(inner.clone(), 0..4).prop_map(Value::from),
+                prop::collection::btree_map("[a-z]{1,8}", inner, 0..4)
+                    .prop_map(|m| Value::Object(m.into_iter().collect())),
+            ]
+        })
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f),
+            ..ProptestConfig::with_cases(256)
+        })]
+
+        /// Whatever a tool built, the answer has a `content` array; a bare
+        /// value round-trips through its text block, an object also through
+        /// `structuredContent`; and wrapping twice changes nothing (#448).
+        #[test]
+        fn call_tool_result_is_always_compliant(value in json_value()) {
+            let answer = call_tool_result(value.clone());
+            prop_assert!(answer["content"].is_array());
+            prop_assert_eq!(call_tool_result(answer.clone()), answer.clone());
+            if value.get("content").is_some_and(Value::is_array) {
+                prop_assert_eq!(answer, value);
+            } else {
+                let shown: Value =
+                    serde_json::from_str(answer["content"][0]["text"].as_str().unwrap()).unwrap();
+                prop_assert_eq!(&shown, &value);
+                prop_assert_eq!(&answer["isError"], &json!(false));
+                match answer.get("structuredContent") {
+                    Some(structured) => prop_assert_eq!(structured, &value),
+                    None => prop_assert!(!value.is_object()),
+                }
+            }
+        }
+    }
 
     #[test]
     fn prefixes_count_utf16_units() {
