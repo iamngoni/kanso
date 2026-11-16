@@ -448,6 +448,8 @@ fn parse_args_from(args: impl IntoIterator<Item = String>) -> Result<Args> {
                 ))
             }
             "-h" | "--help" => command = Some("help".to_owned()),
+            // Treat the version switch as a top-level command only before
+            // parsing another command; after that it belongs to the command.
             "-V" | "--version" if command.is_none() => command = Some("version".to_owned()),
             "--after-update" => after_update = true,
             // macOS adds this when launching from Finder.

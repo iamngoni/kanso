@@ -180,6 +180,8 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
                     .ok_or_else(|| anyhow::anyhow!("--data-dir needs a folder"))?;
             }
             "--help" | "-h" if command.is_none() => command = Some("help".to_owned()),
+            // Keep --version/-V as launcher flags, without swallowing a
+            // same-named argument intended for an already selected command.
             "--version" | "-V" if command.is_none() => command = Some("version".to_owned()),
             _ if command.is_none() => command = Some(arg),
             _ => rest.push(arg),
