@@ -230,9 +230,15 @@ export function renderIssue(triage: Triage, report: Report): IssueDraft {
 	return { title: triage.title, body: parts.join("\n\n"), labels };
 }
 
-/** An issue with no words of the report: its ID only. */
-export function bareIssue(report: Report): IssueDraft {
-	return { title: `Untriaged app report ${shortId(report.id)}`, body: footer(report, true), labels: ["from-app", "needs-triage"] };
+/** An issue with no words of the report: its ID, and why triage gave up when it did. */
+export function bareIssue(report: Report, failure: string | null = null): IssueDraft {
+	const why = failure ? `**Triage failed.** \`${failure.replace(/`/g, "'")}\`\n\n` : "";
+	return { title: `Untriaged app report ${shortId(report.id)}`, body: why + footer(report, true), labels: ["from-app", "needs-triage"] };
+}
+
+/** A failed attempt's record: the error code, then the provider's own message when it gave one. */
+export function failureText(reason: string, detail?: string): string {
+	return detail ? `${reason}: ${detail}` : reason;
 }
 
 /** The comment a duplicate report leaves on the issue it repeats. */
@@ -438,7 +444,12 @@ export async function runTriage(env: Env, now: number, limit = BATCH): Promise<T
 				.first();
 			if (!claimed) continue;
 			if (!triage && row.triage_attempts >= MAX_ATTEMPTS) {
-				draft = bareIssue(r);
+				const last = await env.DB.prepare(
+					"SELECT detail FROM feedback_events WHERE feedback_id = ?1 AND status = 'triage_failed' ORDER BY at DESC LIMIT 1",
+				)
+					.bind(row.id)
+					.first<{ detail: string | null }>();
+				draft = bareIssue(r, last?.detail ?? null);
 			} else if (!triage) {
 				try {
 					issues ??= await github.openIssues(env, now);
@@ -448,7 +459,12 @@ export async function runTriage(env: Env, now: number, limit = BATCH): Promise<T
 				} catch (err) {
 					report.failed += 1;
 					const reason = err instanceof TriageFailure ? err.reason : "internal";
-					report.errors.push({ id: row.id, error: reason, ...(err instanceof TriageFailure && err.detail ? { detail: err.detail } : {}) });
+					const detail = err instanceof TriageFailure ? err.detail : undefined;
+					report.errors.push({ id: row.id, error: reason, ...(detail ? { detail } : {}) });
+					// Kept with the report, so why triage failed is never lost with the run that saw it.
+					await env.DB.prepare("INSERT OR IGNORE INTO feedback_events (feedback_id, at, status, detail) VALUES (?1, ?2, 'triage_failed', ?3)")
+						.bind(row.id, now, failureText(reason, detail))
+						.run();
 					console.error(JSON.stringify({ route: "feedback_triage", error: reason, kind: (err as Error)?.name ?? typeof err }));
 					continue;
 				}

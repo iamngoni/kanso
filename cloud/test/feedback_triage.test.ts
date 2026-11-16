@@ -306,6 +306,21 @@ describe("failing", () => {
 		expect(await row(r.id)).toMatchObject({ status: "filed", issue: 301 });
 	});
 
+	it("every failed attempt keeps its reason, and the bare issue says why triage gave up", async () => {
+		net.gateway = [new Response(JSON.stringify({ error: { type: "billing_error", message: "Your credit balance is too low" } }), { status: 402 })];
+		const r = await submit(report());
+		for (let i = 0; i < MAX_ATTEMPTS; i++) await runTriage(await configured(), NOW + i * 900_000);
+		const { results } = await env.DB.prepare("SELECT detail FROM feedback_events WHERE feedback_id = ?1 AND status = 'triage_failed' ORDER BY at")
+			.bind(r.id)
+			.all<{ detail: string }>();
+		expect(results).toHaveLength(MAX_ATTEMPTS);
+		expect(results[0].detail).toBe("gateway_402: billing_error: Your credit balance is too low");
+		await runTriage(await configured(), NOW + 9 * 900_000);
+		const created = posted(/\/issues$/)[0].body;
+		expect(created.body).toContain("**Triage failed.** `gateway_402: billing_error: Your credit balance is too low`");
+		expect(created.body).not.toContain(report().text);
+	});
+
 	it("a GitHub failure after a good triage keeps the answer, and the retry doesn't ask the model again", async () => {
 		net.gateway = [toolAnswer(TRIAGE_OK)];
 		net.failing.push(`POST /repos/${REPO}/issues`);
