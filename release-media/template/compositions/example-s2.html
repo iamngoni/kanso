@@ -1,0 +1,67 @@
+<template>
+<style>
+  #s2-root{position:absolute;inset:0;background:#121210;font-family:Inter,sans-serif;color:#F1EFE7;overflow:hidden}
+  #s2-root .card{position:absolute;left:28px;top:28px;right:28px;bottom:28px;border-radius:22px;background:#1D1D1A;border:1px solid #3A3933;overflow:hidden}
+  #s2-root .left{position:absolute;left:64px;top:0;bottom:0;width:440px;display:flex;flex-direction:column;justify-content:center}
+  #s2-root .lbl{font-size:14px;letter-spacing:.08em;color:#959187;font-weight:600;font-family:'JetBrains Mono',monospace}
+  #s2-root h1{margin-top:18px;font-size:44px;line-height:50px;font-weight:700;letter-spacing:-.02em}
+  #s2-root .sub{margin-top:16px;font-size:18px;line-height:27px;color:#B7B3A8}
+  #s2-root .chip{margin-top:28px;align-self:flex-start;padding:7px 12px;border-radius:999px;background:rgba(123,170,120,.16);border:1px solid rgba(123,170,120,.45);color:#7BAA78;font-size:12.5px;font-weight:700;letter-spacing:.08em}
+  #s2-root .win{position:absolute;left:556px;top:56px;width:612px;height:552px;border-radius:14px;background:#282824;border:1px solid #3A3933;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.45)}
+  #s2-root .bar{height:36px;display:flex;align-items:center;gap:8px;padding:0 14px;background:#181816;border-bottom:1px solid #3A3933}
+  #s2-root .dot{width:11px;height:11px;border-radius:50%;background:#3A3933}
+  #s2-root .bar span{margin-left:10px;font-size:12px;color:#959187}
+  #s2-root .body{position:absolute;left:0;right:0;top:36px;bottom:0;padding:22px 28px}
+
+ #s2-root .win{top:110px;height:440px}
+ #s2-root svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;}
+ #s2-root .body{padding:22px 36px 22px 36px}
+ #s2-root .top{display:flex;align-items:center;justify-content:space-between}
+ #s2-root .ov{font-size:22px;font-weight:700}
+ #s2-root .sw{display:flex;padding:2px;height:28px;border-radius:8px;background:#30302B}
+ #s2-root .seg{padding:0 10px;font-size:12.5px;line-height:24px;border-radius:6px;color:#B7B3A8} #s2-root .seg.on{background:#30302B;color:#F1EFE7;box-shadow:0 1px 2px rgba(0,0,0,.4)}
+ #s2-root .sec{margin-top:26px;padding-top:16px;border-top:1px solid #3A3933;position:relative}
+ #s2-root .sh{display:flex;gap:8px;align-items:baseline;margin-bottom:8px} #s2-root .sh b{font-size:13.5px;font-weight:600} #s2-root .sh span{font-size:13px;color:#959187}
+ #s2-root .row{display:flex;gap:6px;align-items:flex-start;padding:8px 10px 8px 0;border-radius:7px}
+ #s2-root .row.now{border-left:2px solid #7E96B3}
+ #s2-root .gut{width:64px;flex:none;text-align:right;padding-top:1px;font-size:12px;line-height:18px;color:#B7B3A8} #s2-root .gut.acc{color:#7E96B3;font-weight:600}
+ #s2-root .gl{width:16px;flex:none;display:flex;justify-content:center}
+ #s2-root .sq{margin-top:5px;width:9px;height:9px;border-radius:3px}
+ #s2-root .tk{display:block;width:16px;height:16px;padding-top:2px;color:#959187}
+ #s2-root .tx{flex:1} #s2-root .ti{font-size:14px;line-height:20px} #s2-root .ti.ev{font-weight:500}
+ #s2-root .cx{font-size:12.5px;line-height:18px;color:#B7B3A8}
+ #s2-root .dupw{overflow:hidden;height:54px}
+ #s2-root .colguide{position:absolute;left:36px;top:36px;bottom:0;width:0;border-left:1px dashed rgba(126,150,179,.55)}
+</style>
+<div id="s2-root" data-composition-id="s2" data-width="1280" data-height="720">
+ <div id="s2-card" class="card clip" data-start="0" data-duration="10">
+  <div class="left"><div id="s2-lbl" class="lbl">02 · v{{VERSION}}</div><h1 id="s2-h">Times line up with the column</h1><div id="s2-sub" class="sub">Today’s times sit inside the reading column, and a meeting on two calendars shows once.</div><div id="s2-chip" class="chip">NEW IN v{{VERSION}}</div></div>
+  <div id="s2-win" class="win"><div class="bar"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>Overview</span></div><div class="body">
+<div class="top"><div class="ov">Overview</div><div class="sw"><div class="seg on">Today</div><div class="seg">This week</div></div></div>
+<div id="s2-guide" class="colguide"></div><div class="sec"><div class="sh"><b>Today</b><span id="s2-n">5</span></div>
+ <div class="rows">
+ <div id="s2-r1" class="row"><div class="gut s2-gut">09:00</div><div class="gl"><div class="sq" style="background:#7E96B3"></div></div><div class="tx"><div class="ti ev">Standup</div><div class="cx">Work</div></div></div>
+ <div id="s2-dupw" class="dupw"><div id="s2-r2" class="row"><div class="gut s2-gut">09:00</div><div class="gl"><div class="sq" style="background:#B48EAD"></div></div><div class="tx"><div class="ti ev">Standup</div><div class="cx">Personal</div></div></div></div>
+ <div id="s2-r3" class="row now"><div class="gut s2-gut acc">Now</div><div class="gl"><div class="sq" style="background:#7BAA78"></div></div><div class="tx"><div class="ti ev">Design review</div><div class="cx">Work</div></div></div>
+ <div id="s2-r4" class="row"><div class="gut s2-gut">13:30</div><div class="gl"><i class="tk"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg></i></div><div class="tx"><div class="ti">Lunch with Rudo</div></div></div>
+ <div id="s2-r5" class="row"><div class="gut s2-gut">16:00</div><div class="gl"><i class="tk"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg></i></div><div class="tx"><div class="ti">Send the venue shortlist</div><div class="cx">Lisbon offsite</div></div></div>
+ </div></div></div></div>
+ </div>
+</div>
+<script>
+  const tl = gsap.timeline({ paused: true });
+  tl.fromTo("#s2-card",{opacity:0,scale:.97},{opacity:1,scale:1,duration:.6,ease:"power3.out"},0);
+  tl.fromTo(["#s2-lbl","#s2-h","#s2-sub","#s2-chip"],{opacity:0,y:14},{opacity:1,y:0,duration:.55,ease:"power3.out",stagger:.12},.25);
+  tl.fromTo("#s2-win",{opacity:0,x:40},{opacity:1,x:0,duration:.7,ease:"power3.out"},.45);
+  tl.to("#s2-card",{opacity:0,scale:.98,duration:.45,ease:"power2.in"},9.5);
+
+  tl.fromTo(".s2-gut",{x:-92},{x:0,duration:.9,ease:"power3.inOut"},3.0);
+  tl.fromTo("#s2-guide",{opacity:0},{opacity:1,duration:.3},2.4);
+  tl.to("#s2-guide",{opacity:0,duration:.4},4.4);
+  tl.fromTo("#s2-r2",{backgroundColor:"rgba(201,110,99,0)"},{backgroundColor:"rgba(201,110,99,.14)",duration:.3},5.6);
+  tl.fromTo("#s2-dupw",{height:54,opacity:1},{height:0,opacity:0,duration:.6,ease:"power2.inOut"},6.5);
+  tl.set("#s2-n",{textContent:"4"},6.8);
+
+  window.__timelines["s2"] = tl;
+</script>
+</template>
