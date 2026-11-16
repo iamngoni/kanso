@@ -6011,3 +6011,70 @@ fn a_box_with_only_a_max_height_scrolls_to_its_end(cx: &mut TestAppContext) {
     assert_eq!(vcx.debug_bounds("max-h-row-0").unwrap().top(), px(-200.));
     assert_eq!(vcx.debug_bounds("max-h-row-9").unwrap().bottom(), px(100.));
 }
+
+/// Both update sheets scroll a long release note: the one before
+/// restarting ("is ready", Later / Restart now) as well as What's new, and
+/// each opens at the top of its notes rather than where the last one was
+/// left. The "is ready" sheet is drawn by the Kanso that is still running,
+/// so a fix to the notes box reaches it one release after What's new; this
+/// keeps both kinds covered.
+// no-prop-test: one layout per sheet kind; the notes are fixed.
+#[gpui_kit::test]
+fn the_update_sheets_scroll_long_notes(cx: &mut TestAppContext) {
+    use crate::updates::{ReleaseNotes, SheetKind};
+    use gpui_kit::{Modifiers, ScrollDelta, ScrollWheelEvent, TouchPhase, point, px};
+
+    let notes: String = (1..=80)
+        .map(|n| format!("- Change number {n} in this release.\n"))
+        .collect();
+    let f = setup(cx);
+    let pending = kanso_update::Pending {
+        version: "9.9.9".into(),
+        payload: "/x/.kanso-update/unpacked/Kanso.app".into(),
+        target: "/x/Kanso.app".into(),
+        pub_date: "2026-01-01".into(),
+        release_url: String::new(),
+        notes: format!("## Kanso 9.9.9\n\n{notes}"),
+        whats_new: None,
+        earlier: Vec::new(),
+        seal: Default::default(),
+    };
+    cx.update(|cx| {
+        cx.set_reduce_motion(true);
+        let mut updates = crate::updates::Updates::default();
+        updates.phase = crate::updates::Phase::Ready(pending.clone());
+        cx.set_global(updates);
+    });
+    for kind in [SheetKind::Ready, SheetKind::Installed, SheetKind::Ready] {
+        f.window
+            .update(cx, |_, window, cx| {
+                gpui_component::WindowExt::close_all_dialogs(window, cx);
+                crate::updates::open_notes(ReleaseNotes::from(&pending), kind, window, cx)
+            })
+            .unwrap();
+        f.draw(cx);
+        f.draw(cx);
+        let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+        // The selector marks the scrolled content, which is as tall as the
+        // notes; the wheel goes near the sheet's foot, inside the notes box.
+        let content = vcx.debug_bounds("update-notes").expect("the notes");
+        let text = vcx.debug_bounds("update-notes-text").expect("the text");
+        // 12 px of padding and the 1 px border above the first line.
+        assert_eq!(
+            text.top() - content.top(),
+            px(13.),
+            "{kind:?} opens at the top of its notes"
+        );
+        let sheet = vcx.debug_bounds("dialog-0").expect("the sheet");
+        vcx.simulate_event(ScrollWheelEvent {
+            position: point(content.left() + px(40.), sheet.bottom() - px(130.)),
+            delta: ScrollDelta::Pixels(point(px(0.), px(-200.))),
+            modifiers: Modifiers::none(),
+            touch_phase: TouchPhase::Moved,
+        });
+        f.draw(&mut vcx);
+        f.draw(&mut vcx);
+        let after = vcx.debug_bounds("update-notes-text").expect("the text");
+        assert_eq!(text.top() - after.top(), px(200.), "{kind:?} scrolls");
+    }
+}

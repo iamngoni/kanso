@@ -1412,6 +1412,7 @@ pub fn open_notes(notes: ReleaseNotes, kind: SheetKind, window: &mut Window, cx:
             .child(
                 div()
                     .id("update-notes")
+                    .debug_selector(|| "update-notes".into())
                     .max_h(px(if video.is_some() {
                         NOTES_HEIGHT_WITH_VIDEO
                     } else {
@@ -1424,7 +1425,11 @@ pub fn open_notes(notes: ReleaseNotes, kind: SheetKind, window: &mut Window, cx:
                     .bg(colors.editor)
                     .px(px(16.))
                     .py(px(12.))
-                    .child(notes_text("update-notes-text".into(), shown, cx))
+                    .child(
+                        div()
+                            .debug_selector(|| "update-notes-text".into())
+                            .child(notes_text("update-notes-text".into(), shown, cx)),
+                    )
                     .children(also),
             )
             .child(
