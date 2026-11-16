@@ -1,7 +1,7 @@
 /**
  * Tests for the download page's Kanso Pocket section: the official App Store
- * badge links to the store, Android shows "Coming soon" without a link while
- * ANDROID_URL is null, and the section leads (as "Your device") on a phone.
+ * badge links to the store, the Google Play badge links to the listing, and the
+ * section leads (as "Your device") on a phone.
  */
 import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
@@ -17,16 +17,16 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 }));
 vi.mock("../server/fns", () => ({ getSiteData: vi.fn() }));
 
-import { APP_STORE_URL } from "../lib/stores";
+import { ANDROID_URL, APP_STORE_URL } from "../lib/stores";
 import { Download } from "./download";
 
 describe("Download page, mobile section", () => {
-  it("links the App Store badge and shows Android as coming soon", () => {
+  it("links both store badges", () => {
     render(<Download release={null} platform="macos" />);
     expect(screen.getByRole("link", { name: /App Store/ })).toHaveAttribute("href", APP_STORE_URL);
     expect(screen.getByAltText("Download on the App Store")).toBeInTheDocument();
-    expect(screen.getByText("Coming soon to Google Play")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Google Play/ })).toBeNull();
+    expect(screen.getByRole("link", { name: /Google Play/ })).toHaveAttribute("href", ANDROID_URL);
+    expect(screen.queryByText("Coming soon to Google Play")).toBeNull();
     expect(screen.queryByText("Your device")).toBeNull();
   });
 

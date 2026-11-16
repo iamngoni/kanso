@@ -18,7 +18,7 @@ export const Route = createFileRoute("/download")({
   head: () => ({
     meta: [
       { title: "Download Kanso" },
-      { name: "description", content: "Download Kanso for macOS, Windows or Linux, or Kanso Pocket for iPhone and iPad from the App Store. Free and open source; it updates itself." },
+      { name: "description", content: "Download Kanso for macOS, Windows or Linux, or Kanso Pocket for iPhone, iPad and Android. Free and open source; it updates itself." },
     ],
     links: [{ rel: "canonical", href: "https://kansoapp.app/download" }],
   }),
@@ -163,7 +163,7 @@ function MobileSection({ mine, className }: { mine: boolean; className?: string 
           {mine && <span className="rounded-full bg-accent/12 px-2 py-0.5 font-[family-name:var(--font-sans)] text-[0.75rem] font-medium text-accent">Your device</span>}
         </h2>
         <ul className="mt-4 grid gap-2 text-[0.9375rem] text-fg-2">
-          <li>The same notes on your iPhone and iPad: write, search and lock them.</li>
+          <li>The same notes on your iPhone, iPad and Android phone: write, search and lock them.</li>
           <li>Sign in with your Kanso account to keep it in step with your computer.</li>
         </ul>
       </div>

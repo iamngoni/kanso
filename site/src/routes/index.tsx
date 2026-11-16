@@ -8,12 +8,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useRef } from "react";
-import { AppStoreBadge } from "../components/AppStoreBadge";
+import { AndroidStore, AppStoreBadge } from "../components/AppStoreBadge";
 import { DownloadCta } from "../components/DownloadCta";
 import { Logo } from "../components/Logo";
 import { Shot, type ShotSource } from "../components/Shot";
 import { KansoWindow } from "../components/app/KansoWindow";
-import { APP_STORE_URL } from "../lib/stores";
+import { ANDROID_URL, APP_STORE_URL } from "../lib/stores";
 import { getSiteData } from "../server/fns";
 
 export const Route = createFileRoute("/")({
@@ -66,9 +66,13 @@ function Home() {
             </p>
             <DownloadCta release={release} platform={platform} className="fade-up mt-8 [--step:2]" />
             <p className="fade-up mt-4 text-[0.875rem] text-fg-3 [--step:2]">
-              Also on iPhone and iPad:{" "}
+              Kanso Pocket is on{" "}
               <a href={APP_STORE_URL} className="ink-link text-fg-2 hover:text-fg">
-                Kanso Pocket on the App Store
+                the App Store
+              </a>{" "}
+              and{" "}
+              <a href={ANDROID_URL ?? APP_STORE_URL} className="ink-link text-fg-2 hover:text-fg">
+                Google Play
               </a>
             </p>
           </div>
@@ -108,7 +112,8 @@ function Home() {
         <DownloadCta release={release} platform={platform} className="mt-7" />
         <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
           <AppStoreBadge />
-          <p className="text-[0.875rem] text-fg-3">Kanso Pocket, for iPhone and iPad</p>
+          <AndroidStore url={ANDROID_URL} />
+          <p className="text-[0.875rem] text-fg-3">Kanso Pocket, for iPhone, iPad and Android</p>
         </div>
       </section>
     </>

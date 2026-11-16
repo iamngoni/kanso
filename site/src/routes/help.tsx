@@ -420,7 +420,7 @@ export const TOPICS: readonly Topic[] = [
         <p>
           On a Mac, <strong>File › Import… › Apple Notes</strong> reads the Notes library itself: folders, checklists, tables,
           scans, drawings, attachments and links between notes. It is the best way across, and sync then brings everything to
-          your iPhone and iPad.
+          your iPhone, iPad and Android phone.
         </p>
         <p>
           An iPhone or iPad can't read the Notes library, so there are two more ways. In Notes, <strong>Share › Kanso</strong>{" "}
