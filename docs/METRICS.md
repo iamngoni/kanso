@@ -350,3 +350,25 @@ interval); break it down by `platform` or `form` for desktop against phones, by 
 in a day, and `session` broken down by `duration` how long they stay. `feature_used` broken down by
 `feature` shows what is used, as events per feature (each event is one batch's use, with `count` a
 range, so counts can't be summed). `server_stats` shows the sync server's load and errors.
+
+## Known historical data quirks
+
+Three things in PostHog come from the first days of metrics (30 Oct to 1 Nov 2026). None is a
+client bug. Ignore them, and filter them out of saved insights.
+
+- **Events stamped `T12:00:00Z`.** The first Worker (8db146e46, 30 Oct) stamped every event
+  `<day>T12:00:00Z`. Since 3087cd96a (1 Nov) it stamps receipt time, or `<day>T23:59:59Z` for an
+  earlier day (see [Sending](#sending)). A `12:00:00Z` event should fall between 30 Oct and 1 Nov.
+  One after 1 Nov means the deployed Worker is older than master.
+- **`kanso_metrics_keycheck`.** A one-off manual request to the PostHog capture API on 31 Oct, to
+  test the project API key while the Worker was being set up. Nothing in the repo sends it, and it
+  has no `$lib` (every Worker event has `$lib: "kanso-worker"`). To check a key, use the Worker's
+  `/flags` check or a request to `/v1/metrics`, never a hand-made capture event in the production
+  project.
+- **Events with `app_version` `0.8.4`.** Metrics merged to master on 30 Oct while the workspace
+  version was still `0.8.4`; it became `0.9.0` on 31 Oct (a7a1569cc). These events came from test
+  builds made from master in that window and have the 0.9.0 shape. The tagged v0.8.4 has no
+  metrics code. Leave them out of adoption numbers.
+
+Filters for saved insights: `event != kanso_metrics_keycheck`, `$lib = kanso-worker`, and
+`app_version != 0.8.4` (or a date range starting 2 Nov 2026).
