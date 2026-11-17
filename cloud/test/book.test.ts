@@ -682,6 +682,19 @@ describe("rate limits", () => {
 	});
 });
 
+describe("rate limits with the standing read in parallel", () => {
+	it("over the limit is 429 even for a notebook the caller is not in, and every attempt is counted", async () => {
+		const book = await shareBook(alice, []);
+		await setCount("book-read-account", bob, 600);
+		expect(await books(bob.token).get(book.id)).toMatchObject({ status: 429, body: { limit: "book-read-account" } });
+		const counted = () =>
+			env.DB.prepare("SELECT count FROM limits WHERE key = ?1").bind(`book-read-account:${alice.creds.accountId}`).first<{ count: number }>();
+		expect((await books(alice.token).get(book.id)).status).toBe(200);
+		expect((await books(bob.token).get(newShareId())).status).toBe(429);
+		expect((await counted())?.count).toBe(1);
+	});
+});
+
 describe("what the server keeps", () => {
 	it("only opaque wraps, history links and signed lists: no key material", async () => {
 		const book = await shareBook(alice, [{ account: bob, role: "edit" }]);

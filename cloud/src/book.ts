@@ -240,10 +240,14 @@ type Need = "read" | "member" | "manager" | "owner";
  */
 async function asBook(env: Env, shareId: string, session: { accountId: string }, need: Need, now: number): Promise<BookStanding | Response> {
 	const rule = need === "read" ? "book-read-account" : "book-write-account";
-	const limited = await count(env.DB, rule, accountKey(rule, session.accountId), now);
+	// The count (a write, so always the primary) and the standing read are independent, so they go
+	// to D1 together: each serial round trip to D1 costs a far-away client 100 ms or more, and these
+	// routes are the most called. The answers keep their order: over the limit is 429 whatever the
+	// standing says, and a bad ID is still counted before its 400.
+	const counting = count(env.DB, rule, accountKey(rule, session.accountId), now);
+	if (!isShareId(shareId)) return (await counting) ?? badRequest("Not a share ID.");
+	const [limited, s] = await Promise.all([counting, standing(env, shareId, session.accountId)]);
 	if (limited) return limited;
-	if (!isShareId(shareId)) return badRequest("Not a share ID.");
-	const s = await standing(env, shareId, session.accountId);
 	// Someone who left or declined is not in the notebook, though the signed list may still name them.
 	if (!s || s.role === null || s.status === "left") return notFound();
 	if (need === "read") return s;
