@@ -5,6 +5,10 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
   "preview_urls": false,
+  // Smart Placement runs the Worker near D1 instead of near each visitor. A request makes several
+  // D1 round trips one after another (session, rate limit, notebook access), so the trips get short
+  // while the single hop from the visitor gets a little longer. See PR #467 for the measurement.
+  "placement": { "mode": "smart" },
   // Served only on the owner's domains; the old workers.dev address is off. sync.kansoapp.app is
   // the apps' default; kanso.antonlabs.cc, its first name, keeps answering the devices and links
   // that use it. share.kansoapp.app shows published notes (SHARE_ORIGIN).
