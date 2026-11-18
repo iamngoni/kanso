@@ -25,6 +25,7 @@ import {
 	SYNCS,
 	SYNC_ERRORS,
 	THEME_MODES,
+	activeUuid,
 	eventTimestamp,
 	resetKeyChecks,
 } from "../src/metrics";
@@ -138,6 +139,7 @@ describe("accepting", () => {
 			batch: [
 				{
 					event: "app_active",
+					uuid: await activeUuid(ID, TODAY, "macos", "desktop"),
 					distinct_id: ID,
 					timestamp: new Date(START).toISOString(),
 					properties: {
@@ -297,6 +299,31 @@ describe("accepting", () => {
 		const lines = log.mock.calls.map((c) => String(c[0]));
 		expect(lines).toEqual([JSON.stringify({ route: "posthog", outcome: 503 }), JSON.stringify({ route: "posthog", outcome: "TimeoutError" })]);
 		for (const line of lines) expect(line).not.toContain(ID);
+	});
+});
+
+describe("resends", () => {
+	it("answer before PostHog does when the Worker can send after the response", async () => {
+		let release: (r: Response) => void = () => {};
+		answer = () => new Promise((resolve) => (release = resolve));
+		const deferred: Promise<unknown>[] = [];
+		const headers = { "content-type": "application/json", "cf-connecting-ip": "203.0.113.9" };
+		const request = new Request(`${ORIGIN}${PATH}`, { method: "POST", body: JSON.stringify(BATCH), headers });
+		const response = await handle(request, posthogEnv(), START, undefined, (work) => deferred.push(work));
+		expect(response.status).toBe(204);
+		expect(deferred).toHaveLength(1);
+		// The forward starts after the answer; PostHog answers only once it has the batch.
+		await vi.waitFor(() => expect(sent).toHaveLength(1));
+		release(Response.json({ status: "Ok" }));
+		await Promise.all(deferred);
+	});
+
+	it("give a resent app_active the same uuid, and leave other events to PostHog", async () => {
+		await post(BATCH);
+		await post(BATCH);
+		const [first, second] = sent.map((s) => s.body.batch as Json[]);
+		expect(first[0].uuid).toBe(second[0].uuid);
+		expect(first[1]).not.toHaveProperty("uuid");
 	});
 });
 
@@ -577,7 +604,28 @@ const batch: fc.Arbitrary<Json> = fc.record({
 /** A name no field uses, so a response containing it echoed the sender's text. */
 const MARK = "QZX";
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const hexId = fc
+	.tuple(fc.constantFrom("a", "i"), fc.string({ unit: fc.constantFrom(..."0123456789abcdef"), minLength: 32, maxLength: 32 }))
+	.map(([k, h]) => `${k}_${h}`);
+const activeKey = fc.record({ id: hexId, day, pf: platformForm });
+
 describe("properties", () => {
+	it("prop_app_active_uuid_is_a_v8_uuid_fixed_by_id_day_platform_and_form", async () => {
+		await fc.assert(
+			fc.asyncProperty(activeKey, activeKey, async (a, b) => {
+				const ua = await activeUuid(a.id, a.day, a.pf.platform, a.pf.form);
+				expect(ua).toMatch(UUID);
+				expect(await activeUuid(a.id, a.day, a.pf.platform, a.pf.form)).toBe(ua);
+				const same = a.id === b.id && a.day === b.day && a.pf.platform === b.pf.platform && a.pf.form === b.pf.form;
+				const ub = await activeUuid(b.id, b.day, b.pf.platform, b.pf.form);
+				expect(ub === ua).toBe(same);
+			}),
+			runs(200),
+		);
+	});
+
+
 	it("prop_valid_batches_are_accepted_and_forwarded_prop_for_prop", async () => {
 		await fc.assert(
 			fc.asyncProperty(batch, async (b) => {

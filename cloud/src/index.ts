@@ -147,7 +147,13 @@ export { BookRoom } from "./book_room";
 export { AccountRoom } from "./account_room";
 
 type Handler = (request: Request, env: Env, now: number) => Promise<Response>;
-type PepperHandler = (request: Request, env: Env, now: number, keys: import("./crypto").PepperKeys) => Promise<Response>;
+type PepperHandler = (
+	request: Request,
+	env: Env,
+	now: number,
+	keys: import("./crypto").PepperKeys,
+	defer?: (work: Promise<unknown>) => void,
+) => Promise<Response>;
 
 interface Method {
 	handler: Handler | PepperHandler;
@@ -361,7 +367,13 @@ function match(path: string): Route | null {
  * receives the router's name for the route (for counting; `unknown` when none matched), so the
  * path is matched once.
  */
-export async function handle(request: Request, env: Env, now: number, matched?: { name: string }): Promise<Response> {
+export async function handle(
+	request: Request,
+	env: Env,
+	now: number,
+	matched?: { name: string },
+	defer?: (work: Promise<unknown>) => void,
+): Promise<Response> {
 	let name = "unknown";
 	if (matched) matched.name = name;
 	try {
@@ -400,7 +412,7 @@ export async function handle(request: Request, env: Env, now: number, matched?: 
 		if (method.pepper) {
 			const keys = pepperKeys(env.AUTH_PEPPER);
 			if (!keys) return error(503, "misconfigured", "The server has no valid AUTH_PEPPER.");
-			return await (method.handler as PepperHandler)(request, env, now, await keys);
+			return await (method.handler as PepperHandler)(request, env, now, await keys, defer);
 		}
 		return await (method.handler as Handler)(request, env, now);
 	} catch (err) {
@@ -418,7 +430,7 @@ export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const started = Date.now();
 		const matched = { name: "unknown" };
-		const response = await handle(request, env, started, matched);
+		const response = await handle(request, env, started, matched, (work) => ctx.waitUntil(work));
 		// Counted in memory, written in batches after the response (src/server_stats.ts).
 		observe(env, ctx, matched.name, response.status, Date.now() - started, started);
 		return response;
