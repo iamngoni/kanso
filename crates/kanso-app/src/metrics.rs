@@ -254,11 +254,19 @@ fn extras(cx: &App) -> ActiveExtras {
 /// The languages the desktop app's interface ships in (ISO 639-1).
 const SHIPPED_LANGUAGES: &[&str] = &["en"];
 
-/// `channel`: Kanso Dev is `dev`, a pre-release version `beta`, else `stable`.
+/// `channel` of this build: a pre-release version (`0.11.0-beta.1`, which
+/// scripts/release.sh accepts) is `beta`, any other release `stable`.
 fn channel() -> Channel {
-    if flavour::CURRENT.is_dev() {
+    channel_of(flavour::CURRENT.is_dev(), env!("CARGO_PKG_VERSION"))
+}
+
+/// The channel of a build from whether it is Kanso Dev and its version.
+/// Kanso Dev is `dev` for completeness, but it never sends (`enabled`), so
+/// no batch carries `dev`; the Worker still accepts it.
+fn channel_of(is_dev: bool, version: &str) -> Channel {
+    if is_dev {
         Channel::Dev
-    } else if env!("CARGO_PKG_VERSION").contains('-') {
+    } else if version.contains('-') {
         Channel::Beta
     } else {
         Channel::Stable
@@ -520,6 +528,44 @@ pub fn open_notice(window: &mut Window, cx: &mut App) {
                 true
             })
     });
+}
+
+#[cfg(test)]
+mod channel_tests {
+    use proptest::prelude::*;
+    use proptest::test_runner::{Config, RngAlgorithm, RngSeed};
+
+    use super::channel_of;
+    use kanso_metrics::ranges::Channel;
+
+    fn seeded() -> Config {
+        Config {
+            cases: 256,
+            rng_algorithm: RngAlgorithm::ChaCha,
+            rng_seed: RngSeed::Fixed(20_261_118),
+            failure_persistence: None,
+            ..Config::default()
+        }
+    }
+
+    proptest! {
+        #![proptest_config(seeded())]
+
+        /// A release version is `stable`; the same version with any
+        /// pre-release suffix is `beta`; Kanso Dev is `dev` either way.
+        #[test]
+        fn channel_follows_the_pre_release_suffix(
+            major in 0u32..100, minor in 0u32..100, patch in 0u32..100,
+            suffix in "[0-9A-Za-z.]{1,12}",
+        ) {
+            let release = format!("{major}.{minor}.{patch}");
+            let pre = format!("{release}-{suffix}");
+            prop_assert_eq!(channel_of(false, &release), Channel::Stable);
+            prop_assert_eq!(channel_of(false, &pre), Channel::Beta);
+            prop_assert_eq!(channel_of(true, &release), Channel::Dev);
+            prop_assert_eq!(channel_of(true, &pre), Channel::Dev);
+        }
+    }
 }
 
 #[cfg(test)]
