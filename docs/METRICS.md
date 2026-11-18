@@ -30,7 +30,11 @@ The app keeps a small **ledger** on the device (desktop: `metrics` in the config
 `mobile.metrics.ledger` in the library's SQLite metadata) of what has been counted and not yet
 reported. A batch is built from it, and only an answer that settles the batch (`204`, or `400` /
 `413` which would only fail again) clears what that batch carried; the ledger is saved after every
-answer. So a restart never counts anything twice, and a batch that got no answer is built again.
+answer. So a restart after an answer never counts anything twice, and a batch that got no answer
+is built again. That makes sending at-least-once: a batch PostHog took but whose answer never
+reached the app (a quit that stopped waiting, a phone suspended mid-send) goes again. `app_active`
+is made safe against that by its `uuid` (see [The Worker and PostHog](#the-worker-and-posthog));
+`app_opened`, `session` and `feature_used` may rarely arrive twice.
 Counts that arrive while a batch is on the wire stay for the next one. Anything more than a day old
 is dropped, never sent late.
 
@@ -58,8 +62,11 @@ Every event carries `platform`, `form` and `app_version`:
 
 ### `app_active`
 
-At most once per UTC day per `id`, when Kanso is open (at launch, and when the day changes while it
-is open). This is the daily-active count.
+Sent at most once per UTC day per `id` by each device, when Kanso is open (at launch, and when the
+day changes while it is open). Every device of an account shares its `a_` ID but keeps its own
+ledger, so an account on a Mac and a phone sends two a day. PostHog keeps one per `id`, day,
+`platform` and `form` (the Worker's `uuid`), which also drops a resend. This is the daily-active
+count: always count it as **Unique users**, never as a total of events.
 
 | Prop | Values |
 |---|---|
@@ -266,12 +273,18 @@ The Worker checks the batch against this page, adds `country` (the two-letter co
 (`POST ${POSTHOG_HOST}/batch/`) with:
 
 - `distinct_id`: the batch's `id`
+- `uuid`, on `app_active` only: a version 8 UUID from SHA-256 of
+  `kanso/v1/app_active\n<id>\n<day>\n<platform>\n<form>`, so every send of one device kind's
+  day under one ID has the same one and PostHog keeps one of them. Other events have none (their
+  content changes between tries, so no `uuid` would name the same event twice); PostHog makes one.
 - `timestamp`: the time the Worker received the batch; for an event whose `day` is before today
   (UTC), `<day>T23:59:59Z` so it stays on its day. Never later than receipt.
 - `properties`: the props, `country`, `$process_person_profile: false` (no person profiles),
   `$geoip_disable: true`, `$lib: "kanso-worker"`
 
-It answers `204` whether or not PostHog took it: a lost count isn't worth a retry. Without
+It answers `204` whether or not PostHog took it: a lost count isn't worth a retry. So it answers as
+soon as the batch is valid and sends to PostHog after the response (`ctx.waitUntil`): an app that
+waits briefly for the answer (desktop quit, 2 seconds) hears it even when PostHog is slow. Without
 `POSTHOG_KEY` it checks the batch and sends nothing. It stores nothing in D1 for a batch; the
 sender is only counted by the `limits` table (`metrics-ip`, a keyed hash of its IP group, 600
 batches an hour).

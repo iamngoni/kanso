@@ -275,12 +275,38 @@ export function eventTimestamp(day: string, now: number): string {
 	return day < utcDay(now) ? `${day}T23:59:59Z` : new Date(now).toISOString();
 }
 
+/**
+ * The `uuid` PostHog keeps one event per, for an `app_active`: the same for every send of one
+ * device kind's day under one ID, so a resend (the app never heard the 204) or a second Mac on the
+ * same account is dropped by PostHog instead of counted twice. Platform and form are in it so a
+ * phone and a Mac on one account still each count. Other events have no identity that survives a
+ * resend (a count grows between tries), so they get none and PostHog makes one.
+ */
+export async function activeUuid(id: string, day: string, platform: string, form: string): Promise<string> {
+	const name = `kanso/v1/app_active\n${id}\n${day}\n${platform}\n${form}`;
+	const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(name)));
+	const bytes = digest.slice(0, 16);
+	// RFC 9562 version 8 (custom) and variant bits, so PostHog takes it as a valid UUID.
+	bytes[6] = (bytes[6] & 0x0f) | 0x80;
+	bytes[8] = (bytes[8] & 0x3f) | 0x80;
+	const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+async function eventUuid(id: string, e: Batch["events"][number]): Promise<string | null> {
+	if (e.event !== "app_active") return null;
+	const props = e.props as { platform: string; form: string };
+	return activeUuid(id, e.day, props.platform, props.form);
+}
+
 /** PostHog's batch body (docs/METRICS.md › The Worker and PostHog). */
-export function posthogBody(key: string, batch: Batch, country: string | null, now: number): unknown {
+export async function posthogBody(key: string, batch: Batch, country: string | null, now: number): Promise<unknown> {
+	const uuids = await Promise.all(batch.events.map((e) => eventUuid(batch.id, e)));
 	return {
 		api_key: key,
-		batch: batch.events.map((e) => ({
+		batch: batch.events.map((e, i) => ({
 			event: e.event,
+			...(uuids[i] === null ? {} : { uuid: uuids[i] }),
 			distinct_id: batch.id,
 			timestamp: eventTimestamp(e.day, now),
 			properties: {
@@ -363,11 +389,18 @@ export async function forward(host: string, body: unknown): Promise<boolean> {
 	return false;
 }
 
+/** Runs work after the response: `ctx.waitUntil` in the Worker. */
+export type Defer = (work: Promise<unknown>) => void;
+
 /**
  * POST /v1/metrics: 204 valid (whether or not PostHog took it), 400 invalid, 413 over 16 KiB,
  * 429 too many from this address. Without POSTHOG_KEY and POSTHOG_HOST it checks and sends nothing.
+ *
+ * The 204 goes as soon as the batch is valid and PostHog is sent it after (`defer`): the answer
+ * never depended on PostHog, and an app that waits only briefly (a quit) must hear it, or it keeps
+ * the batch and sends it again. Without `defer` (tests) the send is awaited before answering.
  */
-export async function submit(request: Request, env: Env, now: number, keys: PepperKeys): Promise<Response> {
+export async function submit(request: Request, env: Env, now: number, keys: PepperKeys, defer?: Defer): Promise<Response> {
 	const limited = await count(env.DB, "metrics-ip", await ipKey(keys, "metrics-ip", ipGroup(clientIp(request))), now);
 	if (limited) return limited;
 	const body = await readJson(request, MAX_BATCH_BYTES);
@@ -376,7 +409,11 @@ export async function submit(request: Request, env: Env, now: number, keys: Pepp
 	if (!batch.ok) return error(400, "bad_request", `Invalid batch: ${batch.field}.`, { field: batch.field });
 	const key = env.POSTHOG_KEY?.trim();
 	if (key && env.POSTHOG_HOST) {
-		await Promise.all([checkKey(env.POSTHOG_HOST, key), forward(env.POSTHOG_HOST, posthogBody(key, batch.value, country(request), now))]);
+		const host = env.POSTHOG_HOST;
+		const body = posthogBody(key, batch.value, country(request), now);
+		const work = Promise.all([checkKey(host, key), body.then((b) => forward(host, b))]);
+		if (defer) defer(work);
+		else await work;
 	}
 	return new Response(null, { status: 204 });
 }
