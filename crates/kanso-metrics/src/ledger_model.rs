@@ -29,6 +29,14 @@ pub struct Opened {
     pub n: u8,
 }
 
+/// How many sessions were counted on `day`, so the day's cap holds even
+/// after the batch that carried them is settled and removed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct SessionsCounted {
+    pub day: Day,
+    pub n: u8,
+}
+
 /// The on-device ledger: what has been reported and what waits, so a
 /// restart never counts anything twice. A day earlier than the one a list
 /// holds is dropped, never sent late.
@@ -56,6 +64,9 @@ pub struct Ledger {
     /// Sessions that ended since the last batch.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) sessions: Vec<Ended>,
+    /// Sessions counted on the latest day one ended, for the daily cap.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) sessions_counted: Option<SessionsCounted>,
     /// Sync errors since the last `app_active` was reported.
     #[serde(skip_serializing_if = "is_zero")]
     pub(crate) sync_errors: u32,

@@ -95,7 +95,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('going to the background notes the session, then sends', (
+  testWidgets('a long stay away ends the session when the app is back', (
     tester,
   ) async {
     var now = DateTime.utc(2026, 11, 1, 9);
@@ -108,28 +108,73 @@ void main() {
     );
     expect(metrics.launchedCalls, 1);
 
+    // Going to the background sends, but the session stays open.
     now = now.add(const Duration(minutes: 7, seconds: 3));
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     await tester.pump();
     await tester.pump();
+    expect(metrics.sessions, isEmpty);
+    expect(metrics.calls, <String>['launched', 'sendDue']);
 
-    expect(metrics.sessions, <int>[423]);
-    // The session is noted first, so the send carries it.
-    expect(metrics.calls, <String>['launched', 'endSession', 'sendDue']);
-
-    // The app going back and forth without being in front again notes
-    // nothing twice.
+    // Going back and forth without being in front again changes nothing.
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
     await tester.pump();
-    expect(metrics.sessions, hasLength(1));
+    expect(metrics.sessions, isEmpty);
 
-    // The next stretch in front is a session of its own.
+    // Back after five minutes: the session ends with its time in front,
+    // and the next stretch is a session of its own.
+    now = now.add(const Duration(minutes: 5));
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    await tester.pump();
+    expect(metrics.sessions, <int>[423]);
+    expect(metrics.calls.last, 'sendDue');
+
     now = now.add(const Duration(seconds: 30));
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.detached);
     await tester.pump();
     await tester.pump();
     expect(metrics.sessions, <int>[423, 30]);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('short trips away continue one session', (tester) async {
+    var now = DateTime.utc(2026, 11, 1, 9);
+    final metrics = FakeUsageMetrics(seen: true);
+    await pumpHost(
+      tester,
+      metrics,
+      firstSendDelay: const Duration(hours: 5),
+      clock: () => now,
+    );
+
+    // Three photo-picker round trips: 20 s in front, 40 s away, each time.
+    for (var i = 0; i < 3; i++) {
+      now = now.add(const Duration(seconds: 20));
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      now = now.add(const Duration(seconds: 40));
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+    }
+    expect(metrics.sessions, isEmpty);
+
+    // Away for exactly the grace period still continues it.
+    now = now.add(const Duration(seconds: 10));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    now = now.add(const Duration(seconds: 60));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(metrics.sessions, isEmpty);
+
+    // Detached ends it: only the time in front counts.
+    now = now.add(const Duration(seconds: 5));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.detached);
+    await tester.pump();
+    await tester.pump();
+    expect(metrics.sessions, <int>[75]);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
