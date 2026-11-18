@@ -7,7 +7,7 @@
 
 use serde::Deserialize;
 
-pub use crate::ledger_model::{Counted, Ended, Ledger, Opened};
+pub use crate::ledger_model::{Counted, Ended, Ledger, Opened, SessionsCounted};
 
 use crate::batch::{Batch, Event, EventKind, MAX_EVENTS};
 use crate::ranges::SessionLength;
@@ -16,6 +16,11 @@ use crate::values::{Active, Day, Device, Feature, Id, install_id};
 
 /// The most `app_opened` a day counts per ID.
 pub const MAX_OPENED_PER_DAY: u8 = 12;
+/// The most `session` a day counts per install. Phones end a session each
+/// time the app stays in the background past its grace period, so a busy
+/// day could still flood the counts; twelve matches `app_opened`, which a
+/// real sitting usually comes with.
+pub const MAX_SESSIONS_PER_DAY: u8 = 12;
 /// Sessions kept while they can't be sent.
 const MAX_SESSIONS: usize = 8;
 /// Count entries kept while they can't be sent.
@@ -51,6 +56,14 @@ impl<'de> Deserialize<'de> for Ledger {
             day: text(&value, "day").and_then(|d| Day::parse(&d)),
             launch_pending: value.get("launchPending").and_then(|v| v.as_bool()) == Some(true),
             sync_errors: number(&value, "syncErrors").unwrap_or(0),
+            sessions_counted: value.get("sessionsCounted").and_then(|item| {
+                let day = text(item, "day").and_then(|d| Day::parse(&d))?;
+                let n = number(item, "n")?;
+                Some(SessionsCounted {
+                    day,
+                    n: u8::try_from(n).unwrap_or(u8::MAX).min(MAX_SESSIONS_PER_DAY),
+                })
+            }),
             ..Ledger::default()
         };
         for id in items("activeSent") {
@@ -128,8 +141,22 @@ impl Ledger {
     }
 
     /// A session ended on `today` after `secs` seconds. Says whether it was
-    /// kept.
+    /// kept: not past [`MAX_SESSIONS_PER_DAY`], nor for a day before the
+    /// latest one counted (the clock went back; it would only reopen a day
+    /// whose cap was already spent).
     pub fn end_session(&mut self, today: Day, secs: u64) -> bool {
+        let counted = match self.sessions_counted {
+            Some(c) if c.day > today => return false,
+            Some(c) if c.day == today => c.n,
+            _ => 0,
+        };
+        if counted >= MAX_SESSIONS_PER_DAY {
+            return false;
+        }
+        self.sessions_counted = Some(SessionsCounted {
+            day: today,
+            n: counted + 1,
+        });
         self.prune(today);
         if self.sessions.len() >= MAX_SESSIONS {
             self.sessions.remove(0);
@@ -781,6 +808,7 @@ mod tests {
             let mut recorded: HashMap<String, u64> = HashMap::new();
             let mut accepted: HashMap<String, u64> = HashMap::new();
             let mut sessions = (0usize, 0usize);
+            let mut sessions_per_day: HashMap<Day, usize> = HashMap::new();
             let mut errors = (0u64, 0u64);
             for op in ops {
                 match op {
@@ -829,7 +857,10 @@ mod tests {
                                     EventKind::AppOpened => {
                                         *accepted_opened.entry((id.clone(), today)).or_default() += 1;
                                     }
-                                    EventKind::Session(_) => sessions.1 += 1,
+                                    EventKind::Session(_) => {
+                                        sessions.1 += 1;
+                                        *sessions_per_day.entry(event.day).or_default() += 1;
+                                    }
                                     EventKind::FeatureUsed(f, n) => {
                                         *accepted.entry(f.key()).or_default() += u64::from(*n);
                                     }
@@ -846,12 +877,42 @@ mod tests {
             prop_assert!(accepted_active.values().all(|&n| n == 1));
             prop_assert!(accepted_opened.values().all(|&n| n <= usize::from(MAX_OPENED_PER_DAY)));
             prop_assert!(sessions.1 <= sessions.0);
+            prop_assert!(sessions_per_day.values().all(|&n| n <= usize::from(MAX_SESSIONS_PER_DAY)));
             // Three IDs can each report the same errors once.
             prop_assert!(errors.1 <= errors.0 * 3);
             for (key, n) in &accepted {
                 prop_assert!(*n <= recorded.get(key).copied().unwrap_or(0), "{key}");
             }
             prop_assert_eq!(&ledger.install_id(), &ids[0]);
+        }
+
+        /// However many sessions end in a day, with sends and restarts in
+        /// between, at most twelve are kept for it; the next day counts
+        /// afresh, and a day the clock went back to counts none.
+        #[test]
+        fn prop_sessions_are_capped_per_day(
+            ends in prop::collection::vec((0u64..20_000, any::<bool>(), any::<bool>()), 1..80),
+        ) {
+            let today = day("2026-10-30");
+            let mut ledger = Ledger::default();
+            let id = ledger.install_id();
+            let mut kept = 0usize;
+            for (secs, send, restart) in ends {
+                if ledger.end_session(today, secs) {
+                    kept += 1;
+                }
+                if send && let Some(batch) = ledger.due(today, &id, &device(), &active()) {
+                    ledger.settle(&batch, Outcome::Accepted);
+                }
+                if restart {
+                    let saved = serde_json::to_string(&ledger).unwrap();
+                    ledger = serde_json::from_str(&saved).unwrap();
+                }
+            }
+            prop_assert!(kept <= usize::from(MAX_SESSIONS_PER_DAY));
+            prop_assert_eq!(kept == usize::from(MAX_SESSIONS_PER_DAY), !ledger.end_session(today, 1));
+            prop_assert!(!ledger.end_session(today.previous(), 1));
+            prop_assert!(ledger.end_session(today.next(), 1));
         }
 
         /// Restarting after every answer never sends what was accepted again.
@@ -903,7 +964,7 @@ mod tests {
             prop_oneof![
                 prop::collection::vec(inner.clone(), 0..6).prop_map(serde_json::Value::from),
                 prop::collection::hash_map(
-                    "installId|day|activeSent|openedSent|launchPending|counts|sessions|syncErrors|id|n|feature|length|[a-z]{1,4}",
+                    "installId|day|activeSent|openedSent|launchPending|counts|sessions|sessionsCounted|syncErrors|id|n|feature|length|[a-z]{1,4}",
                     inner,
                     0..6
                 )

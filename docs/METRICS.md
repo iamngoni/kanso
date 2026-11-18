@@ -89,7 +89,20 @@ Once per launch, at most 12 a day per `id`. No props beyond the common three.
 
 ### `session`
 
-When a session ends: on quit (desktop) or when the app goes to the background (phones).
+When a session ends, at most 12 a day per install. A session is a sitting, timed by the time the
+app spends in front:
+
+- Desktop: it ends on quit.
+- Phones: a stay in the background of up to 60 seconds continues the same session, so a share sheet,
+  a photo or file picker, the camera, a biometric prompt or the notification shade doesn't start a
+  new one. The session ends when the app comes back after a longer stay away, or when it is
+  detached. A batch is still sent each time the app goes to the background, carrying only sessions
+  that really ended. If the system stops the app while it is in the background, that last session is
+  not counted.
+
+The cap is counted in the ledger when a session ends (`sessionsCounted`: the day and how many), so
+it holds across sends and restarts; a session for a day before the one counted (the clock went
+back) is not kept.
 
 | Prop | Values |
 |---|---|

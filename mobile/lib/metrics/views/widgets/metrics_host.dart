@@ -15,12 +15,19 @@ import '../../../core/views/widgets/kanso_plain_text.dart';
 import '../../../core/views/widgets/kanso_scrim.dart';
 import '../../models/repos/abs/usage_metrics_repository.dart';
 import '../../utils/metrics_device.dart';
+import '../../utils/session_tracker.dart';
 import 'metrics_notice_card.dart';
 
 /// [child] with the anonymous count's one-time notice over it. After the
 /// notice was acknowledged, or when it was already seen, sends what is due
 /// while the app is open: once after a short settle, then hourly, and when
-/// the app goes to the background, after noting how long it was in front.
+/// the app goes to the background.
+///
+/// A session is a sitting, not a stretch in front: a trip to the background
+/// shorter than [backgroundGrace] (a share sheet, a file or photo picker,
+/// the camera, a biometric prompt, the notification shade) continues the
+/// same session. It ends, with only the time spent in front, when the app
+/// comes back after a longer stay away, or when it is detached.
 ///
 /// This widget is only mounted for production release builds. The Rust side
 /// independently refuses to count or send in tests and debug builds, so a
@@ -32,6 +39,7 @@ class MetricsHost extends StatefulWidget {
     this.firstSendDelay = const Duration(seconds: 20),
     this.sendInterval = const Duration(hours: 1),
     this.clock = DateTime.now,
+    this.backgroundGrace = defaultSessionGrace,
     super.key,
   });
 
@@ -47,6 +55,10 @@ class MetricsHost extends StatefulWidget {
   /// The time, for how long the app was in front. Tests pass their own.
   final DateTime Function() clock;
 
+  /// The longest stay in the background that still continues the session
+  /// (see [defaultSessionGrace] for why a minute).
+  final Duration backgroundGrace;
+
   @override
   State<MetricsHost> createState() => _MetricsHostState();
 }
@@ -59,15 +71,17 @@ class _MetricsHostState extends State<MetricsHost> with WidgetsBindingObserver {
   /// Counting is on: the notice was seen here or just acknowledged.
   bool _counting = false;
 
-  /// When the app last came to the front; null while it is in the
-  /// background.
-  DateTime? _inFrontSince;
+  /// Which trips away end a session.
+  late final SessionTracker _session;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _inFrontSince = widget.clock();
+    _session = SessionTracker(
+      now: widget.clock(),
+      grace: widget.backgroundGrace,
+    );
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _start());
   }
@@ -76,30 +90,49 @@ class _MetricsHostState extends State<MetricsHost> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        _inFrontSince ??= widget.clock();
+        _resume();
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
+        unawaited(_leave());
       case AppLifecycleState.detached:
-        unawaited(_endSession());
+        unawaited(_leave(ending: true));
       case AppLifecycleState.inactive:
         break;
     }
   }
 
-  /// The app left the front: notes how long it was there, then sends.
-  Future<void> _endSession() async {
-    final since = _inFrontSince;
-    _inFrontSince = null;
-    if (since == null || !_counting) {
+  /// The app is in front again: a long stay away ended the open session,
+  /// which is noted and sent now rather than at the next send, which may be
+  /// an hour off.
+  void _resume() {
+    final ended = _session.resume(widget.clock());
+    if (ended != null) {
+      unawaited(_noteSession(ended).then((_) => _sendDue()));
+    }
+  }
+
+  /// The app left the front: sends what is due. The session stays open
+  /// unless [ending] (detached), since a quick trip away continues it.
+  Future<void> _leave({bool ending = false}) async {
+    final left = _session.leave(widget.clock());
+    final ended = ending ? _session.end() : null;
+    if (ended != null) {
+      await _noteSession(ended);
+    }
+    if (_counting && (left || ended != null)) {
+      await _sendDue();
+    }
+  }
+
+  Future<void> _noteSession(int seconds) async {
+    if (!_counting) {
       return;
     }
-    final seconds = widget.clock().difference(since).inSeconds;
     try {
-      await widget.metrics.endSession(seconds < 0 ? 0 : seconds);
+      await widget.metrics.endSession(seconds);
     } on Object {
       // Counting never disturbs the app.
     }
-    await _sendDue();
   }
 
   Future<void> _start() async {
@@ -160,10 +193,7 @@ class _MetricsHostState extends State<MetricsHost> with WidgetsBindingObserver {
     _begin();
     unawaited(_sendDue());
     _timer?.cancel();
-    _timer = Timer.periodic(
-      widget.sendInterval,
-      (_) => unawaited(_sendDue()),
-    );
+    _timer = Timer.periodic(widget.sendInterval, (_) => unawaited(_sendDue()));
   }
 
   Future<void> _sendDue() async {
