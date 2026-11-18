@@ -3,6 +3,24 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.10.10](https://github.com/iamngoni/kanso/compare/v0.10.9...v0.10.10) - 2026-11-18
+
+### Improved
+
+- **cloud:** Run the notebook rate-limit count and standing read together ([aa15b70](https://github.com/iamngoni/kanso/commit/aa15b70e6c46f138ccd7e89b7b0ce95266c9c829))
+- **cloud:** Run the Worker near D1 with Smart Placement ([afd39fa](https://github.com/iamngoni/kanso/commit/afd39fadb0d67c827066f4ca6e27e2f5291c11bf))
+
+### Fixed
+
+- **metrics:** Phone sessions continue across short trips away and are capped at 12 a day ([69a25db](https://github.com/iamngoni/kanso/commit/69a25db0a350c5ee5a3d4cdc7326bc5ccc9808dc))
+- **metrics:** Answer metrics before PostHog and dedupe app_active with a stable uuid ([893cc1d](https://github.com/iamngoni/kanso/commit/893cc1d93e29479fba2a31ddee63eed2dcd472dc))
+- **metrics:** Count phone typing as note_edited and desktop library search as search ([3611d19](https://github.com/iamngoni/kanso/commit/3611d19069b7946bfd9a2dacdd4777a4c3e2e5a9))
+- **metrics:** Report beta for TestFlight installs and stop documenting an unreachable dev channel ([65427a7](https://github.com/iamngoni/kanso/commit/65427a7161d82d908b6141ff31a66deae2a43683))
+
+### Under the hood
+
+- **metrics:** Explain the known historical quirks in the PostHog data ([207eefe](https://github.com/iamngoni/kanso/commit/207eefe581ab4993e6cd30b41fbe065638ce9b85))
+
 ## [0.10.9](https://github.com/iamngoni/kanso/compare/v0.10.8...v0.10.9) - 2026-11-16
 
 ### New
