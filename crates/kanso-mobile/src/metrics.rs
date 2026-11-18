@@ -137,6 +137,8 @@ impl MobileMetrics {
     /// send, however much it is typed in. The ID is held in memory only and
     /// never sent.
     pub(crate) fn count_note_edited(&self, id: &str) {
+        #[cfg(test)]
+        note_edit_calls::record(id);
         if !enabled() || !edited().insert_new(id) {
             return;
         }
@@ -389,6 +391,26 @@ impl Edited {
     }
 }
 
+/// Which notes asked to be counted as edited on this thread, so a test can
+/// see that a path reaches the count although tests never send.
+#[cfg(test)]
+pub(crate) mod note_edit_calls {
+    use std::cell::RefCell;
+
+    thread_local! {
+        static CALLS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    }
+
+    pub(crate) fn record(id: &str) {
+        CALLS.with(|calls| calls.borrow_mut().push(id.to_owned()));
+    }
+
+    /// The calls since the last take, oldest first.
+    pub(crate) fn take() -> Vec<String> {
+        CALLS.with(|calls| std::mem::take(&mut *calls.borrow_mut()))
+    }
+}
+
 fn edited() -> &'static Edited {
     static EDITED: std::sync::OnceLock<Edited> = std::sync::OnceLock::new();
     EDITED.get_or_init(|| Edited(Mutex::new(HashSet::new())))
@@ -636,6 +658,21 @@ mod tests {
 
     proptest! {
         #![proptest_config(ProptestConfig { rng_seed: proptest::test_runner::RngSeed::Fixed(0x006b_616e_736f), ..ProptestConfig::with_cases(256) })]
+
+        /// However often notes are typed in, and in whatever order, each
+        /// note counts once per batch window, and again after a send.
+        #[test]
+        fn each_note_edited_counts_once_per_window(
+            ids in proptest::collection::vec("[a-d]", 0..40),
+        ) {
+            let edited = Edited(Mutex::new(HashSet::new()));
+            let counted = ids.iter().filter(|id| edited.insert_new(id)).count();
+            let distinct: HashSet<&String> = ids.iter().collect();
+            prop_assert_eq!(counted, distinct.len());
+            edited.clear();
+            let again = ids.iter().filter(|id| edited.insert_new(id)).count();
+            prop_assert_eq!(again, distinct.len());
+        }
 
         /// The notice counts as seen exactly when the stored version is this
         /// build's or later; nothing else (text, empty, negative) is.

@@ -131,12 +131,12 @@ Once per feature per batch in which it was used, with how often since the last b
 | `voice_input` | dictation puts words in a note |
 | `publish` | a note is published as a link |
 | `import` | an import finishes |
-| `lock` | a note or notebook is locked |
+| `lock` | a note or notebook is locked. Current clients always send `count` with it; a `lock` without one is from a 0.9.0 or older client (see the note under the batch) |
 | `ai` | a question, an inline assistant request or a summary is sent to a model or agent |
 | `quick_capture` | quick capture (desktop) or a share into Kanso (phones) saves a note |
 | `shared_note` | a note is shared with another account |
 | `export` | a note is exported (web page, PDF, Markdown) |
-| `note_edited` | a note is edited; once per note per batch window, so it counts notes edited, not keystrokes |
+| `note_edited` | a note is edited, by typing or by an editor command, undo or redo; once per note per batch window, so it counts notes edited, not keystrokes |
 | `note_deleted` | a note is deleted (moved to the trash) |
 | `note_restored` | a note is restored from the trash or from a version |
 | `note_pinned` | a note is pinned |
@@ -145,10 +145,10 @@ Once per feature per batch in which it was used, with how often since the last b
 | `tag_added` | a tag is added to a note |
 | `template_used` | a note is made from a template |
 | `daily_note` | the daily note is opened or created |
-| `search` | a search is run |
+| `search` | a note is opened from a search's results: the library search (desktop, once per query however many of its results are opened), the command palette with words typed (desktop), or the search screen (phones). A search whose results are only looked at is not counted |
 | `wikilink_followed` | a `[[link]]` is followed |
 | `backlinks_opened` | the backlinks view is opened |
-| `graph_opened` | the graph view is opened |
+| `graph_opened` | the library's graph view is opened (not the note's local graph in the desktop inspector) |
 | `task_toggled` | a task's checkbox is ticked or unticked |
 | `attachment_added` | a file or image is attached to a note |
 | `table_inserted` | a table is inserted |
