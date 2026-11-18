@@ -88,7 +88,7 @@ cleanly on that platform, and leaves it out otherwise (see [Platform availabilit
 | `notebooks` | `0` \| `1-4` \| `5-19` \| `20+` |
 | `attachments_mb` | `0` \| `<10` \| `10-100` \| `100-1000` \| `1000+`: what attachments take, in megabytes (1 MB is 1,000,000 bytes; a range includes its lower end and not its upper) |
 | `sync_errors` | `0` \| `1-5` \| `6+`: sync failures since the previous `app_active` was reported |
-| `channel` | `stable` \| `beta` \| `dev`: the release line the app was built from |
+| `channel` | `stable` \| `beta`: the release line the install came from (`dev` is still accepted by the Worker, but no client sends it: Kanso Dev never sends) |
 
 ### `app_opened`
 
@@ -183,7 +183,7 @@ platform leaves out what it can't read cleanly rather than guess.
 | `notebooks` | sent | sent |
 | `attachments_mb` | sent | sent |
 | `sync_errors` | sent | sent |
-| `channel` | `stable`, `beta` for a pre-release version, `dev` for Kanso Dev | `stable` |
+| `channel` | `stable`, or `beta` for a pre-release version (`0.11.0-beta.1`) | `stable`, or `beta` for an iOS TestFlight install (sandbox App Store receipt); Android is always `stable` since a Play testing track can't be told from production |
 | features not counted | `review_prompt` (the desktop never asks for a review) | `table_inserted`, `diagram`, `sticky_opened`, `new_window`, `plugin_installed`, `plugin_command` (they don't exist on phones) |
 
 ## The batch (JSON, version 1)

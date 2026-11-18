@@ -265,7 +265,7 @@ impl MobileMetrics {
                 .attachments_bytes()
                 .ok()
                 .map(AttachmentsMb::from_bytes),
-            channel: Some(Channel::Stable),
+            channel: Some(install_channel()),
             ..ActiveExtras::default()
         };
         let active = Active::new(os_version, self.sync_mode()?, ai, count_of(DocType::Note))
@@ -364,6 +364,46 @@ impl MobileMetrics {
 /// entry point still counts nothing (it never sees the notice).
 fn enabled() -> bool {
     !cfg!(debug_assertions) && !cfg!(test)
+}
+
+/// The release line this install came from.
+///
+/// One binary goes to testers first and is then promoted unchanged: the same
+/// TestFlight build is submitted to the App Store, and the same Play bundle
+/// moves from internal testing to production. A flag set when the pipeline
+/// builds would therefore label store installs `beta` too, so this asks the
+/// install instead.
+///
+/// - iOS: TestFlight (and Xcode or ad hoc installs, which never send since
+///   they are debug builds or never see the notice) gets a sandbox App Store
+///   receipt, `StoreKit/sandboxReceipt` beside the `.app`; an App Store
+///   install gets `StoreKit/receipt`. This is the file Apple's
+///   `appStoreReceiptURL` points at, read here without a platform channel.
+/// - Android: nothing on the device tells a Play testing track from
+///   production (both are installed by the Play Store), so it is `stable`.
+fn install_channel() -> Channel {
+    if !cfg!(target_os = "ios") {
+        return Channel::Stable;
+    }
+    match std::env::current_exe() {
+        Ok(exe) => ios_channel(&exe, |path| path.is_file()),
+        // No executable path: say nothing new rather than guess `beta`.
+        Err(_) => Channel::Stable,
+    }
+}
+
+/// The channel of an iOS install whose executable is at `exe`
+/// (`<container>/Runner.app/Runner`), asking `exists` whether a file is
+/// there. Only a sandbox receipt makes it `beta`.
+fn ios_channel(exe: &std::path::Path, exists: impl Fn(&std::path::Path) -> bool) -> Channel {
+    let Some(container) = exe.parent().and_then(std::path::Path::parent) else {
+        return Channel::Stable;
+    };
+    if exists(&container.join("StoreKit").join("sandboxReceipt")) {
+        Channel::Beta
+    } else {
+        Channel::Stable
+    }
 }
 
 /// Whether the stored acknowledgement is of this build's notice or a later
@@ -474,12 +514,52 @@ pub(crate) fn import_source(kind: SourceKind) -> ImportSource {
 
 #[cfg(test)]
 mod tests {
+    use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
     use kanso_sync::{MemorySecrets, MemoryServer};
     use proptest::prelude::*;
+    use proptest::test_runner::{Config, RngAlgorithm, RngSeed};
 
     use super::*;
+
+    fn seeded() -> Config {
+        Config {
+            cases: 256,
+            rng_algorithm: RngAlgorithm::ChaCha,
+            rng_seed: RngSeed::Fixed(20_261_118),
+            failure_persistence: None,
+            ..Config::default()
+        }
+    }
+
+    proptest! {
+        #![proptest_config(seeded())]
+
+        /// Beta exactly when the sandbox receipt sits beside the app
+        /// bundle, whatever the container is called and whatever other
+        /// files are there.
+        #[test]
+        fn ios_channel_is_beta_only_with_a_sandbox_receipt(
+            dirs in prop::collection::vec("[A-Za-z0-9-]{1,12}", 0..5),
+            app in "[A-Za-z]{1,10}",
+            sandbox in any::<bool>(),
+            store_receipt in any::<bool>(),
+        ) {
+            let container: PathBuf = std::iter::once("/".to_owned()).chain(dirs).collect();
+            let exe = container.join(format!("{app}.app")).join(&app);
+            let sandbox_path = container.join("StoreKit").join("sandboxReceipt");
+            let receipt_path = container.join("StoreKit").join("receipt");
+            let exists = |p: &Path| (sandbox && p == sandbox_path) || (store_receipt && p == receipt_path);
+            let expected = if sandbox { Channel::Beta } else { Channel::Stable };
+            prop_assert_eq!(ios_channel(&exe, exists), expected);
+        }
+    }
+
+    #[test]
+    fn ios_channel_without_a_container_is_stable() {
+        assert_eq!(ios_channel(Path::new("Runner"), |_| true), Channel::Stable);
+    }
 
     fn library() -> (tempfile::TempDir, Library) {
         let dir = tempfile::tempdir().unwrap();
