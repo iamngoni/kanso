@@ -81,6 +81,9 @@ pub struct Library {
     pub people_offers: Vec<(String, String, kanso_core::entities::EntityKind)>,
     pub filter: Filter,
     pub search: String,
+    /// This query already counted as a `search` (a result of it was opened),
+    /// so walking its results counts it once, not once per note.
+    search_counted: bool,
     pub sort: Sort,
     pub descending: bool,
     pub notes: Vec<NoteSummary>,
@@ -164,6 +167,7 @@ impl Library {
             people_offers: Vec::new(),
             filter: Filter::All,
             search: String::new(),
+            search_counted: false,
             sort: Sort::UpdatedAt,
             descending: true,
             notes: Vec::new(),
@@ -445,6 +449,8 @@ impl Library {
     pub fn set_search(&mut self, search: String, cx: &mut Context<Self>) {
         if self.search != search {
             self.search = search;
+            // A new query is a new search, which may count once more.
+            self.search_counted = false;
             self.reselect = true;
             self.reload(cx);
         }
@@ -484,6 +490,10 @@ impl Library {
             // Someone picked a note: it takes the editor back.
             self.home = false;
             cx.emit(LibraryEvent::Home);
+        }
+        if counts_search(&self.search, self.search_counted, asked && id.is_some()) {
+            self.search_counted = true;
+            crate::metrics::record(cx, crate::metrics::Feature::Search);
         }
         if changed || asked {
             self.selected = id.clone();
@@ -652,6 +662,47 @@ impl Library {
             Filter::OpenLoops => "Open Loops".into(),
             Filter::Overview => "Overview".into(),
             Filter::Shared => "Shared with me".into(),
+        }
+    }
+}
+
+/// Whether opening a note now counts a `search`: the person picked it
+/// (`picked`) while the library was searched for words, and nothing else of
+/// this query has counted yet. A blank query lists every note, so it is no
+/// search.
+fn counts_search(search: &str, counted: bool, picked: bool) -> bool {
+    picked && !counted && !search.trim().is_empty()
+}
+
+#[cfg(test)]
+mod search_metrics_tests {
+    use super::counts_search;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            rng_seed: proptest::test_runner::RngSeed::Fixed(470),
+            ..ProptestConfig::with_cases(256)
+        })]
+
+        /// However many results a person opens from one query, the search
+        /// counts at most once, and exactly once if any were opened while
+        /// words were typed.
+        #[test]
+        fn one_query_counts_at_most_once(
+            search in ".{0,12}",
+            picks in proptest::collection::vec(any::<bool>(), 0..20),
+        ) {
+            let mut counted = false;
+            let mut counts = 0;
+            for picked in &picks {
+                if counts_search(&search, counted, *picked) {
+                    counted = true;
+                    counts += 1;
+                }
+            }
+            let expected = usize::from(!search.trim().is_empty() && picks.contains(&true));
+            prop_assert_eq!(counts, expected);
         }
     }
 }

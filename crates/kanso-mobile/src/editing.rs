@@ -1568,6 +1568,10 @@ impl Shared {
             st.history
                 .record(&removed, &edit, &before, grouping, Instant::now());
             self.changed(st);
+            // Typing is how most notes are edited on a phone. The count is
+            // once per note until the next send, so a keystroke costs a set
+            // lookup and nothing more.
+            self.inner.metrics().count_note_edited(&st.note.id);
         }
         if st.composing && !composing_after {
             st.history.close_step();
@@ -2847,6 +2851,17 @@ mod tests {
                 composing: None,
             })
             .unwrap();
+    }
+
+    // no-prop-test: checks one path reaches the counter; how often a note
+    // counts is property-tested in metrics.rs.
+    #[test]
+    fn typing_counts_the_note_as_edited() {
+        let (_library, session, id) = session("Hello");
+        crate::metrics::note_edit_calls::take();
+        type_at_end(&session, "!");
+        type_at_end(&session, "?");
+        assert_eq!(crate::metrics::note_edit_calls::take(), [id.clone(), id]);
     }
 
     // no-prop-test: the race of a write under way with the state let go,
