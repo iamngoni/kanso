@@ -120,7 +120,7 @@ fn build(lib: &Library) -> Built {
         let mut body = json!({
             "bookId": books[*book],
             "title": format!("{CANARY} title {n}"),
-            "body": format!("{CANARY} body ![a](inkdrop://file:{bare})"),
+            "body": format!("{CANARY} body ![a](kanso://file:{bare})"),
         });
         match kind {
             Kind::Excluded => body["tags"] = json!([excluded]),
@@ -330,7 +330,7 @@ fn queries() -> impl Strategy<Value = String> {
         "tag:share".to_owned(),
         "status:none".to_owned(),
         "title:zebracanary".to_owned(),
-        "inkdrop://file".to_owned(),
+        "kanso://file".to_owned(),
         "trash".to_owned(),
         "*".to_owned(),
         "'".to_owned(),

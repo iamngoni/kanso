@@ -26,7 +26,7 @@ fn body_with(names: &[Option<&str>]) -> String {
         })
         .collect();
     let transcript = render_transcript(FILE, &segments).unwrap();
-    format!("# Meeting\n\n[Audio · 2 min](inkdrop://{FILE})\n\n{transcript}\n\nMy notes.")
+    format!("# Meeting\n\n[Audio · 2 min](kanso://{FILE})\n\n{transcript}\n\nMy notes.")
 }
 
 fn change(from: &str, to: &str) -> SpeakerChange {

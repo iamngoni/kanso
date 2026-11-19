@@ -207,7 +207,7 @@ fn a_note_locked_before_sealing_seals_its_files_with_the_recording() {
         )
         .unwrap()
         .id;
-    let id = locked_note(&store, &key, &format!("See ![](inkdrop://{picture}) here"));
+    let id = locked_note(&store, &key, &format!("See ![](kanso://{picture}) here"));
     // Drop the list, as a note locked by an older Kanso has none.
     let mut note = store.note(&id).unwrap().unwrap();
     store_note_files(None, &mut note.extra);

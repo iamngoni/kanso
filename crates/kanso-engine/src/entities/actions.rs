@@ -315,7 +315,7 @@ mod tests {
                 &store,
                 &sam,
                 "Promises",
-                "- Send the deck [Linker](inkdrop://note/x#L1)\n",
+                "- Send the deck [Linker](kanso://note/x#L1)\n",
                 17
             )
             .unwrap()

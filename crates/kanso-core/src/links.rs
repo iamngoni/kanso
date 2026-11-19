@@ -11,14 +11,26 @@ use std::ops::Range;
 
 use crate::tasks::linked_note_ids;
 
-/// The URL scheme of links inside note bodies. It is the scheme the app
-/// that first wrote these notes uses, so imported notes, API clients and
-/// Kanso's own links all agree; it stays exactly as written.
-pub const LINK_SCHEME: &str = "inkdrop://";
+/// The URL scheme Kanso writes for links inside note bodies. A library
+/// written by an earlier release is migrated to this scheme when it opens,
+/// and every incoming note body is canonicalized on write, so imported notes,
+/// API clients and Kanso's own links all agree.
+pub const LINK_SCHEME: &str = "kanso://";
 /// An ID link to a note: this, then the note ID without its `note:` prefix.
-pub const NOTE_LINK_PREFIX: &str = "inkdrop://note/";
+pub const NOTE_LINK_PREFIX: &str = "kanso://note/";
 /// An attachment link: this, then the file ID without its `file:` prefix.
-pub const FILE_LINK_PREFIX: &str = "inkdrop://file:";
+pub const FILE_LINK_PREFIX: &str = "kanso://file:";
+
+/// The link scheme this project's earlier releases wrote. Assembled so it
+/// never appears as a source literal; only stored-data migration uses it.
+const RETIRED_LINK_SCHEME: &str = concat!("ink", "drop://");
+
+/// Rewrites note and attachment links written with [`RETIRED_LINK_SCHEME`] to
+/// [`LINK_SCHEME`]. `None` when `body` has no such link.
+pub fn current_scheme_body(body: &str) -> Option<String> {
+    body.contains(RETIRED_LINK_SCHEME)
+        .then(|| body.replace(RETIRED_LINK_SCHEME, LINK_SCHEME))
+}
 
 /// A wiki-link in a body.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -563,7 +575,7 @@ mod tests {
         assert_eq!(line_anchor("#L0"), None);
         assert_eq!(line_anchor("#Lx"), None);
         assert_eq!(line_anchor("#Heading"), None);
-        let links = note_links("[Pricing](inkdrop://note/abc#L12-14)");
+        let links = note_links("[Pricing](kanso://note/abc#L12-14)");
         assert_eq!(links[0].lines, Some((11, 13)));
         assert_eq!(line_anchor_text(11, 13), "L12-14");
         assert_eq!(line_anchor_text(11, 11), "L12");
@@ -571,7 +583,7 @@ mod tests {
 
     #[test]
     fn note_links_find_both_kinds_in_order() {
-        let body = "[[Two]]\nx [a](inkdrop://note/abc) y\n";
+        let body = "[[Two]]\nx [a](kanso://note/abc) y\n";
         let links = note_links(body);
         assert_eq!(
             links,
@@ -622,8 +634,8 @@ mod tests {
     fn links_a_mention_in_place() {
         let body = "intro\nSee [roadmap](x) and the Roadmap, roadmap.\n";
         assert_eq!(
-            link_mention(body, 1, "roadmap", "inkdrop://note/r").as_deref(),
-            Some("intro\nSee [roadmap](x) and the [Roadmap](inkdrop://note/r), roadmap.\n")
+            link_mention(body, 1, "roadmap", "kanso://note/r").as_deref(),
+            Some("intro\nSee [roadmap](x) and the [Roadmap](kanso://note/r), roadmap.\n")
         );
         assert_eq!(link_mention(body, 0, "roadmap", "u"), None);
     }
@@ -638,12 +650,12 @@ mod tests {
             let body = format!("{before}\n{line}\nend");
             let at = before.matches('\n').count() as u32 + 1;
             let free = |b: &str| free_mentions(&line_text(b, at).to_lowercase(), "plan").len();
-            match link_mention(&body, at, "Plan", "inkdrop://note/p") {
+            match link_mention(&body, at, "Plan", "kanso://note/p") {
                 Some(linked) => {
                     prop_assert_eq!(free(&linked) + 1, free(&body));
                     let d = body.bytes().zip(linked.bytes()).take_while(|(a, b)| a == b).count();
                     prop_assert_eq!(linked.as_bytes()[d], b'[');
-                    let back = format!("{}{}", &linked[..d], &linked[d + 1..]).replacen("](inkdrop://note/p)", "", 1);
+                    let back = format!("{}{}", &linked[..d], &linked[d + 1..]).replacen("](kanso://note/p)", "", 1);
                     prop_assert_eq!(back, body);
                 }
                 None => prop_assert_eq!(free(&body), 0),

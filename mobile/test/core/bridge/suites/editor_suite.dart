@@ -310,7 +310,7 @@ void editorSuite(OpenLibrary open) {
       expect(attached.replace, isNotNull);
       expect(attached.version, greaterThan(snapshot.version));
       final text = (await editor.snapshot()).text;
-      expect(text, contains('![](inkdrop://file:'));
+      expect(text, contains('![](kanso://file:'));
 
       // Only an image or a PDF can be attached: the rest is refused, and
       // the text is as it was.

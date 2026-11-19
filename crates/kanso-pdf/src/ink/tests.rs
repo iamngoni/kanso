@@ -408,11 +408,11 @@ fn the_companion_file_round_trips_and_is_checked() {
 
 #[test]
 fn the_ink_file_is_named_by_its_link() {
-    assert_eq!(file_id("inkdrop://file:xyz9"), Some("file:xyz9".into()));
+    assert_eq!(file_id("kanso://file:xyz9"), Some("file:xyz9".into()));
     assert_eq!(file_id("file:xyz9"), Some("file:xyz9".into()));
-    assert_eq!(file_id("inkdrop://file:"), None);
-    assert_eq!(file_id("inkdrop://file:a b"), None);
-    assert_eq!(file_link("file:xyz9"), "inkdrop://file:xyz9");
+    assert_eq!(file_id("kanso://file:"), None);
+    assert_eq!(file_id("kanso://file:a b"), None);
+    assert_eq!(file_link("file:xyz9"), "kanso://file:xyz9");
     assert_eq!(file_id(&file_link("file:Ab_-1")), Some("file:Ab_-1".into()));
     // The link is what makes the note own the attachment.
     let mut block = PdfBlock::new(FILE, "m");
@@ -451,7 +451,7 @@ fn big_ink_moves_to_the_companion_and_the_block_stays_small() {
     let edit = a.save_edit("Notes").unwrap().unwrap();
     let body = edit.apply("Notes");
     assert!(body.len() < 1_000, "the body holds only the link");
-    assert!(body.contains("inkdrop://file:ink001"));
+    assert!(body.contains("kanso://file:ink001"));
     // Another device reads the body, then the attachment.
     let mut b = Annotations::from_body(&body, FILE, "m");
     assert!(b.ink_pending);

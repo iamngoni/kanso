@@ -76,9 +76,9 @@ class PreviewEmptyDrawing extends StatelessWidget {
 }
 
 /// The in-app link that opens canvas note [note] (`note:<id>`): note links
-/// carry the bare ID, as `inkdrop://note/<id>`.
+/// carry the bare ID, as `kanso://note/<id>`.
 String canvasLink(String note) =>
-    'inkdrop://note/${note.startsWith('note:') ? note.substring(5) : note}';
+    'kanso://note/${note.startsWith('note:') ? note.substring(5) : note}';
 
 /// A canvas a note embeds: its picture at its size, made smaller to fit the
 /// note's width, with the notice the embed carries under it; tapping it

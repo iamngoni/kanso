@@ -166,7 +166,7 @@ fn wiki_autocomplete_writes_a_note_link(cx: &mut TestAppContext) {
     let suffix = budget.strip_prefix("note:").unwrap();
     assert_eq!(
         f.body(cx),
-        format!("See [Budget 2026](inkdrop://note/{suffix})")
+        format!("See [Budget 2026](kanso://note/{suffix})")
     );
     cx.simulate_keystrokes(f.window, "cmd-z");
     f.draw(cx);
@@ -219,7 +219,7 @@ fn wiki_autocomplete_in_vim_insert_mode(cx: &mut TestAppContext) {
     cx.simulate_keystrokes(f.window, "enter");
     f.draw(cx);
     let suffix = budget.strip_prefix("note:").unwrap();
-    let linked = format!("See [Budget 2026](inkdrop://note/{suffix})");
+    let linked = format!("See [Budget 2026](kanso://note/{suffix})");
     assert_eq!(f.body(cx), linked);
     assert_eq!(
         f.with_editor(cx, |editor, _, _| editor.vim_mode()),
@@ -254,7 +254,7 @@ fn unresolved_wiki_links_create_their_note(cx: &mut TestAppContext) {
     let suffix = target.strip_prefix("note:").unwrap();
     assert_eq!(
         shown,
-        format!("[roadmap](inkdrop://note/{suffix}) and [later](kanso-new:Someday%20List)")
+        format!("[roadmap](kanso://note/{suffix}) and [later](kanso-new:Someday%20List)")
     );
     f.with_workspace(cx, |workspace, window, cx| {
         workspace.follow_link("kanso-new:Someday%20List".into(), window, cx)
@@ -289,7 +289,7 @@ fn the_inspector_shows_the_outline_and_backlinks(cx: &mut TestAppContext) {
     let f = setup(cx);
     let target = f.note("Roadmap", "# Goals\ntext\n## Next\nmore");
     let suffix = target.strip_prefix("note:").unwrap().to_owned();
-    let linker = f.note("Linker", &format!("see [it](inkdrop://note/{suffix})"));
+    let linker = f.note("Linker", &format!("see [it](kanso://note/{suffix})"));
     let mention = f.note("Mention", "The roadmap slipped.");
     f.select(cx, &target);
     f.with_workspace(cx, |workspace, _, cx| workspace.toggle_inspector(cx));
@@ -339,7 +339,7 @@ fn the_inspector_shows_the_outline_and_backlinks(cx: &mut TestAppContext) {
     f.settle(cx);
     assert_eq!(
         f.store.note(&mention).unwrap().unwrap().body,
-        format!("The [roadmap](inkdrop://note/{suffix}) slipped.")
+        format!("The [roadmap](kanso://note/{suffix}) slipped.")
     );
     let linked = f.with_editor(cx, |editor, _, _| editor.backlinks().len());
     assert_eq!(linked, 2);

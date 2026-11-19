@@ -4,7 +4,7 @@ Generated from `crates/kanso-server/src/mcp/tools.json`, `kanso_tools.json` and 
 
 ## Notes, notebooks, tags, templates, attachments
 
-Inkdrop-compatible tools. Which of them a client sees depends on its key's access.
+Kanso-compatible tools. Which of them a client sees depends on its key's access.
 
 ### `read-note`
 
@@ -17,7 +17,7 @@ Retrieve the complete contents of the note by its ID from the database. A note c
 
 ### `read-backlinks`
 
-Retrieve backlinks for a note — the notes that link to it. Each result is returned as a resource link (`inkdrop://note/<id>`) pointing to the referring note. Backlinks are found by searching all note bodies for the note's link URI.
+Retrieve backlinks for a note — the notes that link to it. Each result is returned as a resource link (`kanso://note/<id>`) pointing to the referring note. Backlinks are found by searching all note bodies for the note's link URI.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -46,7 +46,7 @@ List all notes with specified conditions. The result does not include entire not
 
 ### `list-templates`
 
-List note templates: your custom templates, followed by the official ones bundled with Inkdrop. Templates are notes whose `bookId` is `template`. Official templates are read-only. The result does not include entire template bodies as they are truncated in 200 characters. You have to retrieve the full template content by calling `read-note`.
+List note templates: your custom templates, followed by the official ones bundled with Kanso. Templates are notes whose `bookId` is `template`. Official templates are read-only. The result does not include entire template bodies as they are truncated in 200 characters. You have to retrieve the full template content by calling `read-note`.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -493,7 +493,7 @@ Read one saved version of a currently visible note. This does not restore or cha
 
 ### `kanso-related-notes`
 
-Find the notes most similar in meaning to a note, by Kanso's related notes: embeddings made on the user's device from each note's words, never sent anywhere. Notes the note already links to, or is linked from, are left out. Returns each note's ID, title, `inkdrop://note/<id>` link and similarity (0 to 1, higher is closer), most similar first. Related notes are off until the user turns them on in Kanso's Settings; while they are off, or the note isn't indexed yet, it returns an empty list and says why.
+Find the notes most similar in meaning to a note, by Kanso's related notes: embeddings made on the user's device from each note's words, never sent anywhere. Notes the note already links to, or is linked from, are left out. Returns each note's ID, title, `kanso://note/<id>` link and similarity (0 to 1, higher is closer), most similar first. Related notes are off until the user turns them on in Kanso's Settings; while they are off, or the note isn't indexed yet, it returns an empty list and says why.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -502,7 +502,7 @@ Find the notes most similar in meaning to a note, by Kanso's related notes: embe
 
 ### `kanso-resolve-wikilink`
 
-Find the note a wiki-link points at. Accepts `[[Title]]`, `[[Title#Heading]]` or `[[Title\|alias]]`, with or without the brackets. Titles match without regard to case or extra spaces, among notes outside the trash; when several notes share a title, the one created first is the match. Returns the note's ID, title and `inkdrop://note/<id>` link, which is the form to write when linking to it, plus the heading's line when the link names a heading the note has.
+Find the note a wiki-link points at. Accepts `[[Title]]`, `[[Title#Heading]]` or `[[Title\|alias]]`, with or without the brackets. Titles match without regard to case or extra spaces, among notes outside the trash; when several notes share a title, the one created first is the match. Returns the note's ID, title and `kanso://note/<id>` link, which is the form to write when linking to it, plus the heading's line when the link names a heading the note has.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -518,7 +518,7 @@ Run the first saved `query` fenced view in a note using Kanso’s query parser a
 
 ### `kanso-search-by-meaning`
 
-Find the notes about something, by meaning rather than by words: the search is turned into numbers by the same language model as Kanso's related notes, on the user's device, and compared with every note's. A note can match without containing any of the words; for notes containing the words, use search-notes. Returns each note's ID, title, `inkdrop://note/<id>` link and similarity (0 to 1, higher is closer), most similar first, leaving out notes less than 0.35 similar. It needs related notes on in Kanso's Settings and the Kanso app open with its model loaded (a server started with `kanso serve` has no model); otherwise it returns an empty list and says why.
+Find the notes about something, by meaning rather than by words: the search is turned into numbers by the same language model as Kanso's related notes, on the user's device, and compared with every note's. A note can match without containing any of the words; for notes containing the words, use search-notes. Returns each note's ID, title, `kanso://note/<id>` link and similarity (0 to 1, higher is closer), most similar first, leaving out notes less than 0.35 similar. It needs related notes on in Kanso's Settings and the Kanso app open with its model loaded (a server started with `kanso serve` has no model); otherwise it returns an empty list and says why.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|

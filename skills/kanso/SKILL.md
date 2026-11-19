@@ -128,7 +128,7 @@ optional `tool` and `workaround`). Every key has it.
 
 The `kanso-propose-*`, `kanso-list-proposed` and `kanso-task-done` tools exist only for agent tasks
 Kanso starts itself; an API key never gets them. Notes are also resources, with the note link prefix
-`inkdrop://note/<id>`.
+`kanso://note/<id>`.
 
 ## Workflows
 

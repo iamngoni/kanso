@@ -435,7 +435,7 @@ mod tests {
     fn urls() {
         assert!(is_url("https://kanso.app"));
         assert!(is_url("  http://a.b/c?d=e  "));
-        assert!(is_url("inkdrop://note/abc"));
+        assert!(is_url("kanso://note/abc"));
         assert!(!is_url("https://"));
         assert!(!is_url("see https://kanso.app"));
         assert!(!is_url("kanso.app"));
@@ -626,11 +626,11 @@ mod tests {
         assert_eq!(
             composed(
                 &shared(None, Some("Read this\nit's good"), Some(link)),
-                &["![](inkdrop://file:a)"]
+                &["![](kanso://file:a)"]
             ),
             Some((
                 "Read this".into(),
-                format!("it's good\n\n<{link}>\n\n![](inkdrop://file:a)")
+                format!("it's good\n\n<{link}>\n\n![](kanso://file:a)")
             ))
         );
         // A subject that is the address makes a bare link, and all the text stays.
@@ -653,15 +653,15 @@ mod tests {
         let mut only_files = Shared::default();
         only_files.files.push(file("Report 2026.pdf", b""));
         assert_eq!(
-            composed(&only_files, &["[Report 2026.pdf](inkdrop://file:a)"]),
+            composed(&only_files, &["[Report 2026.pdf](kanso://file:a)"]),
             Some((
                 "Report 2026".into(),
-                "[Report 2026.pdf](inkdrop://file:a)".into()
+                "[Report 2026.pdf](kanso://file:a)".into()
             ))
         );
         assert_eq!(
-            composed(&Shared::default(), &["![](inkdrop://file:a)"]),
-            Some(("Shared note".into(), "![](inkdrop://file:a)".into()))
+            composed(&Shared::default(), &["![](kanso://file:a)"]),
+            Some(("Shared note".into(), "![](kanso://file:a)".into()))
         );
         // Nothing.
         assert_eq!(
@@ -688,7 +688,7 @@ mod tests {
             text in prop::option::of("[a-z#*> \n-]{0,200}"),
             url in prop::option::of("https://[a-z]{1,8}\\.[a-z]{2,3}(/[a-z0-9]{0,6}){0,3}"),
             files in prop::collection::vec("[a-zA-Z0-9 ._]{0,30}", 0..3),
-            attachments in prop::collection::vec("!\\[\\]\\(inkdrop://file:[a-z0-9]{1,8}\\)", 0..3),
+            attachments in prop::collection::vec("!\\[\\]\\(kanso://file:[a-z0-9]{1,8}\\)", 0..3),
         ) {
             let shared = Shared {
                 subject: subject.clone(),
@@ -762,7 +762,7 @@ mod tests {
         assert_eq!(
             note.body,
             format!(
-                "Packing list\n\n[Trip](https://t.io/x)\n\n![](inkdrop://file:cap-{DROP}-0)\n\n[tickets.pdf](inkdrop://file:cap-{DROP}-2)"
+                "Packing list\n\n[Trip](https://t.io/x)\n\n![](kanso://file:cap-{DROP}-0)\n\n[tickets.pdf](kanso://file:cap-{DROP}-2)"
             )
         );
         let (content_type, _) = store
@@ -859,7 +859,7 @@ mod tests {
             vec!["A share can have up to 20 files: the last 3 weren't attached.".to_owned()]
         );
         let body = store.note(&saved.id).unwrap().unwrap().body;
-        assert_eq!(body.matches("inkdrop://file:").count(), 20);
+        assert_eq!(body.matches("kanso://file:").count(), 20);
 
         let drop = "e".repeat(32);
         let mut big = b"%PDF-".to_vec();

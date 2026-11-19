@@ -146,7 +146,7 @@ fn demo_store(path: &Path) -> Store {
         (
             &engineering,
             "Agent integration plan",
-            "# Agent integration plan\n\nHow Kanso works with local agents and external tools; see the [MCP support model](inkdrop://note/mcp-support).\n\n- Read-only by default\n- Writes go through review\n".to_owned(),
+            "# Agent integration plan\n\nHow Kanso works with local agents and external tools; see the [MCP support model](kanso://note/mcp-support).\n\n- Read-only by default\n- Writes go through review\n".to_owned(),
             vec![agents.clone()],
             "active",
             false,
@@ -191,7 +191,7 @@ fn demo_store(path: &Path) -> Store {
         (
             &platform,
             "Sync design",
-            "# Sync design\n\nDocuments live in D1, attachments in R2. Last writer wins by `updatedAt`; the loser stays in history. Clients reach it through the [MCP support model](inkdrop://note/mcp-support).".to_owned(),
+            "# Sync design\n\nDocuments live in D1, attachments in R2. Last writer wins by `updatedAt`; the loser stays in history. Clients reach it through the [MCP support model](kanso://note/mcp-support).".to_owned(),
             vec![rust, security],
             "completed",
             false,
@@ -1303,7 +1303,7 @@ fn publish_site_audio_sheet(
         .put(
             DocType::Note,
             json!({"_id": "note:rec-demo", "title": "Standup — 23 Oct", "bookId": book,
-                "body": "[Audio · 12 min](inkdrop://file:rec-demo-1)\n\n<!-- kanso:transcript -->\n[00:00](kanso-audio://file:rec-demo-1?t=0) We shipped the beta.\n<!-- /kanso:transcript -->\n"}),
+                "body": "[Audio · 12 min](kanso://file:rec-demo-1)\n\n<!-- kanso:transcript -->\n[00:00](kanso-audio://file:rec-demo-1?t=0) We shipped the beta.\n<!-- /kanso:transcript -->\n"}),
             Put::Upsert,
             Origin::Ui,
         )
@@ -1548,7 +1548,7 @@ fn sized_images(
     .unwrap();
     let body = format!(
         "# Field notes\n\nThe lake at seven, before the wind came up.\n\n{}\n\nAnd the ridge from the road back, at its own size.\n\n{}\n",
-        crate::smart_paste::sized_image(&format!("inkdrop://{small}"), "", Some(240)),
+        crate::smart_paste::sized_image(&format!("kanso://{small}"), "", Some(240)),
         crate::smart_paste::image_markdown(&full),
     );
     crate::preview::REVEAL_IMAGE_SIZES.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -1574,7 +1574,7 @@ fn page_preview(
             .unwrap();
     let body = PAGE_NOTE.replace(
         "{{PICTURE}}",
-        &format!("![A picture|300](inkdrop://{picture})"),
+        &format!("![A picture|300](kanso://{picture})"),
     );
     open_new_note(cx, workspace, store, "Page parity", &body);
     settle_drawings(cx, window);
@@ -1714,7 +1714,7 @@ fn live_note(
     let body = LIVE_NOTE
         .replace(
             "{{PICTURE}}",
-            &format!("![A picture|300](inkdrop://{picture})"),
+            &format!("![A picture|300](kanso://{picture})"),
         )
         .replace("{{DRAWING}}", drawing);
     open_new_note(cx, workspace, store, "Live parity", &body);
@@ -1758,7 +1758,7 @@ fn bar_sized_images(
         crate::smart_paste::attach_image(store, &sample_picture(960, 540), "png", Some("Lake.png"))
             .unwrap();
     let body = format!(
-        "# Field notes\n\nThe lake at seven, written the way Obsidian sizes images.\n\n![Lake|320](inkdrop://{lake})\n\nThe handle on its right edge drags it wider or narrower.\n"
+        "# Field notes\n\nThe lake at seven, written the way Obsidian sizes images.\n\n![Lake|320](kanso://{lake})\n\nThe handle on its right edge drags it wider or narrower.\n"
     );
     crate::preview::REVEAL_IMAGE_SIZES.store(true, std::sync::atomic::Ordering::Relaxed);
     open_new_note(cx, workspace, store, "Field notes", &body);

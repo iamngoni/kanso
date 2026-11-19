@@ -39,7 +39,7 @@ fn the_page_keeps_the_addresses_the_app_reads() {
     let id = note(library, "Home", body);
     let page = library.renderer().preview_html(&id, palette()).unwrap();
     assert!(
-        page.contains(&format!("inkdrop://note/{}#Plan", bare(&other))),
+        page.contains(&format!("kanso://note/{}#Plan", bare(&other))),
         "{page}"
     );
     assert!(page.contains("kanso-new:Missing"), "{page}");
@@ -70,7 +70,7 @@ fn a_query_fence_is_a_table_of_notes() {
     );
     let page = library.renderer().preview_html(&id, palette()).unwrap();
     assert!(
-        page.contains(&format!("inkdrop://note/{}", bare(&listed))),
+        page.contains(&format!("kanso://note/{}", bare(&listed))),
         "{page}"
     );
     assert!(page.contains(">Listed<"));
@@ -128,7 +128,7 @@ fn every_address_is_read() {
     );
     assert_eq!(t("kanso-new:"), PreviewLink::Nothing);
     assert_eq!(
-        t(&format!("inkdrop://note/{}#Plan", bare(&other))),
+        t(&format!("kanso://note/{}#Plan", bare(&other))),
         PreviewLink::Note {
             id: other.clone(),
             heading: Some("Plan".into()),
@@ -136,14 +136,14 @@ fn every_address_is_read() {
         }
     );
     assert_eq!(
-        t(&format!("inkdrop://note/{}#Nope", bare(&other))),
+        t(&format!("kanso://note/{}#Nope", bare(&other))),
         PreviewLink::Note {
             id: other.clone(),
             heading: Some("Nope".into()),
             anchor: None
         }
     );
-    assert_eq!(t("inkdrop://note/doesnotexist"), PreviewLink::Nothing);
+    assert_eq!(t("kanso://note/doesnotexist"), PreviewLink::Nothing);
     assert_eq!(
         t("https://example.com/a"),
         PreviewLink::Web {
@@ -170,7 +170,7 @@ fn every_address_is_read() {
         "https://x y",
         "tel:1",
         "",
-        "inkdrop://file:",
+        "kanso://file:",
     ] {
         assert_eq!(t(bad), PreviewLink::Nothing, "{bad:?}");
     }
@@ -190,7 +190,7 @@ fn a_trashed_note_is_not_a_target() {
     assert_eq!(
         library
             .renderer()
-            .link_target(&id, &format!("inkdrop://note/{}", bare(&gone)))
+            .link_target(&id, &format!("kanso://note/{}", bare(&gone)))
             .unwrap(),
         PreviewLink::Nothing
     );
@@ -459,7 +459,7 @@ fn the_blocks_keep_the_pages_addresses() {
     let blocks = renderer.preview_blocks(&id, palette(), options).unwrap();
     let mut found = Vec::new();
     block_addresses(&blocks, &mut found);
-    assert!(found.contains(&format!("inkdrop://note/{}#Plan", bare(&other))));
+    assert!(found.contains(&format!("kanso://note/{}#Plan", bare(&other))));
     assert!(found.contains(&"#home".to_owned()), "{found:?}");
     assert!(found.contains(&"kanso-task:0".to_owned()));
     assert!(found.contains(&"kanso-task:1".to_owned()));
@@ -582,7 +582,7 @@ fn an_attachment_comes_back_only_while_a_readable_note_links_it() {
         library,
         "Doc",
         &format!(
-            "[a file](inkdrop://file:{})",
+            "[a file](kanso://file:{})",
             file.trim_start_matches("file:")
         ),
     );
@@ -600,7 +600,7 @@ fn an_attachment_comes_back_only_while_a_readable_note_links_it() {
             .renderer()
             .link_target(
                 &id,
-                &format!("inkdrop://file:{}", file.trim_start_matches("file:"))
+                &format!("kanso://file:{}", file.trim_start_matches("file:"))
             )
             .unwrap(),
         PreviewLink::Attachment {

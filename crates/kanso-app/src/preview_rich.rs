@@ -126,7 +126,7 @@ pub struct Block {
 /// drawn) for a block with no highlights.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PdfLine {
-    /// `inkdrop://file:…`, when the block names a PDF that can be linked.
+    /// `kanso://file:…`, when the block names a PDF that can be linked.
     pub url: Option<String>,
     pub summary: String,
 }
@@ -983,7 +983,7 @@ mod tests {
             let line = found.pdf.expect("the fence is a PDF line, not code");
             let theirs = block.summary().unwrap_or_default();
             prop_assert_eq!(line.summary, theirs);
-            prop_assert_eq!(line.url, Some("inkdrop://file:abc123".to_owned()));
+            prop_assert_eq!(line.url, Some("kanso://file:abc123".to_owned()));
         }
     }
 
@@ -1004,10 +1004,10 @@ mod tests {
         assert_eq!(&*diagram.markdown, "```mermaid\ngraph TD\nA-->B\n```");
         let drawing = first_block("```excalidraw\n{}\n```").unwrap();
         assert_eq!(drawing.kind, Kind::Excalidraw);
-        let attached = first_block("[plan.excalidraw](inkdrop://file:abc)\n").unwrap();
+        let attached = first_block("[plan.excalidraw](kanso://file:abc)\n").unwrap();
         assert_eq!(attached.file.as_deref(), Some("file:abc"));
         assert_eq!(first_block("```rust\nfn x() {}\n```"), None);
-        assert_eq!(first_block("[plan.png](inkdrop://file:abc)"), None);
+        assert_eq!(first_block("[plan.png](kanso://file:abc)"), None);
         assert_eq!(first_block("Just words."), None);
     }
 

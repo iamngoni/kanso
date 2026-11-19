@@ -636,7 +636,7 @@ mod tests {
         assert_eq!(
             excerpt(
                 "x",
-                "---\ntitle: x\n---\nSee [the docs](https://e.com/a_b) and ![shot](inkdrop://file:abc)."
+                "---\ntitle: x\n---\nSee [the docs](https://e.com/a_b) and ![shot](kanso://file:abc)."
             ),
             "See the docs and."
         );

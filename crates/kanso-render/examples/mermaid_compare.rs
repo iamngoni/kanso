@@ -19,7 +19,7 @@ const SAMPLES: &[(&str, &str)] = &[
         "graph LR\n  subgraph Client\n    a[Editor] --> b[Preview]\n  end\n  b --> c[(Store)]\n  b -.-> d([Sync])\n",
     ),
     (
-        "flowchart, Inkdrop's",
+        "flowchart, Kanso's",
         "flowchart TD\n  A[Christmas] -->|Get money| B(Go shopping)\n  B --> C{Let me think}\n  C -->|One| D[Laptop]\n  C -->|Two| E[iPhone]\n  C -->|Three| F[Car]\n",
     ),
     (

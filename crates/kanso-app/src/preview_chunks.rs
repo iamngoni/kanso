@@ -423,7 +423,7 @@ mod tests {
             Just("<!-- a comment\n\nParagraph inside -->\n".to_owned()),
             Just("<div>\nhtml\n</div>\n".to_owned()),
             Just("$$\nx = 1\n\nY\n$$\n".to_owned()),
-            Just("![image](inkdrop://file:abc)\n".to_owned()),
+            Just("![image](kanso://file:abc)\n".to_owned()),
             Just("Text with $5 and $10\n".to_owned()),
             Just("<script>\nvar a;\n\nWords inside\n</script>\n".to_owned()),
             Just("<pre>\nkept\n\nAlso kept\n</pre>\n".to_owned()),

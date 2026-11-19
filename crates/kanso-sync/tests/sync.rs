@@ -559,7 +559,7 @@ fn a_recording_and_timestamped_transcript_sync_play_and_seek_on_the_second_devic
         &a.store,
         "note:recording-sync",
         "book:b1",
-        "[Audio · 2 sec](inkdrop://file:recording-sync-1)\n\n<!-- kanso:transcript -->\n[00:01](kanso-audio://file:recording-sync-1?t=1) We agreed.\n<!-- /kanso:transcript -->",
+        "[Audio · 2 sec](kanso://file:recording-sync-1)\n\n<!-- kanso:transcript -->\n[00:01](kanso-audio://file:recording-sync-1?t=1) We agreed.\n<!-- /kanso:transcript -->",
         200,
     );
 

@@ -215,7 +215,7 @@ mod tests {
 
     #[test]
     fn blocks_stand_alone() {
-        let image = "![](inkdrop://file:a)";
+        let image = "![](kanso://file:a)";
         let at = |text: &str, i: usize| block_insert(text, i..i, image).apply(text);
         assert_eq!(at("", 0), image);
         assert_eq!(at("words", 5), format!("words\n\n{image}"));
@@ -232,7 +232,7 @@ mod tests {
         /// added, and the cursor is after it.
         #[test]
         fn prop_blocks_are_paragraphs(text in "[a-z\n]{0,12}", i in any::<prop::sample::Index>()) {
-            let image = "![](inkdrop://file:a)";
+            let image = "![](kanso://file:a)";
             let at = i.index(text.len() + 1);
             let edit = block_insert(&text, at..at, image);
             let out = edit.apply(&text);
@@ -249,7 +249,7 @@ mod tests {
     fn urls() {
         assert!(is_url("https://kanso.app"));
         assert!(is_url("  http://a.b/c?d=e  "));
-        assert!(is_url("inkdrop://note/abc"));
+        assert!(is_url("kanso://note/abc"));
         assert!(!is_url("https://"));
         assert!(!is_url("see https://kanso.app"));
         assert!(!is_url("kanso.app"));
@@ -301,8 +301,8 @@ mod tests {
             })
         };
         assert_eq!(
-            img_tag("<img src=\"inkdrop://file:x\" width=\"320\">"),
-            tag("inkdrop://file:x", "", Some(320))
+            img_tag("<img src=\"kanso://file:x\" width=\"320\">"),
+            tag("kanso://file:x", "", Some(320))
         );
         assert_eq!(
             img_tag("<img width='200px' src='a.png' alt='A cat' />"),
@@ -320,7 +320,7 @@ mod tests {
         /// and width.
         #[test]
         fn prop_sized_images_read_back(id in "[a-zA-Z0-9_-]{1,12}", width in 1u32..4000, alt in "[a-z \"<>&]{0,8}") {
-            let src = format!("inkdrop://file:{id}");
+            let src = format!("kanso://file:{id}");
             let tag = sized_image(&src, &alt, Some(width));
             prop_assert_eq!(img_tag(&tag), Some(ImgTag { src: src.clone(), alt: alt.clone(), width: Some(width) }));
             prop_assert_eq!(sized_image(&src, "", None), format!("![]({src})"));

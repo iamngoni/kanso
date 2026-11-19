@@ -218,7 +218,7 @@ proptest! {
             }
             let resource = json!({
                 "jsonrpc": "2.0", "id": 2, "method": "resources/read",
-                "params": { "uri": format!("inkdrop://note/{}", bare(&seeded.locked)) },
+                "params": { "uri": format!("kanso://note/{}", bare(&seeded.locked)) },
             });
             let (_, _, text) = call_as(&app.router, &key, Method::POST, "/mcp", Some(&resource)).await;
             prop_assert!(!text.contains(&seeded.secret), "{}", text);

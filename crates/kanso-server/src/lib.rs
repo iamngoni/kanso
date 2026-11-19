@@ -1,9 +1,9 @@
 //! Kanso's local HTTP API.
 //!
-//! The REST endpoints speak a widely used local-server REST API, wire for
-//! wire, so the MCP server `@inkdropapp/mcp-server` and scripts written for
-//! that API work against Kanso unchanged. `/mcp` serves the same 17 MCP tools natively
-//! on the same port. Every route requires an API key ([`KeyStore`]), sent as
+//! The REST endpoints speak the established local-server REST API, wire for
+//! wire, so existing clients and scripts work against Kanso unchanged.
+//! `/mcp` serves the same 17 compatible MCP tools natively on the same port.
+//! Every route requires an API key ([`KeyStore`]), sent as
 //! a bearer token or as the password of HTTP Basic. What a key may do is its
 //! access level: read, suggest edits, or read and write.
 //!

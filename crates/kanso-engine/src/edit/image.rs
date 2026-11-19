@@ -177,9 +177,9 @@ mod tests {
     #[test]
     fn images_on_their_own_line() {
         assert_eq!(
-            line_image("![Cat|300](inkdrop://file:a)"),
+            line_image("![Cat|300](kanso://file:a)"),
             Some(LineImage {
-                src: "inkdrop://file:a".into(),
+                src: "kanso://file:a".into(),
                 alt: "Cat".into(),
                 width: Some(300),
                 bar: true,
@@ -195,7 +195,7 @@ mod tests {
             })
         );
         assert_eq!(
-            line_image(r#"<img src="inkdrop://file:a" width="240">"#).map(|i| i.width),
+            line_image(r#"<img src="kanso://file:a" width="240">"#).map(|i| i.width),
             Some(Some(240))
         );
         assert_eq!(line_image("Text ![a](b)"), None);
@@ -269,7 +269,7 @@ mod tests {
         #[test]
         fn prop_written_images_read_back(
             alt in "[A-Za-z0-9 ]{0,12}",
-            src in "(inkdrop://file:[a-z0-9]{1,8}|https://example\\.com/[a-z]{1,8}\\.png)",
+            src in "(kanso://file:[a-z0-9]{1,8}|https://example\\.com/[a-z]{1,8}\\.png)",
             width in prop::option::of(MIN_WIDTH..MAX_WIDTH),
             bar in any::<bool>(),
         ) {

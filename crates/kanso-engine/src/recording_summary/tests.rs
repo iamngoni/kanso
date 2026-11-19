@@ -36,7 +36,7 @@ fn meeting_body() -> String {
         ],
     )
     .unwrap();
-    format!("# Meeting — 23 Oct 2026\n\n[Audio · 1 min](inkdrop://{FILE})\n\n{transcript}")
+    format!("# Meeting — 23 Oct 2026\n\n[Audio · 1 min](kanso://{FILE})\n\n{transcript}")
 }
 
 fn note(store: &Store, body: &str, extra: serde_json::Value) -> String {
@@ -110,8 +110,8 @@ fn the_source_is_the_transcript_with_its_times() {
         "no links go out"
     );
     assert!(
-        !source.prompt_text.contains("inkdrop"),
-        "no file ids go out"
+        !source.prompt_text.contains("kanso://file:") && !source.prompt_text.contains(FILE),
+        "no file links or ids go out"
     );
     assert!(source.words > 20);
     assert!(!source.replaces);

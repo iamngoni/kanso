@@ -89,7 +89,7 @@ fn a_share_becomes_a_note_in_the_inbox_with_its_files() {
     assert_eq!(note.title, "Receipt");
     assert_eq!(note.notebook_id, "book:inbox");
     let body = note.body.unwrap();
-    assert!(body.contains("[Receipt.pdf](inkdrop://file:cap-"), "{body}");
+    assert!(body.contains("[Receipt.pdf](kanso://file:cap-"), "{body}");
 
     // Each share is a note of its own, even when it is the same.
     let again = phone.library.capture(text("Same")).unwrap();

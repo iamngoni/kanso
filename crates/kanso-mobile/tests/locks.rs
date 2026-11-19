@@ -41,7 +41,7 @@ fn the_app_shows_the_real_name_while_the_note_is_open() {
     let note = phone
         .library
         .create(NewNote {
-            body: format!("[memo](inkdrop://{file})"),
+            body: format!("[memo](kanso://{file})"),
             ..Default::default()
         })
         .unwrap()
@@ -93,7 +93,7 @@ fn a_device_without_the_password_never_sees_the_name() {
     let note = a
         .library
         .create(NewNote {
-            body: format!("[recording](inkdrop://{file})"),
+            body: format!("[recording](kanso://{file})"),
             ..Default::default()
         })
         .unwrap()
@@ -142,7 +142,7 @@ fn two_notes_locked_together_share_one_sealed_attachment() {
         )
         .unwrap()
         .id;
-    let body = format!("![shot](inkdrop://{file})");
+    let body = format!("![shot](kanso://{file})");
     let book = phone
         .library
         .create_notebook("Vault".into(), None)
@@ -243,7 +243,7 @@ fn locking_a_notebook_copies_a_shared_file_once() {
         )
         .unwrap()
         .id;
-    let body = format!("![](inkdrop://{file})");
+    let body = format!("![](kanso://{file})");
     let outside = note(&phone.library, "Outside", &body);
     let book = phone
         .library
@@ -335,7 +335,7 @@ fn notes_locked_one_at_a_time_get_their_own_sealed_copy() {
         )
         .unwrap()
         .id;
-    let body = format!("![shot](inkdrop://{file})");
+    let body = format!("![shot](kanso://{file})");
     let first = note(&phone.library, "First", &body);
     let second = note(&phone.library, "Second", &body);
     let locks = phone.library.locks();
@@ -468,7 +468,7 @@ fn removing_the_last_note_lock_restores_plain_attachment_without_session_keys() 
     let note_id = note(
         &phone.library,
         "Attachment",
-        &format!("![](inkdrop://{file})"),
+        &format!("![](kanso://{file})"),
     );
     let locks = phone.library.locks();
     locks.lock_note(&note_id, LOCK_PASSWORD.into()).unwrap();
@@ -507,7 +507,7 @@ fn a_legacy_locked_note_seals_its_attachment_when_opened() {
         )
         .unwrap()
         .id;
-    let body = format!("![](inkdrop://{file})");
+    let body = format!("![](kanso://{file})");
     let id = note(&phone.library, "Legacy", &body);
 
     // The older Kanso sealed only the text.
@@ -587,7 +587,7 @@ fn locking_a_notebook_seals_and_reveals_its_attachment() {
         .create(NewNote {
             notebook_id: Some(book.clone()),
             title: "Image".into(),
-            body: format!("![](inkdrop://{file})"),
+            body: format!("![](kanso://{file})"),
             ..Default::default()
         })
         .unwrap()
@@ -644,7 +644,7 @@ fn locking_one_note_copies_a_file_an_unlocked_note_still_shows() {
         )
         .unwrap()
         .id;
-    let link = format!("![](inkdrop://{file})");
+    let link = format!("![](kanso://{file})");
     let locked_note = note(&phone.library, "Locked", &link);
     let plain_note = note(&phone.library, "Plain", &link);
     let locks = phone.library.locks();
@@ -941,7 +941,7 @@ proptest! {
             )
             .unwrap()
             .id;
-        let body = format!("{prefix}![](inkdrop://{file}){suffix}");
+        let body = format!("{prefix}![](kanso://{file}){suffix}");
         let id = note(&phone.library, "Legacy", &body);
         let mut stored = store.note(&id).unwrap().unwrap();
         let key = LockKey::create(
@@ -996,7 +996,7 @@ proptest! {
             )
             .unwrap()
             .id;
-        let body = format!("![](inkdrop://{file})");
+        let body = format!("![](kanso://{file})");
         let locked = note(&phone.library, "Locked", &body);
         let first_plain = note(&phone.library, "One", &body);
         let second_plain = note(&phone.library, "Two", &body);
@@ -1066,7 +1066,7 @@ fn plain_file(store: &Store, name: &str, bytes: &[u8]) -> String {
 fn note_with(phone: &Phone, files: &[String]) -> String {
     let body: String = files
         .iter()
-        .map(|file| format!("[memo](inkdrop://{file})\n"))
+        .map(|file| format!("[memo](kanso://{file})\n"))
         .collect();
     phone
         .library
@@ -1213,7 +1213,7 @@ fn legacy_locked(phone: &Phone, title: &str, contents: &[&[u8]]) -> (String, Vec
         .collect();
     let body: String = files
         .iter()
-        .map(|id| format!("![](inkdrop://{id})\n"))
+        .map(|id| format!("![](kanso://{id})\n"))
         .collect();
     let id = note(&phone.library, title, &body);
     let mut stored = store.note(&id).unwrap().unwrap();
@@ -1312,7 +1312,7 @@ fn a_file_an_unlocked_note_shows_gets_a_sealed_copy_and_the_original_stays() {
     let unlocked = note(
         &phone.library,
         "Open",
-        &format!("![](inkdrop://{})", files[0]),
+        &format!("![](kanso://{})", files[0]),
     );
     let locks = phone.library.locks();
     let outcome = locks
@@ -1429,7 +1429,7 @@ fn a_cancel_does_not_stop_a_later_save_into_a_locked_notebook() {
         .library
         .create(NewNote {
             notebook_id: Some(book),
-            body: format!("[memo](inkdrop://{file})\n"),
+            body: format!("[memo](kanso://{file})\n"),
             ..Default::default()
         })
         .unwrap()
@@ -1458,7 +1458,7 @@ fn a_notebooks_lock_reports_progress_for_the_whole_notebook() {
             .library
             .create(NewNote {
                 notebook_id: Some(book.clone()),
-                body: format!("[memo](inkdrop://{file})\n"),
+                body: format!("[memo](kanso://{file})\n"),
                 ..Default::default()
             })
             .unwrap();
@@ -1495,7 +1495,7 @@ fn a_file_linked_in_an_open_locked_note_is_sealed_by_the_save() {
     let session = phone.library.edit(&note).unwrap();
     let snapshot = session.snapshot().unwrap();
     let end = snapshot.text.encode_utf16().count() as u32;
-    let link = format!("[memo](inkdrop://{file})\n");
+    let link = format!("[memo](kanso://{file})\n");
     session
         .apply(kanso_mobile::TextChange {
             base_version: snapshot.version,
@@ -1638,7 +1638,7 @@ fn remove_lock_copies_a_file_another_locked_note_still_shows() {
     let session = phone.library.edit(&second).unwrap();
     let snapshot = session.snapshot().unwrap();
     let end = snapshot.text.encode_utf16().count() as u32;
-    let link = format!("[memo](inkdrop://{file})\n");
+    let link = format!("[memo](kanso://{file})\n");
     let after = end + link.encode_utf16().count() as u32;
     session
         .apply(kanso_mobile::TextChange {

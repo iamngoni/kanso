@@ -605,7 +605,7 @@ impl Library {
         Ok(names)
     }
 
-    /// A note address (`inkdrop://note/<id>[#Heading]`) as a target.
+    /// A note address (`kanso://note/<id>[#Heading]`) as a target.
     fn note_target(&self, url: &str) -> Result<PreviewLink, KansoError> {
         let Some(id) = links::linked_note(url) else {
             return Ok(PreviewLink::Nothing);
@@ -640,7 +640,7 @@ impl Library {
         })
     }
 
-    /// An attachment address (`inkdrop://file:<id>`) as a target.
+    /// An attachment address (`kanso://file:<id>`) as a target.
     fn file_target(&self, url: &str) -> Result<PreviewLink, KansoError> {
         let rest = &url[FILE_LINK_PREFIX.len()..];
         let rest = rest.split(['?', '#', '/', ')', ' ']).next().unwrap_or("");

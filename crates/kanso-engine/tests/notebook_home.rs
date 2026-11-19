@@ -671,7 +671,7 @@ fn copy_into_home_note_creates_it_when_missing_and_appends_with_links() {
         .to_owned();
     assert!(kanso_core::home::is_home(&body));
     assert!(body.contains("## Decisions"));
-    assert!(body.contains("inkdrop://note/plan#"), "{body}");
+    assert!(body.contains("kanso://note/plan#"), "{body}");
     // Copying again appends to the same note.
     let again = actions::copy_into_home(&store, "book:r", "Research", "Decisions", &md, NOW + 5)
         .unwrap()

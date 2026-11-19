@@ -28,7 +28,7 @@ use crate::{Origin, Result, Store, schema};
 /// The `meta` key holding the [`DERIVED_VERSION`] the tables were built with.
 pub const DERIVED_VERSION_KEY: &str = "index.derived_version";
 /// Changes whenever a derived table's source or derivation changes.
-pub const DERIVED_VERSION: &str = "9";
+pub const DERIVED_VERSION: &str = "10";
 
 /// The tables, for emptying them.
 pub(crate) const TABLES: [&str; 11] = [

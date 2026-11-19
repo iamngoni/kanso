@@ -149,7 +149,7 @@ fn a_voice_drop_waits_for_the_app_then_becomes_one_note() {
             .unwrap()
             .unwrap()
             .body
-            .contains("inkdrop://")
+            .contains("kanso://")
     );
 }
 
@@ -167,7 +167,7 @@ fn audio_is_kept_for_meetings_and_when_asked_within_the_limit() {
         .library
         .save_voice_drop(&inbox, &short, "short".into(), true)
         .unwrap();
-    assert!(!body(&short).contains("inkdrop://"));
+    assert!(!body(&short).contains("kanso://"));
 
     let long = "b".repeat(32);
     write_voice_drop(&inbox, &long, 5 * 60_000);
@@ -176,7 +176,7 @@ fn audio_is_kept_for_meetings_and_when_asked_within_the_limit() {
         .save_voice_drop(&inbox, &long, "a meeting".into(), true)
         .unwrap();
     assert!(saved.meeting);
-    assert!(body(&long).contains(&format!("inkdrop://file:cap-{long}-audio")));
+    assert!(body(&long).contains(&format!("kanso://file:cap-{long}-audio")));
 
     phone
         .library
@@ -191,7 +191,7 @@ fn audio_is_kept_for_meetings_and_when_asked_within_the_limit() {
         .library
         .save_voice_drop(&inbox, &kept, "kept".into(), true)
         .unwrap();
-    assert!(body(&kept).contains("inkdrop://file:cap-"));
+    assert!(body(&kept).contains("kanso://file:cap-"));
 }
 
 // no-prop-test: an empty transcript and a missing drop, once each.
@@ -339,7 +339,7 @@ fn a_recording_the_phone_cannot_transcribe_is_kept_as_an_audio_note() {
     let store = Store::open(phone.path()).unwrap();
     let note = store.note(&saved.note_id.unwrap()).unwrap().unwrap();
     assert_eq!(note.book_id, "book:inbox");
-    assert!(note.body.contains("inkdrop://file:cap-"), "{}", note.body);
+    assert!(note.body.contains("kanso://file:cap-"), "{}", note.body);
 }
 
 proptest! {

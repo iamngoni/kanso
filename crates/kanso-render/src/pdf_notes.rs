@@ -52,14 +52,14 @@ impl Notes {
         (!parts.is_empty()).then(|| parts.join(" · "))
     }
 
-    /// The link that opens the PDF, `inkdrop://file:…`.
+    /// The link that opens the PDF, `kanso://file:…`.
     pub fn url(&self) -> Option<String> {
         let id = self.file.strip_prefix("file:")?;
         let plain = !id.is_empty()
             && id
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'));
-        plain.then(|| format!("inkdrop://file:{id}"))
+        plain.then(|| format!("kanso://file:{id}"))
     }
 }
 
@@ -160,7 +160,7 @@ mod tests {
             } else {
                 let counted = format!("{h} highlight");
                 prop_assert!(line.contains(&counted));
-                prop_assert!(line.contains("inkdrop://file:abc"));
+                prop_assert!(line.contains("kanso://file:abc"));
                 prop_assert_eq!(line.contains("comment"), c > 0);
                 // Never the JSON, however it was written.
                 let brace = '{';
@@ -219,7 +219,7 @@ mod tests {
             .chain((live..live + erased).map(|n| page(n, false)))
             .collect();
         let file = if attached {
-            ",\"inkFile\":\"inkdrop://file:ink1\""
+            ",\"inkFile\":\"kanso://file:ink1\""
         } else {
             ""
         };

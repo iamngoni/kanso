@@ -604,7 +604,7 @@ mod tests {
 
     #[test]
     fn blocks_stand_alone() {
-        let image = "![](inkdrop://file:a)";
+        let image = "![](kanso://file:a)";
         let at = |text: &str, i: usize| block_insert(text, i..i, image).apply(text);
         assert_eq!(at("", 0), image);
         assert_eq!(at("words", 5), format!("words\n\n{image}"));
@@ -621,7 +621,7 @@ mod tests {
         /// added, and the cursor is after it.
         #[test]
         fn prop_blocks_are_paragraphs(text in "[a-z\n]{0,12}", i in any::<prop::sample::Index>()) {
-            let image = "![](inkdrop://file:a)";
+            let image = "![](kanso://file:a)";
             let at = i.index(text.len() + 1);
             let edit = block_insert(&text, at..at, image);
             let out = edit.apply(&text);

@@ -301,7 +301,7 @@ proptest! {
             &format!(
                 "{}\n```query\nfrom: SECRET\ncolumns: owner, level\n```\n",
                 (0..NOTES)
-                    .map(|i| format!("[[Note {i}#Plan]] [there](inkdrop://note/{}#Plan)", ids[i].trim_start_matches("note:")))
+                    .map(|i| format!("[[Note {i}#Plan]] [there](kanso://note/{}#Plan)", ids[i].trim_start_matches("note:")))
                     .collect::<Vec<_>>()
                     .join("\n")
             ),
@@ -596,7 +596,7 @@ proptest! {
                     returned.push(page);
                 }
                 Op::PreviewLink(i) => {
-                    let url = format!("inkdrop://note/{}#Plan", ids[*i].trim_start_matches("note:"));
+                    let url = format!("kanso://note/{}#Plan", ids[*i].trim_start_matches("note:"));
                     let target = library.renderer().link_target(&hub, &url).unwrap();
                     match &target {
                         kanso_mobile::PreviewLink::Note { id, heading, anchor } => {

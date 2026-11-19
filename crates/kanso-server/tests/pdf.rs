@@ -29,7 +29,7 @@ fn indexed_pdf(app: &App) -> (String, String) {
     let inbox = app.store.role_book(Role::Inbox, Origin::Api).unwrap();
     let note_id = app.store.put(
         DocType::Note,
-        json!({"_id":"note:pdf-contract", "title":"Report", "bookId":inbox, "body":format!("[Report](inkdrop://{file_id})"), "kansoFiles":[file_id]}),
+        json!({"_id":"note:pdf-contract", "title":"Report", "bookId":inbox, "body":format!("[Report](kanso://{file_id})"), "kansoFiles":[file_id]}),
         Put::Upsert,
         Origin::Api,
     ).unwrap().id;

@@ -299,7 +299,7 @@ mod tests {
         let id = adapter
             .write(&store, None, "file:ink-wrap", b"sealed ink")
             .expect("the new ink is sealed");
-        let body = format!("inkdrop://{id}");
+        let body = format!("kanso://{id}");
         save_locked(&store, &keys, &mut note, &body, &key).unwrap();
         let listed = note_files_from_extra(&note.extra).unwrap();
         assert!(listed.iter().any(|entry| entry.file == id));
@@ -332,7 +332,7 @@ mod tests {
         Plain
             .write(&store, None, id, bytes)
             .expect("the unlocked note writes its companion");
-        note.body = format!("Ink: inkdrop://{id}");
+        note.body = format!("Ink: kanso://{id}");
         let key =
             LockKey::create(&LockPassword::new("password").unwrap(), KdfParams::TEST).unwrap();
         let keys = KeyBook::default();

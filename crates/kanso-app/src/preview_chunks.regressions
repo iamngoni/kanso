@@ -5,6 +5,6 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc c204a53bac2379c167f64865a4afaf58f8c39038fbb8153d6e7e8ad5339ae42c # shrinks to text = "- a\n- b\n#  "
-cc 5eb4ca0f2cd0545a09ef544b1eaa1b7b2c0050660106c4a25d20f922b84100e4 # shrinks to text = "![image](inkdrop://file:abc)\n\n![image](inkdrop://file:abc)\n---"
+cc 5eb4ca0f2cd0545a09ef544b1eaa1b7b2c0050660106c4a25d20f922b84100e4 # shrinks to text = "![image](kanso://file:abc)\n\n![image](kanso://file:abc)\n---"
 cc ccd634db4c1f4591cca813be78ce0b3ea78de9f29f9d22886104986652f1b38f # shrinks to text = "a\n===\n---"
 cc d0dae1a9a22aa8e403166ffc8039471761b2981ad08831f3ce619777c0b7a63a # shrinks to text = "* star list\n\n* second\n\nA\n10) ten"

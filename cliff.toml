@@ -83,19 +83,6 @@ sort_commits = "oldest"
 commit_preprocessors = [
   # "(#12)" links the pull request.
   { pattern = '\(#([0-9]+)\)', replace = "([#${1}](https://github.com/iamngoni/kanso/pull/${1}))" },
-  # Release notes describe Kanso on its own terms (commit 76d2e0c's subject).
-  { pattern = " that doesn't assume Inkdrop", replace = "" },
-  # Commit 515dcf8's subject.
-  { pattern = "Import from Inkdrop on Windows", replace = "Importing a library on Windows" },
-  # Subjects of the first release's commits, in the CHANGELOG's own words.
-  { pattern = "as a GPUI Inkdrop replacement", replace = "as a GPUI notes app" },
-  { pattern = "Add Inkdrop importer", replace = "Add the PouchDB notes library importer" },
-  { pattern = "decrypt Inkdrop's API credentials", replace = "decrypt the copied local API credentials" },
-  { pattern = "Import from Inkdrop inside Kanso", replace = "Import a PouchDB notes library inside Kanso" },
-  { pattern = "Add Inkdrop-compatible HTTP API", replace = "Add a local API compatible with popular local-server clients" },
-  { pattern = "import Inkdrop and Zed themes", replace = "import theme packages and Zed themes" },
-  { pattern = "Read Inkdrop's Keychain item", replace = "Read the Safe Storage Keychain item" },
-  { pattern = "Verify Inkdrop files without", replace = "Verify imported files without" },
   # Commit e339fd3's subject: the domain is lower case, so the entry can't start with it.
   { pattern = "kansoapp\\.app, Kanso's website", replace = "Kanso's website, kansoapp.app" },
 ]

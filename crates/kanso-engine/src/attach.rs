@@ -58,7 +58,7 @@ struct Prepared {
 pub struct Attached {
     /// The attachment's ID (`file:…`).
     pub id: String,
-    /// `![](inkdrop://file:…)` for an image, `[name.pdf](inkdrop://file:…)`
+    /// `![](kanso://file:…)` for an image, `[name.pdf](kanso://file:…)`
     /// for a PDF.
     pub markdown: String,
 }
@@ -338,7 +338,7 @@ pub fn image_markdown(file_id: &str) -> String {
 }
 
 /// The Markdown that links attachment `file_id` (`file:…`), shown as `name`:
-/// `[name](inkdrop://file:…)`. Backslashes and square brackets in the name
+/// `[name](kanso://file:…)`. Backslashes and square brackets in the name
 /// are escaped and a line break becomes a space, so the name stays the
 /// link's one line of text.
 pub fn file_markdown(file_id: &str, name: &str) -> String {
@@ -418,7 +418,7 @@ mod tests {
         assert_eq!(stored_as("jpeg"), Some(Stored::AsIs("image/jpeg", "jpg")));
         assert_eq!(stored_as("tiff"), Some(Stored::Png));
         assert_eq!(stored_as("pdf"), None);
-        assert_eq!(image_markdown("file:abc"), "![](inkdrop://file:abc)");
+        assert_eq!(image_markdown("file:abc"), "![](kanso://file:abc)");
         assert_eq!(
             too_large(12 * 1024 * 1024, 10 * 1024 * 1024),
             "That image is 12 MB. Attachments can be up to 10 MB."
@@ -524,7 +524,7 @@ mod tests {
 
         let pdf =
             attach_file(&store, PDF_BYTES, "Plan.pdf", Some("application/pdf"), None).unwrap();
-        assert_eq!(pdf.markdown, format!("[Plan.pdf](inkdrop://{})", pdf.id));
+        assert_eq!(pdf.markdown, format!("[Plan.pdf](kanso://{})", pdf.id));
         // A PDF whose name or hint says otherwise is still a PDF.
         let odd = attach_file(&store, PDF_BYTES, "scan", Some("image/png"), None).unwrap();
         assert_eq!(store.attachment(&odd.id).unwrap().unwrap().0, PDF);
@@ -534,7 +534,7 @@ mod tests {
         );
 
         let image = attach_file(&store, &png, "a.png", Some("image/png"), None).unwrap();
-        assert_eq!(image.markdown, format!("![](inkdrop://{})", image.id));
+        assert_eq!(image.markdown, format!("![](kanso://{})", image.id));
         // Bytes decide over the extension: a TIFF called .png is converted.
         let tiff = attach_file(&store, &tiff, "b.png", None, None).unwrap();
         assert_eq!(store.attachment(&tiff.id).unwrap().unwrap().0, "image/png");
@@ -573,11 +573,11 @@ mod tests {
     fn file_links_escape_the_name() {
         assert_eq!(
             file_markdown("file:a", "Q1 report.pdf"),
-            "[Q1 report.pdf](inkdrop://file:a)"
+            "[Q1 report.pdf](kanso://file:a)"
         );
         assert_eq!(
             file_markdown("file:a", "[draft] a\\b\nc.pdf"),
-            "[\\[draft\\] a\\\\b c.pdf](inkdrop://file:a)"
+            "[\\[draft\\] a\\\\b c.pdf](kanso://file:a)"
         );
     }
 
@@ -638,9 +638,9 @@ mod tests {
         fn prop_file_links_keep_one_line_of_text(name in "[a-z\\[\\]\\\\\n\r ]{0,24}") {
             let link = file_markdown("file:x", &name);
             prop_assert!(link.starts_with('['));
-            prop_assert!(link.ends_with("](inkdrop://file:x)"));
+            prop_assert!(link.ends_with("](kanso://file:x)"));
             prop_assert!(!link.contains('\n') && !link.contains('\r'));
-            let label = &link[1..link.len() - "](inkdrop://file:x)".len()];
+            let label = &link[1..link.len() - "](kanso://file:x)".len()];
             let mut chars = label.chars();
             while let Some(c) = chars.next() {
                 match c {

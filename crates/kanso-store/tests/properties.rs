@@ -45,7 +45,7 @@ const WORDS: [&str; 11] = [
     "ELDER",
     "fig",
     "go",
-    "inkdrop://note/x_1",
+    "kanso://note/x_1",
     "a-b",
     "über",
     "x%y",

@@ -389,7 +389,7 @@ fn alias_id(path: Result<Path<(String, String)>, PathRejection>) -> ApiResult<St
 
 /// What `GET /` says the API is compatible with. Clients may check it, so
 /// it stays exactly as written.
-pub const COMPATIBLE_WITH: &str = "inkdrop-local-server";
+pub const COMPATIBLE_WITH: &str = "kanso-local-server";
 
 async fn meta(State(state): State<AppState>) -> Json<Value> {
     let sync = state.sync_status.value();

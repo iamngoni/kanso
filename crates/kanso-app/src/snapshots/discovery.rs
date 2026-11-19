@@ -200,7 +200,7 @@ pub(super) fn library_graph_large(
             };
             if j != i {
                 body.push_str(&format!(
-                    "See [x](inkdrop://note/{}).\n",
+                    "See [x](kanso://note/{}).\n",
                     ids[j].strip_prefix("note:").unwrap()
                 ));
             }

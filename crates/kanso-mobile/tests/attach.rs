@@ -25,9 +25,9 @@ fn caret(at: u32) -> Range16 {
     Range16 { start: at, end: at }
 }
 
-/// The attachment ID in the first `inkdrop://file:…` link of `text`.
+/// The attachment ID in the first `kanso://file:…` link of `text`.
 fn linked_id(text: &str) -> String {
-    let start = text.find("inkdrop://").expect("a link") + "inkdrop://".len();
+    let start = text.find("kanso://").expect("a link") + "kanso://".len();
     let end = text[start..].find(')').expect("the link's end") + start;
     text[start..end].to_owned()
 }
@@ -41,7 +41,7 @@ fn a_photo_is_a_paragraph_of_its_own_and_undo_takes_it_out() {
 
     let out = session.attach(file("IMG_0042.png", PNG)).unwrap();
     let text = session.snapshot().unwrap().text;
-    assert!(text.starts_with("Day one\n\n![](inkdrop://file:"), "{text}");
+    assert!(text.starts_with("Day one\n\n![](kanso://file:"), "{text}");
     assert!(text.ends_with(')'), "{text}");
     assert!(out.version > 0);
     // The viewer reads only what a saved note links.
@@ -60,7 +60,7 @@ fn a_pdf_is_linked_by_its_name() {
     let session = phone.library.edit(&id).unwrap();
     session.attach(file("Return.pdf", PDF)).unwrap();
     let text = session.snapshot().unwrap().text;
-    assert!(text.starts_with("[Return.pdf](inkdrop://file:"), "{text}");
+    assert!(text.starts_with("[Return.pdf](kanso://file:"), "{text}");
 }
 
 #[test]

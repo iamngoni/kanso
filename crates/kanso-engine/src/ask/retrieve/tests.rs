@@ -339,7 +339,7 @@ fn a_linked_note_that_matches_a_word_comes_in_with_the_best_note() {
         &b,
         "Atlas",
         &format!(
-            "The Atlas project, see inkdrop://note/{}.\n",
+            "The Atlas project, see kanso://note/{}.\n",
             meeting.trim_start_matches("note:")
         ),
     );
@@ -433,7 +433,7 @@ fn locked_and_excluded_notes_never_come_in_through_any_list() {
     store
         .put(
             DocType::Note,
-            json!({"_id": kept, "body": format!("The pricing plan is yearly. [v](inkdrop://note/{}) [h](inkdrop://note/{})", secret.trim_start_matches("note:"), hidden.trim_start_matches("note:"))}),
+            json!({"_id": kept, "body": format!("The pricing plan is yearly. [v](kanso://note/{}) [h](kanso://note/{})", secret.trim_start_matches("note:"), hidden.trim_start_matches("note:"))}),
             Put::Merge,
             Origin::Ui,
         )

@@ -1,10 +1,10 @@
-//! Kanso's native MCP implementation: the Inkdrop-compatible tools, the
-//! note resource, and Kanso's own `kanso-…` tools after them.
+//! Kanso's native MCP implementation: the compatible tools, the note
+//! resource, and Kanso's own `kanso-…` tools after them.
 //!
-//! Each tool does what `@inkdropapp/mcp-server` 1.5.0 does with the HTTP API,
-//! through the same operations the REST handlers use, and formats its result
-//! the same way: documents as `JSON.stringify(value, null, 2)`, failed
-//! requests as `Fetch error [<status>] <reason>`.
+//! Each tool goes through the same operations the REST handlers use and
+//! formats its result the same way: documents as
+//! `JSON.stringify(value, null, 2)`, failed requests as
+//! `Fetch error [<status>] <reason>`.
 //!
 //! For an agent, each read tool gets the request's [`Visibility`]: a note it
 //! may not see is answered exactly as a missing one, results are filtered

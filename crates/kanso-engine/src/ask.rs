@@ -1155,7 +1155,7 @@ mod tests {
         ];
         assert_eq!(
             linkify("See [[Pricing]] and [[Launch]].", &used),
-            "See [Pricing](inkdrop://note/pricing) and [Launch](inkdrop://note/launch)."
+            "See [Pricing](kanso://note/pricing) and [Launch](kanso://note/launch)."
         );
         assert_eq!(
             linkify("See [[Someone else's note]].", &used),
@@ -1188,7 +1188,7 @@ mod tests {
             let answer = format!("{before}[[{title}]]{after}[[{unknown}]]");
             let linked = linkify(&answer, &used);
             let id = title.to_lowercase();
-            let linked_title = format!("[{}](inkdrop://note/{id})", title.trim());
+            let linked_title = format!("[{}](kanso://note/{id})", title.trim());
             let unknown_title = format!("[[{unknown}]]");
             prop_assert!(linked.contains(&linked_title));
             prop_assert!(linked.contains(&unknown_title));
@@ -1676,7 +1676,7 @@ mod tests {
         let (images, html) = rendered_markup(&cleaned);
         assert_eq!(images, 0, "{cleaned}");
         assert!(html.is_empty(), "{html:?}");
-        assert!(cleaned.contains("inkdrop://note/"), "{cleaned}");
+        assert!(cleaned.contains("kanso://note/"), "{cleaned}");
     }
 
     proptest! {

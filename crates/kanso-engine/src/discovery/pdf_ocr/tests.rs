@@ -96,7 +96,7 @@ fn scanned_pdf(store: &Store, count: usize) -> (String, String) {
     let note = store
         .put(
             DocType::Note,
-            json!({"title": "Scans", "body": format!("[s](inkdrop://{id})"), "bookId": book}),
+            json!({"title": "Scans", "body": format!("[s](kanso://{id})"), "bookId": book}),
             Put::Upsert,
             Origin::Ui,
         )

@@ -641,8 +641,8 @@ fn images_are_read_through_the_platform_and_only_those_a_readable_note_shows() {
             png(&store, b"orphan"),
         )
     };
-    note(library, "Plain", &format!("![](inkdrop://{shown})"));
-    let secret = note(library, "Secret", &format!("![](inkdrop://{hidden})"));
+    note(library, "Plain", &format!("![](kanso://{shown})"));
+    let secret = note(library, "Secret", &format!("![](kanso://{hidden})"));
     library
         .locks()
         .lock_note(&secret, LOCK_PASSWORD.into())

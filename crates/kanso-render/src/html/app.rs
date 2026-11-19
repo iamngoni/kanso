@@ -4,9 +4,9 @@
 //!
 //! In this mode ([`AppMode`], on [`PageOptions`](super::PageOptions)):
 //!
-//! - links into the app keep their address: a note (`inkdrop://note/<id>`,
+//! - links into the app keep their address: a note (`kanso://note/<id>`,
 //!   with `#Heading` for a wiki-link to one), an attachment
-//!   (`inkdrop://file:<id>`), a note to make (`kanso-new:`), a tag
+//!   (`kanso://file:<id>`), a note to make (`kanso-new:`), a tag
 //!   (`kanso-tag:`), a due date (`kanso-due:`), a task box (`kanso-task:<n>`)
 //!   and a place in the same page (`#slug`); web and mail links keep theirs;
 //!   every other address is dropped, and so is every other `href` or `src`
@@ -680,7 +680,7 @@ pub(super) fn finish(
 
 /// Whether a link's address may stay in the page in the app: web
 /// (`http://`, `https://`), mail (`mailto:`), the app's own addresses
-/// (`inkdrop://note/`, `inkdrop://file:`, `kanso-new:`, `kanso-tag:`,
+/// (`kanso://note/`, `kanso://file:`, `kanso-new:`, `kanso-tag:`,
 /// `kanso-due:`, `kanso-task:`) and a place in the page (`#…`). The scheme
 /// is read as written, in any case, so an address that hides its scheme
 /// behind a character reference or a leading space is not one of these. Pure.
@@ -690,8 +690,8 @@ pub fn is_allowed_link(url: &str) -> bool {
     after("http://").is_some_and(|rest| !rest.is_empty())
         || after("https://").is_some_and(|rest| !rest.is_empty())
         || after("mailto:").is_some_and(|rest| !rest.is_empty())
-        || lower.starts_with("inkdrop://note/")
-        || lower.starts_with("inkdrop://file:")
+        || lower.starts_with("kanso://note/")
+        || lower.starts_with("kanso://file:")
         || lower.starts_with(NEW_NOTE_PREFIX)
         || lower.starts_with(TAG_LINK_PREFIX)
         || lower.starts_with(DUE_LINK_PREFIX)

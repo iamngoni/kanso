@@ -46,7 +46,7 @@ const WORDS: [&str; 6] = [
     "über",
     "x%y",
     "- [ ] task",
-    "inkdrop://note/x",
+    "kanso://note/x",
 ];
 const NAMES: [&str; 4] = ["Inbox", "Work", "Ideas", "Archive"];
 

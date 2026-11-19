@@ -77,7 +77,7 @@ fn a_copy_a_trashed_note_a_locked_note_or_a_canvas_keeps_the_file() {
                     store,
                     "note:copy",
                     "book:b",
-                    &format!("[Audio](inkdrop://{file})"),
+                    &format!("[Audio](kanso://{file})"),
                 )
             }),
         ),
@@ -88,7 +88,7 @@ fn a_copy_a_trashed_note_a_locked_note_or_a_canvas_keeps_the_file() {
                     store,
                     "note:old",
                     "trash",
-                    &format!("[Audio](inkdrop://{file})"),
+                    &format!("[Audio](kanso://{file})"),
                 )
             }),
         ),
@@ -155,7 +155,7 @@ proptest! {
         for (ix, trashed) in linkers.iter().enumerate() {
             let id = format!("note:n{ix}");
             let book = if *trashed { "trash" } else { "book:b" };
-            note(&store, &id, book, &format!("[Audio](inkdrop://{file})"));
+            note(&store, &id, book, &format!("[Audio](kanso://{file})"));
             if deleted.get(ix).copied().unwrap_or(false) {
                 // Deleted for good (Empty Trash, or a delete through the API).
                 store.delete(&id, Origin::Ui).unwrap();

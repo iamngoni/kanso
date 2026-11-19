@@ -57,7 +57,7 @@ fn note(store: &Store, id: &str, book: &str, locked: bool, files: &[String]) {
     } else {
         doc["body"] = files
             .iter()
-            .map(|f| format!("![](inkdrop://{f})"))
+            .map(|f| format!("![](kanso://{f})"))
             .collect::<Vec<_>>()
             .join(" ")
             .into();

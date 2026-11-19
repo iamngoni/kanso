@@ -265,7 +265,7 @@ fn ids_of_links_and_page_names_survive_a_derived_rebuild() {
             &store,
             "note:one",
             "One",
-            "met Sam\nand [x](inkdrop://note/sam)\n",
+            "met Sam\nand [x](kanso://note/sam)\n",
             &b,
         );
         assert_eq!(store.entity_mentions("note:sam", 9).unwrap().len(), 2);

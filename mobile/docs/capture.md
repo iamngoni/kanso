@@ -217,7 +217,7 @@ Inbox (`kanso_engine::capture`), then removes its folder:
   so a drop saved twice (a crash between the note and removing the folder)
   makes one note.
 - Images and PDFs become attachments, linked in the note's body
-  (`![](inkdrop://file:…)`, `[name.pdf](inkdrop://file:…)`). Anything else,
+  (`![](kanso://file:…)`, `[name.pdf](kanso://file:…)`). Anything else,
   or a file over the limit, is left out and named in the result's problems.
 - A locked Inbox refuses the drop: its folder is removed and the result says
   so. Nothing is ever written into a locked notebook.

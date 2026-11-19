@@ -1226,7 +1226,7 @@ mod tests {
                     "package.json",
                     r#"{"name": "night-owl-dark-ui", "theme": "ui", "styleSheets": ["theme.css", "tokens.css"],
                         "author": {"name": "Sami Korpela"}, "license": "MIT",
-                        "repository": {"type": "git", "url": "https://github.com/skipadu/inkdrop-night-owl-ui"}}"#,
+                        "repository": {"type": "git", "url": "https://github.com/example/night-owl-ui"}}"#,
                 ),
                 (
                     "styles/theme.css",
@@ -1245,7 +1245,7 @@ mod tests {
         assert_eq!(theme.author, "Sami Korpela");
         assert_eq!(
             theme.source.as_deref(),
-            Some("https://github.com/skipadu/inkdrop-night-owl-ui")
+            Some("https://github.com/example/night-owl-ui")
         );
         assert_eq!(
             theme.appearance,
@@ -1273,7 +1273,7 @@ mod tests {
                 (
                     "package.json",
                     r#"{"name": "material-dark-mod-syntax", "theme": "syntax", "styleSheets": ["material.less"],
-                        "repository": {"type": "git", "url": "git+https://github.com/yuru7/inkdrop-material-dark-mod-syntax.git"}}"#,
+                        "repository": {"type": "git", "url": "git+https://github.com/example/material-dark-mod-syntax.git"}}"#,
                 ),
                 ("styles/colors.less", "@base00: #2e3235; @base06: #e0e0e0; @base-yellow: #facf4e; @base-purple: #cf6edf; @base-green: #6abf69; @base03: #707d8b;"),
                 (
@@ -1301,7 +1301,7 @@ mod tests {
         assert_eq!(theme.author, "unknown");
         assert_eq!(
             theme.source.as_deref(),
-            Some("https://github.com/yuru7/inkdrop-material-dark-mod-syntax")
+            Some("https://github.com/example/material-dark-mod-syntax")
         );
         assert_eq!(theme.appearance, Appearance::Dark);
         assert_eq!(theme.ui["editor"].hex(), "#2E3235");

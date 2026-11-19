@@ -84,7 +84,7 @@ fn file_suffix(body: &str, before: &str) -> String {
         .find(before)
         .unwrap_or_else(|| panic!("{before} not in {body}"));
     let rest = &body[at..];
-    let start = rest.find("inkdrop://file:").unwrap() + "inkdrop://file:".len();
+    let start = rest.find("kanso://file:").unwrap() + "kanso://file:".len();
     rest[start..]
         .chars()
         .take_while(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
@@ -137,7 +137,7 @@ fn an_evernote_export_comes_in_whole() {
         body,
         format!(
             "Things to bring — **don’t** forget!\n\n- [x] Passport\n- [ ] Charger\n\n\
-             ![dot.png](inkdrop://file:{dot})"
+             ![dot.png](kanso://file:{dot})"
         )
     );
     assert_eq!(env.tag_names(&packing), ["lists", "travel"]);
@@ -157,8 +157,8 @@ fn an_evernote_export_comes_in_whole() {
         format!(
             "## Days\n\n| Day | City |\n| --- | --- |\n| 1 | Lisbon |\n| 2 | Porto \\| Braga |\n\n\
              ```\ngate = \"B12\"\nseat = 14\n```\n\n\
-             Tickets: [tickets.pdf](inkdrop://file:{tickets})\n\n\
-             ![dot.png](inkdrop://file:{dot})\n\n\
+             Tickets: [tickets.pdf](kanso://file:{tickets})\n\n\
+             ![dot.png](kanso://file:{dot})\n\n\
              See [the trip page](https://example.com/trip)."
         )
     );

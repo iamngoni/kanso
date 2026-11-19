@@ -169,7 +169,7 @@ mod tests {
         store
             .put(
                 DocType::Note,
-                json!({"title": "Shows", "body": format!("![](inkdrop://{file})"), "bookId": book}),
+                json!({"title": "Shows", "body": format!("![](kanso://{file})"), "bookId": book}),
                 Put::Upsert,
                 Origin::Ui,
             )

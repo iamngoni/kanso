@@ -82,7 +82,7 @@ impl World {
     fn note(&self, files: &[String]) -> Note {
         let body: String = files
             .iter()
-            .map(|id| format!("![](inkdrop://{id})\n"))
+            .map(|id| format!("![](kanso://{id})\n"))
             .collect();
         let id = self
             .store
@@ -239,7 +239,7 @@ proptest! {
         prop_assert_ne!(copy, &file);
         // The locked note's text links the copy.
         prop_assert!(locked.body.contains(copy.as_str()));
-        let original_link = ["inkdrop://", file.as_str()].concat();
+        let original_link = ["kanso://", file.as_str()].concat();
         prop_assert!(!locked.body.contains(&original_link));
         // The unlocked note keeps the readable original.
         prop_assert_eq!(world.store.attachment_state(&file).unwrap(), AttachmentState::Plain);
@@ -422,7 +422,7 @@ fn the_second_note_with_a_different_password_is_refused_or_copies() {
         .lock_note(serde_json::to_value(&second).unwrap())
         .unwrap();
     let mut second = world.store.note(&second.id).unwrap().unwrap();
-    let text = format!("![](inkdrop://{file})");
+    let text = format!("![](kanso://{file})");
     let locking = HashSet::from([second.id.clone()]);
 
     // Without the first note's file key it is refused, naming that note.
@@ -546,7 +546,7 @@ fn a_file_added_to_a_locked_note_is_sealed_with_a_list_of_its_own() {
 
     // An attachment dropped on the open note.
     let added = world.file("two.png", b"two");
-    note.body.push_str(&format!("![](inkdrop://{added})\n"));
+    note.body.push_str(&format!("![](kanso://{added})\n"));
     let locking = HashSet::from([note.id.clone()]);
     let mut copies = HashMap::new();
     let mut watch = |_: &Progress| Ok(());
@@ -570,11 +570,11 @@ fn a_file_added_to_a_locked_note_is_sealed_with_a_list_of_its_own() {
 fn links_are_replaced_only_where_the_whole_id_matches() {
     assert_eq!(
         replace_link(
-            "a inkdrop://file:abc b inkdrop://file:abcd",
+            "a kanso://file:abc b kanso://file:abcd",
             "file:abc",
             "file:new"
         ),
-        "a inkdrop://file:new b inkdrop://file:abcd"
+        "a kanso://file:new b kanso://file:abcd"
     );
 }
 
@@ -675,7 +675,7 @@ fn undoing_a_stopped_lock_keeps_a_file_another_locked_note_holds() {
         AttachmentState::Sealed
     );
     // The open locked note takes the sealed file, with the key held.
-    let body = format!("{}![](inkdrop://{shared})\n", locked.body);
+    let body = format!("{}![](kanso://{shared})\n", locked.body);
     save_locked(&world.store, &keys, &mut locked, &body, &key()).unwrap();
 
     let stopped = world.store.note(&stopped.id).unwrap().unwrap();
@@ -890,7 +890,7 @@ fn a_file_still_downloading_refuses_a_lock_and_never_holds_back_a_save() {
     // A locked note's save, with the file linked since.
     let mut locked = world.note(std::slice::from_ref(&ready));
     world.lock(&mut locked, &key(), &keys);
-    let body = format!("{}![](inkdrop://{waiting})\nmore text\n", locked.body);
+    let body = format!("{}![](kanso://{waiting})\nmore text\n", locked.body);
     let counts = save_locked(&world.store, &keys, &mut locked, &body, &key()).unwrap();
     assert_eq!(counts.waiting, 1);
     let stored = world.store.note(&locked.id).unwrap().unwrap();
@@ -1056,7 +1056,7 @@ impl World {
                 .lock_note(serde_json::to_value(&second).unwrap())
                 .unwrap();
             let mut second = self.store.note(&second.id).unwrap().unwrap();
-            let text = format!("![](inkdrop://{first})");
+            let text = format!("![](kanso://{first})");
             let locking = HashSet::from([second.id.clone()]);
             let mut copies = HashMap::new();
             let mut watch = |_: &Progress| Ok(());

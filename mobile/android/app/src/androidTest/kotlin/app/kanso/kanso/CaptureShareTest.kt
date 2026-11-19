@@ -72,7 +72,7 @@ class CaptureShareTest {
         share(Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM, photo), photo)
         val note = newNote()
         assertEquals("book:inbox", note.getString("bookId"))
-        assertTrue(note.getString("body"), note.getString("body").contains("![](inkdrop://file:"))
+        assertTrue(note.getString("body"), note.getString("body").contains("![](kanso://file:"))
         assertEquals(listOf("image/png"), fileTypes())
         assertInboxEmpty()
     }
@@ -84,7 +84,7 @@ class CaptureShareTest {
         val note = newNote()
         assertEquals("Quarterly-report", note.getString("title"))
         assertEquals("book:inbox", note.getString("bookId"))
-        assertTrue(note.getString("body"), note.getString("body").contains("[Quarterly-report.pdf](inkdrop://file:"))
+        assertTrue(note.getString("body"), note.getString("body").contains("[Quarterly-report.pdf](kanso://file:"))
         assertEquals(listOf("application/pdf"), fileTypes())
         assertInboxEmpty()
     }
@@ -99,8 +99,8 @@ class CaptureShareTest {
             one, two,
         )
         val note = newNote()
-        assertTrue(note.getString("body"), note.getString("body").contains("![](inkdrop://file:"))
-        assertTrue(note.getString("body"), note.getString("body").contains("[Quarterly-report.pdf](inkdrop://file:"))
+        assertTrue(note.getString("body"), note.getString("body").contains("![](kanso://file:"))
+        assertTrue(note.getString("body"), note.getString("body").contains("[Quarterly-report.pdf](kanso://file:"))
         assertEquals(listOf("application/pdf", "image/png"), fileTypes().sorted())
         assertInboxEmpty()
     }

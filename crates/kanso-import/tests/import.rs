@@ -75,8 +75,8 @@ fn realistic(fixture: &Fixture) {
     );
     fixture.put_attachment(&png);
 
-    let body_a = "# A\n- [ ] one\n- [x] two\nSee [B](inkdrop://note/Bb-2_x) and \
-                  [C](inkdrop://note/c3)\n![shot](inkdrop://file:img1)\n";
+    let body_a = "# A\n- [ ] one\n- [x] two\nSee [B](kanso://note/Bb-2_x) and \
+                  [C](kanso://note/c3)\n![shot](kanso://file:img1)\n";
     let mut a = note_fields("Note A", body_a, "book:Wk1-a_b");
     a["tags"] = json!(["tag:red", "tag:blu"]);
     a["sourceTemplateId"] = json!("note:tpl00001");
@@ -100,7 +100,7 @@ fn realistic(fixture: &Fixture) {
         &rev(1, 11),
         note_fields(
             "C",
-            "[x](inkdrop://note/missing) ![y](inkdrop://file:nope)",
+            "[x](kanso://note/missing) ![y](kanso://file:nope)",
             "book:inbox",
         ),
     );

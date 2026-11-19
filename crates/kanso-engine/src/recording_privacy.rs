@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn two_audio_lines_become_one_and_spacing_holds() {
         let ids = vec!["file:a".to_owned(), "file:b".to_owned()];
-        let body = "Intro\n\n[Audio · 1 min](inkdrop://file:a)\n\n[System audio · 1 min](inkdrop://file:b)\n\nOutro\n";
+        let body = "Intro\n\n[Audio · 1 min](kanso://file:a)\n\n[System audio · 1 min](kanso://file:b)\n\nOutro\n";
         assert_eq!(
             without_audio(body, &ids),
             format!("Intro\n\n{DELETED_LINE}\n\nOutro\n")

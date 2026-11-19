@@ -85,7 +85,7 @@ pub struct TidySource {
 /// The audio link a capture's body may end with, if its file is `cap`'s.
 fn audio_tail(note_id: &str, body: &str) -> Option<(String, String)> {
     let cap = note_id.strip_prefix("note:cap-")?;
-    let link = format!("(inkdrop://{})", audio_file_id(cap));
+    let link = format!("(kanso://{})", audio_file_id(cap));
     let at = body.rfind("\n\n")?;
     let last = body[at + 2..].trim();
     (last.starts_with('[') && last.ends_with(&link))

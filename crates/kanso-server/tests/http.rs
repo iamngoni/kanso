@@ -57,7 +57,7 @@ async fn root_returns_app_meta() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(meta["name"], "Kanso");
     assert_eq!(meta["version"], env!("CARGO_PKG_VERSION"));
-    assert_eq!(meta["compatibleWith"], "inkdrop-local-server");
+    assert_eq!(meta["compatibleWith"], "kanso-local-server");
     assert_eq!(meta["sync"], json!({ "signedIn": false }));
 }
 

@@ -254,7 +254,7 @@ mod tests {
         let note = store
             .put(
                 DocType::Note,
-                json!({"bookId": book, "title": "T", "body": format!("![](inkdrop://{id})")}),
+                json!({"bookId": book, "title": "T", "body": format!("![](kanso://{id})")}),
                 Put::Upsert,
                 Origin::Ui,
             )
@@ -307,7 +307,7 @@ mod tests {
         ];
         let body: String = ids
             .iter()
-            .map(|id| format!("![](inkdrop://{id})\n"))
+            .map(|id| format!("![](kanso://{id})\n"))
             .collect();
         let note_id = store
             .put(
