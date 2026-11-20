@@ -119,6 +119,26 @@ jobs:
         with:
           submodules: true
           persist-credentials: false
+      # macos-15's default Xcode 16.4 has no iOS 26 SDK; the image also carries
+      # Xcode 26.3, which the iOS 26 SpeechAnalyzer dictation path needs.
+      - name: Select Xcode 26
+        run: |
+          xcode=/Applications/Xcode_26.3.app
+          developer="$xcode/Contents/Developer"
+          if [ ! -d "$developer" ]; then
+            echo "::error::The macos-15 runner image has no $xcode; the iOS 26 Speech APIs cannot build."
+            exit 1
+          fi
+          echo "DEVELOPER_DIR=$developer" >>"$GITHUB_ENV"
+          export DEVELOPER_DIR="$developer"
+          sdk=$(xcrun --sdk iphoneos --show-sdk-version)
+          case "$sdk" in
+            26.*) echo "Using iOS SDK $sdk from $xcode" ;;
+            *)
+              echo "::error::Xcode 26.3 selected, but the iOS SDK is $sdk, not 26.x."
+              exit 1
+              ;;
+          esac
       # Installs the toolchain pinned in rust-toolchain.toml.
       - run: ../scripts/ci-rust.sh
       - run: rustup target add aarch64-apple-ios

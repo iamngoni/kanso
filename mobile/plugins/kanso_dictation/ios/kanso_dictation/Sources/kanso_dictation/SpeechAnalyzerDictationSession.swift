@@ -1,6 +1,10 @@
 import AVFoundation
 import Speech
 
+// DictationTranscriber arrived with the Swift 6.2/iOS 26 SDK and lives in
+// Speech, not a SpeechAnalyzer module. Keep older Xcode builds on the iOS 17
+// SFSpeechRecognizer path.
+#if canImport(SpeechAnalyzer) || compiler(>=6.2)
 /// iOS 26's streaming dictation path. All lifecycle state stays on the main
 /// actor; the audio tap captures only its input continuation and converter.
 @available(iOS 26.0, *)
@@ -303,4 +307,6 @@ private enum DictationStartFailure: Error {
   case assetsUnavailable
   case audioFormatUnavailable
 }
+
+#endif
 

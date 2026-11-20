@@ -32,6 +32,9 @@ public class KansoDictationPlugin: NSObject, FlutterPlugin, DictationHostApi {
   func availability(localeTag: String?) async throws -> DictationAvailability {
     let permission = DictationPermissions.current()
     let language = Self.languageName(for: localeTag)
+    // These APIs arrived with the Swift 6.2/iOS 26 SDK and live in Speech, not
+    // a SpeechAnalyzer module. Keep older Xcode builds on the iOS 17 path.
+#if canImport(SpeechAnalyzer) || compiler(>=6.2)
     if #available(iOS 26.0, *) {
       let locale = localeTag.map { Locale(identifier: $0) } ?? Locale.current
       let available = await DictationTranscriber.supportedLocale(equivalentTo: locale) != nil
@@ -39,6 +42,7 @@ public class KansoDictationPlugin: NSObject, FlutterPlugin, DictationHostApi {
         available: available, onDevice: available, permission: permission, language: language,
         reason: available ? nil : DictationUnavailableReason.unsupportedLanguage)
     }
+#endif
     switch Self.recognizer(for: localeTag) {
     case .success:
       return DictationAvailability(
@@ -61,22 +65,26 @@ public class KansoDictationPlugin: NSObject, FlutterPlugin, DictationHostApi {
   func stop() throws {
     MainActor.assumeIsolated {
       session?.stop()
+#if canImport(SpeechAnalyzer) || compiler(>=6.2)
       if #available(iOS 26.0, *),
         let analyzerSession = analyzerSession as? SpeechAnalyzerDictationSession
       {
         analyzerSession.stop()
       }
+#endif
     }
   }
 
   func cancel() throws {
     MainActor.assumeIsolated {
       session?.cancel()
+#if canImport(SpeechAnalyzer) || compiler(>=6.2)
       if #available(iOS 26.0, *),
         let analyzerSession = analyzerSession as? SpeechAnalyzerDictationSession
       {
         analyzerSession.cancel()
       }
+#endif
     }
   }
 
@@ -97,6 +105,7 @@ public class KansoDictationPlugin: NSObject, FlutterPlugin, DictationHostApi {
       refuse(.busy)
       return
     }
+#if canImport(SpeechAnalyzer) || compiler(>=6.2)
     if #available(iOS 26.0, *),
       let analyzerSession = analyzerSession as? SpeechAnalyzerDictationSession,
       !analyzerSession.finished
@@ -104,10 +113,12 @@ public class KansoDictationPlugin: NSObject, FlutterPlugin, DictationHostApi {
       refuse(.busy)
       return
     }
+#endif
     guard DictationPermissions.current() == .granted else {
       refuse(.permissionDenied)
       return
     }
+#if canImport(SpeechAnalyzer) || compiler(>=6.2)
     if #available(iOS 26.0, *) {
       let requestedLocale = localeTag.map { Locale(identifier: $0) } ?? Locale.current
       guard let locale = await DictationTranscriber.supportedLocale(equivalentTo: requestedLocale) else {
@@ -127,6 +138,7 @@ public class KansoDictationPlugin: NSObject, FlutterPlugin, DictationHostApi {
       }
       return
     }
+#endif
     guard case .success(let recognizer) = Self.recognizer(for: localeTag) else {
       refuse(.notAvailable)
       return
