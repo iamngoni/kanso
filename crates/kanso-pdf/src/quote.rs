@@ -26,7 +26,7 @@ impl Edit {
 /// ```text
 /// > Revenue rose 12 percent.
 /// >
-/// > — [p. 4](inkdrop://file:abc123#page=4&h=h7k2m9)
+/// > — [p. 4](kanso://file:abc123#page=4&h=h7k2m9)
 /// ```
 ///
 /// The words are the PDF's, so they are written as text: Markdown and HTML in
@@ -217,14 +217,14 @@ mod tests {
     use proptest::prelude::*;
 
     fn link() -> PdfLink {
-        PdfLink::parse("inkdrop://file:abc123#page=4&h=h7k2m9").unwrap()
+        PdfLink::parse("kanso://file:abc123#page=4&h=h7k2m9").unwrap()
     }
 
     #[test]
     fn the_quote_matches_the_spec() {
         assert_eq!(
             render_quote("Revenue rose  12 percent\non the quarter.", &link()),
-            "> Revenue rose 12 percent on the quarter.\n>\n> — [p. 4](inkdrop://file:abc123#page=4&h=h7k2m9)"
+            "> Revenue rose 12 percent on the quarter.\n>\n> — [p. 4](kanso://file:abc123#page=4&h=h7k2m9)"
         );
     }
 
@@ -373,7 +373,7 @@ mod tests {
                     _ => None,
                 })
                 .collect();
-            prop_assert_eq!(links, vec!["inkdrop://file:abc123#page=4&h=h7k2m9"]);
+            prop_assert_eq!(links, vec!["kanso://file:abc123#page=4&h=h7k2m9"]);
         }
 
         /// A PDF's name is text in its heading, and a second quote finds the

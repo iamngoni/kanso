@@ -183,7 +183,7 @@ fn bytes_that_have_not_arrived_say_so_and_offer_sync_now(cx: &mut TestAppContext
         cx,
         &f,
         "note:later",
-        "[Audio · 3 min](inkdrop://file:later-1)\n",
+        "[Audio · 3 min](kanso://file:later-1)\n",
     );
     assert!(bounds(&f, cx, "player-unavailable").is_some());
     assert!(bounds(&f, cx, "player-sync-now").is_some());
@@ -199,7 +199,7 @@ fn a_recording_whose_file_is_gone_says_so(cx: &mut TestAppContext) {
         cx,
         &f,
         "note:gone",
-        "[Audio · 3 min](inkdrop://file:ghost-1)\n",
+        "[Audio · 3 min](kanso://file:ghost-1)\n",
     );
     assert!(bounds(&f, cx, "player-unavailable").is_some());
     assert!(bounds(&f, cx, "player-sync-now").is_none());

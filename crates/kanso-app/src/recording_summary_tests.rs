@@ -96,7 +96,7 @@ fn body() -> String {
         ],
     )
     .unwrap();
-    format!("# Meeting\n\n[Audio · 2 min](inkdrop://{FILE})\n\n{transcript}")
+    format!("# Meeting\n\n[Audio · 2 min](kanso://{FILE})\n\n{transcript}")
 }
 
 fn note(f: &Fixture, body: &str) -> String {
@@ -177,7 +177,10 @@ fn nothing_is_sent_until_send_and_only_the_transcript_goes(cx: &mut TestAppConte
     assert_eq!(sent.len(), 1);
     assert!(sent[0].user.contains("[00:22] The beta is on track"));
     assert!(sent[0].user.contains("Title: Meeting — 23 Oct 2026"));
-    assert!(!sent[0].user.contains("inkdrop"), "no file id goes out");
+    assert!(
+        !sent[0].user.contains("kanso://file:") && !sent[0].user.contains(FILE),
+        "no file link or id goes out"
+    );
     assert!(!sent[0].user.contains("kanso-audio"), "no link goes out");
     assert_eq!(*f.recorder.tool_asks.lock().unwrap(), 0, "no tools");
     // Nothing is written until Apply.

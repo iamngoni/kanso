@@ -374,7 +374,7 @@ class FakeEditorDocument implements EditorDocument {
   /// The names of the files attached, in turn.
   final List<String> attachedFiles = <String>[];
 
-  /// Attaching appends `![](inkdrop://file:<name>)` to the text, as a
+  /// Attaching appends `![](kanso://file:<name>)` to the text, as a
   /// paragraph of its own, or fails with the call's failure.
   @override
   Future<Either<ApplicationError, EditOutcome>> attach(ShareFile file) async {
@@ -389,8 +389,7 @@ class FakeEditorDocument implements EditorDocument {
     }
     attachedFiles.add(file.name);
     final start = text.length;
-    final block =
-        '${text.isEmpty ? '' : '\n\n'}![](inkdrop://file:${file.name})';
+    final block = '${text.isEmpty ? '' : '\n\n'}![](kanso://file:${file.name})';
     text = '$text$block';
     version++;
     history = const HistoryState(canUndo: true, canRedo: false);

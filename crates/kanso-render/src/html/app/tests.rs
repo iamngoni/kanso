@@ -110,15 +110,15 @@ fn assert_inert(html: &str) {
 
 #[test]
 fn links_into_the_app_keep_their_addresses_and_the_rest_lose_theirs() {
-    let md = "[n](inkdrop://note/abc) [h](inkdrop://note/abc#Head%20x) [f](inkdrop://file:xyz) \
+    let md = "[n](kanso://note/abc) [h](kanso://note/abc#Head%20x) [f](kanso://file:xyz) \
               [new](kanso-new:Plan%20B) [t](kanso-tag:work%2Fa) [w](https://example.com/a?b=1&c=2) \
               [m](mailto:a@b.co) [js](javascript:alert(1)) [file](file:///etc/passwd) \
               [data](data:text/html,hi) [v](vbscript:x) [x](&#106;avascript:alert(1)) [s](#top)";
     let html = in_app(md, &AppMode::default());
     for kept in [
-        r#"<a href="inkdrop://note/abc">n</a>"#,
-        r#"<a href="inkdrop://note/abc#Head%20x">h</a>"#,
-        r#"<a href="inkdrop://file:xyz">f</a>"#,
+        r#"<a href="kanso://note/abc">n</a>"#,
+        r#"<a href="kanso://note/abc#Head%20x">h</a>"#,
+        r#"<a href="kanso://file:xyz">f</a>"#,
         r#"<a href="kanso-new:Plan%20B">new</a>"#,
         r#"<a href="kanso-tag:work%2Fa">t</a>"#,
         r#"<a href="https://example.com/a?b=1&amp;c=2">w</a>"#,
@@ -136,12 +136,12 @@ fn links_into_the_app_keep_their_addresses_and_the_rest_lose_theirs() {
     assert!(html.contains("<a>s</a>"));
     // Without the mode, the same note keeps none of the app's addresses.
     let plain = body_with(md, &Palette::LIGHT, &none, None, &PageOptions::default());
-    assert!(!plain.contains("inkdrop://") && !plain.contains("kanso-"));
+    assert!(!plain.contains("kanso://") && !plain.contains("kanso-"));
 }
 
 #[test]
 fn publishing_output_is_not_changed_by_the_mode_existing() {
-    let md = "# Title\n\n- [ ] a\n- [x] b\n\n```rust\nfn main() {}\n```\n\n```query\nfrom: x\n```\n\n[w](https://x.org) [n](inkdrop://note/abc)\n";
+    let md = "# Title\n\n- [ ] a\n- [x] b\n\n```rust\nfn main() {}\n```\n\n```query\nfrom: x\n```\n\n[w](https://x.org) [n](kanso://note/abc)\n";
     let page = page_with("T", md, &Palette::LIGHT, &none, &PageOptions::default());
     assert!(page.contains("<h1>Title</h1>"));
     assert!(page.contains(r#"<input type="checkbox" disabled="" />"#));
@@ -487,9 +487,11 @@ fn query_fences_are_tables_of_links() {
         &mode,
     );
     assert!(html.contains(r#"<th>Title</th><th>Due</th>"#), "{html}");
-    assert!(html.contains(
-        r#"<td><a href="inkdrop://note/a1">A &lt;b&gt; &amp; c</a></td><td>Sunday</td>"#
-    ));
+    assert!(
+        html.contains(
+            r#"<td><a href="kanso://note/a1">A &lt;b&gt; &amp; c</a></td><td>Sunday</td>"#
+        )
+    );
     assert!(html.contains("No notes match."));
     assert!(html.contains(r#"<span class="kanso-query-badge">Query</span>"#));
     assert!(html.contains("bad &lt;x&gt;"));
@@ -615,7 +617,7 @@ fn a_drawing_that_fails_shows_its_code_and_why() {
     assert!(html.contains("kanso-empty-drawing"));
     assert!(html.contains("href=\"kanso-copy:0\""));
     // A drawing attached and gone.
-    let html = in_app("[a.excalidraw](inkdrop://file:gone)\n", &AppMode::default());
+    let html = in_app("[a.excalidraw](kanso://file:gone)\n", &AppMode::default());
     assert!(html.contains("Couldn&#39;t draw this"), "{html}");
 }
 
@@ -697,7 +699,7 @@ proptest! {
         pieces in prop::collection::vec(
             prop_oneof![
                 "[a-z ]{0,8}",
-                "\\[[a-z]{1,4}\\]\\((javascript|JavaScript|file|data|vbscript|ftp|tel|blob|about|http|https|mailto|inkdrop|kanso-tag|kanso-new|kanso-copy|kanso-task|kanso-due|x-evil):[ -~]{0,12}\\)",
+                "\\[[a-z]{1,4}\\]\\((javascript|JavaScript|file|data|vbscript|ftp|tel|blob|about|http|https|mailto|kanso|kanso-tag|kanso-new|kanso-copy|kanso-task|kanso-due|x-evil):[ -~]{0,12}\\)",
                 "!\\[[a-z]{0,3}\\]\\([ -~]{0,16}\\)",
                 "<(a|img|svg|script|iframe|meta|link|p|b)( [a-z]{1,8}(=\"?[ -~&&[^\"]]{0,12}\"?)?){0,3}/?>",
                 "&#[0-9]{2,3};",
@@ -729,7 +731,7 @@ proptest! {
             let lower = scheme.to_ascii_lowercase();
             prop_assert!(
                 ["http", "https", "mailto", "kanso-new", "kanso-tag", "kanso-due", "kanso-task", "kanso-copy"].contains(&lower.as_str())
-                    || (lower == "inkdrop" && (rest.starts_with("//note/") || rest.starts_with("//file:")))
+                    || (lower == "kanso" && (rest.starts_with("//note/") || rest.starts_with("//file:")))
             );
         }
         let spaced = format!(" {url}");

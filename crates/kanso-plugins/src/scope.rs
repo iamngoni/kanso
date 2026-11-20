@@ -20,7 +20,7 @@
 //! never "locked", so a locked note can't be told from a missing one.
 //!
 //! An attachment is readable only while a readable note's text links it
-//! (`inkdrop://file:<id>`). A locked note's text is empty to every reader
+//! (`kanso://file:<id>`). A locked note's text is empty to every reader
 //! outside the app, so its attachments never are.
 
 use std::collections::{HashMap, HashSet};
@@ -395,9 +395,9 @@ mod tests {
 
     #[test]
     fn linked_files_finds_each_link_once() {
-        let body = "![a](inkdrop://file:abc_1) and [b](inkdrop://file:abc_1) inkdrop://file:Z-9.";
+        let body = "![a](kanso://file:abc_1) and [b](kanso://file:abc_1) kanso://file:Z-9.";
         assert_eq!(linked_files(body), vec!["file:abc_1", "file:Z-9"]);
-        assert!(linked_files("inkdrop://file:").is_empty());
+        assert!(linked_files("kanso://file:").is_empty());
     }
 
     #[test]
@@ -416,9 +416,9 @@ mod tests {
 
     proptest! {
         /// Invariant: every ID linked_files returns is linked in the text,
-        /// as `inkdrop://file:` and that ID.
+        /// as `kanso://file:` and that ID.
         #[test]
-        fn prop_linked_files_are_in_the_text(body in "(inkdrop://file:[a-z0-9_-]{0,6}|[a-z :/()!\\[\\]]{0,6}){0,8}") {
+        fn prop_linked_files_are_in_the_text(body in "(kanso://file:[a-z0-9_-]{0,6}|[a-z :/()!\\[\\]]{0,6}){0,8}") {
             for id in linked_files(&body) {
                 let bare = id.strip_prefix("file:").unwrap();
                 let link = format!("{FILE_LINK_PREFIX}{bare}");

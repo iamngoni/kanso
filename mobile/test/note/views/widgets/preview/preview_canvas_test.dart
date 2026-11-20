@@ -96,7 +96,7 @@ void main() {
       await tester.tap(find.byType(SvgPicture));
       // The bare ID, as every note link carries it: `note:` again would
       // name no note.
-      expect(taps, <String>['inkdrop://note/AbCd1234']);
+      expect(taps, <String>['kanso://note/AbCd1234']);
     });
 
     testWidgets('a large whole-canvas embed says so and still draws', (
@@ -119,7 +119,7 @@ void main() {
       expect(find.text('Locked canvas'), findsOneWidget);
       // It opens like any locked note, which asks for the lock.
       await tester.tap(find.text('Locked canvas'));
-      expect(taps, <String>['inkdrop://note/AbCd1234']);
+      expect(taps, <String>['kanso://note/AbCd1234']);
       // The lock glyph is an icon; no drawing of the canvas is.
       expect(
         find.byWidgetPredicate((w) => w is SvgPicture && w.width == 240),

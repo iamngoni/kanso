@@ -64,7 +64,7 @@ fn a_canvas_embed_draws_and_a_locked_one_never_does() {
 
 /// The phone opens an embedded canvas with the link the widget makes from
 /// the block's `note:` ID (`canvasLink` in preview_figure.dart): the bare
-/// ID after `inkdrop://note/`, which names the canvas. With `note:` left
+/// ID after `kanso://note/`, which names the canvas. With `note:` left
 /// in, the link names no note and a tap does nothing.
 #[test]
 fn the_embed_tap_link_opens_the_canvas() {
@@ -79,11 +79,11 @@ fn the_embed_tap_link_opens_the_canvas() {
     let renderer = library.renderer();
     let bare = canvas.strip_prefix("note:").unwrap();
     let opened = renderer
-        .link_target(&host, &format!("inkdrop://note/{bare}"))
+        .link_target(&host, &format!("kanso://note/{bare}"))
         .unwrap();
     assert!(matches!(opened, PreviewLink::Note { ref id, .. } if *id == canvas));
     let doubled = renderer
-        .link_target(&host, &format!("inkdrop://note/{canvas}"))
+        .link_target(&host, &format!("kanso://note/{canvas}"))
         .unwrap();
     assert_eq!(doubled, PreviewLink::Nothing);
 }

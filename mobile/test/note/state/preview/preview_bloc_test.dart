@@ -282,8 +282,8 @@ void main() {
 
     test('a note link opens the note', () async {
       final bloc = await started();
-      answer('inkdrop://note/x', const PreviewLink.note(id: 'note:x'));
-      bloc.add(const PreviewEvent.linkTapped('inkdrop://note/x'));
+      answer('kanso://note/x', const PreviewLink.note(id: 'note:x'));
+      bloc.add(const PreviewEvent.linkTapped('kanso://note/x'));
       final state = await bloc.stream.firstWhere((s) => s.action != null);
       expect(state.action, const PreviewAction.openNote('note:x'));
       bloc.add(const PreviewEvent.actionHandled());
@@ -317,7 +317,7 @@ void main() {
       answer('kanso-tag:work', const PreviewLink.tag(name: 'work'));
       answer('#plan', const PreviewLink.heading(id: 'plan'));
       answer(
-        'inkdrop://file:a',
+        'kanso://file:a',
         const PreviewLink.attachment(
           id: 'file:a',
           name: 'a.pdf',
@@ -333,7 +333,7 @@ void main() {
       for (final (url, action) in <(String, PreviewAction)>[
         ('kanso-tag:work', const PreviewAction.openTag('work')),
         ('#plan', const PreviewAction.scrollTo('plan')),
-        ('inkdrop://file:a', PreviewAction.showAttachment(file)),
+        ('kanso://file:a', PreviewAction.showAttachment(file)),
       ]) {
         bloc.add(PreviewEvent.linkTapped(url));
         final state = await bloc.stream.firstWhere((s) => s.action != null);

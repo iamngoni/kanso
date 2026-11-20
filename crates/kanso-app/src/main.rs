@@ -977,7 +977,6 @@ fn open_main_window(cx: &mut App) {
                         editor.update(cx, |editor, cx| editor.flush_with_sketches(window, cx));
                         true
                     });
-                    offer_first_import(window, cx);
                     updates::announce(window, cx);
                     metrics::show_notice(window, cx);
                     library_key_sheet::offer_at_launch(window, cx);
@@ -986,31 +985,6 @@ fn open_main_window(cx: &mut App) {
         }
         Err(err) => eprintln!("kanso: couldn't open a window: {err:#}"),
     }
-}
-
-/// On a first run with an empty library, offers to bring notes over from
-/// a PouchDB notes library found on this computer.
-fn offer_first_import(window: &mut Window, cx: &mut App) {
-    let state = cx.global::<AppState>();
-    let empty = state
-        .store
-        .counts()
-        .is_ok_and(|counts| counts.get(&kanso_core::DocType::Note).copied().unwrap_or(0) == 0);
-    if !empty
-        || state.store.meta("import_offered").ok().flatten().is_some()
-        || pouch_import::find_library().is_none()
-    {
-        return;
-    }
-    state.store.set_meta("import_offered", "1").ok();
-    dialogs::confirm(
-        "Import your notes?",
-        "Kanso found a notes library on this computer. Its notes, notebooks, tags and attachments can be copied in now; its files are only read.",
-        "Import",
-        window,
-        cx,
-        pouch_import::start_import,
-    );
 }
 
 /// Cleans up on any quit, including ones without the Quit action (the

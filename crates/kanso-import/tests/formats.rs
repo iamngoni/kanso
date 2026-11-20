@@ -154,24 +154,21 @@ fn check_notion(env: &Env, report: &LibraryReport) {
     assert_eq!(env.book_name(&review), "Tasks");
     let body = work.str_field("body").unwrap();
     assert!(
-        body.contains(&format!("[plan](inkdrop://note/{})", suffix(&plan.id))),
+        body.contains(&format!("[plan](kanso://note/{})", suffix(&plan.id))),
         "{body}"
     );
     assert!(
-        body.contains(&format!("[tasks](inkdrop://note/{})", suffix(&tasks.id))),
+        body.contains(&format!("[tasks](kanso://note/{})", suffix(&tasks.id))),
         "{body}"
     );
     assert!(
-        body.contains(&format!("[web link](inkdrop://note/{})", suffix(&plan.id))),
+        body.contains(&format!("[web link](kanso://note/{})", suffix(&plan.id))),
         "{body}"
     );
     let plan_body = plan.str_field("body").unwrap();
+    assert!(plan_body.contains("![Chart](kanso://file:"), "{plan_body}");
     assert!(
-        plan_body.contains("![Chart](inkdrop://file:"),
-        "{plan_body}"
-    );
-    assert!(
-        plan_body.contains(&format!("[Work](inkdrop://note/{})", suffix(&work.id))),
+        plan_body.contains(&format!("[Work](kanso://note/{})", suffix(&work.id))),
         "{plan_body}"
     );
     let table = tasks.str_field("body").unwrap();
@@ -267,7 +264,7 @@ fn a_bear_backup() {
     assert_eq!(plan.fields["createdAt"], 1_709_285_400_000i64);
     let body = plan.str_field("body").unwrap();
     assert!(
-        body.contains("![pic](inkdrop://file:") || body.contains("![](inkdrop://file:"),
+        body.contains("![pic](kanso://file:") || body.contains("![](kanso://file:"),
         "{body}"
     );
     assert!(body.contains("[[Trip]]"), "{body}");

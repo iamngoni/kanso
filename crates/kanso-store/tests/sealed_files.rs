@@ -164,7 +164,7 @@ fn file_ownership_unions_note_lists_and_bodies_and_survives_trash_and_rebuild() 
         .put(DocType::Note, locked.take(), Put::Upsert, Origin::Ui)
         .unwrap();
     store.put(DocType::Note, json!({
-        "_id":"note:plain", "title":"Plain", "body":format!("![](inkdrop://{}) ![](inkdrop://{})", plain_file, shared_file), "bookId":book
+        "_id":"note:plain", "title":"Plain", "body":format!("![](kanso://{}) ![](kanso://{})", plain_file, shared_file), "bookId":book
     }), Put::Upsert, Origin::Ui).unwrap();
     store
         .put(
@@ -229,10 +229,10 @@ fn ownership_falls_back_to_raw_body_for_unsealed_notes_in_locked_notebooks() {
         )
         .unwrap();
     store.put(DocType::Note, json!({
-        "_id":"note:in-book", "title":"Remote", "body":format!("![](inkdrop://{})", file), "bookId":"book:locked"
+        "_id":"note:in-book", "title":"Remote", "body":format!("![](kanso://{})", file), "bookId":"book:locked"
     }), Put::Upsert, Origin::Sync).unwrap();
     store.put(DocType::Note, json!({
-        "_id":"note:sealed-in-book", "title":"Sealed", "body":format!("![](inkdrop://{})", file),
+        "_id":"note:sealed-in-book", "title":"Sealed", "body":format!("![](kanso://{})", file),
         "bookId":"book:locked", LOCK_FIELD:{"v":1}
     }), Put::Upsert, Origin::Sync).unwrap();
     assert_eq!(
@@ -261,7 +261,7 @@ fn local_unlocked_notes_cannot_link_sealed_files_and_note_files_are_app_only() {
     let file = plain(&store, b"attachment");
     seal(&store, &file, &container(b"sealed"));
     let err = store.put(DocType::Note, json!({
-        "_id":"note:bad", "title":"Bad", "body":format!("![](inkdrop://{})", file), "bookId":book
+        "_id":"note:bad", "title":"Bad", "body":format!("![](kanso://{})", file), "bookId":book
     }), Put::Upsert, Origin::Ui).unwrap_err();
     assert!(
         matches!(err, StoreError::Invalid(message) if message == "That attachment belongs to a locked note.")

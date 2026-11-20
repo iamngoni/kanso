@@ -40,7 +40,7 @@ fn note(store: &Store, file: &str) -> String {
     store
         .put(
             DocType::Note,
-            json!({"title": "Scans", "body": format!("[scan.pdf](inkdrop://{file})"), "bookId": book}),
+            json!({"title": "Scans", "body": format!("[scan.pdf](kanso://{file})"), "bookId": book}),
             Put::Upsert,
             Origin::Ui,
         )
@@ -374,7 +374,7 @@ fn sealed(fields: &mut serde_json::Map<String, Value>) {
 fn unlock(store: &Store, note: &str, file: &str) {
     let mut open = store.get_api(note, None, false).unwrap();
     open.as_object_mut().unwrap().remove("kansoLock");
-    open["body"] = format!("[scan.pdf](inkdrop://{file})").into();
+    open["body"] = format!("[scan.pdf](kanso://{file})").into();
     store.unlock_note(open).unwrap();
 }
 

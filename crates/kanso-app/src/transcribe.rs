@@ -948,22 +948,22 @@ mod tests {
     #[test]
     fn links_to_recordings_are_found_and_images_are_not() {
         let link = audio_link("file:abc123", "Memo [1].m4a");
-        assert_eq!(link, "[Memo  1 .m4a](inkdrop://file:abc123)");
+        assert_eq!(link, "[Memo  1 .m4a](kanso://file:abc123)");
         assert_eq!(linked_files(&link), ["file:abc123"]);
         assert_eq!(
-            linked_files("![](inkdrop://file:img1) and [a](inkdrop://file:a2)"),
+            linked_files("![](kanso://file:img1) and [a](kanso://file:a2)"),
             ["file:a2"]
         );
-        assert!(linked_files("[note](inkdrop://note:x)").is_empty());
+        assert!(linked_files("[note](kanso://note:x)").is_empty());
     }
 
     #[test]
     fn the_transcript_goes_under_its_recording() {
-        let text = "Intro\n\n[memo.m4a](inkdrop://file:m1)\nNext line";
+        let text = "Intro\n\n[memo.m4a](kanso://file:m1)\nNext line";
         let edit = transcript_edit(text, Some("file:m1"), " Hello there. ", 0..0).unwrap();
         assert_eq!(
             apply(text, &edit),
-            "Intro\n\n[memo.m4a](inkdrop://file:m1)\n\nHello there.\n\nNext line"
+            "Intro\n\n[memo.m4a](kanso://file:m1)\n\nHello there.\n\nNext line"
         );
         // No recording linked: at the end, after a blank line.
         let edit = transcript_edit("Intro\n\n", Some("file:zz"), "Words", 2..2).unwrap();
@@ -1216,12 +1216,12 @@ mod tests {
             None,
         );
         assert!(first.contains("[00:20](kanso-audio://file:m1?t=20) Two."));
-        let text = format!("[a](inkdrop://file:m1)\n\nMine\n\n{first}\n\nTail");
+        let text = format!("[a](kanso://file:m1)\n\nMine\n\n{first}\n\nTail");
         let second = transcript_text(Some("file:m1"), &[piece(0, "New.")], None);
         let edit = transcript_edit(&text, Some("file:m1"), &second, 0..0).unwrap();
         assert_eq!(
             apply(&text, &edit),
-            format!("[a](inkdrop://file:m1)\n\nMine\n\n{second}\n\nTail")
+            format!("[a](kanso://file:m1)\n\nMine\n\n{second}\n\nTail")
         );
         // Without a recording linked there are no timestamps.
         assert_eq!(
@@ -1229,9 +1229,8 @@ mod tests {
             "A. B."
         );
         // Without markers in the note, a marked one goes under the link.
-        let edit =
-            transcript_edit("[a](inkdrop://file:m1)", Some("file:m1"), &second, 0..0).unwrap();
-        assert!(apply("[a](inkdrop://file:m1)", &edit).ends_with(&second));
+        let edit = transcript_edit("[a](kanso://file:m1)", Some("file:m1"), &second, 0..0).unwrap();
+        assert!(apply("[a](kanso://file:m1)", &edit).ends_with(&second));
     }
 
     fn check_placement(
@@ -1273,7 +1272,7 @@ mod tests {
     }
 
     fn text() -> impl Strategy<Value = String> {
-        proptest::string::string_regex("([a-z ]{0,8}|\\[r\\]\\(inkdrop://file:f[0-3]\\)|!\\[\\]\\(inkdrop://file:f[0-3]\\))(\n{1,2}([a-z ]{0,8}|\\[r\\]\\(inkdrop://file:f[0-3]\\))){0,5}\n{0,2}")
+        proptest::string::string_regex("([a-z ]{0,8}|\\[r\\]\\(kanso://file:f[0-3]\\)|!\\[\\]\\(kanso://file:f[0-3]\\))(\n{1,2}([a-z ]{0,8}|\\[r\\]\\(kanso://file:f[0-3]\\))){0,5}\n{0,2}")
             .unwrap()
     }
 

@@ -165,7 +165,7 @@ proptest! {
         ).unwrap().id;
         let note_id = app.store.put(
             DocType::Note,
-            json!({ "title": title, "body": format!("![PDF](inkdrop://{pdf_id})\n\n{secret}"), "bookId": templates }),
+            json!({ "title": title, "body": format!("![PDF](kanso://{pdf_id})\n\n{secret}"), "bookId": templates }),
             Put::Upsert,
             Origin::Sync,
         ).unwrap().id;
@@ -647,7 +647,7 @@ const WORDS: [&str; 10] = [
     "go",
     "über",
     "😀",
-    "inkdrop://note/n0",
+    "kanso://note/n0",
     "a-b",
     "lorem-ipsum-dolor-sit-amet-consectetur-adipiscing",
     "\n",
@@ -739,7 +739,7 @@ fn list_args() -> impl Strategy<Value = ListArgs> {
         )
 }
 
-/// `list-notes`'s keyword, as @inkdropapp/mcp-server 1.5.0 builds it.
+/// `list-notes`'s keyword, as the compatible catalog builds it.
 fn node_keyword(args: &ListArgs) -> String {
     let book_filter = match args.book_id {
         Some(book) if !book.is_empty() => {

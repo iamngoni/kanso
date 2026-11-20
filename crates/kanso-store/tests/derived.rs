@@ -58,7 +58,7 @@ fn backlinks_come_from_id_links_and_wiki_links() {
         &store,
         "note:by-id",
         "By ID",
-        "intro\nsee [plan](inkdrop://note/target) now",
+        "intro\nsee [plan](kanso://note/target) now",
         &b,
     );
     note(
@@ -226,7 +226,7 @@ fn render(body: &[Piece]) -> String {
     body.iter()
         .map(|p| match p {
             Piece::Text(t) => format!("{t}\n"),
-            Piece::IdLink(n) => format!("[x](inkdrop://note/n{n})\n"),
+            Piece::IdLink(n) => format!("[x](kanso://note/n{n})\n"),
             Piece::WikiLink(t) => format!("[[{}]]\n", TITLES[*t]),
             Piece::Heading(l, t) => format!("{} {t}\n", "#".repeat(*l as usize)),
             Piece::Task(done) => format!("- [{}] job\n", if *done { "x" } else { " " }),

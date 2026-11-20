@@ -68,7 +68,7 @@ impl Choice {
     fn label(self) -> &'static str {
         match self {
             Choice::Library(kind) => kind.label(),
-            Choice::PouchLibrary => "Inkdrop library",
+            Choice::PouchLibrary => "PouchDB library",
         }
     }
 
@@ -76,7 +76,7 @@ impl Choice {
         match self {
             Choice::Library(kind) => kind.hint(),
             Choice::PouchLibrary => {
-                "Found on this computer and read in place; its app can keep running."
+                "Choose its data folder; it is read in place and its app can keep running."
             }
         }
     }

@@ -7577,7 +7577,7 @@ mod tests {
             // IDs n, nn, nnn… so shorter IDs are prefixes of longer ones.
             let ids: Vec<String> = (0..6).map(|i| format!("note:{}", "n".repeat(i + 1))).collect();
             for (ix, (targets, trashed)) in links.iter().enumerate() {
-                let body: String = targets.iter().map(|t| format!("[x](inkdrop://note/{}) ", &ids[*t][5..])).collect();
+                let body: String = targets.iter().map(|t| format!("[x](kanso://note/{}) ", &ids[*t][5..])).collect();
                 let book_id = if *trashed { "trash".to_owned() } else { book.clone() };
                 store.put(DocType::Note, json!({"_id": ids[ix], "title": format!("t{ix}"), "body": body, "bookId": book_id}), Put::Upsert, Origin::Ui).unwrap();
             }
@@ -7852,7 +7852,7 @@ mod writing_tests {
         )));
         open.keys(cx, "cmd-v");
         let text = open.text(cx).0;
-        let (_, tail) = text.rsplit_once("\n\n![](inkdrop://").expect(&text);
+        let (_, tail) = text.rsplit_once("\n\n![](kanso://").expect(&text);
         let id = tail.strip_suffix(')').unwrap();
         let crate::attachments::Opened::Opened(file) = crate::attachments::open_with(
             &open.store,
@@ -7878,7 +7878,7 @@ mod writing_tests {
         std::fs::write(&pdf, b"%PDF-1.7\n%fake body").unwrap();
         let link = attach(&store, Pasted::File(pdf.clone())).unwrap();
         let id = link
-            .strip_prefix("[quarterly report.pdf](inkdrop://")
+            .strip_prefix("[quarterly report.pdf](kanso://")
             .and_then(|rest| rest.strip_suffix(')'))
             .expect(&link);
         let crate::attachments::Opened::Opened(file) =
@@ -7921,13 +7921,13 @@ mod writing_tests {
     // no-prop-test: glue; `smart_paste::sized_image` has the properties.
     #[gpui_kit::test]
     fn image_sizes_rewrite_the_markdown(cx: &mut TestAppContext) {
-        let source = "![](inkdrop://file:abc)";
+        let source = "![](kanso://file:abc)";
         let open = Open::new(cx, &format!("Intro\n\n{source}\n\nEnd"));
         let end = open.text(cx).0.len();
         open.select(cx, end..end);
         let resize = |width| ImageResize {
             source: source.into(),
-            src: "inkdrop://file:abc".into(),
+            src: "kanso://file:abc".into(),
             alt: String::new(),
             width,
         };
@@ -7937,7 +7937,7 @@ mod writing_tests {
         let (text, selection) = open.text(cx);
         assert_eq!(
             text,
-            "Intro\n\n<img src=\"inkdrop://file:abc\" width=\"240\">\n\nEnd"
+            "Intro\n\n<img src=\"kanso://file:abc\" width=\"240\">\n\nEnd"
         );
         assert_eq!(selection, text.len()..text.len());
         open.keys(cx, "cmd-z");
@@ -7969,13 +7969,13 @@ mod writing_tests {
     // no-prop-test: glue; `image_size` has the properties.
     #[gpui_kit::test]
     fn bar_widths_stay_bars(cx: &mut TestAppContext) {
-        let source = "![Cat|300](inkdrop://file:abc)";
+        let source = "![Cat|300](kanso://file:abc)";
         let open = Open::new(cx, &format!("Intro\n\n{source}\n\nEnd"));
         open.with(cx, |editor, window, cx| {
             editor.resize_image(
                 ImageResize {
                     source: source.into(),
-                    src: "inkdrop://file:abc".into(),
+                    src: "kanso://file:abc".into(),
                     alt: "Cat".into(),
                     width: Some(412),
                 },
@@ -7985,7 +7985,7 @@ mod writing_tests {
         });
         assert_eq!(
             open.text(cx).0,
-            "Intro\n\n![Cat|412](inkdrop://file:abc)\n\nEnd"
+            "Intro\n\n![Cat|412](kanso://file:abc)\n\nEnd"
         );
         open.keys(cx, "cmd-z");
         assert_eq!(open.text(cx).0, format!("Intro\n\n{source}\n\nEnd"));
@@ -7996,10 +7996,7 @@ mod writing_tests {
     // no-prop-test: drives one window's layout.
     #[gpui_kit::test]
     fn the_player_card_stays_in_the_edit_view(cx: &mut TestAppContext) {
-        let open = Open::new(
-            cx,
-            "[Audio \u{b7} 3 min](inkdrop://file:ghost-1)\n\nNotes\n",
-        );
+        let open = Open::new(cx, "[Audio \u{b7} 3 min](kanso://file:ghost-1)\n\nNotes\n");
         let drawn = |open: &Open, cx: &mut TestAppContext| {
             draw_window(open, cx);
             let mut vcx = gpui_kit::VisualTestContext::from_window(open.window, cx);
@@ -8019,7 +8016,7 @@ mod writing_tests {
     // no-prop-test: drives one window; `PdfLink::parse` has the properties.
     #[gpui_kit::test]
     fn following_a_pdf_link_opens_the_reader_and_close_returns(cx: &mut TestAppContext) {
-        let open = Open::new(cx, "[Report](inkdrop://file:ghost-1)\n");
+        let open = Open::new(cx, "[Report](kanso://file:ghost-1)\n");
         let pdf =
             kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
                 .unwrap();
@@ -8042,9 +8039,9 @@ mod writing_tests {
         };
 
         for other in [
-            "inkdrop://file:nothing-here".to_owned(),
+            "kanso://file:nothing-here".to_owned(),
             note_file
-                .map(|id| format!("inkdrop://{id}"))
+                .map(|id| format!("kanso://{id}"))
                 .unwrap_or_default(),
             "https://example.com/a.pdf".to_owned(),
         ] {
@@ -8054,7 +8051,7 @@ mod writing_tests {
             assert!(!reads(&open, cx));
         }
 
-        let url = format!("inkdrop://{pdf}#page=2");
+        let url = format!("kanso://{pdf}#page=2");
         open.with(cx, move |editor, window, cx| {
             editor.open_file_link(&url, window, cx)
         });
@@ -8087,7 +8084,7 @@ mod writing_tests {
         let pdf =
             kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
                 .unwrap();
-        let url = format!("inkdrop://{pdf}#page=1");
+        let url = format!("kanso://{pdf}#page=1");
         open.with(cx, move |editor, window, cx| {
             editor.open_file_link(&url, window, cx)
         });
@@ -8195,7 +8192,7 @@ mod writing_tests {
         let pdf =
             kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
                 .unwrap();
-        let url = format!("inkdrop://{pdf}");
+        let url = format!("kanso://{pdf}");
         open.with(cx, move |editor, window, cx| {
             editor.open_file_link(&url, window, cx)
         });
@@ -8241,7 +8238,7 @@ mod writing_tests {
         let pdf =
             kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
                 .unwrap();
-        let url = format!("inkdrop://{pdf}");
+        let url = format!("kanso://{pdf}");
 
         // The note owns this PDF, so locking it seals the attachment with
         // the session's per-file key.
@@ -8348,7 +8345,7 @@ mod writing_tests {
         let pdf =
             kanso_engine::attach::attach_pdf(&open.store, b"%PDF-1.7\n%body", "Report.pdf", None)
                 .unwrap();
-        let url = format!("inkdrop://{pdf}");
+        let url = format!("kanso://{pdf}");
         open.with(cx, move |editor, window, cx| {
             editor.open_file_link(&url, window, cx)
         });
@@ -8433,7 +8430,7 @@ mod writing_tests {
         const BYTES: &[u8] = b"%PDF-1.7\n%Zebra body";
         let open = Open::new(cx, "Notes\n");
         let pdf = kanso_engine::attach::attach_pdf(&open.store, BYTES, "Report.pdf", None).unwrap();
-        let url = format!("inkdrop://{pdf}");
+        let url = format!("kanso://{pdf}");
         let link = format!("Notes\n\n[Report.pdf]({url})\n");
         open.with(cx, move |editor, window, cx| {
             editor.edit_for_test(&link, window, cx)

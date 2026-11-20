@@ -254,7 +254,7 @@ mod tests {
         assert_eq!(parse_moment("kanso-audio://file:abc").unwrap().seconds, 0);
         assert_eq!(parse_moment("kanso-audio://file:abc?t=x"), None);
         assert_eq!(parse_moment("kanso-audio://note:abc?t=1"), None);
-        assert_eq!(parse_moment("inkdrop://file:abc?t=1"), None);
+        assert_eq!(parse_moment("kanso://file:abc?t=1"), None);
         assert!(title(false, "23 Oct 2026, 14:05").starts_with("Meeting — "));
     }
 

@@ -28,7 +28,7 @@ void pdfSuite(OpenLibrary open) {
       );
       await editor.close();
       final body = (await library.note(id: id)).body ?? '';
-      final linked = RegExp('inkdrop://file:([A-Za-z0-9_-]+)').firstMatch(body);
+      final linked = RegExp('kanso://file:([A-Za-z0-9_-]+)').firstMatch(body);
       final file = 'file:${linked!.group(1)}';
 
       final locks = library.locks();
@@ -79,7 +79,7 @@ void pdfSuite(OpenLibrary open) {
 
         final body = (await library.note(id: id)).body ?? '';
         final linked = RegExp(
-          'inkdrop://file:([A-Za-z0-9_-]+)',
+          'kanso://file:([A-Za-z0-9_-]+)',
         ).firstMatch(body);
         expect(linked, isNotNull);
         final file = 'file:${linked!.group(1)}';
@@ -182,7 +182,7 @@ void pdfSuite(OpenLibrary open) {
 
       final body = (await library.note(id: id)).body ?? '';
       final linked = RegExp(
-        'inkdrop://file:([A-Za-z0-9_-]+)',
+        'kanso://file:([A-Za-z0-9_-]+)',
       ).firstMatch(body);
       expect(linked, isNotNull);
       final file = 'file:${linked!.group(1)}';

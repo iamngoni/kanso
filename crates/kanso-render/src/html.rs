@@ -108,7 +108,7 @@ enum Piece {
 pub const PAGE_LINK_PREFIX: &str = "kanso-page:";
 /// The prefix of an ID link to a note inside a note body, then the note ID
 /// without its `note:` prefix; the same as `kanso_core::links::NOTE_LINK_PREFIX`.
-pub const NOTE_LINK_PREFIX: &str = "inkdrop://note/";
+pub const NOTE_LINK_PREFIX: &str = "kanso://note/";
 
 /// What a link to another note names.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -140,7 +140,7 @@ pub fn linked_note_id(url: &str) -> Option<String> {
 /// It is the scheme the app that first wrote these notes uses, and the same
 /// as `kanso_core::links::FILE_LINK_PREFIX` (this crate doesn't depend on
 /// `kanso-core`); it stays exactly as written.
-pub const FILE_LINK_PREFIX: &str = "inkdrop://file:";
+pub const FILE_LINK_PREFIX: &str = "kanso://file:";
 
 /// The attachment ID an attachment link ([`FILE_LINK_PREFIX`]) points at.
 /// Pure.
@@ -1248,7 +1248,7 @@ mod tests {
 
     #[test]
     fn a_note_becomes_a_standalone_page() {
-        let note = "Intro with $x^2$ inline.\n\n$$\n\\int_0^1 x\\,dx\n$$\n\n```mermaid\ngraph TD\n  A --> B\n```\n\n- [x] done\n- [ ] open\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n<script>alert(1)</script>\n\n[app link](inkdrop://note/abc) and [web](https://example.com)\n";
+        let note = "Intro with $x^2$ inline.\n\n$$\n\\int_0^1 x\\,dx\n$$\n\n```mermaid\ngraph TD\n  A --> B\n```\n\n- [x] done\n- [ ] open\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n<script>alert(1)</script>\n\n[app link](kanso://note/abc) and [web](https://example.com)\n";
         let html = page("My <note>", note, &Palette::LIGHT, &none);
         assert!(html.starts_with("<!doctype html>"));
         assert!(html.contains("<title>My &lt;note&gt;</title>"));
@@ -1406,7 +1406,7 @@ mod tests {
         let attachments =
             |id: &str| (id == "file:abc").then(|| ("image/png".to_owned(), png.clone()));
         let html = body(
-            "![Cat](inkdrop://file:abc)\n\n<img src=\"inkdrop://file:abc\" width=\"240\">\n\n![Gone](inkdrop://file:zzz)\n",
+            "![Cat](kanso://file:abc)\n\n<img src=\"kanso://file:abc\" width=\"240\">\n\n![Gone](kanso://file:zzz)\n",
             &Palette::DARK,
             &attachments,
         );
@@ -1482,7 +1482,7 @@ mod tests {
         let attachments =
             |id: &str| (id == "file:abc").then(|| ("image/png".to_owned(), png.clone()));
         let html = body(
-            "![Cat|300](inkdrop://file:abc)\n\n![Web|200](https://example.com/a.png)\n",
+            "![Cat|300](kanso://file:abc)\n\n![Web|200](https://example.com/a.png)\n",
             &Palette::LIGHT,
             &attachments,
         );
@@ -1526,8 +1526,8 @@ mod tests {
     #[test]
     fn img_tags_read() {
         assert_eq!(
-            img_tag(r#"<img src="inkdrop://file:a" alt='A b' width="240px">"#),
-            Some(("inkdrop://file:a".into(), "A b".into(), Some(240)))
+            img_tag(r#"<img src="kanso://file:a" alt='A b' width="240px">"#),
+            Some(("kanso://file:a".into(), "A b".into(), Some(240)))
         );
         assert_eq!(img_tag("<imgx src=a>"), None);
         assert_eq!(img_tag("<img alt=a>"), None);
@@ -1553,7 +1553,7 @@ mod tests {
         /// Round trip: an attachment ID inside a URL is found again.
         #[test]
         fn prop_attachment_ids_round_trip(id in "[A-Za-z0-9_-]{1,20}", tail in prop::option::of("[?#][a-z=]{0,6}")) {
-            let url = format!("inkdrop://file:{id}{}", tail.unwrap_or_default());
+            let url = format!("kanso://file:{id}{}", tail.unwrap_or_default());
             prop_assert_eq!(attachment_id(&url), Some(format!("file:{id}")));
         }
     }

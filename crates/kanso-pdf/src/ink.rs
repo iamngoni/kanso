@@ -307,7 +307,7 @@ impl InkFile {
 }
 
 /// The attachment id (`file:abc123`) an `inkFile` names, written either as
-/// that or as the link (`inkdrop://file:abc123`) that makes the note own it.
+/// that or as the link (`kanso://file:abc123`) that makes the note own it.
 pub fn file_id(name: &str) -> Option<String> {
     let id = name
         .strip_prefix(kanso_core::links::FILE_LINK_PREFIX)

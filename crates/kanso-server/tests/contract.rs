@@ -1,33 +1,17 @@
-//! Kanso's contract test: the real `@inkdropapp/mcp-server` 1.6.0 runs against
-//! Kanso's HTTP API over a real socket and calls every tool; the same tool
-//! sequence then runs against the native `/mcp` endpoint. Both must succeed
-//! (or fail) where expected, leave the store in the expected state, and
-//! produce identical results once IDs, revisions, timestamps and output
-//! paths are masked.
-//!
-//! Skipped, with a message, when `node` is not available. Set `KANSO_NODE`
-//! to pick a node binary and `KANSO_MCP_SERVER_JS` to point at the
-//! server's `dist/index.js`; otherwise the npx cache is searched for that
-//! exact version (a newer one cached beside it is never used), then
-//! `npx -y @inkdropapp/mcp-server@1.6.0` fetches it.
+//! Kanso's native MCP contract test: every tool is called over a real HTTP
+//! socket, in the order a client uses them. Each call must succeed (or fail)
+//! where expected, the results must have the documented shape, and the store
+//! must be left in the expected state.
 
 mod common;
 
-/// The npm package of the reference MCP server, at the version Kanso's
-/// tools match.
-const MCP_PACKAGE: &str = "@inkdropapp/mcp-server";
-const MCP_PACKAGE_VERSION: &str = "1.6.0";
-
-use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::Arc;
-use std::sync::mpsc::{self, Receiver};
 use std::time::Duration;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use common::{PASS, PNG, USER};
+use common::PNG;
 use kanso_server::{ServerConfig, ServerHandle};
 use kanso_store::Store;
 use serde_json::{Value, json};
@@ -53,184 +37,10 @@ const TOOL_NAMES: [&str; 18] = [
     "read-file",
 ];
 
-/// Tools in the list above that an older Node server (before 1.6.0) hasn't
-/// got, in case an older copy is the one installed here.
-const KANSO_ADDED: [&str; 1] = ["list-templates"];
-
 /// An MCP client: one JSON-RPC request in, its answer out.
 trait Mcp {
     fn request(&mut self, method: &str, params: Value) -> Value;
     fn notify(&mut self, method: &str);
-}
-
-// ---------------------------------------------------------------------------
-// The Node server over stdio
-
-struct NodeMcp {
-    child: Child,
-    /// What the server wrote to stderr, kept for the failure message: with
-    /// the stream thrown away, a server that died under load looked the
-    /// same as one that was merely slow.
-    stderr: tempfile::NamedTempFile,
-    stdin: ChildStdin,
-    lines: Receiver<String>,
-    next_id: u64,
-}
-
-fn find_in_path(name: &str) -> Option<PathBuf> {
-    std::env::var_os("PATH").and_then(|paths| {
-        std::env::split_paths(&paths)
-            .map(|dir| dir.join(name))
-            .find(|path| path.is_file())
-    })
-}
-
-fn home() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(PathBuf::from)
-}
-
-/// The command that starts the Node MCP server, or why it can't run.
-fn node_server_command() -> Result<Command, String> {
-    let node = std::env::var_os("KANSO_NODE")
-        .map(PathBuf::from)
-        .or_else(|| find_in_path("node"))
-        .or_else(|| {
-            home()
-                .map(|h| h.join(".local/bin/node"))
-                .filter(|p| p.is_file())
-        })
-        .ok_or("node is not installed")?;
-    let works = Command::new(&node)
-        .arg("--version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .is_ok_and(|s| s.success());
-    if !works {
-        return Err(format!("{} does not run", node.display()));
-    }
-    let script = std::env::var_os("KANSO_MCP_SERVER_JS")
-        .map(PathBuf::from)
-        .filter(|p| p.is_file())
-        .or_else(cached_pinned_server);
-    if let Some(script) = script {
-        let mut command = Command::new(node);
-        command.arg(script);
-        return Ok(command);
-    }
-    let npx = node
-        .parent()
-        .map(|dir| dir.join("npx"))
-        .filter(|p| p.is_file())
-        .or_else(|| find_in_path("npx"))
-        .ok_or("the MCP server is not cached and npx is not installed")?;
-    let mut command = Command::new(npx);
-    command.args(["-y", &format!("{MCP_PACKAGE}@{MCP_PACKAGE_VERSION}")]);
-    Ok(command)
-}
-
-/// The pinned server's `dist/index.js` in the npx cache, if npx has fetched
-/// that version. npx keeps one folder per package spec, so a newer release
-/// fetched for something else sits beside it; only the folder whose
-/// `package.json` says [`MCP_PACKAGE_VERSION`] is used.
-fn cached_pinned_server() -> Option<PathBuf> {
-    let cache = home()?.join(".npm/_npx");
-    let mut found: Vec<PathBuf> = std::fs::read_dir(cache)
-        .ok()?
-        .filter_map(Result::ok)
-        .map(|entry| entry.path().join("node_modules").join(MCP_PACKAGE))
-        .filter(|package| pinned_version(package))
-        .map(|package| package.join("dist/index.js"))
-        .filter(|script| script.is_file())
-        .collect();
-    found.sort();
-    found.into_iter().next()
-}
-
-/// Whether the package folder holds exactly [`MCP_PACKAGE_VERSION`].
-fn pinned_version(package: &Path) -> bool {
-    std::fs::read_to_string(package.join("package.json"))
-        .ok()
-        .and_then(|text| serde_json::from_str::<Value>(&text).ok())
-        .is_some_and(|manifest| manifest["version"] == MCP_PACKAGE_VERSION)
-}
-
-impl NodeMcp {
-    fn spawn(mut command: Command, url: &str) -> NodeMcp {
-        // Test credentials only; these override anything in the environment.
-        // The variable names are the ones the Node server reads.
-        let stderr = tempfile::NamedTempFile::new().expect("a file for the server's stderr");
-        let mut child = command
-            .env("INKDROP_LOCAL_SERVER_URL", url)
-            .env("INKDROP_LOCAL_USERNAME", USER)
-            .env("INKDROP_LOCAL_PASSWORD", PASS)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::from(
-                stderr.reopen().expect("reopen the stderr file"),
-            ))
-            .spawn()
-            .expect("start the Node MCP server");
-        let stdin = child.stdin.take().unwrap();
-        let stdout = child.stdout.take().unwrap();
-        let (tx, lines) = mpsc::channel();
-        std::thread::spawn(move || {
-            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-                if tx.send(line).is_err() {
-                    break;
-                }
-            }
-        });
-        NodeMcp {
-            child,
-            stderr,
-            stdin,
-            lines,
-            next_id: 0,
-        }
-    }
-
-    fn send(&mut self, message: &Value) {
-        writeln!(self.stdin, "{message}").unwrap();
-        self.stdin.flush().unwrap();
-    }
-}
-
-impl Mcp for NodeMcp {
-    fn request(&mut self, method: &str, params: Value) -> Value {
-        self.next_id += 1;
-        let id = self.next_id;
-        self.send(&json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params }));
-        loop {
-            let line = self
-                .lines
-                .recv_timeout(Duration::from_secs(120))
-                .unwrap_or_else(|_| {
-                    let status = self.child.try_wait();
-                    let stderr = std::fs::read_to_string(self.stderr.path()).unwrap_or_default();
-                    panic!(
-                        "no answer from the Node MCP server to {method} (exit: {status:?}); stderr:\n{stderr}"
-                    )
-                });
-            let Ok(message) = serde_json::from_str::<Value>(&line) else {
-                continue;
-            };
-            if message["id"] == json!(id) {
-                return message;
-            }
-        }
-    }
-
-    fn notify(&mut self, method: &str) {
-        self.send(&json!({ "jsonrpc": "2.0", "method": method }));
-    }
-}
-
-impl Drop for NodeMcp {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -442,7 +252,7 @@ impl Run {
         let created_n2 = self.ok(
             "create-note",
             json!({ "bookId": b2, "title": "Second note", "tags": [t1, t2],
-                    "body": format!("Links to [first](inkdrop://note/{}) and repeat repeat", bare(&n1)) }),
+                    "body": format!("Links to [first](kanso://note/{}) and repeat repeat", bare(&n1)) }),
         );
         let n2 = doc(&created_n2)["id"]
             .as_str()
@@ -495,7 +305,7 @@ impl Run {
         );
         self.ok(
             "search-notes",
-            json!({ "keyword": format!("inkdrop://note/{}", bare(&n1)) }),
+            json!({ "keyword": format!("kanso://note/{}", bare(&n1)) }),
         );
         self.ok("search-notes", json!({ "keyword": "status:active" }));
         self.ok("search-notes", json!({ "keyword": "tail" }));
@@ -568,7 +378,7 @@ impl Run {
 
         let answer = self.mcp.request(
             "resources/read",
-            json!({ "uri": format!("inkdrop://note/{}", bare(&n1)) }),
+            json!({ "uri": format!("kanso://note/{}", bare(&n1)) }),
         );
         self.record("resources/read note".into(), answer, false);
 
@@ -588,81 +398,6 @@ impl Run {
             .filter(|step| step.is_error() != step.expect_error)
             .map(|step| format!("{}: {} -> {}", self.name, step.label, step.result))
             .collect()
-    }
-
-    /// Results with IDs, revisions, timestamps and the output path masked.
-    fn normalized(&self) -> Vec<String> {
-        let rev = regex_lite::Regex::new(r"\b\d+-[0-9a-f]{32}\b").unwrap();
-        let stamp = regex_lite::Regex::new(r#""(createdAt|updatedAt|timestamp)": ?-?\d+"#).unwrap();
-        // Known, deliberate difference: when the 200-character cut splits a
-        // surrogate pair, Node keeps the lone half (`\ud83d`, which strict
-        // JSON parsers reject) and Kanso drops it.
-        let lone_surrogate = regex_lite::Regex::new(r#"\\\\u[dD][89abAB][0-9a-fA-F]{2}""#).unwrap();
-        let out = self.out_path.display().to_string();
-        self.steps
-            .iter()
-            .map(|step| {
-                // Key order in the JSON-RPC result is not significant; text
-                // blocks are compared exactly.
-                let mut s = canonical(&step.result);
-                s = s.replace(&out, "<out>");
-                for (i, id) in self.ids.iter().enumerate() {
-                    s = s.replace(id.as_str(), &format!("<id{i}>"));
-                }
-                for (i, id) in self.ids.iter().enumerate() {
-                    s = s.replace(bare(id), &format!("<id{i}>"));
-                }
-                s = rev.replace_all(&s, "<rev>").into_owned();
-                // Inside JSON text the quotes are escaped.
-                let s = s.replace("\\\"", "\"");
-                let s = lone_surrogate.replace_all(&s, "\"");
-                stamp
-                    .replace_all(&s, |caps: &regex_lite::Captures| {
-                        format!("\"{}\": <ts>", &caps[1])
-                    })
-                    .into_owned()
-            })
-            .collect()
-    }
-}
-
-/// JSON text with object keys sorted, whatever order `serde_json` keeps.
-fn canonical(value: &Value) -> String {
-    match value {
-        Value::Object(map) => {
-            let mut entries: Vec<(&String, &Value)> = map.iter().collect();
-            entries.sort_by_key(|(key, _)| *key);
-            let fields: Vec<String> = entries
-                .into_iter()
-                .map(|(key, value)| format!("{}:{}", Value::from(key.as_str()), canonical(value)))
-                .collect();
-            format!("{{{}}}", fields.join(","))
-        }
-        Value::Array(items) => {
-            let items: Vec<String> = items.iter().map(canonical).collect();
-            format!("[{}]", items.join(","))
-        }
-        // A text block that holds a JSON document is compared as one: its
-        // key order is not significant either. It is not the same in every
-        // build: `serde_json` keeps insertion order only where some crate in
-        // the build turns on `preserve_order` (kanso-engine does, so any
-        // build with it, `cargo test --workspace` among them, has it), and
-        // then a file's document comes out in the order it was stored in
-        // over REST but in the order the tool built it in over /mcp. Built
-        // alone, the maps are sorted and the two agree by luck.
-        Value::String(text) if text.starts_with(['{', '[']) => {
-            // Node's cut can leave half a surrogate pair at the end of a
-            // string, which a strict parser refuses (see `normalized`).
-            let lone = regex_lite::Regex::new(r#"\\u[dD][89abAB][0-9a-fA-F]{2}""#).unwrap();
-            let text = lone.replace_all(text, "\"");
-            match serde_json::from_str::<Value>(&text) {
-                Ok(parsed @ (Value::Object(_) | Value::Array(_))) => {
-                    Value::from(canonical(&parsed)).to_string()
-                }
-                _ => value.to_string(),
-            }
-        }
-        other => other.to_string(),
     }
 }
 
@@ -775,130 +510,45 @@ fn summary(run: &Run) -> String {
 }
 
 #[test]
-fn node_mcp_server_and_native_mcp_agree() {
+fn native_mcp_calls_every_tool_and_leaves_the_expected_store() {
     let files = tempfile::tempdir().unwrap();
     let png_path = files.path().join("pixel.png");
     std::fs::write(&png_path, PNG).unwrap();
 
-    // The native endpoint always runs.
-    let native_server = start_server();
-    let native_client = NativeMcp {
+    let server = start_server();
+    let client = NativeMcp {
         client: reqwest::blocking::Client::new(),
-        url: format!("{}/mcp", native_server.url),
+        url: format!("{}/mcp", server.url),
         next_id: 0,
     };
-    let mut native = Run::new(
+    let mut run = Run::new(
         "native /mcp",
-        Box::new(native_client),
-        native_server.url.clone(),
+        Box::new(client),
+        server.url.clone(),
         files.path().join("native-out.png"),
     );
-    native.local_paths = false;
-    native.sequence(&png_path);
+    run.local_paths = false;
+    run.sequence(&png_path);
     assert!(
-        !native.out_path.exists(),
+        !run.out_path.exists(),
         "a key's read-file wrote a local file"
     );
-    let names: Vec<&str> = native
+    let names: Vec<&str> = run
         .tools
         .as_array()
         .unwrap()
         .iter()
         .map(|t| t["name"].as_str().unwrap())
         .collect();
-    // The 17 first, then Kanso's own.
     assert_eq!(names[..TOOL_NAMES.len()], TOOL_NAMES);
     assert!(
         names[TOOL_NAMES.len()..]
             .iter()
             .all(|n| n.starts_with("kanso-"))
     );
-    let mut failures = native.unexpected();
-    eprintln!("native /mcp:\n{}", summary(&native));
-    verify_store(
-        native.name,
-        &native_server.store,
-        &native.ids,
-        &native.out_path,
-    );
-
-    let command = match node_server_command() {
-        Ok(command) => command,
-        Err(reason) => {
-            eprintln!("skipping the Node half of the contract test: {reason}");
-            assert!(failures.is_empty(), "{}", failures.join("\n"));
-            return;
-        }
-    };
-    let node_server = start_server();
-    let mut node = Run::new(
-        MCP_PACKAGE,
-        Box::new(NodeMcp::spawn(command, &node_server.url)),
-        node_server.url.clone(),
-        files.path().join("node-out.png"),
-    );
-    node.sequence(&png_path);
-    eprintln!(
-        "{MCP_PACKAGE} against Kanso's HTTP API:\n{}",
-        summary(&node)
-    );
-    let names: Vec<&str> = node
-        .tools
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|t| t["name"].as_str().unwrap())
-        .collect();
-    let expected: Vec<&str> = TOOL_NAMES
-        .into_iter()
-        .filter(|name| !KANSO_ADDED.contains(name))
-        .collect();
-    assert!(names == TOOL_NAMES || names == expected, "{names:?}");
-    failures.extend(node.unexpected());
-    verify_store(node.name, &node_server.store, &node.ids, &node.out_path);
-
-    // Same tool definitions and resource template.
-    let native_tools = native.tools.as_array().unwrap();
-    for n in node.tools.as_array().unwrap() {
-        let Some(k) = native_tools.iter().find(|k| k["name"] == n["name"]) else {
-            failures.push(format!("tools/list {} is missing from /mcp", n["name"]));
-            continue;
-        };
-        for key in ["name", "description", "inputSchema"] {
-            if n[key] != k[key] {
-                failures.push(format!("tools/list {} differs in {key}", n["name"]));
-            }
-        }
-    }
-    if node.templates != native.templates {
-        failures.push(format!(
-            "resources/templates/list differs: {} vs {}",
-            node.templates, native.templates
-        ));
-    }
-
-    // Same results, step by step.
-    assert_eq!(node.steps.len(), native.steps.len());
-    for (at, ((step, a), b)) in node
-        .steps
-        .iter()
-        .zip(node.normalized())
-        .zip(native.normalized())
-        .enumerate()
-    {
-        if a != b && !native.local_path_steps.contains(&at) {
-            failures.push(format!(
-                "{} differs:\n  node:   {a}\n  native: {b}",
-                step.label
-            ));
-        }
-    }
-    eprintln!(
-        "compared {} results between the Node server and /mcp",
-        node.steps.len()
-    );
-    drop(node);
-    node_server.handle.stop().unwrap();
-    native_server.handle.stop().unwrap();
+    eprintln!("native /mcp:\n{}", summary(&run));
+    verify_store(run.name, &server.store, &run.ids, &run.out_path);
+    let failures = run.unexpected();
+    server.handle.stop().unwrap();
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

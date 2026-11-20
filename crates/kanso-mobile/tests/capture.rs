@@ -87,7 +87,7 @@ fn a_drop_becomes_a_note_in_the_inbox_and_its_folder_goes() {
     assert_eq!(note.notebook_id, "book:inbox");
     let body = note.body.unwrap();
     assert!(
-        body.starts_with("Packing\n\n[Trip](https://t.io/x)\n\n[Tickets.pdf](inkdrop://file:cap-"),
+        body.starts_with("Packing\n\n[Trip](https://t.io/x)\n\n[Tickets.pdf](kanso://file:cap-"),
         "{body}"
     );
 
@@ -407,7 +407,7 @@ proptest! {
         let saved = phone.library.save_drops(&inbox).unwrap();
         prop_assert_eq!(saved.notes.len(), 1);
         let body = phone.library.note(&saved.notes[0]).unwrap().body.unwrap();
-        prop_assert!(!body.contains("inkdrop://file:"), "{path:?}: {body}");
+        prop_assert!(!body.contains("kanso://file:"), "{path:?}: {body}");
         prop_assert!(saved.problems.iter().any(|p| p.starts_with("x.pdf: ")), "{path:?}: {:?}", saved.problems);
     }
 
@@ -491,7 +491,7 @@ fn a_notes_share_with_a_checklist_and_an_image_becomes_a_markdown_note() {
     assert_eq!(note.title, "Packing list");
     let body = note.body.unwrap();
     assert!(
-        body.starts_with("For Friday\n\n- [x] passport\n- [ ] charger\n\n![](inkdrop://file:cap-"),
+        body.starts_with("For Friday\n\n- [x] passport\n- [ ] charger\n\n![](kanso://file:cap-"),
         "{body}"
     );
 }

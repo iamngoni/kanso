@@ -64,7 +64,7 @@ fn section(n: usize) -> String {
          > A quote that spans\n> two lines, with **bold** text.\n\n\
          ```rust\nfn section_{n}(store: &Store) -> Result<()> {{\n    let note = store.note(\"note:{n}\")?;\n    println!(\"{{note:?}}\");\n    Ok(())\n}}\n```\n\n\
          | Permission | Default | Notes |\n|---|---|---|\n| Read | Allowed | {n} |\n| Write | Ask | — |\n| Delete | Ask | — |\n\n\
-         ![diagram {n}](inkdrop://file:missing{n})\n\n"
+         ![diagram {n}](kanso://file:missing{n})\n\n"
     )
 }
 

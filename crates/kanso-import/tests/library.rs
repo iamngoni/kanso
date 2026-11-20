@@ -105,7 +105,7 @@ fn file_suffix(body: &str, name: &str) -> String {
         .find(name)
         .unwrap_or_else(|| panic!("{name} not in {body}"));
     let rest = &body[at..];
-    let start = rest.find("inkdrop://file:").unwrap() + "inkdrop://file:".len();
+    let start = rest.find("kanso://file:").unwrap() + "kanso://file:".len();
     rest[start..]
         .chars()
         .take_while(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
@@ -152,8 +152,8 @@ fn an_obsidian_vault_comes_in_whole() {
         body.contains("\n[[Plan]]\n"),
         "the embedded note is a link: {body}"
     );
-    assert!(body.contains("![diagram|300](inkdrop://file:"), "{body}");
-    assert!(body.contains("[spec](inkdrop://file:"), "{body}");
+    assert!(body.contains("![diagram|300](kanso://file:"), "{body}");
+    assert!(body.contains("[spec](kanso://file:"), "{body}");
     assert!(body.contains("[[Missing note]]"), "{body}");
     assert!(body.contains("`[[not a link]]`"), "{body}");
     assert!(body.contains("> [!note] A callout\n> stays as Markdown."));
@@ -357,12 +357,12 @@ fn a_markdown_folder() {
     let body = ideas.str_field("body").unwrap();
     assert!(
         body.contains(&format!(
-            "[the other one](inkdrop://note/{})",
+            "[the other one](kanso://note/{})",
             other.id.trim_start_matches("note:")
         )),
         "{body}"
     );
-    assert!(body.contains("![a picture](inkdrop://file:"), "{body}");
+    assert!(body.contains("![a picture](kanso://file:"), "{body}");
     assert!(body.contains("(https://example.com)"));
     assert_eq!(env.tag_names(&other), ["draft", "todo"]);
     assert_eq!(other.str_field("body"), Some("Text with a #todo tag.\n"));

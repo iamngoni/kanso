@@ -463,7 +463,7 @@ pub fn not_right_words(memories: &BTreeSet<String>) -> Vec<String> {
 }
 
 /// A section's lines as Markdown, with each source as a link to its note
-/// and line (`[Weekly sync](inkdrop://note/<id>#L12)`), for copying into the
+/// and line (`[Weekly sync](kanso://note/<id>#L12)`), for copying into the
 /// person's own text.
 pub fn section_markdown(section: &Section) -> String {
     let mut out = String::new();

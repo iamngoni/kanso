@@ -681,7 +681,7 @@ fn saving_an_answer_writes_one_note_with_its_sources() {
     assert_eq!(note.title, "Q: yearly plan pricing cost");
     assert!(
         note.body.clone().unwrap_or_default().contains(&format!(
-            "inkdrop://note/{}#L1",
+            "kanso://note/{}#L1",
             id.trim_start_matches("note:")
         )),
         "{}",

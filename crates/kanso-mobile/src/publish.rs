@@ -640,7 +640,7 @@ mod tests {
             &store,
             "note:image",
             "Image",
-            "![image](inkdrop://file:image)",
+            "![image](kanso://file:image)",
             "book:test",
         );
         let seal = SealId::random();

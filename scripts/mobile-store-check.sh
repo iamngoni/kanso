@@ -29,7 +29,7 @@ limits = {
 }
 # Other notes apps are not named in listings (store rules and Kanso's own).
 others = re.compile(
-    r"obsidian|evernote|notion|bear\b|apple notes|google keep|onenote|joplin|inkdrop|logseq|roam|simplenote|standard notes",
+    r"obsidian|evernote|notion|bear\b|apple notes|google keep|onenote|joplin|logseq|roam|simplenote|standard notes",
     re.I,
 )
 failures = []

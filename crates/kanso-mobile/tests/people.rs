@@ -166,12 +166,12 @@ fn ai_sections_cite_lines_and_can_be_kept_hidden_copied_and_marked_wrong() {
         people
             .section_markdown(&sam, "promises")
             .unwrap()
-            .contains("inkdrop://note/")
+            .contains("kanso://note/")
     );
     assert!(people.copy_into_note(&sam, "promises").unwrap());
     let body = store.note(&sam).unwrap().unwrap().body;
     assert!(
-        body.contains("## Promises") && body.contains("inkdrop://note/"),
+        body.contains("## Promises") && body.contains("kanso://note/"),
         "{body}"
     );
     let panel = people.not_right(&sam, "promises", 0).unwrap().unwrap();
@@ -257,10 +257,10 @@ fn the_preview_links_an_at_mention_to_its_page() {
         .unwrap()
         .palette;
     let page = phone.library.renderer().preview_html(&id, palette).unwrap();
-    let url = format!("inkdrop://note/{}", sam.trim_start_matches("note:"));
+    let url = format!("kanso://note/{}", sam.trim_start_matches("note:"));
     assert!(page.contains(&url), "{page}");
     // A tap on it opens the page.
     let target = phone.library.renderer().link_target(&id, &url).unwrap();
     assert!(format!("{target:?}").contains(&sam), "{target:?}");
-    assert!(!page.contains("inkdrop://note/a@b"), "{page}");
+    assert!(!page.contains("kanso://note/a@b"), "{page}");
 }

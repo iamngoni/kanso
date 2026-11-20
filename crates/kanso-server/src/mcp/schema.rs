@@ -1,14 +1,13 @@
-//! Kanso's MCP tool definitions and argument
-//! validation equivalent to `@inkdropapp/mcp-server` 1.5.0.
+//! Kanso's MCP tool definitions and argument validation.
 //!
-//! `tools.json` is the Node server's `tools/list` answer, verbatim, so names,
-//! descriptions and input schemas match it exactly. Validation follows zod's
+//! `tools.json` is the compatible `tools/list` catalog, so names and input
+//! schemas stay stable for existing clients. Validation follows the same
 //! rules for the subset of JSON Schema those definitions use and reports
-//! issues in zod's words, in schema order: unknown arguments are dropped and
-//! defaults filled in, as zod's parse does.
+//! issues in schema order: unknown arguments are dropped and defaults filled
+//! in.
 //!
 //! Kanso's own tools, named `kanso-…`, are defined in `kanso_tools.json` in
-//! the same form and listed after the original 17, which stay untouched.
+//! the same form and listed after the compatible 17.
 
 use std::fmt::Write as _;
 use std::sync::OnceLock;
@@ -403,7 +402,7 @@ mod tests {
     }
 
     #[test]
-    fn kanso_tools_follow_the_inkdrop_tools_with_their_prefix() {
+    fn kanso_tools_follow_the_compatible_tools_with_their_prefix() {
         let names: Vec<&str> = definitions()
             .as_array()
             .unwrap()
@@ -533,7 +532,7 @@ mod tests {
     }
 
     #[test]
-    fn the_catalog_has_the_inkdrop_tools_in_order() {
+    fn the_catalog_has_the_compatible_tools_in_order() {
         let names: Vec<&str> = definitions()
             .as_array()
             .unwrap()
@@ -576,7 +575,7 @@ mod tests {
         );
     }
 
-    // Expected messages were captured from @inkdropapp/mcp-server 1.5.0.
+    // Expected messages were captured from the compatible server this catalog matches.
     #[test]
     fn issues_read_like_zod() {
         assert_eq!(

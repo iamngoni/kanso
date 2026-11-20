@@ -292,7 +292,7 @@ fn search_follows_the_api_syntax() {
     let b = create(
         &store,
         DocType::Note,
-        json!({"bookId": other, "title": "Links", "body": "see inkdrop://note/t0iLc_TS ok", "status": "onHold"}),
+        json!({"bookId": other, "title": "Links", "body": "see kanso://note/t0iLc_TS ok", "status": "onHold"}),
     );
     let c = create(
         &store,
@@ -313,7 +313,7 @@ fn search_follows_the_api_syntax() {
     assert_eq!(ids(&store, &format!("tagId:{js}")), vec![a.clone()]);
     assert_eq!(ids(&store, "status:onhold"), vec![b.clone()]);
     assert_eq!(ids(&store, "-bookId:kGlLniaV"), vec![a.clone()]);
-    assert_eq!(ids(&store, "inkdrop://note/t0iLc_TS"), vec![b.clone()]);
+    assert_eq!(ids(&store, "kanso://note/t0iLc_TS"), vec![b.clone()]);
     assert_eq!(ids(&store, "Go"), vec![c.clone()]); // shorter than a trigram
     assert_eq!(ids(&store, "bookId:trash"), vec![trashed]);
     assert!(ids(&store, "t0iLc%TS").is_empty()); // `%` and `_` are not wildcards
@@ -894,4 +894,174 @@ fn merge_many_changes_every_note_or_none() {
     );
     assert!(refused.is_err());
     assert_eq!(store.note(&a).unwrap().unwrap().book_id, other);
+}
+
+#[test]
+fn opening_migrates_retired_body_links_and_keeps_the_change_for_sync() {
+    use rusqlite::params;
+
+    let retired = concat!("ink", "drop://");
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("kanso.db");
+    let store = Store::open(&path).unwrap();
+    let book = create(&store, DocType::Book, json!({"name": "Links"}));
+    let target = create(
+        &store,
+        DocType::Note,
+        json!({"bookId": book, "title": "Target"}),
+    );
+    let id = create(
+        &store,
+        DocType::Note,
+        json!({
+            "bookId": book,
+            "title": "Old link",
+            "body": format!("[Target]({retired}note/{}#L1)", target.strip_prefix("note:").unwrap()),
+        }),
+    );
+    let before = store.get_api(&id, None, false).unwrap();
+    let old_rev = before["_rev"].as_str().unwrap().to_owned();
+    let old_json = serde_json::to_string(&json!({
+        "title": "Old link",
+        "body": format!("[Target]({retired}note/{}#L1)", target.strip_prefix("note:").unwrap()),
+        "bookId": book,
+        "createdAt": before["createdAt"].clone(),
+        "updatedAt": before["updatedAt"].clone(),
+    }))
+    .unwrap();
+    drop(store);
+
+    let conn = rusqlite::Connection::open(&path).unwrap();
+    // Put the retired body back into the live row: the API now
+    // canonicalizes it on write, so this test has to start from the shape
+    // an older library holds.
+    conn.execute(
+        "UPDATE docs SET json = ?1, synced_rev = ?2 WHERE id = ?3",
+        params![old_json, old_rev, id],
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO revisions (doc_id, rev, json, saved_at, origin) VALUES (?1, ?2, ?3, 1, 'ui')",
+        params![id, old_rev, old_json],
+    )
+    .unwrap();
+    conn.execute("DELETE FROM meta WHERE key = 'links.body_scheme'", [])
+        .unwrap();
+    drop(conn);
+
+    let store = Store::open(&path).unwrap();
+    let note = store.note(&id).unwrap().unwrap();
+    assert_eq!(
+        note.body,
+        format!(
+            "[Target](kanso://note/{}#L1)",
+            target.strip_prefix("note:").unwrap()
+        )
+    );
+    assert!(note.rev.as_deref().is_some_and(|rev| rev != old_rev));
+    drop(store);
+
+    let conn = rusqlite::Connection::open(&path).unwrap();
+    let (rev, synced): (String, Option<String>) = conn
+        .query_row(
+            "SELECT rev, synced_rev FROM docs WHERE id = ?1",
+            [&id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert_ne!(rev, old_rev);
+    assert_eq!(synced.as_deref(), Some(old_rev.as_str()));
+    let saved: String = conn
+        .query_row(
+            "SELECT json FROM revisions WHERE doc_id = ?1 ORDER BY id LIMIT 1",
+            [&id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(saved.contains("kanso://note/"));
+    assert!(!saved.contains(retired));
+}
+
+#[test]
+fn writing_a_retired_link_scheme_stores_the_current_one() {
+    let retired = concat!("ink", "drop://");
+    let (_dir, store) = store();
+    let book = create(&store, DocType::Book, json!({"name": "Links"}));
+    let id = create(
+        &store,
+        DocType::Note,
+        json!({
+            "bookId": book,
+            "title": "Fresh link",
+            "body": format!("[Target]({retired}note/abc)"),
+        }),
+    );
+    assert_eq!(
+        store.note(&id).unwrap().unwrap().body,
+        "[Target](kanso://note/abc)"
+    );
+
+    // A shared note's incoming text is canonicalized too, even though the
+    // CRDT owns the text once the collaboration engine writes it.
+    let shared = create(
+        &store,
+        DocType::Note,
+        json!({
+            "bookId": book,
+            "title": "Shared link",
+            "body": format!("[Target]({retired}note/def)"),
+            "kansoShare": {"shareId": "share-1", "role": "view"},
+        }),
+    );
+    assert_eq!(
+        store.note(&shared).unwrap().unwrap().body,
+        "[Target](kanso://note/def)"
+    );
+}
+
+#[test]
+fn opening_leaves_shared_note_text_to_the_crdt() {
+    use rusqlite::params;
+
+    let retired = concat!("ink", "drop://");
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("kanso.db");
+    let store = Store::open(&path).unwrap();
+    let book = create(&store, DocType::Book, json!({"name": "Shared"}));
+    let id = create(
+        &store,
+        DocType::Note,
+        json!({
+            "bookId": book,
+            "title": "Shared note",
+            "body": "plain",
+            "kansoShare": {"shareId": "share-1", "role": "view"},
+        }),
+    );
+    drop(store);
+
+    // Put the retired body into the projection an older library holds. The
+    // store migration must not rewrite shared text behind the CRDT's back.
+    let conn = rusqlite::Connection::open(&path).unwrap();
+    let stored: String = conn
+        .query_row("SELECT json FROM docs WHERE id = ?1", [&id], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    let mut fields: Value = serde_json::from_str(&stored).unwrap();
+    fields["body"] = json!(format!("[Target]({retired}note/abc)"));
+    conn.execute(
+        "UPDATE docs SET json = ?1 WHERE id = ?2",
+        params![serde_json::to_string(&fields).unwrap(), id],
+    )
+    .unwrap();
+    conn.execute("DELETE FROM meta WHERE key = 'links.body_scheme'", [])
+        .unwrap();
+    drop(conn);
+
+    let store = Store::open(&path).unwrap();
+    assert_eq!(
+        store.note(&id).unwrap().unwrap().body,
+        format!("[Target]({retired}note/abc)")
+    );
 }

@@ -82,7 +82,7 @@ pub enum PreviewEdit {
     /// "Open as canvas" (or "Copy as canvas" in a shared note) on the sketch
     /// with this ID.
     SketchToCanvas { id: String },
-    /// A link to an attachment followed (`inkdrop://file:…`, with its
+    /// A link to an attachment followed (`kanso://file:…`, with its
     /// fragment): the editor opens it if it is a PDF.
     OpenFile(String),
     /// "Stop Repeating" from a due chip's menu: the open repeating task on
@@ -1530,12 +1530,12 @@ mod resolver_tests {
         let (to_editor, edits) = async_channel::unbounded();
         let links = Links::new(to_notes, None, to_editor);
         cx.update(|cx| {
-            links.open("inkdrop://file:abc123#page=2", cx);
-            links.open("inkdrop://note:xyz", cx);
+            links.open("kanso://file:abc123#page=2", cx);
+            links.open("kanso://note:xyz", cx);
         });
         assert_eq!(
             edits.try_recv().ok(),
-            Some(PreviewEdit::OpenFile("inkdrop://file:abc123#page=2".into()))
+            Some(PreviewEdit::OpenFile("kanso://file:abc123#page=2".into()))
         );
         assert!(edits.try_recv().is_err());
         assert_eq!(notes.try_recv().ok().as_deref(), Some("note:xyz"));
@@ -1633,7 +1633,7 @@ mod tests {
         /// Round-trip: a note link built from an ID resolves to that ID.
         #[test]
         fn prop_note_links_resolve_to_their_id(suffix in "[A-Za-z0-9_-]{1,20}", tail in prop::option::of("[?#/][a-z=]{0,8}")) {
-            let url = format!("inkdrop://note/{suffix}{}", tail.unwrap_or_default());
+            let url = format!("kanso://note/{suffix}{}", tail.unwrap_or_default());
             prop_assert_eq!(linked_note(&url), Some(format!("note:{suffix}")));
         }
 
@@ -1653,8 +1653,8 @@ mod tests {
 
         /// Invariant: other URLs never resolve to a note.
         #[test]
-        fn prop_other_urls_are_not_note_links(url in "(https?|file|inkdrop)://[a-z:/.]{0,20}") {
-            prop_assume!(!url.starts_with("inkdrop://note"));
+        fn prop_other_urls_are_not_note_links(url in "(https?|file|kanso)://[a-z:/.]{0,20}") {
+            prop_assume!(!url.starts_with("kanso://note"));
             prop_assert_eq!(linked_note(&url), None);
         }
     }
@@ -1811,23 +1811,23 @@ mod tests {
             super::picture(&node, &text[at.start.offset..at.end.offset])
                 .map(|p| (p.src, p.alt, p.width, p.source))
         };
-        let src = "inkdrop://file:abc".to_owned();
+        let src = "kanso://file:abc".to_owned();
         assert_eq!(
-            first("![Cat](inkdrop://file:abc)\n"),
+            first("![Cat](kanso://file:abc)\n"),
             Some((
                 src.clone(),
                 "Cat".into(),
                 None,
-                "![Cat](inkdrop://file:abc)".into()
+                "![Cat](kanso://file:abc)".into()
             ))
         );
-        let tag = "<img src=\"inkdrop://file:abc\" width=\"240\">";
+        let tag = "<img src=\"kanso://file:abc\" width=\"240\">";
         assert_eq!(
             first(tag),
             Some((src, String::new(), Some(240), tag.to_owned()))
         );
         assert_eq!(
-            first("![Cat|300](inkdrop://file:abc)").map(|p| (p.1, p.2)),
+            first("![Cat|300](kanso://file:abc)").map(|p| (p.1, p.2)),
             Some(("Cat".into(), Some(300)))
         );
         assert_eq!(
@@ -1835,20 +1835,20 @@ mod tests {
             Some("https://x.io/a.png".into())
         );
         assert_eq!(first("![](a.png)"), None);
-        assert_eq!(first("Look: ![](inkdrop://file:abc)"), None);
+        assert_eq!(first("Look: ![](kanso://file:abc)"), None);
     }
 
     #[test]
     fn note_links() {
         assert_eq!(
-            linked_note("inkdrop://note/abc123"),
+            linked_note("kanso://note/abc123"),
             Some("note:abc123".into())
         );
         assert_eq!(
-            linked_note("inkdrop://note:abc123"),
+            linked_note("kanso://note:abc123"),
             Some("note:abc123".into())
         );
-        assert_eq!(linked_note("inkdrop://note/"), None);
+        assert_eq!(linked_note("kanso://note/"), None);
         assert_eq!(linked_note("https://example.com"), None);
     }
 

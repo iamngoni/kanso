@@ -78,7 +78,7 @@ const FIXTURE: &str = "# Title
 
 ## Same
 
-Text with [a note](inkdrop://note/abc), [new](kanso-new:Missing%20One), [#work](kanso-tag:work), due [@2026-10-26](kanso-due:2026-10-26) and [later](kanso-due:2026-10-27), [web](<https://example.com/a b>) [u](https://example.com/é) [mail](mailto:a@b.c) [bad](javascript:alert(1)) [frag](#same-1) [words](#Title) [lost](#nowhere) [[Left over]] [file](inkdrop://file:doc) and www.example.org.
+Text with [a note](kanso://note/abc), [new](kanso-new:Missing%20One), [#work](kanso-tag:work), due [@2026-10-26](kanso-due:2026-10-26) and [later](kanso-due:2026-10-27), [web](<https://example.com/a b>) [u](https://example.com/é) [mail](mailto:a@b.c) [bad](javascript:alert(1)) [frag](#same-1) [words](#Title) [lost](#nowhere) [[Left over]] [file](kanso://file:doc) and www.example.org.
 
 - [ ] first task
 - [x] done task
@@ -140,11 +140,11 @@ bad
 > ls
 > ```
 
-![pic|200](inkdrop://file:img1) ![web](https://example.com/x.png) ![gone](inkdrop://file:nope)
+![pic|200](kanso://file:img1) ![web](https://example.com/x.png) ![gone](kanso://file:nope)
 
 <div>raw <b>html</b></div>
 
-<img src=\"inkdrop://file:img1\" alt=\"tag\" width=\"50\">
+<img src=\"kanso://file:img1\" alt=\"tag\" width=\"50\">
 
 [ref link][r] and footnote[^1].
 
@@ -294,7 +294,7 @@ fn the_blocks_carry_the_pages_addresses() {
             .links
             .contains(&"https://example.com/a%20b".to_owned())
     );
-    assert!(from_page.links.contains(&"inkdrop://note/a1".to_owned()));
+    assert!(from_page.links.contains(&"kanso://note/a1".to_owned()));
     assert!(from_page.links.contains(&"kanso-due:2026-10-26".to_owned()));
     assert!(
         from_page
@@ -541,7 +541,7 @@ fn dollar_amounts_stay_text_and_math_is_drawn() {
 
 #[test]
 fn raw_html_is_text_and_attached_img_tags_are_images() {
-    let md = "<div>hi <b>x</b></div>\n\n<img src=\"inkdrop://file:img1\" alt=\"cat\" width=\"40\">\n\nan <b>inline</b> tag\n";
+    let md = "<div>hi <b>x</b></div>\n\n<img src=\"kanso://file:img1\" alt=\"cat\" width=\"40\">\n\nan <b>inline</b> tag\n";
     let drawn = blocks(md, &attachments, &Palette::LIGHT, &AppMode::default(), None);
     assert_eq!(
         drawn[0],
@@ -572,7 +572,7 @@ fn raw_html_is_text_and_attached_img_tags_are_images() {
 
 #[test]
 fn images_are_attached_bytes_or_their_words() {
-    let md = "![cat|120](inkdrop://file:img1) ![gone](inkdrop://file:nope) ![web|50](https://x.org/a.png) ![bad](inkdrop://file:svg)";
+    let md = "![cat|120](kanso://file:img1) ![gone](kanso://file:nope) ![web|50](https://x.org/a.png) ![bad](kanso://file:svg)";
     let drawn = blocks(md, &attachments, &Palette::LIGHT, &AppMode::default(), None);
     let inlines = paragraph(&drawn);
     assert_eq!(
@@ -634,12 +634,12 @@ fn query_fences_are_views() {
             columns: vec!["Title".into(), "Due".into()],
             rows: vec![
                 QueryRow {
-                    url: "inkdrop://note/a1".into(),
+                    url: "kanso://note/a1".into(),
                     title: "A".into(),
                     cells: vec!["Sunday".into()]
                 },
                 QueryRow {
-                    url: "inkdrop://note/b2".into(),
+                    url: "kanso://note/b2".into(),
                     title: "Untitled".into(),
                     cells: vec![String::new()]
                 }
@@ -663,7 +663,7 @@ fn query_fences_are_views() {
 #[test]
 fn drawings_that_fail_show_their_code_and_why() {
     let drawn = plain_blocks(
-        "```rust\nx\n```\n\n```mermaid\nnot a diagram at all\n```\n\n```excalidraw\n{\"elements\":[]}\n```\n\n[a.excalidraw](inkdrop://file:gone)\n",
+        "```rust\nx\n```\n\n```mermaid\nnot a diagram at all\n```\n\n```excalidraw\n{\"elements\":[]}\n```\n\n[a.excalidraw](kanso://file:gone)\n",
     );
     let Block::Failed {
         badge, code, copy, ..
@@ -681,7 +681,7 @@ fn drawings_that_fail_show_their_code_and_why() {
             badge: "Couldn't draw this".into(),
             detail: "The drawing's file is missing.".into(),
             language: None,
-            code: "[a.excalidraw](inkdrop://file:gone)".into(),
+            code: "[a.excalidraw](kanso://file:gone)".into(),
             copy: None
         }
     );
@@ -701,7 +701,7 @@ fn a_pdf_block_is_a_quiet_line_not_json() {
     assert_eq!(
         drawn[1],
         Block::PdfNotes {
-            url: Some("inkdrop://file:abc".into()),
+            url: Some("kanso://file:abc".into()),
             summary: "2 highlights \u{b7} 1 comment".into()
         }
     );

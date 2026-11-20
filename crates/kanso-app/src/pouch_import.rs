@@ -35,14 +35,6 @@ pub fn copy_server_settings(
     Ok(())
 }
 
-/// The PouchDB library's data folder and database, when there is one to
-/// import.
-pub fn find_library() -> Option<(PathBuf, PathBuf)> {
-    let dir = kanso_import::default_pouch_library_dir()?;
-    let db = find_pouch_db(&dir).ok()?;
-    Some((dir, db))
-}
-
 fn phase_label(phase: Phase) -> &'static str {
     match phase {
         Phase::Snapshot => "Copying the library",
@@ -194,23 +186,56 @@ impl Render for ImportView {
 
 use gpui_kit::prelude::FluentBuilder as _;
 
+/// Asks for the PouchDB library's data folder, then runs `on_pick` with it.
+fn pick_library_dir(
+    window: &mut Window,
+    cx: &mut App,
+    prompt: &'static str,
+    on_pick: impl FnOnce(&mut Window, &mut App, PathBuf) + 'static,
+) {
+    let picked = cx.prompt_for_paths(PathPromptOptions {
+        files: false,
+        directories: true,
+        multiple: false,
+        prompt: Some(prompt.into()),
+    });
+    window
+        .spawn(cx, async move |cx| {
+            let Ok(Ok(Some(paths))) = picked.await else {
+                return;
+            };
+            let Some(dir) = paths.into_iter().next() else {
+                return;
+            };
+            cx.update(|window, cx| on_pick(window, cx, dir)).ok();
+        })
+        .detach();
+}
+
 /// Imports the library's notes, showing progress in a dialog.
 pub fn start_import(window: &mut Window, cx: &mut App) {
-    let Some((_, source)) = find_library() else {
-        let message = match kanso_import::default_pouch_library_dir() {
-            Some(dir) => format!("No notes library was found in {}.", dir.display()),
-            None => "No notes library was found.".to_owned(),
+    pick_library_dir(window, cx, "Choose Library", |window, cx, dir| {
+        let source = match find_pouch_db(&dir) {
+            Ok(source) => source,
+            Err(err) => {
+                window.push_notification(
+                    Notification::warning(format!(
+                        "No notes library was found in {}: {err:#}",
+                        dir.display()
+                    )),
+                    cx,
+                );
+                return;
+            }
         };
-        window.push_notification(Notification::warning(message), cx);
-        return;
-    };
-    let store = cx.global::<AppState>().store.clone();
-    let view = cx.new(|cx| ImportView::new(store, source, cx));
-    window.open_alert_dialog(cx, move |alert, _, _| {
-        alert
-            .title("Import a notes library")
-            .child(view.clone())
-            .ok_text("Close")
+        let store = cx.global::<AppState>().store.clone();
+        let view = cx.new(|cx| ImportView::new(store, source, cx));
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            alert
+                .title("Import a notes library")
+                .child(view.clone())
+                .ok_text("Close")
+        });
     });
 }
 
@@ -221,38 +246,44 @@ pub fn start_copy_credentials(
     cx: &mut App,
     on_done: impl Fn(&mut Window, &mut App) + 'static,
 ) {
-    let Some(library_dir) = kanso_import::default_pouch_library_dir() else {
-        return;
-    };
-    let mut server = cx.global::<AppState>().config.server.clone();
-    let copy = cx.background_spawn(async move {
-        copy_server_settings(&library_dir, &mut server).map(|()| server)
-    });
-    window
-        .spawn(cx, async move |cx| {
-            let result = copy.await;
-            cx.update(|window, cx| match result {
-                Ok(server) => {
-                    AppState::update_config(cx, |config| config.server = server);
-                    window.push_notification(
-                        Notification::success("Kanso now uses the copied API port."),
-                        cx,
-                    );
-                    on_done(window, cx);
-                }
-                Err(err) => {
-                    window.push_notification(
-                        Notification::error(format!("Couldn't copy the API settings: {err:#}")),
-                        cx,
-                    );
-                }
-            })
-            .ok();
-        })
-        .detach();
+    pick_library_dir(
+        window,
+        cx,
+        "Choose Library",
+        move |window, cx, library_dir| {
+            let mut server = cx.global::<AppState>().config.server.clone();
+            let copy = cx.background_spawn(async move {
+                copy_server_settings(&library_dir, &mut server).map(|()| server)
+            });
+            window
+                .spawn(cx, async move |cx| {
+                    let result = copy.await;
+                    cx.update(|window, cx| match result {
+                        Ok(server) => {
+                            AppState::update_config(cx, |config| config.server = server);
+                            window.push_notification(
+                                Notification::success("Kanso now uses the copied API port."),
+                                cx,
+                            );
+                            on_done(window, cx);
+                        }
+                        Err(err) => {
+                            window.push_notification(
+                                Notification::error(format!(
+                                    "Couldn't copy the API settings: {err:#}"
+                                )),
+                                cx,
+                            );
+                        }
+                    })
+                    .ok();
+                })
+                .detach();
+        },
+    );
 }
 
-/// `kanso import pouchdb [--library-dir DIR] [--credentials]`
+/// `kanso import pouchdb --library-dir DIR [--credentials]`
 pub fn run_cli(data_dir: &Path, args: &[String]) -> anyhow::Result<()> {
     let mut library_dir = None;
     let mut credentials = false;
@@ -268,11 +299,7 @@ pub fn run_cli(data_dir: &Path, args: &[String]) -> anyhow::Result<()> {
             other => bail!("unexpected argument `{other}`"),
         }
     }
-    let library_dir = match library_dir {
-        Some(dir) => dir,
-        None => kanso_import::default_pouch_library_dir()
-            .context("HOME is not set; pass --library-dir")?,
-    };
+    let library_dir = library_dir.context("--library-dir is required")?;
     let source = find_pouch_db(&library_dir)?;
     std::fs::create_dir_all(data_dir)?;
     let Some(_lock) = kanso_store::lock_data_dir(data_dir)? else {

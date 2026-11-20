@@ -22,7 +22,7 @@ pub const SPEED_LABELS: [(&str, f32); 5] = [
 ];
 
 /// The file IDs on `line` when it is made only of attachment links
-/// (`[Audio · part 1](inkdrop://file:a) · [part 2](inkdrop://file:b)`),
+/// (`[Audio · part 1](kanso://file:a) · [part 2](kanso://file:b)`),
 /// separated by dots or spaces; `None` for any other line. Images
 /// (`![…](…)`) don't count. Pure.
 fn file_links_only(line: &str) -> Option<Vec<String>> {
@@ -182,11 +182,11 @@ mod tests {
 
     #[test]
     fn prose_images_fences_and_front_matter_are_not_recordings() {
-        let body = "---\ntitle: x\n[a](inkdrop://file:front)\n---\n\
-            See [a](inkdrop://file:in-text) here\n\
-            ![pic](inkdrop://file:image)\n\
-            ```\n[a](inkdrop://file:fenced)\n```\n\
-            [voice.m4a](inkdrop://file:dropped)\n";
+        let body = "---\ntitle: x\n[a](kanso://file:front)\n---\n\
+            See [a](kanso://file:in-text) here\n\
+            ![pic](kanso://file:image)\n\
+            ```\n[a](kanso://file:fenced)\n```\n\
+            [voice.m4a](kanso://file:dropped)\n";
         let lines = link_lines(body);
         assert_eq!(lines.len(), 1);
         assert_eq!(lines[0].file_ids, vec!["file:dropped".to_owned()]);

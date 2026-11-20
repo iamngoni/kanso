@@ -39,7 +39,7 @@ fn body() -> String {
         ],
     )
     .unwrap();
-    format!("# Meeting\n\n[Audio · 2 min](inkdrop://{FILE})\n\n{transcript}")
+    format!("# Meeting\n\n[Audio · 2 min](kanso://{FILE})\n\n{transcript}")
 }
 
 // no-prop-test: one fixed note, read for the offer.
@@ -75,7 +75,9 @@ fn a_draft_holds_only_what_the_recording_backs_and_writes_nothing() {
     assert_eq!(draft.actions[0].moment, 47);
     let sent = model.everything_sent();
     assert!(sent.contains("[00:22] The beta is on track"));
-    assert!(!sent.contains("inkdrop") && !sent.contains("kanso-audio"));
+    assert!(
+        !sent.contains("kanso://file:") && !sent.contains(FILE) && !sent.contains("kanso-audio")
+    );
     let store = Store::open(phone.path()).unwrap();
     assert_eq!(store.note(&id).unwrap().unwrap().body, body());
 }

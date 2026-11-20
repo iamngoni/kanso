@@ -1,6 +1,7 @@
 //! Normalizes incoming documents: fills defaults, strips derived fields,
 //! validates types and, for local writes, references to notebooks and tags.
 
+use kanso_core::links::current_scheme_body;
 use kanso_core::model::{
     MAX_BODY_LEN, MAX_NAME_LEN, MAX_TITLE_LEN, SUPPORTED_AUDIO_TYPES, SUPPORTED_DOCUMENT_TYPES,
     SUPPORTED_IMAGE_TYPES, TRASH_BOOK_ID,
@@ -83,6 +84,10 @@ fn normalize_note(id: &str, f: &mut Map<String, Value>, now: i64, refs: Refs) ->
         ));
     }
     let body = string_or(f, "body", "")?;
+    // Bodies written by an earlier release are canonicalized on the way in,
+    // so an old client, an import or a sync can't bring the retired link
+    // scheme back after the store's one-time migration has run.
+    let body = current_scheme_body(&body).unwrap_or(body);
     if body.chars().count() > MAX_BODY_LEN {
         return invalid(format!(
             "The note body is longer than {MAX_BODY_LEN} characters."

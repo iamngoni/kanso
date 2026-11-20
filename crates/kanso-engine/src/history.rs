@@ -14,6 +14,7 @@ pub fn origin_label(origin: &str) -> &'static str {
         "collab" => "Edited in a shared note",
         "agent" => "Suggested by an agent, applied by you",
         "plugin" => "Changed by a plugin",
+        "migration" => "Updated for Kanso",
         _ => "Saved version",
     }
 }

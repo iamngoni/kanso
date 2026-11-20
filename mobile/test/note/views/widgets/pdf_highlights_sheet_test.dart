@@ -20,7 +20,7 @@ import '../../../helpers/pump.dart';
 const PdfNotes _report = PdfNotes(
   file: 'file:abc123',
   name: 'Quarterly report.pdf',
-  url: 'inkdrop://file:abc123',
+  url: 'kanso://file:abc123',
   editable: true,
   scannedPages: 0,
   highlights: <PdfHighlightRow>[
@@ -57,7 +57,7 @@ const PdfNotes _report = PdfNotes(
 const PdfNotes _scanned = PdfNotes(
   file: 'file:scan42',
   name: 'Signed contract (scan).pdf',
-  url: 'inkdrop://file:scan42',
+  url: 'kanso://file:scan42',
   editable: true,
   scannedPages: 12,
   highlights: <PdfHighlightRow>[
@@ -173,7 +173,7 @@ void main() {
       const PdfNotes(
         file: 'file:scan42',
         name: 'Scan.pdf',
-        url: 'inkdrop://file:scan42',
+        url: 'kanso://file:scan42',
         editable: true,
         scannedPages: 1,
         highlights: <PdfHighlightRow>[
@@ -277,7 +277,7 @@ void main() {
       const PdfNotes(
         file: 'file:abc123',
         name: 'Quarterly report.pdf',
-        url: 'inkdrop://file:abc123',
+        url: 'kanso://file:abc123',
         editable: false,
         scannedPages: 0,
         why: 'broken',
@@ -336,7 +336,7 @@ void main() {
       const PdfNotes(
         file: 'file:abc123',
         name: 'Quarterly report.pdf',
-        url: 'inkdrop://file:abc123',
+        url: 'kanso://file:abc123',
         editable: false,
         scannedPages: 0,
         why: 'broken',
@@ -360,7 +360,7 @@ void main() {
       const PdfNotes(
         file: 'file:abc123',
         name: 'Quarterly report.pdf',
-        url: 'inkdrop://file:abc123',
+        url: 'kanso://file:abc123',
         editable: true,
         scannedPages: 0,
         highlights: <PdfHighlightRow>[],

@@ -56,7 +56,7 @@ fn note_body(file: &str) -> String {
         )
         .unwrap();
     let id = file.strip_prefix("file:").unwrap();
-    let body = format!("[scan.pdf](inkdrop://file:{id})\n");
+    let body = format!("[scan.pdf](kanso://file:{id})\n");
     annots.save_edit(&body).unwrap().unwrap().apply(&body)
 }
 

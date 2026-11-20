@@ -45,7 +45,7 @@ fn a_left_behind_recording_is_offered_and_recovered_once() {
     assert_eq!(saved.file_ids, vec!["file:rec-crash-1-1"]);
     let note = phone.library.note(&saved.note_id).unwrap();
     let body = note.body.clone().unwrap();
-    assert!(body.contains("inkdrop://file:rec-crash-1-1"), "{body}");
+    assert!(body.contains("kanso://file:rec-crash-1-1"), "{body}");
     assert!(note.title.starts_with("Recording — "), "{}", note.title);
     // Nothing is left to offer, and a second recover finds nothing.
     assert!(phone.library.recording_found(&data).is_empty());

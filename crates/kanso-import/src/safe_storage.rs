@@ -2,10 +2,8 @@
 //! followed by AES-128-CBC data, keyed by PBKDF2 of the secret in the
 //! Keychain item "<App> Safe Storage".
 //!
-//! The source app keeps its local server credentials this way. Reading the Keychain
-//! item shows the user a macOS prompt, so only call [`keychain_secret`] when
-//! the user asked to copy the credentials. Nothing here prints or logs the
-//! secret or the plaintext.
+//! An Electron app keeps its local server credentials this way. Nothing
+//! here prints or logs the secret or the plaintext.
 
 use aes::cipher::{
     BlockDecryptMut as _, BlockEncryptMut as _, KeyIvInit as _, block_padding::Pkcs7,
@@ -15,12 +13,6 @@ use base64::Engine as _;
 use serde_json::Value;
 
 use crate::config::{LocalServerConfig, LocalServerCredentials, parse_credentials};
-
-/// The Keychain item holding the source app's `safeStorage` secret.
-/// Electron names it after the app's package name (lowercase here), and
-/// macOS shows this name when it asks to allow access, so it stays exactly
-/// as written.
-pub const SAFE_STORAGE_SERVICE: &str = "inkdrop Safe Storage";
 
 const SALT: &[u8] = b"saltysalt";
 const ITERATIONS: u32 = 1003;
@@ -53,33 +45,6 @@ pub fn decrypt(data: &[u8], secret: &str) -> anyhow::Result<Vec<u8>> {
     Decryptor::new(&key.into(), &IV.into())
         .decrypt_padded_vec_mut::<Pkcs7>(body)
         .map_err(|_| anyhow::anyhow!("couldn't decrypt: wrong Keychain secret or damaged data"))
-}
-
-/// Reads a generic password from the login Keychain with `security`. macOS
-/// asks the user to allow it.
-#[cfg(target_os = "macos")]
-pub fn keychain_secret(service: &str) -> anyhow::Result<String> {
-    use std::process::Command;
-
-    let output = Command::new("/usr/bin/security")
-        .args(["find-generic-password", "-w", "-s", service])
-        .output()
-        .context("couldn't run /usr/bin/security")?;
-    if !output.status.success() {
-        bail!("the Keychain item “{service}” isn't available or access was denied");
-    }
-    let secret = String::from_utf8(output.stdout).context("the Keychain secret isn't text")?;
-    Ok(secret.trim_end_matches('\n').to_owned())
-}
-
-/// The `safeStorage` secret lives in the macOS Keychain; Electron keeps it
-/// elsewhere (DPAPI, libsecret) on other systems, which Kanso can't read
-/// yet. Enter the API credentials by hand instead.
-#[cfg(not(target_os = "macos"))]
-pub fn keychain_secret(service: &str) -> anyhow::Result<String> {
-    bail!(
-        "reading the encrypted credentials (“{service}”) only works on macOS; enter the API username and password instead"
-    )
 }
 
 impl LocalServerConfig {

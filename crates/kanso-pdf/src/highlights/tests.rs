@@ -106,7 +106,7 @@ proptest! {
     #[test]
     fn other_pdfs_links_are_not_ours(id in "[a-z0-9]{1,8}", other in "[a-z0-9]{1,8}") {
         prop_assume!(other != "abc123");
-        let body = format!("[x](inkdrop://file:{other}#page=1&h={id}) [y](inkdrop://file:abc123#page=2)");
+        let body = format!("[x](kanso://file:{other}#page=1&h={id}) [y](kanso://file:abc123#page=2)");
         prop_assert!(quote_ids(&body, FILE).is_empty());
     }
 }

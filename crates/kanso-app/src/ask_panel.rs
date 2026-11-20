@@ -1786,8 +1786,8 @@ mod tests {
         );
         // A link that is not a receipt is left alone.
         assert_eq!(
-            with_superscripts("[Pricing](inkdrop://note/a) [x](kanso-cite:x)"),
-            "[Pricing](inkdrop://note/a) [x](kanso-cite:x)"
+            with_superscripts("[Pricing](kanso://note/a) [x](kanso-cite:x)"),
+            "[Pricing](kanso://note/a) [x](kanso-cite:x)"
         );
     }
 

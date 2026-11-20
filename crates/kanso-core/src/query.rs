@@ -398,8 +398,8 @@ mod tests {
     #[test]
     fn backlink_uris_are_text() {
         assert_eq!(
-            Query::parse("inkdrop://note/t0iLc_TS").clauses,
-            vec![Clause::text("inkdrop://note/t0iLc_TS")]
+            Query::parse("kanso://note/t0iLc_TS").clauses,
+            vec![Clause::text("kanso://note/t0iLc_TS")]
         );
     }
 
@@ -428,7 +428,7 @@ mod tests {
         let tag_names = vec!["JavaScript".to_owned()];
         let note = NoteFacts {
             title: "Sprint 10.0 notes",
-            body: "We should Debounce input. See inkdrop://note/abc",
+            body: "We should Debounce input. See kanso://note/abc",
             book_id: "book:kGlLniaV",
             book_name: Some("Desktop App"),
             status: "active",
@@ -446,7 +446,7 @@ mod tests {
             "tagId:js",
             "status:ACTIVE",
             "-status:dropped debounce",
-            "inkdrop://note/abc",
+            "kanso://note/abc",
             "body:input",
         ];
         for q in yes {

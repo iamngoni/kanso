@@ -1,5 +1,5 @@
-//! Kanso's native MCP endpoint at `/mcp`: the tools of `@inkdropapp/mcp-server`
-//! 1.5.0 and its note resource template
+//! Kanso's native MCP endpoint at `/mcp`: the compatible tool catalog and
+//! its note resource template
 //! ([`NOTE_LINK_PREFIX`](kanso_core::links::NOTE_LINK_PREFIX)`{noteId}`).
 //!
 //! The transport is MCP's streamable HTTP in its simplest conforming form:

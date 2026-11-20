@@ -1995,7 +1995,7 @@ pub enum PreviewBlock {
     /// An Excalidraw drawing with nothing in it yet.
     EmptyDrawing,
     /// The line that stands for a PDF's highlights: "4 highlights · 1
-    /// comment". `url` (`inkdrop://file:…`) names the PDF, when it can.
+    /// comment". `url` (`kanso://file:…`) names the PDF, when it can.
     PdfNotes {
         url: Option<String>,
         summary: String,
@@ -2761,7 +2761,7 @@ pub struct PdfNotes {
     pub file: String,
     /// The PDF's name, for the quote's heading.
     pub name: String,
-    /// `inkdrop://file:…`, the link that opens it.
+    /// `kanso://file:…`, the link that opens it.
     pub url: String,
     /// Whether the highlights can be changed: false while the block in the
     /// note cannot be read (`why` says).

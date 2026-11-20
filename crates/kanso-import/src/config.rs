@@ -32,9 +32,8 @@ pub enum LocalServerCredentials {
     /// `"username:password"` (split at the first colon) or `{username, password}`.
     Basic { username: String, password: String },
     /// Electron `safeStorage` ciphertext: base64 of `v10`/`v11` followed by
-    /// AES-CBC data. Only the macOS Keychain item
-    /// [`SAFE_STORAGE_SERVICE`](crate::safe_storage::SAFE_STORAGE_SERVICE) can
-    /// decrypt it, so the username and password are not available here.
+    /// AES-CBC data. Only the matching macOS Keychain item can decrypt it, so
+    /// the username and password are not available here.
     Encrypted { ciphertext: String },
     /// A value in a shape this importer doesn't recognize.
     Unrecognized,

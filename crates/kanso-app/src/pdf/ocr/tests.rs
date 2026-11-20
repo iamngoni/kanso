@@ -92,7 +92,7 @@ fn scanned_pdf_with_words() -> (tempfile::TempDir, Store, String) {
     store
         .put(
             DocType::Note,
-            json!({"title": "Scans", "body": format!("[s](inkdrop://{id})"), "bookId": book}),
+            json!({"title": "Scans", "body": format!("[s](kanso://{id})"), "bookId": book}),
             Put::Upsert,
             Origin::Ui,
         )

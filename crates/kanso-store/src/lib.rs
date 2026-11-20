@@ -29,6 +29,7 @@ mod history;
 mod home;
 mod home_model;
 mod ink_text;
+mod legacy_links;
 mod library_key;
 mod library_key_model;
 mod library_key_words;
@@ -217,6 +218,9 @@ pub enum Origin {
     /// snapshotted, unthrottled, with the plugin's name, so history can say
     /// which plugin changed what.
     Plugin,
+    /// A one-time store migration rewriting data in place, not a person's
+    /// edit and not a change from another device.
+    Migration,
 }
 
 impl Origin {
@@ -229,6 +233,7 @@ impl Origin {
             Origin::Collab => "collab",
             Origin::Agent => "agent",
             Origin::Plugin => "plugin",
+            Origin::Migration => "migration",
         }
     }
 }
@@ -285,6 +290,7 @@ impl Store {
         }
         let mut writer = schema::connect(&path, key)?;
         schema::migrate(&writer)?;
+        legacy_links::migrate(&mut writer)?;
         derived::rebuild_if_stale(&mut writer)?;
         ocr::rebuild_if_stale(&mut writer)?;
         derived::prune_finished(&writer)?;

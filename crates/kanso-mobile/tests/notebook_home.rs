@@ -214,7 +214,7 @@ fn ai_sections_cite_lines_and_can_be_kept_hidden_copied_and_marked_wrong() {
         body.contains("kanso: home") && body.contains("## Decisions"),
         "{body}"
     );
-    assert!(body.contains("inkdrop://note/"));
+    assert!(body.contains("kanso://note/"));
     assert!(home.open("book:r").unwrap().unwrap().header.has_home_note);
 
     let panel = home.not_right("book:r", "decisions", 0).unwrap().unwrap();

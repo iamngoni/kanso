@@ -189,7 +189,8 @@ impl Session {
         };
         match key.open(&note.id, &envelope) {
             Ok(body) => {
-                note.body = body.to_string();
+                note.body = kanso_core::links::current_scheme_body(&body)
+                    .unwrap_or_else(|| body.to_string());
                 LockView::Open
             }
             Err(err) => {

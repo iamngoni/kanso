@@ -786,7 +786,7 @@ mod tests {
         store
             .put(
                 DocType::Note,
-                json!({"title": "pic", "body": format!("![](inkdrop://file:{suffix})"), "bookId": book}),
+                json!({"title": "pic", "body": format!("![](kanso://file:{suffix})"), "bookId": book}),
                 Put::Upsert,
                 Origin::Ui,
             )
@@ -817,7 +817,7 @@ mod tests {
             )
             .unwrap()
             .id;
-        let body = format!("Area $\\pi r^2$.\n\n![cat](inkdrop://{id})\n");
+        let body = format!("Area $\\pi r^2$.\n\n![cat](kanso://{id})\n");
         let html = page(
             &store,
             "Circles",
@@ -968,7 +968,7 @@ mod tests {
         /// Metamorphic: rewriting with lookups that know nothing leaves the
         /// body as it was.
         #[test]
-        fn prop_unknown_links_are_left_alone(body in "(\\PC|inkdrop://note/[a-z0-9]{0,5}|inkdrop://file:[a-z0-9]{0,5}|inkdrop://){0,30}") {
+        fn prop_unknown_links_are_left_alone(body in "(\\PC|kanso://note/[a-z0-9]{0,5}|kanso://file:[a-z0-9]{0,5}|kanso://){0,30}") {
             prop_assert_eq!(rewrite_links(&body, |_| None, |_| None), body);
         }
 
@@ -976,16 +976,16 @@ mod tests {
         #[test]
         fn prop_rewrite_round_trips(parts in prop::collection::vec((any::<bool>(), "[a-zA-Z0-9_-]{1,8}", "[ .)]{1,6}"), 0..10)) {
             let body: String = parts.iter().map(|(note, id, tail)| {
-                format!("{}{id}{tail}", if *note { "inkdrop://note/" } else { "inkdrop://file:" })
+                format!("{}{id}{tail}", if *note { "kanso://note/" } else { "kanso://file:" })
             }).collect();
             let placeholder = rewrite_links(&body, |id| Some(format!("<<{id}>>")), |id| Some(format!("<<{id}>>")));
-            prop_assert!(!placeholder.contains("inkdrop://"));
+            prop_assert!(!placeholder.contains("kanso://"));
             let mut restored = placeholder.clone();
             for (note, id, _) in &parts {
                 let (full, uri) = if *note {
-                    (format!("<<note:{id}>>"), format!("inkdrop://note/{id}"))
+                    (format!("<<note:{id}>>"), format!("kanso://note/{id}"))
                 } else {
-                    (format!("<<file:{id}>>"), format!("inkdrop://file:{id}"))
+                    (format!("<<file:{id}>>"), format!("kanso://file:{id}"))
                 };
                 restored = restored.replacen(&full, &uri, 1);
             }
@@ -1074,11 +1074,11 @@ mod tests {
         );
         assert_eq!(
             rewrite_links(
-                "see [it](inkdrop://note/abc) and ![](inkdrop://file:xyz)",
+                "see [it](kanso://note/abc) and ![](kanso://file:xyz)",
                 |id| Some(format!("{id}.md")),
                 |_| None
             ),
-            "see [it](note:abc.md) and ![](inkdrop://file:xyz)"
+            "see [it](note:abc.md) and ![](kanso://file:xyz)"
         );
     }
 }

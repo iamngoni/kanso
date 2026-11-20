@@ -984,7 +984,7 @@
   },
   {
     "name": "kanso-related-notes",
-    "description": "Find the notes most similar in meaning to a note, by Kanso's related notes: embeddings made on the user's device from each note's words, never sent anywhere. Notes the note already links to, or is linked from, are left out. Returns each note's ID, title, `inkdrop://note/<id>` link and similarity (0 to 1, higher is closer), most similar first. Related notes are off until the user turns them on in Kanso's Settings; while they are off, or the note isn't indexed yet, it returns an empty list and says why.",
+    "description": "Find the notes most similar in meaning to a note, by Kanso's related notes: embeddings made on the user's device from each note's words, never sent anywhere. Notes the note already links to, or is linked from, are left out. Returns each note's ID, title, `kanso://note/<id>` link and similarity (0 to 1, higher is closer), most similar first. Related notes are off until the user turns them on in Kanso's Settings; while they are off, or the note isn't indexed yet, it returns an empty list and says why.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
@@ -1051,7 +1051,7 @@
   },
   {
     "name": "kanso-resolve-wikilink",
-    "description": "Find the note a wiki-link points at. Accepts `[[Title]]`, `[[Title#Heading]]` or `[[Title|alias]]`, with or without the brackets. Titles match without regard to case or extra spaces, among notes outside the trash; when several notes share a title, the one created first is the match. Returns the note's ID, title and `inkdrop://note/<id>` link, which is the form to write when linking to it, plus the heading's line when the link names a heading the note has.",
+    "description": "Find the note a wiki-link points at. Accepts `[[Title]]`, `[[Title#Heading]]` or `[[Title|alias]]`, with or without the brackets. Titles match without regard to case or extra spaces, among notes outside the trash; when several notes share a title, the one created first is the match. Returns the note's ID, title and `kanso://note/<id>` link, which is the form to write when linking to it, plus the heading's line when the link names a heading the note has.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
@@ -1092,7 +1092,7 @@
   },
   {
     "name": "kanso-search-by-meaning",
-    "description": "Find the notes about something, by meaning rather than by words: the search is turned into numbers by the same language model as Kanso's related notes, on the user's device, and compared with every note's. A note can match without containing any of the words; for notes containing the words, use search-notes. Returns each note's ID, title, `inkdrop://note/<id>` link and similarity (0 to 1, higher is closer), most similar first, leaving out notes less than 0.35 similar. It needs related notes on in Kanso's Settings and the Kanso app open with its model loaded (a server started with `kanso serve` has no model); otherwise it returns an empty list and says why.",
+    "description": "Find the notes about something, by meaning rather than by words: the search is turned into numbers by the same language model as Kanso's related notes, on the user's device, and compared with every note's. A note can match without containing any of the words; for notes containing the words, use search-notes. Returns each note's ID, title, `kanso://note/<id>` link and similarity (0 to 1, higher is closer), most similar first, leaving out notes less than 0.35 similar. It needs related notes on in Kanso's Settings and the Kanso app open with its model loaded (a server started with `kanso serve` has no model); otherwise it returns an empty list and says why.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",

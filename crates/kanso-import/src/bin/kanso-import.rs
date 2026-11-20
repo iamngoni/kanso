@@ -1,4 +1,4 @@
-//! `kanso-import [--library-dir DIR] [--db FILE] --data-dir DIR`
+//! `kanso-import --library-dir DIR [--db FILE] --data-dir DIR`
 //!
 //! Imports a PouchDB notes library into `DIR/kanso.db` and prints a report.
 //! The app that owns it may keep running; its files are only read.
@@ -8,28 +8,25 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use anyhow::{Context as _, bail};
-use kanso_import::safe_storage::SAFE_STORAGE_SERVICE;
 use kanso_import::{
-    LocalServerCredentials, Phase, default_pouch_library_dir, find_pouch_db, import,
-    read_local_server_config,
+    LocalServerCredentials, Phase, find_pouch_db, import, read_local_server_config,
 };
 use kanso_store::{LibraryFile, Store};
 
 const USAGE: &str = "\
-Usage: kanso-import [--library-dir DIR] [--db FILE] --data-dir DIR
+Usage: kanso-import --library-dir DIR [--db FILE] --data-dir DIR
 
-Imports the PouchDB notes library found on this computer into
-DIR/kanso.db. Safe to run again: documents already imported at the same
-revision are left alone.
+Imports the PouchDB notes library in DIR into Kanso's data directory.
+Safe to run again: documents already imported at the same revision are
+left alone.
 
-  --library-dir DIR  The library's data directory (default: the one found
-                     on this computer)
+  --library-dir DIR  The library's data directory (required)
   --db FILE          The library's database file (default: the single
                      db/<32 hex>.sqlite in the library directory)
   --data-dir DIR     Kanso's data directory (required)";
 
 struct Args {
-    library_dir: Option<PathBuf>,
+    library_dir: PathBuf,
     db: Option<PathBuf>,
     data_dir: PathBuf,
 }
@@ -53,6 +50,8 @@ fn parse_args() -> anyhow::Result<Option<Args>> {
         *slot = Some(PathBuf::from(value));
     }
     let data_dir = data_dir.with_context(|| format!("--data-dir is required\n\n{USAGE}"))?;
+    let library_dir =
+        library_dir.with_context(|| format!("--library-dir is required\n\n{USAGE}"))?;
     Ok(Some(Args {
         library_dir,
         db,
@@ -76,9 +75,9 @@ fn describe(credentials: &LocalServerCredentials) -> String {
     match credentials {
         LocalServerCredentials::None => "none".to_owned(),
         LocalServerCredentials::Basic { .. } => "username and password present".to_owned(),
-        LocalServerCredentials::Encrypted { .. } => format!(
-            "encrypted with Electron safeStorage (needs the \"{SAFE_STORAGE_SERVICE}\" Keychain item)"
-        ),
+        LocalServerCredentials::Encrypted { .. } => {
+            "encrypted with Electron safeStorage (needs its Keychain item)".to_owned()
+        }
         LocalServerCredentials::Unrecognized => "in an unrecognized format".to_owned(),
     }
 }
@@ -88,10 +87,7 @@ fn run() -> anyhow::Result<ExitCode> {
         println!("{USAGE}");
         return Ok(ExitCode::SUCCESS);
     };
-    let library_dir = match args.library_dir {
-        Some(dir) => dir,
-        None => default_pouch_library_dir().context("HOME is not set; pass --library-dir")?,
-    };
+    let library_dir = args.library_dir;
     let source = match args.db {
         Some(db) => db,
         None => find_pouch_db(&library_dir)?,

@@ -1002,7 +1002,7 @@ async fn a_card_points_only_at_what_the_key_could_already_read() {
         .store
         .put(
             DocType::Note,
-            json!({ "title": "Other", "bookId": book, "body": "![x](inkdrop://file:theirs)" }),
+            json!({ "title": "Other", "bookId": book, "body": "![x](kanso://file:theirs)" }),
             Put::Upsert,
             Origin::Sync,
         )

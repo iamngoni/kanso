@@ -68,7 +68,7 @@ Store tables:
 
 ## HTTP API contract
 
-What `@inkdropapp/mcp-server` 1.5.0 calls (must work exactly):
+What the MCP catalog committed here calls (must work exactly):
 
 | Call | Notes |
 |---|---|

@@ -1,4 +1,4 @@
-//! Links that open a PDF: `inkdrop://file:<id>#page=4&h=h7k2m9`.
+//! Links that open a PDF: `kanso://file:<id>#page=4&h=h7k2m9`.
 
 use kanso_core::links::FILE_LINK_PREFIX;
 
@@ -79,39 +79,33 @@ mod tests {
 
     #[test]
     fn parses_the_spec_link() {
-        let l = PdfLink::parse("inkdrop://file:abc123#page=4&h=h7k2m9").unwrap();
+        let l = PdfLink::parse("kanso://file:abc123#page=4&h=h7k2m9").unwrap();
         assert_eq!(l.file_id, "abc123");
         assert_eq!(l.page, Some(4));
         assert_eq!(l.highlight.as_deref(), Some("h7k2m9"));
-        assert_eq!(l.to_url(), "inkdrop://file:abc123#page=4&h=h7k2m9");
+        assert_eq!(l.to_url(), "kanso://file:abc123#page=4&h=h7k2m9");
     }
 
     #[test]
     fn plain_and_odd_links() {
-        assert_eq!(PdfLink::parse("inkdrop://file:a").unwrap().page, None);
+        assert_eq!(PdfLink::parse("kanso://file:a").unwrap().page, None);
+        assert_eq!(PdfLink::parse("kanso://file:a#page=0").unwrap().page, None);
         assert_eq!(
-            PdfLink::parse("inkdrop://file:a#page=0").unwrap().page,
-            None
-        );
-        assert_eq!(
-            PdfLink::parse("inkdrop://file:a#page=x&h=")
+            PdfLink::parse("kanso://file:a#page=x&h=")
                 .unwrap()
                 .highlight,
             None
         );
-        assert!(PdfLink::parse("inkdrop://note/a").is_none());
-        assert!(PdfLink::parse("inkdrop://file:").is_none());
+        assert!(PdfLink::parse("kanso://note/a").is_none());
+        assert!(PdfLink::parse("kanso://file:").is_none());
         assert!(PdfLink::parse("https://example.com").is_none());
     }
 
     #[test]
     fn the_page_is_clamped_to_the_document() {
-        let l = PdfLink::parse("inkdrop://file:a#page=99").unwrap();
+        let l = PdfLink::parse("kanso://file:a#page=99").unwrap();
         assert_eq!(l.target_page(12), 12);
-        assert_eq!(
-            PdfLink::parse("inkdrop://file:a").unwrap().target_page(12),
-            1
-        );
+        assert_eq!(PdfLink::parse("kanso://file:a").unwrap().target_page(12), 1);
         assert_eq!(l.target_page(0), 1);
     }
 
@@ -125,7 +119,7 @@ mod tests {
         #[test]
         fn parse_never_panics(s in "\\PC{0,80}") {
             let _ = PdfLink::parse(&s);
-            let _ = PdfLink::parse(&format!("inkdrop://file:{s}"));
+            let _ = PdfLink::parse(&format!("kanso://file:{s}"));
         }
 
         #[test]

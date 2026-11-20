@@ -114,7 +114,7 @@ fn check(env: &Env, source: &str, report: &LibraryReport) {
     let meeting_id = stable_id(DocType::Note, SourceKind::Joplin, source, MEETING);
     assert!(
         body.starts_with(&format!(
-            "See [the meeting](inkdrop://note/{}) and the sketch:\n\n![sketch.png](inkdrop://file:",
+            "See [the meeting](kanso://note/{}) and the sketch:\n\n![sketch.png](kanso://file:",
             suffix(&meeting_id)
         )),
         "{body}"
@@ -126,15 +126,12 @@ fn check(env: &Env, source: &str, report: &LibraryReport) {
         &format!("file:resources/{SKETCH}.png"),
     );
     assert!(
-        body.contains(&format!(
-            "![sketch.png](inkdrop://file:{})",
-            suffix(&file_id)
-        )),
+        body.contains(&format!("![sketch.png](kanso://file:{})", suffix(&file_id))),
         "{body}"
     );
     assert!(
         body.contains(&format!(
-            "<img src=\"inkdrop://file:{}\" width=\"200\"/>",
+            "<img src=\"kanso://file:{}\" width=\"200\"/>",
             suffix(&file_id)
         )),
         "{body}"

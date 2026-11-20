@@ -81,7 +81,7 @@ impl World {
     fn note_in(&self, book: &str, files: &[String]) -> Note {
         let body: String = files
             .iter()
-            .map(|id| format!("![](inkdrop://{id})\n"))
+            .map(|id| format!("![](kanso://{id})\n"))
             .collect();
         let id = self
             .store

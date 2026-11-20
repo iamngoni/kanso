@@ -55,7 +55,7 @@ pub fn length_label(seconds: u64) -> String {
     }
 }
 
-/// The recording's first line: `[Audio · 52 min](inkdrop://file:abc)`, or
+/// The recording's first line: `[Audio · 52 min](kanso://file:abc)`, or
 /// for several parts `[Audio · part 1](…) · [part 2](…)`. The player takes
 /// every link on this line as one recording. Pure.
 pub fn audio_line(file_ids: &[String], duration_secs: u64) -> String {
@@ -432,11 +432,11 @@ mod tests {
     fn the_audio_line_matches_the_design() {
         assert_eq!(
             audio_line(&ids(1), 52 * 60),
-            "[Audio · 52 min](inkdrop://file:a0)"
+            "[Audio · 52 min](kanso://file:a0)"
         );
         assert_eq!(
             audio_line(&ids(2), 3600),
-            "[Audio · part 1](inkdrop://file:a0) · [part 2](inkdrop://file:a1)"
+            "[Audio · part 1](kanso://file:a0) · [part 2](kanso://file:a1)"
         );
         assert_eq!(audio_line(&[], 5), "");
     }
@@ -508,7 +508,7 @@ mod tests {
         assert_eq!(note.title, "Meeting — 23 Oct 2026, 14:05");
         assert_eq!(
             note.body,
-            "[Audio · part 1](inkdrop://file:rec-abc-1-1) · [part 2](inkdrop://file:rec-abc-1-2)\n"
+            "[Audio · part 1](kanso://file:rec-abc-1-1) · [part 2](kanso://file:rec-abc-1-2)\n"
         );
         let again = save_recording(&store, &rec, &dest, Origin::Ui).unwrap();
         assert!(!again.created);
@@ -537,7 +537,7 @@ mod tests {
         let body = store.note(&made.id).unwrap().unwrap().body;
         assert_eq!(
             body,
-            "My prose\n\n[Audio · 52 min](inkdrop://file:rec-abc-1-1)\n"
+            "My prose\n\n[Audio · 52 min](kanso://file:rec-abc-1-1)\n"
         );
         save_recording(&store, &rec, &dest, Origin::Ui).unwrap();
         assert_eq!(store.note(&made.id).unwrap().unwrap().body, body);
@@ -623,7 +623,7 @@ mod tests {
         let body = store.note(&saved.note_id).unwrap().unwrap().body;
         assert_eq!(
             body,
-            "[Audio · 52 min](inkdrop://file:rec-abc-1-1)\n\n[System audio · part 1](inkdrop://file:rec-abc-1-sys-1) · [part 2](inkdrop://file:rec-abc-1-sys-2)\n"
+            "[Audio · 52 min](kanso://file:rec-abc-1-1)\n\n[System audio · part 1](kanso://file:rec-abc-1-sys-1) · [part 2](kanso://file:rec-abc-1-sys-2)\n"
         );
         // Each line is a recording of its own for the player.
         let lines = crate::recording_player::link_lines(&body);

@@ -5,8 +5,8 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 
-/// The in-app link scheme of a note: `inkdrop://note/<id>`.
-const String noteLinkPrefix = 'inkdrop://note/';
+/// The in-app link scheme of a note: `kanso://note/<id>`.
+const String noteLinkPrefix = 'kanso://note/';
 
 final RegExp _link = RegExp(r'\[([^\]]+)\]\(([^)\s]+)\)');
 
@@ -19,8 +19,8 @@ String? linkedNote(String url) {
     }
     return rest.startsWith('note:') ? rest : 'note:$rest';
   }
-  if (url.startsWith('inkdrop://note:')) {
-    final rest = url.substring('inkdrop://'.length).split('#').first;
+  if (url.startsWith('kanso://note:')) {
+    final rest = url.substring('kanso://'.length).split('#').first;
     return rest.length > 'note:'.length ? rest : null;
   }
   return null;
@@ -36,7 +36,7 @@ class LinkPiece {
   final String? noteId;
 }
 
-/// Splits Markdown text with `[words](inkdrop://note/id)` links into pieces.
+/// Splits Markdown text with `[words](kanso://note/id)` links into pieces.
 /// A link that is not to a note is kept as its words.
 List<LinkPiece> linkPieces(String markdown) {
   final out = <LinkPiece>[];

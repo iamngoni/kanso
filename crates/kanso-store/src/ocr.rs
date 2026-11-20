@@ -253,7 +253,7 @@ mod tests {
         store
             .put(
                 DocType::Note,
-                json!({"title": "Shows", "body": format!("![](inkdrop://{id})"), "bookId": book, "tags": tags}),
+                json!({"title": "Shows", "body": format!("![](kanso://{id})"), "bookId": book, "tags": tags}),
                 Put::Upsert,
                 Origin::Ui,
             )

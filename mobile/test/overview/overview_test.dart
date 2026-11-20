@@ -204,16 +204,16 @@ void main() {
 
   group('linked text', () {
     test('a note link is the note, with or without the prefix', () {
-      expect(linkedNote('inkdrop://note/abc'), 'note:abc');
-      expect(linkedNote('inkdrop://note/note:abc'), 'note:abc');
-      expect(linkedNote('inkdrop://note:abc'), 'note:abc');
-      expect(linkedNote('inkdrop://note/'), isNull);
+      expect(linkedNote('kanso://note/abc'), 'note:abc');
+      expect(linkedNote('kanso://note/note:abc'), 'note:abc');
+      expect(linkedNote('kanso://note:abc'), 'note:abc');
+      expect(linkedNote('kanso://note/'), isNull);
       expect(linkedNote('https://example.com'), isNull);
     });
 
     test('pieces keep every word, and links to notes open them', () {
       final pieces = linkPieces(
-        'See [Plans](inkdrop://note/p1) and [the web](https://x.dev).',
+        'See [Plans](kanso://note/p1) and [the web](https://x.dev).',
       );
       expect(pieces.map((p) => p.text).join(), 'See Plans and the web.');
       expect(pieces.where((p) => p.noteId != null).single.noteId, 'note:p1');
@@ -228,7 +228,7 @@ void main() {
         for (var i = 0; i < random.nextInt(8); i++) {
           final word = words[random.nextInt(words.length)];
           if (random.nextBool() && word.trim().isNotEmpty) {
-            marked.write('[$word](inkdrop://note/n$i)');
+            marked.write('[$word](kanso://note/n$i)');
           } else {
             marked.write(word);
           }
@@ -435,7 +435,7 @@ void main() {
       digest.today = _busy(
         ai: const OverviewAi(
           text:
-              'Pick up [Plans](inkdrop://note/plans) '
+              'Pick up [Plans](kanso://note/plans) '
               'before the call.',
           timeLabel: '08:41',
         ),

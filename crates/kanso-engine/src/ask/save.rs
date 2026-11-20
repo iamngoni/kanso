@@ -2,7 +2,7 @@
 //!
 //! The note is titled "Q: <question>", holds the answer, and ends with the
 //! Sources as ordinary note links with line anchors
-//! (`[Pricing](inkdrop://note/<id>#L12-14)`), so each opens the cited lines.
+//! (`[Pricing](kanso://note/<id>#L12-14)`), so each opens the cited lines.
 //! It goes in the notebook the question was scoped to, else the Inbox.
 
 use kanso_core::DocType;
@@ -150,13 +150,13 @@ mod tests {
         let saved = saved_note("What  did we choose?", &done);
         assert_eq!(saved.title, "Q: What did we choose?");
         assert!(
-            saved.body.contains("[1](inkdrop://note/pricing#L12-13)"),
+            saved.body.contains("[1](kanso://note/pricing#L12-13)"),
             "{}",
             saved.body
         );
         assert!(saved.body.contains("## Sources"));
         assert!(saved.body.contains(
-            "1. [Pricing](inkdrop://note/pricing#L12-13) \u{b7} lines 12\u{2013}13 \u{b7} 14 Oct"
+            "1. [Pricing](kanso://note/pricing#L12-13) \u{b7} lines 12\u{2013}13 \u{b7} 14 Oct"
         ));
         assert!(saved.body.contains("*Not found in your notes*"));
         assert!(!saved.body.contains("kanso-"), "{}", saved.body);

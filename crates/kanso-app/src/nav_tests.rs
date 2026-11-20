@@ -335,7 +335,7 @@ fn copying_a_notes_link(cx: &mut TestAppContext) {
     let suffix = plans.strip_prefix("note:").unwrap();
     assert_eq!(
         f.clipboard(cx),
-        Some(format!("[Plans](inkdrop://note/{suffix})"))
+        Some(format!("[Plans](kanso://note/{suffix})"))
     );
 
     let again = f.note("Plans", "another");
@@ -345,6 +345,6 @@ fn copying_a_notes_link(cx: &mut TestAppContext) {
     let suffix = again.strip_prefix("note:").unwrap();
     assert_eq!(
         f.clipboard(cx),
-        Some(format!("[Plans](inkdrop://note/{suffix})"))
+        Some(format!("[Plans](kanso://note/{suffix})"))
     );
 }

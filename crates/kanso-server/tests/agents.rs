@@ -299,7 +299,7 @@ async fn an_agent_reads_what_its_scope_holds_and_nothing_else() {
         &agents.api,
         token,
         "resources/read",
-        json!({ "uri": format!("inkdrop://note/{}", sealed.trim_start_matches("note:")) }),
+        json!({ "uri": format!("kanso://note/{}", sealed.trim_start_matches("note:")) }),
     )
     .await;
     assert!(resource.get("error").is_some(), "{resource}");
@@ -614,7 +614,7 @@ proptest! {
         }
         for pick in &resources {
             let id = &every[pick.index(every.len())];
-            let uri = format!("inkdrop://note/{}", id.trim_start_matches("note:"));
+            let uri = format!("kanso://note/{}", id.trim_start_matches("note:"));
             let (_, answer) = runtime().block_on(agent_rpc(
                 &agents.private,
                 &minted.token,

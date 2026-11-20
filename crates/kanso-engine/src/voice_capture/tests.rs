@@ -117,7 +117,7 @@ fn kept_audio_is_attached_once_and_linked_and_big_audio_is_left_out() {
         .unwrap();
     let body = store.note(&saved.id).unwrap().unwrap().body;
     assert!(
-        body.ends_with(&format!("(inkdrop://{})", audio_file_id(ID))),
+        body.ends_with(&format!("(kanso://{})", audio_file_id(ID))),
         "{body}"
     );
     assert!(store.get(&audio_file_id(ID)).unwrap().is_some());
@@ -135,7 +135,7 @@ fn kept_audio_is_attached_once_and_linked_and_big_audio_is_left_out() {
             .unwrap()
             .unwrap()
             .body
-            .contains("inkdrop://")
+            .contains("kanso://")
     );
 
     // Over the limit: the note is saved, the audio is not.

@@ -143,7 +143,7 @@ fn library(kinds: &[Kind]) -> Library {
             DocType::Note,
             json!({
                 "title": format!("Note {n}"),
-                "body": format!("orchard fruit trees and pruning ![](inkdrop://{file})"),
+                "body": format!("orchard fruit trees and pruning ![](kanso://{file})"),
                 "bookId": book,
                 "tags": [topic],
             }),
@@ -376,7 +376,7 @@ fn linking(store: &Store, book: &str, title: &str, to_title: &str, to_id: &str) 
         DocType::Note,
         json!({
             "title": title,
-            "body": format!("See [[{to_title}]] and [x](inkdrop://note/{}).", to_id.trim_start_matches("note:")),
+            "body": format!("See [[{to_title}]] and [x](kanso://note/{}).", to_id.trim_start_matches("note:")),
             "bookId": book,
         }),
     )
@@ -478,7 +478,7 @@ fn an_image_shown_by_a_locked_note_and_a_plain_one_is_read() {
         put(
             &store,
             DocType::Note,
-            json!({"title": title, "body": format!("![](inkdrop://{file})"), "bookId": book}),
+            json!({"title": title, "body": format!("![](kanso://{file})"), "bookId": book}),
         )
     };
     let secret = shows("Secret", &file);
@@ -508,7 +508,7 @@ fn an_excluded_notes_image_is_not_read_until_the_tag_goes() {
     let note = put(
         &store,
         DocType::Note,
-        json!({"title": "N", "body": format!("![](inkdrop://{file})"), "bookId": book, "tags": [exclude]}),
+        json!({"title": "N", "body": format!("![](kanso://{file})"), "bookId": book, "tags": [exclude]}),
     );
     assert!(store.unread_images(10).unwrap().is_empty());
     store

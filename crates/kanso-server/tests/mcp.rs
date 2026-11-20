@@ -49,7 +49,7 @@ async fn initialize_negotiates_the_protocol_version() {
 }
 
 #[tokio::test]
-async fn lists_inkdrop_tools_before_kanso_tools_and_the_note_template() {
+async fn lists_compatible_tools_before_kanso_tools_and_the_note_template() {
     let app = app();
     let answer = rpc(&app.router, "tools/list", json!({})).await;
     let tools = answer["result"]["tools"].as_array().unwrap();
@@ -81,7 +81,7 @@ async fn lists_inkdrop_tools_before_kanso_tools_and_the_note_template() {
     assert_eq!(
         answer["result"],
         json!({ "resourceTemplates": [{
-            "name": "note", "uriTemplate": "inkdrop://note/{noteId}",
+            "name": "note", "uriTemplate": "kanso://note/{noteId}",
             "description": "A note data", "mimeType": "application/json"
         }] })
     );
@@ -112,7 +112,7 @@ async fn kanso_tools_read_properties_links_query_views_and_versions() {
         "bookId": book_id, "title": "Target", "body": "---\npriority: 3\nlabels: [one, two]\n---\n# Heading\n"
     })).await;
     let (source, _) = write(&app.router, "/notes", json!({
-        "bookId": book_id, "title": "Source", "body": format!("[[Target]]\ninkdrop://note/{}\n", target.trim_start_matches("note:"))
+        "bookId": book_id, "title": "Source", "body": format!("[[Target]]\nkanso://note/{}\n", target.trim_start_matches("note:"))
     })).await;
 
     let props = tool_json(
@@ -205,7 +205,7 @@ async fn kanso_tools_read_properties_links_query_views_and_versions() {
 }
 
 #[tokio::test]
-async fn inkdrop_template_tools_map_to_kansos_templates_notebook() {
+async fn template_tools_map_to_kansos_templates_notebook() {
     let app = app();
     let created = tool_json(
         &tool(
@@ -542,14 +542,14 @@ async fn backlinks_and_templates() {
     let result = tool(&app.router, "read-backlinks", json!({ "noteId": target })).await;
     assert_eq!(
         text(&result, 0),
-        format!("No backlinks found for inkdrop://note/{bare}.")
+        format!("No backlinks found for kanso://note/{bare}.")
     );
 
     let (book_id, _) = write(&app.router, "/books", json!({ "name": "B" })).await;
     let (linker, _) = write(
         &app.router,
         "/notes",
-        json!({ "bookId": book_id, "title": "", "body": format!("see [t](inkdrop://note/{bare})") }),
+        json!({ "bookId": book_id, "title": "", "body": format!("see [t](kanso://note/{bare})") }),
     )
     .await;
     let result = tool(&app.router, "read-backlinks", json!({ "noteId": bare })).await;
@@ -557,7 +557,7 @@ async fn backlinks_and_templates() {
         result,
         json!({ "content": [{
             "type": "resource_link",
-            "uri": format!("inkdrop://note/{}", linker.strip_prefix("note:").unwrap()),
+            "uri": format!("kanso://note/{}", linker.strip_prefix("note:").unwrap()),
             "name": "Untitled note",
             "mimeType": "application/json",
         }] })
@@ -582,7 +582,7 @@ async fn backlinks_and_templates() {
     assert_eq!(blocks[1]["type"], "resource_link");
     assert_eq!(
         blocks[1]["uri"],
-        format!("inkdrop://note/{}", template.strip_prefix("note:").unwrap())
+        format!("kanso://note/{}", template.strip_prefix("note:").unwrap())
     );
     assert_eq!(blocks[1]["name"], "Source template");
     let result = tool(
@@ -600,29 +600,29 @@ async fn backlinks_and_templates() {
     let answer = rpc(
         &app.router,
         "resources/read",
-        json!({ "uri": format!("inkdrop://note/{bare}") }),
+        json!({ "uri": format!("kanso://note/{bare}") }),
     )
     .await;
     let contents = &answer["result"]["contents"][0];
-    assert_eq!(contents["uri"], format!("inkdrop://note/{bare}"));
+    assert_eq!(contents["uri"], format!("kanso://note/{bare}"));
     assert_eq!(contents["mimeType"], "application/json");
     let doc: Value = serde_json::from_str(contents["text"].as_str().unwrap()).unwrap();
     assert_eq!(doc["_id"], target);
     let answer = rpc(
         &app.router,
         "resources/read",
-        json!({ "uri": "inkdrop://book/abc" }),
+        json!({ "uri": "kanso://book/abc" }),
     )
     .await;
     assert_eq!(answer["error"]["code"], -32602);
     assert_eq!(
         answer["error"]["message"],
-        "MCP error -32602: Resource inkdrop://book/abc not found"
+        "MCP error -32602: Resource kanso://book/abc not found"
     );
     let answer = rpc(
         &app.router,
         "resources/read",
-        json!({ "uri": "inkdrop://note/missing" }),
+        json!({ "uri": "kanso://note/missing" }),
     )
     .await;
     assert_eq!(
@@ -755,7 +755,7 @@ async fn files_through_the_tools() {
     assert_eq!(
         text(&created, 1),
         format!(
-            "Markdown to embed this attachment in a note body:\n\n![pixel.png](inkdrop://{file_id})"
+            "Markdown to embed this attachment in a note body:\n\n![pixel.png](kanso://{file_id})"
         )
     );
     let (_, doc) = get(&app.router, &format!("/{file_id}?attachments=true")).await;
@@ -797,7 +797,7 @@ async fn files_through_the_tools() {
     )
     .await;
     let svg_id = tool_json(&created)["id"].as_str().unwrap().to_owned();
-    assert!(text(&created, 1).contains("![image.svg+xml](inkdrop://"));
+    assert!(text(&created, 1).contains("![image.svg+xml](kanso://"));
     let read = tool(&app.router, "read-file", json!({ "fileId": svg_id })).await;
     assert_eq!(
         text(&read, 1),
@@ -994,7 +994,7 @@ async fn outlines_and_wiki_links_through_kanso_tools() {
         json!({
             "noteId": plan,
             "title": "Project Plan",
-            "uri": format!("inkdrop://note/{bare}"),
+            "uri": format!("kanso://note/{bare}"),
             "alias": "money",
             "heading": { "text": "Budget Lines", "level": 2, "line": 5 },
         })
@@ -1066,7 +1066,7 @@ async fn tasks_through_kanso_list_tasks() {
             "noteId": plan,
             "noteTitle": "Plan",
             "bookId": book_id,
-            "uri": format!("inkdrop://note/{bare}"),
+            "uri": format!("kanso://note/{bare}"),
         })
     );
     let done = tool_json(&tool(&app.router, "kanso-list-tasks", json!({ "status": "done" })).await);
@@ -1150,7 +1150,7 @@ async fn open_loops_through_kanso_list_open_loops_and_the_rest_api() {
             "noteId": plan,
             "noteTitle": "Plan",
             "bookId": book_id,
-            "uri": format!("inkdrop://note/{bare}"),
+            "uri": format!("kanso://note/{bare}"),
         })
     );
     let waiting = tool_json(
@@ -1405,7 +1405,7 @@ async fn daily_notes_and_templates_through_kanso_tools() {
             "noteId": "note:daily-2026-10-20",
             "title": "2026-10-20",
             "bookId": "book:journal",
-            "uri": "inkdrop://note/daily-2026-10-20",
+            "uri": "kanso://note/daily-2026-10-20",
             "created": true,
         })
     );
@@ -1517,7 +1517,7 @@ async fn mcp_never_returns_sealed_attachment_bytes_or_exports_them() {
             DocType::Note,
             json!({
                 "_id":"note:mcpsealed", "title":"Sealed file", "bookId":"trash",
-                "body":format!("![secret](inkdrop://{})", file.id)
+                "body":format!("![secret](kanso://{})", file.id)
             }),
             Put::Upsert,
             Origin::Sync,

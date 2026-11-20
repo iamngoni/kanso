@@ -840,9 +840,14 @@ impl Store {
         body: Value,
         first: impl FnOnce(&Transaction, &mut Vec<Change>) -> Result<()>,
     ) -> Result<WriteResult> {
-        let Value::Object(fields) = body else {
+        let Value::Object(mut fields) = body else {
             return Err(StoreError::Invalid("Expected a JSON object.".into()));
         };
+        if let Some(body) = fields.get("body").and_then(Value::as_str)
+            && let Some(current) = kanso_core::links::current_scheme_body(body)
+        {
+            fields.insert("body".into(), Value::String(current));
+        }
         let id = fields
             .get("_id")
             .and_then(Value::as_str)

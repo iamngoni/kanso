@@ -859,7 +859,7 @@ mod tests {
             &store,
             "Delta",
             &format!(
-                "apples, pears [x](inkdrop://note/{})",
+                "apples, pears [x](kanso://note/{})",
                 b.strip_prefix("note:").unwrap()
             ),
         );

@@ -372,7 +372,7 @@ void main() {
     testWidgets('a PDF block is a quiet line, not its data', (tester) async {
       await pump(tester, <PreviewBlock>[
         const PreviewBlock.pdfNotes(
-          url: 'inkdrop://file:abc123',
+          url: 'kanso://file:abc123',
           summary: '4 highlights · 1 comment',
         ),
       ]);
@@ -415,7 +415,7 @@ void main() {
           columns: <String>['Title', 'Status'],
           rows: <PreviewQueryRow>[
             PreviewQueryRow(
-              url: 'inkdrop://note/a',
+              url: 'kanso://note/a',
               title: 'Alpha',
               cells: <String>['active'],
             ),
@@ -430,7 +430,7 @@ void main() {
       expect(find.text('active'), findsOneWidget);
       expect(find.text('No notes match.'), findsOneWidget);
       await tester.tap(find.text('Alpha'));
-      expect(tapped, <String>['inkdrop://note/a']);
+      expect(tapped, <String>['kanso://note/a']);
     });
 
     testWidgets('a source that failed shows its badge and its code', (

@@ -93,7 +93,7 @@ fn bytes_that_have_not_arrived_are_not_here_and_a_gone_file_is_missing() {
     let later = note(
         &phone.library,
         "Later",
-        "[Audio · 3 min](inkdrop://file:later-1)\n",
+        "[Audio · 3 min](kanso://file:later-1)\n",
     );
     let found = expect_recording(phone.library.note_recording(&later).unwrap());
     assert_eq!(found.state, PartsState::NotHere);
@@ -105,7 +105,7 @@ fn bytes_that_have_not_arrived_are_not_here_and_a_gone_file_is_missing() {
     let gone = note(
         &phone.library,
         "Gone",
-        "[Audio · 3 min](inkdrop://file:ghost-1)\n",
+        "[Audio · 3 min](kanso://file:ghost-1)\n",
     );
     let found = expect_recording(phone.library.note_recording(&gone).unwrap());
     assert_eq!(found.state, PartsState::Missing);
@@ -158,7 +158,7 @@ fn the_timestamps_of_the_note_become_links_in_its_preview() {
     let (_, file_ids) = recorded(&phone, "play-3", 3);
     let id = &file_ids[0];
     let body =
-        format!("[Audio · 3 sec](inkdrop://{id})\n\n[00:02](kanso-audio://{id}?t=2) We started.\n");
+        format!("[Audio · 3 sec](kanso://{id})\n\n[00:02](kanso-audio://{id}?t=2) We started.\n");
     let note_id = note(&phone.library, "Timed", &body);
     let blocks = phone
         .library

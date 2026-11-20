@@ -140,7 +140,7 @@ pub struct PdfBlock {
     /// written there, not here: what is here is what was read from it.
     #[serde(default)]
     pub ink: Vec<PageInk>,
-    /// The companion ink attachment (`inkdrop://file:<id>`), when the strokes
+    /// The companion ink attachment (`kanso://file:<id>`), when the strokes
     /// outgrew the block. The link form is what ties the attachment to the
     /// note: the store counts a note's linked files from its text.
     #[serde(default, skip_serializing_if = "Option::is_none")]

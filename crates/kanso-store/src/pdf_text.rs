@@ -361,7 +361,7 @@ mod tests {
     }
 
     fn link(file: &str) -> String {
-        format!("[doc.pdf](inkdrop://{file})")
+        format!("[doc.pdf](kanso://{file})")
     }
 
     fn md5_of(store: &Store, id: &str) -> String {

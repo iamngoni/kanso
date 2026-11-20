@@ -14,7 +14,7 @@
 //!   save never loses a stroke made elsewhere.
 //!
 //! The attachment is owned by the note through the link the block holds
-//! (`inkdrop://file:<id>`), so it follows the note into the trash, through
+//! (`kanso://file:<id>`), so it follows the note into the trash, through
 //! sync and out with Empty Trash like any other attachment, and a lock seals
 //! it with the note's other files (#44). The desktop's reader and the phone's
 //! list both write it through here, so the two ends agree.

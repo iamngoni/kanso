@@ -1302,10 +1302,7 @@ mod tests {
             let two =
                 kanso_engine::attach::attach_image(&f.store, &[PIXEL, b"2"].concat(), "png", None)
                     .unwrap();
-            f.type_at_end(
-                cx,
-                &format!("\n\n![](inkdrop://{one})\n![](inkdrop://{two})"),
-            );
+            f.type_at_end(cx, &format!("\n\n![](kanso://{one})\n![](kanso://{two})"));
             // A lock that stopped after its first file, the keys gone since.
             let key = LockKey::create(
                 &LockPassword::new("correct horse").unwrap(),
@@ -1347,7 +1344,7 @@ mod tests {
         fn lock_notes_now_leaves_the_stub_and_no_decoded_image(cx: &mut TestAppContext) {
             let f = setup(cx);
             let image = kanso_engine::attach::attach_image(&f.store, PIXEL, "png", None).unwrap();
-            f.type_at_end(cx, &format!("\n\n![](inkdrop://{image})"));
+            f.type_at_end(cx, &format!("\n\n![](kanso://{image})"));
             let form = f
                 .window
                 .update(cx, |_, window, cx| {

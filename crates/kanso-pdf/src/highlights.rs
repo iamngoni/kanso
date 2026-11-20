@@ -453,7 +453,7 @@ pub fn quote_of(file: &str, h: &Highlight) -> String {
 }
 
 /// The highlight ids whose quotes are in `body` for `file` (`file:<id>`):
-/// every `inkdrop://file:<id>#…h=<hid>` link there.
+/// every `kanso://file:<id>#…h=<hid>` link there.
 pub fn quote_ids(body: &str, file: &str) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     let want = file.strip_prefix("file:").unwrap_or(file);

@@ -822,17 +822,17 @@ mod tests {
     }
 
     /// The Default Light and Default Dark theme packages, when reference
-    /// copies are at `$KANSO_THEME_REFS` (in folders named after their
-    /// upstream repositories, `<owner>_<repo>`), import as near-white and
-    /// near-black themes with a blue accent, and read.
+    /// copies are at `$KANSO_THEME_REFS` (in the folders
+    /// `default-light-package` and `default-dark-package`), import as
+    /// near-white and near-black themes with a blue accent, and read.
     #[test]
     fn the_default_themes_import() {
         let Some(refs) = refs() else {
             return;
         };
         for (folder, dark) in [
-            ("inkdropapp_default-light", false),
-            ("inkdropapp_default-dark", true),
+            ("default-light-package", false),
+            ("default-dark-package", true),
         ] {
             let themes = read_source(&refs.join(folder)).unwrap();
             let theme = &themes[0];

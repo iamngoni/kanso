@@ -7,13 +7,12 @@
 //!
 //! The rest of the crate imports a PouchDB notes library: an Electron notes
 //! app that keeps its documents in PouchDB on SQLite, in
-//! `<data dir>/db/<32 hex>.sqlite` (see [`default_pouch_library_dir`] for
-//! where the data folder is on each system). The importer snapshots that
-//! file read-only (the app may have it open), then copies the winning
-//! revision of every note, notebook, tag and file, keeping their IDs and
-//! revisions. Attachment bytes are checked against their MD5 digests; the
-//! library's `activity:` log is archived verbatim; design documents, `config`
-//! and `_local` documents are skipped.
+//! `<library dir>/db/<32 hex>.sqlite`. The importer snapshots that file
+//! read-only (the app may have it open), then copies the winning revision of
+//! every note, notebook, tag and file, keeping their IDs and revisions.
+//! Attachment bytes are checked against their MD5 digests; the library's
+//! `activity:` log is archived verbatim; design documents, `config` and
+//! `_local` documents are skipped.
 
 mod config;
 mod import;
@@ -32,45 +31,6 @@ pub use config::{
 };
 pub use import::{Phase, Progress, import};
 pub use report::{ImportReport, SourceCounts};
-
-/// The name of the source app's data folder, its Electron `userData`
-/// folder. The app chose it, so it stays exactly as written.
-pub const DATA_DIR_NAME: &str = "inkdrop";
-
-/// The library's data folder on macOS:
-/// `~/Library/Application Support/<DATA_DIR_NAME>`. `None` when `HOME` is
-/// not set.
-#[cfg(target_os = "macos")]
-pub fn default_pouch_library_dir() -> Option<PathBuf> {
-    non_empty_var("HOME").map(|home| {
-        PathBuf::from(home)
-            .join("Library/Application Support")
-            .join(DATA_DIR_NAME)
-    })
-}
-
-/// The library's data folder on Windows, Electron's `userData`:
-/// `%APPDATA%\<DATA_DIR_NAME>`. `None` when `APPDATA` is not set.
-#[cfg(target_os = "windows")]
-pub fn default_pouch_library_dir() -> Option<PathBuf> {
-    non_empty_var("APPDATA").map(|dir| PathBuf::from(dir).join(DATA_DIR_NAME))
-}
-
-/// The library's data folder on Linux, Electron's `userData`:
-/// `$XDG_CONFIG_HOME/<DATA_DIR_NAME>` or `~/.config/<DATA_DIR_NAME>`. `None`
-/// when neither is set.
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-pub fn default_pouch_library_dir() -> Option<PathBuf> {
-    non_empty_var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .filter(|dir| dir.is_absolute())
-        .or_else(|| non_empty_var("HOME").map(|home| PathBuf::from(home).join(".config")))
-        .map(|config| config.join(DATA_DIR_NAME))
-}
-
-fn non_empty_var(name: &str) -> Option<std::ffi::OsString> {
-    std::env::var_os(name).filter(|value| !value.is_empty())
-}
 
 /// Whether `name` is a main database file name: 32 hex digits and `.sqlite`.
 /// Excludes `*-mrview-*` view databases and `-wal`/`-shm` companions.

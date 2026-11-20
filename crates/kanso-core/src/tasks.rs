@@ -541,8 +541,8 @@ mod tests {
 
     #[test]
     fn extracts_links() {
-        let body = "See [a](inkdrop://note/abc-1_2) and [b](inkdrop://note/abc-1_2) \
-                    ![img](inkdrop://file:XyZ9) inkdrop://note/";
+        let body = "See [a](kanso://note/abc-1_2) and [b](kanso://note/abc-1_2) \
+                    ![img](kanso://file:XyZ9) kanso://note/";
         assert_eq!(linked_note_ids(body), vec!["note:abc-1_2"]);
         assert_eq!(linked_file_ids(body), vec!["file:XyZ9"]);
     }
@@ -593,7 +593,7 @@ mod tests {
     fn a_canvas_shows_the_files_its_cards_point_at() {
         let body = canvas_with_cards(
             &["file:card1".into(), "note:n1".into()],
-            "see ![](inkdrop://file:linked1)",
+            "see ![](kanso://file:linked1)",
         );
         assert!(crate::canvas::parse(&body).is_ok(), "{body}");
         // The text link alone is all `linked_file_ids` finds.
@@ -604,7 +604,7 @@ mod tests {
         );
         // A note that isn't a canvas shows what it links.
         assert_eq!(
-            shown_file_ids("file:card1 ![](inkdrop://file:x)"),
+            shown_file_ids("file:card1 ![](kanso://file:x)"),
             vec!["file:x".to_owned()]
         );
     }
@@ -620,7 +620,7 @@ mod tests {
         ) {
             let mut files: Vec<String> = cards.iter().map(|c| format!("file:{c}")).collect();
             files.extend(notes.iter().map(|n| format!("note:{n}")));
-            let text: String = linked.iter().map(|l| format!("![](inkdrop://file:{l}) ")).collect();
+            let text: String = linked.iter().map(|l| format!("![](kanso://file:{l}) ")).collect();
             let body = canvas_with_cards(&files, &text);
             let shown = shown_file_ids(&body);
             let unique: std::collections::HashSet<&String> = shown.iter().collect();

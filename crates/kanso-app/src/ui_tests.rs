@@ -763,7 +763,7 @@ fn presentation_keeps_the_slide_keys_with_a_player_card_on_show(cx: &mut TestApp
     f.select(cx, &id);
     f.type_body(
         cx,
-        "[Audio \u{b7} 3 min](inkdrop://file:ghost-1)\n\n---\n\nTwo\n\n---\n\nThree",
+        "[Audio \u{b7} 3 min](kanso://file:ghost-1)\n\n---\n\nTwo\n\n---\n\nThree",
     );
     let present = id.clone();
     f.window
@@ -3534,7 +3534,7 @@ fn opening_a_note_locked_before_seals_its_attachments_before_it_shows(cx: &mut T
         )
         .unwrap()
         .id;
-    let text = format!("Private\n![](inkdrop://{file})\n");
+    let text = format!("Private\n![](kanso://{file})\n");
     let id = f
         .store
         .put(

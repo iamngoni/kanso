@@ -10,7 +10,7 @@ import 'open_library.dart';
 
 const String _body =
     '# Meeting\n\n'
-    '[Audio](inkdrop://file:abc123)\n\n'
+    '[Audio](kanso://file:abc123)\n\n'
     '<!-- kanso:transcript -->\n'
     '[00:00](kanso-audio://file:abc123?t=0) You: Morning.\n\n'
     '[00:20](kanso-audio://file:abc123?t=20) Speaker 1: Beta ships.\n\n'

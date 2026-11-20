@@ -154,19 +154,19 @@ fn gen_body(note_ids: Vec<String>, file_ids: Vec<String>) -> impl Strategy<Value
         Just("- [ ] task\n".to_owned()).boxed(),
         Just("* [x] done\n".to_owned()).boxed(),
         Just("```\n- [ ] in code\n```\n".to_owned()).boxed(),
-        Just("[gone](inkdrop://note/missing-1)".to_owned()).boxed(),
+        Just("[gone](kanso://note/missing-1)".to_owned()).boxed(),
     ];
     if !note_ids.is_empty() {
         fragments.push(
             prop::sample::select(note_ids)
-                .prop_map(|id| format!("[n](inkdrop://note/{})", suffix(&id)))
+                .prop_map(|id| format!("[n](kanso://note/{})", suffix(&id)))
                 .boxed(),
         );
     }
     if !file_ids.is_empty() {
         fragments.push(
             prop::sample::select(file_ids)
-                .prop_map(|id| format!("![f](inkdrop://file:{})", suffix(&id)))
+                .prop_map(|id| format!("![f](kanso://file:{})", suffix(&id)))
                 .boxed(),
         );
     }

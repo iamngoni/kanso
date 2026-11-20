@@ -472,7 +472,7 @@ fn pin_hide_copy_and_not_right() {
     // Copy into the note: Markdown links with the line.
     let view = pages::open(&store, &page, options(true), &[]).unwrap();
     let markdown = pages::section_markdown(find(&view, "promises"));
-    assert!(markdown.contains("](inkdrop://note/"), "{markdown}");
+    assert!(markdown.contains("](kanso://note/"), "{markdown}");
     assert!(markdown.contains("#L"), "{markdown}");
 
     // Not right: the bullet goes and the next prompt says so.

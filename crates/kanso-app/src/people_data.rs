@@ -362,7 +362,7 @@ mod tests {
         let text = gpui_kit::SharedString::from("ask @Sam, not @bob\n");
         assert_eq!(
             rewrite_mentions(&text, &map).as_ref(),
-            "ask [@Sam](inkdrop://note/p1), not @bob\n"
+            "ask [@Sam](kanso://note/p1), not @bob\n"
         );
     }
 
