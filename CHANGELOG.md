@@ -3,6 +3,28 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.10.11](https://github.com/iamngoni/kanso/compare/v0.10.10...v0.10.11) - 2026-11-20
+
+### New
+
+- **import:** Choose the PouchDB library folder during desktop import; the CLI requires `--library-dir` instead of looking in a vendor-specific default ([8c0af86](https://github.com/iamngoni/kanso/commit/8c0af866af7105388dbf288e75da6430b3eb9975))
+- **mcp:** `kanso-resolve-wikilink` and MCP resources return `kanso://note/...` links ([8c0af86](https://github.com/iamngoni/kanso/commit/8c0af866af7105388dbf288e75da6430b3eb9975))
+
+### Improved
+
+- **links:** Existing note and attachment links migrate to `kanso://` on open, and writes canonicalize them so older clients cannot reintroduce the retired scheme ([8c0af86](https://github.com/iamngoni/kanso/commit/8c0af866af7105388dbf288e75da6430b3eb9975))
+- **themes:** Default themes identify the Kanso themes repository as their source, and the gallery metadata is aligned with it ([8c0af86](https://github.com/iamngoni/kanso/commit/8c0af866af7105388dbf288e75da6430b3eb9975))
+
+### Fixed
+
+- **linux:** GUI archives bundle `libxkbcommon-x11.so.0` and `libxcb-xkb.so.1`; the installer reports missing libraries and package names before installing, and self-updates replace the runtime support folder atomically ([da8ce6a](https://github.com/iamngoni/kanso/commit/da8ce6a86bd4a913194645710c11273e8f2fade9))
+- **linux:** The `.deb` declares `libxkbcommon-x11-0` so apt installs it with Kanso ([da8ce6a](https://github.com/iamngoni/kanso/commit/da8ce6a86bd4a913194645710c11273e8f2fade9))
+
+### Under the hood
+
+- **mcp:** Contract tests now run against the native MCP endpoint only ([8c0af86](https://github.com/iamngoni/kanso/commit/8c0af866af7105388dbf288e75da6430b3eb9975))
+- **release:** Remove legacy release-note preprocessors from the changelog configuration ([8c0af86](https://github.com/iamngoni/kanso/commit/8c0af866af7105388dbf288e75da6430b3eb9975))
+
 ## [0.10.10](https://github.com/iamngoni/kanso/compare/v0.10.9...v0.10.10) - 2026-11-18
 
 ### Improved
