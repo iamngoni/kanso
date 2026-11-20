@@ -8,8 +8,8 @@
 
 ## 2 · Choose your library
 
-- Description: Pick a PouchDB library once; the CLI names its folder.
-- Shows: The Import chooser selects PouchDB library, a native Choose Library folder picker opens, and the import progress dialog appears. The CLI calls kanso import pouchdb --library-dir <folder>.
+- Description: Choose a PouchDB library folder; the CLI requires its path.
+- Shows: The Import chooser selects PouchDB library, the native Choose Library picker opens, the import dialog shows Copying the library… 0 of 1, and the CLI requires --library-dir.
 - Covers: 8c0af86
 
 ## 3 · Linux starts clean
