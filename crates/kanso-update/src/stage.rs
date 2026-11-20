@@ -29,6 +29,25 @@ use crate::policy::UrlPolicy;
 /// a disk.
 const MAX_UNPACKED_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
+/// Where [`prepare`] stages the runtime files that live in
+/// `~/.local/lib/kanso` after installation, separate from the executable.
+pub const SUPPORT_DIR_NAME: &str = "support";
+
+/// The Linux archive's runtime files installed beside the executable. The
+/// updater must replace these with the executable: once ONNX Runtime's
+/// versioned symbols change, an old library beside a new `kanso` cannot
+/// start.
+const SUPPORT_FILES: &[&str] = &[
+    "libonnxruntime.so.1",
+    "libpdfium.so",
+    "kanso-pdf-worker",
+    "libxkbcommon-x11.so.0",
+    "libxcb-xkb.so.1",
+];
+
+/// Licence folders that travel with the runtime files.
+const SUPPORT_DIRS: &[&str] = &["onnxruntime-licenses", "pdfium-licenses", "xkb-licenses"];
+
 /// What an unpack may produce: total bytes and entries. An app update takes
 /// the generous defaults; the theme gallery passes its own, much smaller,
 /// limits so a bundle cannot fill the disk or the inode table.
@@ -117,6 +136,10 @@ pub struct Seal {
     /// taken at the same time; `None` when the update has no host. Only a
     /// host with a digest here is ever swapped in.
     pub(crate) host_digest: Option<String>,
+    /// [`payload_digest`] of the Linux runtime support folder staged beside
+    /// the payload; `None` when the update has no support files. Only a
+    /// folder with a digest here is ever swapped in.
+    pub(crate) support_digest: Option<String>,
     /// The staging folder's device and inode, where the system has them.
     pub(crate) stage_id: Option<(u64, u64)>,
 }
@@ -157,14 +180,26 @@ pub fn prepare(
             Some(host) => Some(payload_digest(&host)?),
             None => None,
         };
+        let support_digest =
+            if matches!(install.platform, Platform::LinuxX64 | Platform::LinuxArm64) {
+                let support = dir.join(SUPPORT_DIR_NAME);
+                if stage_support(&payload, &support)? {
+                    Some(payload_digest(&support)?)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
         verify(&payload).map_err(StageError::CodeSignature)?;
-        Ok((payload, digest, host_digest))
+        Ok((payload, digest, host_digest, support_digest))
     })();
     fs::remove_file(&archive).ok();
-    let (payload, digest, host_digest) = match result {
+    let (payload, digest, host_digest, support_digest) = match result {
         Ok(found) => found,
         Err(err) => {
             fs::remove_dir_all(&unpacked).ok();
+            fs::remove_dir_all(dir.join(SUPPORT_DIR_NAME)).ok();
             return Err(err);
         }
     };
@@ -180,6 +215,7 @@ pub fn prepare(
         seal: Seal {
             digest: Some(digest),
             host_digest,
+            support_digest,
             stage_id,
         },
     };
@@ -523,6 +559,66 @@ fn copy_error(e: io::Error) -> StageError {
     } else {
         StageError::BadArchive(e.to_string())
     }
+}
+
+/// Copies the Linux runtime files the archive installer puts in
+/// `~/.local/lib/kanso` into staging, so the updater replaces them with the
+/// executable. Missing entries are optional; a plain file or folder is
+/// copied, a link or device is refused.
+fn stage_support(payload: &Path, dest: &Path) -> Result<bool, StageError> {
+    let source = payload
+        .parent()
+        .ok_or_else(|| StageError::BadArchive("kanso has no folder".into()))?;
+    let mut staged = false;
+    for name in SUPPORT_FILES.iter().chain(SUPPORT_DIRS.iter()) {
+        let from = source.join(name);
+        let meta = match fs::symlink_metadata(&from) {
+            Ok(meta) => meta,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => continue,
+            Err(err) => return Err(err.into()),
+        };
+        if meta.is_file() {
+            fs::create_dir_all(dest)?;
+            fs::copy(&from, dest.join(name))?;
+            staged = true;
+        } else if meta.is_dir() && SUPPORT_DIRS.contains(name) {
+            fs::create_dir_all(dest)?;
+            copy_support_entry(&from, &dest.join(name))?;
+            staged = true;
+        } else {
+            return Err(StageError::BadArchive(format!(
+                "{} isn't a plain file or folder",
+                from.display()
+            )));
+        }
+    }
+    if !staged {
+        fs::remove_dir_all(dest).ok();
+    }
+    Ok(staged)
+}
+
+fn copy_support_entry(from: &Path, to: &Path) -> Result<(), StageError> {
+    let meta = fs::symlink_metadata(from)?;
+    if meta.is_file() {
+        fs::copy(from, to)?;
+        return Ok(());
+    }
+    if !meta.is_dir() {
+        return Err(StageError::BadArchive(format!(
+            "{} isn't a plain file or folder",
+            from.display()
+        )));
+    }
+    fs::create_dir(to)?;
+    #[cfg(unix)]
+    fs::set_permissions(to, meta.permissions())?;
+    let mut children: Vec<_> = fs::read_dir(from)?.collect::<io::Result<_>>()?;
+    children.sort_by_key(|entry| entry.file_name());
+    for child in children {
+        copy_support_entry(&child.path(), &to.join(child.file_name()))?;
+    }
+    Ok(())
 }
 
 /// What in an unpacked update replaces the install: the one `.app` on
@@ -1025,6 +1121,48 @@ mod tests {
     }
 
     #[test]
+    fn staging_carries_linux_runtime_support() {
+        let dir = tempfile::tempdir().unwrap();
+        let pending = prepared(
+            tar_gz(&[
+                ("Kanso-0.2.0-linux-x64/kanso", b"k", 0o755),
+                ("Kanso-0.2.0-linux-x64/libonnxruntime.so.1", b"ort", 0o755),
+                ("Kanso-0.2.0-linux-x64/libxkbcommon-x11.so.0", b"xkb", 0o755),
+                (
+                    "Kanso-0.2.0-linux-x64/onnxruntime-licenses/LICENSE",
+                    b"license",
+                    0o644,
+                ),
+            ]),
+            Platform::LinuxX64,
+            &dir.path().join("stage"),
+        )
+        .unwrap();
+        let support = dir.path().join("stage/.kanso-update/support");
+        assert_eq!(
+            fs::read(support.join("libonnxruntime.so.1")).unwrap(),
+            b"ort"
+        );
+        assert_eq!(
+            fs::read(support.join("libxkbcommon-x11.so.0")).unwrap(),
+            b"xkb"
+        );
+        assert_eq!(
+            fs::read(support.join("onnxruntime-licenses/LICENSE")).unwrap(),
+            b"license"
+        );
+        assert!(pending.seal.support_digest.is_some());
+
+        let without = prepared(
+            tar_gz(&[("kanso", b"k", 0o755)]),
+            Platform::LinuxX64,
+            &dir.path().join("without"),
+        )
+        .unwrap();
+        assert!(without.seal.support_digest.is_none());
+    }
+
+    #[test]
     fn archives_without_kanso_are_refused() {
         let dir = tempfile::tempdir().unwrap();
         let archive = dir.path().join("a.tar.gz");
@@ -1092,6 +1230,7 @@ mod tests {
             seal: Seal {
                 digest: Some("ab".repeat(32)),
                 host_digest: Some("cd".repeat(32)),
+                support_digest: None,
                 stage_id: Some((1, 2)),
             },
         };

@@ -381,6 +381,30 @@ jobs:
           mkdir -p "dist" "$stem"
           install -m 755 target/release/kanso "$stem/kanso"
           strip "$stem/kanso"
+          # The GUI links the X11 keyboard bridge. A desktop usually has it,
+          # but a minimal Ubuntu install does not, and the loader needs it
+          # before Kanso can choose Wayland. Carry it and its libxcb-xkb
+          # dependency; the patch gives the bridge its own $ORIGIN RUNPATH so
+          # it can find libxcb-xkb beside it (the executable's RUNPATH is not
+          # used for a library's dependencies).
+          xkbcommon_x11=$(dpkg-query -L libxkbcommon-x11-0 |
+            awk '/\/libxkbcommon-x11\.so\.0(\.0\.0)?$/ { print; exit }')
+          xcb_xkb=$(dpkg-query -L libxcb-xkb1 |
+            awk '/\/libxcb-xkb\.so\.1(\.0\.0)?$/ { print; exit }')
+          for library in "$xkbcommon_x11" "$xcb_xkb"; do
+            if [ -z "$library" ] || [ ! -e "$library" ]; then
+              echo "::error::The XKB runtime library is missing from the runner; install libxkbcommon-x11-dev and libxcb-xkb1."
+              exit 1
+            fi
+          done
+          install -m 755 "$(readlink -f "$xkbcommon_x11")" "$stem/libxkbcommon-x11.so.0"
+          install -m 755 "$(readlink -f "$xcb_xkb")" "$stem/libxcb-xkb.so.1"
+          # shellcheck disable=SC2016 # $ORIGIN is the literal loader token.
+          patchelf --set-rpath '$ORIGIN' "$stem/libxkbcommon-x11.so.0"
+          mkdir -p "$stem/xkb-licenses"
+          cp /usr/share/doc/libxkbcommon-x11-0/copyright "$stem/xkb-licenses/libxkbcommon-x11.copyright"
+          cp /usr/share/doc/libxcb-xkb1/copyright "$stem/xkb-licenses/libxcb-xkb.copyright"
+          scripts/check-linux-xkb.sh "$stem/kanso" "$stem/libxkbcommon-x11.so.0" "$stem/libxcb-xkb.so.1"
           install -m 755 target/release/kanso-headless "$stem/kanso-headless"
           strip "$stem/kanso-headless"
           scripts/check-headless-ldd.sh "$stem/kanso-headless"
@@ -408,7 +432,7 @@ jobs:
           # Glibc 2.35 is the most the Linux builds may need (Ubuntu 22.04,
           # Debian 12), and the ONNX Runtime library must load from the folder.
           scripts/check-linux-portable.sh "$stem/kanso" "$stem/kanso-headless" "$stem/kanso-plugin-host" \
-            "$stem/kanso-pdf-worker" "$stem/libonnxruntime.so.1"
+            "$stem/kanso-pdf-worker" "$stem/libonnxruntime.so.1" "$stem/libxkbcommon-x11.so.0" "$stem/libxcb-xkb.so.1"
           tar -czf "dist/$stem.tar.gz" "$stem"
 
           headless_stem="Kanso-$VERSION-${{ matrix.name }}-headless"

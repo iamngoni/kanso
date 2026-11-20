@@ -94,7 +94,9 @@ https://kansoapp.app/apt/pool/<tag>/<file>.deb            → 302 github.com/iam
 - the icon into `/usr/share/icons/hicolor/512x512/apps`
 
 Dependencies:
-- `Depends: $auto, libvulkan1`. `ldd` confirms Vulkan is loaded at run time, so dpkg-shlibdeps can't find it.
+- `Depends: $auto, libvulkan1`. `$auto` includes the direct shared-library packages, including
+  `libxkbcommon-x11-0`, `libfido2-1`, `libasound2` and `libdbus-1-3`, so apt installs them with Kanso.
+  `ldd` confirms Vulkan is loaded at run time, so dpkg-shlibdeps can't find it.
 - `Recommends: mesa-vulkan-drivers, gnome-keyring | kwalletmanager`. Kanso runs without a keyring, but doesn't stay signed in.
 
 `scripts/deb-build.sh <version> <out-dir>` runs cargo-deb 3.8.0 with:
@@ -240,6 +242,7 @@ Where the code differs from the plan above, and why:
 - **A separate `apt` job, not a step in the publish job.** `publish` is the only job that can write to the repository, and it deliberately runs no repository code. `feed` holds the update-signing key. Signing in its own job keeps the apt key and the update key out of each other's reach, and keeps `publish` free of repository code. `feed` now needs `apt`: it downloads every artifact, so its `SHA256SUMS` covers the apt files. `publish` downloads `apt-metadata` when it was published.
 - **Environment secrets.** `APT_SIGNING_KEY` and `APT_SIGNING_PASSPHRASE` are secrets of the `release` environment, not of the whole repository, so only `v*` tags reach them, as with `KANSO_UPDATE_SIGNING_KEY`.
 - **`/usr/local` isn't package-managed.** A binary under `/usr` but not `/usr/local` is `PackageManaged`; `/usr/local` is the administrator's, so it keeps the old behaviour.
-- **The `.deb` step never stops a release.** If dpkg-shlibdeps can't map a library to a package (libfido2 unpacked without root by `linux-deps.sh`, say), cargo-deb only warns and leaves every shared library out of `Depends`. `scripts/deb-build.sh` therefore refuses a `.deb` that doesn't depend on `libc6`, `libxkbcommon0` and `libdbus-1-3`. The step is `continue-on-error`, so the release then ships without `.deb`s and the apt job skips with a warning.
+- **The `.deb` step never stops a release.** If dpkg-shlibdeps can't map a library to a package (libfido2 unpacked without root by `linux-deps.sh`, say), cargo-deb only warns and leaves every shared library out of `Depends`. `scripts/deb-build.sh` therefore refuses a `.deb` that doesn't depend on `libc6`, `libxkbcommon0`,
+`libxkbcommon-x11-0` and `libdbus-1-3`. The step is `continue-on-error`, so the release then ships without `.deb`s and the apt job skips with a warning.
 - **The backup is asked for first.** `apt-setup.sh` asks for the backup folder before it makes or stores anything, so a folder inside the repository is refused before any secret exists. The backup is two files, `kanso-apt-signing-key-BACKUP.asc` and `.passphrase`, both mode 600.
 - **The minimum glibc follows the runner.** `$auto` takes library versions from the build machine. A `.deb` built on Ubuntu 26.04 needs glibc 2.43, while the release runners (Ubuntu 22.04) give 2.35. The local tests ran on 26.04, so the 22.04 and Debian 12 install checks wait for the first release built on the runners.

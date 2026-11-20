@@ -46,23 +46,29 @@ The app (`crates/kanso-app/src/updates.rs`, with the logic in
    downloads the update beside the install (in `.kanso-update/`, on the same
    volume, made afresh for each download and readable only by its owner),
    checks its size and SHA-256 against the signed feed, and unpacks it,
-   taking only plain files that stay inside the folder. It then takes a
-   digest of what it unpacked, which it keeps in memory only. On macOS the
-   staged `.app` must pass `codesign --verify --deep --strict`, be signed
-   with the running Kanso's identifier and, when the running Kanso is signed
-   by a developer, carry the same Team ID.
+   taking only plain files that stay inside the folder. On Linux it also
+   stages the runtime support files the archive installer puts in
+   `~/.local/lib/kanso` (ONNX Runtime, PDFium, the XKB/XCB bridge and their
+   licence folders) separately from the executable. It then takes a digest
+   of what it unpacked and of the support folder, which it keeps in memory
+   only. On macOS the staged `.app` must pass `codesign --verify --deep
+   --strict`, be signed with the running Kanso's identifier and, when the
+   running Kanso is signed by a developer, carry the same Team ID.
 4. The sidebar shows **Update ready · Restart**. Its sheet has the release
    notes with their commit links, and **Restart now** or **Later**. Restart
-   now, or any quit, checks that the staging folder and the digest are
+   now, or any quit, checks that the staging folder and the digests are
    still the ones it took (anything changed or planted there is refused),
-   then swaps the update in with two renames (the old copy
-   moves aside, the new one moves in, and the first rename is undone if the
-   second fails), removes macOS's quarantine flag, and starts the new Kanso
-   with `--after-update`, which waits for the old one to let go of the data
-   folder. On Windows the running `kanso.exe` becomes `kanso.exe.old`, which
-   the next start deletes. An update staged but never swapped in (Kanso was
-   force-quit, say) is deleted at the next start and downloaded again,
-   never installed from disk.
+   then swaps the update in. On Linux the runtime support folder, plugin
+   host and executable are moved into place as one transaction; if a later
+   rename fails, the earlier ones are put back, so an old ONNX Runtime or
+   XKB library cannot be left beside a new binary. The other platforms use
+   the same two-rename swap for their executable or app bundle, removes
+   macOS's quarantine flag, and starts the new Kanso with `--after-update`,
+   which waits for the old one to let go of the data folder. On Windows the
+   running `kanso.exe` becomes `kanso.exe.old`, which the next start
+   deletes. An update staged but never swapped in (Kanso was force-quit,
+   say) is deleted at the next start and downloaded again, never installed
+   from disk.
 5. The first start of the new version shows **Updated to Kanso <v>** once,
    with What's new. It reads the release's own feed by tag
    (`releases/download/v<v>/latest.json`, signature checked the same way)
@@ -321,7 +327,9 @@ the update archives. Linux releases also include `Kanso-<version>-linux-x64-head
 and `Kanso-<version>-linux-arm64-headless.tar.gz`, each with `kanso-headless` and
 `install.sh --headless`. The Linux packaging job checks the binary with `ldd` for Wayland, X11,
 Vulkan and libfido2, then exercises `serve`, account status and MCP initialization on the
-display-less runner. Its `feed` job then writes `latest.json` from them with
+display-less runner. The GUI archive also carries `libxkbcommon-x11.so.0` and `libxcb-xkb.so.1`; the
+first is patched to have RUNPATH `$ORIGIN` so the loader finds the second beside it. Its `feed` job
+then writes `latest.json` from them with
 the release's section of `CHANGELOG.md` (a tag without one fails), signs it
 with `KANSO_UPDATE_SIGNING_KEY`, and verifies it against the keys in the
 checkout. A missing or untrusted signing key fails the release, and so does

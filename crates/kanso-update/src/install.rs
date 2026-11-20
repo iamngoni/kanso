@@ -31,6 +31,22 @@ pub struct Install {
     pub platform: Platform,
 }
 
+impl Install {
+    /// The runtime support folder the Linux archive installer fills
+    /// (`~/.local/lib/kanso`), when this executable is in the `bin` folder
+    /// that installer uses. `None` for bundles and other platforms.
+    pub fn support_dir(&self) -> Option<PathBuf> {
+        if !matches!(self.platform, Platform::LinuxX64 | Platform::LinuxArm64) {
+            return None;
+        }
+        let bin = self.target.parent()?;
+        if bin.file_name()?.to_str()? != "bin" {
+            return None;
+        }
+        Some(bin.parent()?.join("lib/kanso"))
+    }
+}
+
 /// What the app knows about itself that decides whether it may update.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct LocateOptions {
@@ -242,16 +258,17 @@ pub fn host_target(install: &Install) -> Option<PathBuf> {
         .then(|| install.target.with_file_name(install.platform.host_name()))
 }
 
-/// The plugin host's swap: the staged file, the installed one it replaces
-/// (which may not exist yet), and where the installed one goes aside.
-struct HostSwap {
+/// A staged entry's swap: the staged file or folder, the installed one it
+/// replaces (which may not exist yet), and where the installed one goes
+/// aside.
+struct EntrySwap {
     staged: PathBuf,
     target: PathBuf,
     backup: PathBuf,
 }
 
-impl HostSwap {
-    /// Puts the staged host in place, moving an installed one aside as
+impl EntrySwap {
+    /// Puts the staged entry in place, moving an installed one aside as
     /// [`swap_in`] does. Gives whether there was one. On failure nothing has
     /// changed.
     fn swap_in(&self) -> io::Result<bool> {
@@ -264,7 +281,7 @@ impl HostSwap {
         }
     }
 
-    /// Undoes [`HostSwap::swap_in`]: the new host goes back to the staging
+    /// Undoes [`EntrySwap::swap_in`]: the new entry goes back to the staging
     /// folder (or is removed if it can't), and the old one, if there was
     /// one, back to its place.
     fn undo(&self, had_old: bool) -> io::Result<()> {
@@ -276,6 +293,15 @@ impl HostSwap {
         }
         Ok(())
     }
+}
+
+/// The plugin host's swap; the same entry swap beside the executable.
+type HostSwap = EntrySwap;
+
+/// Where the old runtime support folder waits during the swap. It is inside
+/// the staging folder, so the final cleanup removes it too.
+fn support_backup_path(stage_dir: &Path) -> PathBuf {
+    stage_dir.join("previous-support")
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -295,15 +321,17 @@ pub enum ApplyError {
 /// [`backup_path`] only if it couldn't be removed. On failure everything is
 /// as it was.
 ///
-/// On Windows and Linux a plugin host staged beside the payload goes in
-/// beside the installed `kanso`, before it, with its own backup; if `kanso`
-/// then fails the host is put back. An update without a host leaves any
-/// installed one alone.
+/// On Linux the runtime support folder (`~/.local/lib/kanso`) is swapped
+/// first, then the plugin host, then the executable. If any later swap
+/// fails, the earlier ones are put back. On Windows the plugin host staged
+/// beside the payload goes in beside the installed `kanso`, with its own
+/// backup; if `kanso` then fails the host is put back. An update without a
+/// host leaves any installed one alone.
 ///
 /// Only an update this run staged is swapped in, and only as it was when
 /// it was checked: its [`stage::Seal`] must be set, the staging folder must
-/// be the one [`stage::prepare`] made, and the payload's digest must be
-/// unchanged, and so must the host's.
+/// be the one [`stage::prepare`] made, and the payload's, host's and runtime
+/// support folder's digests must be unchanged.
 pub fn apply(pending: &Pending, install: &Install) -> Result<(), ApplyError> {
     if pending.target != install.target {
         return Err(ApplyError::WrongTarget {
@@ -319,6 +347,23 @@ pub fn apply(pending: &Pending, install: &Install) -> Result<(), ApplyError> {
     check_seal(pending, install)?;
     let backup = backup_path(&install.target, &install.stage_dir, install.platform);
     remove_any(&backup)?;
+
+    let support = match (pending.seal.support_digest.as_ref(), install.support_dir()) {
+        (Some(_), Some(target)) => {
+            let staged = install.stage_dir.join(stage::SUPPORT_DIR_NAME);
+            if !is_inside(&staged, &install.stage_dir) || fs::symlink_metadata(&staged).is_err() {
+                return Err(ApplyError::Missing);
+            }
+            let backup = support_backup_path(&install.stage_dir);
+            remove_any(&backup)?;
+            Some(EntrySwap {
+                staged,
+                target,
+                backup,
+            })
+        }
+        _ => None,
+    };
     let host = match (
         stage::staged_host(pending, install.platform),
         host_target(install),
@@ -334,17 +379,39 @@ pub fn apply(pending: &Pending, install: &Install) -> Result<(), ApplyError> {
         }
         _ => None,
     };
-    let had_old_host = host.as_ref().map(HostSwap::swap_in).transpose()?;
+
+    let had_old_support = support.as_ref().map(EntrySwap::swap_in).transpose()?;
+    let had_old_host = match host.as_ref().map(EntrySwap::swap_in).transpose() {
+        Ok(had_old) => had_old,
+        Err(err) => {
+            let mut failure = err.to_string();
+            if let (Some(support), Some(had_old)) = (&support, had_old_support)
+                && let Err(undo) = support.undo(had_old)
+            {
+                failure.push_str(&format!(
+                    "; and putting the runtime files back failed: {undo}"
+                ));
+            }
+            return Err(io::Error::other(failure).into());
+        }
+    };
     if let Err(err) = swap_in(&pending.payload, &install.target, &backup) {
+        let mut failure = err.to_string();
         if let (Some(host), Some(had_old)) = (&host, had_old_host)
             && let Err(undo) = host.undo(had_old)
         {
-            return Err(io::Error::other(format!(
-                "{err}; and putting the plugin host back failed: {undo}"
-            ))
-            .into());
+            failure.push_str(&format!(
+                "; and putting the plugin host back failed: {undo}"
+            ));
         }
-        return Err(err.into());
+        if let (Some(support), Some(had_old)) = (&support, had_old_support)
+            && let Err(undo) = support.undo(had_old)
+        {
+            failure.push_str(&format!(
+                "; and putting the runtime files back failed: {undo}"
+            ));
+        }
+        return Err(io::Error::other(failure).into());
     }
     if install.platform.is_bundle() {
         fs::remove_dir_all(&install.stage_dir).ok();
@@ -353,6 +420,9 @@ pub fn apply(pending: &Pending, install: &Install) -> Result<(), ApplyError> {
         remove_any(&backup).ok();
         if let Some(host) = &host {
             remove_any(&host.backup).ok();
+        }
+        if let Some(support) = &support {
+            remove_any(&support.backup).ok();
         }
         fs::remove_dir_all(&install.stage_dir).ok();
     }
@@ -390,6 +460,16 @@ fn check_seal(pending: &Pending, install: &Install) -> Result<(), ApplyError> {
             _ => return Err(ApplyError::Tampered),
         }
     }
+    // Linux runtime support is sealed as one folder, so a stale ONNX
+    // Runtime or XKB library cannot be left beside a new executable.
+    if let Some(expected) = &pending.seal.support_digest {
+        install.support_dir().ok_or(ApplyError::Tampered)?;
+        let support = install.stage_dir.join(stage::SUPPORT_DIR_NAME);
+        match stage::payload_digest(&support) {
+            Ok(digest) if digest == *expected => {}
+            _ => return Err(ApplyError::Tampered),
+        }
+    }
     Ok(())
 }
 
@@ -410,9 +490,10 @@ pub fn swap_in(staged: &Path, target: &Path, backup: &Path) -> io::Result<()> {
 }
 
 /// After a start: removes what an earlier update left, the `.old`
-/// executables (`kanso` and the plugin host) and the staging folder, whatever is in it. An update staged
-/// by an earlier run is never installed: it is downloaded and checked
-/// again, since nothing on disk can say it wasn't changed in between.
+/// executables (`kanso` and the plugin host) and the staging folder, whatever
+/// is in it. An update staged by an earlier run is never installed: it is
+/// downloaded and checked again, since nothing on disk can say it wasn't
+/// changed in between.
 /// Links are removed, never followed.
 pub fn clean_up(install: &Install) {
     let backup = backup_path(&install.target, &install.stage_dir, install.platform);
@@ -846,11 +927,55 @@ mod tests {
         (install, pending)
     }
 
+    /// A Linux archive install with an old runtime support folder and a
+    /// staged replacement, so the update's support swap can be exercised.
+    fn fake_linux_support_install(dir: &Path) -> (Install, Pending, PathBuf) {
+        let root = dir.join(".local");
+        let target = root.join("bin/kanso");
+        let stage_dir = root.join("bin").join(STAGE_DIR_NAME);
+        let payload = stage_dir.join("unpacked-0.2.0/kanso");
+        fs::create_dir_all(payload.parent().unwrap()).unwrap();
+        fs::write(&target, "old").unwrap();
+        fs::write(&payload, "new").unwrap();
+
+        let support = root.join("lib/kanso");
+        fs::create_dir_all(&support).unwrap();
+        fs::write(support.join("libonnxruntime.so.1"), "old ort").unwrap();
+        fs::write(support.join("libxkbcommon-x11.so.0"), "old xkb").unwrap();
+        fs::write(support.join("stale"), "old stale").unwrap();
+
+        let staged_support = stage_dir.join(stage::SUPPORT_DIR_NAME);
+        fs::create_dir_all(&staged_support).unwrap();
+        fs::write(staged_support.join("libonnxruntime.so.1"), "new ort").unwrap();
+        fs::write(staged_support.join("libxkbcommon-x11.so.0"), "new xkb").unwrap();
+
+        let install = Install {
+            target: target.clone(),
+            stage_dir: stage_dir.clone(),
+            platform: Platform::LinuxX64,
+        };
+        let mut seal = seal(&stage_dir, &payload);
+        seal.support_digest = Some(stage::payload_digest(&staged_support).unwrap());
+        let pending = Pending {
+            version: "0.2.0".into(),
+            seal,
+            payload,
+            target,
+            pub_date: String::new(),
+            release_url: String::new(),
+            notes: String::new(),
+            whats_new: None,
+            earlier: Vec::new(),
+        };
+        (install, pending, support)
+    }
+
     /// The seal `stage::prepare` would have given what is there now.
     fn seal(stage_dir: &Path, payload: &Path) -> stage::Seal {
         stage::Seal {
             digest: Some(stage::payload_digest(payload).unwrap()),
             host_digest: None,
+            support_digest: None,
             stage_id: stage::dir_identity(stage_dir).unwrap(),
         }
     }
@@ -873,6 +998,81 @@ mod tests {
             assert!(!install.stage_dir.exists());
             assert!(!backup_path(&install.target, &install.stage_dir, platform).exists());
         }
+    }
+
+    #[test]
+    fn applying_replaces_linux_runtime_support() {
+        let dir = tempfile::tempdir().unwrap();
+        let (install, pending, support) = fake_linux_support_install(dir.path());
+        apply(&pending, &install).unwrap();
+        assert_eq!(installed(&install), "new");
+        assert_eq!(
+            fs::read(support.join("libonnxruntime.so.1")).unwrap(),
+            b"new ort"
+        );
+        assert_eq!(
+            fs::read(support.join("libxkbcommon-x11.so.0")).unwrap(),
+            b"new xkb"
+        );
+        assert!(
+            !support.join("stale").exists(),
+            "the old folder is gone whole"
+        );
+        assert!(!install.stage_dir.exists());
+    }
+
+    #[test]
+    fn a_failed_kanso_swap_restores_linux_runtime_support() {
+        let dir = tempfile::tempdir().unwrap();
+        let (install, pending, support) = fake_linux_support_install(dir.path());
+        fs::remove_file(&install.target).unwrap();
+        assert!(matches!(apply(&pending, &install), Err(ApplyError::Io(_))));
+        assert_eq!(
+            fs::read(support.join("libonnxruntime.so.1")).unwrap(),
+            b"old ort"
+        );
+        assert_eq!(fs::read(support.join("stale")).unwrap(), b"old stale");
+        assert!(install.stage_dir.join(stage::SUPPORT_DIR_NAME).exists());
+    }
+
+    #[test]
+    fn changed_linux_runtime_support_is_never_swapped_in() {
+        let dir = tempfile::tempdir().unwrap();
+        let (install, pending, support) = fake_linux_support_install(dir.path());
+        fs::write(
+            install
+                .stage_dir
+                .join(stage::SUPPORT_DIR_NAME)
+                .join("libonnxruntime.so.1"),
+            "evil",
+        )
+        .unwrap();
+        assert!(matches!(
+            apply(&pending, &install),
+            Err(ApplyError::Tampered)
+        ));
+        assert_eq!(
+            fs::read(support.join("libonnxruntime.so.1")).unwrap(),
+            b"old ort"
+        );
+        assert!(support.join("stale").exists());
+    }
+
+    #[test]
+    fn linux_runtime_support_uses_the_archive_install_layout() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join(".local");
+        let exe = root.join("bin/kanso");
+        fs::create_dir_all(exe.parent().unwrap()).unwrap();
+        fs::write(&exe, "x").unwrap();
+        let install = locate(&exe, Some(Platform::LinuxX64), opts()).unwrap();
+        assert_eq!(install.support_dir(), Some(root.join("lib/kanso")));
+        let other = Install {
+            target: dir.path().join("kanso"),
+            stage_dir: dir.path().join(STAGE_DIR_NAME),
+            platform: Platform::LinuxX64,
+        };
+        assert_eq!(other.support_dir(), None);
     }
 
     /// Stages a plugin host beside `pending`'s payload (when `staged` has
