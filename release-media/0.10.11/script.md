@@ -3,23 +3,23 @@
 ## 1 · Links belong to Kanso
 
 - Description: Notes, attachments and MCP now share one kanso:// address.
-- Shows: A note with a legacy attachment link becomes a kanso:// link, while a compact MCP result shows kanso-resolve-wikilink returning kanso://note/…
+- Shows: A note's attachment link is now kanso://file:… and the MCP result returns kanso://note/…
 - Covers: 8c0af86
 
 ## 2 · Choose your library
 
-- Description: Point Kanso at your PouchDB library folder once.
-- Shows: The Import sheet asks for a library folder, fills in ~/Documents/Notes Library and enables Import.
+- Description: Pick a PouchDB library once; the CLI names its folder.
+- Shows: The Import chooser selects PouchDB library, a native Choose Library folder picker opens, and the import progress dialog appears. The CLI calls kanso import pouchdb --library-dir <folder>.
 - Covers: 8c0af86
 
 ## 3 · Linux starts clean
 
 - Description: The GUI carries its XKB runtime; updates replace it whole.
-- Shows: The Linux installer checks both bundled libraries, finishes successfully, and shows apt installing libxkbcommon-x11-0 for the .deb.
-- Covers: da8ce6a, 8c0af86
+- Shows: The installed support folder holds libxkbcommon-x11.so.0 and libxcb-xkb.so.1; the installer prints a missing library and its apt package, the .deb declares libxkbcommon-x11-0, and self-update swaps the folder atomically.
+- Covers: da8ce6a
 
 ## 4 · Themes point home
 
-- Description: Default theme metadata credits the Kanso themes repository.
-- Shows: Default Dark’s theme file shows its source field pointing at github.com/iamngoni/kanso-themes, with no legacy vendor metadata.
+- Description: Default theme and gallery metadata now point to the Kanso themes repository.
+- Shows: Default Dark's source and its gallery/index.json entry both name github.com/iamngoni/kanso-themes.
 - Covers: 8c0af86
