@@ -131,7 +131,7 @@ deb=$(cargo deb -p kanso-app --no-build --deb-version "$deb_version" -o "$out" |
 # unpacked outside dpkg, say), cargo-deb only warns and leaves the shared
 # libraries out of Depends: a .deb that installs and doesn't run. Refuse it.
 depends=$(dpkg-deb --field "$deb" Depends)
-for library in libc6 libxkbcommon0 libdbus-1-3; do
+for library in libc6 libxkbcommon0 libxkbcommon-x11-0 libdbus-1-3; do
 	if ! [[ ", $depends" == *", $library "* || ", $depends" == *", $library,"* ]]; then
 		echo "$0: $deb doesn't depend on $library, so dpkg-shlibdeps didn't run" >&2
 		echo "  Depends: $depends" >&2

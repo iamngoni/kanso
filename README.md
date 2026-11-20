@@ -109,7 +109,10 @@ uninstalled unless you ask for them to go; sign-ins go to the Windows Credential
 **Linux** (`Kanso-<version>-linux-x64.tar.gz` or `-linux-arm64.tar.gz`, built on Ubuntu 22.04 so
 glibc 2.35 or newer): unpack it and run `./install.sh`, which puts `kanso` in `~/.local/bin` and Kanso
 in your applications menu (`./install.sh --uninstall` removes them). Kanso runs on Wayland or X11 and
-needs Vulkan graphics drivers (Mesa's are fine). Notes live in `~/.local/share/kanso`
+needs Vulkan graphics drivers (Mesa's are fine). The tarball bundles ONNX Runtime, PDFium, and the
+XKB/XCB bridge that keeps the GUI from needing an extra package; the rest of the desktop libraries
+come from your distribution. `install.sh` checks for missing shared libraries before installing
+anything and prints the Ubuntu/Debian package command. Notes live in `~/.local/share/kanso`
 (`$XDG_DATA_HOME/kanso`); sign-ins go to the Secret Service (GNOME Keyring or KWallet), so one must be
 running to stay signed in.
 
@@ -124,10 +127,11 @@ sudo apt update && sudo apt install kanso
 ```
 
 It installs `kanso` and `kanso-plugin-host` in `/usr/bin` and Kanso in your applications menu. It needs
-glibc 2.35 or newer, Vulkan drivers and a Secret Service, as above. If you used `install.sh` before, run
-`./install.sh --uninstall` first: `~/.local/bin` comes before `/usr/bin` in `PATH`. Kanso still tells
-you when a release is out, and leaves installing it to apt. The repository holds the latest release
-only ([docs/APT.md](docs/APT.md)).
+glibc 2.35 or newer, Vulkan drivers and a Secret Service, as above. The package declares its
+shared-library dependencies, including `libxkbcommon-x11-0`, so apt installs them for you. If you used
+`install.sh` before, run `./install.sh --uninstall` first: `~/.local/bin` comes before `/usr/bin` in
+`PATH`. Kanso still tells you when a release is out, and leaves installing it to apt. The repository
+holds the latest release only ([docs/APT.md](docs/APT.md)).
 
 To build the macOS app yourself:
 

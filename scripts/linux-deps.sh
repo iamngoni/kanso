@@ -10,7 +10,7 @@
 set -euo pipefail
 
 packages=(
-	pkg-config clang cmake
+	pkg-config clang cmake patchelf
 	libxkbcommon-dev libxkbcommon-x11-dev
 	libwayland-dev libvulkan-dev libegl-dev
 	libx11-dev libx11-xcb-dev libxcb1-dev

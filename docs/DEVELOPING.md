@@ -96,7 +96,9 @@ release: pyke's archives need glibc 2.38, so the release builds on Ubuntu 22.04
 (glibc 2.35) link Microsoft's own library dynamically instead
 (`scripts/fetch-onnxruntime.sh`, then `ORT_LIB_LOCATION=$PWD/vendor/onnxruntime/<platform>/lib
 ORT_PREFER_DYNAMIC_LINK=1 cargo build --release ...`), and the archive and the
-`.deb` carry `libonnxruntime.so.1`. `scripts/check-linux-portable.sh` checks a
+`.deb` carry `libonnxruntime.so.1`. The Linux GUI archive also carries
+`libxkbcommon-x11.so.0` and `libxcb-xkb.so.1`; `scripts/check-linux-xkb.sh` verifies the first has
+RUNPATH `$ORIGIN` and both match the GUI's architecture. `scripts/check-linux-portable.sh` checks a
 Linux binary needs no newer glibc or libstdc++ than that. On macOS the bundle carries the
 microphone entitlement (`packaging/macos/Kanso.entitlements`), without which
 the hardened runtime keeps the microphone from Kanso and macOS never asks.
