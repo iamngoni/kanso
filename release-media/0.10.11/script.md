@@ -20,6 +20,6 @@
 
 ## 4 · Themes point home
 
-- Description: Default themes now credit the Kanso themes repository.
-- Shows: The theme gallery shows Default Dark and its source link to github.com/iamngoni/kanso-themes, with an Official check.
+- Description: Default theme metadata credits the Kanso themes repository.
+- Shows: Default Dark’s theme file shows its source field pointing at github.com/iamngoni/kanso-themes, with no legacy vendor metadata.
 - Covers: 8c0af86
