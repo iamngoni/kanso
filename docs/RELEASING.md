@@ -361,7 +361,7 @@ run stopped between upload and publish): it downloads the draft's
 ## Nightly builds
 
 `.github/workflows/nightly.yml` builds **Kanso Nightly** from `master` at
-05:00 UTC. It builds only when master's latest CI run is green and the
+02:00 UTC. It builds only when master's latest CI run is green and the
 moving `nightly` tag does not already point at that commit; run it by hand
 (Actions › Nightly › Run workflow) to build the current master anyway.
 
@@ -370,8 +370,9 @@ The version is the Cargo version with a prerelease suffix,
 `KANSO_NIGHTLY_VERSION` so the app, its metrics and the feed agree. The four
 update archives, the macOS disk image, the Windows installer and the signed
 `latest.json` go to the `nightly` tag, which stays a prerelease; each run
-moves the tag and replaces the assets. The notes are the commit subjects
-since the last release tag, not a `CHANGELOG.md` section. The feed is signed
+moves the tag and replaces the assets. The notes are the merged PR titles
+since the last nightly (`kanso-release notes --commits`), not a
+`CHANGELOG.md` section. The feed is signed
 with `NIGHTLY_UPDATE_SIGNING_KEY` and checked against the
 `NIGHTLY_UPDATE_PUBLIC_KEY` repository variable before upload. A failed
 nightly leaves the previous one in place.
