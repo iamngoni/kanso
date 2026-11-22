@@ -13,8 +13,8 @@ name: Nightly
 # published. docs/RELEASING.md has the one-time setup.
 on:
   schedule:
-    # 05:00 UTC, after the previous day's CI has finished.
-    - cron: "0 5 * * *"
+    # 02:00 UTC daily (owner decision, issue #328).
+    - cron: "0 2 * * *"
   workflow_dispatch:
 
 permissions:
@@ -446,13 +446,16 @@ jobs:
       - name: Nightly notes
         run: |
           mkdir -p notes
-          last=$(git describe --tags --abbrev=0 2>/dev/null || true)
-          {
-            echo "Changes on master since ${last:-the start}:"
-            echo
-            git log --no-merges --pretty=format:'- %s (%h)' ${last:+$last..}HEAD | head -50
-            echo
-          } >notes/notes.md
+          # Merged PRs since the last nightly tag, or since the last release
+          # tag on the first run. Empty range → all subjects on master.
+          if last=$(git rev-parse -q --verify "refs/tags/nightly^{commit}" 2>/dev/null); then
+            range="$last..HEAD"
+          elif last=$(git describe --tags --abbrev=0 2>/dev/null); then
+            range="$last..HEAD"
+          else
+            range="HEAD"
+          fi
+          target/release/kanso-release notes --commits "$range" --out notes/notes.md
           cat notes/notes.md
 
       - name: Update feed

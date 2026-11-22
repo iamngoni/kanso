@@ -8,6 +8,7 @@
 //! kanso-release sign --feed <latest.json> [--key-env KANSO_UPDATE_SIGNING_KEY]
 //! kanso-release verify --feed <latest.json> [--sig <file>] [--key <base64>]...
 //! kanso-release notes --changelog <CHANGELOG.md> --version <v> --out <file>
+//! kanso-release notes --commits <range> --out <file>
 //! kanso-release check-notices [--changelog <CHANGELOG.md> --version <v>]
 //! ```
 
@@ -44,6 +45,9 @@ Usage:
   kanso-release notes --changelog <CHANGELOG.md> --version <v> --out <file>
       Writes the changelog's section for <v>: the release's notes, for its
       page and for latest.json alike.
+  kanso-release notes --commits <range> --out <file>
+      Writes the merged PR titles in <range> (e.g. nightly-sha..HEAD) as
+      bullet points, for a nightly's feed notes.
   kanso-release check-notices [--changelog <CHANGELOG.md> --version <v>]
       Checks the update notices the app is built with and, with --changelog,
       that every entry under Breaking in <v>'s section ends with
@@ -321,9 +325,16 @@ fn verify(flags: &Flags) -> Result<(), String> {
 }
 
 fn notes(flags: &Flags) -> Result<(), String> {
+    let out = PathBuf::from(flags.need("out")?);
+    if let Some(range) = flags.get("commits") {
+        let body = notes_from_commits(range)?;
+        std::fs::write(&out, format!("{body}\n"))
+            .map_err(|e| format!("writing {}: {e}", out.display()))?;
+        println!("Wrote {}", out.display());
+        return Ok(());
+    }
     let path = flags.need("changelog")?;
     let version = flags.need("version")?;
-    let out = PathBuf::from(flags.need("out")?);
     let changelog = std::fs::read_to_string(path).map_err(|e| format!("reading {path}: {e}"))?;
     let section = kanso_update::notes::section(&changelog, version).ok_or_else(|| {
         format!("{path} has no section for {version}; run scripts/release.sh first")
@@ -332,6 +343,50 @@ fn notes(flags: &Flags) -> Result<(), String> {
         .map_err(|e| format!("writing {}: {e}", out.display()))?;
     println!("Wrote {}", out.display());
     Ok(())
+}
+
+/// Merged PR titles in `range`, as the nightly feed's notes: one bullet per
+/// merge commit ("Merge pull request #123 …"), falling back to the subject
+/// of ordinary commits when the range has no merges.
+fn notes_from_commits(range: &str) -> Result<String, String> {
+    let ok = |c: char| c.is_ascii_alphanumeric() || ".-_ ^~:/".contains(c);
+    if !range.chars().all(ok) {
+        return Err(format!("--commits {range}: not a git revision range"));
+    }
+    let output = std::process::Command::new("git")
+        .args(["log", "--pretty=format:%s", range])
+        .output()
+        .map_err(|e| format!("running git log {range}: {e}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "git log {range}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    let subjects: Vec<String> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            if let Some(rest) = line.strip_prefix("Merge pull request #") {
+                let num: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+                if !num.is_empty() {
+                    return format!("- PR #{num}");
+                }
+            }
+            format!("- {line}")
+        })
+        .collect();
+    if subjects.is_empty() {
+        return Ok("No commits in range.".to_owned());
+    }
+    let merges: Vec<String> = subjects
+        .iter()
+        .filter(|s| s.starts_with("- PR #"))
+        .cloned()
+        .collect();
+    let body = if merges.is_empty() { subjects } else { merges };
+    Ok(body.join("\n"))
 }
 
 fn check_notices(flags: &Flags) -> Result<(), String> {
