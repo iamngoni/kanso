@@ -3,6 +3,10 @@
 ;   ISCC.exe /DAppVersion=0.2.0 /DSourceExe=...\kanso.exe /DOutputDir=...\dist
 ;            /DOutputBase=Kanso-0.2.0-windows-x64-setup packaging\windows\kanso.iss
 ;
+; /DNightly=1 builds the separate Kanso Nightly app: its own AppId, install
+; folder, uninstall entry and kanso-nightly:// scheme, so it and Kanso can
+; be installed side by side.
+;
 ; It installs for the current user only, into %LOCALAPPDATA%\Programs\Kanso,
 ; so it never asks for an administrator, and Kanso's own updater can swap
 ; kanso.exe later without one. Notes live apart, in %APPDATA%\Kanso, and
@@ -37,32 +41,55 @@
     #define NumericVersion AppVersion
   #endif
 #endif
+#ifndef Nightly
+  #define Nightly 0
+#endif
 #ifndef OutputBase
-  #define OutputBase "Kanso-" + AppVersion + "-windows-x64-setup"
+  #if Nightly
+    #define OutputBase "Kanso-Nightly-" + AppVersion + "-windows-x64-setup"
+  #else
+    #define OutputBase "Kanso-" + AppVersion + "-windows-x64-setup"
+  #endif
+#endif
+
+#if Nightly
+  #define AppIdValue "{{D47E3784-BE60-41C0-96E0-953E8ECBBB55}"
+  #define AppNameValue "Kanso Nightly"
+  #define AppDirName "{userpf}\Kanso Nightly"
+  #define UrlScheme "kanso-nightly"
+#else
+  #define AppIdValue "{{6F0B8E52-3C1D-4D6A-9B7E-5A2C4E1F8D30}"
+  #define AppNameValue "Kanso"
+  #define AppDirName "{userpf}\Kanso"
+  #define UrlScheme "kanso"
 #endif
 
 [Setup]
-; Never change AppId: Windows recognises an installed Kanso by it, so an
-; installer for a newer version upgrades in place.
-AppId={{6F0B8E52-3C1D-4D6A-9B7E-5A2C4E1F8D30}
-AppName=Kanso
+; Never change AppId: Windows recognises an installed app by it, so an
+; installer for a newer version upgrades in place. Nightly has its own.
+AppId={#AppIdValue}
+AppName={#AppNameValue}
 AppVersion={#AppVersion}
-AppVerName=Kanso {#AppVersion}
+AppVerName={#AppNameValue} {#AppVersion}
 AppPublisher=Ngonidzashe Mangudya
 AppPublisherURL=https://github.com/iamngoni/kanso
 AppSupportURL=https://github.com/iamngoni/kanso/issues
 AppUpdatesURL=https://github.com/iamngoni/kanso/releases
 VersionInfoVersion={#NumericVersion}
-DefaultDirName={userpf}\Kanso
+DefaultDirName={#AppDirName}
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
+#if Nightly
+SetupIconFile={#SourcePath}\..\..\assets\icon\kanso-nightly.ico
+#else
 SetupIconFile={#SourcePath}\..\..\assets\icon\kanso.ico
+#endif
 UninstallDisplayIcon={app}\kanso.exe
-UninstallDisplayName=Kanso
+UninstallDisplayName={#AppNameValue}
 OutputDir={#OutputDir}
 OutputBaseFilename={#OutputBase}
 Compression=lzma2/max
@@ -90,16 +117,17 @@ Source: "{#SourcePdfium}\LICENSE"; DestDir: "{app}\pdfium-licenses"; Flags: igno
 Source: "{#SourcePdfium}\licenses\*"; DestDir: "{app}\pdfium-licenses"; Flags: ignoreversion recursesubdirs
 
 [Icons]
-Name: "{userprograms}\Kanso"; Filename: "{app}\kanso.exe"
-Name: "{userdesktop}\Kanso"; Filename: "{app}\kanso.exe"; Tasks: desktopicon
+Name: "{userprograms}\{#AppNameValue}"; Filename: "{app}\kanso.exe"
+Name: "{userdesktop}\{#AppNameValue}"; Filename: "{app}\kanso.exe"; Tasks: desktopicon
 
 [Registry]
-; The kanso:// scheme, for this user: Sign in with Apple's page returns to
-; Kanso through it, and a second kanso.exe hands the URL to the running one.
-Root: HKCU; Subkey: "Software\Classes\kanso"; ValueType: string; ValueName: ""; ValueData: "URL:Kanso"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\kanso"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\kanso\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\kanso.exe,0"
-Root: HKCU; Subkey: "Software\Classes\kanso\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\kanso.exe"" ""%1"""
+; The app's scheme, for this user: Sign in with Apple's page returns to it,
+; and a second kanso.exe hands the URL to the running one.
+Root: HKCU; Subkey: "Software\Classes\{#UrlScheme}"; ValueType: string; ValueName: ""; ValueData: "URL:{#AppNameValue}"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\{#UrlScheme}"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\{#UrlScheme}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\kanso.exe,0"
+Root: HKCU; Subkey: "Software\Classes\{#UrlScheme}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\kanso.exe"" ""%1"""
+#if !Nightly
 ; Open with > Kanso for Markdown files, for this user. Kanso is listed there
 ; and does not become the default program. A second kanso.exe started with
 ; the file hands it to the running one.
@@ -109,9 +137,10 @@ Root: HKCU; Subkey: "Software\Classes\Applications\kanso.exe\SupportedTypes"; Va
 Root: HKCU; Subkey: "Software\Classes\Applications\kanso.exe\SupportedTypes"; ValueType: string; ValueName: ".markdown"; ValueData: ""
 Root: HKCU; Subkey: "Software\Classes\.md\OpenWithProgids"; ValueType: string; ValueName: "Applications\kanso.exe"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Classes\.markdown\OpenWithProgids"; ValueType: string; ValueName: "Applications\kanso.exe"; ValueData: ""; Flags: uninsdeletevalue
+#endif
 
 [Run]
-Filename: "{app}\kanso.exe"; Description: "{cm:LaunchProgram,Kanso}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\kanso.exe"; Description: "{cm:LaunchProgram,{#AppNameValue}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 ; What Kanso's updater leaves beside itself: the previous exe, kept until

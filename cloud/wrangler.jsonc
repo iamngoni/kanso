@@ -96,7 +96,7 @@
     "GITHUB_CLIENT_ID": "Ov23li1Yf81hocEW3k0d",
     "PASSKEY_RP_ID": "sync.kansoapp.app",
     "PASSKEY_ORIGINS": "[\"https://sync.kansoapp.app\"]",
-    "APP_ASSOC_APPS": "[\"4973Y692JU.app.kanso.Kanso\", \"4973Y692JU.app.kanso.Kanso.dev\"]",
+    "APP_ASSOC_APPS": "[\"4973Y692JU.app.kanso.Kanso\", \"4973Y692JU.app.kanso.Kanso.dev\", \"4973Y692JU.app.kanso.Kanso.nightly\"]",
     "APPLE_CLIENT_ID": "app.kanso.Kanso.web",
     "APPLE_TEAM_ID": "4973Y692JU",
     "APPLE_KEY_ID": "MS6Y3S5ZL7",

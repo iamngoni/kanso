@@ -24,8 +24,11 @@ use gpui_kit::App;
 
 use crate::workspace::main_workspace;
 
-/// The scheme of the app's own links.
-pub const SCHEME: &str = "kanso";
+/// The scheme of the app's own links: `kanso`, or `kanso-nightly` for
+/// Kanso Nightly.
+pub fn scheme() -> &'static str {
+    crate::flavour::CURRENT.scheme
+}
 
 /// The host of the links that open something.
 pub const OPEN_HOST: &str = "open";
@@ -81,7 +84,7 @@ impl std::fmt::Display for LinkError {
 /// Whether `url` starts like a `kanso://open` link, whatever follows. Used
 /// to route a link here rather than to the sign-in callbacks.
 pub fn is_open_url(url: &str) -> bool {
-    let head = format!("{SCHEME}://{OPEN_HOST}");
+    let head = format!("{}://{OPEN_HOST}", scheme());
     url.get(..head.len())
         .is_some_and(|start| start.eq_ignore_ascii_case(&head))
         && url[head.len()..]
@@ -103,7 +106,7 @@ pub fn parse(text: &str) -> Result<OpenLink, LinkError> {
         return Err(LinkError::NotAnOpenLink);
     }
     let url = url::Url::parse(text).map_err(|_| LinkError::NotAnOpenLink)?;
-    if url.scheme() != SCHEME
+    if url.scheme() != scheme()
         || !url
             .host_str()
             .is_some_and(|host| host.eq_ignore_ascii_case(OPEN_HOST))
@@ -152,13 +155,13 @@ impl OpenLink {
         use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
         let encode = |text: &str| utf8_percent_encode(text, NON_ALPHANUMERIC).to_string();
         match self {
-            OpenLink::Note(id) => format!("{SCHEME}://{OPEN_HOST}/note/{}", encode(id)),
-            OpenLink::Notebook(id) => format!("{SCHEME}://{OPEN_HOST}/notebook/{}", encode(id)),
-            OpenLink::Search(None) => format!("{SCHEME}://{OPEN_HOST}/search"),
+            OpenLink::Note(id) => format!("{}://{OPEN_HOST}/note/{}", scheme(), encode(id)),
+            OpenLink::Notebook(id) => format!("{}://{OPEN_HOST}/notebook/{}", scheme(), encode(id)),
+            OpenLink::Search(None) => format!("{}://{OPEN_HOST}/search", scheme()),
             OpenLink::Search(Some(q)) => {
-                format!("{SCHEME}://{OPEN_HOST}/search?q={}", encode(q))
+                format!("{}://{OPEN_HOST}/search?q={}", scheme(), encode(q))
             }
-            OpenLink::New => format!("{SCHEME}://{OPEN_HOST}/new"),
+            OpenLink::New => format!("{}://{OPEN_HOST}/new", scheme()),
         }
     }
 }

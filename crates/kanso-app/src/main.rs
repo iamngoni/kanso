@@ -924,6 +924,30 @@ fn run_app(
     Ok(())
 }
 
+/// Kanso Nightly's one-time warning: it is built from master, can break,
+/// and updates from the nightly feed. Acknowledging it writes the config.
+fn nightly_notice(window: &mut Window, cx: &mut App) {
+    if !flavour::CURRENT.is_nightly()
+        || cx
+            .try_global::<workspace::AppState>()
+            .is_none_or(|state| state.config.nudges.nightly_notice_seen)
+    {
+        return;
+    }
+    dialogs::confirm(
+        "Kanso Nightly",
+        "Kanso Nightly is built from the latest master, before a release. It can break, and it updates itself from the nightly feed. Keep a backup of your library.",
+        "I understand",
+        window,
+        cx,
+        |_, cx| {
+            workspace::AppState::update_config(cx, |config| {
+                config.nudges.nightly_notice_seen = true
+            });
+        },
+    );
+}
+
 fn open_main_window(cx: &mut App) {
     let bounds = Bounds::centered(None, size(px(1440.), px(900.)), cx);
     // On macOS the panes run to the top edge; the traffic lights sit in the
@@ -980,6 +1004,7 @@ fn open_main_window(cx: &mut App) {
                     updates::announce(window, cx);
                     metrics::show_notice(window, cx);
                     library_key_sheet::offer_at_launch(window, cx);
+                    nightly_notice(window, cx);
                 })
                 .ok();
         }

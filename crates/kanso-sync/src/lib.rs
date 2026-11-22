@@ -52,7 +52,8 @@ pub use account::{
     methods_locked, new_recovery_key, pairing_status, poll_provider, recover, recovery_key_held,
     refresh_locked_methods, register_push, revoke_device, server_auth, server_info, sign_in,
     sign_in_with_provider, sign_out, sign_out_locked, sign_up, sign_up_with_provider,
-    start_identity, start_provider, unlink_identity, unlock_with_password, unregister_push, usage,
+    start_identity, start_identity_with_scheme, start_provider, start_provider_with_scheme,
+    unlink_identity, unlock_with_password, unregister_push, usage,
 };
 pub use api::{Api, Backend, PushEnvironment, PushPlatform, PushRegistration, Route};
 pub use approval::{Approval, ApprovalKeys};

@@ -126,6 +126,11 @@ pub fn trusted_keys() -> Vec<VerifyingKey> {
     parse_key_list(include_str!("../keys/trusted-keys.txt"))
 }
 
+/// The keys Kanso Nightly trusts, from `keys/nightly-keys.txt`.
+pub fn nightly_trusted_keys() -> Vec<VerifyingKey> {
+    parse_key_list(include_str!("../keys/nightly-keys.txt"))
+}
+
 /// The keys in a key list: one base64 public key a line; blank lines and
 /// lines starting with `#` are skipped, and so is anything that isn't a key.
 pub fn parse_key_list(text: &str) -> Vec<VerifyingKey> {

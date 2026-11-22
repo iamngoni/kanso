@@ -133,10 +133,18 @@ shared-library dependencies, including `libxkbcommon-x11-0`, so apt installs the
 `PATH`. Kanso still tells you when a release is out, and leaves installing it to apt. The repository
 holds the latest release only ([docs/APT.md](docs/APT.md)).
 
+**Kanso Nightly** is built from `master` after CI passes, for people who want changes before a
+release. It is a separate app (`app.kanso.Kanso.nightly`), installs beside Kanso with its own
+library, and updates itself from the [nightly release](https://github.com/iamngoni/kanso/releases/tag/nightly).
+It may break, and it asks you to confirm that the first time you open it. Download the nightly
+installer or archive from that page; the macOS and Windows builds are signed the same way as a
+release.
+
 To build the macOS app yourself:
 
 ```bash
 scripts/bundle-macos.sh
+scripts/bundle-macos.sh --nightly   # Kanso Nightly, beside Kanso
 ```
 
 It builds an ad-hoc signed `target/release/Kanso.app`; copy it to `/Applications`. On Windows and

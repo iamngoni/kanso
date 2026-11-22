@@ -152,16 +152,17 @@ impl ProviderRoute {
         device: &LoginDevice,
         loopback: Option<&kanso_sync::Loopback>,
         challenge: Option<&str>,
+        app_scheme: Option<&str>,
     ) -> Result<ProviderStart, AccountError> {
         match self {
-            ProviderRoute::Public { server } => {
-                kanso_sync::start_provider(backend, server, provider, device, loopback, challenge)
-            }
+            ProviderRoute::Public { server } => kanso_sync::start_provider_with_scheme(
+                backend, server, provider, device, loopback, challenge, app_scheme,
+            ),
             ProviderRoute::Session {
                 session,
                 intent,
                 proof,
-            } => kanso_sync::account::start_identity(
+            } => kanso_sync::account::start_identity_with_scheme(
                 backend,
                 session,
                 provider,
@@ -170,6 +171,7 @@ impl ProviderRoute {
                 loopback,
                 challenge,
                 device,
+                app_scheme,
             ),
         }
     }
@@ -297,6 +299,7 @@ pub fn provider_begin(
     provider: &Provider,
     device: &LoginDevice,
     progress: &dyn Fn(Step),
+    app_scheme: Option<&str>,
 ) -> Result<StartedProviderFlow, AccountError> {
     let (loopback, verifier, challenge) = if matches!(provider, Provider::Google) {
         let loopback = browser
@@ -318,6 +321,7 @@ pub fn provider_begin(
         device,
         wire_loopback.as_ref(),
         challenge.as_deref(),
+        app_scheme,
     )?;
     let deadline = provider_deadline(&start);
     progress(Step::Contacting);
@@ -557,6 +561,19 @@ impl Flow {
         device: &LoginDevice,
         step: &dyn Fn(Step),
     ) -> Result<StartedProviderFlow, Failure> {
+        self.start_provider_with_scheme(browser, server, provider, device, step, None)
+    }
+
+    /// [`Flow::start_provider`] with the app's callback scheme.
+    pub fn start_provider_with_scheme(
+        &self,
+        browser: &dyn Browser,
+        server: &str,
+        provider: &Provider,
+        device: &LoginDevice,
+        step: &dyn Fn(Step),
+        app_scheme: Option<&str>,
+    ) -> Result<StartedProviderFlow, Failure> {
         provider_begin(
             self.backend.as_ref(),
             browser,
@@ -566,6 +583,7 @@ impl Flow {
             provider,
             device,
             step,
+            app_scheme,
         )
         .map_err(|err| Failure::account(err, ErrorContext::SignIn))
     }

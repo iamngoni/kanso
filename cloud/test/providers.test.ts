@@ -521,6 +521,26 @@ describe("Apple's web flow", () => {
 		expect(JSON.stringify(flow)).not.toContain(url.searchParams.get("state")!.slice(44));
 	});
 
+	it("returns to the scheme the app asked for, and refuses any other", async () => {
+		for (const scheme of ["kanso", "kanso-dev", "kanso-nightly"]) {
+			const started = await as("/v2/auth/apple/start", { device: wireDevice(newDevice()), app_scheme: scheme });
+			expect(started.status).toBe(200);
+			const url = new URL(started.body.auth_url);
+			providers.apple.nonce = url.searchParams.get("nonce");
+			const flow = await env.DB.prepare("SELECT app_scheme FROM auth_flows WHERE id = ?1")
+				.bind(started.body.flow_id)
+				.first<{ app_scheme: string }>();
+			expect(flow?.app_scheme).toBe(scheme);
+			const page = await postCallback({ state: url.searchParams.get("state")!, code: PII.appleCode });
+			expect(page.status).toBe(200);
+			expect(await page.text()).toContain(`${scheme}://auth/apple?flow=`);
+		}
+
+		const refused = await as("/v2/auth/apple/start", { device: wireDevice(newDevice()), app_scheme: "kanso-evil" });
+		expect(refused.status).toBe(400);
+		expect(refused.body.error).toBe("bad_request");
+	});
+
 	it("exchanges the code with the redirect URI stored on the flow", async () => {
 		const d = newDevice();
 		const started = await callJson("/v2/auth/apple/start", {

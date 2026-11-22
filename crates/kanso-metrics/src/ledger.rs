@@ -723,7 +723,7 @@ mod tests {
                             &["0", "<10", "10-100", "100-1000", "1000+"],
                         )
                         && list("sync_errors", &["0", "1-5", "6+"])
-                        && list("channel", &["stable", "beta", "dev"]))
+                        && list("channel", &["stable", "beta", "dev", "nightly"]))
                     {
                         return Err("app_active values".into());
                     }

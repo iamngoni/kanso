@@ -1,35 +1,46 @@
 # Developing Kanso
 
-## Kanso and Kanso Dev
+## Kanso, Kanso Dev and Kanso Nightly
 
 `/Applications/Kanso.app` only ever comes from a published release, and
 updates itself from there ([RELEASING.md](RELEASING.md)). To try a change in
-a real app without touching it, build **Kanso Dev**:
+a real app without touching it, build **Kanso Dev**; to run the same build
+the nightly channel ships, build **Kanso Nightly**:
 
 ```sh
 scripts/bundle-macos.sh --dev             # target/kanso-dev/release/Kanso Dev.app
 scripts/bundle-macos.sh --dev --install   # and copy it to ~/Applications/Kanso Dev.app
+scripts/bundle-macos.sh --nightly         # target/kanso-nightly/release/Kanso Nightly.app
+scripts/bundle-macos.sh --nightly --install
 ```
 
-The flavour is chosen when Kanso is compiled: the `dev-flavour` feature of
-`kanso-app` (`cargo run -p kanso-app --features dev-flavour` works too).
-`crates/kanso-app/src/flavour.rs` holds everything that differs:
+The flavour is chosen when Kanso is compiled: the `dev-flavour` and
+`nightly-flavour` features of `kanso-app` (`cargo run -p kanso-app --features
+dev-flavour` works too). `crates/kanso-app/src/flavour.rs` holds everything
+that differs:
 
-| | Kanso | Kanso Dev |
-|---|---|---|
-| Name | Kanso | Kanso Dev, with a DEV badge in the sidebar and an amber DEV band on its icon |
-| Bundle ID, login item | `app.kanso.Kanso` | `app.kanso.Kanso.dev` |
-| Data folder | `~/Library/Application Support/Kanso`, `%APPDATA%\Kanso`, `~/.local/share/kanso` | `…/Kanso Dev`, `%APPDATA%\Kanso Dev`, `~/.local/share/kanso-dev` |
-| Keychain service | `Kanso` | `Kanso Dev` |
-| Local API port (new config) | 19840 | 19841 |
-| Updates | from releases | off: Settings › Updates says "Development build — updates are off" |
-| Usage metrics ([METRICS.md](METRICS.md)) | sent once the notice is seen | never sent (nor by a debug build or a test) |
+| | Kanso | Kanso Dev | Kanso Nightly |
+|---|---|---|---|
+| Name | Kanso | Kanso Dev, with a DEV badge in the sidebar and an amber DEV band on its icon | Kanso Nightly, with a NIGHTLY badge and a blue NIGHTLY band |
+| Bundle ID, login item | `app.kanso.Kanso` | `app.kanso.Kanso.dev` | `app.kanso.Kanso.nightly` |
+| Data folder | `~/Library/Application Support/Kanso`, `%APPDATA%\Kanso`, `~/.local/share/kanso` | `…/Kanso Dev`, `%APPDATA%\Kanso Dev`, `~/.local/share/kanso-dev` | `…/Kanso Nightly`, `%APPDATA%\Kanso Nightly`, `~/.local/share/kanso-nightly` |
+| Keychain service | `Kanso` | `Kanso Dev` | `Kanso Nightly` |
+| Local API port (new config) | 19840 | 19841 | 19842 |
+| Updates | from releases | off: Settings › Updates says "Development build — updates are off" | from the [nightly release](https://github.com/iamngoni/kanso/releases/tag/nightly) |
+| Usage metrics ([METRICS.md](METRICS.md)) | sent once the notice is seen | never sent (nor by a debug build or a test) | sent once the notice is seen, with channel `nightly` |
 
-So Kanso Dev never opens or writes the release's library, config or account,
-and never replaces itself or `/Applications/Kanso.app`. `--install` is only
-for `--dev`, and installs to `~/Applications`; the release workflow builds
-the normal flavour. `KANSO_DATA_DIR` or `--data-dir` still point either
-flavour at another folder.
+So Kanso Dev and Kanso Nightly never open or write the release's library,
+config or account, and never replace themselves or `/Applications/Kanso.app`.
+`--install` is only for `--dev` and `--nightly`, and installs to
+`~/Applications`; the release workflow builds the normal flavour and the
+nightly workflow builds Kanso Nightly. `KANSO_DATA_DIR` or `--data-dir` still
+point any flavour at another folder.
+
+Kanso Nightly is the release app on its own channel, so it can sync with a
+Kanso account but keeps its own sign-in. Its first launch shows a one-time
+warning that it is a nightly build. `KANSO_NIGHTLY_VERSION` names a local
+build (`0.10.11-nightly.20261120.abc1234`); without it the Cargo version is
+used.
 
 A plain `cargo run -p kanso-app` is the normal flavour, but a debug build: it
 checks for updates and shows them, and never installs one (it offers the

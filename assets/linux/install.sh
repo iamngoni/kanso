@@ -3,6 +3,11 @@
 # the binary in ~/.local/bin, the launcher in ~/.local/share/applications
 # and the icon in ~/.local/share/icons. Run it again to update; run it with
 # --uninstall to remove those files (your notes stay where they are).
+#
+# --nightly installs Kanso Nightly beside Kanso, from its own archive: the
+# app lives in ~/.local/lib/kanso-nightly and ~/.local/bin/kanso-nightly is
+# a link to it, so neither app replaces the other's binary, helpers or
+# libraries. Use --nightly --uninstall to remove it.
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -10,9 +15,35 @@ bin_dir="$HOME/.local/bin"
 data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
 apps_dir="$data_home/applications"
 icon_dir="$data_home/icons/hicolor/512x512/apps"
-# PDFs are drawn by a helper and its library, and voice input has ONNX
-# Runtime; Kanso finds them in ../lib/kanso.
-lib_dir="$HOME/.local/lib/kanso"
+
+nightly=0
+for arg in "$@"; do
+    case "$arg" in
+    --nightly) nightly=1 ;;
+    esac
+done
+
+if [ "$nightly" = 1 ]; then
+    # Everything the app runs lives together: the binary, its helpers and
+    # the shared libraries their $ORIGIN rpaths name.
+    app_dir="$HOME/.local/lib/kanso-nightly"
+    lib_dir="$app_dir"
+    host_dir="$app_dir"
+    desktop_name=kanso-nightly.desktop
+    icon_name=kanso-nightly.png
+    scheme=kanso-nightly
+    display_name="Kanso Nightly"
+else
+    app_dir=
+    # PDFs are drawn by a helper and its library, and voice input has ONNX
+    # Runtime; Kanso finds them in ../lib/kanso.
+    lib_dir="$HOME/.local/lib/kanso"
+    host_dir="$bin_dir"
+    desktop_name=kanso.desktop
+    icon_name=kanso.png
+    scheme=kanso
+    display_name=Kanso
+fi
 
 # package_for_library prints the Ubuntu/Debian package that provides a
 # shared library Kanso links against. The tarball carries ONNX Runtime,
@@ -117,7 +148,16 @@ check_runtime_dependencies() {
     return 1
 }
 
-if [ "${1:-}" = "--uninstall" ]; then
+if [ "$nightly" = 1 ]; then
+    for arg in "$@"; do
+        if [ "$arg" = "--uninstall" ]; then
+            rm -f "$bin_dir/kanso-nightly" "$apps_dir/$desktop_name" "$icon_dir/$icon_name"
+            rm -rf "$app_dir"
+            echo "Removed Kanso Nightly. Your notes are still in ${XDG_DATA_HOME:-~/.local/share}/Kanso Nightly."
+            exit 0
+        fi
+    done
+elif [ "${1:-}" = "--uninstall" ]; then
     rm -f "$bin_dir/kanso" "$bin_dir/kanso-plugin-host" "$apps_dir/kanso.desktop" "$icon_dir/kanso.png"
     rm -rf "$lib_dir"
     echo "Removed Kanso. Your notes are still in ${XDG_DATA_HOME:-~/.local/share}/kanso."
@@ -143,10 +183,21 @@ fi
 check_runtime_dependencies "$here/kanso" gui || exit 1
 
 mkdir -p "$bin_dir" "$apps_dir" "$icon_dir"
-install -m 755 "$here/kanso" "$bin_dir/kanso"
+if [ "$nightly" = 1 ]; then
+    mkdir -p "$app_dir"
+    install -m 755 "$here/kanso" "$app_dir/kanso"
+    ln -sf "$app_dir/kanso" "$bin_dir/kanso-nightly"
+    exec_path="$app_dir/kanso"
+else
+    install -m 755 "$here/kanso" "$bin_dir/kanso"
+    exec_path="$bin_dir/kanso"
+fi
 # Plugins run in their own process, beside Kanso.
-[ -f "$here/kanso-plugin-host" ] && install -m 755 "$here/kanso-plugin-host" "$bin_dir/kanso-plugin-host"
-# Voice input's ONNX Runtime, which the binary finds in ../lib/kanso.
+if [ -f "$here/kanso-plugin-host" ]; then
+    install -m 755 "$here/kanso-plugin-host" "$host_dir/kanso-plugin-host"
+fi
+# Voice input's ONNX Runtime, which the binary finds beside it or in
+# ../lib/kanso.
 if [ -f "$here/libonnxruntime.so.1" ]; then
     mkdir -p "$lib_dir"
     install -m 755 "$here/libonnxruntime.so.1" "$lib_dir/libonnxruntime.so.1"
@@ -177,14 +228,14 @@ if [ -f "$here/kanso-pdf-worker" ] && [ -f "$here/libpdfium.so" ]; then
         cp -R "$here/pdfium-licenses/." "$lib_dir/pdfium-licenses/"
     fi
 fi
-install -m 644 "$here/kanso.png" "$icon_dir/kanso.png"
+install -m 644 "$here/$icon_name" "$icon_dir/$icon_name"
 # The launcher runs the installed binary by its full path, since a desktop
 # session's PATH often leaves out ~/.local/bin.
-sed "s|^Exec=kanso|Exec=\"$bin_dir/kanso\"|" "$here/kanso.desktop" >"$apps_dir/kanso.desktop"
-chmod 644 "$apps_dir/kanso.desktop"
+sed "s|^Exec=kanso|Exec=\"$exec_path\"|" "$here/$desktop_name" >"$apps_dir/$desktop_name"
+chmod 644 "$apps_dir/$desktop_name"
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$apps_dir" || true
-# kanso:// opens Kanso: Sign in with Apple returns through it.
-command -v xdg-mime >/dev/null 2>&1 && xdg-mime default kanso.desktop x-scheme-handler/kanso || true
+# The app's scheme opens it: Sign in with Apple returns through it.
+command -v xdg-mime >/dev/null 2>&1 && xdg-mime default "$desktop_name" "x-scheme-handler/$scheme" || true
 command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q "$data_home/icons/hicolor" || true
 
-echo "Installed Kanso in $bin_dir/kanso; it's in your applications menu."
+echo "Installed $display_name in $exec_path; it's in your applications menu."

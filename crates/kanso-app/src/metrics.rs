@@ -257,15 +257,21 @@ const SHIPPED_LANGUAGES: &[&str] = &["en"];
 /// `channel` of this build: a pre-release version (`0.11.0-beta.1`, which
 /// scripts/release.sh accepts) is `beta`, any other release `stable`.
 fn channel() -> Channel {
-    channel_of(flavour::CURRENT.is_dev(), env!("CARGO_PKG_VERSION"))
+    channel_of(
+        flavour::CURRENT.is_dev(),
+        flavour::CURRENT.is_nightly(),
+        flavour::version(),
+    )
 }
 
-/// The channel of a build from whether it is Kanso Dev and its version.
-/// Kanso Dev is `dev` for completeness, but it never sends (`enabled`), so
-/// no batch carries `dev`; the Worker still accepts it.
-fn channel_of(is_dev: bool, version: &str) -> Channel {
+/// The channel of a build from whether it is Kanso Dev or Nightly and its
+/// version. Kanso Dev is `dev` for completeness, but it never sends
+/// (`enabled`), so no batch carries `dev`; the Worker still accepts it.
+fn channel_of(is_dev: bool, is_nightly: bool, version: &str) -> Channel {
     if is_dev {
         Channel::Dev
+    } else if is_nightly {
+        Channel::Nightly
     } else if version.contains('-') {
         Channel::Beta
     } else {
@@ -560,10 +566,12 @@ mod channel_tests {
         ) {
             let release = format!("{major}.{minor}.{patch}");
             let pre = format!("{release}-{suffix}");
-            prop_assert_eq!(channel_of(false, &release), Channel::Stable);
-            prop_assert_eq!(channel_of(false, &pre), Channel::Beta);
-            prop_assert_eq!(channel_of(true, &release), Channel::Dev);
-            prop_assert_eq!(channel_of(true, &pre), Channel::Dev);
+            prop_assert_eq!(channel_of(false, false, &release), Channel::Stable);
+            prop_assert_eq!(channel_of(false, false, &pre), Channel::Beta);
+            prop_assert_eq!(channel_of(true, false, &release), Channel::Dev);
+            prop_assert_eq!(channel_of(true, false, &pre), Channel::Dev);
+            prop_assert_eq!(channel_of(false, true, &release), Channel::Nightly);
+            prop_assert_eq!(channel_of(false, true, &pre), Channel::Nightly);
         }
     }
 }

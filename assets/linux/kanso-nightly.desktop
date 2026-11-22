@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Kanso Nightly
+GenericName=Notes
+Comment=Markdown notes with sync and end-to-end encryption
+Exec=kanso-nightly %U
+Icon=kanso-nightly
+Terminal=false
+Categories=Office;Utility;TextEditor;
+Keywords=notes;markdown;writing;
+StartupWMClass=kanso-nightly
+# Sign in with Apple returns to Kanso Nightly through kanso-nightly:// URLs; Markdown and
+# text files open from the file manager's Open With.
+MimeType=x-scheme-handler/kanso-nightly;text/markdown;text/plain;

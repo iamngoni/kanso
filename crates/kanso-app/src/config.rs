@@ -920,6 +920,9 @@ pub struct Nudges {
     pub metrics_notice_version: u8,
     /// The one-time notice that Kanso now opens to Overview was shown.
     pub overview_notice_seen: bool,
+    /// Kanso Nightly's warning that it is built from master was shown and
+    /// acknowledged.
+    pub nightly_notice_seen: bool,
 }
 
 impl Default for AppConfig {
@@ -1500,6 +1503,7 @@ mod tests {
                         metrics_notice_seen: version % 3 == 0,
                         metrics_notice_version: u8::try_from(version % 4).unwrap_or(0),
                         overview_notice_seen: version % 2 == 1,
+                        nightly_notice_seen: version % 2 == 0,
                     },
                     notices: kanso_core::notices::NoticeState {
                         dismissed: if login {

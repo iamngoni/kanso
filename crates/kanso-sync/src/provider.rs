@@ -295,6 +295,10 @@ impl LoginDevice {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProviderStartRequest {
     pub device: LoginDevice,
+    /// The scheme Apple's callback returns to, when the app has its own
+    /// (Kanso Nightly and the development build); absent means `kanso`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_scheme: Option<String>,
 }
 
 /// `POST /v2/auth/google/start`: the app's loopback and its PKCE challenge
@@ -454,6 +458,8 @@ pub struct IdentityStartRequest {
     pub redirect_uri: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub code_challenge: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_scheme: Option<String>,
     pub device: LoginDevice,
 }
 

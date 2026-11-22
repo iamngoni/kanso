@@ -30,6 +30,7 @@ export const EXPECTED_MIGRATIONS: readonly string[] = [
 	"0020_collab_left.sql",
 	"0021_book_logs.sql",
 	"0022_book_members_version.sql",
+	"0023_auth_flow_app_scheme.sql",
 ];
 
 export const SCHEMA_ISSUE_TITLE = "Server database is missing migrations";

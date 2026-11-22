@@ -58,6 +58,11 @@ assets = [
 # builds it; releases never do.
 dev-flavour = []
 
+# Kanso Nightly: its own name, bundle ID, data folder, Keychain service, API
+# port and URL scheme, and updates from the nightly feed. The nightly
+# workflow builds it with this feature and KANSO_NIGHTLY_VERSION.
+nightly-flavour = []
+
 [dependencies]
 anyhow.workspace = true
 async-channel.workspace = true

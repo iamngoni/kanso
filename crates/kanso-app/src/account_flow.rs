@@ -612,12 +612,13 @@ pub fn start_provider(
         Some(tx.clone()),
         cx,
         move |step| {
-            thread.start_provider(
+            thread.start_provider_with_scheme(
                 &Desktop,
                 &start_server,
                 &start_provider,
                 &start_device,
                 step,
+                Some(crate::flavour::CURRENT.scheme),
             )
         },
         move |result, cx| match result {
