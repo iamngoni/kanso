@@ -491,6 +491,7 @@ fn provider_change(
                 &start_provider,
                 &device,
                 step,
+                Some(crate::flavour::CURRENT.scheme),
             )
             .map_err(|err| Failure::account(err, ErrorContext::Account))?;
             Ok((started, device, route))

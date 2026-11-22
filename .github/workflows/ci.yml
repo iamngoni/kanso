@@ -14,6 +14,7 @@ on:
       - "LICENSE*"
       - ".github/workflows/mobile*.yml"
       - ".github/workflows/release.yml"
+      - ".github/workflows/nightly.yml"
       - ".github/workflows/claude*.yml"
   workflow_dispatch:
 

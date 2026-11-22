@@ -78,7 +78,7 @@ pub fn run_cli(args: &[String]) -> Result<()> {
         return Ok(());
     }
     let current = current_version();
-    let keys = kanso_update::trusted_keys();
+    let keys = crate::updates::trusted_keys();
     let platform = Platform::current();
     if let Some(reason) = off_reason(&flavour::CURRENT, !keys.is_empty(), platform) {
         bail!("{reason}");
@@ -92,7 +92,7 @@ pub fn run_cli(args: &[String]) -> Result<()> {
     let check = kanso_update::check(
         &transport,
         &policy,
-        kanso_update::FEED_URL,
+        crate::updates::feed_url(),
         &keys,
         &current,
         platform,

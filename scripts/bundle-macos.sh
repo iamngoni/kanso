@@ -1,14 +1,21 @@
 #!/bin/sh
-# Builds Kanso.app, or Kanso Dev.app with --dev (docs/DEVELOPING.md).
+# Builds Kanso.app, Kanso Dev.app with --dev, or Kanso Nightly.app with
+# --nightly (docs/DEVELOPING.md, docs/RELEASING.md).
 #
-#   scripts/bundle-macos.sh                 target/release/Kanso.app
-#   scripts/bundle-macos.sh --dev           target/kanso-dev/release/Kanso Dev.app
-#   scripts/bundle-macos.sh --dev --install ...and copies it to ~/Applications
+#   scripts/bundle-macos.sh                     target/release/Kanso.app
+#   scripts/bundle-macos.sh --dev               target/kanso-dev/release/Kanso Dev.app
+#   scripts/bundle-macos.sh --nightly           target/kanso-nightly/release/Kanso Nightly.app
+#   scripts/bundle-macos.sh --dev --install     ...and copies it to ~/Applications
+#   scripts/bundle-macos.sh --nightly --install ...and copies it to ~/Applications
 #
 # Kanso Dev is its own app: bundle ID app.kanso.Kanso.dev, an icon with an
 # amber DEV band, its own data folder and Keychain service, and no updates.
-# It is never installed over /Applications/Kanso.app, which only ever comes
-# from a release and updates itself.
+# Kanso Nightly is the release app on its own channel: bundle ID
+# app.kanso.Kanso.nightly, a blue NIGHTLY band, its own data folder and
+# Keychain service, and updates from the nightly feed. Neither is ever
+# installed over /Applications/Kanso.app, which only ever comes from a
+# release and updates itself. KANSO_NIGHTLY_VERSION names the nightly build
+# (0.10.11-nightly.20261120.abc1234); without it the Cargo version is used.
 #
 # KANSO_SIGN_IDENTITY signs with that identity, the hardened runtime and a
 # secure timestamp (the release workflow's Developer ID); without it the app
@@ -25,13 +32,15 @@ set -eu
 cd "$(dirname "$0")/.."
 
 dev=0
+nightly=0
 install=0
 for arg in "$@"; do
     case "$arg" in
     --dev) dev=1 ;;
+    --nightly) nightly=1 ;;
     --install) install=1 ;;
     -h | --help)
-        sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'
         exit 0
         ;;
     *)
@@ -41,25 +50,42 @@ for arg in "$@"; do
     esac
 done
 
-if [ "$dev" = 1 ]; then
+if [ "$dev" = 1 ] && [ "$nightly" = 1 ]; then
+    echo "bundle-macos: --dev and --nightly are different apps; choose one." >&2
+    exit 1
+elif [ "$nightly" = 1 ]; then
+    # Its own target folder, so the three apps never rebuild or contaminate
+    # each other's release profile.
+    target_dir=target/kanso-nightly
+    cargo build --release -p kanso-app -p kanso-plugin-host -p kanso-pdf --features kanso-app/nightly-flavour,kanso-pdf/render --target-dir "$target_dir"
+    name="Kanso Nightly"
+    bundle_id=app.kanso.Kanso.nightly
+    scheme=kanso-nightly
+elif [ "$dev" = 1 ]; then
     # Its own target folder, so switching between the two never rebuilds
     # everything and a release build never picks up the dev flavour.
     target_dir=target/kanso-dev
     cargo build --release -p kanso-app -p kanso-plugin-host -p kanso-pdf --features kanso-app/dev-flavour,kanso-pdf/render --target-dir "$target_dir"
     name="Kanso Dev"
     bundle_id=app.kanso.Kanso.dev
+    scheme=kanso-dev
 else
     target_dir=target
     if [ "$install" = 1 ]; then
-        echo "bundle-macos: Kanso itself installs from a release and updates itself; --install is for --dev builds." >&2
+        echo "bundle-macos: Kanso itself installs from a release and updates itself; --install is for --dev and --nightly builds." >&2
         exit 1
     fi
     cargo build --release -p kanso-app -p kanso-plugin-host -p kanso-pdf --features kanso-pdf/render
     name=Kanso
     bundle_id=app.kanso.Kanso
+    scheme=kanso
 fi
 
-version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+if [ "$nightly" = 1 ] && [ -n "${KANSO_NIGHTLY_VERSION:-}" ]; then
+    version=$KANSO_NIGHTLY_VERSION
+else
+    version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+fi
 app="$target_dir/release/$name.app"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
@@ -87,10 +113,14 @@ cp "$pdfium/LICENSE" "$app/Contents/Resources/pdfium-licenses/LICENSE"
 cp -R "$pdfium/licenses/." "$app/Contents/Resources/pdfium-licenses/"
 
 # The icon; regenerate Kanso's with assets/icon/make-icon.swift and iconutil.
-if [ "$dev" = 1 ]; then
+if [ "$dev" = 1 ] || [ "$nightly" = 1 ]; then
     iconset=$(mktemp -d)/Kanso.iconset
     mkdir -p "$iconset"
-    KANSO_ICON_DEV=1 swift assets/icon/make-icon.swift "$iconset/icon_512x512@2x.png" 1024
+    if [ "$nightly" = 1 ]; then
+        KANSO_ICON_NIGHTLY=1 swift assets/icon/make-icon.swift "$iconset/icon_512x512@2x.png" 1024
+    else
+        KANSO_ICON_DEV=1 swift assets/icon/make-icon.swift "$iconset/icon_512x512@2x.png" 1024
+    fi
     for size in 16 32 128 256 512; do
         sips -z "$size" "$size" "$iconset/icon_512x512@2x.png" --out "$iconset/icon_${size}x${size}.png" >/dev/null
         double=$((size * 2))
@@ -140,7 +170,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
             <string>Viewer</string>
             <key>CFBundleURLSchemes</key>
             <array>
-                <string>kanso</string>
+                <string>$scheme</string>
             </array>
         </dict>
     </array>

@@ -1,0 +1,11 @@
+# Kanso Nightly's update signing keys: one base64 Ed25519 public key a line.
+#
+# The nightly workflow signs latest.json with NIGHTLY_UPDATE_SIGNING_KEY, and
+# Kanso Nightly takes an update only when latest.json.sig verifies against
+# one of these. To rotate, add the new key, ship a nightly signed with the
+# old one, then sign with the new one and remove the old line.
+#
+# None yet: the owner runs
+#   cargo run -p kanso-update --bin kanso-release -- keygen --secret-out <file>
+# and adds the public key it prints below this line. Until then Kanso
+# Nightly builds say they have no key to check updates with.

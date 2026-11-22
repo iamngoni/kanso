@@ -183,7 +183,7 @@ impl Real {
     /// for this system): the window then says nothing about updates.
     pub fn new(data_dir: &str) -> Option<Real> {
         let current = crate::updates::current_version();
-        let keys = kanso_update::trusted_keys();
+        let keys = crate::updates::trusted_keys();
         let platform = Platform::current();
         if crate::updates::off_reason(&crate::flavour::CURRENT, !keys.is_empty(), platform)
             .is_some()
@@ -191,7 +191,7 @@ impl Real {
             return None;
         }
         let mut policy = UrlPolicy::RELEASE;
-        let mut feed_url = kanso_update::FEED_URL.to_owned();
+        let mut feed_url = crate::updates::feed_url().to_owned();
         if cfg!(debug_assertions)
             && let Some(url) = std::env::var("KANSO_UPDATE_FEED")
                 .ok()

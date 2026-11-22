@@ -24,8 +24,8 @@ pub mod whats_new;
 
 pub use ed25519_dalek::VerifyingKey;
 pub use feed::{
-    Asset, Check, Earlier, Feed, FeedError, SCHEMA, Update, check_feed, parse_public_key,
-    sign_feed, trusted_keys, verify_signature, verify_signature_with_cap,
+    Asset, Check, Earlier, Feed, FeedError, SCHEMA, Update, check_feed, nightly_trusted_keys,
+    parse_public_key, sign_feed, trusted_keys, verify_signature, verify_signature_with_cap,
 };
 pub use fetch::{FetchError, HttpTransport, Transport};
 pub use install::{Install, LocateOptions, NotInstallable};
@@ -36,6 +36,11 @@ pub use stage::{Pending, StageError};
 /// Where the app looks for the newest published release's feed. GitHub
 /// answers `releases/latest` with published releases only, never drafts.
 pub const FEED_URL: &str = "https://github.com/iamngoni/kanso/releases/latest/download/latest.json";
+
+/// Where Kanso Nightly looks for its feed: the `nightly` release, which the
+/// nightly workflow keeps up to date in place.
+pub const NIGHTLY_FEED_URL: &str =
+    "https://github.com/iamngoni/kanso/releases/download/nightly/latest.json";
 
 /// The signature beside a feed at `feed_url`.
 pub fn signature_url(feed_url: &str) -> String {

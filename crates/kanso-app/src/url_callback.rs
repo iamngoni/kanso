@@ -51,8 +51,11 @@ use std::time::{Duration, Instant};
 use crate::capture_request::{self, CaptureRequest};
 use crate::provider_browser::BrowserError;
 
-/// The scheme the browser returns to.
-pub const SCHEME: &str = "kanso";
+/// The scheme the browser returns to: `kanso`, or `kanso-nightly` for
+/// Kanso Nightly.
+pub fn scheme() -> &'static str {
+    crate::flavour::CURRENT.scheme
+}
 
 /// The longest a callback wait lasts, whatever the server says.
 pub const MAX_WAIT: Duration = Duration::from_secs(10 * 60);
@@ -132,9 +135,10 @@ const ENDPOINT_FILE: &str = "sign-in-callback";
 /// Whether a command-line argument is a `kanso://` URL the OS passed in,
 /// rather than a command.
 pub fn is_callback_argument(arg: &str) -> bool {
-    arg.len() > SCHEME.len() + 3
-        && arg[..SCHEME.len()].eq_ignore_ascii_case(SCHEME)
-        && arg[SCHEME.len()..].starts_with("://")
+    let scheme = scheme();
+    arg.len() > scheme.len() + 3
+        && arg[..scheme.len()].eq_ignore_ascii_case(scheme)
+        && arg[scheme.len()..].starts_with("://")
 }
 
 /// What became of a callback URL.
@@ -816,14 +820,24 @@ mod tests {
     }
 
     /// The desktop entry and the installer register the scheme the router
-    /// expects, passing the URL as one argument.
+    /// expects, passing the URL as one argument. Nightly has its own entry
+    /// and installer scheme, so the two can sit side by side.
     #[test]
     fn the_scheme_is_registered_where_the_os_looks() {
         let desktop = include_str!("../../../assets/linux/kanso.desktop");
         assert!(desktop.contains("MimeType=x-scheme-handler/kanso;"));
         assert!(desktop.lines().any(|line| line == "Exec=kanso %U"));
+        let nightly_desktop = include_str!("../../../assets/linux/kanso-nightly.desktop");
+        assert!(nightly_desktop.contains("MimeType=x-scheme-handler/kanso-nightly;"));
+        assert!(
+            nightly_desktop
+                .lines()
+                .any(|line| line == "Exec=kanso-nightly %U")
+        );
         let installer = include_str!("../../../packaging/windows/kanso.iss");
-        assert!(installer.contains(r#"Subkey: "Software\Classes\kanso""#));
+        assert!(installer.contains(r#"#define UrlScheme "kanso""#));
+        assert!(installer.contains(r#"#define UrlScheme "kanso-nightly""#));
+        assert!(installer.contains(r#"Subkey: "Software\Classes\{#UrlScheme}""#));
         assert!(installer.contains(r#"ValueName: "URL Protocol""#));
         assert!(installer.contains(r#"""{app}\kanso.exe"" ""%1"""#));
     }

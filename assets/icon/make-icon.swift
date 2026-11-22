@@ -69,5 +69,21 @@ if ProcessInfo.processInfo.environment["KANSO_ICON_DEV"] != nil {
     label.draw(at: NSPoint(x: 512 - box.width / 2, y: 200 - box.height / 2))
 }
 
+// Kanso Nightly: a blue band across the foot of the tile, saying NIGHTLY,
+// so the three apps are never mistaken for each other in the Dock or Finder.
+if ProcessInfo.processInfo.environment["KANSO_ICON_NIGHTLY"] != nil {
+    cg.saveGState()
+    cg.addPath(tile); cg.clip()
+    cg.setFillColor(rgb(0x3B5BDB)); cg.fill(CGRect(x: 100, y: 100, width: 824, height: 200))
+    cg.restoreGState()
+    let label = NSAttributedString(string: "NIGHTLY", attributes: [
+        .font: NSFont.systemFont(ofSize: 64, weight: .heavy),
+        .foregroundColor: NSColor.white,
+        .kern: 6,
+    ])
+    let box = label.size()
+    label.draw(at: NSPoint(x: 512 - box.width / 2, y: 200 - box.height / 2))
+}
+
 NSGraphicsContext.restoreGraphicsState()
 try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out))

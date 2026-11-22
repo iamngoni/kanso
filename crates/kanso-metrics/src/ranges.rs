@@ -195,6 +195,7 @@ closed_list! {
         Stable => "stable",
         Beta => "beta",
         Dev => "dev",
+        Nightly => "nightly",
     }
 }
 

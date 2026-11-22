@@ -391,7 +391,7 @@ describe("refusing", () => {
 				["notebooks", "1-5"],
 				["attachments_mb", "10"],
 				["sync_errors", "7"],
-				["channel", "nightly"],
+				["channel", "canary"],
 			] as [string, unknown][]
 		).map(([key, value]): [string, string, Json] => [`optional ${key} out of its list`, `${P0}.${key}`, active((p) => (p[key] = value))]),
 		["app_opened with an extra prop", P0, opened((p) => (p.duration = "<1m"))],

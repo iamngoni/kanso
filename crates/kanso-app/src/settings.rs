@@ -36,6 +36,7 @@ use crate::clock::Clock;
 use crate::config::{
     DEFAULT_FONT_SIZE, DiagramRenderer, EditorFont, EditorSettings, SyncSettings, Typewriter,
 };
+use crate::flavour;
 use crate::layout::{BOTTOM_BAND_HEIGHT, TOP_BAND_HEIGHT};
 use crate::library::Library;
 use crate::services::{self, AccountState, ApiState, Services, SyncState};
@@ -1135,6 +1136,28 @@ impl SettingsView {
             crate::settings_people::people_section(cx),
             crate::settings_people::notebooks_section(cx),
             crate::settings_flashcards::flashcards_section(cx),
+            section(
+                "About",
+                vec![
+                    Row::new(Lucide::Info, flavour::CURRENT.name)
+                        .detail(if flavour::CURRENT.is_nightly() {
+                            "Built from the latest master. It can break, and it updates from the nightly feed."
+                        } else if flavour::CURRENT.is_dev() {
+                            "A development build from a working copy."
+                        } else {
+                            "Kanso, the notes app."
+                        })
+                        .value(format!("Version {}", flavour::version())),
+                    Row::new(Lucide::GitBranch, "Channel").value(if flavour::CURRENT.is_nightly() {
+                        "Nightly".to_owned()
+                    } else if flavour::CURRENT.is_dev() {
+                        "Development".to_owned()
+                    } else {
+                        "Stable".to_owned()
+                    }),
+                ],
+                colors,
+            ),
         ])
         .chain(crate::settings_discovery::sections(cx))
         .collect()

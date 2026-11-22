@@ -231,12 +231,13 @@ impl AccountSettings {
             events: events.clone(),
         };
         let backend = self.inner.backend.as_ref();
-        let started = match provider_begin(backend, &browser, &route, &provider, &login, &|_| {}) {
-            Ok(started) => started,
-            Err(err) => {
-                return failed(&account.settle(Failure::account(err, context), context));
-            }
-        };
+        let started =
+            match provider_begin(backend, &browser, &route, &provider, &login, &|_| {}, None) {
+                Ok(started) => started,
+                Err(err) => {
+                    return failed(&account.settle(Failure::account(err, context), context));
+                }
+            };
         let apple = match &started.start {
             ProviderStart::Apple(start) => {
                 match open_apple(events, &self.inner.account.provider, start) {

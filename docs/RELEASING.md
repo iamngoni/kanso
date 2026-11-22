@@ -94,6 +94,16 @@ need a person (a failed check, a full disk). Each step is logged to
 `http://127.0.0.1:<port>/…`). Release builds ignore it, and the feed must
 still be signed by a trusted key.
 
+**Kanso Nightly** runs the same update code against
+`https://github.com/iamngoni/kanso/releases/download/nightly/latest.json`,
+with the nightly public key from
+`crates/kanso-update/keys/nightly-keys.txt` and a prerelease version. Kanso
+itself keeps using `releases/latest` and the keys in `trusted-keys.txt`; it
+never reads the nightly feed. Because nightly versions are prereleases, the
+first start of a new nightly does not fetch What's new (`refresh_installed`
+only runs for a final version), and `whats_new` is not put in the nightly
+feed.
+
 ## What's new video
 
 From 0.10.7 a release carries a short video that leads the What's new
@@ -348,6 +358,29 @@ pinned to a commit; bump the SHAs deliberately.
 run stopped between upload and publish): it downloads the draft's
 `latest.json` and `.sig`, verifies them, and publishes it.
 
+## Nightly builds
+
+`.github/workflows/nightly.yml` builds **Kanso Nightly** from `master` at
+05:00 UTC. It builds only when master's latest CI run is green and the
+moving `nightly` tag does not already point at that commit; run it by hand
+(Actions › Nightly › Run workflow) to build the current master anyway.
+
+The version is the Cargo version with a prerelease suffix,
+`0.10.11-nightly.20261122.abc1234`, compiled in through
+`KANSO_NIGHTLY_VERSION` so the app, its metrics and the feed agree. The four
+update archives, the macOS disk image, the Windows installer and the signed
+`latest.json` go to the `nightly` tag, which stays a prerelease; each run
+moves the tag and replaces the assets. The notes are the commit subjects
+since the last release tag, not a `CHANGELOG.md` section. The feed is signed
+with `NIGHTLY_UPDATE_SIGNING_KEY` and checked against the
+`NIGHTLY_UPDATE_PUBLIC_KEY` repository variable before upload. A failed
+nightly leaves the previous one in place.
+
+Kanso Nightly is signed and notarized like a release (the workflow refuses
+to publish an ad hoc Mac build), installs beside Kanso with its own bundle
+ID, data folder and Keychain service, and updates itself from the nightly
+feed. See [DEVELOPING.md](DEVELOPING.md) for its local build.
+
 ## One-time setup
 
 Do these once, before the first release; the release workflow can't sign a
@@ -400,7 +433,40 @@ To check the key and the secret match, sign a test feed the same way the
 workflow does: `kanso-release sign` refuses a key whose public half isn't in
 `trusted-keys.txt`.
 
-### 2. The theme gallery signing key (set up)
+### 2. The nightly signing key (required for Kanso Nightly)
+
+Kanso Nightly has its own key, separate from the release key; never reuse
+one. Generate it the same way:
+
+```sh
+cargo run -p kanso-update --bin kanso-release -- keygen --secret-out ~/kanso-nightly-signing.key
+```
+
+Add the public key it prints on its own line to
+`crates/kanso-update/keys/nightly-keys.txt` and commit that. Only Kanso
+Nightly compiles that file in. Then make the `nightly` environment (Settings
+› Environments), restrict **Deployment branches** to `master`, and store the
+secret there:
+
+```sh
+gh secret set NIGHTLY_UPDATE_SIGNING_KEY --repo iamngoni/kanso --env nightly < ~/kanso-nightly-signing.key
+# keep a copy in your password manager, then
+rm ~/kanso-nightly-signing.key
+```
+
+Set the public half as a repository variable, which the workflow verifies
+the signed feed against before publishing:
+
+```sh
+gh variable set NIGHTLY_UPDATE_PUBLIC_KEY --repo iamngoni/kanso --body '<the public key>'
+```
+
+The `nightly` environment also needs the Apple Developer ID and
+notarization secrets from step 4, because every nightly Mac build is signed
+and notarized. A missing key or secret fails the nightly before anything is
+published.
+
+### 3. The theme gallery signing key (set up)
 
 The theme gallery has its own key, separate from the update key; never reuse
 one for the other. The key and the `gallery` environment already exist, so
@@ -433,7 +499,7 @@ half to both lists, ship a Kanso release trusting both, switch
 both lists once the oldest supported Kanso trusts the new key. Never reuse
 the update key.
 
-### 3. Developer ID signing and notarization (optional)
+### 4. Developer ID signing and notarization (optional)
 
 Without these, the Mac app is signed ad hoc as before: it updates itself,
 but a first install needs right-click › Open. With them, it is signed with
@@ -490,7 +556,7 @@ release with passkeys locally, set both `KANSO_SIGN_IDENTITY` and
 `KANSO_PROVISION_PROFILE` (for example
 `~/.config/kanso/Kanso_Developer_ID.provisionprofile`).
 
-### 4. The built-in themes
+### 5. The built-in themes
 
 This release keeps every built-in color and icon theme compiled in: they are
 the offline, always-there set, and they keep every existing selection
@@ -500,7 +566,7 @@ of any selected theme before removing the built-in one. Mark the gallery
 entries for those ids as **Built in** until then; the gallery never installs
 over a built-in id.
 
-### 5. The apt repository (optional)
+### 6. The apt repository (optional)
 
 Until this is done, releases carry the `.deb`s and the release job logs
 "apt signing key not configured; skipping apt metadata". Once:

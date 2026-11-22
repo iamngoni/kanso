@@ -76,7 +76,26 @@ const META_NOTES: &str = "update.notes";
 
 /// What this version is.
 pub fn current_version() -> semver::Version {
-    semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("the crate's version is semver")
+    semver::Version::parse(flavour::version()).expect("the crate's version is semver")
+}
+
+/// The feed this build reads: the stable one, or the nightly release for
+/// Kanso Nightly.
+pub fn feed_url() -> &'static str {
+    if flavour::CURRENT.is_nightly() {
+        kanso_update::NIGHTLY_FEED_URL
+    } else {
+        kanso_update::FEED_URL
+    }
+}
+
+/// The keys this build checks the feed with.
+pub fn trusted_keys() -> Vec<kanso_update::VerifyingKey> {
+    if flavour::CURRENT.is_nightly() {
+        kanso_update::nightly_trusted_keys()
+    } else {
+        kanso_update::trusted_keys()
+    }
 }
 
 /// A release's notes, as the sheet and Settings show them.
@@ -271,7 +290,7 @@ impl Default for Updates {
             media: Default::default(),
             media_fetching: Default::default(),
             transport: None,
-            feed_url: kanso_update::FEED_URL.to_owned(),
+            feed_url: feed_url().to_owned(),
             policy: UrlPolicy::RELEASE,
             keys: Vec::new(),
             restart: false,
@@ -318,10 +337,7 @@ pub fn just_updated(
     Some(match known {
         Some(notes) if notes.version == version => notes,
         _ => ReleaseNotes {
-            release_url: format!(
-                "https://github.com/{}/releases/tag/v{version}",
-                kanso_update::REPOSITORY
-            ),
+            release_url: release_page(current),
             version,
             pub_date: String::new(),
             notes: String::new(),
@@ -339,7 +355,7 @@ pub fn just_updated(
 pub fn init(cx: &mut App) {
     let current = current_version();
     let mut updates = Updates {
-        keys: kanso_update::trusted_keys(),
+        keys: trusted_keys(),
         transport: Some(Arc::new(kanso_update::HttpTransport::new(&format!(
             "Kanso/{current}"
         )))),
@@ -1645,6 +1661,7 @@ pub fn page(cx: &mut Context<crate::settings::SettingsView>) -> Vec<AnyElement> 
     };
     let mut rows = vec![
         Row::new(Lucide::Info, "Version").value(current.clone()),
+        Row::new(Lucide::GitBranch, "Channel").value(channel_label()),
         Row::new(Lucide::Clock, "Last checked").value(if off {
             "Never: updates are off".to_owned()
         } else {
@@ -1706,6 +1723,19 @@ pub fn page(cx: &mut Context<crate::settings::SettingsView>) -> Vec<AnyElement> 
     ]
 }
 
+/// The release line this build follows, as Settings › Updates names it.
+fn channel_label() -> String {
+    if flavour::CURRENT.is_nightly() {
+        "Nightly".to_owned()
+    } else if flavour::CURRENT.is_dev() {
+        "Development".to_owned()
+    } else if current_version().pre.is_empty() {
+        "Stable".to_owned()
+    } else {
+        "Beta".to_owned()
+    }
+}
+
 fn set_auto_install(on: bool, cx: &mut App) {
     AppState::update_config(cx, |config| config.updates.auto_install = on);
     // Turned on with an update waiting: it downloads now.
@@ -1730,11 +1760,14 @@ pub fn on_actions(el: Div, cx: &mut Context<crate::workspace::Workspace>) -> Div
         }))
 }
 
-/// The GitHub page with `version`'s changes: its release, or every
-/// release for a build between releases (`0.3.0-dev.abc`). Pure.
+/// The GitHub page with `version`'s changes: its release, the nightly
+/// release for a nightly build, or every release for a build between
+/// releases (`0.3.0-dev.abc`). Pure.
 pub fn release_page(version: &semver::Version) -> String {
     let repository = kanso_update::REPOSITORY;
-    if version.pre.is_empty() {
+    if flavour::CURRENT.is_nightly() {
+        format!("https://github.com/{repository}/releases/tag/nightly")
+    } else if version.pre.is_empty() {
         format!("https://github.com/{repository}/releases/tag/v{version}")
     } else {
         format!("https://github.com/{repository}/releases")

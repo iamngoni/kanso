@@ -71,7 +71,7 @@ export const PLUGINS = ["0", "1-2", "3-5", "6+"] as const;
 export const NOTEBOOKS = ["0", "1-4", "5-19", "20+"] as const;
 export const ATTACHMENTS_MB = ["0", "<10", "10-100", "100-1000", "1000+"] as const;
 export const SYNC_ERRORS = ["0", "1-5", "6+"] as const;
-export const CHANNELS = ["stable", "beta", "dev"] as const;
+export const CHANNELS = ["stable", "beta", "dev", "nightly"] as const;
 /** The props only `app_active` may add to its seven required ones, in the page's order. */
 export const ACTIVE_OPTIONAL = ["locale_lang", "theme_mode", "theme", "editor_mode", "plugins", "notebooks", "attachments_mb", "sync_errors", "channel"] as const;
 export const SOURCES = [

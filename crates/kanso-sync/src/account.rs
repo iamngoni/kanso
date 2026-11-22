@@ -902,6 +902,20 @@ pub fn start_provider(
     loopback: Option<&Loopback>,
     code_challenge: Option<&str>,
 ) -> Result<ProviderStart, AccountError> {
+    start_provider_with_scheme(b, server, provider, device, loopback, code_challenge, None)
+}
+
+/// [`start_provider`] for an app with its own callback scheme.
+#[allow(clippy::too_many_arguments, reason = "the flow's inputs")]
+pub fn start_provider_with_scheme(
+    b: &dyn Backend,
+    server: &str,
+    provider: &Provider,
+    device: &LoginDevice,
+    loopback: Option<&Loopback>,
+    code_challenge: Option<&str>,
+    app_scheme: Option<&str>,
+) -> Result<ProviderStart, AccountError> {
     let (server, _) = checked_server(server)?;
     let api = b.api(&server);
     let device = provider_device(device);
@@ -923,6 +937,7 @@ pub fn start_provider(
                 provider,
                 &ProviderStartRequest {
                     device: device.clone(),
+                    app_scheme: app_scheme.map(str::to_owned),
                 },
             )
         })
@@ -1139,6 +1154,32 @@ pub fn start_identity(
     code_challenge: Option<&str>,
     device: &LoginDevice,
 ) -> Result<ProviderStart, AccountError> {
+    start_identity_with_scheme(
+        b,
+        session,
+        provider,
+        intent,
+        proof,
+        loopback,
+        code_challenge,
+        device,
+        None,
+    )
+}
+
+/// [`start_identity`] for an app with its own callback scheme.
+#[allow(clippy::too_many_arguments, reason = "the flow's inputs")]
+pub fn start_identity_with_scheme(
+    b: &dyn Backend,
+    session: &Session,
+    provider: &Provider,
+    intent: IdentityIntent,
+    proof: Option<crate::provider::ProofWire>,
+    loopback: Option<&Loopback>,
+    code_challenge: Option<&str>,
+    device: &LoginDevice,
+    app_scheme: Option<&str>,
+) -> Result<ProviderStart, AccountError> {
     let api = b.api(&session.server);
     let start = retrying(b, || {
         api.identity_start(
@@ -1149,6 +1190,7 @@ pub fn start_identity(
                 proof: proof.clone(),
                 redirect_uri: loopback.map(Loopback::uri),
                 code_challenge: code_challenge.map(str::to_owned),
+                app_scheme: app_scheme.map(str::to_owned),
                 device: provider_device(device),
             },
         )

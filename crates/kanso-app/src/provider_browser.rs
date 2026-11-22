@@ -159,7 +159,7 @@ pub fn apple_sign_in(
 ) -> Result<async_channel::Receiver<Result<String, BrowserError>>, BrowserError> {
     #[cfg(target_os = "macos")]
     {
-        apple::start(&start.auth_url, crate::url_callback::SCHEME)
+        apple::start(&start.auth_url, crate::url_callback::scheme())
     }
     #[cfg(not(target_os = "macos"))]
     {

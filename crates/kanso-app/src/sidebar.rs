@@ -787,7 +787,12 @@ impl Sidebar {
                 h_flex()
                     .flex_1()
                     .gap(px(7.))
-                    .child(div().text_size(px(15.)).font_semibold().child("Kanso"))
+                    .child(
+                        div()
+                            .text_size(px(15.))
+                            .font_semibold()
+                            .child(crate::flavour::CURRENT.name),
+                    )
                     .children(self.badge.map(|badge| {
                         div()
                             .id("dev-badge")
@@ -796,11 +801,19 @@ impl Sidebar {
                             .py(px(1.))
                             .rounded(px(4.))
                             .border_1()
-                            .border_color(colors.warning)
+                            .border_color(if crate::flavour::CURRENT.is_nightly() {
+                                colors.accent
+                            } else {
+                                colors.warning
+                            })
                             .text_size(px(10.))
                             .line_height(px(13.))
                             .font_semibold()
-                            .text_color(colors.warning)
+                            .text_color(if crate::flavour::CURRENT.is_nightly() {
+                                colors.accent
+                            } else {
+                                colors.warning
+                            })
                             .child(badge)
                     })),
             )

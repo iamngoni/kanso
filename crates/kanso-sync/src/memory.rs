@@ -5566,7 +5566,10 @@ mod server_tests {
         let start = a
             .provider_start(
                 &Provider::Apple,
-                &ProviderStartRequest { device: d.clone() },
+                &ProviderStartRequest {
+                    device: d.clone(),
+                    app_scheme: None,
+                },
             )
             .unwrap();
         let ProviderStep::NewAccount(ticket) = a
@@ -5612,7 +5615,10 @@ mod server_tests {
         let start = a
             .provider_start(
                 &Provider::Github,
-                &ProviderStartRequest { device: d.clone() },
+                &ProviderStartRequest {
+                    device: d.clone(),
+                    app_scheme: None,
+                },
             )
             .unwrap();
         let poll = || {
@@ -5640,7 +5646,10 @@ mod server_tests {
         let start = a
             .provider_start(
                 &Provider::Apple,
-                &ProviderStartRequest { device: d.clone() },
+                &ProviderStartRequest {
+                    device: d.clone(),
+                    app_scheme: None,
+                },
             )
             .unwrap();
         assert_eq!(
@@ -5683,6 +5692,7 @@ mod server_tests {
                 &Provider::Apple,
                 &ProviderStartRequest {
                     device: initial.clone(),
+                    app_scheme: None,
                 },
             )
             .unwrap();
@@ -5714,7 +5724,10 @@ mod server_tests {
             let st = a
                 .provider_start(
                     &Provider::Apple,
-                    &ProviderStartRequest { device: d.clone() },
+                    &ProviderStartRequest {
+                        device: d.clone(),
+                        app_scheme: None,
+                    },
                 )
                 .unwrap();
             let ProviderStep::Session(ss) = a

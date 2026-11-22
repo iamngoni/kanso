@@ -89,6 +89,8 @@ export const APPLE_AUTHORIZE_URL = "https://appleid.apple.com/auth/authorize";
 export const GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 /** Where the Apple callback page sends the person back to. */
 export const APP_CALLBACK = "kanso://auth/apple";
+/** The app schemes a provider flow may return to. */
+export const APP_SCHEMES = new Set(["kanso", "kanso-dev", "kanso-nightly"]);
 /** A provider flow lives ten minutes. */
 export const PROVIDER_FLOW_MS = 10 * 60_000;
 /** The origin of Apple's `form_post`: the one Origin a public route accepts besides none. */
@@ -102,6 +104,13 @@ const PKCE_VERIFIER = /^[A-Za-z0-9._~-]{43,128}$/;
 const AUTH_CODE = /^[\x21-\x7e]{1,2048}$/;
 
 // ------------------------------------------------------------------ helpers
+
+/** The callback scheme a start asked for, or `kanso` for an older app. */
+function requestedScheme(value: unknown): string | Response {
+	if (value === undefined) return "kanso";
+	if (typeof value === "string" && APP_SCHEMES.has(value)) return value;
+	return badRequest(`app_scheme must be one of ${[...APP_SCHEMES].join(", ")}.`);
+}
 
 /** The hash a flow stores for a device: SHA-256 of its proof as sent (base64url), as `flowForDevice` compares it. */
 /**
@@ -238,6 +247,8 @@ async function startFlow(env: Env, keys: PepperKeys, now: number, c: StartContex
 	};
 	const flowId = base64url(randomBytes(32));
 	const expiresAt = now + PROVIDER_FLOW_MS;
+	const scheme = requestedScheme(c.body.app_scheme);
+	if (scheme instanceof Response) return scheme;
 	const base = {
 		id: flowId,
 		kind: c.provider,
@@ -256,6 +267,7 @@ async function startFlow(env: Env, keys: PepperKeys, now: number, c: StartContex
 		nonce_hash: null,
 		state_hash: null,
 		redirect_uri: null,
+		app_scheme: scheme,
 		expires_at: expiresAt,
 	};
 
@@ -799,8 +811,12 @@ const CALLBACK_STYLE =
 	"body{font:16px -apple-system,BlinkMacSystemFont,sans-serif;max-width:28em;margin:20vh auto;padding:0 1em;color:#222}a{color:#0a58ca}";
 
 /** The page Apple's form post lands on: a redirect back to the app, or a short error sentence and no flow. */
-function callbackPage(status: number, back: { flowId: string; secret: string } | null, sentence: string): Response {
-	const target = back === null ? null : `${APP_CALLBACK}?flow=${back.flowId}&s=${back.secret}`;
+function callbackPage(
+	status: number,
+	back: { flowId: string; secret: string; scheme: string } | null,
+	sentence: string,
+): Response {
+	const target = back === null ? null : `${back.scheme}://auth/apple?flow=${back.flowId}&s=${back.secret}`;
 	const refresh = target === null ? "" : `<meta http-equiv="refresh" content="0;url=${target}">`;
 	const link = target === null ? "" : `<p><a href="${target}">Return to Kanso.</a></p>`;
 	const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">${refresh}<title>Kanso</title><style>${CALLBACK_STYLE}</style></head><body><p>${sentence}</p>${link}</body></html>`;
@@ -892,7 +908,11 @@ export const appleCallback: PepperHandler = async (request, env, now, keys) => {
 		.bind(flow.id, verified.claims.sub as string, await sha256Hex(secret))
 		.first();
 	if (!stored) return callbackPage(400, null, FAILED);
-	return callbackPage(200, { flowId: flow.id, secret: base64url(secret) }, "Signed in with Apple. Return to Kanso.");
+	return callbackPage(
+		200,
+		{ flowId: flow.id, secret: base64url(secret), scheme: flow.app_scheme ?? "kanso" },
+		"Signed in with Apple. Return to Kanso.",
+	);
 };
 
 // ------------------------------------------------------------ social sign-up
