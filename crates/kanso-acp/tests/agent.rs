@@ -712,3 +712,118 @@ fn an_agent_without_load_session_says_so_and_a_gone_conversation_fails() {
     let session = agent.new_session(dir.path()).unwrap();
     assert!(session.prompt("hi", None).is_ok());
 }
+
+use kanso_acp::fake::{FAKE_MODELS, ModelShape};
+use kanso_acp::{ModelSwitch, Session};
+
+/// What the model-listing fake says the session runs on, and how it was set.
+fn model_in_use(session: &Session) -> String {
+    text_of(&collect(session.prompt("which?", None).unwrap()))
+}
+
+#[test]
+fn each_shape_of_model_list_is_read_and_switches_with_its_own_request() {
+    let dir = workspace();
+    for (shape, via, switch) in [
+        (ModelShape::Legacy, "set_model", ModelSwitch::SetModel),
+        (
+            ModelShape::ConfigOptions,
+            "config",
+            ModelSwitch::ConfigOption {
+                config_id: "model".to_owned(),
+            },
+        ),
+        // Both are listed: the options win.
+        (
+            ModelShape::Both,
+            "config",
+            ModelSwitch::ConfigOption {
+                config_id: "model".to_owned(),
+            },
+        ),
+    ] {
+        let agent = connect(Script::Models(shape), quick(), reject_all());
+        let mut session = agent.new_session(dir.path()).unwrap();
+        let catalog = session.models().expect("the agent lists models");
+        assert_eq!(catalog.switch(), &switch, "{shape:?}");
+        assert_eq!(catalog.current(), Some("default"), "{shape:?}");
+        assert_eq!(catalog.choices().len(), FAKE_MODELS.len(), "{shape:?}");
+        assert_eq!(model_in_use(&session), "model=default via=default");
+
+        session.set_model("opus").unwrap();
+        assert_eq!(session.models().unwrap().current(), Some("opus"));
+        assert_eq!(model_in_use(&session), format!("model=opus via={via}"));
+    }
+}
+
+#[test]
+fn an_agent_without_models_lists_none_and_cannot_be_switched() {
+    let dir = workspace();
+    let agent = connect(Script::Answer("OK".into()), quick(), reject_all());
+    let mut session = agent.new_session(dir.path()).unwrap();
+    assert!(session.models().is_none());
+    // Nothing is sent for a model the agent never listed.
+    let err = session.set_model("opus").unwrap_err();
+    assert!(
+        matches!(err, AcpError::Agent { code, .. } if code == kanso_acp::INVALID_PARAMS),
+        "{err:?}"
+    );
+    assert!(agent.is_alive());
+}
+
+#[test]
+fn a_model_the_agent_never_listed_is_not_sent_and_a_refusal_keeps_the_old_one() {
+    let dir = workspace();
+    let agent = connect(
+        Script::Models(ModelShape::ConfigOptions),
+        quick(),
+        reject_all(),
+    );
+    let mut session = agent.new_session(dir.path()).unwrap();
+    assert!(session.set_model("gpt-9").is_err());
+    assert_eq!(model_in_use(&session), "model=default via=default");
+
+    let agent = connect(Script::Models(ModelShape::Refusing), quick(), reject_all());
+    let mut session = agent.new_session(dir.path()).unwrap();
+    let err = session.set_model("opus").unwrap_err();
+    assert!(matches!(err, AcpError::Agent { .. }), "{err:?}");
+    // The session still has the model it opened with, and still answers.
+    assert_eq!(session.models().unwrap().current(), Some("default"));
+    assert_eq!(model_in_use(&session), "model=default via=default");
+}
+
+#[test]
+fn a_loaded_session_lists_its_models_too() {
+    let dir = workspace();
+    let agent = connect(Script::Models(ModelShape::Both), quick(), reject_all());
+    let mut session = agent
+        .load_session("fake-session-5", dir.path(), &[])
+        .unwrap();
+    assert!(session.models().is_some());
+    session.set_model("sonnet").unwrap();
+    assert_eq!(model_in_use(&session), "model=sonnet via=config");
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(24))]
+
+    /// Model-based: after switching to any model the agent listed, the agent
+    /// and the session's own record agree on which model it is.
+    #[test]
+    fn prop_a_switch_to_an_offered_model_is_what_the_agent_runs(
+        pick in 0..FAKE_MODELS.len(),
+        shape in prop::sample::select(vec![
+            ModelShape::Legacy,
+            ModelShape::ConfigOptions,
+            ModelShape::Both,
+        ]),
+    ) {
+        let dir = workspace();
+        let agent = connect(Script::Models(shape), quick(), reject_all());
+        let mut session = agent.new_session(dir.path()).unwrap();
+        let id = FAKE_MODELS[pick].0;
+        session.set_model(id).unwrap();
+        prop_assert_eq!(session.models().unwrap().current(), Some(id));
+        prop_assert!(model_in_use(&session).starts_with(&format!("model={id} ")));
+    }
+}

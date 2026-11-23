@@ -18,6 +18,7 @@ pub mod detect;
 pub mod env;
 pub mod fake;
 pub mod framing;
+pub mod models;
 pub mod process;
 pub mod registry;
 
@@ -26,6 +27,7 @@ pub use connection::{
     PermissionRequest, Session, SessionMode, Turn, parse_tool_call, reject_all,
 };
 pub use detect::{AgentKind, Detection};
+pub use models::{ModelCatalog, ModelChoice, ModelSwitch, parse_models};
 pub use process::AgentSpec;
 
 use std::time::Duration;
