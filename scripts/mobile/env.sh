@@ -49,6 +49,21 @@ if [ -n "$ndk" ] && [ -d "$ndk/toolchains/llvm/prebuilt" ]; then
 		export "AR_$under=$ndk_bin/llvm-ar"
 		export "CARGO_TARGET_${upper}_LINKER=$ndk_bin/${clang_triple}29-clang"
 		export "BINDGEN_EXTRA_CLANG_ARGS_$under=--sysroot=$ndk_llvm/sysroot"
+		# C libraries built with CMake (opusic-sys) use the NDK's own toolchain
+		# file; without it a Mac's CMake treats the build as a macOS one and
+		# passes -arch/-isysroot to the Android compiler. The NDK's file needs
+		# the ABI (it defaults to armeabi-v7a), so each target gets a small
+		# file that sets it and the API level, then includes the NDK's.
+		case "$under" in
+		aarch64_linux_android) abi=arm64-v8a ;;
+		armv7_linux_androideabi) abi=armeabi-v7a ;;
+		x86_64_linux_android) abi=x86_64 ;;
+		esac
+		cmake_dir="${TMPDIR:-/tmp}/kanso-android-cmake"
+		mkdir -p "$cmake_dir"
+		printf 'set(ANDROID_ABI %s)\nset(ANDROID_PLATFORM android-29)\ninclude("%s/build/cmake/android.toolchain.cmake")\n' \
+			"$abi" "$ndk" >"$cmake_dir/$abi.cmake"
+		export "CMAKE_TOOLCHAIN_FILE_$under=$cmake_dir/$abi.cmake"
 	done
 	# Where the NDK ships a libclang of its own (it is x86-64 only on a
 	# Linux runner, which has the toolchain's anyway), bindgen may use it.
