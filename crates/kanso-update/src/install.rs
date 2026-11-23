@@ -32,9 +32,12 @@ pub struct Install {
 }
 
 impl Install {
-    /// The runtime support folder the Linux archive installer fills
-    /// (`~/.local/lib/kanso`), when this executable is in the `bin` folder
-    /// that installer uses. `None` for bundles and other platforms.
+    /// The runtime support folder the Linux archive installer fills, when
+    /// this executable is in the `bin` folder that installer uses:
+    /// `~/.local/lib/kanso` for `~/.local/bin/kanso`, and
+    /// `~/.local/lib/kanso-nightly` for `~/.local/bin/kanso-nightly`, so
+    /// Kanso and Kanso Nightly each keep their own libraries. `None` for
+    /// bundles, other platforms and any other executable name.
     pub fn support_dir(&self) -> Option<PathBuf> {
         if !matches!(self.platform, Platform::LinuxX64 | Platform::LinuxArm64) {
             return None;
@@ -43,7 +46,11 @@ impl Install {
         if bin.file_name()?.to_str()? != "bin" {
             return None;
         }
-        Some(bin.parent()?.join("lib/kanso"))
+        let name = self.target.file_name()?.to_str()?;
+        if !matches!(name, "kanso" | "kanso-nightly") {
+            return None;
+        }
+        Some(bin.parent()?.join("lib").join(name))
     }
 }
 
@@ -1073,6 +1080,32 @@ mod tests {
             platform: Platform::LinuxX64,
         };
         assert_eq!(other.support_dir(), None);
+    }
+
+    /// Kanso Nightly's archive install puts the binary at
+    /// `~/.local/bin/kanso-nightly` and its libraries in
+    /// `~/.local/lib/kanso-nightly`; it must be installable, and its
+    /// runtime support sealed, like Kanso's.
+    #[test]
+    fn linux_nightly_layout_is_installable_with_its_own_support_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join(".local");
+        let exe = root.join("bin/kanso-nightly");
+        fs::create_dir_all(exe.parent().unwrap()).unwrap();
+        fs::write(&exe, "x").unwrap();
+        for platform in [Platform::LinuxX64, Platform::LinuxArm64] {
+            let install = locate(&exe, Some(platform), opts()).unwrap();
+            assert_eq!(install.target, exe);
+            assert_eq!(install.support_dir(), Some(root.join("lib/kanso-nightly")));
+        }
+        // The old nightly layout (the binary inside its own lib folder) has
+        // no support folder, which is why it could never update.
+        let old = Install {
+            target: root.join("lib/kanso-nightly/kanso"),
+            stage_dir: root.join("lib/kanso-nightly").join(STAGE_DIR_NAME),
+            platform: Platform::LinuxX64,
+        };
+        assert_eq!(old.support_dir(), None);
     }
 
     /// Stages a plugin host beside `pending`'s payload (when `staged` has

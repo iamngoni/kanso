@@ -240,8 +240,8 @@ fn fit_text(mut page: String, room: usize) -> (String, bool) {
 }
 
 /// Finds the worker beside the running app (a macOS bundle's `MacOS`, the
-/// folder of `kanso.exe`), or in `../lib/kanso` as an installed Linux package
-/// has it, and in a development build the one `cargo build -p kanso-pdf
+/// folder of `kanso.exe`), or in `../lib/kanso` (`../lib/kanso-nightly` for
+/// Kanso Nightly) as an installed Linux package has it, and in a development build the one `cargo build -p kanso-pdf
 /// --features render` left in the target folder, with the library
 /// `scripts/fetch-pdfium.sh` fetched.
 pub fn locate() -> Option<WorkerPaths> {
@@ -249,6 +249,7 @@ pub fn locate() -> Option<WorkerPaths> {
     let exe = [
         exe_dir.join(WORKER_NAME),
         exe_dir.join("../lib/kanso").join(WORKER_NAME),
+        exe_dir.join("../lib/kanso-nightly").join(WORKER_NAME),
     ]
     .into_iter()
     .find(|path| path.is_file())?;
