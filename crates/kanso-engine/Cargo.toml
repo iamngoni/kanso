@@ -146,6 +146,9 @@ test-support = ["dep:proptest"]
 pdf-worker = ["discovery", "dep:kanso-pdf"]
 # Model-backed discovery on mobile and desktop.
 discovery = ["dep:model2vec-rs", "dep:tokenizers", "dep:kanso-tls", "dep:ureq"]
+# `google-fonts`: downloading a Google Font (google_fonts.rs). Desktop only:
+# the phones download theirs in Dart. The rules and the cache need no feature.
+google-fonts = ["dep:kanso-tls", "dep:ureq"]
 # Ask, inline assistance and summaries.
 ai = ["dep:kanso-ai", "dep:schemars"]
 
