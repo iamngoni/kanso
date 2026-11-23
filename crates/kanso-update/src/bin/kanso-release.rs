@@ -20,7 +20,8 @@ use std::process::ExitCode;
 use kanso_update::feed::{generate_signing_key, parse_signing_key, public_key_text};
 use kanso_update::whats_new::{MAX_EARLIER, MAX_MEDIA_BYTES, looks_like_webp, media_name};
 use kanso_update::{
-    Asset, Earlier, Feed, Platform, SCHEMA, sign_feed, trusted_keys, verify_signature,
+    Asset, Earlier, Feed, Platform, SCHEMA, nightly_trusted_keys, sign_feed, trusted_keys,
+    verify_signature,
 };
 use sha2::{Digest, Sha256};
 
@@ -37,11 +38,15 @@ Usage:
       the release's What's new video (an animated WebP up to 8 MB, uploaded
       as Kanso-<v>-whats-new.webp); --changelog adds the notes of the
       releases before <v>, for people who skipped some.
-  kanso-release sign --feed <latest.json> [--key-env <NAME>] [--allow-untrusted]
+  kanso-release sign --feed <latest.json> [--key-env <NAME>] [--nightly] [--allow-untrusted]
       Signs it with the base64 secret in $NAME (KANSO_UPDATE_SIGNING_KEY),
-      writing <latest.json>.sig. Refuses a key the app doesn't trust.
-  kanso-release verify --feed <latest.json> [--sig <file>] [--key <base64>]...
+      writing <latest.json>.sig. Refuses a key the app doesn't trust;
+      --nightly asks Kanso Nightly's keys (keys/nightly-keys.txt) instead of
+      Kanso's.
+  kanso-release verify --feed <latest.json> [--sig <file>] [--key <base64>]... [--nightly]
       Checks the signature against the given keys, or the trusted ones.
+      --nightly checks Kanso Nightly's trusted keys, and with --key the
+      signature must verify against those keys as well.
   kanso-release notes --changelog <CHANGELOG.md> --version <v> --out <file>
       Writes the changelog's section for <v>: the release's notes, for its
       page and for latest.json alike.
@@ -268,9 +273,14 @@ fn sign(flags: &Flags) -> Result<(), String> {
     let key = parse_signing_key(&secret)
         .map_err(|_| format!("{var} isn't a base64 Ed25519 secret key"))?;
     let public = key.verifying_key();
-    if !flags.has("allow-untrusted") && !trusted_keys().contains(&public) {
+    let (keys, list) = if flags.has("nightly") {
+        (nightly_trusted_keys(), "nightly-keys.txt")
+    } else {
+        (trusted_keys(), "trusted-keys.txt")
+    };
+    if !flags.has("allow-untrusted") && !keys.contains(&public) {
         return Err(format!(
-            "the key in {var} (public {}) isn't in crates/kanso-update/keys/trusted-keys.txt, so this build's app would refuse the update",
+            "the key in {var} (public {}) isn't in crates/kanso-update/keys/{list}, so this build's app would refuse the update",
             public_key_text(&public)
         ));
     }
@@ -295,22 +305,31 @@ fn verify(flags: &Flags) -> Result<(), String> {
     let sig = flags
         .get("sig")
         .map_or_else(|| sig_path(&feed_path), PathBuf::from);
-    let keys = if flags.all("key").is_empty() {
-        trusted_keys()
-    } else {
-        flags
-            .all("key")
-            .iter()
-            .map(|k| {
-                kanso_update::parse_public_key(k)
-                    .map_err(|_| format!("--key {k} isn't a public key"))
-            })
-            .collect::<Result<Vec<_>, _>>()?
-    };
+    let given = flags
+        .all("key")
+        .iter()
+        .map(|k| {
+            kanso_update::parse_public_key(k).map_err(|_| format!("--key {k} isn't a public key"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    // Each set the signature must satisfy: the app's own keys with
+    // --nightly, the keys named with --key, and with neither the release's.
+    let mut sets = Vec::new();
+    if flags.has("nightly") {
+        sets.push(nightly_trusted_keys());
+    }
+    if !given.is_empty() {
+        sets.push(given);
+    }
+    if sets.is_empty() {
+        sets.push(trusted_keys());
+    }
     let bytes =
         std::fs::read(&feed_path).map_err(|e| format!("reading {}: {e}", feed_path.display()))?;
     let signature = std::fs::read(&sig).map_err(|e| format!("reading {}: {e}", sig.display()))?;
-    verify_signature(&bytes, &signature, &keys).map_err(|e| e.to_string())?;
+    for keys in &sets {
+        verify_signature(&bytes, &signature, keys).map_err(|e| e.to_string())?;
+    }
     let feed: Feed = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
     println!(
         "Signature OK: Kanso {} for {}",
