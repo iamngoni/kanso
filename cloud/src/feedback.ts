@@ -13,6 +13,7 @@
 import { authenticate } from "./auth";
 import { type PepperKeys, hex, hmac16, proofMatches, sha256Hex } from "./crypto";
 import type { Env } from "./env";
+import { type Credit, creditText, parseCredit } from "./feedback_credit";
 import * as github from "./github";
 import { error, isContentType, json, notFound, readBody, readJson } from "./http";
 import { accountKey, bindingFilter, clientIp, count, ipGroup, ipKey, sessionFilter } from "./limits";
@@ -58,7 +59,8 @@ export interface Report {
 	id: string;
 	kind: Kind;
 	text: string;
-	credit: { name: string } | null;
+	/** Always the tagged form: an older app's `{name}` or bare string is stored as `{kind: "name", name}`. */
+	credit: Credit | null;
 	app: AppInfo | null;
 	screenshot: { type: (typeof IMAGE_TYPES)[number]; bytes: number; sha256: string } | null;
 }
@@ -66,7 +68,6 @@ export interface Report {
 // ------------------------------------------------------------------ patterns
 
 export const ID = /^fb_[0-9a-z]{26}$/;
-const CREDIT_NAME = /^[\p{L}\p{N} ._-]{1,39}$/u;
 const VERSION = /^[0-9]{1,4}(\.[0-9]{1,4}){2}$/;
 const BUILD = /^[0-9]{1,10}$/;
 const OS_VERSION = /^[0-9A-Za-z._-]{1,32}$/;
@@ -151,15 +152,8 @@ export function validateReport(input: unknown): Checked<Report> {
 	if (!oneOf(r.kind, KINDS)) return fail("kind");
 	const text = cleanText(r.text);
 	if (text === null) return fail("text");
-	let credit: Report["credit"] = null;
-	if (r.credit !== null) {
-		const c = exactly(r.credit, "credit", ["name"]);
-		if (!c.ok) return c;
-		if (typeof c.value.name !== "string") return fail("credit.name");
-		const name = c.value.name.normalize("NFC");
-		if (!CREDIT_NAME.test(name) || name.trim() === "") return fail("credit.name");
-		credit = { name };
-	}
+	const credit = parseCredit(r.credit);
+	if (!credit.ok) return credit;
 	let app: AppInfo | null = null;
 	if (r.app !== null) {
 		const a = validApp(r.app);
@@ -176,7 +170,7 @@ export function validateReport(input: unknown): Checked<Report> {
 		if (!isText(s.value.sha256, SHA256)) return fail("screenshot.sha256");
 		screenshot = { type: s.value.type, bytes, sha256: s.value.sha256 };
 	}
-	return { ok: true, value: { v: 1, id: r.id, kind: r.kind, text, credit, app, screenshot } };
+	return { ok: true, value: { v: 1, id: r.id, kind: r.kind, text, credit: credit.value, app, screenshot } };
 }
 
 /** The first line of `text`, trimmed and cut to 80 characters (My feedback's row). */
@@ -213,7 +207,7 @@ export async function reporterHash(keys: PepperKeys, anonymousKey: string): Prom
 }
 
 /** Who is calling, or the response that ends the request. A bearer token, when sent, is the only way in. */
-export async function whoIs(request: Request, env: Env, now: number, keys: PepperKeys): Promise<Reporter | Response> {
+export async function whoIs(request: Request, env: Env, now: number, keys: PepperKeys, options: { binding?: boolean } = {}): Promise<Reporter | Response> {
 	if (request.headers.has("authorization")) {
 		const session = await authenticate(request, env, now);
 		if (session instanceof Response) return session;
@@ -229,7 +223,8 @@ export async function whoIs(request: Request, env: Env, now: number, keys: Peppe
 	}
 	const key = request.headers.get(FEEDBACK_KEY_HEADER);
 	if (key === null || proof32(key) === null) return error(401, "unauthorized", "Not signed in.", { reason: "unknown" });
-	const limited = await bindingFilter(env.FEEDBACK_LIMITER, request);
+	// The user search types as the person does, so it is counted per client in D1 instead (feedback_users.ts).
+	const limited = options.binding === false ? null : await bindingFilter(env.FEEDBACK_LIMITER, request);
 	if (limited) return limited;
 	return { accountId: null, reporter: await reporterHash(keys, key) };
 }
@@ -292,7 +287,7 @@ export async function submit(request: Request, env: Env, now: number, keys: Pepp
 			env.DB.prepare(
 				`INSERT INTO feedback (id, account_id, reporter, created_at, kind, report, has_screenshot, screenshot_state, credit_name)
   VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
-			).bind(r.id, who.accountId, who.reporter, now, r.kind, JSON.stringify(r), r.screenshot ? 1 : 0, r.screenshot ? "awaited" : "none", r.credit?.name ?? null),
+			).bind(r.id, who.accountId, who.reporter, now, r.kind, JSON.stringify(r), r.screenshot ? 1 : 0, r.screenshot ? "awaited" : "none", (r.credit && creditText(r.credit)) ?? null),
 			env.DB.prepare("INSERT INTO feedback_events (feedback_id, at, status, detail) VALUES (?1, ?2, 'received', NULL)").bind(r.id, now),
 		]);
 	} catch (err) {

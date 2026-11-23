@@ -6729,14 +6729,56 @@ class AppLocalizationsEn extends AppLocalizations {
       'The report appears here once it has at least 10 characters.';
 
   @override
-  String get feedbackCredit => 'Credit me by name';
+  String get feedbackCredit => 'Credit me if this is fixed';
 
   @override
   String get feedbackCreditDetail =>
-      'If this is fixed, your name is in the release notes. Never a link to you.';
+      'You choose how: by name, or by GitHub username.';
+
+  @override
+  String get feedbackCreditKindLabel => 'How to credit you';
+
+  @override
+  String get feedbackCreditKindName => 'My name';
+
+  @override
+  String get feedbackCreditKindGithub => 'GitHub username';
 
   @override
   String get feedbackCreditName => 'Your name';
+
+  @override
+  String get feedbackCreditNameDetail =>
+      'Your name goes in the issue and the release notes. Never a link to you.';
+
+  @override
+  String get feedbackCreditGithubDetail =>
+      'The public issue will mention you by username, so GitHub notifies you and links to your profile.';
+
+  @override
+  String get feedbackGithubSearchHint => 'Search GitHub users';
+
+  @override
+  String get feedbackGithubSearching => 'Searching…';
+
+  @override
+  String get feedbackGithubNoneFound => 'No GitHub users found.';
+
+  @override
+  String get feedbackGithubUnavailable =>
+      'Couldn\'t search GitHub just now. Try again, or credit your name instead.';
+
+  @override
+  String get feedbackGithubChange => 'Change';
+
+  @override
+  String feedbackGithubUserSemantics(String login) {
+    return 'GitHub user $login';
+  }
+
+  @override
+  String get feedbackErrorGithubUser =>
+      'Pick your GitHub username from the list.';
 
   @override
   String get feedbackFooter =>

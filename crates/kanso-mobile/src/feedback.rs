@@ -11,8 +11,8 @@
 use std::sync::Arc;
 
 use kanso_engine::feedback::{
-    self, AppInfo, Chip, Draft, DraftError, Kind, Platform, ReportView, Screen, Status, SyncMode,
-    clean_build, clean_device, clean_locale, clean_os,
+    self, AppInfo, Chip, Credit, Draft, DraftError, Kind, Platform, ReportView, Screen, Status,
+    SyncMode, clean_build, clean_device, clean_locale, clean_os,
 };
 use kanso_engine::feedback_flow::{self, Picture, Sent, Wait};
 use kanso_sync::feedback::{Client, HttpTransport, Reporter, Transport};
@@ -21,8 +21,8 @@ use kanso_sync::{Machine, SecretStore};
 use crate::boundary::guard;
 use crate::errors::KansoError;
 use crate::feedback_model::{
-    FeedbackChipKind, FeedbackContext, FeedbackInput, FeedbackPreview, FeedbackProblem,
-    FeedbackReport, FeedbackSent,
+    FeedbackChipKind, FeedbackContext, FeedbackCredit, FeedbackGithubUser, FeedbackInput,
+    FeedbackPreview, FeedbackProblem, FeedbackReport, FeedbackSent, FeedbackUsers,
 };
 use crate::library::{Inner, Library};
 
@@ -64,6 +64,7 @@ fn problem_of(err: &DraftError) -> FeedbackProblem {
         DraftError::TooLong => FeedbackProblem::TooLong,
         DraftError::BadCharacter => FeedbackProblem::BadCharacter,
         DraftError::BadCredit => FeedbackProblem::BadCredit,
+        DraftError::BadGithubUser => FeedbackProblem::BadGithubUser,
         DraftError::BadScreenshot => FeedbackProblem::BadScreenshot,
         DraftError::BadId | DraftError::BadApp(_) => FeedbackProblem::Other,
     }
@@ -109,6 +110,14 @@ pub(crate) fn app_info(context: &FeedbackContext, sync: SyncMode) -> AppInfo {
     }
 }
 
+/// The engine's credit for the shell's.
+pub(crate) fn credit_of(credit: &FeedbackCredit) -> Credit {
+    match credit {
+        FeedbackCredit::Name { name } => Credit::Name(name.clone()),
+        FeedbackCredit::Github { login } => Credit::Github(login.clone()),
+    }
+}
+
 fn draft_of(input: &FeedbackInput) -> Result<Draft, DraftError> {
     let kind = Kind::from_wire(&input.kind).unwrap_or(Kind::Bug);
     let screenshot = match &input.screenshot {
@@ -121,7 +130,7 @@ fn draft_of(input: &FeedbackInput) -> Result<Draft, DraftError> {
     Ok(Draft {
         kind,
         text: input.text.clone(),
-        credit_name: input.credit_name.clone(),
+        credit: input.credit.as_ref().map(credit_of),
         screenshot,
     })
 }
@@ -244,6 +253,28 @@ impl MobileFeedback {
                     .collect()
             })
             .unwrap_or_default()
+    }
+
+    /// GitHub users whose login contains `query`, for "Credit me by GitHub
+    /// username". Goes through Kanso's Worker, not GitHub. A query too short
+    /// or with characters a login can't have asks nothing and finds nothing;
+    /// any failure is `Unavailable`, and the person can credit a name instead.
+    pub fn search_users(&self, query: String) -> Result<FeedbackUsers, KansoError> {
+        guard(|| {
+            let reporter = self.reporter()?;
+            Ok(match self.client().search_users(&reporter, &query) {
+                Ok(users) => FeedbackUsers::Found {
+                    users: users
+                        .into_iter()
+                        .map(|user| FeedbackGithubUser {
+                            login: user.login,
+                            avatar_url: user.avatar_url,
+                        })
+                        .collect(),
+                },
+                Err(_) => FeedbackUsers::Unavailable,
+            })
+        })
     }
 
     /// The exact JSON "Show what's sent" displays, or why there is none yet.
@@ -437,6 +468,39 @@ mod tests {
     fn unknown_screens_are_other() {
         assert_eq!(screen_of("note:abc123"), Screen::Other);
         assert_eq!(screen_of("note-list"), Screen::NoteList);
+    }
+
+    proptest! {
+        /// Round trip: whatever credit the shell sends is the credit the
+        /// payload carries, kind and text, or the engine refuses it with the
+        /// problem that kind's copy says.
+        #[test]
+        fn prop_credit_reaches_the_payload_as_its_own_kind(
+            text in "[A-Za-z0-9 ._@-]{0,45}", github in any::<bool>(),
+        ) {
+            let shell = if github {
+                FeedbackCredit::Github { login: text.clone() }
+            } else {
+                FeedbackCredit::Name { name: text.clone() }
+            };
+            let engine = credit_of(&shell);
+            match feedback::credit_json(&engine) {
+                Ok(wire) => {
+                    // Reading the wire back and writing it again changes nothing.
+                    let back = feedback::credit_from_json(&wire).unwrap().unwrap();
+                    prop_assert_eq!(feedback::credit_json(&back), Ok(wire.clone()));
+                    prop_assert_eq!(wire["kind"] == "github", github);
+                }
+                Err(err) => {
+                    let want = if github { DraftError::BadGithubUser } else { DraftError::BadCredit };
+                    prop_assert_eq!(&err, &want);
+                    prop_assert_eq!(
+                        problem_of(&err),
+                        if github { FeedbackProblem::BadGithubUser } else { FeedbackProblem::BadCredit }
+                    );
+                }
+            }
+        }
     }
 
     proptest! {

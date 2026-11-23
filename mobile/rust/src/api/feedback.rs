@@ -7,8 +7,8 @@
 use flutter_rust_bridge::frb;
 // Public: the generated code names these types by this module's path.
 pub use kanso_mobile::{
-    FeedbackChipKind, FeedbackContext, FeedbackInput, FeedbackPreview, FeedbackProblem,
-    FeedbackReport, FeedbackSent,
+    FeedbackChipKind, FeedbackContext, FeedbackCredit, FeedbackGithubUser, FeedbackInput,
+    FeedbackPreview, FeedbackProblem, FeedbackReport, FeedbackSent, FeedbackUsers,
 };
 use kanso_mobile::{KansoError, MobileFeedback};
 
@@ -23,11 +23,29 @@ pub struct _FeedbackContext {
     pub crash_types: Vec<String>,
 }
 
+#[frb(mirror(FeedbackCredit))]
+pub enum _FeedbackCredit {
+    Name { name: String },
+    Github { login: String },
+}
+
+#[frb(mirror(FeedbackGithubUser))]
+pub struct _FeedbackGithubUser {
+    pub login: String,
+    pub avatar_url: String,
+}
+
+#[frb(mirror(FeedbackUsers))]
+pub enum _FeedbackUsers {
+    Found { users: Vec<FeedbackGithubUser> },
+    Unavailable,
+}
+
 #[frb(mirror(FeedbackInput))]
 pub struct _FeedbackInput {
     pub kind: String,
     pub text: String,
-    pub credit_name: Option<String>,
+    pub credit: Option<FeedbackCredit>,
     pub include_app: bool,
     pub screenshot: Option<Vec<u8>>,
     pub context: FeedbackContext,
@@ -39,6 +57,7 @@ pub enum _FeedbackProblem {
     TooLong,
     BadCharacter,
     BadCredit,
+    BadGithubUser,
     BadScreenshot,
     Other,
 }
@@ -102,6 +121,11 @@ impl KansoFeedback {
     /// The exact JSON "Show what's sent" shows, or why there is none yet.
     pub fn preview(&self, input: FeedbackInput) -> Result<FeedbackPreview, KansoError> {
         self.0.preview(input)
+    }
+
+    /// GitHub users whose login contains `query`, through Kanso's Worker.
+    pub fn search_users(&self, query: String) -> Result<FeedbackUsers, KansoError> {
+        self.0.search_users(query)
     }
 
     /// Saves the report to the outbox and tries to send it.

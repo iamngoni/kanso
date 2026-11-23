@@ -18,9 +18,10 @@ use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
 pub use crate::feedback_model::{
-    AppInfo, Chip, Draft, DraftError, Kind, Platform, ReportView, Screen, ScreenshotDecl, Status,
-    SyncMode,
+    AppInfo, Chip, Credit, Draft, DraftError, Kind, Platform, ReportView, Screen, ScreenshotDecl,
+    Status, SyncMode,
 };
+pub use kanso_sync::feedback::{GithubUser, is_github_login, search_query};
 
 /// The shortest report text, in characters.
 pub const MIN_TEXT: usize = 10;
@@ -87,7 +88,8 @@ pub fn shows_counter(chars: usize) -> bool {
 }
 
 /// A credit name: letters, numbers, space, `.`, `_` and `-`, 1 to 39
-/// characters, not blank. Plain text; it is never turned into an @-mention.
+/// characters, not blank. Plain text: it has no `@`, so it can never become
+/// an @-mention (a GitHub credit is its own kind, [`Credit::Github`]).
 pub fn clean_credit_name(input: &str) -> Result<String, DraftError> {
     let name: String = input.trim().nfc().collect();
     let count = name.chars().count();
@@ -99,6 +101,49 @@ pub fn clean_credit_name(input: &str) -> Result<String, DraftError> {
         Ok(name)
     } else {
         Err(DraftError::BadCredit)
+    }
+}
+
+/// A GitHub login to credit: GitHub's own rule (1 to 39 ASCII letters,
+/// digits and single hyphens, none first or last). A leading `@` is not part
+/// of a login, so it fails; the picker only ever offers real logins.
+pub fn clean_github_login(input: &str) -> Result<String, DraftError> {
+    if is_github_login(input) {
+        Ok(input.to_owned())
+    } else {
+        Err(DraftError::BadGithubUser)
+    }
+}
+
+/// A credit as the Worker takes it: `{"kind":"name","name":…}` or
+/// `{"kind":"github","login":…}`, each checked against its own rule.
+pub fn credit_json(credit: &Credit) -> Result<Value, DraftError> {
+    Ok(match credit {
+        Credit::Name(name) => json!({ "kind": "name", "name": clean_credit_name(name)? }),
+        Credit::Github(login) => json!({ "kind": "github", "login": clean_github_login(login)? }),
+    })
+}
+
+/// The credit a payload's `credit` value says, or `None` for `null`. Reads
+/// the tagged form and the form older apps sent (`{"name": …}`, or a bare
+/// string), both of which are a plain name. Anything else is refused.
+pub fn credit_from_json(value: &Value) -> Result<Option<Credit>, DraftError> {
+    match value {
+        Value::Null => Ok(None),
+        Value::String(name) => clean_credit_name(name).map(|n| Some(Credit::Name(n))),
+        Value::Object(map) => {
+            let text = |key: &str| map.get(key).and_then(Value::as_str);
+            match (map.len(), text("kind"), text("name"), text("login")) {
+                (1, None, Some(name), None) | (2, Some("name"), Some(name), None) => {
+                    clean_credit_name(name).map(|n| Some(Credit::Name(n)))
+                }
+                (2, Some("github"), None, Some(login)) => {
+                    clean_github_login(login).map(|l| Some(Credit::Github(l)))
+                }
+                _ => Err(DraftError::BadCredit),
+            }
+        }
+        _ => Err(DraftError::BadCredit),
     }
 }
 
@@ -388,8 +433,8 @@ pub fn build_payload(id: &str, draft: &Draft, app: Option<&AppInfo>) -> Result<S
         return Err(DraftError::BadId);
     }
     let text = clean_text(&draft.text)?;
-    let credit = match &draft.credit_name {
-        Some(name) => json!({ "name": clean_credit_name(name)? }),
+    let credit = match &draft.credit {
+        Some(credit) => credit_json(credit)?,
         None => Value::Null,
     };
     let app = match app {
@@ -553,7 +598,7 @@ mod tests {
         Draft {
             kind: Kind::Bug,
             text: text.into(),
-            credit_name: None,
+            credit: None,
             screenshot: None,
         }
     }
@@ -563,7 +608,7 @@ mod tests {
     #[test]
     fn the_payload_matches_the_contract() {
         let mut d = draft("Export to PDF cuts off wide tables.");
-        d.credit_name = Some("tendai".into());
+        d.credit = Some(Credit::Name("tendai".into()));
         let out = build_payload(ID, &d, Some(&app())).unwrap();
         let v: Value = serde_json::from_str(&out).unwrap();
         let keys: Vec<&str> = v.as_object().unwrap().keys().map(String::as_str).collect();
@@ -572,7 +617,7 @@ mod tests {
             ["v", "id", "kind", "text", "credit", "app", "screenshot"]
         );
         assert_eq!(v["v"], 1);
-        assert_eq!(v["credit"]["name"], "tendai");
+        assert_eq!(v["credit"], json!({ "kind": "name", "name": "tendai" }));
         assert_eq!(v["app"]["screen"], "editor");
         assert_eq!(v["app"]["patch"], Value::Null);
         assert_eq!(v["screenshot"], Value::Null);
@@ -762,6 +807,130 @@ mod tests {
         chars.windows(9).map(|w| w.iter().collect()).collect()
     }
 
+    // ----------------------------------------------------------- credit
+
+    #[test]
+    fn a_github_credit_is_the_tagged_login() {
+        let mut d = draft("Export to PDF cuts off wide tables.");
+        d.credit = Some(Credit::Github("octocat".into()));
+        let v: Value = serde_json::from_str(&build_payload(ID, &d, None).unwrap()).unwrap();
+        assert_eq!(v["credit"], json!({ "kind": "github", "login": "octocat" }));
+    }
+
+    #[test]
+    fn a_credit_that_breaks_its_rule_is_refused() {
+        let mut d = draft("Export to PDF cuts off wide tables.");
+        for (credit, want) in [
+            (Credit::Name("@tendai".into()), DraftError::BadCredit),
+            (Credit::Name("  ".into()), DraftError::BadCredit),
+            (Credit::Github(String::new()), DraftError::BadGithubUser),
+            (Credit::Github("@octocat".into()), DraftError::BadGithubUser),
+            (Credit::Github("a--b".into()), DraftError::BadGithubUser),
+            (Credit::Github("a_b".into()), DraftError::BadGithubUser),
+            (Credit::Github("a".repeat(40)), DraftError::BadGithubUser),
+        ] {
+            d.credit = Some(credit);
+            assert_eq!(build_payload(ID, &d, None), Err(want));
+        }
+    }
+
+    #[test]
+    fn older_credit_shapes_are_read_as_a_plain_name() {
+        let name = Some(Credit::Name("tendai".into()));
+        assert_eq!(
+            credit_from_json(&json!({ "name": "tendai" })),
+            Ok(name.clone())
+        );
+        assert_eq!(credit_from_json(&json!("tendai")), Ok(name.clone()));
+        assert_eq!(
+            credit_from_json(&json!({ "kind": "name", "name": "tendai" })),
+            Ok(name)
+        );
+        assert_eq!(credit_from_json(&Value::Null), Ok(None));
+        for bad in [
+            json!({ "kind": "github", "name": "octocat" }),
+            json!({ "kind": "email", "name": "x" }),
+            json!({ "name": "tendai", "url": "x" }),
+            json!({ "kind": "github", "login": "octocat", "name": "x" }),
+            json!({ "name": "@tendai" }),
+            json!(5),
+            json!({}),
+        ] {
+            assert!(credit_from_json(&bad).is_err(), "{bad}");
+        }
+    }
+
+    fn name_chars() -> impl Strategy<Value = String> {
+        proptest::collection::vec(
+            proptest::sample::select(vec!['a', 'Z', '0', ' ', '.', '_', '-', 'é', '名', '@']),
+            0..45,
+        )
+        .prop_map(|c| c.into_iter().collect())
+    }
+
+    fn login_chars() -> impl Strategy<Value = String> {
+        "[A-Za-z0-9]{1,8}(-[A-Za-z0-9]{1,8}){0,3}".prop_filter("39 at most", |s| s.len() <= 39)
+    }
+
+    proptest! {
+        #![proptest_config(config())]
+
+        /// Round trip: a credit that builds into a payload reads back as the
+        /// same credit (the name as the NFC-trimmed form the builder sent).
+        #[test]
+        fn prop_credit_round_trips_through_the_payload(
+            name in name_chars(), login in login_chars(), github in any::<bool>(),
+        ) {
+            let credit = if github { Credit::Github(login) } else { Credit::Name(name) };
+            let mut d = draft("The export button does nothing at all");
+            d.credit = Some(credit.clone());
+            if let Ok(out) = build_payload(ID, &d, None) {
+                let v: Value = serde_json::from_str(&out).unwrap();
+                let back = credit_from_json(&v["credit"]).unwrap().unwrap();
+                match (&credit, &back) {
+                    (Credit::Github(a), Credit::Github(b)) => prop_assert_eq!(a, b),
+                    (Credit::Name(a), Credit::Name(b)) => prop_assert_eq!(b, &clean_credit_name(a).unwrap()),
+                    _ => prop_assert!(false, "the kind changed"),
+                }
+            } else {
+                let refused = match &credit {
+                    Credit::Github(l) => !is_github_login(l),
+                    Credit::Name(n) => clean_credit_name(n).is_err(),
+                };
+                prop_assert!(refused);
+            }
+        }
+
+        /// Metamorphic: the old `{"name"}` and bare-string forms read exactly
+        /// as the tagged name, so an older app's report means the same.
+        #[test]
+        fn prop_old_credit_shapes_equal_the_tagged_name(name in name_chars()) {
+            let tagged = credit_from_json(&json!({ "kind": "name", "name": name }));
+            prop_assert_eq!(credit_from_json(&json!({ "name": name })), tagged.clone());
+            prop_assert_eq!(credit_from_json(&json!(name)), tagged);
+        }
+
+        /// Invariant: a name can never reach the wire as an @-mention. Only
+        /// the github kind carries a login, and it is a valid login with no `@`.
+        #[test]
+        fn prop_only_a_valid_github_login_is_a_mention(name in name_chars(), login in name_chars()) {
+            for credit in [Credit::Name(name.clone()), Credit::Github(login.clone())] {
+                let mut d = draft("The export button does nothing at all");
+                d.credit = Some(credit);
+                if let Ok(out) = build_payload(ID, &d, None) {
+                    let v: Value = serde_json::from_str(&out).unwrap();
+                    let c = &v["credit"];
+                    if c["kind"] == "name" {
+                        prop_assert!(!c["name"].as_str().unwrap().contains('@'));
+                    } else {
+                        let l = c["login"].as_str().unwrap();
+                        prop_assert!(is_github_login(l) && !l.contains('@'));
+                    }
+                }
+            }
+        }
+    }
+
     proptest! {
         #![proptest_config(config())]
 
@@ -803,7 +972,7 @@ mod tests {
             a.screen = screen;
             a.sync = sync;
             a.errors = scrub_log_lines(logs);
-            let d = Draft { kind, text: "The export button does nothing at all".into(), credit_name: Some("tendai".into()), screenshot: None };
+            let d = Draft { kind, text: "The export button does nothing at all".into(), credit: Some(Credit::Name("tendai".into())), screenshot: None };
             let payload = build_payload(ID, &d, Some(&a)).unwrap();
             for (title, body) in &notes {
                 for w in windows(title).into_iter().chain(windows(body)) {
@@ -830,7 +999,8 @@ mod tests {
             a.locale = clean_locale(&locale);
             a.build = clean_build(&build);
             a.errors = scrub_log_lines(lines.iter().map(String::as_str));
-            let d = Draft { kind: Kind::Idea, text, credit_name: Some(name), screenshot: None };
+            let credit = if name.len() % 2 == 0 { Credit::Name(name) } else { Credit::Github(name) };
+            let d = Draft { kind: Kind::Idea, text, credit: Some(credit), screenshot: None };
             if let Ok(out) = build_payload(ID, &d, Some(&a)) {
                 let v: Value = serde_json::from_str(&out).unwrap();
                 prop_assert_eq!(v.as_object().unwrap().len(), 7);

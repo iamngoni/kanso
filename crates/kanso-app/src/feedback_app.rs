@@ -32,6 +32,19 @@ pub const RATE_LIMITED: &str = "You've sent a lot of feedback today. Try again t
 pub const SCREENSHOT_TOO_BIG: &str = "That image is over 5 MB. Choose a smaller one.";
 pub const NOT_AN_IMAGE: &str = "Choose a PNG or JPEG image.";
 pub const SCREENSHOT_WARNING: &str = "Screenshots can show your notes. Check it before sending.";
+pub const CREDIT_LABEL: &str = "Credit me if this is fixed";
+pub const CREDIT_NAME_CHOICE: &str = "My name";
+pub const CREDIT_GITHUB_CHOICE: &str = "GitHub username";
+pub const CREDIT_NAME_DETAIL: &str =
+    "Your name goes in the issue and the release notes. Never a link to you.";
+pub const CREDIT_GITHUB_DETAIL: &str = "The public issue will mention you by username, so GitHub notifies you and links to your profile.";
+pub const CREDIT_NAME_HINT: &str = "Your name";
+pub const GITHUB_SEARCH_HINT: &str = "Search GitHub users";
+pub const GITHUB_SEARCHING: &str = "Searching…";
+pub const GITHUB_NONE_FOUND: &str = "No GitHub users found.";
+pub const GITHUB_UNAVAILABLE: &str =
+    "Couldn't search GitHub just now. Try again, or credit your name instead.";
+pub const GITHUB_PICK_FIRST: &str = "Pick your GitHub username from the list.";
 pub const FOOTER: &str = "Your words and screenshot stay private with Kanso. A short summary may become a public GitHub issue. No notes are ever sent.";
 pub const DELETE_PROMPT: &str = "Delete this report? Kanso removes your text, screenshot and app info from its server. A GitHub issue made from it stays, but holds no words of yours.";
 
@@ -62,6 +75,7 @@ pub fn draft_error_text(err: &DraftError) -> String {
             "Use 1 to 39 letters, numbers, spaces, dots, dashes or underscores for your name."
                 .into()
         }
+        DraftError::BadGithubUser => GITHUB_PICK_FIRST.into(),
         DraftError::BadScreenshot => SCREENSHOT_TOO_BIG.into(),
         DraftError::BadId | DraftError::BadApp(_) => {
             "Kanso couldn't build this report. Turn off app info and try again.".into()
@@ -281,7 +295,12 @@ impl Env {
         })
     }
 
-    /// The account's name, for "Credit me by name".
+    /// Whether this is the real network (a test's stand-in has no avatar host).
+    pub fn real_network(&self) -> bool {
+        self.real
+    }
+
+    /// The account's name, for "Credit me".
     pub fn username(&self) -> Option<String> {
         self.session.as_ref().map(|s| s.username.clone())
     }

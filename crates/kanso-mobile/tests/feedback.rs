@@ -9,7 +9,8 @@ use std::sync::{Arc, Mutex};
 
 use common::*;
 use kanso_mobile::{
-    FeedbackChipKind, FeedbackContext, FeedbackInput, FeedbackProblem, FeedbackSent,
+    FeedbackChipKind, FeedbackContext, FeedbackCredit, FeedbackGithubUser, FeedbackInput,
+    FeedbackProblem, FeedbackSent, FeedbackUsers,
 };
 use kanso_sync::feedback::{Request, Response, Transport};
 
@@ -61,7 +62,7 @@ fn input(text: &str) -> FeedbackInput {
     FeedbackInput {
         kind: "bug".into(),
         text: text.into(),
-        credit_name: None,
+        credit: None,
         include_app: true,
         screenshot: None,
         context: FeedbackContext {
@@ -231,5 +232,86 @@ fn nothing_of_a_note_leaves_the_phone() {
     for request in server.seen.lock().unwrap().iter() {
         let body = String::from_utf8_lossy(&request.body);
         assert!(!body.contains("zebra") && !body.contains("Private plan"));
+    }
+}
+
+// no-prop-test: the facade end to end; the credit rules have their properties in kanso-engine.
+#[test]
+fn a_github_credit_is_sent_tagged_and_a_bad_login_is_invalid() {
+    let phone = lone_phone();
+    let server = Script::new(vec![reply(201, r#"{"id":"x","status":"received"}"#)]);
+    let feedback = phone.library.feedback_over(server.clone());
+    let mut report = input("Export to PDF cuts off wide tables.");
+    report.credit = Some(FeedbackCredit::Github {
+        login: "octocat".into(),
+    });
+    assert_eq!(feedback.send(report).unwrap(), FeedbackSent::Sent);
+    let seen = server.seen.lock().unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&seen[0].body).unwrap();
+    assert_eq!(
+        body["credit"],
+        serde_json::json!({"kind": "github", "login": "octocat"})
+    );
+    drop(seen);
+
+    for login in ["", "@octocat", "a--b"] {
+        let mut bad = input("Export to PDF cuts off wide tables.");
+        bad.credit = Some(FeedbackCredit::Github {
+            login: login.into(),
+        });
+        assert_eq!(
+            feedback.send(bad).unwrap(),
+            FeedbackSent::Invalid {
+                problem: FeedbackProblem::BadGithubUser
+            }
+        );
+    }
+    let mut mention = input("Export to PDF cuts off wide tables.");
+    mention.credit = Some(FeedbackCredit::Name {
+        name: "@octocat".into(),
+    });
+    assert_eq!(
+        feedback.send(mention).unwrap(),
+        FeedbackSent::Invalid {
+            problem: FeedbackProblem::BadCredit
+        }
+    );
+    assert_eq!(server.count("POST"), 1);
+}
+
+// no-prop-test: see above.
+#[test]
+fn the_user_search_goes_through_the_worker_and_fails_softly() {
+    let phone = lone_phone();
+    let server = Script::new(vec![reply(
+        200,
+        r#"{"users":[{"login":"octocat","avatar_url":"https://avatars.githubusercontent.com/u/583231?v=4"}]}"#,
+    )]);
+    let feedback = phone.library.feedback_over(server.clone());
+    assert_eq!(
+        feedback.search_users("@octo".into()).unwrap(),
+        FeedbackUsers::Found {
+            users: vec![FeedbackGithubUser {
+                login: "octocat".into(),
+                avatar_url: "https://avatars.githubusercontent.com/u/583231?v=4".into()
+            }]
+        }
+    );
+    assert_eq!(
+        server.seen.lock().unwrap()[0].path,
+        "/v1/feedback/users?q=octo"
+    );
+    // Too short: nothing is asked.
+    assert_eq!(
+        feedback.search_users("o".into()).unwrap(),
+        FeedbackUsers::Found { users: vec![] }
+    );
+    assert_eq!(server.seen.lock().unwrap().len(), 1);
+    for down in [reply(503, "{}"), reply(429, "{}"), Err("offline".into())] {
+        let feedback = phone.library.feedback_over(Script::new(vec![down]));
+        assert_eq!(
+            feedback.search_users("octo".into()).unwrap(),
+            FeedbackUsers::Unavailable
+        );
     }
 }

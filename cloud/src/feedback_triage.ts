@@ -8,6 +8,7 @@
 
 import type { Env } from "./env";
 import { type AppInfo, type Report, screenshotKey } from "./feedback";
+import { creditText, parseCredit } from "./feedback_credit";
 import * as github from "./github";
 import { DAY } from "./protocol";
 
@@ -200,8 +201,18 @@ export interface IssueDraft {
 	labels: string[];
 }
 
-/** The credit name as the footer may show it: the reporter's own words, so it passes the same checks (`www.x.y` autolinks). */
-export const creditOf = (report: Report): string | null => (report.credit && !unsafeText(report.credit.name) ? report.credit.name : null);
+/**
+ * What the footer says after "Reported by", or null for no credit. A GitHub login is `@login` (it passed
+ * GitHub's login rule, so it is the one thing here that may mention anyone); a plain name is the
+ * reporter's own words, so it passes the same checks (`www.x.y` autolinks) and can never hold an `@`.
+ * Read through `parseCredit` so a row stored before the tagged form still renders.
+ */
+export const creditOf = (report: Report): string | null => {
+	const credit = parseCredit(report.credit);
+	if (!credit.ok || credit.value === null) return null;
+	const text = creditText(credit.value);
+	return text !== null && credit.value.kind === "name" && unsafeText(text) ? null : text;
+};
 
 const footer = (report: Report, credit: boolean): string => {
 	const name = credit ? creditOf(report) : null;

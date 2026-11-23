@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'feedback_credit.dart';
 import 'feedback_kind.dart';
 
 part 'feedback_draft.freezed.dart';
@@ -43,9 +44,15 @@ abstract class FeedbackDraft with _$FeedbackDraft {
     @Default(FeedbackKind.bug) FeedbackKind kind,
     @Default('') String text,
 
-    /// Whether "Credit me by name" is on.
+    /// Whether "Credit me" is on.
     @Default(false) bool credit,
+
+    /// Which credit: a plain name, or a GitHub username.
+    @Default(FeedbackCreditKind.name) FeedbackCreditKind creditKind,
     @Default('') String creditName,
+
+    /// The GitHub user picked from the search, for [FeedbackCreditKind.github].
+    FeedbackGithubUser? githubUser,
     @Default(true) bool includeApp,
     FeedbackScreenshot? screenshot,
   }) = _FeedbackDraft;
@@ -56,11 +63,19 @@ abstract class FeedbackDraft with _$FeedbackDraft {
   int get length => text.runes.length;
 
   /// Whether Send is on: ten characters or more, not too many, and a valid
-  /// name when credit is asked for.
+  /// credit of its kind when credit is asked for.
   bool get canSend =>
       length >= feedbackMinText &&
       length <= feedbackMaxText &&
-      (!credit || creditNameValid);
+      (!credit || creditValid);
+
+  /// Whether the credit asked for can be sent: a valid name, or a picked
+  /// GitHub user whose login passes GitHub's rule.
+  bool get creditValid => switch (creditKind) {
+    FeedbackCreditKind.name => creditNameValid,
+    FeedbackCreditKind.github =>
+      githubUser != null && isGithubLogin(githubUser!.login),
+  };
 
   /// Whether the credit name is 1 to 39 letters, numbers, spaces, dots,
   /// dashes or underscores, and not blank.

@@ -25,9 +25,14 @@ void feedbackSuite(OpenLibrary open) {
     screen: 'settings',
     crashTypes: <String>[],
   );
-  FeedbackInput input(String text, {bool includeApp = true}) => FeedbackInput(
+  FeedbackInput input(
+    String text, {
+    bool includeApp = true,
+    FeedbackCredit? credit,
+  }) => FeedbackInput(
     kind: 'bug',
     text: text,
+    credit: credit,
     includeApp: includeApp,
     context: context,
   );
@@ -56,6 +61,50 @@ void feedbackSuite(OpenLibrary open) {
       expect(short.problem, FeedbackProblem.tooShort);
       expect(short.json, isEmpty);
     });
+
+    test('a credit is shown tagged, and a bad one says why', () async {
+      final feedback = (await open()).feedback();
+      const text = 'The Overview page forgets the week I was on.';
+
+      final name = await feedback.preview(
+        input: input(text, credit: const FeedbackCredit.name(name: 'Tendai')),
+      );
+      expect(name.problem, isNull);
+      expect(name.json, contains('"kind": "name"'));
+      expect(name.json, contains('"name": "Tendai"'));
+
+      final github = await feedback.preview(
+        input: input(
+          text,
+          credit: const FeedbackCredit.github(login: 'octocat'),
+        ),
+      );
+      expect(github.problem, isNull);
+      expect(github.json, contains('"kind": "github"'));
+      expect(github.json, contains('"login": "octocat"'));
+
+      for (final login in <String>['', '@octocat', 'a--b']) {
+        final bad = await feedback.preview(
+          input: input(text, credit: FeedbackCredit.github(login: login)),
+        );
+        expect(bad.problem, FeedbackProblem.badGithubUser, reason: login);
+      }
+      final mention = await feedback.preview(
+        input: input(text, credit: const FeedbackCredit.name(name: '@x')),
+      );
+      expect(mention.problem, FeedbackProblem.badCredit);
+    });
+
+    test(
+      'a search too short to ask finds nothing, without the network',
+      () async {
+        final feedback = (await open()).feedback();
+        expect(
+          await feedback.searchUsers(query: 'o'),
+          const FeedbackUsers.found(users: <FeedbackGithubUser>[]),
+        );
+      },
+    );
 
     test('an invalid report is refused before anything is sent', () async {
       final feedback = (await open()).feedback();

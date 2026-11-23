@@ -1,5 +1,6 @@
 //! The feedback client (issue #232): `POST /v1/feedback`, the screenshot
-//! `PUT`, `GET /v1/feedback` and `DELETE /v1/feedback/<id>`.
+//! `PUT`, `GET /v1/feedback`, `DELETE /v1/feedback/<id>` and the GitHub user
+//! search behind "credit me by GitHub username" (`GET /v1/feedback/users`).
 //!
 //! These routes are always on Kanso's own Worker, even for a library that
 //! syncs with a self-hosted server (self-hosted servers don't serve them,
@@ -39,6 +40,57 @@ pub const ANONYMOUS_SENDER: &str = "anonymous";
 /// characters): the only way to list or delete reports made without an
 /// account. The Worker stores only a keyed hash of it.
 pub const ANONYMOUS_KEY_ITEM: &str = "feedback-key";
+
+/// Whether `login` is a GitHub login: 1 to 39 ASCII letters, digits and
+/// single hyphens, with no hyphen first, last or doubled. The Worker checks
+/// the same rule before it writes `@login` into an issue.
+pub fn is_github_login(login: &str) -> bool {
+    let bytes = login.as_bytes();
+    (1..=39).contains(&bytes.len())
+        && bytes
+            .iter()
+            .all(|b| b.is_ascii_alphanumeric() || *b == b'-')
+        && bytes.first() != Some(&b'-')
+        && bytes.last() != Some(&b'-')
+        && !login.contains("--")
+}
+
+/// A GitHub user the picker offers: the login, and where the avatar is.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GithubUser {
+    pub login: String,
+    pub avatar_url: String,
+}
+
+/// The only host avatars come from; any other URL is never fetched.
+const AVATAR_HOST: &str = "avatars.githubusercontent.com";
+
+/// The largest avatar picture the picker reads.
+const MAX_AVATAR_BYTES: u64 = 256 * 1024;
+
+/// Whether `url` is an https avatar on GitHub's avatar host, with a path of
+/// plain URL characters.
+pub fn is_avatar_url(url: &str) -> bool {
+    url.strip_prefix("https://")
+        .and_then(|rest| rest.strip_prefix(AVATAR_HOST))
+        .is_some_and(|path| {
+            path.starts_with('/')
+                && path.len() <= 200
+                && path
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"/_.?=&%-".contains(&b))
+        })
+}
+
+/// The search text the Worker takes, or `None` when there is nothing to ask:
+/// a leading `@` dropped, then 2 to 39 login characters (a hyphen anywhere
+/// is fine for a prefix). Nothing else is ever put in the request.
+pub fn search_query(raw: &str) -> Option<String> {
+    let text = raw.trim();
+    let text = text.strip_prefix('@').unwrap_or(text);
+    ((2..=39).contains(&text.len()) && text.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'))
+        .then(|| text.to_owned())
+}
 
 /// The most a list answer may be (100 reports with their chains).
 const MAX_LIST_BYTES: u64 = 2 * 1024 * 1024;
@@ -343,6 +395,42 @@ impl<T: Transport> Client<T> {
         Ok(reports.iter().filter_map(remote_report).collect())
     }
 
+    /// `GET /v1/feedback/users?q=`: GitHub users whose login contains `query`,
+    /// at most 8. A `query` the Worker would refuse (under 2 characters, or
+    /// not login characters) asks nothing and finds nothing. Results with an
+    /// off-pattern login or avatar are dropped here too.
+    pub fn search_users(
+        &self,
+        reporter: &Reporter,
+        query: &str,
+    ) -> Result<Vec<GithubUser>, FeedbackError> {
+        let Some(q) = search_query(query) else {
+            return Ok(Vec::new());
+        };
+        let response = self.call(
+            reporter,
+            "GET",
+            format!("/v1/feedback/users?q={q}"),
+            None,
+            Vec::new(),
+        )?;
+        let value: Value = serde_json::from_slice(&response.body)
+            .map_err(|_| FeedbackError::Server(response.status))?;
+        let users = value
+            .get("users")
+            .and_then(Value::as_array)
+            .ok_or(FeedbackError::Server(response.status))?;
+        Ok(users
+            .iter()
+            .filter_map(|user| {
+                let login = str_of(user, "login").filter(|l| is_github_login(l))?;
+                let avatar_url = str_of(user, "avatar_url").filter(|u| is_avatar_url(u))?;
+                Some(GithubUser { login, avatar_url })
+            })
+            .take(8)
+            .collect())
+    }
+
     /// `DELETE /v1/feedback/<id>`. A 404 means it is already gone, which is done.
     pub fn delete(&self, reporter: &Reporter, id: &str) -> Result<(), FeedbackError> {
         match self.call(
@@ -508,10 +596,36 @@ impl Transport for HttpTransport {
     }
 }
 
+/// The bytes of an avatar picture, or why there are none. Only
+/// [`is_avatar_url`] URLs are fetched, with no redirects, a short timeout and
+/// a size cap; the picker draws a plain circle when this fails.
+// no-prop-test: the network; `is_avatar_url` is property-tested.
+pub fn fetch_avatar(url: &str) -> Result<Vec<u8>, String> {
+    if !is_avatar_url(url) {
+        return Err("not an avatar url".into());
+    }
+    kanso_tls::ready_for(url).map_err(|err| err.to_string())?;
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .max_redirects(0)
+        .timeout_global(Some(Duration::from_secs(10)))
+        .user_agent(concat!("kanso-sync/", env!("CARGO_PKG_VERSION")))
+        .tls_config(kanso_tls::ureq_tls())
+        .build()
+        .into();
+    let mut response = agent.get(url).call().map_err(|err| err.to_string())?;
+    response
+        .body_mut()
+        .with_config()
+        .limit(MAX_AVATAR_BYTES)
+        .read_to_vec()
+        .map_err(|err| err.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::keychain::MemorySecrets;
+    use proptest::prelude::*;
     use std::sync::Mutex;
 
     /// Answers from a script and records what was asked.
@@ -700,5 +814,152 @@ mod tests {
         assert!(!is_kanso_origin("https://sync.kansoapp.app.evil.example"));
         assert!(!is_kanso_origin("http://sync.kansoapp.app"));
         assert_eq!(account().sender(), "account:a_1");
+    }
+
+    #[test]
+    fn search_asks_for_the_cleaned_query_and_keeps_only_good_users() {
+        let fake = Fake::new(vec![ok(
+            200,
+            r#"{"users":[{"login":"octocat","avatar_url":"https://avatars.githubusercontent.com/u/583231?v=4"},
+{"login":"bad--login","avatar_url":"https://avatars.githubusercontent.com/u/1"},
+{"login":"evil","avatar_url":"https://evil.example/a.png"},{"login":"nope"}]}"#,
+        )]);
+        let users = Client::new(&fake)
+            .search_users(&account(), "@octo")
+            .unwrap();
+        assert_eq!(
+            users,
+            vec![GithubUser {
+                login: "octocat".into(),
+                avatar_url: "https://avatars.githubusercontent.com/u/583231?v=4".into()
+            }]
+        );
+        let seen = fake.seen.lock().unwrap();
+        assert_eq!(
+            (seen[0].method, seen[0].path.as_str()),
+            ("GET", "/v1/feedback/users?q=octo")
+        );
+    }
+
+    #[test]
+    fn a_query_the_worker_would_refuse_is_not_sent() {
+        let fake = Fake::new(vec![]);
+        for q in ["", "a", "a b", "octo in:login", "名前", &"a".repeat(40)] {
+            assert_eq!(Client::new(&fake).search_users(&account(), q), Ok(vec![]));
+        }
+        assert!(fake.seen.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn search_answers_map_to_errors() {
+        for (status, want) in [
+            (401, FeedbackError::Unauthorized),
+            (
+                429,
+                FeedbackError::RateLimited {
+                    retry_after_ms: 60_000,
+                },
+            ),
+            (503, FeedbackError::Server(503)),
+        ] {
+            let fake = Fake::new(vec![ok(status, "{}")]);
+            assert_eq!(
+                Client::new(&fake).search_users(&account(), "octo"),
+                Err(want)
+            );
+        }
+        let fake = Fake::new(vec![Err("dns".into())]);
+        assert_eq!(
+            Client::new(&fake).search_users(&account(), "octo"),
+            Err(FeedbackError::Offline)
+        );
+        let fake = Fake::new(vec![ok(200, "not json")]);
+        assert_eq!(
+            Client::new(&fake).search_users(&account(), "octo"),
+            Err(FeedbackError::Server(200))
+        );
+    }
+
+    #[test]
+    fn github_logins_follow_githubs_rule() {
+        for ok in ["octocat", "a", "a-b", "A1-b2", &"a".repeat(39)] {
+            assert!(is_github_login(ok), "{ok}");
+        }
+        for bad in [
+            "",
+            "-a",
+            "a-",
+            "a--b",
+            "a_b",
+            "a b",
+            "@a",
+            "名前",
+            &"a".repeat(40),
+        ] {
+            assert!(!is_github_login(bad), "{bad}");
+        }
+    }
+
+    #[test]
+    fn only_githubs_avatar_host_is_trusted() {
+        assert!(is_avatar_url(
+            "https://avatars.githubusercontent.com/u/1?v=4"
+        ));
+        for bad in [
+            "http://avatars.githubusercontent.com/u/1",
+            "https://avatars.githubusercontent.com.evil.example/u/1",
+            "https://avatars.githubusercontent.comx/u/1",
+            "https://evil.example/avatars.githubusercontent.com/u/1",
+            "https://avatars.githubusercontent.com",
+            "https://avatars.githubusercontent.com/u/1 2",
+        ] {
+            assert!(!is_avatar_url(bad), "{bad}");
+        }
+    }
+
+    /// Strings near the login rule's edges: its alphabet plus what it refuses.
+    fn loginish() -> impl Strategy<Value = String> {
+        proptest::collection::vec(
+            proptest::sample::select(vec!['a', 'Z', '0', '9', '-', '_', '@', '.', ' ', 'é']),
+            0..45,
+        )
+        .prop_map(|chars| chars.into_iter().collect())
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(512))]
+
+        /// Oracle: the rule stated as GitHub's docs say it, by segments: runs
+        /// of ASCII letters and digits joined by single hyphens, 1 to 39 long.
+        #[test]
+        fn prop_login_rule_matches_its_segment_form(s in loginish()) {
+            let by_segments = !s.is_empty()
+                && s.chars().count() <= 39
+                && s.split('-').all(|part| {
+                    !part.is_empty() && part.bytes().all(|b| b.is_ascii_alphanumeric())
+                });
+            prop_assert_eq!(is_github_login(&s), by_segments);
+        }
+
+        /// Refinement: a cleaned search query is always something the Worker's
+        /// `^[A-Za-z0-9-]{2,39}$` takes, and is the input without its `@`.
+        #[test]
+        fn prop_search_query_is_always_worker_shaped(s in loginish()) {
+            if let Some(q) = search_query(&s) {
+                prop_assert!((2..=39).contains(&q.len()));
+                prop_assert!(q.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'));
+                prop_assert_eq!(s.trim().trim_start_matches('@').trim_start_matches('@'), q.as_str());
+            }
+        }
+
+        /// Whatever it is, an avatar URL is only trusted on GitHub's host over https.
+        #[test]
+        fn prop_avatar_urls_are_https_on_githubs_host(path in "[ -~]{0,60}") {
+            let url = format!("https://avatars.githubusercontent.com{path}");
+            if is_avatar_url(&url) {
+                prop_assert!(path.starts_with('/'));
+                prop_assert!(!path.contains(' ') && !path.contains('#') && !path.contains('@'));
+            }
+        }
     }
 }

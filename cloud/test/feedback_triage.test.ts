@@ -637,6 +637,19 @@ describe("reading reports (GET /v1/admin/feedback, /<id>, /<id>/screenshot)", ()
 		expect((await feedbackAdmin.show(unknown)(get(`/${unknown}`), e, NOW)).status).toBe(404);
 	});
 
+	it("shows the tagged credit of a GitHub login, a name, and no credit", async () => {
+		const e = await admin();
+		const creditOf = async (credit: unknown) => {
+			const r = await submit(report({ credit }));
+			const res = await feedbackAdmin.show(r.id)(get(`/${r.id}`), e, NOW);
+			return ((await res.json()) as any).credit;
+		};
+		expect(await creditOf({ kind: "github", login: "octo-cat" })).toEqual({ kind: "github", login: "octo-cat" });
+		expect(await creditOf({ kind: "name", name: "Ada" })).toEqual({ kind: "name", name: "Ada" });
+		expect(await creditOf("Ada")).toEqual({ kind: "name", name: "Ada" });
+		expect(await creditOf(null)).toBeNull();
+	});
+
 	it("answers 404 for a report without a stored screenshot", async () => {
 		const r = await submit(report());
 		const res = await feedbackAdmin.screenshot(r.id)(get(`/${r.id}/screenshot`), await admin(), NOW);

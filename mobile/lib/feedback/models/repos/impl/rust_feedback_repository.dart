@@ -9,6 +9,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/bridge/api/feedback.dart' as bridge;
 import '../../../../crash/models/repos/abs/crash_context_repository.dart';
 import '../../../../crash/models/repos/abs/crash_report_repository.dart';
+import '../../data/feedback_credit.dart';
 import '../../data/feedback_draft.dart';
 import '../../data/feedback_entry.dart';
 import '../../data/feedback_kind.dart';
@@ -40,7 +41,7 @@ class RustFeedbackRepository implements FeedbackRepository {
     return bridge.FeedbackInput(
       kind: draft.kind.wire,
       text: draft.text,
-      creditName: draft.credit ? draft.creditName.trim() : null,
+      credit: _credit(draft),
       includeApp: draft.includeApp,
       screenshot: draft.screenshot?.bytes,
       context: bridge.FeedbackContext(
@@ -54,6 +55,23 @@ class RustFeedbackRepository implements FeedbackRepository {
         crashTypes: types,
       ),
     );
+  }
+
+  /// The credit the draft asks for, or null when it is off. A GitHub credit
+  /// with nobody picked carries an empty login, which the core refuses with
+  /// [FeedbackProblem.badGithubUser].
+  static bridge.FeedbackCredit? _credit(FeedbackDraft draft) {
+    if (!draft.credit) {
+      return null;
+    }
+    return switch (draft.creditKind) {
+      FeedbackCreditKind.name => bridge.FeedbackCredit.name(
+        name: draft.creditName.trim(),
+      ),
+      FeedbackCreditKind.github => bridge.FeedbackCredit.github(
+        login: draft.githubUser?.login ?? '',
+      ),
+    };
   }
 
   static String _locale() {
@@ -76,6 +94,22 @@ class RustFeedbackRepository implements FeedbackRepository {
       );
     } on Object {
       return const FeedbackPayload(problem: FeedbackProblem.other);
+    }
+  }
+
+  @override
+  Future<List<FeedbackGithubUser>?> searchGithubUsers(String query) async {
+    try {
+      final found = await _feedback.searchUsers(query: query);
+      return switch (found) {
+        bridge.FeedbackUsers_Found(:final users) => <FeedbackGithubUser>[
+          for (final user in users)
+            FeedbackGithubUser(login: user.login, avatarUrl: user.avatarUrl),
+        ],
+        bridge.FeedbackUsers_Unavailable() => null,
+      };
+    } on Object {
+      return null;
     }
   }
 
@@ -172,6 +206,7 @@ class RustFeedbackRepository implements FeedbackRepository {
         bridge.FeedbackProblem.tooLong => FeedbackProblem.tooLong,
         bridge.FeedbackProblem.badCharacter => FeedbackProblem.badCharacter,
         bridge.FeedbackProblem.badCredit => FeedbackProblem.badCredit,
+        bridge.FeedbackProblem.badGithubUser => FeedbackProblem.badGithubUser,
         bridge.FeedbackProblem.badScreenshot => FeedbackProblem.badScreenshot,
         bridge.FeedbackProblem.other => FeedbackProblem.other,
       };

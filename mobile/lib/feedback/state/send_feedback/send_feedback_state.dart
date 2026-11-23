@@ -12,6 +12,9 @@ abstract class SendFeedbackState with _$SendFeedbackState {
     /// The fixed screen the person came from.
     @Default('settings') String screen,
 
+    /// What the GitHub picker shows under its search box.
+    @Default(FeedbackGithubSearch.idle()) FeedbackGithubSearch githubSearch,
+
     /// Whether Show what's sent is open.
     @Default(false) bool showSent,
 

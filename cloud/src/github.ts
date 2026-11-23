@@ -6,6 +6,7 @@
 
 import { fromHex, hex } from "./crypto";
 import type { Env } from "./env";
+import { AVATAR_URL, GITHUB_LOGIN } from "./feedback_credit";
 import { base64url } from "./protocol";
 
 const encoder = new TextEncoder();
@@ -174,6 +175,37 @@ export async function removeCredit(env: Env, issue: number, name: string, nowMs 
 /** The footer without its credit line: ` · Reported by <name>`. */
 export function stripCredit(body: string, name: string): string {
 	return body.replace(` · Reported by ${name}`, "");
+}
+
+export interface GithubUser {
+	login: string;
+	avatar_url: string;
+}
+
+/** The most results the user search returns. */
+export const SEARCH_LIMIT = 8;
+
+/**
+ * GitHub users whose login contains `q` (a login prefix the caller already checked is letters, digits and
+ * hyphens, so it can't add a search qualifier), at most {@link SEARCH_LIMIT}. Only the login and the avatar
+ * URL are kept, and a result whose login or avatar is off-pattern is dropped. Runs on the App's installation
+ * token, so it has the authenticated search rate rather than the anonymous one.
+ */
+export async function searchUsers(env: Env, q: string, nowMs = Date.now()): Promise<GithubUser[]> {
+	const found = await call<{ items?: { login?: unknown; avatar_url?: unknown }[] }>(
+		env,
+		"GET",
+		`/search/users?q=${encodeURIComponent(`${q} in:login type:user`)}&per_page=${SEARCH_LIMIT}`,
+		undefined,
+		nowMs,
+	);
+	const users: GithubUser[] = [];
+	for (const item of found.items ?? []) {
+		if (typeof item.login === "string" && GITHUB_LOGIN.test(item.login) && typeof item.avatar_url === "string" && AVATAR_URL.test(item.avatar_url)) {
+			users.push({ login: item.login, avatar_url: item.avatar_url });
+		}
+	}
+	return users.slice(0, SEARCH_LIMIT);
 }
 
 /** The tag of the release before `tag` among the published, non-prerelease ones, or null. */

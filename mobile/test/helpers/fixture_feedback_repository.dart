@@ -2,6 +2,7 @@
 // Created 2026-11-04.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import 'package:kanso/feedback/models/data/feedback_credit.dart';
 import 'package:kanso/feedback/models/data/feedback_draft.dart';
 import 'package:kanso/feedback/models/data/feedback_entry.dart';
 import 'package:kanso/feedback/models/data/feedback_kind.dart';
@@ -26,6 +27,12 @@ class FixtureFeedbackRepository implements FeedbackRepository {
   /// What [refreshDue] answers.
   bool due;
 
+  /// What a GitHub user search answers; null is "unavailable".
+  List<FeedbackGithubUser>? users = const <FeedbackGithubUser>[];
+
+  /// The queries searched, in order.
+  final List<String> searches = <String>[];
+
   final List<FeedbackDraft> sent = <FeedbackDraft>[];
   final List<String> deleted = <String>[];
   final List<bool> refreshes = <bool>[];
@@ -41,6 +48,12 @@ class FixtureFeedbackRepository implements FeedbackRepository {
       : FeedbackPayload(
           json: '{"v":1,"kind":"${draft.kind.wire}","text":"${draft.text}"}',
         );
+
+  @override
+  Future<List<FeedbackGithubUser>?> searchGithubUsers(String query) async {
+    searches.add(query);
+    return users;
+  }
 
   @override
   Future<FeedbackSendResult> send(

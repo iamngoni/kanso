@@ -55,7 +55,7 @@ extension SendFeedbackEventPatterns on SendFeedbackEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SendFeedbackStartedEvent value)?  started,TResult Function( SendFeedbackKindChangedEvent value)?  kindChanged,TResult Function( SendFeedbackTextChangedEvent value)?  textChanged,TResult Function( SendFeedbackCreditToggledEvent value)?  creditToggled,TResult Function( SendFeedbackCreditNameChangedEvent value)?  creditNameChanged,TResult Function( SendFeedbackAppInfoToggledEvent value)?  appInfoToggled,TResult Function( SendFeedbackScreenshotRequestedEvent value)?  screenshotRequested,TResult Function( SendFeedbackScreenshotRemovedEvent value)?  screenshotRemoved,TResult Function( SendFeedbackSentToggledEvent value)?  sentToggled,TResult Function( SendFeedbackSendRequestedEvent value)?  sendRequested,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SendFeedbackStartedEvent value)?  started,TResult Function( SendFeedbackKindChangedEvent value)?  kindChanged,TResult Function( SendFeedbackTextChangedEvent value)?  textChanged,TResult Function( SendFeedbackCreditToggledEvent value)?  creditToggled,TResult Function( SendFeedbackCreditNameChangedEvent value)?  creditNameChanged,TResult Function( SendFeedbackCreditKindChangedEvent value)?  creditKindChanged,TResult Function( SendFeedbackGithubQueryChangedEvent value)?  githubQueryChanged,TResult Function( SendFeedbackGithubUserPickedEvent value)?  githubUserPicked,TResult Function( SendFeedbackGithubUserClearedEvent value)?  githubUserCleared,TResult Function( SendFeedbackAppInfoToggledEvent value)?  appInfoToggled,TResult Function( SendFeedbackScreenshotRequestedEvent value)?  screenshotRequested,TResult Function( SendFeedbackScreenshotRemovedEvent value)?  screenshotRemoved,TResult Function( SendFeedbackSentToggledEvent value)?  sentToggled,TResult Function( SendFeedbackSendRequestedEvent value)?  sendRequested,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case SendFeedbackStartedEvent() when started != null:
@@ -63,7 +63,11 @@ return started(_that);case SendFeedbackKindChangedEvent() when kindChanged != nu
 return kindChanged(_that);case SendFeedbackTextChangedEvent() when textChanged != null:
 return textChanged(_that);case SendFeedbackCreditToggledEvent() when creditToggled != null:
 return creditToggled(_that);case SendFeedbackCreditNameChangedEvent() when creditNameChanged != null:
-return creditNameChanged(_that);case SendFeedbackAppInfoToggledEvent() when appInfoToggled != null:
+return creditNameChanged(_that);case SendFeedbackCreditKindChangedEvent() when creditKindChanged != null:
+return creditKindChanged(_that);case SendFeedbackGithubQueryChangedEvent() when githubQueryChanged != null:
+return githubQueryChanged(_that);case SendFeedbackGithubUserPickedEvent() when githubUserPicked != null:
+return githubUserPicked(_that);case SendFeedbackGithubUserClearedEvent() when githubUserCleared != null:
+return githubUserCleared(_that);case SendFeedbackAppInfoToggledEvent() when appInfoToggled != null:
 return appInfoToggled(_that);case SendFeedbackScreenshotRequestedEvent() when screenshotRequested != null:
 return screenshotRequested(_that);case SendFeedbackScreenshotRemovedEvent() when screenshotRemoved != null:
 return screenshotRemoved(_that);case SendFeedbackSentToggledEvent() when sentToggled != null:
@@ -86,7 +90,7 @@ return sendRequested(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SendFeedbackStartedEvent value)  started,required TResult Function( SendFeedbackKindChangedEvent value)  kindChanged,required TResult Function( SendFeedbackTextChangedEvent value)  textChanged,required TResult Function( SendFeedbackCreditToggledEvent value)  creditToggled,required TResult Function( SendFeedbackCreditNameChangedEvent value)  creditNameChanged,required TResult Function( SendFeedbackAppInfoToggledEvent value)  appInfoToggled,required TResult Function( SendFeedbackScreenshotRequestedEvent value)  screenshotRequested,required TResult Function( SendFeedbackScreenshotRemovedEvent value)  screenshotRemoved,required TResult Function( SendFeedbackSentToggledEvent value)  sentToggled,required TResult Function( SendFeedbackSendRequestedEvent value)  sendRequested,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SendFeedbackStartedEvent value)  started,required TResult Function( SendFeedbackKindChangedEvent value)  kindChanged,required TResult Function( SendFeedbackTextChangedEvent value)  textChanged,required TResult Function( SendFeedbackCreditToggledEvent value)  creditToggled,required TResult Function( SendFeedbackCreditNameChangedEvent value)  creditNameChanged,required TResult Function( SendFeedbackCreditKindChangedEvent value)  creditKindChanged,required TResult Function( SendFeedbackGithubQueryChangedEvent value)  githubQueryChanged,required TResult Function( SendFeedbackGithubUserPickedEvent value)  githubUserPicked,required TResult Function( SendFeedbackGithubUserClearedEvent value)  githubUserCleared,required TResult Function( SendFeedbackAppInfoToggledEvent value)  appInfoToggled,required TResult Function( SendFeedbackScreenshotRequestedEvent value)  screenshotRequested,required TResult Function( SendFeedbackScreenshotRemovedEvent value)  screenshotRemoved,required TResult Function( SendFeedbackSentToggledEvent value)  sentToggled,required TResult Function( SendFeedbackSendRequestedEvent value)  sendRequested,}){
 final _that = this;
 switch (_that) {
 case SendFeedbackStartedEvent():
@@ -94,7 +98,11 @@ return started(_that);case SendFeedbackKindChangedEvent():
 return kindChanged(_that);case SendFeedbackTextChangedEvent():
 return textChanged(_that);case SendFeedbackCreditToggledEvent():
 return creditToggled(_that);case SendFeedbackCreditNameChangedEvent():
-return creditNameChanged(_that);case SendFeedbackAppInfoToggledEvent():
+return creditNameChanged(_that);case SendFeedbackCreditKindChangedEvent():
+return creditKindChanged(_that);case SendFeedbackGithubQueryChangedEvent():
+return githubQueryChanged(_that);case SendFeedbackGithubUserPickedEvent():
+return githubUserPicked(_that);case SendFeedbackGithubUserClearedEvent():
+return githubUserCleared(_that);case SendFeedbackAppInfoToggledEvent():
 return appInfoToggled(_that);case SendFeedbackScreenshotRequestedEvent():
 return screenshotRequested(_that);case SendFeedbackScreenshotRemovedEvent():
 return screenshotRemoved(_that);case SendFeedbackSentToggledEvent():
@@ -113,7 +121,7 @@ return sendRequested(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SendFeedbackStartedEvent value)?  started,TResult? Function( SendFeedbackKindChangedEvent value)?  kindChanged,TResult? Function( SendFeedbackTextChangedEvent value)?  textChanged,TResult? Function( SendFeedbackCreditToggledEvent value)?  creditToggled,TResult? Function( SendFeedbackCreditNameChangedEvent value)?  creditNameChanged,TResult? Function( SendFeedbackAppInfoToggledEvent value)?  appInfoToggled,TResult? Function( SendFeedbackScreenshotRequestedEvent value)?  screenshotRequested,TResult? Function( SendFeedbackScreenshotRemovedEvent value)?  screenshotRemoved,TResult? Function( SendFeedbackSentToggledEvent value)?  sentToggled,TResult? Function( SendFeedbackSendRequestedEvent value)?  sendRequested,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SendFeedbackStartedEvent value)?  started,TResult? Function( SendFeedbackKindChangedEvent value)?  kindChanged,TResult? Function( SendFeedbackTextChangedEvent value)?  textChanged,TResult? Function( SendFeedbackCreditToggledEvent value)?  creditToggled,TResult? Function( SendFeedbackCreditNameChangedEvent value)?  creditNameChanged,TResult? Function( SendFeedbackCreditKindChangedEvent value)?  creditKindChanged,TResult? Function( SendFeedbackGithubQueryChangedEvent value)?  githubQueryChanged,TResult? Function( SendFeedbackGithubUserPickedEvent value)?  githubUserPicked,TResult? Function( SendFeedbackGithubUserClearedEvent value)?  githubUserCleared,TResult? Function( SendFeedbackAppInfoToggledEvent value)?  appInfoToggled,TResult? Function( SendFeedbackScreenshotRequestedEvent value)?  screenshotRequested,TResult? Function( SendFeedbackScreenshotRemovedEvent value)?  screenshotRemoved,TResult? Function( SendFeedbackSentToggledEvent value)?  sentToggled,TResult? Function( SendFeedbackSendRequestedEvent value)?  sendRequested,}){
 final _that = this;
 switch (_that) {
 case SendFeedbackStartedEvent() when started != null:
@@ -121,7 +129,11 @@ return started(_that);case SendFeedbackKindChangedEvent() when kindChanged != nu
 return kindChanged(_that);case SendFeedbackTextChangedEvent() when textChanged != null:
 return textChanged(_that);case SendFeedbackCreditToggledEvent() when creditToggled != null:
 return creditToggled(_that);case SendFeedbackCreditNameChangedEvent() when creditNameChanged != null:
-return creditNameChanged(_that);case SendFeedbackAppInfoToggledEvent() when appInfoToggled != null:
+return creditNameChanged(_that);case SendFeedbackCreditKindChangedEvent() when creditKindChanged != null:
+return creditKindChanged(_that);case SendFeedbackGithubQueryChangedEvent() when githubQueryChanged != null:
+return githubQueryChanged(_that);case SendFeedbackGithubUserPickedEvent() when githubUserPicked != null:
+return githubUserPicked(_that);case SendFeedbackGithubUserClearedEvent() when githubUserCleared != null:
+return githubUserCleared(_that);case SendFeedbackAppInfoToggledEvent() when appInfoToggled != null:
 return appInfoToggled(_that);case SendFeedbackScreenshotRequestedEvent() when screenshotRequested != null:
 return screenshotRequested(_that);case SendFeedbackScreenshotRemovedEvent() when screenshotRemoved != null:
 return screenshotRemoved(_that);case SendFeedbackSentToggledEvent() when sentToggled != null:
@@ -143,14 +155,18 @@ return sendRequested(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String screen)?  started,TResult Function( FeedbackKind kind)?  kindChanged,TResult Function( String text)?  textChanged,TResult Function( bool on)?  creditToggled,TResult Function( String name)?  creditNameChanged,TResult Function( bool on)?  appInfoToggled,TResult Function()?  screenshotRequested,TResult Function()?  screenshotRemoved,TResult Function()?  sentToggled,TResult Function()?  sendRequested,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String screen)?  started,TResult Function( FeedbackKind kind)?  kindChanged,TResult Function( String text)?  textChanged,TResult Function( bool on)?  creditToggled,TResult Function( String name)?  creditNameChanged,TResult Function( FeedbackCreditKind kind)?  creditKindChanged,TResult Function( String query)?  githubQueryChanged,TResult Function( FeedbackGithubUser user)?  githubUserPicked,TResult Function()?  githubUserCleared,TResult Function( bool on)?  appInfoToggled,TResult Function()?  screenshotRequested,TResult Function()?  screenshotRemoved,TResult Function()?  sentToggled,TResult Function()?  sendRequested,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case SendFeedbackStartedEvent() when started != null:
 return started(_that.screen);case SendFeedbackKindChangedEvent() when kindChanged != null:
 return kindChanged(_that.kind);case SendFeedbackTextChangedEvent() when textChanged != null:
 return textChanged(_that.text);case SendFeedbackCreditToggledEvent() when creditToggled != null:
 return creditToggled(_that.on);case SendFeedbackCreditNameChangedEvent() when creditNameChanged != null:
-return creditNameChanged(_that.name);case SendFeedbackAppInfoToggledEvent() when appInfoToggled != null:
+return creditNameChanged(_that.name);case SendFeedbackCreditKindChangedEvent() when creditKindChanged != null:
+return creditKindChanged(_that.kind);case SendFeedbackGithubQueryChangedEvent() when githubQueryChanged != null:
+return githubQueryChanged(_that.query);case SendFeedbackGithubUserPickedEvent() when githubUserPicked != null:
+return githubUserPicked(_that.user);case SendFeedbackGithubUserClearedEvent() when githubUserCleared != null:
+return githubUserCleared();case SendFeedbackAppInfoToggledEvent() when appInfoToggled != null:
 return appInfoToggled(_that.on);case SendFeedbackScreenshotRequestedEvent() when screenshotRequested != null:
 return screenshotRequested();case SendFeedbackScreenshotRemovedEvent() when screenshotRemoved != null:
 return screenshotRemoved();case SendFeedbackSentToggledEvent() when sentToggled != null:
@@ -173,14 +189,18 @@ return sendRequested();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String screen)  started,required TResult Function( FeedbackKind kind)  kindChanged,required TResult Function( String text)  textChanged,required TResult Function( bool on)  creditToggled,required TResult Function( String name)  creditNameChanged,required TResult Function( bool on)  appInfoToggled,required TResult Function()  screenshotRequested,required TResult Function()  screenshotRemoved,required TResult Function()  sentToggled,required TResult Function()  sendRequested,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String screen)  started,required TResult Function( FeedbackKind kind)  kindChanged,required TResult Function( String text)  textChanged,required TResult Function( bool on)  creditToggled,required TResult Function( String name)  creditNameChanged,required TResult Function( FeedbackCreditKind kind)  creditKindChanged,required TResult Function( String query)  githubQueryChanged,required TResult Function( FeedbackGithubUser user)  githubUserPicked,required TResult Function()  githubUserCleared,required TResult Function( bool on)  appInfoToggled,required TResult Function()  screenshotRequested,required TResult Function()  screenshotRemoved,required TResult Function()  sentToggled,required TResult Function()  sendRequested,}) {final _that = this;
 switch (_that) {
 case SendFeedbackStartedEvent():
 return started(_that.screen);case SendFeedbackKindChangedEvent():
 return kindChanged(_that.kind);case SendFeedbackTextChangedEvent():
 return textChanged(_that.text);case SendFeedbackCreditToggledEvent():
 return creditToggled(_that.on);case SendFeedbackCreditNameChangedEvent():
-return creditNameChanged(_that.name);case SendFeedbackAppInfoToggledEvent():
+return creditNameChanged(_that.name);case SendFeedbackCreditKindChangedEvent():
+return creditKindChanged(_that.kind);case SendFeedbackGithubQueryChangedEvent():
+return githubQueryChanged(_that.query);case SendFeedbackGithubUserPickedEvent():
+return githubUserPicked(_that.user);case SendFeedbackGithubUserClearedEvent():
+return githubUserCleared();case SendFeedbackAppInfoToggledEvent():
 return appInfoToggled(_that.on);case SendFeedbackScreenshotRequestedEvent():
 return screenshotRequested();case SendFeedbackScreenshotRemovedEvent():
 return screenshotRemoved();case SendFeedbackSentToggledEvent():
@@ -199,14 +219,18 @@ return sendRequested();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String screen)?  started,TResult? Function( FeedbackKind kind)?  kindChanged,TResult? Function( String text)?  textChanged,TResult? Function( bool on)?  creditToggled,TResult? Function( String name)?  creditNameChanged,TResult? Function( bool on)?  appInfoToggled,TResult? Function()?  screenshotRequested,TResult? Function()?  screenshotRemoved,TResult? Function()?  sentToggled,TResult? Function()?  sendRequested,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String screen)?  started,TResult? Function( FeedbackKind kind)?  kindChanged,TResult? Function( String text)?  textChanged,TResult? Function( bool on)?  creditToggled,TResult? Function( String name)?  creditNameChanged,TResult? Function( FeedbackCreditKind kind)?  creditKindChanged,TResult? Function( String query)?  githubQueryChanged,TResult? Function( FeedbackGithubUser user)?  githubUserPicked,TResult? Function()?  githubUserCleared,TResult? Function( bool on)?  appInfoToggled,TResult? Function()?  screenshotRequested,TResult? Function()?  screenshotRemoved,TResult? Function()?  sentToggled,TResult? Function()?  sendRequested,}) {final _that = this;
 switch (_that) {
 case SendFeedbackStartedEvent() when started != null:
 return started(_that.screen);case SendFeedbackKindChangedEvent() when kindChanged != null:
 return kindChanged(_that.kind);case SendFeedbackTextChangedEvent() when textChanged != null:
 return textChanged(_that.text);case SendFeedbackCreditToggledEvent() when creditToggled != null:
 return creditToggled(_that.on);case SendFeedbackCreditNameChangedEvent() when creditNameChanged != null:
-return creditNameChanged(_that.name);case SendFeedbackAppInfoToggledEvent() when appInfoToggled != null:
+return creditNameChanged(_that.name);case SendFeedbackCreditKindChangedEvent() when creditKindChanged != null:
+return creditKindChanged(_that.kind);case SendFeedbackGithubQueryChangedEvent() when githubQueryChanged != null:
+return githubQueryChanged(_that.query);case SendFeedbackGithubUserPickedEvent() when githubUserPicked != null:
+return githubUserPicked(_that.user);case SendFeedbackGithubUserClearedEvent() when githubUserCleared != null:
+return githubUserCleared();case SendFeedbackAppInfoToggledEvent() when appInfoToggled != null:
 return appInfoToggled(_that.on);case SendFeedbackScreenshotRequestedEvent() when screenshotRequested != null:
 return screenshotRequested();case SendFeedbackScreenshotRemovedEvent() when screenshotRemoved != null:
 return screenshotRemoved();case SendFeedbackSentToggledEvent() when sentToggled != null:
@@ -552,6 +576,245 @@ as String,
 /// @nodoc
 
 
+class SendFeedbackCreditKindChangedEvent implements SendFeedbackEvent {
+  const SendFeedbackCreditKindChangedEvent(this.kind);
+  
+
+ final  FeedbackCreditKind kind;
+
+/// Create a copy of SendFeedbackEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SendFeedbackCreditKindChangedEventCopyWith<SendFeedbackCreditKindChangedEvent> get copyWith => _$SendFeedbackCreditKindChangedEventCopyWithImpl<SendFeedbackCreditKindChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SendFeedbackCreditKindChangedEvent&&(identical(other.kind, kind) || other.kind == kind));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,kind);
+
+@override
+String toString() {
+  return 'SendFeedbackEvent.creditKindChanged(kind: $kind)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SendFeedbackCreditKindChangedEventCopyWith<$Res> implements $SendFeedbackEventCopyWith<$Res> {
+  factory $SendFeedbackCreditKindChangedEventCopyWith(SendFeedbackCreditKindChangedEvent value, $Res Function(SendFeedbackCreditKindChangedEvent) _then) = _$SendFeedbackCreditKindChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ FeedbackCreditKind kind
+});
+
+
+
+
+}
+/// @nodoc
+class _$SendFeedbackCreditKindChangedEventCopyWithImpl<$Res>
+    implements $SendFeedbackCreditKindChangedEventCopyWith<$Res> {
+  _$SendFeedbackCreditKindChangedEventCopyWithImpl(this._self, this._then);
+
+  final SendFeedbackCreditKindChangedEvent _self;
+  final $Res Function(SendFeedbackCreditKindChangedEvent) _then;
+
+/// Create a copy of SendFeedbackEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? kind = null,}) {
+  return _then(SendFeedbackCreditKindChangedEvent(
+null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
+as FeedbackCreditKind,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class SendFeedbackGithubQueryChangedEvent implements SendFeedbackEvent {
+  const SendFeedbackGithubQueryChangedEvent(this.query);
+  
+
+ final  String query;
+
+/// Create a copy of SendFeedbackEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SendFeedbackGithubQueryChangedEventCopyWith<SendFeedbackGithubQueryChangedEvent> get copyWith => _$SendFeedbackGithubQueryChangedEventCopyWithImpl<SendFeedbackGithubQueryChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SendFeedbackGithubQueryChangedEvent&&(identical(other.query, query) || other.query == query));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,query);
+
+@override
+String toString() {
+  return 'SendFeedbackEvent.githubQueryChanged(query: $query)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SendFeedbackGithubQueryChangedEventCopyWith<$Res> implements $SendFeedbackEventCopyWith<$Res> {
+  factory $SendFeedbackGithubQueryChangedEventCopyWith(SendFeedbackGithubQueryChangedEvent value, $Res Function(SendFeedbackGithubQueryChangedEvent) _then) = _$SendFeedbackGithubQueryChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ String query
+});
+
+
+
+
+}
+/// @nodoc
+class _$SendFeedbackGithubQueryChangedEventCopyWithImpl<$Res>
+    implements $SendFeedbackGithubQueryChangedEventCopyWith<$Res> {
+  _$SendFeedbackGithubQueryChangedEventCopyWithImpl(this._self, this._then);
+
+  final SendFeedbackGithubQueryChangedEvent _self;
+  final $Res Function(SendFeedbackGithubQueryChangedEvent) _then;
+
+/// Create a copy of SendFeedbackEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? query = null,}) {
+  return _then(SendFeedbackGithubQueryChangedEvent(
+null == query ? _self.query : query // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class SendFeedbackGithubUserPickedEvent implements SendFeedbackEvent {
+  const SendFeedbackGithubUserPickedEvent(this.user);
+  
+
+ final  FeedbackGithubUser user;
+
+/// Create a copy of SendFeedbackEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SendFeedbackGithubUserPickedEventCopyWith<SendFeedbackGithubUserPickedEvent> get copyWith => _$SendFeedbackGithubUserPickedEventCopyWithImpl<SendFeedbackGithubUserPickedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SendFeedbackGithubUserPickedEvent&&(identical(other.user, user) || other.user == user));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,user);
+
+@override
+String toString() {
+  return 'SendFeedbackEvent.githubUserPicked(user: $user)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SendFeedbackGithubUserPickedEventCopyWith<$Res> implements $SendFeedbackEventCopyWith<$Res> {
+  factory $SendFeedbackGithubUserPickedEventCopyWith(SendFeedbackGithubUserPickedEvent value, $Res Function(SendFeedbackGithubUserPickedEvent) _then) = _$SendFeedbackGithubUserPickedEventCopyWithImpl;
+@useResult
+$Res call({
+ FeedbackGithubUser user
+});
+
+
+$FeedbackGithubUserCopyWith<$Res> get user;
+
+}
+/// @nodoc
+class _$SendFeedbackGithubUserPickedEventCopyWithImpl<$Res>
+    implements $SendFeedbackGithubUserPickedEventCopyWith<$Res> {
+  _$SendFeedbackGithubUserPickedEventCopyWithImpl(this._self, this._then);
+
+  final SendFeedbackGithubUserPickedEvent _self;
+  final $Res Function(SendFeedbackGithubUserPickedEvent) _then;
+
+/// Create a copy of SendFeedbackEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? user = null,}) {
+  return _then(SendFeedbackGithubUserPickedEvent(
+null == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
+as FeedbackGithubUser,
+  ));
+}
+
+/// Create a copy of SendFeedbackEvent
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$FeedbackGithubUserCopyWith<$Res> get user {
+  
+  return $FeedbackGithubUserCopyWith<$Res>(_self.user, (value) {
+    return _then(_self.copyWith(user: value));
+  });
+}
+}
+
+/// @nodoc
+
+
+class SendFeedbackGithubUserClearedEvent implements SendFeedbackEvent {
+  const SendFeedbackGithubUserClearedEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SendFeedbackGithubUserClearedEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'SendFeedbackEvent.githubUserCleared()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
 class SendFeedbackAppInfoToggledEvent implements SendFeedbackEvent {
   const SendFeedbackAppInfoToggledEvent({required this.on});
   
@@ -747,7 +1010,8 @@ String toString() {
 mixin _$SendFeedbackState {
 
  FeedbackDraft get draft;/// The fixed screen the person came from.
- String get screen;/// Whether Show what's sent is open.
+ String get screen;/// What the GitHub picker shows under its search box.
+ FeedbackGithubSearch get githubSearch;/// Whether Show what's sent is open.
  bool get showSent;/// What a send would carry, while Show what's sent is open.
  FeedbackPayload get payload;/// The report is being saved and sent.
  bool get sending;/// The photo that was picked is over 5 MB.
@@ -764,16 +1028,16 @@ $SendFeedbackStateCopyWith<SendFeedbackState> get copyWith => _$SendFeedbackStat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SendFeedbackState&&(identical(other.draft, draft) || other.draft == draft)&&(identical(other.screen, screen) || other.screen == screen)&&(identical(other.showSent, showSent) || other.showSent == showSent)&&(identical(other.payload, payload) || other.payload == payload)&&(identical(other.sending, sending) || other.sending == sending)&&(identical(other.screenshotTooBig, screenshotTooBig) || other.screenshotTooBig == screenshotTooBig)&&(identical(other.result, result) || other.result == result));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SendFeedbackState&&(identical(other.draft, draft) || other.draft == draft)&&(identical(other.screen, screen) || other.screen == screen)&&(identical(other.githubSearch, githubSearch) || other.githubSearch == githubSearch)&&(identical(other.showSent, showSent) || other.showSent == showSent)&&(identical(other.payload, payload) || other.payload == payload)&&(identical(other.sending, sending) || other.sending == sending)&&(identical(other.screenshotTooBig, screenshotTooBig) || other.screenshotTooBig == screenshotTooBig)&&(identical(other.result, result) || other.result == result));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,draft,screen,showSent,payload,sending,screenshotTooBig,result);
+int get hashCode => Object.hash(runtimeType,draft,screen,githubSearch,showSent,payload,sending,screenshotTooBig,result);
 
 @override
 String toString() {
-  return 'SendFeedbackState(draft: $draft, screen: $screen, showSent: $showSent, payload: $payload, sending: $sending, screenshotTooBig: $screenshotTooBig, result: $result)';
+  return 'SendFeedbackState(draft: $draft, screen: $screen, githubSearch: $githubSearch, showSent: $showSent, payload: $payload, sending: $sending, screenshotTooBig: $screenshotTooBig, result: $result)';
 }
 
 
@@ -784,11 +1048,11 @@ abstract mixin class $SendFeedbackStateCopyWith<$Res>  {
   factory $SendFeedbackStateCopyWith(SendFeedbackState value, $Res Function(SendFeedbackState) _then) = _$SendFeedbackStateCopyWithImpl;
 @useResult
 $Res call({
- FeedbackDraft draft, String screen, bool showSent, FeedbackPayload payload, bool sending, bool screenshotTooBig, FeedbackSendResult? result
+ FeedbackDraft draft, String screen, FeedbackGithubSearch githubSearch, bool showSent, FeedbackPayload payload, bool sending, bool screenshotTooBig, FeedbackSendResult? result
 });
 
 
-$FeedbackDraftCopyWith<$Res> get draft;$FeedbackPayloadCopyWith<$Res> get payload;$FeedbackSendResultCopyWith<$Res>? get result;
+$FeedbackDraftCopyWith<$Res> get draft;$FeedbackGithubSearchCopyWith<$Res> get githubSearch;$FeedbackPayloadCopyWith<$Res> get payload;$FeedbackSendResultCopyWith<$Res>? get result;
 
 }
 /// @nodoc
@@ -801,11 +1065,12 @@ class _$SendFeedbackStateCopyWithImpl<$Res>
 
 /// Create a copy of SendFeedbackState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? draft = null,Object? screen = null,Object? showSent = null,Object? payload = null,Object? sending = null,Object? screenshotTooBig = null,Object? result = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? draft = null,Object? screen = null,Object? githubSearch = null,Object? showSent = null,Object? payload = null,Object? sending = null,Object? screenshotTooBig = null,Object? result = freezed,}) {
   return _then(_self.copyWith(
 draft: null == draft ? _self.draft : draft // ignore: cast_nullable_to_non_nullable
 as FeedbackDraft,screen: null == screen ? _self.screen : screen // ignore: cast_nullable_to_non_nullable
-as String,showSent: null == showSent ? _self.showSent : showSent // ignore: cast_nullable_to_non_nullable
+as String,githubSearch: null == githubSearch ? _self.githubSearch : githubSearch // ignore: cast_nullable_to_non_nullable
+as FeedbackGithubSearch,showSent: null == showSent ? _self.showSent : showSent // ignore: cast_nullable_to_non_nullable
 as bool,payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
 as FeedbackPayload,sending: null == sending ? _self.sending : sending // ignore: cast_nullable_to_non_nullable
 as bool,screenshotTooBig: null == screenshotTooBig ? _self.screenshotTooBig : screenshotTooBig // ignore: cast_nullable_to_non_nullable
@@ -821,6 +1086,15 @@ $FeedbackDraftCopyWith<$Res> get draft {
   
   return $FeedbackDraftCopyWith<$Res>(_self.draft, (value) {
     return _then(_self.copyWith(draft: value));
+  });
+}/// Create a copy of SendFeedbackState
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$FeedbackGithubSearchCopyWith<$Res> get githubSearch {
+  
+  return $FeedbackGithubSearchCopyWith<$Res>(_self.githubSearch, (value) {
+    return _then(_self.copyWith(githubSearch: value));
   });
 }/// Create a copy of SendFeedbackState
 /// with the given fields replaced by the non-null parameter values.
@@ -925,10 +1199,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( FeedbackDraft draft,  String screen,  bool showSent,  FeedbackPayload payload,  bool sending,  bool screenshotTooBig,  FeedbackSendResult? result)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( FeedbackDraft draft,  String screen,  FeedbackGithubSearch githubSearch,  bool showSent,  FeedbackPayload payload,  bool sending,  bool screenshotTooBig,  FeedbackSendResult? result)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SendFeedbackState() when $default != null:
-return $default(_that.draft,_that.screen,_that.showSent,_that.payload,_that.sending,_that.screenshotTooBig,_that.result);case _:
+return $default(_that.draft,_that.screen,_that.githubSearch,_that.showSent,_that.payload,_that.sending,_that.screenshotTooBig,_that.result);case _:
   return orElse();
 
 }
@@ -946,10 +1220,10 @@ return $default(_that.draft,_that.screen,_that.showSent,_that.payload,_that.send
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( FeedbackDraft draft,  String screen,  bool showSent,  FeedbackPayload payload,  bool sending,  bool screenshotTooBig,  FeedbackSendResult? result)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( FeedbackDraft draft,  String screen,  FeedbackGithubSearch githubSearch,  bool showSent,  FeedbackPayload payload,  bool sending,  bool screenshotTooBig,  FeedbackSendResult? result)  $default,) {final _that = this;
 switch (_that) {
 case _SendFeedbackState():
-return $default(_that.draft,_that.screen,_that.showSent,_that.payload,_that.sending,_that.screenshotTooBig,_that.result);case _:
+return $default(_that.draft,_that.screen,_that.githubSearch,_that.showSent,_that.payload,_that.sending,_that.screenshotTooBig,_that.result);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -966,10 +1240,10 @@ return $default(_that.draft,_that.screen,_that.showSent,_that.payload,_that.send
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( FeedbackDraft draft,  String screen,  bool showSent,  FeedbackPayload payload,  bool sending,  bool screenshotTooBig,  FeedbackSendResult? result)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( FeedbackDraft draft,  String screen,  FeedbackGithubSearch githubSearch,  bool showSent,  FeedbackPayload payload,  bool sending,  bool screenshotTooBig,  FeedbackSendResult? result)?  $default,) {final _that = this;
 switch (_that) {
 case _SendFeedbackState() when $default != null:
-return $default(_that.draft,_that.screen,_that.showSent,_that.payload,_that.sending,_that.screenshotTooBig,_that.result);case _:
+return $default(_that.draft,_that.screen,_that.githubSearch,_that.showSent,_that.payload,_that.sending,_that.screenshotTooBig,_that.result);case _:
   return null;
 
 }
@@ -981,12 +1255,14 @@ return $default(_that.draft,_that.screen,_that.showSent,_that.payload,_that.send
 
 
 class _SendFeedbackState implements SendFeedbackState {
-  const _SendFeedbackState({this.draft = const FeedbackDraft(), this.screen = 'settings', this.showSent = false, this.payload = const FeedbackPayload(), this.sending = false, this.screenshotTooBig = false, this.result});
+  const _SendFeedbackState({this.draft = const FeedbackDraft(), this.screen = 'settings', this.githubSearch = const FeedbackGithubSearch.idle(), this.showSent = false, this.payload = const FeedbackPayload(), this.sending = false, this.screenshotTooBig = false, this.result});
   
 
 @override@JsonKey() final  FeedbackDraft draft;
 /// The fixed screen the person came from.
 @override@JsonKey() final  String screen;
+/// What the GitHub picker shows under its search box.
+@override@JsonKey() final  FeedbackGithubSearch githubSearch;
 /// Whether Show what's sent is open.
 @override@JsonKey() final  bool showSent;
 /// What a send would carry, while Show what's sent is open.
@@ -1009,16 +1285,16 @@ _$SendFeedbackStateCopyWith<_SendFeedbackState> get copyWith => __$SendFeedbackS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SendFeedbackState&&(identical(other.draft, draft) || other.draft == draft)&&(identical(other.screen, screen) || other.screen == screen)&&(identical(other.showSent, showSent) || other.showSent == showSent)&&(identical(other.payload, payload) || other.payload == payload)&&(identical(other.sending, sending) || other.sending == sending)&&(identical(other.screenshotTooBig, screenshotTooBig) || other.screenshotTooBig == screenshotTooBig)&&(identical(other.result, result) || other.result == result));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SendFeedbackState&&(identical(other.draft, draft) || other.draft == draft)&&(identical(other.screen, screen) || other.screen == screen)&&(identical(other.githubSearch, githubSearch) || other.githubSearch == githubSearch)&&(identical(other.showSent, showSent) || other.showSent == showSent)&&(identical(other.payload, payload) || other.payload == payload)&&(identical(other.sending, sending) || other.sending == sending)&&(identical(other.screenshotTooBig, screenshotTooBig) || other.screenshotTooBig == screenshotTooBig)&&(identical(other.result, result) || other.result == result));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,draft,screen,showSent,payload,sending,screenshotTooBig,result);
+int get hashCode => Object.hash(runtimeType,draft,screen,githubSearch,showSent,payload,sending,screenshotTooBig,result);
 
 @override
 String toString() {
-  return 'SendFeedbackState(draft: $draft, screen: $screen, showSent: $showSent, payload: $payload, sending: $sending, screenshotTooBig: $screenshotTooBig, result: $result)';
+  return 'SendFeedbackState(draft: $draft, screen: $screen, githubSearch: $githubSearch, showSent: $showSent, payload: $payload, sending: $sending, screenshotTooBig: $screenshotTooBig, result: $result)';
 }
 
 
@@ -1029,11 +1305,11 @@ abstract mixin class _$SendFeedbackStateCopyWith<$Res> implements $SendFeedbackS
   factory _$SendFeedbackStateCopyWith(_SendFeedbackState value, $Res Function(_SendFeedbackState) _then) = __$SendFeedbackStateCopyWithImpl;
 @override @useResult
 $Res call({
- FeedbackDraft draft, String screen, bool showSent, FeedbackPayload payload, bool sending, bool screenshotTooBig, FeedbackSendResult? result
+ FeedbackDraft draft, String screen, FeedbackGithubSearch githubSearch, bool showSent, FeedbackPayload payload, bool sending, bool screenshotTooBig, FeedbackSendResult? result
 });
 
 
-@override $FeedbackDraftCopyWith<$Res> get draft;@override $FeedbackPayloadCopyWith<$Res> get payload;@override $FeedbackSendResultCopyWith<$Res>? get result;
+@override $FeedbackDraftCopyWith<$Res> get draft;@override $FeedbackGithubSearchCopyWith<$Res> get githubSearch;@override $FeedbackPayloadCopyWith<$Res> get payload;@override $FeedbackSendResultCopyWith<$Res>? get result;
 
 }
 /// @nodoc
@@ -1046,11 +1322,12 @@ class __$SendFeedbackStateCopyWithImpl<$Res>
 
 /// Create a copy of SendFeedbackState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? draft = null,Object? screen = null,Object? showSent = null,Object? payload = null,Object? sending = null,Object? screenshotTooBig = null,Object? result = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? draft = null,Object? screen = null,Object? githubSearch = null,Object? showSent = null,Object? payload = null,Object? sending = null,Object? screenshotTooBig = null,Object? result = freezed,}) {
   return _then(_SendFeedbackState(
 draft: null == draft ? _self.draft : draft // ignore: cast_nullable_to_non_nullable
 as FeedbackDraft,screen: null == screen ? _self.screen : screen // ignore: cast_nullable_to_non_nullable
-as String,showSent: null == showSent ? _self.showSent : showSent // ignore: cast_nullable_to_non_nullable
+as String,githubSearch: null == githubSearch ? _self.githubSearch : githubSearch // ignore: cast_nullable_to_non_nullable
+as FeedbackGithubSearch,showSent: null == showSent ? _self.showSent : showSent // ignore: cast_nullable_to_non_nullable
 as bool,payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
 as FeedbackPayload,sending: null == sending ? _self.sending : sending // ignore: cast_nullable_to_non_nullable
 as bool,screenshotTooBig: null == screenshotTooBig ? _self.screenshotTooBig : screenshotTooBig // ignore: cast_nullable_to_non_nullable
@@ -1067,6 +1344,15 @@ $FeedbackDraftCopyWith<$Res> get draft {
   
   return $FeedbackDraftCopyWith<$Res>(_self.draft, (value) {
     return _then(_self.copyWith(draft: value));
+  });
+}/// Create a copy of SendFeedbackState
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$FeedbackGithubSearchCopyWith<$Res> get githubSearch {
+  
+  return $FeedbackGithubSearchCopyWith<$Res>(_self.githubSearch, (value) {
+    return _then(_self.copyWith(githubSearch: value));
   });
 }/// Create a copy of SendFeedbackState
 /// with the given fields replaced by the non-null parameter values.

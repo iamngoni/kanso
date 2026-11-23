@@ -172,13 +172,23 @@ pub struct ScreenshotDecl {
     pub sha256: String,
 }
 
+/// How the person asked to be credited if their report is fixed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Credit {
+    /// A plain name, written as itself in the issue. Never a mention.
+    Name(String),
+    /// A GitHub login picked from the search. The issue says `@login`, so
+    /// GitHub notifies them.
+    Github(String),
+}
+
 /// What the person filled in.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Draft {
     pub kind: Kind,
     pub text: String,
-    /// `Some` when "Credit me by name" is on.
-    pub credit_name: Option<String>,
+    /// `Some` when "Credit me" is on.
+    pub credit: Option<Credit>,
     pub screenshot: Option<ScreenshotDecl>,
 }
 
@@ -193,6 +203,8 @@ pub enum DraftError {
     BadCharacter,
     /// The credit name is blank, over 39 characters or has a forbidden one.
     BadCredit,
+    /// The GitHub login to credit is missing or isn't a GitHub login.
+    BadGithubUser,
     /// The image is over 5 MB, empty, or not a PNG or a JPEG.
     BadScreenshot,
     /// The id is not `fb_` and 26 base32 characters.
