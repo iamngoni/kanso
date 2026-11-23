@@ -3,6 +3,32 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.10.12](https://github.com/iamngoni/kanso/compare/v0.10.11...v0.10.12) - 2026-11-23
+
+### New
+
+- Kanso Nightly as a separate auto-updating desktop app ([c9107b8](https://github.com/iamngoni/kanso/commit/c9107b89d7e77d00bbea7bea13a21ed4ae392824))
+- **desktop:** Sort the sidebar's notebooks list ([#485](https://github.com/iamngoni/kanso/pull/485)) ([#490](https://github.com/iamngoni/kanso/pull/490)) ([557d7c6](https://github.com/iamngoni/kanso/commit/557d7c64b9afb50de87281f5079473960eae1030))
+- **cloud:** Read feedback reports and screenshots through admin routes ([#493](https://github.com/iamngoni/kanso/pull/493)) ([bb4b2ad](https://github.com/iamngoni/kanso/commit/bb4b2ad0675215aedc2fcf94172752189a99c0a0))
+- **site:** Offer Kanso Nightly on the download page ([#494](https://github.com/iamngoni/kanso/pull/494)) ([e8e2635](https://github.com/iamngoni/kanso/commit/e8e2635eae7068be815ed2e4c9c090e835b5fa25))
+- **desktop:** Download Google Fonts in Settings › Editor ([#495](https://github.com/iamngoni/kanso/pull/495)) ([d752415](https://github.com/iamngoni/kanso/commit/d75241592321ce726a10c4b3cc80c84c3b63149f))
+- **desktop:** Remove a downloaded Google Font from Settings ([#497](https://github.com/iamngoni/kanso/pull/497)) ([3610c7a](https://github.com/iamngoni/kanso/commit/3610c7a6454f3ef3ca2ddb1c1087c7bb070af3b8))
+- **mobile:** Sort the notebooks list ([#498](https://github.com/iamngoni/kanso/pull/498)) ([8327bb0](https://github.com/iamngoni/kanso/commit/8327bb0ffe06796a925bb0887e1578b56f8097c3))
+- **feedback:** Credit a reporter by GitHub username ([#499](https://github.com/iamngoni/kanso/pull/499)) ([ba2efa3](https://github.com/iamngoni/kanso/commit/ba2efa31c455c84c981c0e83c907521e6575b533))
+- **desktop:** Choose the model an ACP agent uses ([#500](https://github.com/iamngoni/kanso/pull/500)) ([bce6827](https://github.com/iamngoni/kanso/commit/bce6827e0e846dfd75b0a37cbbbd6f3feea42c5e))
+
+### Fixed
+
+- **nightly:** Schedule at 02:00 UTC and feed notes from merged PRs ([1ad54e7](https://github.com/iamngoni/kanso/commit/1ad54e7989ec09af77757a41ef40cd60a1d2fc12))
+- **nightly:** Gate build jobs on build == '1', which the plan step outputs ([#489](https://github.com/iamngoni/kanso/pull/489)) ([9355f27](https://github.com/iamngoni/kanso/commit/9355f270cef84699c25e88a2bd0d09ecc18e9582))
+- **desktop:** Draw a code span's box around its text when the font reports no cap height ([#491](https://github.com/iamngoni/kanso/pull/491)) ([cec7d39](https://github.com/iamngoni/kanso/commit/cec7d3965544bf16401632fb54a2b12fa1a62a0d))
+- **nightly:** Harden the Kanso Nightly pipeline ([#492](https://github.com/iamngoni/kanso/pull/492)) ([d1e6ffa](https://github.com/iamngoni/kanso/commit/d1e6ffa501f802a47db3135f1aa946bbc3d694a8))
+
+### Under the hood
+
+- **nightly:** Trust the Kanso Nightly update signing key ([#488](https://github.com/iamngoni/kanso/pull/488)) ([712b291](https://github.com/iamngoni/kanso/commit/712b291ac4cf6198caacd6813071a1f47ddd2d13))
+- **gallery:** Restore the default themes' source in the builder fixture ([#501](https://github.com/iamngoni/kanso/pull/501)) ([e82086a](https://github.com/iamngoni/kanso/commit/e82086a53c2272baa04d0fd701b74d4d4bb80442))
+
 ## [0.10.11](https://github.com/iamngoni/kanso/compare/v0.10.10...v0.10.11) - 2026-11-20
 
 ### New
