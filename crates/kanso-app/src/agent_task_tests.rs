@@ -118,6 +118,7 @@ fn an_acp_agent_proposes_a_merge_through_the_real_notes_server() {
         ),
         args: vec!["task-e2e".into()],
         env: Vec::new(),
+        model: None,
         workspace: lib.dir.path().join("agents").join("workspace"),
     };
     let tasks = Tasks::default();
@@ -635,6 +636,7 @@ fn report_driver(
         args: vec![name.into()],
         env: Vec::new(),
         workspace: lib.dir.path().join("agents").join("workspace"),
+        model: None,
     };
     let access = crate::agent_task_panel::task_access(
         open,
@@ -1031,6 +1033,7 @@ fn start_acp(
         args: Vec::new(),
         env: Vec::new(),
         workspace: lib.dir.path().join("agents").join("workspace"),
+        model: None,
     };
     let conversation = Arc::new(Mutex::new(None));
     let keep = conversation.clone();

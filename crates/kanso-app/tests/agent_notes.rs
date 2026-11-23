@@ -180,6 +180,7 @@ fn answers_through(script: Script, via: &str) {
                 .into_owned(),
         ),
         args: vec![via.to_owned()],
+        model: None,
         env: Vec::new(),
         workspace: dir.path().join("agents").join("workspace"),
     };
@@ -267,6 +268,7 @@ fn an_expired_token_starts_a_new_session_rather_than_widening_the_old() {
         args: vec!["expiry".to_owned()],
         env: Vec::new(),
         workspace: dir.path().join("agents").join("workspace"),
+        model: None,
     };
     let conversation = agent::conversation_with(
         &settings,

@@ -23,6 +23,7 @@ use kanso_acp::{
     AcpError, AcpEvent, AgentInfo, AgentProcess, AgentSpec, Limits, McpServer, PermissionPolicy,
     Session, StopReason,
 };
+pub use kanso_acp::{ModelCatalog, ModelChoice};
 
 pub use kanso_acp::AgentKind;
 
@@ -167,6 +168,10 @@ pub struct AgentSettings {
     pub env: Vec<(String, String)>,
     /// The empty private folder the agent starts in.
     pub workspace: PathBuf,
+    /// The model the person chose for this agent, by the id the agent
+    /// itself listed; `None` is the agent's own default. Applied to each
+    /// session as it opens ([`apply_model`]).
+    pub model: Option<String>,
 }
 
 impl AgentSettings {
@@ -519,6 +524,60 @@ impl ChatProvider for AgentProvider {
     }
 }
 
+/// What a person is told when the model they chose is gone: it matches
+/// [`Trouble::AgentModelGone`](crate::trouble::Trouble).
+pub fn model_gone_note(label: &str, model: &str) -> String {
+    format!("{label} no longer offers the model {model}, so it's using its own default.")
+}
+
+/// Switches a session just opened to the model the person chose for the
+/// agent. `None` when nothing needed saying: no model chosen, or the session
+/// already runs it. Else the note for the person: the agent no longer offers
+/// the model (or lists none, or refused), and the session keeps the agent's
+/// own default.
+fn apply_model(settings: &AgentSettings, session: &mut Session) -> Option<String> {
+    let model = settings.model.as_deref().filter(|id| !id.is_empty())?;
+    if session.models().and_then(ModelCatalog::current) == Some(model) {
+        return None;
+    }
+    match session.set_model(model) {
+        Ok(()) => None,
+        Err(_) => Some(model_gone_note(&settings.label(), model)),
+    }
+}
+
+/// The models `settings`' agent offers, from a session opened only to ask:
+/// no model is applied and no prompt is sent. `Ok(None)` when the agent
+/// lists none. Runs on its own agent process, not the one answering
+/// questions, so Settings can ask while a conversation goes on.
+pub fn list_models(settings: &AgentSettings) -> Result<Option<ModelCatalog>, AiError> {
+    list_models_on(
+        Host::new(settings.clone(), Limits::default(), launch()),
+        settings,
+    )
+}
+
+/// [`list_models`] on an agent started by `starter`, for tests.
+pub fn list_models_with(
+    settings: &AgentSettings,
+    limits: Limits,
+    starter: Starter,
+) -> Result<Option<ModelCatalog>, AiError> {
+    list_models_on(Host::new(settings.clone(), limits, starter), settings)
+}
+
+fn list_models_on(
+    host: Arc<Host>,
+    settings: &AgentSettings,
+) -> Result<Option<ModelCatalog>, AiError> {
+    let mut state = lock(&host.state);
+    let process = host.process(&mut state, || {})?;
+    match process.new_session(&settings.workspace) {
+        Ok(session) => Ok(session.models().cloned()),
+        Err(err) => Err(AiError::Agent(turn_error(settings, process, &err))),
+    }
+}
+
 /// One question on the agent, from start to its last event. Holding the
 /// host's state for the whole turn is what makes it one question at a time.
 fn run_turn(host: &Host, text: &str, stop: Arc<AtomicBool>, tx: &mpsc::Sender<Event>) {
@@ -536,7 +595,7 @@ fn run_turn(host: &Host, text: &str, stop: Arc<AtomicBool>, tx: &mpsc::Sender<Ev
     if stop.load(Ordering::Relaxed) {
         return;
     }
-    let session = match process.new_session(&host.settings.workspace) {
+    let mut session = match process.new_session(&host.settings.workspace) {
         Ok(session) => session,
         Err(err) => {
             tx.send(Event::Error(turn_error(&host.settings, process, &err)))
@@ -544,6 +603,9 @@ fn run_turn(host: &Host, text: &str, stop: Arc<AtomicBool>, tx: &mpsc::Sender<Ev
             return;
         }
     };
+    if let Some(note) = apply_model(&host.settings, &mut session) {
+        tx.send(Event::Status(note)).ok();
+    }
     let turn = match session.prompt(text, Some(stop.clone())) {
         Ok(turn) => turn,
         Err(err) => {
@@ -653,6 +715,9 @@ struct ConversationState {
     /// The excerpts the next question's prompt numbered, handed to the
     /// lease once its turn begins.
     seed: Vec<SentExcerpt>,
+    /// What to tell the person before the next answer: the model they chose
+    /// wasn't there when the session opened.
+    notice: Option<String>,
 }
 
 impl ConversationState {
@@ -827,7 +892,8 @@ impl Conversation {
             .and_then(|grant| notes_server(grant, process.info().mcp_http));
         let servers: Vec<McpServer> = server.into_iter().collect();
         match process.load_session(acp_session_id, &host.settings.workspace, &servers) {
-            Ok(session) => {
+            Ok(mut session) => {
+                state.notice = apply_model(&host.settings, &mut session);
                 *lock(&self.session_id) = Some(session.id().to_owned());
                 state.session = Some(session);
                 state.generation = generation;
@@ -888,7 +954,8 @@ impl Conversation {
                 .and_then(|grant| notes_server(grant, process.info().mcp_http));
             let servers: Vec<McpServer> = server.into_iter().collect();
             match process.new_session_with(&host.settings.workspace, &servers) {
-                Ok(session) => {
+                Ok(mut session) => {
+                    state.notice = apply_model(&host.settings, &mut session);
                     *lock(&self.session_id) = Some(session.id().to_owned());
                     state.session = Some(session);
                     state.generation = generation;
@@ -903,6 +970,9 @@ impl Conversation {
                     return;
                 }
             }
+        }
+        if let Some(note) = state.notice.take() {
+            tx.send(Event::Status(note)).ok();
         }
         if let Some(lease) = &state.lease {
             lease.begin_turn();
@@ -1367,6 +1437,7 @@ mod tests {
                 args: Vec::new(),
                 env: Vec::new(),
                 workspace: nowhere.clone(),
+                model: None,
             };
             let err = settings
                 .spec_in(std::slice::from_ref(&nowhere))
@@ -1381,6 +1452,7 @@ mod tests {
             args: Vec::new(),
             env: Vec::new(),
             workspace: nowhere.clone(),
+            model: None,
         };
         let err = known.spec_in(&[nowhere]).unwrap_err().to_string();
         assert_eq!(err, "Codex isn't installed. Settings › AI has the command.");
@@ -1398,6 +1470,7 @@ mod tests {
             args: Vec::new(),
             env: Vec::new(),
             workspace: home.join("ws"),
+            model: None,
         };
         let report = super::report(&settings, "1.0.0", Some(&home), None);
         std::fs::remove_dir_all(&home).ok();
@@ -1465,6 +1538,7 @@ mod tests {
             args: Vec::new(),
             env: Vec::new(),
             workspace: std::env::temp_dir(),
+            model: None,
         };
         assert_eq!(settings.label(), "Codex");
         settings.kind = AgentKind::Custom;

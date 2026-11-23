@@ -30,6 +30,8 @@ pub enum Trouble {
     AgentNeedsNode,
     /// The agent needs the person to sign in.
     AgentNeedsSignIn,
+    /// The model chosen for the agent is no longer one it offers.
+    AgentModelGone,
     /// The model can't use tools, and the task needs them.
     NoTools,
     /// The provider account needs more credits or a billing change.
@@ -95,6 +97,7 @@ impl Trouble {
             Trouble::AgentNotInstalled => "agent_not_installed",
             Trouble::AgentNeedsNode => "agent_needs_node",
             Trouble::AgentNeedsSignIn => "agent_needs_sign_in",
+            Trouble::AgentModelGone => "agent_model_gone",
             Trouble::NoTools => "no_tools",
             Trouble::Billing => "billing",
             Trouble::Busy => "busy",
@@ -154,6 +157,11 @@ impl Trouble {
             Trouble::AgentNeedsSignIn => (
                 "Your agent needs you to sign in",
                 "Sign in to your agent, then try again.".to_owned(),
+            ),
+            Trouble::AgentModelGone => (
+                "Your agent no longer offers that model",
+                "It's using its own default model instead. Pick another in Settings › AI."
+                    .to_owned(),
             ),
             Trouble::NoTools => (
                 "This model can't use tools",
@@ -283,6 +291,8 @@ pub fn classify(raw: &str) -> Trouble {
         Trouble::MissingUrl
     } else if has(&["set the agent's command", "no agent"]) {
         Trouble::NoAgent
+    } else if has(&["no longer offers the model"]) {
+        Trouble::AgentModelGone
     } else if has(&["can't use tools"]) {
         Trouble::NoTools
     } else if has(&["needs you to sign in", "needs you to log in"]) {
@@ -516,6 +526,7 @@ mod tests {
             args: Vec::new(),
             env: Vec::new(),
             workspace: std::env::temp_dir(),
+            model: None,
         };
         let err = settings.spec().expect_err("no command");
         assert_eq!(kind_of(&err), Trouble::NoAgent);

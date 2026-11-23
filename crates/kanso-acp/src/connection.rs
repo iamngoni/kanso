@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 
 use crate::framing::{FrameError, LineFramer};
+use crate::models::{ModelCatalog, ModelSwitch, parse_models};
 use crate::process::{self, AgentSpec, ChildGuard, StderrRing};
 use crate::{
     AUTH_REQUIRED, AcpError, AcpEvent, Limits, METHOD_NOT_FOUND, PROTOCOL_VERSION, Stage,
@@ -1000,7 +1001,9 @@ impl AgentProcess {
     }
 
     /// The [`Session`] for `id`, from the answer to `session/new` or
-    /// `session/load`, switched to the safest mode the agent offers.
+    /// `session/load`, switched to the safest mode the agent offers. The
+    /// models the agent listed are kept; the model is left as the agent
+    /// opened it until [`Session::set_model`].
     fn open_session(&self, id: String, result: &Value) -> Result<Session, AcpError> {
         let modes: Vec<SessionMode> = result
             .pointer("/modes/availableModes")
@@ -1027,6 +1030,7 @@ impl AgentProcess {
             id,
             modes,
             mode: current,
+            models: parse_models(result),
             close: self.info.close_session,
         };
         if let Some(safest) = safest_mode(&session.modes, session.mode.as_deref()) {
@@ -1169,6 +1173,8 @@ pub struct Session {
     id: String,
     modes: Vec<SessionMode>,
     mode: Option<String>,
+    /// The models the agent listed when it opened the session, if it did.
+    models: Option<ModelCatalog>,
     close: bool,
 }
 
@@ -1184,6 +1190,48 @@ impl Session {
 
     pub fn modes(&self) -> &[SessionMode] {
         &self.modes
+    }
+
+    /// The models the agent offers this session, with the one it runs now;
+    /// `None` when the agent doesn't list any.
+    pub fn models(&self) -> Option<&ModelCatalog> {
+        self.models.as_ref()
+    }
+
+    /// Switches the session to the model `id`, the way the agent said it
+    /// can: `session/set_config_option` on its model option, else
+    /// `session/set_model`. Only an id the agent listed is sent; any other
+    /// is an [`AcpError::Agent`] with [`INVALID_PARAMS`](crate::INVALID_PARAMS)
+    /// and nothing goes out. An agent that refuses the switch answers with
+    /// its own error and the session keeps the model it had.
+    pub fn set_model(&mut self, id: &str) -> Result<(), AcpError> {
+        let Some(catalog) = self.models.clone().filter(|catalog| catalog.offers(id)) else {
+            return Err(AcpError::Agent {
+                code: crate::INVALID_PARAMS,
+                message: "The agent doesn't offer this model.".to_owned(),
+            });
+        };
+        let (method, params) = match catalog.switch() {
+            ModelSwitch::ConfigOption { config_id } => (
+                "session/set_config_option",
+                json!({ "sessionId": self.id, "configId": config_id, "value": id }),
+            ),
+            ModelSwitch::SetModel => (
+                "session/set_model",
+                json!({ "sessionId": self.id, "modelId": id }),
+            ),
+        };
+        let answer = self.shared.request(
+            method,
+            params,
+            self.shared.limits.session_new,
+            Stage::SessionNew,
+        )?;
+        // `set_config_option` answers with the options as they are now,
+        // which may list other models than before; the older request answers
+        // with nothing.
+        self.models = Some(parse_models(&answer).unwrap_or_else(|| catalog.with_current(id)));
+        Ok(())
     }
 
     /// Sends `text` as one text block and returns the turn as it arrives.

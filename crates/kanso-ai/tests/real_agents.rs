@@ -34,6 +34,7 @@ fn settings(kind: AgentKind) -> AgentSettings {
         args: Vec::new(),
         env: Vec::new(),
         workspace: std::env::temp_dir().join("kanso-real-agent-matrix"),
+        model: None,
     }
 }
 

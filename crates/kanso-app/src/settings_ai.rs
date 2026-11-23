@@ -14,6 +14,7 @@ use gpui_kit::component::{Sizable as _, h_flex, v_flex};
 use gpui_kit::*;
 use kanso_acp::Detection;
 use kanso_acp::registry::{Distribution, RegistryAgent};
+use kanso_ai::agent::ModelCatalog;
 use kanso_ai::{AgentCheck, AgentKind, ClientSettings, Provider};
 use kanso_sync::SecretStore;
 
@@ -113,7 +114,56 @@ pub(crate) enum Install {
     Failed(String),
 }
 
+/// What asking an agent for its models found: the list, `None` when it
+/// lists none, or why asking failed.
+pub(crate) type ModelsFound = Result<Option<ModelCatalog>, String>;
+
+/// What the model dropdown offers for an agent: "Agent default" first, then
+/// each model the agent listed as `(id, name)`. A model chosen earlier that
+/// the agent no longer lists stays, marked, so the person sees what is set.
+pub(crate) fn model_items(
+    found: Option<&ModelsFound>,
+    chosen: Option<&str>,
+) -> Vec<(Option<String>, String)> {
+    let mut items = vec![(None, "Agent default".to_owned())];
+    if let Some(Ok(Some(catalog))) = found {
+        items.extend(
+            catalog
+                .choices()
+                .iter()
+                .map(|choice| (Some(choice.id.clone()), choice.name.clone())),
+        );
+    }
+    if let Some(id) = chosen
+        && !items.iter().any(|(have, _)| have.as_deref() == Some(id))
+    {
+        items.push((Some(id.to_owned()), format!("{id} · no longer offered")));
+    }
+    items
+}
+
+/// The line under the model row.
+pub(crate) fn model_detail(found: Option<&ModelsFound>, asking: bool) -> String {
+    match found {
+        _ if asking => "Asking the agent which models it offers…".to_owned(),
+        None => "Refresh asks the agent which models it offers.".to_owned(),
+        Some(Err(why)) => format!("Couldn't list the models: {why}"),
+        Some(Ok(None)) => {
+            "This agent doesn't list its models, so it uses its own default.".to_owned()
+        }
+        Some(Ok(Some(_))) => {
+            "The model this agent runs. Agent default leaves it to the agent.".to_owned()
+        }
+    }
+}
+
 pub struct AiPage {
+    /// The models each agent listed, by [`AgentChoice::agent_key`], from a
+    /// probe session; kept until Refresh.
+    models: std::collections::HashMap<String, ModelsFound>,
+    /// The agent key a probe is asking now.
+    models_asking: Option<String>,
+    models_task: Option<Task<()>>,
     base_url: Entity<InputState>,
     model: Entity<InputState>,
     key: Entity<InputState>,
@@ -198,6 +248,9 @@ impl AiPage {
         })
         .collect();
         let mut page = AiPage {
+            models: Default::default(),
+            models_asking: None,
+            models_task: None,
             base_url,
             model,
             key,
@@ -219,6 +272,7 @@ impl AiPage {
         };
         if ai.enabled && ai.backend == AiBackend::Agent {
             page.find_agents(cx);
+            page.load_models(false, cx);
         }
         page
     }
@@ -311,6 +365,9 @@ impl AiPage {
         if backend == AiBackend::Agent && self.detections.is_none() {
             self.find_agents(cx);
         }
+        if backend == AiBackend::Agent {
+            self.load_models(false, cx);
+        }
         cx.notify();
     }
 
@@ -344,6 +401,7 @@ impl AiPage {
         self.test = Test::NotRun;
         self.install = Install::Idle;
         self.task = None;
+        self.load_models(false, cx);
         cx.notify();
     }
 
@@ -458,6 +516,94 @@ impl AiPage {
         }
     }
 
+    /// Asks the chosen agent for its models on a probe session, unless it
+    /// was asked already (`refresh` asks again).
+    fn load_models(&mut self, refresh: bool, cx: &mut Context<Self>) {
+        let state = cx.global::<AppState>();
+        let key = state.config.ai.agent.agent_key();
+        if !refresh && (self.models.contains_key(&key) || self.models_asking.is_some()) {
+            return;
+        }
+        let mut settings = crate::ai_agent::agent_settings(&state.config.ai.agent, &state.data_dir);
+        settings.model = None;
+        self.models_asking = Some(key.clone());
+        cx.notify();
+        let probe = cx
+            .background_executor()
+            .spawn(async move { kanso_ai::agent::list_models(&settings) });
+        self.models_task = Some(cx.spawn(async move |this, cx| {
+            let found = probe.await.map_err(|err| err.to_string());
+            this.update(cx, |this, cx| {
+                this.models_task = None;
+                this.models_asking = None;
+                this.models.insert(key, found);
+                cx.notify();
+            })
+            .ok();
+        }));
+    }
+
+    /// Picks the model the chosen agent runs; `None` is its own default.
+    fn set_model(&mut self, model: Option<String>, cx: &mut Context<Self>) {
+        AppState::update_config(cx, |config| config.ai.agent.set_model(model.as_deref()));
+        // A running agent keeps the model its session opened with.
+        crate::ai_agent::stop_agents(cx);
+        cx.notify();
+    }
+
+    /// The model dropdown beside the agent, with Refresh.
+    fn agent_model_row(&self, ai: &AiSettings, cx: &mut Context<Self>) -> Row {
+        let view = cx.entity();
+        let key = ai.agent.agent_key();
+        let found = self.models.get(&key);
+        let asking = self.models_asking.as_deref() == Some(key.as_str());
+        let chosen = ai.agent.model().map(str::to_owned);
+        let items = model_items(found, chosen.as_deref());
+        let label = items
+            .iter()
+            .find(|(id, _)| *id == chosen)
+            .map(|(_, name)| name.clone())
+            .unwrap_or_else(|| "Agent default".to_owned());
+        let picker = {
+            let view = view.clone();
+            let chosen = chosen.clone();
+            Button::new("ai-agent-model")
+                .debug_selector(|| "ai-agent-model".into())
+                .outline()
+                .small()
+                .label(label)
+                .dropdown_caret(true)
+                .dropdown_menu(move |mut menu, _, _| {
+                    for (id, name) in &items {
+                        let view = view.clone();
+                        let pick = id.clone();
+                        menu = menu.item(
+                            PopupMenuItem::new(name.clone())
+                                .checked(*id == chosen)
+                                .on_click(move |_, _, cx| {
+                                    let pick = pick.clone();
+                                    view.update(cx, |this, cx| this.set_model(pick, cx));
+                                }),
+                        );
+                    }
+                    menu
+                })
+        };
+        let refresh = {
+            let view = view.clone();
+            Button::new("ai-agent-model-refresh")
+                .debug_selector(|| "ai-agent-model-refresh".into())
+                .ghost()
+                .small()
+                .label("Refresh")
+                .disabled(self.models_asking.is_some())
+                .on_click(move |_, _, cx| view.update(cx, |this, cx| this.load_models(true, cx)))
+        };
+        Row::new(gpui_kit::assets::IconName::Sparkles, "Model")
+            .detail(model_detail(found, asking))
+            .trailing(h_flex().gap(px(6.)).child(refresh).child(picker))
+    }
+
     fn set_agent(&mut self, kind: AgentKind, cx: &mut Context<Self>) {
         AppState::update_config(cx, |config| {
             config.ai.agent.kind = kind;
@@ -468,6 +614,7 @@ impl AiPage {
         self.test = Test::NotRun;
         self.install = Install::Idle;
         self.task = None;
+        self.load_models(false, cx);
         cx.notify();
     }
 
@@ -1522,6 +1669,7 @@ impl Render for AiPage {
             rows.push(self.backend_row(&ai, cx));
             if ai.backend == AiBackend::Agent {
                 rows.push(self.agent_row(&ai, cx));
+                rows.push(self.agent_model_row(&ai, cx));
                 if let Some(row) = self.install_row(&ai, cx) {
                     rows.push(row);
                 }
@@ -1586,8 +1734,8 @@ type ChoiceOption = (String, bool, Arc<dyn Fn(&mut App) + Send + Sync>);
 #[cfg(test)]
 mod tests {
     use super::{
-        Test, api_key_item, client_settings, join_args, read_from, ready_line, requests_line,
-        write_to,
+        ModelCatalog, ModelsFound, Test, api_key_item, client_settings, join_args, model_detail,
+        model_items, read_from, ready_line, requests_line, write_to,
     };
     use crate::config::AiSettings;
     use kanso_ai::Provider;
@@ -1641,6 +1789,72 @@ mod tests {
         assert!(line.contains("#ai-exclude"), "{line}");
         assert!(line.contains("Locked notes"), "{line}");
         assert!(line.contains("Kanso's servers"), "{line}");
+    }
+
+    fn catalog(ids: &[&str]) -> ModelCatalog {
+        use kanso_ai::agent::ModelChoice;
+        ModelCatalog::new(
+            ids.iter()
+                .map(|id| ModelChoice {
+                    id: (*id).to_owned(),
+                    name: id.to_uppercase(),
+                    description: None,
+                })
+                .collect(),
+            None,
+            kanso_acp::ModelSwitch::SetModel,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn the_model_list_starts_with_the_default_and_marks_a_vanished_choice() {
+        let found: ModelsFound = Ok(Some(catalog(&["opus", "sonnet"])));
+        let items = model_items(Some(&found), Some("opus"));
+        assert_eq!(items[0], (None, "Agent default".to_owned()));
+        assert_eq!(items.len(), 3);
+        let gone = model_items(Some(&found), Some("haiku"));
+        assert_eq!(
+            gone.last().unwrap(),
+            &(
+                Some("haiku".to_owned()),
+                "haiku · no longer offered".to_owned()
+            )
+        );
+        assert_eq!(model_items(None, None).len(), 1);
+    }
+
+    #[test]
+    fn the_model_line_tells_what_asking_found() {
+        assert!(model_detail(Some(&Ok(None)), false).contains("doesn't list its models"));
+        assert!(model_detail(Some(&Err("boom".into())), false).contains("boom"));
+        assert!(model_detail(None, true).contains("Asking"));
+        assert!(model_detail(None, false).contains("Refresh"));
+    }
+
+    proptest! {
+        /// The dropdown always opens on the default, never repeats an id,
+        /// and always holds the chosen model.
+        #[test]
+        fn prop_the_model_items_are_default_first_unique_and_hold_the_choice(
+            ids in prop::collection::vec("[a-z0-9-]{1,8}", 0..6),
+            chosen in prop::option::of("[a-z0-9-]{1,8}"),
+        ) {
+            let found: ModelsFound = Ok(if ids.is_empty() {
+                None
+            } else {
+                Some(catalog(&ids.iter().map(String::as_str).collect::<Vec<_>>()))
+            });
+            let items = model_items(Some(&found), chosen.as_deref());
+            prop_assert_eq!(&items[0].0, &None);
+            let mut seen = std::collections::HashSet::new();
+            for (id, _) in &items {
+                prop_assert!(seen.insert(id.clone()));
+            }
+            if let Some(chosen) = chosen {
+                prop_assert!(items.iter().any(|(id, _)| id.as_deref() == Some(chosen.as_str())));
+            }
+        }
     }
 
     #[test]

@@ -278,6 +278,7 @@ pub(crate) mod testing {
             args: Vec::new(),
             env: Vec::new(),
             workspace: std::env::temp_dir().join(format!("kanso-feature-agent-{name}")),
+            model: None,
         };
         kanso_ai::agent::agent_client_with(
             &settings,

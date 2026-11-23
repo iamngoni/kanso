@@ -177,6 +177,7 @@ pub fn agent_settings(choice: &AgentChoice, data_dir: &Path) -> AgentSettings {
             .map(|(name, value)| (name.clone(), value.clone()))
             .collect(),
         workspace: workspace(data_dir),
+        model: choice.model().map(str::to_owned),
     }
 }
 
