@@ -2471,7 +2471,10 @@ impl<M: InputModeKind> TextElement<M> {
                                 background: chip.background,
                                 radius: chip.radius,
                                 height: chip.height,
-                                cap_height: window.text_system().cap_height(font, size),
+                                cap_height: crate::text::utils::cap_height(
+                                    window.text_system().cap_height(font, size),
+                                    size,
+                                ),
                                 font_size: size,
                             }
                         });

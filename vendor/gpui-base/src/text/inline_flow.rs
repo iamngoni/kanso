@@ -1123,7 +1123,7 @@ fn code_background(
         .iter()
         .map(|run| {
             let font = window.text_system().resolve_font(&run.font);
-            window.text_system().cap_height(font, font_size)
+            super::utils::cap_height(window.text_system().cap_height(font, font_size), font_size)
         })
         .fold(Pixels::ZERO, Pixels::max);
     let vertical_padding = font_size * 0.125 + shaped_line.descent / 2.;

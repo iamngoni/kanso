@@ -110,6 +110,18 @@ These files differ from the published `gpui-base` for it:
   and indent guides; a press on a clickable replacement is reported instead
   of placing the caret.
 
+## gpui-base: a code span's box on Linux
+
+A code span's background is drawn around the font's capitals, taller by a
+little padding either side (`src/text/inline_flow.rs` for the Preview,
+`src/input/base/element.rs` for Live). On Linux the text system reads the
+cap height from the font's OS/2 table, which has it only from version 2 on:
+faces such as DejaVu Sans Mono report zero, and the box shrank to its padding,
+a thin band behind the text instead of a box around it (iamngoni/kanso#484).
+`src/text/utils.rs` gains `cap_height`, which keeps a reported value and
+stands in 0.7 em when the font reports none; both places ask it. Nothing
+else changes; where fonts report a cap height the box is the same.
+
 ## Why
 
 GPUI keeps an SVG it has rasterized, per window, by its asset path and

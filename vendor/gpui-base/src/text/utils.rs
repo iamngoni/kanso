@@ -1,12 +1,29 @@
 use std::sync::Arc;
 
 use data_url::DataUrl;
-use gpui::{Image, ImageFormat};
+use gpui::{Image, ImageFormat, Pixels};
 
 const NUMBERED_PREFIXES_1: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const NUMBERED_PREFIXES_2: &str = "abcdefghijklmnopqrstuvwxyz";
 
 const BULLETS: [&str; 5] = ["•", "◦", "▪", "‣", "⁃"];
+
+/// The cap height of a font at `font_size` that a code span's background is
+/// drawn around. `reported` is what the text system says; a font without it
+/// reports none. On Linux the text system reads it from the font's OS/2
+/// table, which has it only from version 2 on, and monospace faces such as
+/// DejaVu Sans Mono are older: they report zero, which drew a code span's
+/// box as a thin band of padding with no room for the text. A capital is
+/// about 0.7 em tall in the faces code is set in, so that stands in.
+pub(crate) fn cap_height(reported: Pixels, font_size: Pixels) -> Pixels {
+    const FALLBACK_EM: f32 = 0.7;
+    let reported = f32::from(reported);
+    if reported.is_finite() && reported > 0. {
+        Pixels::from(reported)
+    } else {
+        font_size * FALLBACK_EM
+    }
+}
 
 /// Returns an ordered-list item's ordinal, defaulting omitted starts to one.
 pub(super) fn ordered_list_ordinal(start: Option<u32>, ix: usize) -> u32 {
@@ -69,7 +86,23 @@ pub(super) fn data_url_image(url: &str) -> Option<Arc<Image>> {
 mod tests {
     use gpui::ImageFormat;
 
-    use crate::text::utils::{data_url_image, list_item_prefix};
+    use crate::text::utils::{cap_height, data_url_image, list_item_prefix};
+
+    // no-prop-test: vendored crate without a property-testing dependency; the
+    // cases cover each branch of a function of two numbers.
+    #[test]
+    fn test_cap_height() {
+        use gpui::px;
+
+        // A font that reports its capitals keeps them.
+        assert_eq!(cap_height(px(9.8), px(14.)), px(9.8));
+        // One that reports none (an OS/2 table older than version 2), or
+        // nonsense, gets the stand-in, so a code span's box has a body.
+        for reported in [px(0.), px(-3.), px(f32::NAN), px(f32::INFINITY)] {
+            assert_eq!(cap_height(reported, px(10.)), px(7.), "{reported:?}");
+        }
+        assert_eq!(cap_height(px(0.), px(0.)), px(0.));
+    }
 
     #[test]
     fn test_data_url_image() {
