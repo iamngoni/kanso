@@ -10,7 +10,7 @@ import { cn } from "../lib/cn";
 import { AndroidStore, AppStoreBadge } from "../components/AppStoreBadge";
 import { WhatsNewVideo } from "../components/WhatsNewVideo";
 import { PLATFORMS, PLATFORM_NAMES, type MobileOs, type Platform } from "../lib/platform";
-import { RELEASES_URL, type Release, buildsFor, formatDate, formatSize } from "../lib/release";
+import { NIGHTLY_URL, RELEASES_URL, type Release, buildsFor, formatDate, formatSize } from "../lib/release";
 import { ANDROID_URL } from "../lib/stores";
 import { getSiteData } from "../server/fns";
 
@@ -42,17 +42,19 @@ const INSTALL: Record<Platform, readonly string[]> = {
 };
 
 function DownloadPage() {
-  const { release, platform, mobile } = Route.useLoaderData();
-  return <Download release={release} platform={platform} mobile={mobile} />;
+  const { release, nightly, platform, mobile } = Route.useLoaderData();
+  return <Download release={release} nightly={nightly} platform={platform} mobile={mobile} />;
 }
 
 export interface DownloadProps {
   release: Release | null;
+  /** The latest nightly build; null when it can't be read. */
+  nightly?: Release | null;
   platform: Platform | null;
   mobile?: MobileOs | null;
 }
 
-export function Download({ release, platform, mobile = null }: DownloadProps) {
+export function Download({ release, nightly = null, platform, mobile = null }: DownloadProps) {
   const order = platform ? [platform, ...PLATFORMS.filter((p) => p !== platform)] : [...PLATFORMS];
   return (
     <section className="page pt-[clamp(3.5rem,9vw,7rem)] pb-[clamp(5rem,12vw,9rem)]">
@@ -99,7 +101,9 @@ export function Download({ release, platform, mobile = null }: DownloadProps) {
           . Check the ones you have with <code className="font-mono text-[0.875rem]">shasum -a 256 -c SHA256SUMS --ignore-missing</code>.
         </p>
       )}
-      <p className="mt-4 max-w-2xl text-[0.9375rem] text-fg-3">
+      <NightlySection nightly={nightly} className="mt-[clamp(3rem,7vw,5rem)]" />
+
+      <p className="mt-8 max-w-2xl text-[0.9375rem] text-fg-3">
         Prefer to build it yourself?{" "}
         <a href={`${RELEASES_URL.replace(/\/releases$/, "")}#readme`} className="ink-link">
           The source and build steps are on GitHub
@@ -153,6 +157,54 @@ function PlatformRow({ platform, release, mine }: { platform: Platform; release:
       <a href={release.pageUrl} className="sr-only">
         Release notes for {release.version} <ArrowUpRight />
       </a>
+    </div>
+  );
+}
+
+/** Kanso Nightly: a modest, secondary offer. Without a readable build it links to the nightly release instead. */
+export function NightlySection({ nightly, className }: { nightly: Release | null; className?: string }) {
+  return (
+    <div className={cn("grid gap-6 rounded-[0.9rem] border border-line p-6 sm:p-9 lg:grid-cols-12", className)}>
+      <div className="lg:col-span-5">
+        <h2 className="text-[1.125rem] font-semibold tracking-[-0.01em]">Kanso Nightly</h2>
+        <p className="mt-3 text-[0.9375rem] text-fg-2">
+          A build of the latest code, made every day before a release. It can break, so keep a backup of your library. It installs beside Kanso as its own app, with its own data and its own icon, and updates itself from the nightly channel.
+        </p>
+        {nightly && (
+          <p className="mt-3 text-[0.875rem] text-fg-3">
+            {nightly.version}, built {formatDate(nightly.publishedAt)}
+          </p>
+        )}
+      </div>
+      <div className="grid content-start gap-2 lg:col-span-6 lg:col-start-7">
+        {nightly ? (
+          <>
+            {nightly.builds.map((build) => (
+              <div key={build.kind} className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-2 last:border-0 last:pb-0">
+                <p className="text-[0.9375rem] text-fg-2">
+                  {PLATFORM_NAMES[build.platform]} <span className="text-fg-3">· {build.label} · {formatSize(build.size)}</span>
+                </p>
+                <a href={build.url} download className="ink-link text-[0.9375rem]">
+                  Download
+                </a>
+              </div>
+            ))}
+            <p className="mt-2 text-[0.875rem] text-fg-3">
+              <a href={nightly.pageUrl} className="ink-link">
+                Nightly release on GitHub
+              </a>
+            </p>
+          </>
+        ) : (
+          <p className="text-[0.9375rem] text-fg-2">
+            The nightly builds couldn't be loaded just now. They're on{" "}
+            <a href={NIGHTLY_URL} className="ink-link">
+              the nightly release on GitHub
+            </a>
+            .
+          </p>
+        )}
+      </div>
     </div>
   );
 }

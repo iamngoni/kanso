@@ -40,6 +40,36 @@ describe("Download page, mobile section", () => {
   });
 });
 
+describe("Download page, Kanso Nightly", () => {
+  const NB = "https://github.com/iamngoni/kanso/releases/download/nightly";
+  const nightly: Release = {
+    version: "0.10.11-nightly.202611230841",
+    publishedAt: "2026-11-23T08:41:00Z",
+    pageUrl: "https://github.com/iamngoni/kanso/releases/tag/nightly",
+    builds: [
+      { kind: "macos-dmg", platform: "macos", label: "Disk image (.dmg)", detail: "", file: "n.dmg", url: `${NB}/Kanso-0.10.11-nightly.202611230841-macos-arm64.dmg`, size: 50_000_000 },
+      { kind: "linux-x64", platform: "linux", label: "x86-64 (.tar.gz)", detail: "", file: "n.tgz", url: `${NB}/Kanso-0.10.11-nightly.202611230841-linux-x64.tar.gz`, size: 45_000_000 },
+    ],
+    checksumsUrl: null,
+    videoUrl: null,
+  };
+
+  it("lists the nightly builds with its version and date, below the stable section", () => {
+    render(<Download release={null} nightly={nightly} platform="macos" />);
+    expect(screen.getByRole("heading", { name: "Kanso Nightly" })).toBeInTheDocument();
+    expect(screen.getByText(/0\.10\.11-nightly\.202611230841, built 23 November 2026/)).toBeInTheDocument();
+    const hrefs = screen.getAllByRole("link", { name: "Download" }).map((a) => a.getAttribute("href"));
+    expect(hrefs).toEqual(nightly.builds.map((b) => b.url));
+    expect(screen.queryByText(/couldn't be loaded just now. They're on/)).toBeNull();
+  });
+
+  it("links to the nightly release when it can't be read, and the stable section is unaffected", () => {
+    render(<Download release={null} nightly={null} platform="macos" />);
+    expect(screen.getByRole("link", { name: "the nightly release on GitHub" })).toHaveAttribute("href", "https://github.com/iamngoni/kanso/releases/tag/nightly");
+    expect(screen.getByRole("link", { name: /App Store/ })).toBeInTheDocument();
+  });
+});
+
 describe("Download page, What's new video", () => {
   const BASE = "https://github.com/iamngoni/kanso/releases/download/v0.10.9";
   const release = (videoUrl: string | null): Release => ({

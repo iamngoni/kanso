@@ -5,7 +5,58 @@
  */
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { type Release, buildsFor, formatDate, formatSize, parseRelease } from "./release";
+import { type Release, buildsFor, formatDate, formatSize, parseNightly, parseRelease } from "./release";
+
+const NBASE = "https://github.com/iamngoni/kanso/releases/download/nightly";
+const NV = "0.10.11-nightly.202611230841";
+const nasset = (name: string, size = 40_000_000, url = `${NBASE}/${name}`) => ({ name, size, browser_download_url: url });
+const nightlyFixture = (overrides: Record<string, unknown> = {}) => ({
+  tag_name: "nightly",
+  draft: false,
+  prerelease: true,
+  published_at: "2026-11-23T08:41:00Z",
+  assets: [
+    nasset(`Kanso-${NV}-macos-arm64.dmg`),
+    nasset(`Kanso-${NV}-macos-arm64.app.tar.gz`),
+    nasset(`Kanso-${NV}-windows-x64-setup.exe`),
+    nasset(`Kanso-${NV}-windows-x64.zip`),
+    nasset(`Kanso-${NV}-linux-x64.tar.gz`),
+    nasset(`Kanso-${NV}-linux-arm64.tar.gz`),
+    nasset("latest.json", 500),
+    nasset("latest.json.sig", 100),
+    nasset("SHA256SUMS", 400),
+  ],
+  ...overrides,
+});
+
+describe("parseNightly", () => {
+  it("reads the version from the assets and lists only the installable builds", () => {
+    const r = parseNightly(nightlyFixture());
+    expect(r?.version).toBe(NV);
+    expect(r?.pageUrl).toBe("https://github.com/iamngoni/kanso/releases/tag/nightly");
+    expect(r?.publishedAt).toBe("2026-11-23T08:41:00Z");
+    expect(r?.builds.map((b) => b.kind)).toEqual(["macos-dmg", "windows-setup", "windows-zip", "linux-x64", "linux-arm64"]);
+    expect(r?.builds.map((b) => b.file)).not.toContain(`Kanso-${NV}-macos-arm64.app.tar.gz`);
+    expect(r?.builds.every((b) => b.url.startsWith(`${NBASE}/`))).toBe(true);
+  });
+
+  it("rejects other tags, drafts, no versioned assets and foreign URLs", () => {
+    expect(parseNightly(nightlyFixture({ tag_name: "v0.5.2" }))).toBeNull();
+    expect(parseNightly(nightlyFixture({ draft: true }))).toBeNull();
+    expect(parseNightly(nightlyFixture({ assets: [nasset("latest.json")] }))).toBeNull();
+    const evil = nightlyFixture({ assets: [nasset(`Kanso-${NV}-macos-arm64.dmg`, 1000, `https://evil.example/Kanso-${NV}-macos-arm64.dmg`)] });
+    expect(parseNightly(evil)).toBeNull();
+  });
+
+  it("leaves stable parsing alone: a nightly isn't a stable release", () => {
+    expect(parseRelease(nightlyFixture())).toBeNull();
+    expect(parseRelease(nightlyFixture({ tag_name: "v0.5.2" }))).toBeNull();
+  });
+
+  it("never throws on arbitrary JSON", () => {
+    fc.assert(fc.property(fc.jsonValue(), (j) => { parseNightly(j); }));
+  });
+});
 
 const BASE = "https://github.com/iamngoni/kanso/releases/download/v0.5.2";
 const asset = (name: string, size = 48_000_000, url = `${BASE}/${name}`) => ({ name, size, browser_download_url: url });
