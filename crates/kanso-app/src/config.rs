@@ -795,6 +795,11 @@ pub struct AgentChoice {
     /// Tools the person chose "Always allow" for: Kanso answers these without
     /// asking. Removed in Settings > AI.
     pub always_allowed: Vec<AllowedTool>,
+    /// The model each agent was last told to run, by the agent's own key
+    /// ([`AgentChoice::agent_key`]): the chosen agent's entry is the one
+    /// that applies, so switching agents keeps each one's own choice. No
+    /// entry is the agent's default.
+    pub model_by_agent: std::collections::BTreeMap<String, String>,
 }
 
 /// One of an agent's own tools the person allowed for good: the agent's name
@@ -819,6 +824,42 @@ impl Default for AgentChoice {
             suggest_edits: false,
             registry: None,
             always_allowed: Vec::new(),
+            model_by_agent: Default::default(),
+        }
+    }
+}
+
+impl AgentChoice {
+    /// What this choice's own settings are kept for: its registry entry when
+    /// it was picked from the registry, else the agent itself — the kind for
+    /// an agent Kanso knows, the command for the person's own.
+    pub(crate) fn agent_key(&self) -> String {
+        match (&self.registry, self.kind) {
+            (Some(id), _) => format!("registry:{id}"),
+            (None, kanso_ai::AgentKind::Custom) => {
+                format!("command:{}", self.command.clone().unwrap_or_default())
+            }
+            (None, kind) => format!("kind:{kind:?}"),
+        }
+    }
+
+    /// The model this choice's agent was set to run, if it has one.
+    pub fn model(&self) -> Option<&str> {
+        self.model_by_agent
+            .get(&self.agent_key())
+            .map(String::as_str)
+    }
+
+    /// Picks the model this choice's agent runs, or clears it (`None` is the
+    /// agent's own default). Other agents keep the models they were set to.
+    pub fn set_model(&mut self, model: Option<&str>) {
+        match model {
+            Some(id) if !id.is_empty() => {
+                self.model_by_agent.insert(self.agent_key(), id.to_owned());
+            }
+            _ => {
+                self.model_by_agent.remove(&self.agent_key());
+            }
         }
     }
 }
@@ -1538,18 +1579,22 @@ mod tests {
             prop::collection::vec("book:[a-zA-Z0-9]{8}", 0..3),
             prop::option::of("[a-z-]{1,12}"),
             any::<bool>(),
+            prop::collection::btree_map("[a-z:-]{1,12}", "[a-zA-Z0-9._/-]{1,20}", 0..3),
         )
             .prop_map(
-                |(kind, command, args, env, mcp, notebooks, registry, suggest_edits)| AgentChoice {
-                    kind,
-                    command,
-                    args,
-                    env,
-                    mcp,
-                    notebooks,
-                    suggest_edits,
-                    registry,
-                    always_allowed: Vec::new(),
+                |(kind, command, args, env, mcp, notebooks, registry, suggest_edits, models)| {
+                    AgentChoice {
+                        kind,
+                        command,
+                        args,
+                        env,
+                        mcp,
+                        notebooks,
+                        suggest_edits,
+                        registry,
+                        always_allowed: Vec::new(),
+                        model_by_agent: models,
+                    }
                 },
             )
     }
@@ -1845,6 +1890,43 @@ mod tests {
             ViewMode::Split,
             ViewMode::Preview,
         ])
+    }
+
+    proptest! {
+        /// Each agent keeps its own model: setting one changes only this
+        /// agent's entry, and no or an empty model clears it. The choice
+        /// survives JSON.
+        #[test]
+        fn prop_each_agent_keeps_its_own_model(
+            mut choice in gen_agent(),
+            model in "[a-zA-Z0-9._/-]{1,20}",
+        ) {
+            let mut other = choice.clone();
+            other.kind = kanso_ai::AgentKind::Custom;
+            other.registry = None;
+            other.command = Some("/some/other/agent".to_owned());
+            prop_assume!(choice.agent_key() != other.agent_key());
+            let theirs = other.model().map(str::to_owned);
+            choice.set_model(Some(&model));
+            prop_assert_eq!(choice.model(), Some(model.as_str()));
+            other.model_by_agent = choice.model_by_agent.clone();
+            prop_assert_eq!(other.model().map(str::to_owned), theirs);
+            let back: AgentChoice =
+                serde_json::from_str(&serde_json::to_string(&choice).unwrap()).unwrap();
+            prop_assert_eq!(back.model(), Some(model.as_str()));
+            choice.set_model(Some(""));
+            prop_assert_eq!(choice.model(), None);
+            choice.set_model(Some(&model));
+            choice.set_model(None);
+            prop_assert_eq!(choice.model(), None);
+        }
+    }
+
+    #[test]
+    fn a_config_saved_before_models_loads_with_no_model() {
+        let choice: AgentChoice = serde_json::from_str("{}").unwrap();
+        assert_eq!(choice.model(), None);
+        assert!(choice.model_by_agent.is_empty());
     }
 
     proptest! {

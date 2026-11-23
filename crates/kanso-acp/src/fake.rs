@@ -80,7 +80,34 @@ pub enum Script {
     /// As [`Script::Report`], but it no longer has the conversation:
     /// `session/load` fails with "Session not found".
     ReportGone,
+    /// An agent that lists models, in the given shape. It answers each
+    /// prompt with "model=<id> via=<how it was set>" and picks `session/load`
+    /// up like [`Script::Report`] does.
+    Models(ModelShape),
 }
+
+/// How a [`Script::Models`] agent lists its models, and which requests it
+/// accepts to switch.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModelShape {
+    /// The older `models` block; `session/set_model` switches.
+    Legacy,
+    /// A flat `configOptions` select, category `model`;
+    /// `session/set_config_option` switches.
+    ConfigOptions,
+    /// Both of the above, the options in groups. Either request switches,
+    /// and the answer says which one did.
+    Both,
+    /// A `configOptions` select whose switch request the agent refuses.
+    Refusing,
+}
+
+/// The models a [`Script::Models`] agent offers: id, name, description.
+pub const FAKE_MODELS: [(&str, &str, &str); 3] = [
+    ("default", "Default", "What the agent picks itself"),
+    ("sonnet", "Sonnet", "Fast"),
+    ("opus", "Opus", "Careful"),
+];
 
 impl Script {
     /// The script named by the fake binary's arguments.
@@ -112,6 +139,10 @@ impl Script {
             "report" => Script::Report,
             "report-no-load" => Script::ReportNoLoad,
             "report-gone" => Script::ReportGone,
+            "models" => Script::Models(ModelShape::Legacy),
+            "model-options" => Script::Models(ModelShape::ConfigOptions),
+            "models-both" => Script::Models(ModelShape::Both),
+            "models-refusing" => Script::Models(ModelShape::Refusing),
             "sleep" => {
                 std::thread::sleep(Duration::from_secs(600));
                 Script::Hang
@@ -136,6 +167,99 @@ struct Fake<W: Write> {
     children: Vec<std::process::Child>,
     /// Each session's MCP servers and how many prompts it has had.
     sessions: Vec<(String, Value, usize)>,
+    /// Each session's model, and the request that set it (`default` for none).
+    models: Vec<(String, String, &'static str)>,
+}
+
+impl<W: Write> Fake<W> {
+    /// The model fields of an answer to `session/new` or `session/load` for
+    /// `session`: the shape the script lists.
+    fn model_fields(&self, session: &str) -> Value {
+        let Script::Models(shape) = self.script else {
+            return json!({});
+        };
+        let current = self
+            .models
+            .iter()
+            .find(|(id, _, _)| id == session)
+            .map_or("default", |(_, model, _)| model.as_str());
+        let legacy = json!({
+            "currentModelId": current,
+            "availableModels": FAKE_MODELS
+                .iter()
+                .map(|(id, name, description)| json!({
+                    "modelId": id, "name": name, "description": description,
+                }))
+                .collect::<Vec<_>>(),
+        });
+        let entries: Vec<Value> = FAKE_MODELS
+            .iter()
+            .map(|(id, name, description)| {
+                json!({ "value": id, "name": name, "description": description })
+            })
+            .collect();
+        let select = |options: Value| {
+            json!([
+                { "id": "mode", "name": "Mode", "category": "mode", "type": "select",
+                  "currentValue": "code", "options": [{ "value": "code", "name": "Code" }] },
+                { "id": "model", "name": "Model", "category": "model", "type": "select",
+                  "currentValue": current, "options": options },
+            ])
+        };
+        match shape {
+            ModelShape::Legacy => json!({ "models": legacy }),
+            ModelShape::ConfigOptions | ModelShape::Refusing => {
+                json!({ "configOptions": select(json!(entries)) })
+            }
+            ModelShape::Both => json!({
+                "models": legacy,
+                "configOptions": select(json!([{ "group": "all", "name": "All", "options": entries }])),
+            }),
+        }
+    }
+
+    /// `session/set_model` and `session/set_config_option`: switches the
+    /// session's model if the script takes that request and lists the model.
+    fn switch_model(&mut self, id: &Value, method: &str, params: &Value) {
+        let Script::Models(shape) = self.script else {
+            self.error(id, crate::METHOD_NOT_FOUND, "Unknown method");
+            return;
+        };
+        let session = params
+            .get("sessionId")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned();
+        let (via, wanted) = if method == "session/set_model" {
+            ("set_model", params.get("modelId"))
+        } else {
+            ("config", params.get("value"))
+        };
+        let takes = match shape {
+            ModelShape::Legacy => via == "set_model",
+            ModelShape::ConfigOptions => via == "config",
+            ModelShape::Both => true,
+            ModelShape::Refusing => false,
+        };
+        let model = wanted.and_then(Value::as_str).unwrap_or_default();
+        if !takes || !FAKE_MODELS.iter().any(|(known, _, _)| *known == model) {
+            self.error(id, crate::INVALID_PARAMS, "Unknown model");
+            return;
+        }
+        match self.models.iter_mut().find(|(have, _, _)| *have == session) {
+            Some(entry) => {
+                entry.1 = model.to_owned();
+                entry.2 = via;
+            }
+            None => self.models.push((session.clone(), model.to_owned(), via)),
+        }
+        if via == "config" {
+            let fields = self.model_fields(&session);
+            self.reply(id, fields);
+        } else {
+            self.reply(id, json!({}));
+        }
+    }
 }
 
 /// One JSON-RPC request to an MCP server entry from `session/new`; the
@@ -606,6 +730,16 @@ impl<W: Write> Fake<W> {
                 let report = format!("session={session} turn={turn} saw={text}");
                 self.answer(&id, &session, &report);
             }
+            Script::Models(_) => {
+                let (model, via) = self
+                    .models
+                    .iter()
+                    .find(|(have, _, _)| *have == session)
+                    .map_or(("default".to_owned(), "default"), |(_, model, via)| {
+                        (model.clone(), *via)
+                    });
+                self.answer(&id, &session, &format!("model={model} via={via}"));
+            }
         }
     }
 
@@ -616,7 +750,8 @@ impl<W: Write> Fake<W> {
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_owned();
-        if self.script != Script::Report || !session.starts_with("fake-session-") {
+        let loads = self.script == Script::Report || matches!(self.script, Script::Models(_));
+        if !loads || !session.starts_with("fake-session-") {
             self.error(id, crate::INVALID_PARAMS, "Session not found");
             return;
         }
@@ -637,18 +772,15 @@ impl<W: Write> Fake<W> {
                 },
             }));
         }
-        self.reply(
-            id,
-            json!({
-                "modes": {
-                    "currentModeId": "code",
-                    "availableModes": [
-                        { "id": "code", "name": "Code" },
-                        { "id": "read-only", "name": "Read only" },
-                    ],
-                },
-            }),
-        );
+        let mut answer = self.model_fields(&session);
+        answer["modes"] = json!({
+            "currentModeId": "code",
+            "availableModes": [
+                { "id": "code", "name": "Code" },
+                { "id": "read-only", "name": "Read only" },
+            ],
+        });
+        self.reply(id, answer);
     }
 
     fn handle<R: BufRead>(&mut self, input: &mut R, message: Value) {
@@ -675,7 +807,10 @@ impl<W: Write> Fake<W> {
                         "agentCapabilities": {
                             "mcpCapabilities": { "http": self.script != Script::NotesStdio },
                             "sessionCapabilities": { "close": {} },
-                            "loadSession": matches!(self.script, Script::Report | Script::ReportGone),
+                            "loadSession": matches!(
+                                self.script,
+                                Script::Report | Script::ReportGone | Script::Models(_)
+                            ),
                         },
                         "agentInfo": { "name": "fake-agent", "title": "Fake Agent", "version": "1.2.3" },
                         "authMethods": [{ "id": "fake-login", "name": "Log in", "description": "Opens a browser" }],
@@ -694,23 +829,23 @@ impl<W: Write> Fake<W> {
                 let session = format!("fake-session-{}", self.sessions.len() + 1);
                 let servers = params.get("mcpServers").cloned().unwrap_or(json!([]));
                 self.sessions.push((session.clone(), servers, 0));
-                self.reply(
-                    &id,
-                    json!({
-                        "sessionId": session,
-                        "modes": {
-                            "currentModeId": "code",
-                            "availableModes": [
-                                { "id": "code", "name": "Code" },
-                                { "id": "ask", "name": "Ask" },
-                                { "id": "read-only", "name": "Read only" },
-                            ],
-                        },
-                    }),
-                );
+                let mut answer = self.model_fields(&session);
+                answer["sessionId"] = json!(session);
+                answer["modes"] = json!({
+                    "currentModeId": "code",
+                    "availableModes": [
+                        { "id": "code", "name": "Code" },
+                        { "id": "ask", "name": "Ask" },
+                        { "id": "read-only", "name": "Read only" },
+                    ],
+                });
+                self.reply(&id, answer);
             }
             "session/load" => self.load(&id, &params),
             "session/set_mode" | "session/close" => self.reply(&id, json!({})),
+            "session/set_model" | "session/set_config_option" => {
+                self.switch_model(&id, method, &params)
+            }
             "session/prompt" => self.prompt(input, id, &params),
             _ => self.error(&id, crate::METHOD_NOT_FOUND, "Unknown method"),
         }
@@ -729,6 +864,7 @@ pub fn serve(input: impl Read, output: impl Write, script: Script) {
         next_id: 0,
         children: Vec::new(),
         sessions: Vec::new(),
+        models: Vec::new(),
     };
     let mut line = String::new();
     loop {

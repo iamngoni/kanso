@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
-use kanso_acp::fake::{self, Script};
+use kanso_acp::fake::{self, ModelShape, Script};
 use kanso_acp::{AcpError, AgentProcess, Limits};
 use kanso_ai::agent::{self, AgentCheck, AgentKind, AgentSettings, Starter};
 use kanso_ai::{Event, Prompt, ToolRegistry};
@@ -36,6 +36,7 @@ fn settings(name: &str) -> AgentSettings {
         args: Vec::new(),
         env: Vec::new(),
         workspace,
+        model: None,
     }
 }
 
@@ -583,4 +584,182 @@ fn a_session_that_cannot_be_picked_up_fails_and_the_conversation_still_starts_fr
             "{name}: {said}"
         );
     }
+}
+
+fn with_model(name: &str, model: Option<&str>) -> AgentSettings {
+    AgentSettings {
+        model: model.map(str::to_owned),
+        ..settings(name)
+    }
+}
+
+fn statuses(events: &[Event]) -> Vec<&str> {
+    events
+        .iter()
+        .filter_map(|event| match event {
+            Event::Status(line) if !line.starts_with("Starting") => Some(line.as_str()),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn the_chosen_model_is_applied_to_the_session_before_the_question() {
+    let _serial = serial();
+    let starts = Arc::new(AtomicUsize::new(0));
+    let settings = with_model("model-applied", Some("opus"));
+    let provider = agent::agent_client_with(
+        &settings,
+        limits(),
+        starter(Script::Models(ModelShape::ConfigOptions), starts),
+    );
+    let events = ask(&provider, "which?");
+    assert_eq!(text(&events), "model=opus via=config");
+    assert!(statuses(&events).is_empty(), "{events:?}");
+}
+
+#[test]
+fn a_model_set_through_the_older_request_is_applied_too() {
+    let _serial = serial();
+    let settings = with_model("model-legacy", Some("sonnet"));
+    let provider = agent::agent_client_with(
+        &settings,
+        limits(),
+        starter(
+            Script::Models(ModelShape::Legacy),
+            Arc::new(AtomicUsize::new(0)),
+        ),
+    );
+    assert_eq!(
+        text(&ask(&provider, "which?")),
+        "model=sonnet via=set_model"
+    );
+}
+
+#[test]
+fn no_chosen_model_leaves_the_agents_own_default() {
+    let _serial = serial();
+    let settings = with_model("model-none", None);
+    let provider = agent::agent_client_with(
+        &settings,
+        limits(),
+        starter(
+            Script::Models(ModelShape::Both),
+            Arc::new(AtomicUsize::new(0)),
+        ),
+    );
+    assert_eq!(text(&ask(&provider, "which?")), "model=default via=default");
+}
+
+#[test]
+fn a_model_the_agent_no_longer_offers_falls_back_and_says_so() {
+    let _serial = serial();
+    let settings = with_model("model-gone", Some("haiku-9"));
+    let provider = agent::agent_client_with(
+        &settings,
+        limits(),
+        starter(
+            Script::Models(ModelShape::ConfigOptions),
+            Arc::new(AtomicUsize::new(0)),
+        ),
+    );
+    let events = ask(&provider, "which?");
+    assert_eq!(text(&events), "model=default via=default");
+    let notes = statuses(&events);
+    assert_eq!(notes.len(), 1, "{events:?}");
+    assert_eq!(
+        notes[0],
+        agent::model_gone_note(&settings.label(), "haiku-9")
+    );
+    assert_eq!(
+        kanso_ai::classify_trouble(notes[0]),
+        kanso_ai::Trouble::AgentModelGone
+    );
+    assert_eq!(events.last(), Some(&Event::Done));
+}
+
+#[test]
+fn an_agent_that_refuses_the_switch_keeps_its_default_and_says_so() {
+    let _serial = serial();
+    let settings = with_model("model-refused", Some("opus"));
+    let provider = agent::agent_client_with(
+        &settings,
+        limits(),
+        starter(
+            Script::Models(ModelShape::Refusing),
+            Arc::new(AtomicUsize::new(0)),
+        ),
+    );
+    let events = ask(&provider, "which?");
+    assert_eq!(text(&events), "model=default via=default");
+    assert_eq!(statuses(&events).len(), 1, "{events:?}");
+}
+
+#[test]
+fn an_agent_that_lists_no_models_says_the_choice_is_gone() {
+    let _serial = serial();
+    let settings = with_model("model-unlisted", Some("opus"));
+    let provider = agent::agent_client_with(
+        &settings,
+        limits(),
+        starter(Script::Answer("Hi.".into()), Arc::new(AtomicUsize::new(0))),
+    );
+    let events = ask(&provider, "x");
+    assert_eq!(text(&events), "Hi.");
+    assert_eq!(statuses(&events).len(), 1, "{events:?}");
+}
+
+#[test]
+fn listing_models_asks_the_agent_without_applying_a_model_or_prompting() {
+    let _serial = serial();
+    let starts = Arc::new(AtomicUsize::new(0));
+    let settings = with_model("model-list", Some("opus"));
+    let found = agent::list_models_with(
+        &settings,
+        limits(),
+        starter(Script::Models(ModelShape::Both), starts.clone()),
+    )
+    .unwrap()
+    .expect("the agent lists models");
+    let ids: Vec<&str> = found.choices().iter().map(|c| c.id.as_str()).collect();
+    assert_eq!(ids, ["default", "sonnet", "opus"]);
+    assert_eq!(found.current(), Some("default"));
+    assert_eq!(starts.load(Ordering::Relaxed), 1);
+
+    let none = agent::list_models_with(
+        &settings,
+        limits(),
+        starter(Script::Answer("Hi.".into()), starts),
+    )
+    .unwrap();
+    assert!(none.is_none());
+}
+
+#[test]
+fn listing_models_reports_an_agent_that_cannot_start() {
+    let _serial = serial();
+    let result = agent::list_models_with(
+        &settings("model-list-fail"),
+        limits(),
+        failing(Arc::new(AtomicUsize::new(0))),
+    );
+    assert!(result.is_err());
+}
+
+#[test]
+fn a_resumed_conversation_gets_the_chosen_model_too() {
+    let _serial = serial();
+    let settings = with_model("model-resume", Some("opus"));
+    let conversation = agent::conversation_with(
+        &settings,
+        limits(),
+        starter(
+            Script::Models(ModelShape::ConfigOptions),
+            Arc::new(AtomicUsize::new(0)),
+        ),
+        None,
+    );
+    conversation.resume("fake-session-4").unwrap();
+    let events = converse(&conversation, "which?");
+    assert_eq!(text(&events), "model=opus via=config");
 }
