@@ -1058,6 +1058,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   BookShareProgress dco_decode_book_share_progress(dynamic raw);
 
   @protected
+  BookSort dco_decode_book_sort(dynamic raw);
+
+  @protected
   BookStandingRow dco_decode_book_standing_row(dynamic raw);
 
   @protected
@@ -4393,6 +4396,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   BookShareProgress sse_decode_book_share_progress(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BookSort sse_decode_book_sort(SseDeserializer deserializer);
 
   @protected
   BookStandingRow sse_decode_book_standing_row(SseDeserializer deserializer);
@@ -8308,6 +8314,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
     BookShareProgress self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_book_sort(BookSort self, SseSerializer serializer);
 
   @protected
   void sse_encode_book_standing_row(

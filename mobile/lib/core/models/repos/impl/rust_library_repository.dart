@@ -178,9 +178,10 @@ class RustLibraryRepository implements LibraryRepository {
   @override
   Future<Either<ApplicationError, List<VisibleNotebook>>> visibleNotebooks(
     FoldState folds, {
+    required BookSort sort,
     String? showing,
   }) => attempt(
-    () => _library.visibleNotebooks(folds: folds, showing: showing),
+    () => _library.visibleNotebooks(folds: folds, showing: showing, sort: sort),
   );
 
   @override

@@ -61,7 +61,7 @@ Future<GoRouter> _pump(
   final appearance = SeededAppearanceBloc(const AppearanceState());
   final library = FixtureLibraryRepository();
   addTearDown(() => unawaited(library.close()));
-  final index = LibraryIndexBloc(library)
+  final index = LibraryIndexBloc(library, ForgetfulPreferencesRepository())
     ..add(const LibraryIndexEvent.started());
   final defaultNotebook = DefaultNotebookBloc(
     SeededPreferencesRepository(const Preferences()),

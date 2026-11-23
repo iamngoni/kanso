@@ -26,6 +26,10 @@ sealed class LibraryIndexEvent with _$LibraryIndexEvent {
   const factory LibraryIndexEvent.notebookFolded(String id) =
       LibraryIndexNotebookFoldedEvent;
 
+  /// The notebooks' order was chosen in the sort sheet.
+  const factory LibraryIndexEvent.bookSortChanged(BookSort sort) =
+      LibraryIndexBookSortChangedEvent;
+
   /// A tap on the arrow of the tag level [path].
   const factory LibraryIndexEvent.tagToggled(String path) =
       LibraryIndexTagToggledEvent;

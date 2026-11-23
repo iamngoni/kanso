@@ -26,6 +26,7 @@ import '../../../core/utils/muted_tag_color.dart';
 import '../../../core/utils/notebook_tint.dart';
 import '../../../core/utils/status_label.dart';
 import '../../../core/utils/tag_row_color.dart';
+import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_button.dart';
 import '../../../core/views/widgets/kanso_confirm_sheet.dart';
 import '../../../core/views/widgets/kanso_drawer_scope.dart';
@@ -57,6 +58,7 @@ import 'library_schedule_row.dart';
 import 'library_tasks_row.dart';
 import 'new_notebook_sheet.dart';
 import 'notebook_actions_sheet.dart';
+import 'notebook_sort_sheet.dart';
 import 'tag_actions_sheet.dart';
 
 /// The library: the app's mark and settings, a search field, then All
@@ -256,6 +258,12 @@ class _LibraryPaneState extends State<LibraryPane> {
                           label: l10n.libraryNotebooks,
                           trailing: <Widget>[
                             KansoIconButton(
+                              icon: KansoIcons.arrowUpDown,
+                              semanticLabel: l10n.libraryNotebooksSort,
+                              iconSize: KansoSizes.iconSmall + 2,
+                              onPressed: () => _sortNotebooks(context),
+                            ),
+                            KansoIconButton(
                               icon: KansoIcons.plus,
                               semanticLabel: l10n.libraryNewNotebook,
                               iconSize: KansoSizes.iconSmall + 2,
@@ -324,6 +332,20 @@ class _LibraryPaneState extends State<LibraryPane> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Opens the sheet that orders the notebooks.
+  void _sortNotebooks(BuildContext context) {
+    final bloc = context.read<LibraryIndexBloc>();
+    unawaited(
+      showKansoBottomSheet<void>(
+        context,
+        builder: (_) => BlocProvider<LibraryIndexBloc>.value(
+          value: bloc,
+          child: const NotebookSortSheet(),
+        ),
       ),
     );
   }

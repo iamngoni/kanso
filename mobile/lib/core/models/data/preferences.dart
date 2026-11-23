@@ -4,6 +4,7 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../bridge/api/types.dart' show BookSort;
 import '../../bridge/api/types.dart' show CaptureTarget;
 import '../../bridge/api/types.dart' show SortKey;
 import '../../bridge/api/types.dart' show DiagramRenderer;
@@ -78,6 +79,13 @@ abstract class Preferences with _$Preferences {
     /// Whether lists run from the largest to the smallest sort value (the
     /// newest first, Z to A).
     @Default(true) bool descending,
+
+    /// How the library pane orders the notebooks inside each parent, as the
+    /// desktop's sidebar sort menu does. A value this version does not know
+    /// is the default order.
+    @JsonKey(unknownEnumValue: BookSort.manual)
+    @Default(BookSort.manual)
+    BookSort bookSort,
 
     /// Whether the notice that this phone's notes are not in device backups
     /// has been shown.

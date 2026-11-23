@@ -14,6 +14,7 @@ import '../../bridge/api/types.dart';
 import '../../models/data/application_error.dart';
 import '../../models/data/library_index_status.dart';
 import '../../models/repos/abs/library_repository.dart';
+import '../../models/repos/abs/preferences_repository.dart';
 import '../../utils/debounce.dart';
 
 part 'library_index_bloc.freezed.dart';
@@ -31,7 +32,8 @@ const Duration libraryIndexDebounce = Duration(milliseconds: 100);
 /// burst have stopped, and keeps showing what it has meanwhile.
 @injectable
 class LibraryIndexBloc extends Bloc<LibraryIndexEvent, LibraryIndexState> {
-  LibraryIndexBloc(this._library) : super(const LibraryIndexState()) {
+  LibraryIndexBloc(this._library, this._preferences)
+    : super(const LibraryIndexState()) {
     on<LibraryIndexStartedEvent>(_onStarted);
     on<LibraryIndexRetriedEvent>(
       (event, emit) => _read(emit),
@@ -45,6 +47,7 @@ class LibraryIndexBloc extends Bloc<LibraryIndexEvent, LibraryIndexState> {
     );
     on<LibraryIndexPlaceChangedEvent>(_onPlaceChanged);
     on<LibraryIndexNotebookFoldedEvent>(_onNotebookFolded);
+    on<LibraryIndexBookSortChangedEvent>(_onBookSortChanged);
     on<LibraryIndexTagToggledEvent>(_onTagToggled);
     on<LibraryIndexAllTagsToggledEvent>(_onAllTagsToggled);
     on<LibraryIndexStatusGroupToggledEvent>(
@@ -53,6 +56,7 @@ class LibraryIndexBloc extends Bloc<LibraryIndexEvent, LibraryIndexState> {
   }
 
   final LibraryRepository _library;
+  final PreferencesRepository _preferences;
   StreamSubscription<List<String>>? _changes;
   int _reading = 0;
 
@@ -60,6 +64,14 @@ class LibraryIndexBloc extends Bloc<LibraryIndexEvent, LibraryIndexState> {
     LibraryIndexStartedEvent event,
     Emitter<LibraryIndexState> emit,
   ) async {
+    // The notebooks' order as the person last chose it, before the first
+    // reading so the rows are read in it.
+    final saved = await _preferences.load();
+    saved.fold((_) {}, (preferences) {
+      if (preferences.bookSort != state.bookSort) {
+        emit(state.copyWith(bookSort: preferences.bookSort));
+      }
+    });
     await _changes?.cancel();
     _changes = _library.changes().listen(
       (ids) => add(LibraryIndexEvent.changesReceived(ids)),
@@ -143,6 +155,23 @@ class LibraryIndexBloc extends Bloc<LibraryIndexEvent, LibraryIndexState> {
     await _readTree(emit, from: next);
   }
 
+  /// A choice in the notebooks' sort sheet: the rows are read in the new
+  /// order, and the choice is kept for next time.
+  Future<void> _onBookSortChanged(
+    LibraryIndexBookSortChangedEvent event,
+    Emitter<LibraryIndexState> emit,
+  ) async {
+    if (state.bookSort == event.sort) {
+      return;
+    }
+    final next = state.copyWith(bookSort: event.sort);
+    emit(next);
+    await _preferences.update(
+      (current) => current.copyWith(bookSort: event.sort),
+    );
+    await _readTree(emit, from: next);
+  }
+
   /// A tap on the tags' "…" or "Fewer".
   Future<void> _onAllTagsToggled(
     LibraryIndexAllTagsToggledEvent event,
@@ -196,6 +225,7 @@ class LibraryIndexBloc extends Bloc<LibraryIndexEvent, LibraryIndexState> {
     final results = await (
       _library.visibleNotebooks(
         base.folds,
+        sort: base.bookSort,
         showing: place is ListPlace_Notebook ? place.id : null,
       ),
       _library.tagPlaces(

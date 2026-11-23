@@ -6,7 +6,7 @@
 use std::collections::HashSet;
 
 use kanso_core::tags::{TagInfo, is_within, tag_tree};
-use kanso_engine::list::{book_path, notebook_tree};
+use kanso_engine::list::{BookSort, book_path, notebook_tree_sorted};
 use kanso_engine::sidebar::{
     BookFolds, TAG_LIMIT, flat_tag_ids, visible_book_rows, visible_tag_rows, visible_tags,
 };
@@ -15,23 +15,26 @@ use crate::boundary::guard;
 use crate::errors::KansoError;
 use crate::library::Library;
 use crate::model::{FoldState, TagPlaces, TagRow, TagTreeRow, VisibleNotebook};
-use crate::notes::notebook_rows;
+use crate::notes::notebook_rows_sorted;
 
 impl Library {
     /// The notebook rows that show, top to bottom, with whether each is open.
     /// `folds` is what the phone kept; `showing` is the notebook whose notes
     /// are listed, which keeps the notebooks around it open unless they were
-    /// folded with their arrows while it showed.
+    /// folded with their arrows while it showed. `sort` orders the notebooks
+    /// inside each parent, as the desktop's sidebar does
+    /// ([`BookSort::Manual`] is the order the phone always had).
     pub fn visible_notebooks(
         &self,
         folds: FoldState,
         showing: Option<String>,
+        sort: BookSort,
     ) -> Result<Vec<VisibleNotebook>, KansoError> {
         guard(|| {
             let books = self.inner.store.books()?;
-            let tree = notebook_tree(&books);
+            let tree = notebook_tree_sorted(&books, sort);
             let depths: Vec<usize> = tree.iter().map(|(depth, _)| *depth).collect();
-            let rows = notebook_rows(&books);
+            let rows = notebook_rows_sorted(&books, sort);
             let folds = to_folds(&folds);
             let around = around(&books, showing.as_deref());
             let open = |ix: usize| folds.is_open(&tree[ix].1.id, showing.as_deref(), &around);

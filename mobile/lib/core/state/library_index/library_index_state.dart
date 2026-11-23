@@ -43,6 +43,10 @@ abstract class LibraryIndexState with _$LibraryIndexState {
     /// The notebooks opened or folded with their arrows.
     @Default(FoldState(open: <String>[], folded: <String>[])) FoldState folds,
 
+    /// How the notebooks are ordered inside each parent; the person's last
+    /// choice, kept in the preferences.
+    @Default(BookSort.manual) BookSort bookSort,
+
     /// The tag levels opened with their arrows, by lower-case path.
     @Default(<String>[]) List<String> openTags,
 

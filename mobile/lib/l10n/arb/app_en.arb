@@ -1273,6 +1273,34 @@
   "@libraryNewNotebook": {
     "description": "What the add button of the notebooks header does."
   },
+  "libraryNotebooksSort": "Sort notebooks",
+  "@libraryNotebooksSort": {
+    "description": "What the sort button of the notebooks header does: it opens the sheet of the orders the notebooks can take."
+  },
+  "libraryNotebooksSortBy": "Sort notebooks by",
+  "@libraryNotebooksSortBy": {
+    "description": "The heading of the choices in the sheet that orders the library's notebooks."
+  },
+  "libraryNotebooksSortManual": "Default order",
+  "@libraryNotebooksSortManual": {
+    "description": "A way to order the notebooks: the order they were arranged in, then by name."
+  },
+  "libraryNotebooksSortNameAsc": "Name A to Z",
+  "@libraryNotebooksSortNameAsc": {
+    "description": "A way to order the notebooks: by name, A first."
+  },
+  "libraryNotebooksSortNameDesc": "Name Z to A",
+  "@libraryNotebooksSortNameDesc": {
+    "description": "A way to order the notebooks: by name, Z first."
+  },
+  "libraryNotebooksSortUpdated": "Recently Updated",
+  "@libraryNotebooksSortUpdated": {
+    "description": "A way to order the notebooks: the most recently changed first."
+  },
+  "libraryNotebooksSortCreated": "Recently Created",
+  "@libraryNotebooksSortCreated": {
+    "description": "A way to order the notebooks: the most recently made first."
+  },
   "newNotebookTitle": "New notebook",
   "@newNotebookTitle": {
     "description": "The title of the sheet that makes a notebook."
