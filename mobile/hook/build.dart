@@ -226,6 +226,7 @@ const List<String> _fromScript = <String>[
   'AR_',
   'CARGO_TARGET_',
   'BINDGEN_EXTRA_CLANG_ARGS_',
+  'CMAKE_TOOLCHAIN_FILE_',
   'IPHONEOS_DEPLOYMENT_TARGET',
   'LIBCLANG_PATH',
 ];
