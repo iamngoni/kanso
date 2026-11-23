@@ -84,7 +84,7 @@ jobs:
   build:
     name: ${{ matrix.name }}
     needs: plan
-    if: needs.plan.outputs.build == 'true'
+    if: needs.plan.outputs.build == '1'
     runs-on: ${{ matrix.os }}
     # The Developer ID certificate and notarization key are secrets of the
     # `nightly` environment. Every macOS nightly must be signed and
