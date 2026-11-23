@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::menu::{ContextMenuExt as _, PopupMenuItem};
+use gpui_kit::component::menu::{ContextMenuExt as _, DropdownMenu as _, PopupMenu, PopupMenuItem};
 use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{
     ActiveTheme as _, Icon, IconName, Sizable as _, StyledExt as _, h_flex, v_flex,
@@ -20,6 +20,7 @@ use gpui_kit::component::{
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_core::tags::{TagNode, is_within};
+use kanso_engine::list::BookSort;
 use kanso_engine::sidebar::{
     BookFolds, STATUS_PLACES, TAG_LIMIT, flat_tag_ids, status_choice_after, status_group_open,
     visible_book_rows, visible_tag_rows, visible_tags,
@@ -106,6 +107,8 @@ pub struct Sidebar {
     /// The notebooks opened to show the ones inside them, and those folded
     /// around the one showing.
     folds: BookFolds,
+    /// How the notebooks are ordered inside each parent; kept in the config.
+    book_sort: BookSort,
     /// Collapsed to the icon rail.
     collapsed: bool,
     /// Settings fill the window beside the sidebar: the gear is the place
@@ -174,6 +177,11 @@ impl Sidebar {
             .try_global::<AppState>()
             .map(|state| state.config.layout.open_books.iter().cloned().collect())
             .unwrap_or_default();
+        // The notebooks' order as the user last chose it.
+        let book_sort = cx
+            .try_global::<AppState>()
+            .map(|state| state.config.layout.book_sort)
+            .unwrap_or_default();
         Sidebar {
             library,
             scroll: ScrollHandle::new(),
@@ -183,6 +191,7 @@ impl Sidebar {
             people_open: false,
             open_tags: HashSet::new(),
             folds: BookFolds::with_open(open_books),
+            book_sort,
             collapsed: false,
             settings_open: false,
             user: user.into(),
@@ -342,6 +351,24 @@ impl Sidebar {
         }
     }
 
+    /// The notebooks' order from the sort button: kept for next time.
+    pub fn set_book_sort(&mut self, sort: BookSort, cx: &mut Context<Self>) {
+        if self.book_sort == sort {
+            return;
+        }
+        self.book_sort = sort;
+        if cx.has_global::<AppState>() {
+            AppState::update_config(cx, |config| config.layout.book_sort = sort);
+        }
+        cx.notify();
+    }
+
+    /// How the notebooks are ordered now (tests).
+    #[cfg(test)]
+    pub fn book_sort(&self) -> BookSort {
+        self.book_sort
+    }
+
     /// A click on a notebook's arrow: it opens to show the notebooks inside
     /// it, or folds them away, as it shows now, and stays that way next
     /// time. One the notebook showing is inside folds too, and stays folded
@@ -377,7 +404,7 @@ impl Sidebar {
     /// The notebook rows that show, top to bottom, as drawn.
     fn book_rows(&self, cx: &App) -> Vec<BookRow> {
         let library = self.library.read(cx);
-        let tree = library.book_tree();
+        let tree = library.book_tree_sorted(self.book_sort);
         let depths: Vec<usize> = tree.iter().map(|(depth, _)| *depth).collect();
         // The notebooks the one showing is inside stay open around it.
         let (showing, around) = self.showing_around(cx);
@@ -733,6 +760,23 @@ impl Sidebar {
             .icon(Icon::new(IconName::Plus).text_color(Colors::get(cx).text_secondary))
             .tooltip(tooltip)
             .on_click(cx.listener(move |_, _, _, cx| cx.emit(event())))
+            .into_any_element()
+    }
+
+    /// The Notebooks heading's sort button: a menu of the orders the
+    /// notebooks can take, the one in use checked.
+    // no-prop-test: drawing; the order itself is tested in the engine.
+    fn book_sort_button(&self, cx: &mut Context<Self>) -> AnyElement {
+        let sidebar = cx.entity();
+        let current = self.book_sort;
+        Button::new("sort-books")
+            .ghost()
+            .xsmall()
+            .icon(Icon::new(Lucide::ArrowUpDown).text_color(Colors::get(cx).text_secondary))
+            .tooltip("Sort notebooks")
+            .dropdown_menu_with_anchor(Anchor::BottomRight, move |menu: PopupMenu, _, _| {
+                book_sort_items(menu, current, &sidebar)
+            })
             .into_any_element()
     }
 
@@ -1871,7 +1915,9 @@ impl Render for Sidebar {
             || SidebarEvent::NewBook { parent: None },
             cx,
         );
-        list = list.child(self.heading("Notebooks", Some(add_book), cx));
+        let sort_book = self.book_sort_button(cx);
+        let book_actions = h_flex().child(sort_book).child(add_book).into_any_element();
+        list = list.child(self.heading("Notebooks", Some(book_actions), cx));
         for BookRow {
             depth,
             id,
@@ -2165,6 +2211,33 @@ fn tag_menu(
     .item(PopupMenuItem::new("Delete Tag…").on_click(move |_, _, cx| {
         delete.update(cx, |_, cx| cx.emit(SidebarEvent::DeleteTag(c.clone())));
     }))
+}
+
+/// What a sort option is called in the Notebooks sort menu.
+fn book_sort_label(sort: BookSort) -> &'static str {
+    match sort {
+        BookSort::Manual => "Default order",
+        BookSort::NameAsc => "Name A to Z",
+        BookSort::NameDesc => "Name Z to A",
+        BookSort::Updated => "Recently Updated",
+        BookSort::Created => "Recently Created",
+    }
+}
+
+/// The Notebooks sort menu: every [`BookSort`], the one in use checked.
+fn book_sort_items(mut menu: PopupMenu, current: BookSort, sidebar: &Entity<Sidebar>) -> PopupMenu {
+    menu = menu.label("Sort notebooks by");
+    for option in BookSort::ALL {
+        let sidebar = sidebar.clone();
+        menu = menu.item(
+            PopupMenuItem::new(book_sort_label(option))
+                .checked(current == option)
+                .on_click(move |_, _, cx| {
+                    sidebar.update(cx, |sidebar, cx| sidebar.set_book_sort(option, cx));
+                }),
+        );
+    }
+    menu
 }
 
 /// A notebook row as the sidebar draws it.

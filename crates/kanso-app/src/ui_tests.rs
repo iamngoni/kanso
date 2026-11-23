@@ -1316,6 +1316,31 @@ fn the_status_group_remembers(cx: &mut TestAppContext) {
     assert_eq!(f.saved_config().layout.status_open, Some(before));
 }
 
+/// The notebooks' sort is kept for the next launch; until chosen it is the
+/// default order.
+// no-prop-test: one choice through the settings file; the orders themselves
+// are properties in the engine's list tests, and the config round-trip is a
+// property in config's tests.
+#[gpui_kit::test]
+fn the_notebook_sort_remembers(cx: &mut TestAppContext) {
+    use kanso_engine::list::BookSort;
+    let f = setup(cx);
+    let sidebar = f.workspace(cx, |w, _| w.sidebar.clone());
+    assert_eq!(f.saved_config().layout.book_sort, BookSort::Manual);
+    assert_eq!(cx.read(|cx| sidebar.read(cx).book_sort()), BookSort::Manual);
+    sidebar.update(cx, |sidebar, cx| {
+        sidebar.set_book_sort(BookSort::NameDesc, cx)
+    });
+    cx.run_until_parked();
+    assert_eq!(f.saved_config().layout.book_sort, BookSort::NameDesc);
+    let next = reopen(cx);
+    let next_sidebar = cx.read(|cx| next.read(cx).sidebar.clone());
+    assert_eq!(
+        cx.read(|cx| next_sidebar.read(cx).book_sort()),
+        BookSort::NameDesc
+    );
+}
+
 /// Opens the first note in Split in a window wide enough for both sides.
 fn split_fixture(cx: &mut TestAppContext, body: &str) -> Fixture {
     let f = setup(cx);
