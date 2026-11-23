@@ -167,6 +167,10 @@ pub struct AgentSettings {
     pub env: Vec<(String, String)>,
     /// The empty private folder the agent starts in.
     pub workspace: PathBuf,
+    /// The model the person chose for this agent, by the id the agent
+    /// itself listed; `None` is the agent's own default. Applied to each
+    /// session as it opens ([`apply_model`]).
+    pub model: Option<String>,
 }
 
 impl AgentSettings {
@@ -1367,6 +1371,7 @@ mod tests {
                 args: Vec::new(),
                 env: Vec::new(),
                 workspace: nowhere.clone(),
+                model: None,
             };
             let err = settings
                 .spec_in(std::slice::from_ref(&nowhere))
@@ -1381,6 +1386,7 @@ mod tests {
             args: Vec::new(),
             env: Vec::new(),
             workspace: nowhere.clone(),
+            model: None,
         };
         let err = known.spec_in(&[nowhere]).unwrap_err().to_string();
         assert_eq!(err, "Codex isn't installed. Settings › AI has the command.");
@@ -1398,6 +1404,7 @@ mod tests {
             args: Vec::new(),
             env: Vec::new(),
             workspace: home.join("ws"),
+            model: None,
         };
         let report = super::report(&settings, "1.0.0", Some(&home), None);
         std::fs::remove_dir_all(&home).ok();
@@ -1465,6 +1472,7 @@ mod tests {
             args: Vec::new(),
             env: Vec::new(),
             workspace: std::env::temp_dir(),
+            model: None,
         };
         assert_eq!(settings.label(), "Codex");
         settings.kind = AgentKind::Custom;

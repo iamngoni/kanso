@@ -516,6 +516,7 @@ mod tests {
             args: Vec::new(),
             env: Vec::new(),
             workspace: std::env::temp_dir(),
+            model: None,
         };
         let err = settings.spec().expect_err("no command");
         assert_eq!(kind_of(&err), Trouble::NoAgent);

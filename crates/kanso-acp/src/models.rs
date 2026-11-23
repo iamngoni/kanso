@@ -370,7 +370,10 @@ mod tests {
                 prop_assert_eq!(catalog.current(), Some(current.as_str()));
             }
             prop_assert_eq!(read[0].switch(), &ModelSwitch::SetModel);
-            prop_assert!(matches!(read[1].switch(), ModelSwitch::ConfigOption { .. }));
+            // Bound first: `prop_assert!` stringifies its expression into a
+            // format string, and the pattern's braces would be read as one.
+            let grouped = matches!(read[1].switch(), ModelSwitch::ConfigOption { .. });
+            prop_assert!(grouped);
         }
 
         /// Refinement: a catalog has at least one model, no id twice, and

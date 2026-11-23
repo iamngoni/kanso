@@ -55,6 +55,7 @@ fn fake_agent(script: kanso_acp::fake::Script, name: &str) -> kanso_ai::SharedPr
         args: Vec::new(),
         env: Vec::new(),
         workspace: std::env::temp_dir().join(format!("kanso-ask-agent-{name}")),
+        model: None,
     };
     kanso_ai::agent::agent_client_with(
         &settings,

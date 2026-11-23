@@ -824,6 +824,10 @@ proptest! {
         let id = FAKE_MODELS[pick].0;
         session.set_model(id).unwrap();
         prop_assert_eq!(session.models().unwrap().current(), Some(id));
-        prop_assert!(model_in_use(&session).starts_with(&format!("model={id} ")));
+        // Bound first: `prop_assert!` embeds its expression in a concat, so
+        // the format string here can't capture `id` from the scope.
+        let said = model_in_use(&session);
+        let prefix = format!("model={id} ");
+        prop_assert!(said.starts_with(&prefix));
     }
 }

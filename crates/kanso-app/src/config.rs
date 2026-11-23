@@ -771,6 +771,11 @@ pub struct AgentChoice {
     /// Tools the person chose "Always allow" for: Kanso answers these without
     /// asking. Removed in Settings > AI.
     pub always_allowed: Vec<AllowedTool>,
+    /// The model each agent was last told to run, by the agent's own key
+    /// ([`AgentChoice::agent_key`]): the chosen agent's entry is the one
+    /// that applies, so switching agents keeps each one's own choice. No
+    /// entry is the agent's default.
+    pub model_by_agent: std::collections::BTreeMap<String, String>,
 }
 
 /// One of an agent's own tools the person allowed for good: the agent's name
@@ -795,6 +800,42 @@ impl Default for AgentChoice {
             suggest_edits: false,
             registry: None,
             always_allowed: Vec::new(),
+            model_by_agent: Default::default(),
+        }
+    }
+}
+
+impl AgentChoice {
+    /// What this choice's own settings are kept for: its registry entry when
+    /// it was picked from the registry, else the agent itself — the kind for
+    /// an agent Kanso knows, the command for the person's own.
+    fn agent_key(&self) -> String {
+        match (&self.registry, self.kind) {
+            (Some(id), _) => format!("registry:{id}"),
+            (None, kind) if kind == kanso_ai::AgentKind::Custom => {
+                format!("command:{}", self.command.clone().unwrap_or_default())
+            }
+            (None, kind) => format!("kind:{kind:?}"),
+        }
+    }
+
+    /// The model this choice's agent was set to run, if it has one.
+    pub fn model(&self) -> Option<&str> {
+        self.model_by_agent
+            .get(&self.agent_key())
+            .map(String::as_str)
+    }
+
+    /// Picks the model this choice's agent runs, or clears it (`None` is the
+    /// agent's own default). Other agents keep the models they were set to.
+    pub fn set_model(&mut self, model: Option<&str>) {
+        match model {
+            Some(id) if !id.is_empty() => {
+                self.model_by_agent.insert(self.agent_key(), id.to_owned());
+            }
+            _ => {
+                self.model_by_agent.remove(&self.agent_key());
+            }
         }
     }
 }
@@ -1437,6 +1478,7 @@ mod tests {
                     suggest_edits,
                     registry,
                     always_allowed: Vec::new(),
+                    model_by_agent: Default::default(),
                 },
             )
     }

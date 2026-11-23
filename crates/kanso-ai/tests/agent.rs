@@ -36,6 +36,7 @@ fn settings(name: &str) -> AgentSettings {
         args: Vec::new(),
         env: Vec::new(),
         workspace,
+        model: None,
     }
 }
 
