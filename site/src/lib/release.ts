@@ -91,6 +91,28 @@ export function parseRelease(json: unknown): Release | null {
   if (typeof tag !== "string") return null;
   const version = VERSION.exec(tag)?.[1];
   if (version === undefined) return null;
+  return parseAssets(json, tag, version);
+}
+
+export const NIGHTLY_TAG = "nightly";
+export const NIGHTLY_URL = `${RELEASES_URL}/tag/${NIGHTLY_TAG}`;
+const NIGHTLY_VERSION = /^Kanso-(\d+\.\d+\.\d+-nightly\.\d+)-/;
+
+/**
+ * The rolling `nightly` prerelease. Its tag is not a version, so the version
+ * comes from the asset names, which carry it
+ * (`Kanso-0.10.11-nightly.202611230841-macos-arm64.dmg`). Only builds of that
+ * one version count; feed files and the update archive are never builds.
+ */
+export function parseNightly(json: unknown): Release | null {
+  if (!isRecord(json) || json.draft === true || json.tag_name !== NIGHTLY_TAG) return null;
+  const assets = Array.isArray(json.assets) ? json.assets.filter(isRecord) : [];
+  const version = assets.map((a) => (typeof a.name === "string" ? NIGHTLY_VERSION.exec(a.name)?.[1] : undefined)).find((v) => v !== undefined);
+  if (version === undefined) return null;
+  return parseAssets(json, NIGHTLY_TAG, version);
+}
+
+function parseAssets(json: Record<string, unknown>, tag: string, version: string): Release | null {
   const publishedAt = typeof json.published_at === "string" && !Number.isNaN(Date.parse(json.published_at)) ? json.published_at : null;
   if (publishedAt === null) return null;
   const assets = Array.isArray(json.assets) ? json.assets.filter(isRecord) : [];

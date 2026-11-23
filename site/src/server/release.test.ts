@@ -4,7 +4,32 @@
  * unparsable releases and logging, plus runtimeDeps' wiring.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LATEST_RELEASE_API, RELEASE_CACHE_SECONDS, RELEASE_TIMEOUT_MS, type ReleaseDeps, latestRelease, runtimeDeps } from "./release";
+import { LATEST_RELEASE_API, NIGHTLY_RELEASE_API, RELEASE_CACHE_SECONDS, RELEASE_TIMEOUT_MS, type ReleaseDeps, latestRelease, nightlyRelease, runtimeDeps } from "./release";
+
+describe("nightlyRelease", () => {
+  const NB = "https://github.com/iamngoni/kanso/releases/download/nightly";
+  const nightlyJson = {
+    tag_name: "nightly",
+    prerelease: true,
+    published_at: "2026-11-23T08:41:00Z",
+    assets: [{ name: "Kanso-0.10.11-nightly.202611230841-linux-x64.tar.gz", size: 40_000_000, browser_download_url: `${NB}/Kanso-0.10.11-nightly.202611230841-linux-x64.tar.gz` }],
+  };
+
+  it("fetches the nightly tag's release and parses it", async () => {
+    const fetch = vi.fn(async () => new Response(JSON.stringify(nightlyJson), { status: 200 })) as unknown as ReleaseDeps["fetch"] & ReturnType<typeof vi.fn>;
+    const release = await nightlyRelease({ fetch });
+    expect(release?.version).toBe("0.10.11-nightly.202611230841");
+    expect((fetch.mock.calls[0] as unknown as [Request])[0].url).toBe(NIGHTLY_RELEASE_API);
+    expect(NIGHTLY_RELEASE_API).toBe("https://api.github.com/repos/iamngoni/kanso/releases/tags/nightly");
+  });
+
+  it("is null when GitHub fails or the release doesn't parse", async () => {
+    const log = vi.fn();
+    expect(await nightlyRelease({ fetch: (async () => new Response("no", { status: 404 })) as unknown as typeof fetch, log })).toBeNull();
+    expect(await nightlyRelease({ fetch: (async () => { throw new Error("down"); }) as unknown as typeof fetch, log })).toBeNull();
+    expect(await nightlyRelease({ fetch: (async () => new Response(JSON.stringify({ tag_name: "nightly", assets: [] }), { status: 200 })) as unknown as typeof fetch, log })).toBeNull();
+  });
+});
 
 const BASE = "https://github.com/iamngoni/kanso/releases/download/v0.5.2";
 const json = {

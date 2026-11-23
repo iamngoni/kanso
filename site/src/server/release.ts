@@ -6,9 +6,10 @@
  * the pages then link to the releases page on GitHub instead of a build.
  */
 import { cachedGithubJson } from "./cachedGithub";
-import { REPOSITORY, type Release, parseRelease } from "../lib/release";
+import { NIGHTLY_TAG, REPOSITORY, type Release, parseNightly, parseRelease } from "../lib/release";
 
 export const LATEST_RELEASE_API = `https://api.github.com/repos/${REPOSITORY}/releases/latest`;
+export const NIGHTLY_RELEASE_API = `https://api.github.com/repos/${REPOSITORY}/releases/tags/${NIGHTLY_TAG}`;
 export { RELEASE_CACHE_SECONDS, RELEASE_TIMEOUT_MS } from "./cachedGithub";
 
 /** What `latestRelease` needs from its runtime; tests pass fakes. */
@@ -25,6 +26,12 @@ export interface ReleaseDeps {
 export async function latestRelease(deps: ReleaseDeps): Promise<Release | null> {
   const json = await cachedGithubJson(deps, LATEST_RELEASE_API, "release", (j) => parseRelease(j) !== null);
   return json === null ? null : parseRelease(json);
+}
+
+/** The latest nightly build, or null when it can't be read; the stable release never depends on it. */
+export async function nightlyRelease(deps: ReleaseDeps): Promise<Release | null> {
+  const json = await cachedGithubJson(deps, NIGHTLY_RELEASE_API, "nightly", (j) => parseNightly(j) !== null);
+  return json === null ? null : parseNightly(json);
 }
 
 /** The runtime's dependencies: global fetch, and the edge cache where there is one. */

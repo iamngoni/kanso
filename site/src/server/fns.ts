@@ -6,24 +6,44 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
-import { type MobileOs, type Platform, detectMobileOs, detectPlatform } from "../lib/platform";
+import {
+  type MobileOs,
+  type Platform,
+  detectMobileOs,
+  detectPlatform,
+} from "../lib/platform";
 import type { Release } from "../lib/release";
 import type { ReleaseNote } from "../lib/releases";
-import { latestRelease, runtimeDeps } from "./release";
+import { latestRelease, nightlyRelease, runtimeDeps } from "./release";
 import { recentReleases } from "./releases";
 
 export interface SiteData {
   readonly release: Release | null;
+  /** The latest nightly build; null when it can't be read. */
+  readonly nightly: Release | null;
   readonly platform: Platform | null;
   readonly mobile: MobileOs | null;
 }
 
 export const getSiteData = createServerFn({ method: "GET" }).handler(
-  async (): Promise<SiteData> => ({
-    release: await latestRelease(runtimeDeps()),
-    platform: detectPlatform(getRequestHeader("user-agent"), getRequestHeader("sec-ch-ua-platform")),
-    mobile: detectMobileOs(getRequestHeader("user-agent"), getRequestHeader("sec-ch-ua-platform")),
-  }),
+  async (): Promise<SiteData> => {
+    const [release, nightly] = await Promise.all([
+      latestRelease(runtimeDeps()),
+      nightlyRelease(runtimeDeps()),
+    ]);
+    return {
+      release,
+      nightly,
+      platform: detectPlatform(
+        getRequestHeader("user-agent"),
+        getRequestHeader("sec-ch-ua-platform"),
+      ),
+      mobile: detectMobileOs(
+        getRequestHeader("user-agent"),
+        getRequestHeader("sec-ch-ua-platform"),
+      ),
+    };
+  },
 );
 
 /** The recent releases for the release notes page; null when GitHub can't be reached. */
