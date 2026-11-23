@@ -40,7 +40,7 @@ use crate::flavour;
 use crate::layout::{BOTTOM_BAND_HEIGHT, TOP_BAND_HEIGHT};
 use crate::library::Library;
 use crate::services::{self, AccountState, ApiState, Services, SyncState};
-use crate::settings_google_fonts::{GoogleFontAdded, GoogleFonts};
+use crate::settings_google_fonts::{GoogleFontAdded, GoogleFontRemoved, GoogleFonts};
 use crate::sidebar::{Tone, tone_color};
 use crate::text_stats::format_count;
 use crate::theme::Colors;
@@ -387,6 +387,24 @@ impl FontPickers {
             |this: &mut SettingsView, _, GoogleFontAdded(family), window, cx| {
                 AppState::update_config(cx, |config| {
                     config.appearance.add_google_font(family.as_str());
+                });
+                update_editors(cx);
+                if let Some(fonts) = &this.fonts {
+                    fonts.reload(window, cx);
+                }
+                cx.notify();
+            },
+        ));
+        subscriptions.push(cx.subscribe_in(
+            &google,
+            window,
+            |this: &mut SettingsView, _, GoogleFontRemoved(family), window, cx| {
+                // The font file is gone; the settings forget the family and
+                // any font choice naming it. The text system can't unload
+                // it (GPUI has no call for that), so it can stay listed
+                // below until the next launch, but no setting selects it.
+                AppState::update_config(cx, |config| {
+                    config.appearance.remove_google_font(family);
                 });
                 update_editors(cx);
                 if let Some(fonts) = &this.fonts {
