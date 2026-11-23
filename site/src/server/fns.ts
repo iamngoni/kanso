@@ -6,7 +6,12 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
-import { type MobileOs, type Platform, detectMobileOs, detectPlatform } from "../lib/platform";
+import {
+  type MobileOs,
+  type Platform,
+  detectMobileOs,
+  detectPlatform,
+} from "../lib/platform";
 import type { Release } from "../lib/release";
 import type { ReleaseNote } from "../lib/releases";
 import { latestRelease, nightlyRelease, runtimeDeps } from "./release";
@@ -21,12 +26,24 @@ export interface SiteData {
 }
 
 export const getSiteData = createServerFn({ method: "GET" }).handler(
-  async (): Promise<SiteData> => ({
-    release: await latestRelease(runtimeDeps()),
-    nightly: await nightlyRelease(runtimeDeps()),
-    platform: detectPlatform(getRequestHeader("user-agent"), getRequestHeader("sec-ch-ua-platform")),
-    mobile: detectMobileOs(getRequestHeader("user-agent"), getRequestHeader("sec-ch-ua-platform")),
-  }),
+  async (): Promise<SiteData> => {
+    const [release, nightly] = await Promise.all([
+      latestRelease(runtimeDeps()),
+      nightlyRelease(runtimeDeps()),
+    ]);
+    return {
+      release,
+      nightly,
+      platform: detectPlatform(
+        getRequestHeader("user-agent"),
+        getRequestHeader("sec-ch-ua-platform"),
+      ),
+      mobile: detectMobileOs(
+        getRequestHeader("user-agent"),
+        getRequestHeader("sec-ch-ua-platform"),
+      ),
+    };
+  },
 );
 
 /** The recent releases for the release notes page; null when GitHub can't be reached. */
