@@ -15,7 +15,8 @@ use crate::selection::{Click, Selection};
 
 pub use kanso_engine::list::{
     DAY_MS, Filter, RECENT_DAYS, book_path, book_total_counts, has_notes_inside, is_book_locked,
-    list_notes, notebook_tree as book_tree, refine_status, search_params,
+    list_notes, notebook_tree as book_tree, notebook_tree_sorted as book_tree_sorted,
+    refine_status, search_params,
 };
 
 /// The place a board lays out for the list's `filter`: the same notebook
@@ -583,6 +584,12 @@ impl Library {
     /// Notebooks in tree order with their depth.
     pub fn book_tree(&self) -> Vec<(usize, &Book)> {
         book_tree(&self.books)
+    }
+
+    /// [`Library::book_tree`] with the notebooks inside each parent ordered
+    /// by `sort`: what the sidebar draws.
+    pub fn book_tree_sorted(&self, sort: kanso_engine::list::BookSort) -> Vec<(usize, &Book)> {
+        book_tree_sorted(&self.books, sort)
     }
 
     /// The notebook `id` and the ones it is inside, outermost first.

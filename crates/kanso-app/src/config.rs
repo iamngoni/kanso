@@ -357,6 +357,8 @@ pub struct WindowLayout {
     /// The sidebar's notebooks opened to show the ones inside them, by ID;
     /// the rest are folded.
     pub open_books: Vec<String>,
+    /// How the sidebar orders the notebooks inside each parent.
+    pub book_sort: kanso_engine::list::BookSort,
     /// The notes open in windows of their own (`note_window.rs`), to open
     /// again at the next launch where they were.
     pub note_windows: Vec<NoteWindowFrame>,
@@ -469,6 +471,7 @@ impl Default for WindowLayout {
             inspector_width: crate::layout::INSPECTOR_WIDTH,
             inspector_tab: InspectorTab::Outline,
             open_books: Vec::new(),
+            book_sort: kanso_engine::list::BookSort::default(),
             note_windows: Vec::new(),
             open_tabs: Vec::new(),
             active_tab: 0,
@@ -1302,6 +1305,7 @@ mod tests {
             ),
             prop::collection::vec("note:[a-z0-9]{1,8}", 0..4),
             0..6usize,
+            prop::sample::select(kanso_engine::list::BookSort::ALL.to_vec()),
         )
             .prop_map(
                 |(
@@ -1314,6 +1318,7 @@ mod tests {
                     note_windows,
                     open_tabs,
                     active_tab,
+                    book_sort,
                 )| {
                     WindowLayout {
                         focus_mode,
@@ -1323,6 +1328,7 @@ mod tests {
                         inspector_width,
                         inspector_tab,
                         open_books: Vec::new(),
+                        book_sort,
                         note_windows: note_windows
                             .into_iter()
                             .map(|(note_id, x, y, width, height, sticky, color, closed)| {

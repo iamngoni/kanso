@@ -317,13 +317,84 @@ pub fn book_total_counts(books: &[Book]) -> HashMap<String, u32> {
         .collect()
 }
 
-/// Orders notebooks depth-first by name, children under their parent. A book
-/// whose parent is missing is shown at the top level.
+/// How the sidebar orders the notebooks inside each parent (issue #485).
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum BookSort {
+    /// The order the notebooks were given (`order`), then by name: how the
+    /// sidebar always listed them.
+    #[default]
+    Manual,
+    /// By name, A to Z.
+    NameAsc,
+    /// By name, Z to A.
+    NameDesc,
+    /// Most recently changed first.
+    Updated,
+    /// Most recently made first.
+    Created,
+}
+
+impl BookSort {
+    /// Every option, in the order a menu lists them.
+    pub const ALL: [BookSort; 5] = [
+        BookSort::Manual,
+        BookSort::NameAsc,
+        BookSort::NameDesc,
+        BookSort::Updated,
+        BookSort::Created,
+    ];
+}
+
+/// A name as sorting sees it: case and accents folded away, so "écrit" sits
+/// among the e's and "apple" and "Apple" are the same to the eye. Pure.
+fn name_key(name: &str) -> String {
+    use unicode_normalization::{UnicodeNormalization as _, char::is_combining_mark};
+    name.nfkd()
+        .filter(|c| !is_combining_mark(*c))
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+/// Sorts `books` in place by `sort`. Ties fall to the name and then the ID,
+/// so the order never depends on how the notebooks came in.
+fn sort_books(books: &mut [&Book], sort: BookSort) {
+    use std::cmp::Reverse;
+    match sort {
+        BookSort::Manual => books.sort_by(|a, b| {
+            (a.order, a.name.to_lowercase(), &a.id).cmp(&(b.order, b.name.to_lowercase(), &b.id))
+        }),
+        BookSort::NameAsc => books.sort_by_cached_key(|b| (name_key(&b.name), b.id.clone())),
+        // Z to A reverses the name only; equal names keep the ID order.
+        BookSort::NameDesc => {
+            books.sort_by_cached_key(|b| (Reverse(name_key(&b.name)), b.id.clone()));
+        }
+        BookSort::Updated => {
+            books.sort_by_cached_key(|b| (Reverse(b.updated_at), name_key(&b.name), b.id.clone()));
+        }
+        BookSort::Created => {
+            books.sort_by_cached_key(|b| (Reverse(b.created_at), name_key(&b.name), b.id.clone()));
+        }
+    }
+}
+
+/// Orders notebooks depth-first, children under their parent, in the
+/// default order ([`BookSort::Manual`]). A book whose parent is missing is
+/// shown at the top level.
 pub fn notebook_tree(books: &[Book]) -> Vec<(usize, &Book)> {
+    notebook_tree_sorted(books, BookSort::Manual)
+}
+
+/// [`notebook_tree`] with the notebooks inside each parent (and at the top
+/// level) ordered by `sort`. Every notebook appears exactly once.
+pub fn notebook_tree_sorted(books: &[Book], sort: BookSort) -> Vec<(usize, &Book)> {
     fn visit<'a>(
         parent: Option<&str>,
         depth: usize,
         books: &'a [Book],
+        sort: BookSort,
         out: &mut Vec<(usize, &'a Book)>,
     ) {
         let mut children: Vec<&Book> = books
@@ -335,24 +406,22 @@ pub fn notebook_tree(books: &[Book]) -> Vec<(usize, &Book)> {
                 (Some(_), None) => false,
             })
             .collect();
-        children.sort_by(|a, b| {
-            (a.order, a.name.to_lowercase(), &a.id).cmp(&(b.order, b.name.to_lowercase(), &b.id))
-        });
+        sort_books(&mut children, sort);
         for book in children {
             if out.iter().any(|(_, b)| b.id == book.id) {
                 continue;
             }
             out.push((depth, book));
-            visit(Some(&book.id), depth + 1, books, out);
+            visit(Some(&book.id), depth + 1, books, sort, out);
         }
     }
     let mut out = Vec::with_capacity(books.len());
-    visit(None, 0, books, &mut out);
+    visit(None, 0, books, sort, &mut out);
     // Books in a parent cycle are unreachable from the top; still show them.
     for book in books {
         if !out.iter().any(|(_, b)| b.id == book.id) {
             out.push((0, book));
-            visit(Some(&book.id), 1, books, &mut out);
+            visit(Some(&book.id), 1, books, sort, &mut out);
         }
     }
     out
@@ -436,9 +505,10 @@ pub fn new_note_target(
 #[cfg(test)]
 mod tests {
     use super::{
-        DateKey, Filter, Narrowing, book_path, book_total_count, book_total_counts,
-        has_notes_inside, is_book_locked, list_notes, new_note_target, notebook_tree, pinned_first,
-        recent_first, recent_notes, refine_status, search_params, shape,
+        BookSort, DateKey, Filter, Narrowing, book_path, book_total_count, book_total_counts,
+        has_notes_inside, is_book_locked, list_notes, name_key, new_note_target, notebook_tree,
+        notebook_tree_sorted, pinned_first, recent_first, recent_notes, refine_status,
+        search_params, shape,
     };
     use crate::lock::book_subtree;
     use kanso_core::{Book, NoteFacts, NoteStatus, Query};
@@ -505,6 +575,226 @@ mod tests {
                     .collect()
             },
         )
+    }
+
+    /// Like [`gen_books`], with names of mixed case and accents and
+    /// timestamps that often repeat, so ties happen.
+    fn gen_dated_books() -> impl Strategy<Value = Vec<Book>> {
+        prop::collection::vec(
+            (
+                prop::option::of(0usize..40),
+                "[a-cA-CéÉe]{1,3}",
+                0i64..6,
+                0i64..6,
+            ),
+            0..20,
+        )
+        .prop_map(|specs| {
+            specs
+                .into_iter()
+                .enumerate()
+                .map(|(ix, (parent, name, created, updated))| {
+                    let mut b = book(ix, parent.filter(|p| *p < ix || *p >= 20), &name);
+                    b.created_at = created;
+                    b.updated_at = updated;
+                    b
+                })
+                .collect()
+        })
+    }
+
+    fn any_book_sort() -> impl Strategy<Value = BookSort> {
+        prop::sample::select(BookSort::ALL.to_vec())
+    }
+
+    proptest! {
+        #![proptest_config(config())]
+
+        /// Invariant: whatever the sort, every notebook shows exactly once,
+        /// after its parent and one level deeper.
+        #[test]
+        fn prop_sorted_tree_lists_each_book_once_under_its_parent(
+            books in gen_dated_books(),
+            sort in any_book_sort(),
+        ) {
+            let tree = notebook_tree_sorted(&books, sort);
+            prop_assert_eq!(tree.len(), books.len());
+            for (ix, (depth, book)) in tree.iter().enumerate() {
+                prop_assert_eq!(tree.iter().filter(|(_, b)| b.id == book.id).count(), 1);
+                match book.parent_book_id.as_deref().and_then(|p| tree.iter().position(|(_, b)| b.id == p)) {
+                    Some(parent_ix) => {
+                        prop_assert!(parent_ix < ix);
+                        prop_assert_eq!(*depth, tree[parent_ix].0 + 1);
+                    }
+                    None => prop_assert_eq!(*depth, 0),
+                }
+            }
+        }
+
+        /// Regression guard: the default sort is the order the sidebar
+        /// always had.
+        #[test]
+        fn prop_manual_sort_is_the_default_tree(books in gen_dated_books()) {
+            let ids = |tree: Vec<(usize, &Book)>| -> Vec<(usize, String)> {
+                tree.into_iter().map(|(d, b)| (d, b.id.clone())).collect()
+            };
+            prop_assert_eq!(
+                ids(notebook_tree_sorted(&books, BookSort::Manual)),
+                ids(notebook_tree(&books))
+            );
+        }
+
+        /// Invariant: within each parent the siblings are in the sort's
+        /// order (names folded, dates newest first, A to Z reversed for Z to A).
+        #[test]
+        fn prop_siblings_follow_the_sort(books in gen_dated_books(), sort in any_book_sort()) {
+            let tree = notebook_tree_sorted(&books, sort);
+            let mut by_parent: std::collections::HashMap<Option<&str>, Vec<&Book>> =
+                std::collections::HashMap::new();
+            for (_, b) in &tree {
+                // A missing parent shows at the top, like no parent.
+                let parent = b
+                    .parent_book_id
+                    .as_deref()
+                    .filter(|p| books.iter().any(|o| o.id == *p));
+                by_parent.entry(parent).or_default().push(b);
+            }
+            for siblings in by_parent.values() {
+                for pair in siblings.windows(2) {
+                    let (a, b) = (pair[0], pair[1]);
+                    let ok = match sort {
+                        BookSort::Manual => true,
+                        BookSort::NameAsc => name_key(&a.name) <= name_key(&b.name),
+                        BookSort::NameDesc => name_key(&a.name) >= name_key(&b.name),
+                        BookSort::Updated => a.updated_at >= b.updated_at,
+                        BookSort::Created => a.created_at >= b.created_at,
+                    };
+                    prop_assert!(ok, "{:?} before {:?} under {:?}", a.name, b.name, sort);
+                }
+            }
+        }
+
+        /// Metamorphic: the order doesn't depend on the order the notebooks
+        /// are handed over in.
+        #[test]
+        fn prop_sorted_tree_ignores_input_order(
+            books in gen_dated_books(),
+            sort in any_book_sort(),
+            by in 0usize..20,
+        ) {
+            prop_assume!(sort != BookSort::Manual || books.iter().all(|b| b.order.is_none()));
+            let ids = |books: &[Book]| -> Vec<(usize, String)> {
+                notebook_tree_sorted(books, sort)
+                    .into_iter()
+                    .map(|(d, b)| (d, b.id.clone()))
+                    .collect()
+            };
+            let mut rotated = books.clone();
+            if !rotated.is_empty() {
+                let by = by % rotated.len();
+                rotated.rotate_left(by);
+            }
+            prop_assert_eq!(ids(&books), ids(&rotated));
+        }
+
+        /// Metamorphic: name sorts don't care about case.
+        #[test]
+        fn prop_name_sorts_ignore_case(books in gen_dated_books(), desc in any::<bool>()) {
+            let sort = if desc { BookSort::NameDesc } else { BookSort::NameAsc };
+            let ids = |books: &[Book]| -> Vec<String> {
+                notebook_tree_sorted(books, sort).into_iter().map(|(_, b)| b.id.clone()).collect()
+            };
+            let upper: Vec<Book> = books
+                .iter()
+                .cloned()
+                .map(|mut b| {
+                    b.name = b.name.to_uppercase();
+                    b
+                })
+                .collect();
+            prop_assert_eq!(ids(&books), ids(&upper));
+        }
+    }
+
+    fn named(id: usize, parent: Option<usize>, name: &str, created: i64, updated: i64) -> Book {
+        let mut b = book(id, parent, name);
+        b.created_at = created;
+        b.updated_at = updated;
+        b
+    }
+
+    fn names(books: &[Book], sort: BookSort) -> Vec<(usize, String)> {
+        notebook_tree_sorted(books, sort)
+            .into_iter()
+            .map(|(d, b)| (d, b.name.clone()))
+            .collect()
+    }
+
+    #[test]
+    fn name_sorts_fold_case_and_accents() {
+        let books = vec![
+            named(1, None, "zebra", 0, 0),
+            named(2, None, "Éclair", 0, 0),
+            named(3, None, "apple", 0, 0),
+            named(4, None, "Banana", 0, 0),
+        ];
+        let asc: Vec<String> = names(&books, BookSort::NameAsc)
+            .into_iter()
+            .map(|(_, n)| n)
+            .collect();
+        assert_eq!(asc, ["apple", "Banana", "Éclair", "zebra"]);
+        let desc: Vec<String> = names(&books, BookSort::NameDesc)
+            .into_iter()
+            .map(|(_, n)| n)
+            .collect();
+        assert_eq!(desc, ["zebra", "Éclair", "Banana", "apple"]);
+    }
+
+    #[test]
+    fn date_sorts_put_the_newest_first_and_nest_inside_parents() {
+        let books = vec![
+            named(1, None, "Old", 1, 9),
+            named(2, None, "New", 5, 2),
+            named(3, Some(1), "Child old", 1, 1),
+            named(4, Some(1), "Child new", 2, 3),
+        ];
+        assert_eq!(
+            names(&books, BookSort::Created),
+            [
+                (0, "New".to_string()),
+                (0, "Old".into()),
+                (1, "Child new".into()),
+                (1, "Child old".into()),
+            ]
+        );
+        assert_eq!(
+            names(&books, BookSort::Updated),
+            [
+                (0, "Old".to_string()),
+                (1, "Child new".into()),
+                (1, "Child old".into()),
+                (0, "New".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn manual_sort_keeps_the_given_order_before_names() {
+        let mut first = named(1, None, "Zed", 0, 0);
+        first.order = Some(0);
+        let mut second = named(2, None, "Alpha", 0, 0);
+        second.order = Some(1);
+        let books = vec![second, first];
+        let got: Vec<String> = names(&books, BookSort::Manual)
+            .into_iter()
+            .map(|(_, n)| n)
+            .collect();
+        assert_eq!(got, ["Zed", "Alpha"]);
+        let got: Vec<String> = names(&books, BookSort::NameAsc)
+            .into_iter()
+            .map(|(_, n)| n)
+            .collect();
+        assert_eq!(got, ["Alpha", "Zed"]);
     }
 
     proptest! {
