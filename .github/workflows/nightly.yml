@@ -2,7 +2,7 @@ name: Nightly
 
 # Builds Kanso Nightly from master once a day, but only when CI is green and
 # master has moved since the last nightly. The version is the Cargo version
-# with a `-nightly.<date>.<sha>` prerelease suffix, compiled in through
+# with a `-nightly.<YYYYMMDDHHMM>` (UTC) prerelease suffix, compiled in through
 # KANSO_NIGHTLY_VERSION, and the four update archives plus the signed
 # latest.json are published to the moving `nightly` prerelease. Kanso Nightly
 # follows that feed; Kanso itself never sees it.
@@ -52,7 +52,10 @@ jobs:
         run: |
           sha=$(git rev-parse HEAD)
           crate_version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-          version="$crate_version-nightly.$(date -u +%Y%m%d).${sha::7}"
+          # One number, UTC YYYYMMDDHHMM: it always increases and never starts with
+          # a zero (semver forbids that in a numeric identifier, as a commit
+          # hash could). The commit goes in the notes, not the version.
+          version="$crate_version-nightly.$(date -u +%Y%m%d%H%M)"
           build=0
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
             build=1
@@ -123,6 +126,8 @@ jobs:
         run: git config --global core.autocrlf false
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          # Exactly the commit the plan chose, not whatever master is now.
+          ref: ${{ needs.plan.outputs.sha }}
           persist-credentials: false
           submodules: true
           fetch-depth: 0
@@ -198,7 +203,10 @@ jobs:
           echo "ORT_LIB_LOCATION=$PWD/vendor/onnxruntime/$ORT_PLATFORM/lib" >>"$GITHUB_ENV"
           echo "ORT_PREFER_DYNAMIC_LINK=1" >>"$GITHUB_ENV"
 
+      # macOS is built by scripts/bundle-macos.sh --nightly below, into its
+      # own target folder, so a build here would be thrown away.
       - name: Build
+        if: runner.os != 'macOS'
         run: cargo build --release --locked -p kanso-app -p kanso-plugin-host -p kanso-pdf --features kanso-app/nightly-flavour,kanso-pdf/render
 
       # Developer ID signing and notarization. Unlike a tagged release this
@@ -408,7 +416,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: master
+          ref: ${{ needs.plan.outputs.sha }}
           persist-credentials: false
           fetch-depth: 0
 
@@ -444,6 +452,8 @@ jobs:
         run: cargo build --release --locked -p kanso-update --bin kanso-release
 
       - name: Nightly notes
+        env:
+          SHA: ${{ needs.plan.outputs.sha }}
         run: |
           mkdir -p notes
           # Merged PRs since the last nightly tag, or since the last release
@@ -455,7 +465,14 @@ jobs:
           else
             range="HEAD"
           fi
-          target/release/kanso-release notes --commits "$range" --out notes/notes.md
+          target/release/kanso-release notes --commits "$range" --out notes/body.md
+          # The commit is named here, not in the version.
+          {
+            echo "Built from commit \`${SHA::7}\`."
+            echo
+            cat notes/body.md
+          } >notes/notes.md
+          rm notes/body.md
           cat notes/notes.md
 
       - name: Update feed
@@ -473,7 +490,7 @@ jobs:
           NIGHTLY_UPDATE_SIGNING_KEY: ${{ secrets.NIGHTLY_UPDATE_SIGNING_KEY }}
         run: |
           target/release/kanso-release sign --feed dist/latest.json \
-            --key-env NIGHTLY_UPDATE_SIGNING_KEY --allow-untrusted
+            --key-env NIGHTLY_UPDATE_SIGNING_KEY --nightly
 
       - name: Verify the feed
         env:
@@ -483,7 +500,9 @@ jobs:
             echo "::error::Set the NIGHTLY_UPDATE_PUBLIC_KEY repository variable to the public half of NIGHTLY_UPDATE_SIGNING_KEY."
             exit 1
           fi
-          target/release/kanso-release verify --feed dist/latest.json --key "$NIGHTLY_UPDATE_PUBLIC_KEY"
+          # Against the keys Kanso Nightly compiles in, and the variable.
+          target/release/kanso-release verify --feed dist/latest.json --nightly \
+            --key "$NIGHTLY_UPDATE_PUBLIC_KEY"
 
       - name: SHA256SUMS
         working-directory: dist
@@ -527,21 +546,39 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
+          # This job has no checkout, so gh needs the repository named.
+          GH_REPO: ${{ github.repository }}
           SHA: ${{ needs.plan.outputs.sha }}
           VERSION: ${{ needs.plan.outputs.version }}
         run: |
-          # Move the moving tag first, so the gate sees this commit and the
-          # release's downloads follow it.
+          set -euo pipefail
+          if gh release view nightly >/dev/null 2>&1; then
+            gh release edit nightly --prerelease --title "Kanso Nightly" \
+              --notes-file notes.md
+            # Earlier nightlies' archives are named for their own version;
+            # left alone they pile up every night. Keep only what this run
+            # is about to upload (those are replaced in place).
+            ls dist >current-assets.txt
+            gh release view nightly --json assets --jq '.assets[].name' |
+              while IFS= read -r name; do
+                if ! grep -qxF -- "$name" current-assets.txt; then
+                  echo "Deleting the old asset $name"
+                  gh release delete-asset nightly "$name" --yes
+                fi
+              done
+            gh release upload nightly dist/* --clobber
+          else
+            # The tag does not exist yet; creating the release at the commit
+            # makes it.
+            gh release create nightly dist/* --target "$SHA" --prerelease \
+              --title "Kanso Nightly" --notes-file notes.md
+          fi
+
+          # Only now, with the release uploaded, move the moving tag. The
+          # gate skips a commit the tag already points at, so a failed
+          # publish above is retried by the next run.
           gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/nightly" \
             -f sha="$SHA" -F force=true >/dev/null 2>&1 ||
             gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
               -f ref=refs/tags/nightly -f sha="$SHA" >/dev/null
-
-          if gh release view nightly >/dev/null 2>&1; then
-            gh release edit nightly --prerelease --title "Kanso Nightly"
-            gh release upload nightly dist/* --clobber
-          else
-            gh release create nightly dist/* --verify-tag --prerelease \
-              --title "Kanso Nightly" --notes-file notes.md
-          fi
           echo "Published $VERSION to https://github.com/$GITHUB_REPOSITORY/releases/tag/nightly"

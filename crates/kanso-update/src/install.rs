@@ -32,9 +32,12 @@ pub struct Install {
 }
 
 impl Install {
-    /// The runtime support folder the Linux archive installer fills
-    /// (`~/.local/lib/kanso`), when this executable is in the `bin` folder
-    /// that installer uses. `None` for bundles and other platforms.
+    /// The runtime support folder the Linux archive installer fills, when
+    /// this executable is in the `bin` folder that installer uses:
+    /// `~/.local/lib/kanso` for `~/.local/bin/kanso`, and
+    /// `~/.local/lib/kanso-nightly` for `~/.local/bin/kanso-nightly`, so
+    /// Kanso and Kanso Nightly each keep their own libraries. `None` for
+    /// bundles, other platforms and any other executable name.
     pub fn support_dir(&self) -> Option<PathBuf> {
         if !matches!(self.platform, Platform::LinuxX64 | Platform::LinuxArm64) {
             return None;
@@ -43,7 +46,11 @@ impl Install {
         if bin.file_name()?.to_str()? != "bin" {
             return None;
         }
-        Some(bin.parent()?.join("lib/kanso"))
+        let name = self.target.file_name()?.to_str()?;
+        if !matches!(name, "kanso" | "kanso-nightly") {
+            return None;
+        }
+        Some(bin.parent()?.join("lib").join(name))
     }
 }
 
@@ -251,11 +258,22 @@ pub fn backup_path(target: &Path, stage_dir: &Path, platform: Platform) -> PathB
     }
 }
 
-/// Where the plugin host is installed: beside the executable. `None` on
-/// macOS, where it is inside the `.app` that is swapped whole.
+/// Where the plugin host is installed: beside the executable, except for
+/// Kanso Nightly on Linux (`~/.local/bin/kanso-nightly`), whose host is in
+/// its own support folder so it never replaces the one beside Kanso. `None`
+/// on macOS, where it is inside the `.app` that is swapped whole.
 pub fn host_target(install: &Install) -> Option<PathBuf> {
-    (!install.platform.is_bundle())
-        .then(|| install.target.with_file_name(install.platform.host_name()))
+    if install.platform.is_bundle() {
+        return None;
+    }
+    let nightly = install
+        .target
+        .file_name()
+        .is_some_and(|name| name == "kanso-nightly");
+    if nightly && let Some(support) = install.support_dir() {
+        return Some(support.join(install.platform.host_name()));
+    }
+    Some(install.target.with_file_name(install.platform.host_name()))
 }
 
 /// A staged entry's swap: the staged file or folder, the installed one it
@@ -1073,6 +1091,130 @@ mod tests {
             platform: Platform::LinuxX64,
         };
         assert_eq!(other.support_dir(), None);
+    }
+
+    /// Kanso Nightly's archive install puts the binary at
+    /// `~/.local/bin/kanso-nightly` and its libraries in
+    /// `~/.local/lib/kanso-nightly`; it must be installable, and its
+    /// runtime support sealed, like Kanso's.
+    #[test]
+    fn linux_nightly_layout_is_installable_with_its_own_support_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join(".local");
+        let exe = root.join("bin/kanso-nightly");
+        fs::create_dir_all(exe.parent().unwrap()).unwrap();
+        fs::write(&exe, "x").unwrap();
+        for platform in [Platform::LinuxX64, Platform::LinuxArm64] {
+            let install = locate(&exe, Some(platform), opts()).unwrap();
+            assert_eq!(install.target, exe);
+            assert_eq!(install.support_dir(), Some(root.join("lib/kanso-nightly")));
+        }
+        // The old nightly layout (the binary inside its own lib folder) has
+        // no support folder, which is why it could never update.
+        let old = Install {
+            target: root.join("lib/kanso-nightly/kanso"),
+            stage_dir: root.join("lib/kanso-nightly").join(STAGE_DIR_NAME),
+            platform: Platform::LinuxX64,
+        };
+        assert_eq!(old.support_dir(), None);
+    }
+
+    /// Kanso keeps its plugin host beside it; Kanso Nightly on Linux keeps
+    /// its own in its support folder, so neither update swaps the other's.
+    #[test]
+    fn host_target_keeps_the_nightly_host_out_of_kansos_bin_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join(".local");
+        let install = |name: &str, platform| Install {
+            target: root.join("bin").join(name),
+            stage_dir: root.join("bin").join(STAGE_DIR_NAME),
+            platform,
+        };
+        let stable = install("kanso", Platform::LinuxX64);
+        assert_eq!(
+            host_target(&stable),
+            Some(root.join("bin/kanso-plugin-host"))
+        );
+        for platform in [Platform::LinuxX64, Platform::LinuxArm64] {
+            let nightly = install("kanso-nightly", platform);
+            assert_eq!(
+                host_target(&nightly),
+                Some(root.join("lib/kanso-nightly/kanso-plugin-host"))
+            );
+        }
+        // Without the install layout there is no support folder: beside it.
+        let loose = Install {
+            target: dir.path().join("kanso-nightly"),
+            stage_dir: dir.path().join(STAGE_DIR_NAME),
+            platform: Platform::LinuxX64,
+        };
+        assert_eq!(
+            host_target(&loose),
+            Some(dir.path().join("kanso-plugin-host"))
+        );
+        let windows = Install {
+            target: dir.path().join("kanso-nightly"),
+            stage_dir: dir.path().join(STAGE_DIR_NAME),
+            platform: Platform::WindowsX64,
+        };
+        assert_eq!(
+            host_target(&windows),
+            Some(dir.path().join("kanso-plugin-host.exe"))
+        );
+    }
+
+    /// An update to a nightly lands its plugin host in the nightly support
+    /// folder, with the new runtime files, and leaves Kanso's host alone.
+    #[test]
+    fn a_nightly_update_swaps_only_its_own_plugin_host() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join(".local");
+        let bin = root.join("bin");
+        let support = root.join("lib/kanso-nightly");
+        fs::create_dir_all(&bin).unwrap();
+        fs::create_dir_all(&support).unwrap();
+        fs::write(bin.join("kanso-nightly"), "old nightly").unwrap();
+        fs::write(bin.join("kanso-plugin-host"), "stable host").unwrap();
+        fs::write(support.join("kanso-plugin-host"), "old nightly host").unwrap();
+        fs::write(support.join("libonnxruntime.so.1"), "old ort").unwrap();
+        let target = bin.join("kanso-nightly");
+        let install = locate(&target, Some(Platform::LinuxX64), opts()).unwrap();
+        let payload = install.stage_dir.join("unpacked-0.2.0/kanso");
+        fs::create_dir_all(payload.parent().unwrap()).unwrap();
+        fs::write(&payload, "new nightly").unwrap();
+        let host = payload.with_file_name("kanso-plugin-host");
+        fs::write(&host, "new nightly host").unwrap();
+        let staged_support = install.stage_dir.join(stage::SUPPORT_DIR_NAME);
+        fs::create_dir_all(&staged_support).unwrap();
+        fs::write(staged_support.join("libonnxruntime.so.1"), "new ort").unwrap();
+        let mut seal = seal(&install.stage_dir, &payload);
+        seal.host_digest = Some(stage::payload_digest(&host).unwrap());
+        seal.support_digest = Some(stage::payload_digest(&staged_support).unwrap());
+        let pending = Pending {
+            version: "0.2.0".into(),
+            seal,
+            payload,
+            target,
+            pub_date: String::new(),
+            release_url: String::new(),
+            notes: String::new(),
+            whats_new: None,
+            earlier: Vec::new(),
+        };
+        apply(&pending, &install).unwrap();
+        assert_eq!(fs::read(bin.join("kanso-nightly")).unwrap(), b"new nightly");
+        assert_eq!(
+            fs::read(support.join("kanso-plugin-host")).unwrap(),
+            b"new nightly host"
+        );
+        assert_eq!(
+            fs::read(support.join("libonnxruntime.so.1")).unwrap(),
+            b"new ort"
+        );
+        assert_eq!(
+            fs::read(bin.join("kanso-plugin-host")).unwrap(),
+            b"stable host"
+        );
     }
 
     /// Stages a plugin host beside `pending`'s payload (when `staged` has

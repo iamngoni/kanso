@@ -3,7 +3,7 @@
 ;   ISCC.exe /DAppVersion=0.2.0 /DSourceExe=...\kanso.exe /DOutputDir=...\dist
 ;            /DOutputBase=Kanso-0.2.0-windows-x64-setup packaging\windows\kanso.iss
 ;
-; /DNightly=1 builds the separate Kanso Nightly app: its own AppId, install
+; /DNightly=1 (compared as text, as the command line gives it) builds the separate Kanso Nightly app: its own AppId, install
 ; folder, uninstall entry and kanso-nightly:// scheme, so it and Kanso can
 ; be installed side by side.
 ;
@@ -42,17 +42,17 @@
   #endif
 #endif
 #ifndef Nightly
-  #define Nightly 0
+  #define Nightly "0"
 #endif
 #ifndef OutputBase
-  #if Nightly
+  #if Str(Nightly) == "1"
     #define OutputBase "Kanso-Nightly-" + AppVersion + "-windows-x64-setup"
   #else
     #define OutputBase "Kanso-" + AppVersion + "-windows-x64-setup"
   #endif
 #endif
 
-#if Nightly
+#if Str(Nightly) == "1"
   #define AppIdValue "{{D47E3784-BE60-41C0-96E0-953E8ECBBB55}"
   #define AppNameValue "Kanso Nightly"
   #define AppDirName "{userpf}\Kanso Nightly"
@@ -83,7 +83,7 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
-#if Nightly
+#if Str(Nightly) == "1"
 SetupIconFile={#SourcePath}\..\..\assets\icon\kanso-nightly.ico
 #else
 SetupIconFile={#SourcePath}\..\..\assets\icon\kanso.ico
@@ -127,7 +127,7 @@ Root: HKCU; Subkey: "Software\Classes\{#UrlScheme}"; ValueType: string; ValueNam
 Root: HKCU; Subkey: "Software\Classes\{#UrlScheme}"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKCU; Subkey: "Software\Classes\{#UrlScheme}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\kanso.exe,0"
 Root: HKCU; Subkey: "Software\Classes\{#UrlScheme}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\kanso.exe"" ""%1"""
-#if !Nightly
+#if Str(Nightly) != "1"
 ; Open with > Kanso for Markdown files, for this user. Kanso is listed there
 ; and does not become the default program. A second kanso.exe started with
 ; the file hands it to the running one.

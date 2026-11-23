@@ -174,9 +174,11 @@ impl CallWindow {
     }
 }
 
-/// Where the host binary is: beside this program (in the app bundle, or
-/// `target/<profile>/` while developing; a test runs from `deps/` inside
-/// it). A debug build also takes `KANSO_PLUGIN_HOST`.
+/// Where the host binary is: in `../lib/<this program's name>` first (Kanso
+/// Nightly's install on Linux keeps its own host there, so it never runs
+/// Kanso's from `~/.local/bin`), then beside this program (in the app
+/// bundle, or `target/<profile>/` while developing; a test runs from
+/// `deps/` inside it). A debug build also takes `KANSO_PLUGIN_HOST`.
 pub fn find_host() -> Option<PathBuf> {
     #[cfg(debug_assertions)]
     if let Some(path) = std::env::var_os("KANSO_PLUGIN_HOST") {
@@ -184,12 +186,25 @@ pub fn find_host() -> Option<PathBuf> {
     }
     let name = format!("kanso-plugin-host{}", std::env::consts::EXE_SUFFIX);
     let exe = std::env::current_exe().ok()?;
-    let dir = exe.parent()?;
-    [Some(dir), dir.parent()]
+    host_candidates(&exe, &name)
         .into_iter()
-        .flatten()
-        .map(|dir| dir.join(&name))
         .find(|path| path.is_file())
+}
+
+/// Where [`find_host`] looks for `name` for a program at `exe`, in order.
+fn host_candidates(exe: &Path, name: &str) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    let Some(dir) = exe.parent() else {
+        return candidates;
+    };
+    if let (Some(parent), Some(program)) = (dir.parent(), exe.file_name()) {
+        candidates.push(parent.join("lib").join(program).join(name));
+    }
+    candidates.push(dir.join(name));
+    if let Some(parent) = dir.parent() {
+        candidates.push(parent.join(name));
+    }
+    candidates
 }
 
 /// A running host.
@@ -548,7 +563,45 @@ mod tests {
         assert_eq!(health.refused(0), None);
     }
 
+    #[test]
+    fn the_nightly_host_is_looked_for_in_its_own_lib_folder_first() {
+        let name = "kanso-plugin-host";
+        let nightly = host_candidates(Path::new("/home/a/.local/bin/kanso-nightly"), name);
+        assert_eq!(
+            nightly,
+            [
+                "/home/a/.local/lib/kanso-nightly/kanso-plugin-host",
+                "/home/a/.local/bin/kanso-plugin-host",
+                "/home/a/.local/kanso-plugin-host",
+            ]
+            .map(PathBuf::from)
+        );
+        // Kanso's own never reaches into Kanso Nightly's folder.
+        let stable = host_candidates(Path::new("/home/a/.local/bin/kanso"), name);
+        assert!(
+            stable
+                .iter()
+                .all(|p| !p.to_string_lossy().contains("nightly"))
+        );
+        assert_eq!(
+            stable[1],
+            PathBuf::from("/home/a/.local/bin/kanso-plugin-host")
+        );
+        assert!(host_candidates(Path::new("/"), name).is_empty());
+    }
+
     proptest! {
+        /// Invariant: whatever the program's name, its own lib folder is
+        /// tried first and beside it comes before the folder above.
+        #[test]
+        fn prop_own_lib_folder_comes_first(program in "[a-z][a-z-]{0,12}", root in "[a-z]{1,6}") {
+            let exe = PathBuf::from(format!("/{root}/bin/{program}"));
+            let found = host_candidates(&exe, "h");
+            prop_assert_eq!(found.len(), 3);
+            prop_assert_eq!(&found[0], &PathBuf::from(format!("/{root}/lib/{program}/h")));
+            prop_assert_eq!(&found[1], &PathBuf::from(format!("/{root}/bin/h")));
+        }
+
         /// Invariant: no 60-second window ever admits more than the cap.
         #[test]
         fn prop_the_call_window_holds(gaps in prop::collection::vec(0u64..3_000, 1..400)) {

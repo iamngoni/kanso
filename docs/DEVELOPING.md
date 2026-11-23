@@ -39,7 +39,7 @@ point any flavour at another folder.
 Kanso Nightly is the release app on its own channel, so it can sync with a
 Kanso account but keeps its own sign-in. Its first launch shows a one-time
 warning that it is a nightly build. `KANSO_NIGHTLY_VERSION` names a local
-build (`0.10.11-nightly.20261120.abc1234`); without it the Cargo version is
+build (`0.10.11-nightly.202611200200`); without it the Cargo version is
 used.
 
 A plain `cargo run -p kanso-app` is the normal flavour, but a debug build: it

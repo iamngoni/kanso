@@ -15,7 +15,7 @@
 # Keychain service, and updates from the nightly feed. Neither is ever
 # installed over /Applications/Kanso.app, which only ever comes from a
 # release and updates itself. KANSO_NIGHTLY_VERSION names the nightly build
-# (0.10.11-nightly.20261120.abc1234); without it the Cargo version is used.
+# (0.10.11-nightly.202611200200); without it the Cargo version is used.
 #
 # KANSO_SIGN_IDENTITY signs with that identity, the hardened runtime and a
 # secure timestamp (the release workflow's Developer ID); without it the app
@@ -57,7 +57,7 @@ elif [ "$nightly" = 1 ]; then
     # Its own target folder, so the three apps never rebuild or contaminate
     # each other's release profile.
     target_dir=target/kanso-nightly
-    cargo build --release -p kanso-app -p kanso-plugin-host -p kanso-pdf --features kanso-app/nightly-flavour,kanso-pdf/render --target-dir "$target_dir"
+    cargo build --release --locked -p kanso-app -p kanso-plugin-host -p kanso-pdf --features kanso-app/nightly-flavour,kanso-pdf/render --target-dir "$target_dir"
     name="Kanso Nightly"
     bundle_id=app.kanso.Kanso.nightly
     scheme=kanso-nightly

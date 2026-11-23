@@ -31,8 +31,14 @@ fn main() {
         // (scripts/fetch-onnxruntime.sh: pyke's static archives need a newer
         // glibc than Ubuntu 22.04's). The loader finds libonnxruntime.so.1
         // beside the binary (the release archive), or in ../lib/kanso (the
-        // .deb's /usr/lib/kanso and install.sh's ~/.local/lib/kanso).
-        for dir in ["$ORIGIN", "$ORIGIN/../lib/kanso"] {
+        // .deb's /usr/lib/kanso and install.sh's ~/.local/lib/kanso). Kanso
+        // Nightly's install.sh keeps its own in ~/.local/lib/kanso-nightly.
+        let lib = if std::env::var_os("CARGO_FEATURE_NIGHTLY_FLAVOUR").is_some() {
+            "$ORIGIN/../lib/kanso-nightly"
+        } else {
+            "$ORIGIN/../lib/kanso"
+        };
+        for dir in ["$ORIGIN", lib] {
             println!("cargo:rustc-link-arg-bins=-Wl,-rpath,{dir}");
         }
     }

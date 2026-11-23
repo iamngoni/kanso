@@ -4,10 +4,13 @@
 # and the icon in ~/.local/share/icons. Run it again to update; run it with
 # --uninstall to remove those files (your notes stay where they are).
 #
-# --nightly installs Kanso Nightly beside Kanso, from its own archive: the
-# app lives in ~/.local/lib/kanso-nightly and ~/.local/bin/kanso-nightly is
-# a link to it, so neither app replaces the other's binary, helpers or
-# libraries. Use --nightly --uninstall to remove it.
+# --nightly installs Kanso Nightly beside Kanso, from its own archive, in the
+# same layout: the binary is ~/.local/bin/kanso-nightly and its libraries
+# and PDF helper are in ~/.local/lib/kanso-nightly, so neither app replaces
+# the other's binary or libraries, and Kanso Nightly can update itself. The
+# plugin host is in that folder too, so an update of one app never swaps
+# the other's host; ~/.local/bin/kanso-plugin-host belongs to Kanso and is
+# never touched. Use --nightly --uninstall to remove it.
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -24,17 +27,17 @@ for arg in "$@"; do
 done
 
 if [ "$nightly" = 1 ]; then
-    # Everything the app runs lives together: the binary, its helpers and
-    # the shared libraries their $ORIGIN rpaths name.
-    app_dir="$HOME/.local/lib/kanso-nightly"
-    lib_dir="$app_dir"
-    host_dir="$app_dir"
+    # Kanso's layout under its own names; the updater finds the support
+    # folder as ../lib/<binary name> and the binary's rpath names it too.
+    bin_name=kanso-nightly
+    lib_dir="$HOME/.local/lib/kanso-nightly"
+    host_dir="$lib_dir"
     desktop_name=kanso-nightly.desktop
     icon_name=kanso-nightly.png
     scheme=kanso-nightly
     display_name="Kanso Nightly"
 else
-    app_dir=
+    bin_name=kanso
     # PDFs are drawn by a helper and its library, and voice input has ONNX
     # Runtime; Kanso finds them in ../lib/kanso.
     lib_dir="$HOME/.local/lib/kanso"
@@ -152,7 +155,7 @@ if [ "$nightly" = 1 ]; then
     for arg in "$@"; do
         if [ "$arg" = "--uninstall" ]; then
             rm -f "$bin_dir/kanso-nightly" "$apps_dir/$desktop_name" "$icon_dir/$icon_name"
-            rm -rf "$app_dir"
+            rm -rf "$lib_dir"
             echo "Removed Kanso Nightly. Your notes are still in ${XDG_DATA_HOME:-~/.local/share}/Kanso Nightly."
             exit 0
         fi
@@ -184,16 +187,15 @@ check_runtime_dependencies "$here/kanso" gui || exit 1
 
 mkdir -p "$bin_dir" "$apps_dir" "$icon_dir"
 if [ "$nightly" = 1 ]; then
-    mkdir -p "$app_dir"
-    install -m 755 "$here/kanso" "$app_dir/kanso"
-    ln -sf "$app_dir/kanso" "$bin_dir/kanso-nightly"
-    exec_path="$app_dir/kanso"
-else
-    install -m 755 "$here/kanso" "$bin_dir/kanso"
-    exec_path="$bin_dir/kanso"
+    # An earlier Kanso Nightly install left a link here to a binary in its
+    # lib folder; install through it would write into the wrong place.
+    rm -f "$bin_dir/$bin_name" "$lib_dir/kanso"
 fi
+install -m 755 "$here/kanso" "$bin_dir/$bin_name"
+exec_path="$bin_dir/$bin_name"
 # Plugins run in their own process, beside Kanso.
 if [ -f "$here/kanso-plugin-host" ]; then
+    mkdir -p "$host_dir"
     install -m 755 "$here/kanso-plugin-host" "$host_dir/kanso-plugin-host"
 fi
 # Voice input's ONNX Runtime, which the binary finds beside it or in
@@ -231,7 +233,7 @@ fi
 install -m 644 "$here/$icon_name" "$icon_dir/$icon_name"
 # The launcher runs the installed binary by its full path, since a desktop
 # session's PATH often leaves out ~/.local/bin.
-sed "s|^Exec=kanso|Exec=\"$exec_path\"|" "$here/$desktop_name" >"$apps_dir/$desktop_name"
+sed "s|^Exec=[^ ]*|Exec=\"$exec_path\"|" "$here/$desktop_name" >"$apps_dir/$desktop_name"
 chmod 644 "$apps_dir/$desktop_name"
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$apps_dir" || true
 # The app's scheme opens it: Sign in with Apple returns through it.

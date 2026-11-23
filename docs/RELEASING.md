@@ -366,16 +366,30 @@ moving `nightly` tag does not already point at that commit; run it by hand
 (Actions › Nightly › Run workflow) to build the current master anyway.
 
 The version is the Cargo version with a prerelease suffix,
-`0.10.11-nightly.20261122.abc1234`, compiled in through
-`KANSO_NIGHTLY_VERSION` so the app, its metrics and the feed agree. The four
+`0.10.11-nightly.202611220200`, compiled in through
+`KANSO_NIGHTLY_VERSION` so the app, its metrics and the feed agree. The
+suffix is the UTC build time as one number, `YYYYMMDDHHMM`: it always
+increases, so a later nightly is always newer, and it can't start with a
+zero, which semver forbids in a number (a commit hash could, so it is not
+used; the notes name the commit instead). The four
 update archives, the macOS disk image, the Windows installer and the signed
 `latest.json` go to the `nightly` tag, which stays a prerelease; each run
-moves the tag and replaces the assets. The notes are the merged PR titles
+replaces the assets (the earlier nightly's are deleted) and, only once they
+are uploaded, moves the tag. The notes are the commit the build is from and
+the merged PR titles
 since the last nightly (`kanso-release notes --commits`), not a
 `CHANGELOG.md` section. The feed is signed
-with `NIGHTLY_UPDATE_SIGNING_KEY` and checked against the
+with `NIGHTLY_UPDATE_SIGNING_KEY`, which must be one of the keys in
+`crates/kanso-update/keys/nightly-keys.txt` (`kanso-release sign --nightly`
+refuses any other), and checked against those keys and the
 `NIGHTLY_UPDATE_PUBLIC_KEY` repository variable before upload. A failed
 nightly leaves the previous one in place.
+
+On Linux, `install.sh --nightly` uses Kanso's layout under Kanso Nightly's
+names: `~/.local/bin/kanso-nightly`, with its libraries, PDF helper and
+plugin host in `~/.local/lib/kanso-nightly`. The updater swaps that folder
+with the binary, and never touches `~/.local/bin/kanso-plugin-host`, which
+is Kanso's.
 
 Kanso Nightly is signed and notarized like a release (the workflow refuses
 to publish an ad hoc Mac build), installs beside Kanso with its own bundle
