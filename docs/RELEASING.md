@@ -385,6 +385,12 @@ refuses any other), and checked against those keys and the
 `NIGHTLY_UPDATE_PUBLIC_KEY` repository variable before upload. A failed
 nightly leaves the previous one in place.
 
+On Linux, `install.sh --nightly` uses Kanso's layout under Kanso Nightly's
+names: `~/.local/bin/kanso-nightly`, with its libraries, PDF helper and
+plugin host in `~/.local/lib/kanso-nightly`. The updater swaps that folder
+with the binary, and never touches `~/.local/bin/kanso-plugin-host`, which
+is Kanso's.
+
 Kanso Nightly is signed and notarized like a release (the workflow refuses
 to publish an ad hoc Mac build), installs beside Kanso with its own bundle
 ID, data folder and Keychain service, and updates itself from the nightly

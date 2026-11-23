@@ -8,8 +8,9 @@
 # same layout: the binary is ~/.local/bin/kanso-nightly and its libraries
 # and PDF helper are in ~/.local/lib/kanso-nightly, so neither app replaces
 # the other's binary or libraries, and Kanso Nightly can update itself. The
-# plugin host sits beside the binary in ~/.local/bin, shared with Kanso. Use
-# --nightly --uninstall to remove it.
+# plugin host is in that folder too, so an update of one app never swaps
+# the other's host; ~/.local/bin/kanso-plugin-host belongs to Kanso and is
+# never touched. Use --nightly --uninstall to remove it.
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -30,7 +31,7 @@ if [ "$nightly" = 1 ]; then
     # folder as ../lib/<binary name> and the binary's rpath names it too.
     bin_name=kanso-nightly
     lib_dir="$HOME/.local/lib/kanso-nightly"
-    host_dir="$bin_dir"
+    host_dir="$lib_dir"
     desktop_name=kanso-nightly.desktop
     icon_name=kanso-nightly.png
     scheme=kanso-nightly
@@ -194,6 +195,7 @@ install -m 755 "$here/kanso" "$bin_dir/$bin_name"
 exec_path="$bin_dir/$bin_name"
 # Plugins run in their own process, beside Kanso.
 if [ -f "$here/kanso-plugin-host" ]; then
+    mkdir -p "$host_dir"
     install -m 755 "$here/kanso-plugin-host" "$host_dir/kanso-plugin-host"
 fi
 # Voice input's ONNX Runtime, which the binary finds beside it or in
