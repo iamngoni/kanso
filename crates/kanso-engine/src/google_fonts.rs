@@ -509,12 +509,20 @@ impl Cache {
         })
     }
 
-    /// Deletes `family`'s kept font, if it has one.
+    /// Deletes `family`'s kept font (kept under any letter case: a settings
+    /// file written by hand may say `lora` for `Lora.ttf`), if it has one.
+    /// Nothing else in the folder is touched.
     pub fn remove(&self, family: &Family) -> io::Result<()> {
-        match fs::remove_file(self.dir.join(family.file_name())) {
-            Err(err) if err.kind() != io::ErrorKind::NotFound => Err(err),
-            _ => Ok(()),
+        for (kept, file_name) in self.entries()? {
+            if !kept.same_as(family) {
+                continue;
+            }
+            match fs::remove_file(self.dir.join(file_name)) {
+                Err(err) if err.kind() != io::ErrorKind::NotFound => return Err(err),
+                _ => {}
+            }
         }
+        Ok(())
     }
 
     /// The files whose names are a family's. A folder that isn't there yet
@@ -1028,6 +1036,22 @@ mod tests {
     }
 
     #[test]
+    fn removing_a_family_takes_its_font_in_any_case_and_leaves_the_rest() {
+        let dir = tempfile::tempdir().expect("a folder");
+        let cache = Cache::new(dir.path());
+        let file = FontFile::parse(font_bytes(b"")).expect("font");
+        for name in ["Lora", "Open Sans"] {
+            cache.store(&family(name), &file).expect("stored");
+        }
+        let fonts = dir.path().join("fonts");
+        fs::write(fonts.join("notes.txt"), "mine").expect("a stray file");
+        cache.remove(&family("lora")).expect("removed");
+        assert!(!fonts.join("Lora.ttf").exists());
+        assert!(fonts.join("Open+Sans.ttf").exists());
+        assert!(fonts.join("notes.txt").exists());
+    }
+
+    #[test]
     fn a_cache_that_cannot_be_read_is_reported() {
         let dir = tempfile::tempdir().expect("a folder");
         // A file where the folder should be.
@@ -1199,6 +1223,50 @@ mod tests {
             prop_assert_eq!(found.family, family);
             prop_assert_eq!(found.file, file(&second));
             prop_assert_eq!(cache.scan().found.len(), 1);
+        }
+
+        /// Removing a family deletes its font in any case it was asked for
+        /// and no other family's, and a second removal changes nothing; a
+        /// removed font is then downloaded again, as a new one, by `load`.
+        #[test]
+        fn prop_removing_deletes_only_that_family(
+            texts in prop::collection::btree_set(family_text(), 1..5),
+            pick in any::<prop::sample::Index>(),
+            lower in any::<bool>(),
+        ) {
+            // `Family` names that differ only in case share a file on some
+            // systems, so the model keeps one spelling per name.
+            let mut seen = std::collections::BTreeSet::new();
+            let texts: Vec<String> = texts
+                .into_iter()
+                .filter(|text| seen.insert(text.to_ascii_lowercase()))
+                .collect();
+            let dir = tempfile::tempdir().expect("a folder");
+            let cache = Cache::new(dir.path());
+            let file = FontFile::parse(font_bytes(b"x")).expect("font");
+            for text in &texts {
+                cache.store(&family(text), &file).expect("stored");
+            }
+            let gone = &texts[pick.index(texts.len())];
+            let asked = if lower { gone.to_ascii_lowercase() } else { gone.clone() };
+            cache.remove(&family(&asked)).expect("removed");
+            cache.remove(&family(&asked)).expect("removed again");
+            prop_assert_eq!(cache.find(&family(gone)).expect("a read"), None);
+            let left: Vec<String> = cache
+                .scan()
+                .found
+                .iter()
+                .map(|cached| cached.family.as_str().to_owned())
+                .collect();
+            let mut expected: Vec<String> =
+                texts.iter().filter(|text| *text != gone).cloned().collect();
+            expected.sort();
+            prop_assert_eq!(left, expected);
+
+            // The removed font is fetched again, from the network.
+            let source = Memory::answering(css(gone, LORA_URL), font_bytes(b"y"));
+            let again = load(&source, &cache, &family(gone), &mut |_| {}).expect("a download");
+            prop_assert_eq!(again.origin, Origin::Download);
         }
 
         /// Loading goes to the network exactly once for a family that is

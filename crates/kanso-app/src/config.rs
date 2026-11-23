@@ -324,6 +324,30 @@ impl Appearance {
         self.editor_font_family = Some(family.to_owned());
         self.preview_font_family = Some(family.to_owned());
     }
+
+    /// Records that Google Font `family` was removed: it is no longer
+    /// listed as downloaded (so launch doesn't fetch it again), and any
+    /// font setting that named it (writing, preview, monospace; in any
+    /// letter case, as the cache matches) goes back to Kanso's own, so the
+    /// editors don't quietly draw with a fallback. The platform's text
+    /// system can't unload a font it has taken, so the family may stay
+    /// installed until the next launch; nothing here depends on it.
+    pub fn remove_google_font(&mut self, family: &str) {
+        self.google_fonts
+            .retain(|known| !known.eq_ignore_ascii_case(family));
+        for slot in [
+            &mut self.editor_font_family,
+            &mut self.preview_font_family,
+            &mut self.editor_mono_family,
+        ] {
+            if slot
+                .as_deref()
+                .is_some_and(|chosen| chosen.eq_ignore_ascii_case(family))
+            {
+                *slot = None;
+            }
+        }
+    }
 }
 
 pub use kanso_engine::account::is_default_server;
@@ -1198,6 +1222,95 @@ mod tests {
             let saved = serde_json::to_string(&appearance).unwrap();
             let loaded: Appearance = serde_json::from_str(&saved).unwrap();
             prop_assert_eq!(loaded.google_fonts, appearance.google_fonts);
+        }
+    }
+
+    #[test]
+    fn removing_a_google_font_resets_only_the_settings_that_chose_it() {
+        let mut appearance = Appearance {
+            google_fonts: vec!["Lora".to_owned(), "Roboto Mono".to_owned()],
+            editor_font_family: Some("Lora".to_owned()),
+            preview_font_family: Some("Lora".to_owned()),
+            editor_mono_family: Some("Roboto Mono".to_owned()),
+            ..Appearance::default()
+        };
+        appearance.remove_google_font("Lora");
+        assert_eq!(appearance.google_fonts, ["Roboto Mono"]);
+        assert_eq!(appearance.editor_font_family, None);
+        assert_eq!(appearance.preview_font_family, None);
+        assert_eq!(
+            appearance.editor_mono_family.as_deref(),
+            Some("Roboto Mono")
+        );
+        // A font that was never downloaded changes nothing.
+        let before = appearance.clone();
+        appearance.remove_google_font("Lora");
+        assert_eq!(appearance, before);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("regressions"))),
+            ..ProptestConfig::with_cases(128)
+        })]
+
+        /// After a removal the family is not listed and none of the three
+        /// font settings names it (in any case); every other family, and
+        /// every setting that chose another, is as it was, and removing
+        /// again changes nothing. Round-trips through the file.
+        #[test]
+        fn prop_removing_a_google_font_forgets_it_and_only_it(
+            listed in prop::collection::vec("[A-Za-z][A-Za-z ]{0,9}", 0..5),
+            family in "[A-Za-z][A-Za-z ]{0,9}",
+            writing in prop::option::of("[A-Za-z][A-Za-z ]{0,9}"),
+            preview in prop::option::of("[A-Za-z][A-Za-z ]{0,9}"),
+            mono in prop::option::of("[A-Za-z][A-Za-z ]{0,9}"),
+            pick_listed in any::<bool>(),
+            shout in any::<bool>(),
+        ) {
+            let family = if pick_listed && !listed.is_empty() { listed[0].clone() } else { family };
+            let asked = if shout { family.to_ascii_uppercase() } else { family.clone() };
+            let mut appearance = Appearance {
+                google_fonts: listed.clone(),
+                editor_font_family: writing.clone(),
+                preview_font_family: preview.clone(),
+                editor_mono_family: mono.clone(),
+                ..Appearance::default()
+            };
+            appearance.remove_google_font(&asked);
+            let named = |name: &str| name.eq_ignore_ascii_case(&asked);
+            let kept: Vec<String> = listed.iter().filter(|name| !named(name)).cloned().collect();
+            prop_assert_eq!(&appearance.google_fonts, &kept);
+            let keep = |chosen: &Option<String>| chosen.clone().filter(|name| !named(name));
+            prop_assert_eq!(&appearance.editor_font_family, &keep(&writing));
+            prop_assert_eq!(&appearance.preview_font_family, &keep(&preview));
+            prop_assert_eq!(&appearance.editor_mono_family, &keep(&mono));
+            let once = appearance.clone();
+            appearance.remove_google_font(&asked);
+            prop_assert_eq!(&appearance, &once);
+            let saved = serde_json::to_string(&appearance).unwrap();
+            let loaded: Appearance = serde_json::from_str(&saved).unwrap();
+            prop_assert_eq!(loaded.google_fonts, appearance.google_fonts);
+            prop_assert_eq!(loaded.editor_font_family, appearance.editor_font_family);
+        }
+
+        /// Adding a font and then removing it leaves the list as it was
+        /// and the settings at Kanso's own font.
+        #[test]
+        fn prop_add_then_remove_is_the_default(
+            before in prop::collection::vec("[A-Za-z][A-Za-z ]{0,9}", 0..4),
+            family in "[A-Za-z][A-Za-z ]{0,9}",
+        ) {
+            let before: Vec<String> = before
+                .into_iter()
+                .filter(|name| !name.eq_ignore_ascii_case(&family))
+                .collect();
+            let mut appearance = Appearance { google_fonts: before.clone(), ..Appearance::default() };
+            appearance.add_google_font(&family);
+            appearance.remove_google_font(&family);
+            prop_assert_eq!(appearance.google_fonts, before);
+            prop_assert_eq!(appearance.editor_font_family, None);
+            prop_assert_eq!(appearance.preview_font_family, None);
         }
     }
 

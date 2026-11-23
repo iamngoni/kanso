@@ -8,6 +8,14 @@
 //! the pickers is the settings view's, which this tells with
 //! [`GoogleFontAdded`]. One download runs at a time, and the font is only
 //! reported once the text system lists it under its name.
+//!
+//! Each downloaded family also has a button that removes it: this deletes
+//! the kept file and tells the settings view with [`GoogleFontRemoved`],
+//! which forgets the family in the settings and reloads the pickers.
+//! The text system can't unload a font it has taken (GPUI has no way to),
+//! so a removed family may stay installed, and show in the pickers, until
+//! Kanso restarts; it is no longer listed as downloaded, no setting keeps
+//! it, and the next launch neither registers nor downloads it.
 
 use gpui_kit::assets::IconName as Lucide;
 use gpui_kit::component::Disableable as _;
@@ -33,9 +41,14 @@ const HINT: &str = "A family, like Lora";
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum State {
     Idle,
-    Working { family: Family, stage: Stage },
+    Working {
+        family: Family,
+        stage: Stage,
+    },
     Failed(String),
     Added(Family),
+    /// The named family was removed (its name as the settings kept it).
+    Removed(String),
 }
 
 impl State {
@@ -47,6 +60,9 @@ impl State {
             State::Failed(why) => why.clone(),
             State::Added(family) => {
                 format!("{family} is downloaded. It is now the writing and preview font.")
+            }
+            State::Removed(name) => {
+                format!("{name} is removed. It may stay in the font lists until Kanso restarts.")
             }
         }
     }
@@ -68,6 +84,11 @@ impl State {
 /// writing and the preview and list it in every picker.
 pub struct GoogleFontAdded(pub Family);
 
+/// A downloaded font was deleted: the settings forget it, put back any
+/// font setting that chose it and list the families again. Holds the name
+/// as the settings kept it.
+pub struct GoogleFontRemoved(pub String);
+
 /// The Google Fonts section's field and download.
 pub struct GoogleFonts {
     input: Entity<InputState>,
@@ -77,6 +98,7 @@ pub struct GoogleFonts {
 }
 
 impl EventEmitter<GoogleFontAdded> for GoogleFonts {}
+impl EventEmitter<GoogleFontRemoved> for GoogleFonts {}
 
 impl GoogleFonts {
     // no-prop-test: builds controls; `State` and the engine's `load` have
@@ -190,8 +212,31 @@ impl GoogleFonts {
         cx.notify();
     }
 
+    /// Deletes the kept font of the downloaded family `name` (as the settings
+    /// name it) and tells the settings view. A file that can't be deleted
+    /// is said in words and the family stays downloaded, so the settings
+    /// never forget a font the next launch would find again. A name that
+    /// isn't a family has no file, and is only forgotten.
+    // no-prop-test: deletes a file and emits; the removal's rules are
+    // `Cache::remove`'s and `Appearance::remove_google_font`'s.
+    pub fn remove(&mut self, name: &str, cx: &mut Context<Self>) {
+        if self.state.working() {
+            return;
+        }
+        if let Ok(family) = Family::parse(name)
+            && let Err(err) = crate::google_fonts::cache(cx).remove(&family)
+        {
+            self.state = State::Failed(format!("Kanso couldn't remove {name}: {err}"));
+            cx.notify();
+            return;
+        }
+        self.state = State::Removed(name.to_owned());
+        cx.emit(GoogleFontRemoved(name.to_owned()));
+        cx.notify();
+    }
+
     /// The section: the field and its button, with the words under them,
-    /// and the fonts already downloaded.
+    /// and the fonts already downloaded, each with a button to remove it.
     // no-prop-test: layout; the words are `State::words`.
     pub fn section(this: &Entity<GoogleFonts>, cx: &App, colors: &Colors) -> AnyElement {
         let me = this.read(cx);
@@ -224,8 +269,27 @@ impl GoogleFonts {
                 .trailing(button),
         ];
         let downloaded = &cx.global::<AppState>().config.appearance.google_fonts;
-        if !downloaded.is_empty() {
-            rows.push(Row::new(Lucide::CaseSensitive, "Downloaded").value(downloaded.join(", ")));
+        for (ix, name) in downloaded.iter().enumerate() {
+            let (this, family) = (this.clone(), name.clone());
+            rows.push(
+                Row::new(Lucide::CaseSensitive, name.clone())
+                    .detail("Downloaded")
+                    .trailing(
+                        Button::new(ElementId::NamedInteger(
+                            "google-font-remove".into(),
+                            ix as u64,
+                        ))
+                        .debug_selector(move || format!("google-font-remove-{ix}"))
+                        .outline()
+                        .small()
+                        .icon(Lucide::Trash)
+                        .tooltip(format!("Remove {name}"))
+                        .disabled(working)
+                        .on_click(move |_, _, cx| {
+                            this.update(cx, |this, cx| this.remove(&family, cx));
+                        }),
+                    ),
+            );
         }
         section("Google Fonts", rows, colors)
     }
@@ -252,10 +316,12 @@ mod tests {
         };
         let failed = State::Failed("Google Fonts has no family with that name.".to_owned());
         let added = State::Added(lora);
+        let removed = State::Removed("Lora".to_owned());
         assert_eq!(State::Idle.words(), FOOTER);
         assert_eq!(running.words(), "Looking up Lora…");
         assert_eq!(failed.words(), "Google Fonts has no family with that name.");
         assert!(added.words().starts_with("Lora is downloaded"));
+        assert!(removed.words().starts_with("Lora is removed"));
     }
 
     /// A later step moves a running download and nothing else.
@@ -276,6 +342,7 @@ mod tests {
             State::Idle,
             State::Failed("no".to_owned()),
             State::Added(family),
+            State::Removed("Lora".to_owned()),
         ] {
             prop_assert_eq!(ended.clone().at(stage), ended);
         }

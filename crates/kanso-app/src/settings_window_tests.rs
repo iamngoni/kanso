@@ -1398,6 +1398,58 @@ fn the_preview_has_its_own_text_size_and_font(cx: &mut TestAppContext) {
     assert_eq!(saved.appearance.editor_font_size, editor);
 }
 
+/// Settings › Editor › Google Fonts: a downloaded family's remove button
+/// deletes its kept file, forgets it in the saved settings and puts back any
+/// font that had chosen it, and leaves the other families alone.
+#[gpui_kit::test]
+fn removing_a_google_font_forgets_it_and_resets_what_chose_it(cx: &mut TestAppContext) {
+    use kanso_engine::google_fonts::{Cache, Family, FontFile};
+
+    let f = setup(cx);
+    let data_dir = cx.read(|cx| cx.global::<AppState>().data_dir.clone());
+    let cache = Cache::new(&data_dir);
+    let mut bytes = b"\x00\x01\x00\x00".to_vec();
+    bytes.extend_from_slice(&[0; 16]);
+    let font = FontFile::parse(bytes).expect("a font");
+    for name in ["Lora", "Roboto Mono"] {
+        cache
+            .store(&Family::parse(name).expect("a family"), &font)
+            .expect("kept");
+    }
+    cx.update(|cx| {
+        AppState::update_config(cx, |config| {
+            let appearance = &mut config.appearance;
+            appearance.google_fonts = vec!["Lora".to_owned(), "Roboto Mono".to_owned()];
+            appearance.editor_font_family = Some("Lora".to_owned());
+            appearance.preview_font_family = Some("Lora".to_owned());
+            appearance.editor_mono_family = Some("Roboto Mono".to_owned());
+        });
+    });
+    f.dispatch(cx, Box::new(OpenEditorSettings));
+    assert!(f.drawn(cx, "google-font-remove-0"));
+    assert!(f.drawn(cx, "google-font-remove-1"));
+
+    f.click(cx, "google-font-remove-0");
+
+    let appearance = cx.read(|cx| cx.global::<AppState>().config.appearance.clone());
+    assert_eq!(appearance.google_fonts, ["Roboto Mono"]);
+    assert_eq!(appearance.editor_font_family, None);
+    assert_eq!(appearance.preview_font_family, None);
+    assert_eq!(
+        appearance.editor_mono_family.as_deref(),
+        Some("Roboto Mono")
+    );
+    let scan = cache.scan();
+    let kept: Vec<_> = scan.found.iter().map(|c| c.family.as_str()).collect();
+    assert_eq!(kept, ["Roboto Mono"]);
+    let saved = AppConfig::load(&crate::paths::config_path(&data_dir)).unwrap();
+    assert_eq!(saved.appearance.google_fonts, ["Roboto Mono"]);
+    assert_eq!(saved.appearance.editor_font_family, None);
+    // The row for the removed family is gone; the other's is the first now.
+    assert!(f.drawn(cx, "google-font-remove-0"));
+    assert!(!f.drawn(cx, "google-font-remove-1"));
+}
+
 /// Settings › Editor › Diagrams chooses what draws Mermaid: it's saved, and
 /// diagrams drawn after it use the new engine.
 #[gpui_kit::test]
