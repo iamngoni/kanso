@@ -595,3 +595,51 @@ describe("running triage now (POST /v1/admin/feedback/run)", () => {
 		expect(body).toMatchObject({ configured: true, failed: 1, errors: [{ id: r.id, error: "gateway_400", detail: "invalid_request_error: model: unknown" }] });
 	});
 });
+
+describe("reading reports (GET /v1/admin/feedback, /<id>, /<id>/screenshot)", () => {
+	const TOKEN = "a".repeat(40);
+	const get = (path: string, auth: string | null = `Bearer ${TOKEN}`) =>
+		new Request(`https://sync.kansoapp.app/v1/admin/feedback${path}`, { headers: auth ? { authorization: auth } : {} });
+	const admin = () => configured({ FEEDBACK_ADMIN_TOKEN: TOKEN });
+
+	it("does not exist without the secret and refuses a wrong token", async () => {
+		const r = await submit(report());
+		const bare = await configured();
+		expect((await feedbackAdmin.list(get(""), bare)).status).toBe(404);
+		expect((await feedbackAdmin.show(r.id)(get(`/${r.id}`), bare, NOW)).status).toBe(404);
+		expect((await feedbackAdmin.screenshot(r.id)(get(`/${r.id}/screenshot`), bare, NOW)).status).toBe(404);
+		const e = await admin();
+		expect((await feedbackAdmin.list(get("", null), e)).status).toBe(401);
+		expect((await feedbackAdmin.show(r.id)(get(`/${r.id}`, `Bearer ${"b".repeat(40)}`), e, NOW)).status).toBe(401);
+	});
+
+	it("lists the newest reports and checks the limit", async () => {
+		const r = await submit(report());
+		const e = await admin();
+		const res = await feedbackAdmin.list(get("?limit=5"), e);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as any;
+		expect(body.reports[0]).toMatchObject({ id: r.id, status: "received", issue: null });
+		for (const bad of ["0", "101", "x", "-1"]) expect((await feedbackAdmin.list(get(`?limit=${bad}`), e)).status).toBe(400);
+	});
+
+	it("shows one report with its history, and refuses a bad or unknown ID", async () => {
+		const r = await submit(report());
+		const e = await admin();
+		const res = await feedbackAdmin.show(r.id)(get(`/${r.id}`), e, NOW);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as any;
+		expect(body).toMatchObject({ id: r.id, status: "received" });
+		expect(typeof body.report).toBe("object");
+		expect(Array.isArray(body.history)).toBe(true);
+		expect((await feedbackAdmin.show("nope")(get("/nope"), e, NOW)).status).toBe(400);
+		const unknown = `fb_${"0".repeat(26)}`;
+		expect((await feedbackAdmin.show(unknown)(get(`/${unknown}`), e, NOW)).status).toBe(404);
+	});
+
+	it("answers 404 for a report without a stored screenshot", async () => {
+		const r = await submit(report());
+		const res = await feedbackAdmin.screenshot(r.id)(get(`/${r.id}/screenshot`), await admin(), NOW);
+		expect(res.status).toBe(404);
+	});
+});

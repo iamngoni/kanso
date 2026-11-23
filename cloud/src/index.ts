@@ -184,6 +184,7 @@ const ROUTES: Record<string, Route> = {
 	"/v1/crash-reports": { name: "crash_reports", methods: { POST: json(crashReports.submit, true) } },
 	"/v1/metrics": { name: "metrics", methods: { POST: json(metrics.submit, true) } },
 	"/v1/feedback": { name: "feedback", methods: { POST: json(feedback.submit, true), GET: { handler: feedback.list, pepper: true } } },
+	"/v1/admin/feedback": { name: "feedback_admin", methods: { GET: { handler: feedbackAdmin.list } } },
 	"/v1/admin/feedback/run": { name: "feedback_admin_run", methods: { POST: { handler: feedbackAdmin.run } } },
 	"/v1/github/webhook": { name: "github_webhook", methods: { POST: { handler: githubWebhook.receive } } },
 	"/v2/auth/prelogin": { name: "prelogin", binding: true, methods: { POST: json(auth.prelogin, true) } },
@@ -320,6 +321,14 @@ function match(path: string): Route | null {
 	if (file) {
 		const id = segment(file[1]);
 		return { name: "files", methods: { GET: { handler: sync.getFile(id) }, PUT: { handler: sync.putFile(id), body: "bytes" } } };
+	}
+	const adminFeedbackShot = /^\/v1\/admin\/feedback\/([^/]+)\/screenshot$/.exec(path);
+	if (adminFeedbackShot) {
+		return { name: "feedback_admin_screenshot", methods: { GET: { handler: feedbackAdmin.screenshot(segment(adminFeedbackShot[1])) } } };
+	}
+	const adminFeedbackItem = /^\/v1\/admin\/feedback\/([^/]+)$/.exec(path);
+	if (adminFeedbackItem) {
+		return { name: "feedback_admin_item", methods: { GET: { handler: feedbackAdmin.show(segment(adminFeedbackItem[1])) } } };
 	}
 	const feedbackItem = /^\/v1\/feedback\/([^/]+)$/.exec(path);
 	if (feedbackItem) return { name: "feedback_item", methods: { DELETE: { handler: feedback.remove(segment(feedbackItem[1])), pepper: true } } };
