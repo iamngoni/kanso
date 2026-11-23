@@ -472,7 +472,28 @@ mod tests {
         (0u64..4, 0u64..12, 0u64..12).prop_map(|(a, b, c)| Version::new(a, b, c))
     }
 
+    /// A UTC build time as `.github/workflows/nightly.yml` writes it,
+    /// `date -u +%Y%m%d%H%M`: (year, month, day, hour, minute).
+    fn build_time() -> impl Strategy<Value = (u32, u32, u32, u32, u32)> {
+        (2026u32..2100, 1u32..=12, 1u32..=28, 0u32..24, 0u32..60)
+    }
+
+    fn nightly_version(base: &Version, (y, mo, d, h, mi): (u32, u32, u32, u32, u32)) -> String {
+        format!("{base}-nightly.{y:04}{mo:02}{d:02}{h:02}{mi:02}")
+    }
+
     proptest! {
+        /// A nightly's version always parses (the timestamp never has a
+        /// leading zero), a later build is always the newer version, and
+        /// every nightly of a version precedes that version's release.
+        #[test]
+        fn prop_later_nightly_builds_are_newer(base in version(), a in build_time(), b in build_time()) {
+            let first = Version::parse(&nightly_version(&base, a)).unwrap();
+            let second = Version::parse(&nightly_version(&base, b)).unwrap();
+            prop_assert_eq!(a.cmp(&b), first.cmp(&second));
+            prop_assert!(first < base && second < base);
+        }
+
         /// What one key signs, it verifies; no other key does.
         #[test]
         fn prop_sign_verify_round_trip(seed in 1u8..=255, other in 1u8..=255, bytes in prop::collection::vec(any::<u8>(), 0..2048)) {
