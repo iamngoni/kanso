@@ -9,3 +9,4 @@
 #   cargo run -p kanso-update --bin kanso-release -- keygen --secret-out <file>
 # and adds the public key it prints below this line. Until then Kanso
 # Nightly builds say they have no key to check updates with.
+jq6H94hXmGFyZXihMJ88ghRriq+dy0DYhZ/VxseYzi0=
