@@ -393,11 +393,19 @@ report stays private, the AI Gateway triage (Cloudflare and Anthropic), the publ
 issue, the 180-day retention and deletion. Change it when "What is stored", "Triage",
 "Retention and deletion" here or the client's payload change.
 
-## Not in the Worker yet
+## Admin commands
 
-The `npm run admin feedback list|show` commands that let the owner read a raw report
-(until then: `wrangler d1 execute kanso-sync --remote --command "SELECT report FROM feedback
-WHERE id = 'fb_…'"` and `wrangler r2 object get kanso-files/feedback/<id>/screenshot`).
+With `FEEDBACK_ADMIN_TOKEN` set, the Worker also answers these read-only routes, behind the
+same bearer token as `/run` (404 without the secret, 401 with a wrong token):
+
+- `GET /v1/admin/feedback?limit=N`: the newest N reports (1–100, default 20): ID, time, kind,
+  status, issue, screenshot state and the first 60 characters of the text.
+- `GET /v1/admin/feedback/<fb_id>`: one report in full: the raw report and its triage as JSON,
+  issue, duplicate, PR, release, credit name and the status history.
+- `GET /v1/admin/feedback/<fb_id>/screenshot`: the stored PNG or JPEG as a download; never a
+  public URL.
+
+`scripts/feedback.sh list|show|screenshot` still read D1 and R2 directly with your wrangler login.
 
 ## Running triage now
 
