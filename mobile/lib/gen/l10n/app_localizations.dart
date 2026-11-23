@@ -1870,6 +1870,48 @@ abstract class AppLocalizations {
   /// **'New notebook'**
   String get libraryNewNotebook;
 
+  /// What the sort button of the notebooks header does: it opens the sheet of the orders the notebooks can take.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort notebooks'**
+  String get libraryNotebooksSort;
+
+  /// The heading of the choices in the sheet that orders the library's notebooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort notebooks by'**
+  String get libraryNotebooksSortBy;
+
+  /// A way to order the notebooks: the order they were arranged in, then by name.
+  ///
+  /// In en, this message translates to:
+  /// **'Default order'**
+  String get libraryNotebooksSortManual;
+
+  /// A way to order the notebooks: by name, A first.
+  ///
+  /// In en, this message translates to:
+  /// **'Name A to Z'**
+  String get libraryNotebooksSortNameAsc;
+
+  /// A way to order the notebooks: by name, Z first.
+  ///
+  /// In en, this message translates to:
+  /// **'Name Z to A'**
+  String get libraryNotebooksSortNameDesc;
+
+  /// A way to order the notebooks: the most recently changed first.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently Updated'**
+  String get libraryNotebooksSortUpdated;
+
+  /// A way to order the notebooks: the most recently made first.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently Created'**
+  String get libraryNotebooksSortCreated;
+
   /// The title of the sheet that makes a notebook.
   ///
   /// In en, this message translates to:

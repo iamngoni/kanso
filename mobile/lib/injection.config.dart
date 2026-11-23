@@ -622,6 +622,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i435.WhatsNewRepository>(
       () => _i420.RustWhatsNewRepository(gh<_i455.KansoLibrary>()),
     );
+    gh.factory<_i861.LibraryIndexBloc>(
+      () => _i861.LibraryIndexBloc(
+        gh<_i38.LibraryRepository>(),
+        gh<_i384.PreferencesRepository>(),
+      ),
+    );
     gh.factory<_i380.TabsBloc>(
       () => _i380.TabsBloc(
         gh<_i38.LibraryRepository>(),
@@ -721,9 +727,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i979.EditorRepository>(
       () => _i606.RustEditorRepository(gh<_i455.KansoLibrary>()),
-    );
-    gh.factory<_i861.LibraryIndexBloc>(
-      () => _i861.LibraryIndexBloc(gh<_i38.LibraryRepository>()),
     );
     gh.factory<_i907.ListNavigationBloc>(
       () => _i907.ListNavigationBloc(gh<_i38.LibraryRepository>()),

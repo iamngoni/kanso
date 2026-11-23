@@ -12,9 +12,9 @@ pub use kanso_mobile::WhenHint;
 pub use kanso_mobile::{
     AccountDetails, AccountState, AccountStep, AiSummary, ApprovalPhase, ApprovalPrompt,
     ApprovalWait, AttachmentFile, BindingAnswer, BindingQuestion, BoardCard, BoardColumn,
-    BoardKind, BoardLane, BoardSetup, BoardView, BriefNote, BriefPrefs, BriefReminder, BriefView,
-    BuiltinTheme, CalendarDay, CaptureOutcome, CaptureTarget, CardKey, CardMoved, Changed,
-    ColorChoice, ColorRow, CommentPlacement, CommentRow, Completion, CompletionItem,
+    BoardKind, BoardLane, BoardSetup, BoardView, BookSort, BriefNote, BriefPrefs, BriefReminder,
+    BriefView, BuiltinTheme, CalendarDay, CaptureOutcome, CaptureTarget, CardKey, CardMoved,
+    Changed, ColorChoice, ColorRow, CommentPlacement, CommentRow, Completion, CompletionItem,
     CompletionKind, CopiedLink, CostSummary, CursorMark, DateChoice, DateChoices, DateField,
     DayDate, DeviceRow, DiagramKind, DiagramRenderer, DiscoveryMeasure, DropsSaved, DueChipRow,
     DueTone, EditCommand, EditOutcome, EditorContext, EditorEvent, EditorRun, EditorSnapshot,
@@ -277,6 +277,17 @@ pub enum _SortKey {
     Updated,
     Created,
     Title,
+}
+
+/// How the sidebar orders the notebooks inside each parent: the engine's
+/// `BookSort`, the one the desktop's sort menu uses.
+#[frb(mirror(BookSort))]
+pub enum _BookSort {
+    Manual,
+    NameAsc,
+    NameDesc,
+    Updated,
+    Created,
 }
 
 #[frb(mirror(NewNote))]

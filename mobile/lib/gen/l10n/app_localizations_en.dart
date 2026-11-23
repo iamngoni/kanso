@@ -988,6 +988,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get libraryNewNotebook => 'New notebook';
 
   @override
+  String get libraryNotebooksSort => 'Sort notebooks';
+
+  @override
+  String get libraryNotebooksSortBy => 'Sort notebooks by';
+
+  @override
+  String get libraryNotebooksSortManual => 'Default order';
+
+  @override
+  String get libraryNotebooksSortNameAsc => 'Name A to Z';
+
+  @override
+  String get libraryNotebooksSortNameDesc => 'Name Z to A';
+
+  @override
+  String get libraryNotebooksSortUpdated => 'Recently Updated';
+
+  @override
+  String get libraryNotebooksSortCreated => 'Recently Created';
+
+  @override
   String get newNotebookTitle => 'New notebook';
 
   @override

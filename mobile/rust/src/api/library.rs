@@ -5,11 +5,12 @@
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::frb;
 use kanso_mobile::{
-    AttachmentFile, CaptureOutcome, CaptureTarget, Changed, ColorChoice, CopiedLink, DropsSaved,
-    FoldState, GoalSetting, Hit, IconChoice, ImportEvent, KansoError, Library, LibraryOverview,
-    ListQuery, LocalTime, NewNote, NewNotebookKind, NoteChange, NoteList, NoteView, NotebookRow,
-    OpenedDocuments, OpenedFile, Property, Saved, SearchScope, Share, StatusChoice, Table,
-    TagPlaces, TagRow, TaskBoard, TaskCaptured, TaskListQuery, Ticked, VisibleNotebook,
+    AttachmentFile, BookSort, CaptureOutcome, CaptureTarget, Changed, ColorChoice, CopiedLink,
+    DropsSaved, FoldState, GoalSetting, Hit, IconChoice, ImportEvent, KansoError, Library,
+    LibraryOverview, ListQuery, LocalTime, NewNote, NewNotebookKind, NoteChange, NoteList,
+    NoteView, NotebookRow, OpenedDocuments, OpenedFile, Property, Saved, SearchScope, Share,
+    StatusChoice, Table, TagPlaces, TagRow, TaskBoard, TaskCaptured, TaskListQuery, Ticked,
+    VisibleNotebook,
 };
 use kanso_mobile::{PdfEdited, PdfHighlightChange, PdfNotes};
 // A note's history, Replace in all notes and the backups.
@@ -464,13 +465,14 @@ impl KansoLibrary {
     }
 
     /// The notebook rows that show with `folds` applied, around the notebook
-    /// showing.
+    /// showing, the notebooks inside each parent ordered by `sort`.
     pub fn visible_notebooks(
         &self,
         folds: FoldState,
         showing: Option<String>,
+        sort: BookSort,
     ) -> Result<Vec<VisibleNotebook>, KansoError> {
-        self.0.visible_notebooks(folds, showing)
+        self.0.visible_notebooks(folds, showing, sort)
     }
 
     /// The folds after a tap on notebook `id`'s arrow.

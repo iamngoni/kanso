@@ -39,6 +39,13 @@ _Preferences _$PreferencesFromJson(Map<String, dynamic> json) => _Preferences(
       ) ??
       SortKey.updated,
   descending: json['descending'] as bool? ?? true,
+  bookSort:
+      $enumDecodeNullable(
+        _$BookSortEnumMap,
+        json['bookSort'],
+        unknownValue: BookSort.manual,
+      ) ??
+      BookSort.manual,
   backupNoticeSeen: json['backupNoticeSeen'] as bool? ?? false,
   biometricOfferSeen: json['biometricOfferSeen'] as bool? ?? false,
   defaultNotebookId: json['defaultNotebookId'] as String?,
@@ -85,6 +92,7 @@ Map<String, dynamic> _$PreferencesToJson(_Preferences instance) =>
       'alwaysShowScrollbars': instance.alwaysShowScrollbars,
       'sort': _$SortKeyEnumMap[instance.sort]!,
       'descending': instance.descending,
+      'bookSort': _$BookSortEnumMap[instance.bookSort]!,
       'backupNoticeSeen': instance.backupNoticeSeen,
       'biometricOfferSeen': instance.biometricOfferSeen,
       'defaultNotebookId': ?instance.defaultNotebookId,
@@ -112,6 +120,14 @@ const _$SortKeyEnumMap = {
   SortKey.updated: 'updated',
   SortKey.created: 'created',
   SortKey.title: 'title',
+};
+
+const _$BookSortEnumMap = {
+  BookSort.manual: 'manual',
+  BookSort.nameAsc: 'nameAsc',
+  BookSort.nameDesc: 'nameDesc',
+  BookSort.updated: 'updated',
+  BookSort.created: 'created',
 };
 
 const _$CaptureTargetEnumMap = {

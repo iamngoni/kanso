@@ -1913,6 +1913,7 @@ abstract class KansoCoreApi extends BaseApi {
     required KansoLibrary that,
     required FoldState folds,
     String? showing,
+    required BookSort sort,
   });
 
   KansoVoiceCapture crateApiLibraryKansoLibraryVoiceCapture({
@@ -17115,6 +17116,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     required KansoLibrary that,
     required FoldState folds,
     String? showing,
+    required BookSort sort,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -17126,6 +17128,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           );
           sse_encode_box_autoadd_fold_state(folds, serializer);
           sse_encode_opt_String(showing, serializer);
+          sse_encode_book_sort(sort, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -17138,7 +17141,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           decodeErrorData: sse_decode_kanso_error,
         ),
         constMeta: kCrateApiLibraryKansoLibraryVisibleNotebooksConstMeta,
-        argValues: [that, folds, showing],
+        argValues: [that, folds, showing, sort],
         apiImpl: this,
       ),
     );
@@ -17147,7 +17150,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   TaskConstMeta get kCrateApiLibraryKansoLibraryVisibleNotebooksConstMeta =>
       const TaskConstMeta(
         debugName: "KansoLibrary_visible_notebooks",
-        argNames: ["that", "folds", "showing"],
+        argNames: ["that", "folds", "showing", "sort"],
       );
 
   @override
@@ -29732,6 +29735,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  BookSort dco_decode_book_sort(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BookSort.values[raw as int];
+  }
+
+  @protected
   BookStandingRow dco_decode_book_standing_row(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return BookStandingRow.values[raw as int];
@@ -40506,6 +40515,13 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       done: var_done,
       total: var_total,
     );
+  }
+
+  @protected
+  BookSort sse_decode_book_sort(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return BookSort.values[inner];
   }
 
   @protected
@@ -53624,6 +53640,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_book_sort(BookSort self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_book_standing_row(
     BookStandingRow self,
     SseSerializer serializer,
@@ -65570,14 +65592,16 @@ class KansoLibraryImpl extends RustOpaque implements KansoLibrary {
       );
 
   /// The notebook rows that show with `folds` applied, around the notebook
-  /// showing.
+  /// showing, the notebooks inside each parent ordered by `sort`.
   Future<List<VisibleNotebook>> visibleNotebooks({
     required FoldState folds,
     String? showing,
+    required BookSort sort,
   }) => KansoCore.instance.api.crateApiLibraryKansoLibraryVisibleNotebooks(
     that: this,
     folds: folds,
     showing: showing,
+    sort: sort,
   );
 
   /// Voice capture: voice notes into the Inbox, the recordings left outside

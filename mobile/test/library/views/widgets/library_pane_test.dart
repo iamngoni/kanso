@@ -15,9 +15,11 @@ import 'package:kanso/core/models/data/browse_location.dart';
 import 'package:kanso/core/models/data/library_index_status.dart';
 import 'package:kanso/core/models/data/load_status.dart';
 import 'package:kanso/core/models/data/note_drag_data.dart';
+import 'package:kanso/core/models/data/preferences.dart';
 import 'package:kanso/core/models/repos/abs/library_repository.dart';
 import 'package:kanso/core/state/library_index/library_index_bloc.dart';
 import 'package:kanso/core/views/widgets/kanso_badge.dart';
+import 'package:kanso/core/views/widgets/kanso_check_row.dart';
 import 'package:kanso/core/views/widgets/kanso_drawer.dart';
 import 'package:kanso/core/views/widgets/kanso_icon_button.dart';
 import 'package:kanso/core/views/widgets/kanso_sidebar_row.dart';
@@ -34,13 +36,14 @@ import '../../../helpers/golden.dart';
 import '../../../helpers/library_fixtures.dart';
 import '../../../helpers/pump_routed.dart';
 import '../../../helpers/register_page_blocs.dart';
+import '../../../helpers/seeded_appearance_bloc.dart';
 import '../../../helpers/sharing_fixtures.dart';
 
 Future<LibraryIndexBloc> _readyIndex(
   WidgetTester tester,
   FixtureLibraryRepository library,
 ) async {
-  final bloc = LibraryIndexBloc(library)
+  final bloc = LibraryIndexBloc(library, ForgetfulPreferencesRepository())
     ..add(const LibraryIndexEvent.started());
   closeBlocLater(bloc);
   await bloc.stream.firstWhere(
@@ -146,6 +149,99 @@ void main() {
       await tester.pumpAndSettle();
       expect(library.notebooksCreated.single.$1, 'Recipes');
       expect(topOf(router), startsWith('/notebooks/'));
+    });
+
+    group('the notebooks sort', () {
+      Finder sortButton() => find.byWidgetPredicate(
+        (widget) =>
+            widget is KansoIconButton &&
+            widget.semanticLabel == 'Sort notebooks',
+      );
+
+      testWidgets('lists the five orders of the desktop, the default checked', (
+        tester,
+      ) async {
+        final bloc = await _readyIndex(tester, library);
+        await pumpRouted(tester, _pane(bloc));
+        await tester.tap(sortButton());
+        await tester.pumpAndSettle();
+
+        expect(find.text('Sort notebooks by'), findsOneWidget);
+        for (final label in <String>[
+          'Default order',
+          'Name A to Z',
+          'Name Z to A',
+          'Recently Updated',
+          'Recently Created',
+        ]) {
+          expect(find.text(label), findsOneWidget, reason: label);
+        }
+        expect(find.byType(KansoCheckRow), findsNWidgets(5));
+        final checked = <String>[
+          for (final row in tester.widgetList<KansoCheckRow>(
+            find.byType(KansoCheckRow),
+          ))
+            if (row.checked) row.label,
+        ];
+        expect(checked, <String>['Default order']);
+      });
+
+      testWidgets('a choice sorts the notebooks, is kept and closes the '
+          'sheet', (tester) async {
+        final preferences = SeededPreferencesRepository(const Preferences());
+        final bloc = LibraryIndexBloc(library, preferences)
+          ..add(const LibraryIndexEvent.started());
+        closeBlocLater(bloc);
+        await bloc.stream.firstWhere(
+          (state) => state.status != LibraryIndexStatus.loading,
+        );
+        await pumpRouted(tester, _pane(bloc));
+        await tester.tap(sortButton());
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Name Z to A'));
+        await tester.pumpAndSettle();
+
+        expect(bloc.state.bookSort, BookSort.nameDesc);
+        expect(preferences.current.bookSort, BookSort.nameDesc);
+        expect(library.sortsAsked.last, BookSort.nameDesc);
+        expect(find.text('Sort notebooks by'), findsNothing);
+
+        // Opened again, the order in use is the one checked.
+        await tester.tap(sortButton());
+        await tester.pumpAndSettle();
+        final checked = <String>[
+          for (final row in tester.widgetList<KansoCheckRow>(
+            find.byType(KansoCheckRow),
+          ))
+            if (row.checked) row.label,
+        ];
+        expect(checked, <String>['Name Z to A']);
+      });
+
+      testWidgets('the order that was kept shows checked at the next run', (
+        tester,
+      ) async {
+        final preferences = SeededPreferencesRepository(
+          const Preferences(bookSort: BookSort.created),
+        );
+        final bloc = LibraryIndexBloc(library, preferences)
+          ..add(const LibraryIndexEvent.started());
+        closeBlocLater(bloc);
+        await bloc.stream.firstWhere(
+          (state) => state.status != LibraryIndexStatus.loading,
+        );
+        await pumpRouted(tester, _pane(bloc));
+        await tester.tap(sortButton());
+        await tester.pumpAndSettle();
+        final checked = <String>[
+          for (final row in tester.widgetList<KansoCheckRow>(
+            find.byType(KansoCheckRow),
+          ))
+            if (row.checked) row.label,
+        ];
+        expect(checked, <String>['Recently Created']);
+        expect(library.sortsAsked, everyElement(BookSort.created));
+      });
     });
 
     testWidgets('lists the places, notebooks and tags with their counts', (
@@ -480,7 +576,7 @@ void main() {
       tester,
     ) async {
       final handle = tester.ensureSemantics();
-      final bloc = LibraryIndexBloc(library);
+      final bloc = LibraryIndexBloc(library, ForgetfulPreferencesRepository());
       closeBlocLater(bloc);
       await pumpRouted(tester, _pane(bloc));
       expect(bloc.state.status, LibraryIndexStatus.loading);
@@ -492,7 +588,7 @@ void main() {
     testWidgets('offers to try again after a failure', (tester) async {
       final failing = _FailingLibrary();
       addTearDown(() => unawaited(failing.close()));
-      final bloc = LibraryIndexBloc(failing)
+      final bloc = LibraryIndexBloc(failing, ForgetfulPreferencesRepository())
         ..add(const LibraryIndexEvent.started());
       closeBlocLater(bloc);
       await bloc.stream.firstWhere(
@@ -630,7 +726,10 @@ void main() {
       testWidgets('the library while it loads, ${brightness.name}', (
         tester,
       ) async {
-        final bloc = LibraryIndexBloc(library);
+        final bloc = LibraryIndexBloc(
+          library,
+          ForgetfulPreferencesRepository(),
+        );
         closeBlocLater(bloc);
         await expectGoldenOnBothPlatforms(
           tester,
@@ -654,7 +753,7 @@ void main() {
       ) async {
         final failing = _FailingLibrary();
         addTearDown(() => unawaited(failing.close()));
-        final bloc = LibraryIndexBloc(failing)
+        final bloc = LibraryIndexBloc(failing, ForgetfulPreferencesRepository())
           ..add(const LibraryIndexEvent.started());
         closeBlocLater(bloc);
         await bloc.stream.firstWhere(

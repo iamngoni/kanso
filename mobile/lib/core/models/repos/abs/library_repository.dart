@@ -195,9 +195,11 @@ abstract interface class LibraryRepository {
     required bool kanso,
   });
 
-  /// The notebook rows that show with [folds] applied, around [showing].
+  /// The notebook rows that show with [folds] applied, around [showing], the
+  /// notebooks inside each parent ordered by [sort].
   Future<Either<ApplicationError, List<VisibleNotebook>>> visibleNotebooks(
     FoldState folds, {
+    required BookSort sort,
     String? showing,
   });
 

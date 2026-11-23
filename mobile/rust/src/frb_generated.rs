@@ -18505,6 +18505,7 @@ fn wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
             >>::sse_decode(&mut deserializer);
             let api_folds = <crate::api::types::FoldState>::sse_decode(&mut deserializer);
             let api_showing = <Option<String>>::sse_decode(&mut deserializer);
+            let api_sort = <crate::api::types::BookSort>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::types::KansoError>((move || {
@@ -18526,6 +18527,7 @@ fn wire__crate__api__library__KansoLibrary_visible_notebooks_impl(
                         &*api_that_guard,
                         api_folds,
                         api_showing,
+                        api_sort,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -37576,6 +37578,21 @@ impl SseDecode for crate::api::types::BookShareProgress {
     }
 }
 
+impl SseDecode for crate::api::types::BookSort {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::types::BookSort::Manual,
+            1 => crate::api::types::BookSort::NameAsc,
+            2 => crate::api::types::BookSort::NameDesc,
+            3 => crate::api::types::BookSort::Updated,
+            4 => crate::api::types::BookSort::Created,
+            _ => unreachable!("Invalid variant for BookSort: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::types::BookStandingRow {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -53248,6 +53265,30 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BookSharePr
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::BookSort> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::types::BookSort::Manual => 0.into_dart(),
+            crate::api::types::BookSort::NameAsc => 1.into_dart(),
+            crate::api::types::BookSort::NameDesc => 2.into_dart(),
+            crate::api::types::BookSort::Updated => 3.into_dart(),
+            crate::api::types::BookSort::Created => 4.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::types::BookSort>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::types::BookSort>>
+    for crate::api::types::BookSort
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::types::BookSort> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::types::BookStandingRow> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self.0 {
@@ -65450,6 +65491,25 @@ impl SseEncode for crate::api::types::BookShareProgress {
         <String>::sse_encode(self.notebook_id, serializer);
         <u32>::sse_encode(self.done, serializer);
         <u32>::sse_encode(self.total, serializer);
+    }
+}
+
+impl SseEncode for crate::api::types::BookSort {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::types::BookSort::Manual => 0,
+                crate::api::types::BookSort::NameAsc => 1,
+                crate::api::types::BookSort::NameDesc => 2,
+                crate::api::types::BookSort::Updated => 3,
+                crate::api::types::BookSort::Created => 4,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

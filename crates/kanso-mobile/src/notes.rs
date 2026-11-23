@@ -664,8 +664,16 @@ pub(crate) fn parse_status(status: &str) -> Result<NoteStatus, KansoError> {
 
 /// The notebooks as rows, in tree order.
 pub(crate) fn notebook_rows(books: &[kanso_core::Book]) -> Vec<NotebookRow> {
+    notebook_rows_sorted(books, list::BookSort::Manual)
+}
+
+/// [`notebook_rows`] with the notebooks inside each parent ordered by `sort`.
+pub(crate) fn notebook_rows_sorted(
+    books: &[kanso_core::Book],
+    sort: list::BookSort,
+) -> Vec<NotebookRow> {
     let counts = list::book_total_counts(books);
-    let tree = list::notebook_tree(books);
+    let tree = list::notebook_tree_sorted(books, sort);
     let depths: Vec<usize> = tree.iter().map(|(depth, _)| *depth).collect();
     tree.into_iter()
         .enumerate()
