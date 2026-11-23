@@ -1,5 +1,6 @@
 //! The fonts someone can pick for the editor and the preview (Settings ›
-//! Editor): every family installed on this computer, read once.
+//! Editor): every family installed on this computer, and every Google Font
+//! downloaded to it, read once and again whenever one is added.
 
 use std::sync::Arc;
 
@@ -17,6 +18,13 @@ pub fn installed(cx: &mut App) -> Arc<[SharedString]> {
     if let Some(Installed(names)) = cx.try_global::<Installed>() {
         return names.clone();
     }
+    refresh(cx)
+}
+
+/// Reads the installed families again, after fonts were added to the text
+/// system (a downloaded Google Font, `crate::google_fonts`).
+// no-prop-test: asks the system; `family` has the properties.
+pub fn refresh(cx: &mut App) -> Arc<[SharedString]> {
     let names: Arc<[SharedString]> = cx
         .text_system()
         .all_font_names()

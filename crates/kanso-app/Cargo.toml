@@ -123,7 +123,8 @@ kanso-store.workspace = true
 # `discovery`: the graph, the related-notes model and its download, which the
 # phones share (Model2Vec static embeddings, computed on this device, MIT).
 # `pdf-worker`: the text in PDFs, read by the PDF worker's client (no PDFium here).
-kanso-engine = { workspace = true, features = ["discovery", "agent-task", "pdf-worker"] }
+# `google-fonts`: Settings › Editor downloads Google Fonts.
+kanso-engine = { workspace = true, features = ["discovery", "agent-task", "pdf-worker", "google-fonts"] }
 # The types `[[` autocomplete answers the text editor in. Pinned to the
 # version gpui-base uses.
 lsp-types = "=0.97.0"

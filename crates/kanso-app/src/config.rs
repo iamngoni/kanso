@@ -263,6 +263,10 @@ pub struct Appearance {
     /// own), and its size.
     pub preview_font_family: Option<String>,
     pub preview_font_size: f32,
+    /// The Google Fonts downloaded to this computer, in the order they were
+    /// downloaded (`crate::google_fonts`). The fonts themselves are kept in
+    /// the data folder; one missing from it is downloaded again at launch.
+    pub google_fonts: Vec<String>,
     /// Whether monospace text shows line numbers beside it.
     pub line_numbers: bool,
     /// Whether text keeps to a readable measure, or fills the pane.
@@ -295,6 +299,7 @@ impl Default for Appearance {
             editor_mono_family: None,
             preview_font_family: None,
             preview_font_size: DEFAULT_FONT_SIZE,
+            google_fonts: Vec::new(),
             line_numbers: true,
             readable_width: false,
             view_mode: ViewMode::Split,
@@ -305,6 +310,19 @@ impl Default for Appearance {
             diagram_renderer: DiagramRenderer::Pele,
             always_show_scrollbars: false,
         }
+    }
+}
+
+impl Appearance {
+    /// Records that Google Font `family` was downloaded, once, and picks it
+    /// for writing and for the preview, as the phones do. The monospace
+    /// font stays as it was.
+    pub fn add_google_font(&mut self, family: &str) {
+        if !self.google_fonts.iter().any(|known| known == family) {
+            self.google_fonts.push(family.to_owned());
+        }
+        self.editor_font_family = Some(family.to_owned());
+        self.preview_font_family = Some(family.to_owned());
     }
 }
 
@@ -1138,6 +1156,52 @@ mod tests {
     }
 
     #[test]
+    fn older_appearance_files_have_no_google_fonts() {
+        let appearance: Appearance = serde_json::from_str("{}").unwrap();
+        assert!(appearance.google_fonts.is_empty());
+        let saved = serde_json::to_string(&appearance).unwrap();
+        assert!(saved.contains("\"googleFonts\":[]"), "{saved}");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            failure_persistence: Some(Box::new(FileFailurePersistence::WithSource("regressions"))),
+            ..ProptestConfig::with_cases(64)
+        })]
+
+        /// A downloaded font is listed once however often it is added, is
+        /// the writing and preview font, leaves the monospace font alone, and
+        /// the list survives the file.
+        #[test]
+        fn prop_a_downloaded_font_is_listed_once_and_picked(
+            before in prop::collection::vec("[A-Za-z][A-Za-z ]{0,9}", 0..4),
+            family in "[A-Za-z][A-Za-z ]{0,9}",
+            mono in prop::option::of("[A-Za-z]{1,8}"),
+            again in 1usize..3,
+        ) {
+            let mut appearance = Appearance {
+                google_fonts: before.clone(),
+                editor_mono_family: mono.clone(),
+                ..Appearance::default()
+            };
+            for _ in 0..again {
+                appearance.add_google_font(&family);
+            }
+            prop_assert_eq!(
+                appearance.google_fonts.iter().filter(|name| **name == family).count(),
+                1
+            );
+            prop_assert_eq!(&appearance.google_fonts[..before.len()], &before[..]);
+            prop_assert_eq!(appearance.editor_font_family.as_deref(), Some(family.as_str()));
+            prop_assert_eq!(appearance.preview_font_family.as_deref(), Some(family.as_str()));
+            prop_assert_eq!(&appearance.editor_mono_family, &mono);
+            let saved = serde_json::to_string(&appearance).unwrap();
+            let loaded: Appearance = serde_json::from_str(&saved).unwrap();
+            prop_assert_eq!(loaded.google_fonts, appearance.google_fonts);
+        }
+    }
+
+    #[test]
     fn older_appearance_files_use_transient_scrollbars() {
         let appearance: Appearance = serde_json::from_str("{}").unwrap();
         assert!(!appearance.always_show_scrollbars);
@@ -1465,6 +1529,7 @@ mod tests {
                         editor_mono_family: mono,
                         preview_font_family: preview,
                         preview_font_size: preview_size,
+                        google_fonts: Vec::new(),
                         line_numbers: numbers,
                         readable_width: readable,
                         view_mode: mode,

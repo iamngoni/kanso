@@ -97,6 +97,7 @@ mod flavour;
 mod fonts;
 mod fuzzy;
 mod gallery;
+mod google_fonts;
 mod graph;
 mod graph_view;
 mod grouping;
@@ -235,6 +236,7 @@ mod settings_briefs;
 mod settings_capture;
 mod settings_discovery;
 mod settings_gallery;
+mod settings_google_fonts;
 mod settings_inbox;
 mod settings_people;
 mod settings_plugins;
@@ -848,6 +850,8 @@ fn run_app(
         // The saved zoom, before the first window is drawn.
         zoom::set(cx.global::<AppState>().config.appearance.zoom, cx);
         zoom::register(cx);
+        // The downloaded Google Fonts, before any window is drawn in them.
+        google_fonts::init(cx);
         kanso_render::set_mermaid_engine(
             cx.global::<AppState>()
                 .config

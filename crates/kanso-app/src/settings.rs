@@ -40,6 +40,7 @@ use crate::flavour;
 use crate::layout::{BOTTOM_BAND_HEIGHT, TOP_BAND_HEIGHT};
 use crate::library::Library;
 use crate::services::{self, AccountState, ApiState, Services, SyncState};
+use crate::settings_google_fonts::{GoogleFontAdded, GoogleFonts};
 use crate::sidebar::{Tone, tone_color};
 use crate::text_stats::format_count;
 use crate::theme::Colors;
@@ -342,6 +343,8 @@ struct FontPickers {
     writing: Entity<FontSelect>,
     code: Entity<FontSelect>,
     preview: Entity<FontSelect>,
+    /// The Google Fonts section's field and download.
+    google: Entity<GoogleFonts>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -377,11 +380,46 @@ impl FontPickers {
         let writing = picker(FontSlot::Writing, cx);
         let code = picker(FontSlot::Code, cx);
         let preview = picker(FontSlot::Preview, cx);
+        let google = cx.new(|cx| GoogleFonts::new(window, cx));
+        subscriptions.push(cx.subscribe_in(
+            &google,
+            window,
+            |this: &mut SettingsView, _, GoogleFontAdded(family), window, cx| {
+                AppState::update_config(cx, |config| {
+                    config.appearance.add_google_font(family.as_str());
+                });
+                update_editors(cx);
+                if let Some(fonts) = &this.fonts {
+                    fonts.reload(window, cx);
+                }
+                cx.notify();
+            },
+        ));
         FontPickers {
             writing,
             code,
             preview,
+            google,
             _subscriptions: subscriptions,
+        }
+    }
+
+    /// Lists the families again, with the one just downloaded, and shows
+    /// each picker's font as the settings now have it.
+    // no-prop-test: drives the controls; `fonts::choices` and `position`
+    // have the properties.
+    fn reload(&self, window: &mut Window, cx: &mut Context<SettingsView>) {
+        let choices = crate::fonts::choices(&crate::fonts::installed(cx));
+        for slot in [FontSlot::Writing, FontSlot::Code, FontSlot::Preview] {
+            let at = crate::fonts::position(slot.get(&config(cx).appearance), &choices);
+            self.get(slot).update(cx, |select, cx| {
+                select.set_items(SearchableVec::new(choices.clone()), window, cx);
+                select.set_selected_index(
+                    Some(gpui_kit::component::IndexPath::new(at)),
+                    window,
+                    cx,
+                );
+            });
         }
     }
 
@@ -1244,8 +1282,18 @@ fn editor_page(fonts: Option<&FontPickers>, cx: &mut Context<SettingsView>) -> V
         ],
         colors,
     ),
+    google_fonts_section(fonts, cx),
     writing_section(cx),
     crate::settings_voice::section(cx)]
+}
+
+/// Settings › Editor › Google Fonts, once the font pickers exist.
+// no-prop-test: layout; the settings snapshots show it.
+fn google_fonts_section(fonts: Option<&FontPickers>, cx: &mut Context<SettingsView>) -> AnyElement {
+    match fonts {
+        Some(fonts) => GoogleFonts::section(&fonts.google, cx, Colors::get(cx)),
+        None => div().into_any_element(),
+    }
 }
 
 /// Settings › Editor › Writing: the aids that act as you type.

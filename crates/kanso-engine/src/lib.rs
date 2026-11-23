@@ -97,6 +97,7 @@ pub mod feedback_model;
 #[cfg(feature = "ai")]
 pub mod flashcards;
 pub mod fuzzy;
+pub mod google_fonts;
 #[cfg(feature = "highlight")]
 pub mod highlight;
 pub mod history;
