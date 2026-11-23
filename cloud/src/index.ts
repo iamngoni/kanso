@@ -98,6 +98,7 @@
 //   POST   /v1/metrics                  an anonymous usage count, passed on to PostHog (public, no session)
 //   POST   /v1/feedback                 in-app feedback: a report, privately stored   (session + device proof, or an anonymous key)
 //   GET    /v1/feedback                 this reporter's reports and their status      (same)
+//   GET    /v1/feedback/users?q=        GitHub users for "credit me by GitHub username" (same)
 //   PUT    /v1/feedback/<id>/screenshot the report's declared PNG or JPEG              (same)
 //   DELETE /v1/feedback/<id>            delete a report and its screenshot            (same)
 //   POST   /v1/github/webhook           GitHub's events for the feedback status chain (HMAC-signed, no session)
@@ -118,6 +119,7 @@ import * as book from "./book";
 import * as collab from "./collab";
 import * as crashReports from "./crash_reports";
 import * as feedback from "./feedback";
+import * as feedbackUsers from "./feedback_users";
 import * as githubWebhook from "./github_webhook";
 import { pepperKeys } from "./crypto";
 import type { Env } from "./env";
@@ -185,6 +187,7 @@ const ROUTES: Record<string, Route> = {
 	"/v1/metrics": { name: "metrics", methods: { POST: json(metrics.submit, true) } },
 	"/v1/feedback": { name: "feedback", methods: { POST: json(feedback.submit, true), GET: { handler: feedback.list, pepper: true } } },
 	"/v1/admin/feedback": { name: "feedback_admin", methods: { GET: { handler: feedbackAdmin.list } } },
+	"/v1/feedback/users": { name: "feedback_users", methods: { GET: { handler: feedbackUsers.search, pepper: true } } },
 	"/v1/admin/feedback/run": { name: "feedback_admin_run", methods: { POST: { handler: feedbackAdmin.run } } },
 	"/v1/github/webhook": { name: "github_webhook", methods: { POST: { handler: githubWebhook.receive } } },
 	"/v2/auth/prelogin": { name: "prelogin", binding: true, methods: { POST: json(auth.prelogin, true) } },

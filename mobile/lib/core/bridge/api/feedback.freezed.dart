@@ -12,6 +12,298 @@ part of 'feedback.dart';
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
+mixin _$FeedbackCredit {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedbackCredit);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'FeedbackCredit()';
+}
+
+
+}
+
+/// @nodoc
+class $FeedbackCreditCopyWith<$Res>  {
+$FeedbackCreditCopyWith(FeedbackCredit _, $Res Function(FeedbackCredit) __);
+}
+
+
+/// Adds pattern-matching-related methods to [FeedbackCredit].
+extension FeedbackCreditPatterns on FeedbackCredit {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FeedbackCredit_Name value)?  name,TResult Function( FeedbackCredit_Github value)?  github,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case FeedbackCredit_Name() when name != null:
+return name(_that);case FeedbackCredit_Github() when github != null:
+return github(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FeedbackCredit_Name value)  name,required TResult Function( FeedbackCredit_Github value)  github,}){
+final _that = this;
+switch (_that) {
+case FeedbackCredit_Name():
+return name(_that);case FeedbackCredit_Github():
+return github(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FeedbackCredit_Name value)?  name,TResult? Function( FeedbackCredit_Github value)?  github,}){
+final _that = this;
+switch (_that) {
+case FeedbackCredit_Name() when name != null:
+return name(_that);case FeedbackCredit_Github() when github != null:
+return github(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String name)?  name,TResult Function( String login)?  github,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case FeedbackCredit_Name() when name != null:
+return name(_that.name);case FeedbackCredit_Github() when github != null:
+return github(_that.login);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String name)  name,required TResult Function( String login)  github,}) {final _that = this;
+switch (_that) {
+case FeedbackCredit_Name():
+return name(_that.name);case FeedbackCredit_Github():
+return github(_that.login);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String name)?  name,TResult? Function( String login)?  github,}) {final _that = this;
+switch (_that) {
+case FeedbackCredit_Name() when name != null:
+return name(_that.name);case FeedbackCredit_Github() when github != null:
+return github(_that.login);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class FeedbackCredit_Name extends FeedbackCredit {
+  const FeedbackCredit_Name({required this.name}): super._();
+  
+
+ final  String name;
+
+/// Create a copy of FeedbackCredit
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FeedbackCredit_NameCopyWith<FeedbackCredit_Name> get copyWith => _$FeedbackCredit_NameCopyWithImpl<FeedbackCredit_Name>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedbackCredit_Name&&(identical(other.name, name) || other.name == name));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,name);
+
+@override
+String toString() {
+  return 'FeedbackCredit.name(name: $name)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FeedbackCredit_NameCopyWith<$Res> implements $FeedbackCreditCopyWith<$Res> {
+  factory $FeedbackCredit_NameCopyWith(FeedbackCredit_Name value, $Res Function(FeedbackCredit_Name) _then) = _$FeedbackCredit_NameCopyWithImpl;
+@useResult
+$Res call({
+ String name
+});
+
+
+
+
+}
+/// @nodoc
+class _$FeedbackCredit_NameCopyWithImpl<$Res>
+    implements $FeedbackCredit_NameCopyWith<$Res> {
+  _$FeedbackCredit_NameCopyWithImpl(this._self, this._then);
+
+  final FeedbackCredit_Name _self;
+  final $Res Function(FeedbackCredit_Name) _then;
+
+/// Create a copy of FeedbackCredit
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? name = null,}) {
+  return _then(FeedbackCredit_Name(
+name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FeedbackCredit_Github extends FeedbackCredit {
+  const FeedbackCredit_Github({required this.login}): super._();
+  
+
+ final  String login;
+
+/// Create a copy of FeedbackCredit
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FeedbackCredit_GithubCopyWith<FeedbackCredit_Github> get copyWith => _$FeedbackCredit_GithubCopyWithImpl<FeedbackCredit_Github>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedbackCredit_Github&&(identical(other.login, login) || other.login == login));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,login);
+
+@override
+String toString() {
+  return 'FeedbackCredit.github(login: $login)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FeedbackCredit_GithubCopyWith<$Res> implements $FeedbackCreditCopyWith<$Res> {
+  factory $FeedbackCredit_GithubCopyWith(FeedbackCredit_Github value, $Res Function(FeedbackCredit_Github) _then) = _$FeedbackCredit_GithubCopyWithImpl;
+@useResult
+$Res call({
+ String login
+});
+
+
+
+
+}
+/// @nodoc
+class _$FeedbackCredit_GithubCopyWithImpl<$Res>
+    implements $FeedbackCredit_GithubCopyWith<$Res> {
+  _$FeedbackCredit_GithubCopyWithImpl(this._self, this._then);
+
+  final FeedbackCredit_Github _self;
+  final $Res Function(FeedbackCredit_Github) _then;
+
+/// Create a copy of FeedbackCredit
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? login = null,}) {
+  return _then(FeedbackCredit_Github(
+login: null == login ? _self.login : login // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
 mixin _$FeedbackSent {
 
 
@@ -454,5 +746,269 @@ as FeedbackProblem,
 
 
 }
+
+/// @nodoc
+mixin _$FeedbackUsers {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedbackUsers);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'FeedbackUsers()';
+}
+
+
+}
+
+/// @nodoc
+class $FeedbackUsersCopyWith<$Res>  {
+$FeedbackUsersCopyWith(FeedbackUsers _, $Res Function(FeedbackUsers) __);
+}
+
+
+/// Adds pattern-matching-related methods to [FeedbackUsers].
+extension FeedbackUsersPatterns on FeedbackUsers {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FeedbackUsers_Found value)?  found,TResult Function( FeedbackUsers_Unavailable value)?  unavailable,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case FeedbackUsers_Found() when found != null:
+return found(_that);case FeedbackUsers_Unavailable() when unavailable != null:
+return unavailable(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FeedbackUsers_Found value)  found,required TResult Function( FeedbackUsers_Unavailable value)  unavailable,}){
+final _that = this;
+switch (_that) {
+case FeedbackUsers_Found():
+return found(_that);case FeedbackUsers_Unavailable():
+return unavailable(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FeedbackUsers_Found value)?  found,TResult? Function( FeedbackUsers_Unavailable value)?  unavailable,}){
+final _that = this;
+switch (_that) {
+case FeedbackUsers_Found() when found != null:
+return found(_that);case FeedbackUsers_Unavailable() when unavailable != null:
+return unavailable(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( List<FeedbackGithubUser> users)?  found,TResult Function()?  unavailable,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case FeedbackUsers_Found() when found != null:
+return found(_that.users);case FeedbackUsers_Unavailable() when unavailable != null:
+return unavailable();case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( List<FeedbackGithubUser> users)  found,required TResult Function()  unavailable,}) {final _that = this;
+switch (_that) {
+case FeedbackUsers_Found():
+return found(_that.users);case FeedbackUsers_Unavailable():
+return unavailable();}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( List<FeedbackGithubUser> users)?  found,TResult? Function()?  unavailable,}) {final _that = this;
+switch (_that) {
+case FeedbackUsers_Found() when found != null:
+return found(_that.users);case FeedbackUsers_Unavailable() when unavailable != null:
+return unavailable();case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class FeedbackUsers_Found extends FeedbackUsers {
+  const FeedbackUsers_Found({required final  List<FeedbackGithubUser> users}): _users = users,super._();
+  
+
+ final  List<FeedbackGithubUser> _users;
+ List<FeedbackGithubUser> get users {
+  if (_users is EqualUnmodifiableListView) return _users;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_users);
+}
+
+
+/// Create a copy of FeedbackUsers
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FeedbackUsers_FoundCopyWith<FeedbackUsers_Found> get copyWith => _$FeedbackUsers_FoundCopyWithImpl<FeedbackUsers_Found>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedbackUsers_Found&&const DeepCollectionEquality().equals(other._users, _users));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_users));
+
+@override
+String toString() {
+  return 'FeedbackUsers.found(users: $users)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FeedbackUsers_FoundCopyWith<$Res> implements $FeedbackUsersCopyWith<$Res> {
+  factory $FeedbackUsers_FoundCopyWith(FeedbackUsers_Found value, $Res Function(FeedbackUsers_Found) _then) = _$FeedbackUsers_FoundCopyWithImpl;
+@useResult
+$Res call({
+ List<FeedbackGithubUser> users
+});
+
+
+
+
+}
+/// @nodoc
+class _$FeedbackUsers_FoundCopyWithImpl<$Res>
+    implements $FeedbackUsers_FoundCopyWith<$Res> {
+  _$FeedbackUsers_FoundCopyWithImpl(this._self, this._then);
+
+  final FeedbackUsers_Found _self;
+  final $Res Function(FeedbackUsers_Found) _then;
+
+/// Create a copy of FeedbackUsers
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? users = null,}) {
+  return _then(FeedbackUsers_Found(
+users: null == users ? _self._users : users // ignore: cast_nullable_to_non_nullable
+as List<FeedbackGithubUser>,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FeedbackUsers_Unavailable extends FeedbackUsers {
+  const FeedbackUsers_Unavailable(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedbackUsers_Unavailable);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'FeedbackUsers.unavailable()';
+}
+
+
+}
+
+
+
 
 // dart format on

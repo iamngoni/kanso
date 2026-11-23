@@ -7,6 +7,7 @@ import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../models/data/feedback_credit.dart';
 import '../../models/data/feedback_draft.dart';
 import '../../models/data/feedback_kind.dart';
 import '../../models/data/feedback_result.dart';
@@ -46,6 +47,28 @@ class SendFeedbackBloc extends Bloc<SendFeedbackEvent, SendFeedbackState> {
           _edit(emit, state.draft.copyWith(creditName: event.name)),
       transformer: sequential(),
     );
+    on<SendFeedbackCreditKindChangedEvent>(
+      (event, emit) =>
+          _edit(emit, state.draft.copyWith(creditKind: event.kind)),
+      transformer: sequential(),
+    );
+    // Restartable: a newer keystroke drops the older wait, so only the last
+    // pause in typing searches.
+    on<SendFeedbackGithubQueryChangedEvent>(
+      _onGithubQuery,
+      transformer: restartable(),
+    );
+    on<SendFeedbackGithubUserPickedEvent>(
+      (event, emit) async {
+        emit(state.copyWith(githubSearch: const FeedbackGithubSearch.idle()));
+        await _edit(emit, state.draft.copyWith(githubUser: event.user));
+      },
+      transformer: sequential(),
+    );
+    on<SendFeedbackGithubUserClearedEvent>(
+      (event, emit) => _edit(emit, state.draft.copyWith(githubUser: null)),
+      transformer: sequential(),
+    );
     on<SendFeedbackAppInfoToggledEvent>(
       (event, emit) => _edit(emit, state.draft.copyWith(includeApp: event.on)),
       transformer: sequential(),
@@ -82,6 +105,34 @@ class SendFeedbackBloc extends Bloc<SendFeedbackEvent, SendFeedbackState> {
   Future<void> _refreshPayload(Emitter<SendFeedbackState> emit) async {
     final payload = await _feedback.preview(state.draft, screen: state.screen);
     emit(state.copyWith(payload: payload));
+  }
+
+  Future<void> _onGithubQuery(
+    SendFeedbackGithubQueryChangedEvent event,
+    Emitter<SendFeedbackState> emit,
+  ) async {
+    final query = githubSearchQuery(event.query);
+    if (query == null) {
+      emit(state.copyWith(githubSearch: const FeedbackGithubSearch.idle()));
+      return;
+    }
+    emit(state.copyWith(githubSearch: const FeedbackGithubSearch.searching()));
+    await Future<void>.delayed(githubSearchDebounce);
+    // A newer keystroke restarted this handler: that one searches, not this.
+    if (emit.isDone) {
+      return;
+    }
+    final users = await _feedback.searchGithubUsers(query);
+    if (emit.isDone) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        githubSearch: users == null
+            ? const FeedbackGithubSearch.unavailable()
+            : FeedbackGithubSearch.found(users),
+      ),
+    );
   }
 
   Future<void> _onScreenshotRequested(

@@ -46,7 +46,8 @@ export type Rule =
 	| "metrics-ip"
 	| "feedback-account"
 	| "feedback-ip"
-	| "feedback-global";
+	| "feedback-global"
+	| "feedback-search";
 
 /**
  * Window and maximum of each rule. The two per-account daily rules read their
@@ -92,7 +93,8 @@ export type Rule =
  * In-app feedback (docs/FEEDBACK.md): `feedback-account` counts each new report of a signed-in
  * account (10 a day), `feedback-ip` each new report of an anonymous reporter, per IP group (5 a
  * day), and `feedback-global` every new report against `settings.feedback_per_day` (200 by
- * default; a missing setting refuses).
+ * default; a missing setting refuses). `feedback-search` counts each GitHub user search made for the
+ * "credit me" picker (docs/FEEDBACK.md › Credit), per account or per IP group, 60 every ten minutes.
  */
 export const RULES: Record<Rule, { window: number; max: number | null }> = {
 	"signup-ip": { window: HOUR, max: 10 },
@@ -123,6 +125,7 @@ export const RULES: Record<Rule, { window: number; max: number | null }> = {
 	"feedback-account": { window: DAY, max: 10 },
 	"feedback-ip": { window: DAY, max: 5 },
 	"feedback-global": { window: DAY, max: null },
+	"feedback-search": { window: 10 * 60_000, max: 60 },
 };
 
 /**

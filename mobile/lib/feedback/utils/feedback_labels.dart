@@ -50,6 +50,7 @@ extension FeedbackLabels on AppLocalizations {
     FeedbackProblem.tooLong => feedbackErrorTooLong,
     FeedbackProblem.badCharacter => feedbackErrorCharacter,
     FeedbackProblem.badCredit => feedbackErrorCredit,
+    FeedbackProblem.badGithubUser => feedbackErrorGithubUser,
     FeedbackProblem.badScreenshot => feedbackErrorScreenshot,
     FeedbackProblem.other || null => feedbackErrorOther,
   };

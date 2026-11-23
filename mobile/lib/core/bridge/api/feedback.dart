@@ -34,6 +34,9 @@ abstract class KansoFeedback implements RustOpaqueInterface {
   /// Makes waiting reports due again (connectivity returned).
   Future<void> retryNow();
 
+  /// GitHub users whose login contains `query`, through Kanso's Worker.
+  Future<FeedbackUsers> searchUsers({required String query});
+
   /// Saves the report to the outbox and tries to send it.
   Future<FeedbackSent> send({required FeedbackInput input});
 }
@@ -95,10 +98,38 @@ class FeedbackContext {
           crashTypes == other.crashTypes;
 }
 
+@freezed
+sealed class FeedbackCredit with _$FeedbackCredit {
+  const FeedbackCredit._();
+
+  const factory FeedbackCredit.name({required String name}) =
+      FeedbackCredit_Name;
+  const factory FeedbackCredit.github({required String login}) =
+      FeedbackCredit_Github;
+}
+
+class FeedbackGithubUser {
+  final String login;
+  final String avatarUrl;
+
+  const FeedbackGithubUser({required this.login, required this.avatarUrl});
+
+  @override
+  int get hashCode => login.hashCode ^ avatarUrl.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FeedbackGithubUser &&
+          runtimeType == other.runtimeType &&
+          login == other.login &&
+          avatarUrl == other.avatarUrl;
+}
+
 class FeedbackInput {
   final String kind;
   final String text;
-  final String? creditName;
+  final FeedbackCredit? credit;
   final bool includeApp;
   final Uint8List? screenshot;
   final FeedbackContext context;
@@ -106,7 +137,7 @@ class FeedbackInput {
   const FeedbackInput({
     required this.kind,
     required this.text,
-    this.creditName,
+    this.credit,
     required this.includeApp,
     this.screenshot,
     required this.context,
@@ -116,7 +147,7 @@ class FeedbackInput {
   int get hashCode =>
       kind.hashCode ^
       text.hashCode ^
-      creditName.hashCode ^
+      credit.hashCode ^
       includeApp.hashCode ^
       screenshot.hashCode ^
       context.hashCode;
@@ -128,7 +159,7 @@ class FeedbackInput {
           runtimeType == other.runtimeType &&
           kind == other.kind &&
           text == other.text &&
-          creditName == other.creditName &&
+          credit == other.credit &&
           includeApp == other.includeApp &&
           screenshot == other.screenshot &&
           context == other.context;
@@ -160,6 +191,7 @@ enum FeedbackProblem {
   tooLong,
   badCharacter,
   badCredit,
+  badGithubUser,
   badScreenshot,
   other,
 }
@@ -241,4 +273,14 @@ sealed class FeedbackSent with _$FeedbackSent {
   const factory FeedbackSent.invalid({
     required FeedbackProblem problem,
   }) = FeedbackSent_Invalid;
+}
+
+@freezed
+sealed class FeedbackUsers with _$FeedbackUsers {
+  const FeedbackUsers._();
+
+  const factory FeedbackUsers.found({
+    required List<FeedbackGithubUser> users,
+  }) = FeedbackUsers_Found;
+  const factory FeedbackUsers.unavailable() = FeedbackUsers_Unavailable;
 }

@@ -4,26 +4,31 @@
 use std::sync::{Arc, Mutex};
 
 use gpui_kit::{AnyWindowHandle, AppContext as _, Entity, TestAppContext, VisualTestContext};
-use kanso_engine::feedback::Kind;
+use kanso_engine::feedback::{self, Kind};
 use kanso_store::{OutboxState, Store};
 use kanso_sync::MemorySecrets;
 use kanso_sync::feedback::{Request, Response, Transport};
 
 use crate::config::AppConfig;
-use crate::feedback_app::TransportOverride;
-use crate::feedback_sheet::{FeedbackSheet, SendFeedback};
+use crate::feedback_app::{self, TransportOverride};
+use crate::feedback_sheet::{CreditKind, FeedbackSheet, Lookup, SEARCH_DEBOUNCE, SendFeedback};
 use crate::services::Services;
 use crate::workspace::{AppState, Workspace};
 
-/// A server that answers every request the same way and remembers them.
+/// A server that answers every request the same way (the user search from
+/// `users`) and remembers them.
 struct Fake {
     answer: Result<Response, String>,
+    users: Mutex<Result<Response, String>>,
     seen: Mutex<Vec<Request>>,
 }
 
 impl Transport for Fake {
     fn send(&self, request: &Request) -> Result<Response, String> {
         self.seen.lock().unwrap().push(request.clone());
+        if request.path.starts_with("/v1/feedback/users") {
+            return self.users.lock().unwrap().clone();
+        }
         self.answer.clone()
     }
 }
@@ -48,6 +53,7 @@ fn rig(cx: &mut TestAppContext, answer: Result<Response, String>) -> Rig {
     let store = Arc::new(Store::open(dir.path().join("kanso.db")).unwrap());
     let fake = Arc::new(Fake {
         answer,
+        users: Mutex::new(reply(200, r#"{"users":[]}"#)),
         seen: Mutex::new(Vec::new()),
     });
     let (state, transport) = (store.clone(), fake.clone());
@@ -282,4 +288,285 @@ fn a_chosen_picture_is_shown_and_loses_its_exif(cx: &mut TestAppContext) {
     assert!(row.payload.contains("\"bytes\": 12"), "{}", row.payload);
     let posted = &rig.fake.seen.lock().unwrap()[0];
     assert!(!String::from_utf8_lossy(&posted.body).contains("GPS"));
+}
+
+// ------------------------------------------------------------- the credit
+
+const USERS: &str = r#"{"users":[
+{"login":"octocat","avatar_url":"https://avatars.githubusercontent.com/u/583231?v=4"},
+{"login":"octokit","avatar_url":"https://avatars.githubusercontent.com/u/3430433?v=4"}]}"#;
+
+fn set_credit(cx: &mut TestAppContext, rig: &Rig, sheet: &Entity<FeedbackSheet>, kind: CreditKind) {
+    let target = sheet.clone();
+    rig.window
+        .update(cx, move |_, _, cx| {
+            target.update(cx, |s, cx| {
+                s.credit = true;
+                s.set_credit_kind(kind, cx);
+            })
+        })
+        .unwrap();
+    cx.run_until_parked();
+}
+
+fn type_search(cx: &mut TestAppContext, rig: &Rig, sheet: &Entity<FeedbackSheet>, text: &str) {
+    let (text, sheet) = (text.to_owned(), sheet.clone());
+    rig.window
+        .update(cx, move |_, window, cx| {
+            let input = sheet.read(cx).github.clone();
+            input.update(cx, |input, cx| input.set_value(text, window, cx));
+            // A typed change emits Change, which calls this; a programmatic one may not.
+            sheet.update(cx, |s, cx| s.query_changed(cx));
+        })
+        .unwrap();
+    cx.run_until_parked();
+}
+
+/// Lets the debounce pass and the search come back.
+fn settle_search(cx: &mut TestAppContext, sheet: &Entity<FeedbackSheet>) {
+    cx.executor().advance_clock(SEARCH_DEBOUNCE);
+    for _ in 0..300 {
+        cx.run_until_parked();
+        if !matches!(
+            cx.read(|cx| sheet.read(cx).lookup.clone()),
+            Lookup::Searching
+        ) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
+fn searches(rig: &Rig) -> Vec<String> {
+    rig.fake
+        .seen
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|r| r.path.starts_with("/v1/feedback/users"))
+        .map(|r| r.path.clone())
+        .collect()
+}
+
+fn pick(cx: &mut TestAppContext, rig: &Rig, sheet: &Entity<FeedbackSheet>, ix: usize) {
+    let target = sheet.clone();
+    rig.window
+        .update(cx, move |_, window, cx| {
+            let user = match &target.read(cx).lookup {
+                Lookup::Found(users) => users[ix].clone(),
+                other => panic!("nothing to pick: {other:?}"),
+            };
+            target.update(cx, |s, cx| s.pick(user, window, cx));
+        })
+        .unwrap();
+    cx.run_until_parked();
+}
+
+fn draw(cx: &mut TestAppContext, rig: &Rig) -> VisualTestContext {
+    rig.window
+        .update(cx, |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+    cx.run_until_parked();
+    VisualTestContext::from_window(rig.window, cx)
+}
+
+fn posted_credit(rig: &Rig) -> serde_json::Value {
+    let seen = rig.fake.seen.lock().unwrap();
+    let post = seen
+        .iter()
+        .find(|r| r.path == "/v1/feedback")
+        .expect("a report was posted");
+    serde_json::from_slice::<serde_json::Value>(&post.body).unwrap()["credit"].clone()
+}
+
+#[gpui_kit::test]
+fn a_plain_name_is_sent_as_the_tagged_name(cx: &mut TestAppContext) {
+    let rig = rig(cx, reply(201, r#"{"id":"x","status":"received"}"#));
+    let sheet = open_sheet(cx, &rig);
+    type_text(cx, &rig, &sheet, "Export to PDF cuts off wide tables.");
+    let target = sheet.clone();
+    rig.window
+        .update(cx, move |_, window, cx| {
+            target.update(cx, |s, cx| {
+                s.credit = true;
+                s.name
+                    .update(cx, |name, cx| name.set_value("Tendai M", window, cx));
+            })
+        })
+        .unwrap();
+    cx.run_until_parked();
+    assert_eq!(cx.read(|cx| sheet.read(cx).credit_kind), CreditKind::Name);
+    press_send(cx, &rig, &sheet);
+    assert_eq!(
+        posted_credit(&rig),
+        serde_json::json!({"kind": "name", "name": "Tendai M"})
+    );
+    assert!(searches(&rig).is_empty());
+}
+
+#[gpui_kit::test]
+fn typing_a_github_name_searches_once_after_the_pause(cx: &mut TestAppContext) {
+    let rig = rig(cx, reply(201, r#"{"id":"x","status":"received"}"#));
+    *rig.fake.users.lock().unwrap() = reply(200, USERS);
+    let sheet = open_sheet(cx, &rig);
+    set_credit(cx, &rig, &sheet, CreditKind::Github);
+    // Three keystrokes inside the pause make one search, for the last text.
+    for text in ["oc", "oct", "octo"] {
+        type_search(cx, &rig, &sheet, text);
+        cx.executor()
+            .advance_clock(std::time::Duration::from_millis(100));
+        cx.run_until_parked();
+    }
+    assert!(searches(&rig).is_empty());
+    assert_eq!(
+        cx.read(|cx| sheet.read(cx).lookup.clone()),
+        Lookup::Searching
+    );
+    settle_search(cx, &sheet);
+    assert_eq!(searches(&rig), vec!["/v1/feedback/users?q=octo".to_owned()]);
+    let found = cx.read(|cx| sheet.read(cx).lookup.clone());
+    let Lookup::Found(users) = found else {
+        panic!("{found:?}")
+    };
+    assert_eq!(
+        users.iter().map(|u| u.login.as_str()).collect::<Vec<_>>(),
+        ["octocat", "octokit"]
+    );
+    let mut vcx = draw(cx, &rig);
+    assert!(vcx.debug_bounds("feedback-github-results").is_some());
+    assert!(vcx.debug_bounds("feedback-github-user-0").is_some());
+    assert!(vcx.debug_bounds("feedback-github-user-1").is_some());
+}
+
+#[gpui_kit::test]
+fn too_little_text_asks_nothing(cx: &mut TestAppContext) {
+    let rig = rig(cx, reply(201, r#"{"id":"x","status":"received"}"#));
+    let sheet = open_sheet(cx, &rig);
+    set_credit(cx, &rig, &sheet, CreditKind::Github);
+    for text in ["o", "", "a b", "octo in:login"] {
+        type_search(cx, &rig, &sheet, text);
+        settle_search(cx, &sheet);
+        assert_eq!(cx.read(|cx| sheet.read(cx).lookup.clone()), Lookup::Idle);
+    }
+    assert!(searches(&rig).is_empty());
+}
+
+#[gpui_kit::test]
+fn picking_a_user_credits_their_login_and_enables_send(cx: &mut TestAppContext) {
+    let rig = rig(cx, reply(201, r#"{"id":"x","status":"received"}"#));
+    *rig.fake.users.lock().unwrap() = reply(200, USERS);
+    let sheet = open_sheet(cx, &rig);
+    type_text(cx, &rig, &sheet, "Export to PDF cuts off wide tables.");
+    set_credit(cx, &rig, &sheet, CreditKind::Github);
+    // Nobody picked: not sendable, and sending says what to do.
+    let credit = cx.read(|cx| sheet.read(cx).credit(cx));
+    assert!(!crate::feedback_sheet::can_send(36, credit.as_ref()));
+    press_send(cx, &rig, &sheet);
+    assert_eq!(
+        cx.read(|cx| sheet.read(cx).error.clone()).as_deref(),
+        Some(feedback_app::GITHUB_PICK_FIRST)
+    );
+    assert!(rig.store.feedback_all().unwrap().is_empty());
+
+    type_search(cx, &rig, &sheet, "octo");
+    settle_search(cx, &sheet);
+    pick(cx, &rig, &sheet, 0);
+    assert_eq!(
+        cx.read(|cx| sheet.read(cx).picked.clone()).map(|u| u.login),
+        Some("octocat".into())
+    );
+    let mut vcx = draw(cx, &rig);
+    assert!(vcx.debug_bounds("feedback-github-picked").is_some());
+    assert!(vcx.debug_bounds("feedback-github-results").is_none());
+    let credit = cx.read(|cx| sheet.read(cx).credit(cx));
+    assert!(crate::feedback_sheet::can_send(36, credit.as_ref()));
+
+    press_send(cx, &rig, &sheet);
+    assert_eq!(
+        posted_credit(&rig),
+        serde_json::json!({"kind": "github", "login": "octocat"})
+    );
+    // "Show what's sent" would have said the same: it is built from the same draft.
+    let row = &rig.store.feedback_all().unwrap()[0];
+    assert!(
+        row.payload.contains("\"login\": \"octocat\""),
+        "{}",
+        row.payload
+    );
+}
+
+#[gpui_kit::test]
+fn changing_the_pick_and_switching_to_a_name_keep_each_choice_apart(cx: &mut TestAppContext) {
+    let rig = rig(cx, reply(201, r#"{"id":"x","status":"received"}"#));
+    *rig.fake.users.lock().unwrap() = reply(200, USERS);
+    let sheet = open_sheet(cx, &rig);
+    set_credit(cx, &rig, &sheet, CreditKind::Github);
+    type_search(cx, &rig, &sheet, "octo");
+    settle_search(cx, &sheet);
+    pick(cx, &rig, &sheet, 1);
+    // Back to a name: the name is the credit, the pick is remembered.
+    set_credit(cx, &rig, &sheet, CreditKind::Name);
+    assert!(matches!(
+        cx.read(|cx| sheet.read(cx).credit(cx)),
+        Some(feedback::Credit::Name(_))
+    ));
+    set_credit(cx, &rig, &sheet, CreditKind::Github);
+    assert_eq!(
+        cx.read(|cx| sheet.read(cx).credit(cx)),
+        Some(feedback::Credit::Github("octokit".into()))
+    );
+    // Change takes the pick back; the credit is then unsendable until one is picked.
+    let target = sheet.clone();
+    rig.window
+        .update(cx, move |_, _, cx| target.update(cx, |s, cx| s.unpick(cx)))
+        .unwrap();
+    assert_eq!(
+        cx.read(|cx| sheet.read(cx).credit(cx)),
+        Some(feedback::Credit::Github(String::new()))
+    );
+}
+
+#[gpui_kit::test]
+fn a_failed_search_says_so_and_a_name_still_works(cx: &mut TestAppContext) {
+    let rig = rig(cx, reply(201, r#"{"id":"x","status":"received"}"#));
+    *rig.fake.users.lock().unwrap() = reply(503, r#"{"error":"search_unavailable"}"#);
+    let sheet = open_sheet(cx, &rig);
+    set_credit(cx, &rig, &sheet, CreditKind::Github);
+    type_search(cx, &rig, &sheet, "octo");
+    settle_search(cx, &sheet);
+    assert_eq!(
+        cx.read(|cx| sheet.read(cx).lookup.clone()),
+        Lookup::Unavailable
+    );
+    let mut vcx = draw(cx, &rig);
+    assert!(vcx.debug_bounds("feedback-github-unavailable").is_some());
+    // Offline is the same.
+    *rig.fake.users.lock().unwrap() = Err("offline".into());
+    type_search(cx, &rig, &sheet, "octok");
+    settle_search(cx, &sheet);
+    assert_eq!(
+        cx.read(|cx| sheet.read(cx).lookup.clone()),
+        Lookup::Unavailable
+    );
+    set_credit(cx, &rig, &sheet, CreditKind::Name);
+    assert!(matches!(
+        cx.read(|cx| sheet.read(cx).credit(cx)),
+        Some(feedback::Credit::Name(_))
+    ));
+}
+
+#[gpui_kit::test]
+fn no_results_is_its_own_state(cx: &mut TestAppContext) {
+    let rig = rig(cx, reply(201, r#"{"id":"x","status":"received"}"#));
+    let sheet = open_sheet(cx, &rig);
+    set_credit(cx, &rig, &sheet, CreditKind::Github);
+    type_search(cx, &rig, &sheet, "zzzzzz");
+    settle_search(cx, &sheet);
+    assert_eq!(
+        cx.read(|cx| sheet.read(cx).lookup.clone()),
+        Lookup::Found(vec![])
+    );
 }

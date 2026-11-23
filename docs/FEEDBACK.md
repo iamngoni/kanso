@@ -35,6 +35,7 @@ self-hosted server, and none is `public`, so the Origin rule keeps browsers out.
 | `POST /v1/feedback` | A report. `201` stored, `200` a repeat of the same `id` from the same reporter (idempotent), `400`, `401`/`403`, `409` the ID belongs to another reporter, `413` over 48 KiB, `415`, `429`, `503 feedback_closed` |
 | `PUT /v1/feedback/<id>/screenshot` | The declared PNG or JPEG (raw bytes, up to 5 MiB). `204`, `400` bytes don't match the declaration, `404`, `409` already stored, `410` the slot (one hour) has closed, `413`, `415` |
 | `GET /v1/feedback[?released=X.Y.Z]` | This reporter's reports, newest first, at most 100, each with its status chain. `released` filters to the reports a release fixed |
+| `GET /v1/feedback/users?q=<text>` | GitHub users for the "credit me by GitHub username" picker: `{"users": [{"login", "avatar_url"}]}`, at most 8, from the App's installation token. `q` is 2–39 login characters (a leading `@` is dropped), else `400 q`. Same callers as the other routes, counted per client by `feedback-search` (not by the report binding); answers are cached in the isolate for a minute. `503 search_unavailable` when GitHub or the App is unavailable, so the app offers a plain name instead |
 | `DELETE /v1/feedback/<id>` | `204`. Deletes the row, its events and the screenshot; the issue stays, and the Worker removes the "Reported by" credit from it |
 | `POST /v1/github/webhook` | GitHub's events (see below) |
 
@@ -53,7 +54,7 @@ self-hosted server, and none is `public`, so the Origin rule keeps browsers out.
 ```json
 { "v": 1, "id": "fb_01jbx9k2m4n6p8q0r2s4t6v8w0", "kind": "bug",
   "text": "Export to PDF cuts off wide tables on the right.",
-  "credit": { "name": "tendai" },
+  "credit": { "kind": "name", "name": "tendai" },
   "app": { "platform": "macos", "version": "0.9.1", "build": "57", "patch": null, "os": "15.1",
            "device": "Mac14,9", "locale": "en-GB", "screen": "editor", "sync": "kanso",
            "errors": ["update: check failed: timeout"] },
@@ -67,7 +68,9 @@ Exactly these keys; `credit`, `app` and `screenshot` may be `null`.
 | `id` | `^fb_[0-9a-z]{26}$` (29 characters) |
 | `kind` | `bug`, `idea` or `question` |
 | `text` | 10–4,000 characters after NFC. Control characters other than `\n` and lone surrogates are refused |
-| `credit.name` | `^[\p{L}\p{N} ._-]{1,39}$`, not blank. Plain text, never turned into an `@`-mention |
+| `credit` | `null`; `{"kind": "name", "name"}`; or `{"kind": "github", "login"}`. Older apps send `{"name"}` or a bare string, read as a plain name; the stored form is always tagged |
+| `credit.name` | `^[\p{L}\p{N} ._-]{1,39}$`, not blank. Plain text, never turned into an `@`-mention: it can't hold an `@`, and the footer strips one anyway |
+| `credit.login` | GitHub's login rule: 1–39 ASCII letters, digits and single hyphens, no leading or trailing hyphen. Only then is it written `@login` in the issue footer, so GitHub notifies that person. The Worker checks the rule, not that the account exists |
 | `app.platform` | `macos` `windows` `linux` `ios` `android` |
 | `app.version` | `^[0-9]{1,4}(\.[0-9]{1,4}){2}$`; `build` `^[0-9]{1,10}$`; `patch` an integer or `null` |
 | `app.os` | `^[0-9A-Za-z._-]{1,32}$`; `device` `^[A-Za-z0-9 ,._()-]{1,64}$`; `locale` a BCP 47-shaped tag |
@@ -88,6 +91,7 @@ payload from an allow-list (`kanso-engine::feedback`, a later step); the Worker 
 | `feedback-global` | day | `settings.feedback_per_day` (200); a missing setting refuses |
 | Issues filed | UTC day | `settings.feedback_issues_per_day` (50); past it, reports wait as `received` |
 | `FEEDBACK_LIMITER` binding (anonymous) | minute | 5 |
+| `feedback-search` (user search, by account or IP group) | 10 minutes | 60 |
 
 A repeat of a stored `id` is not counted. `settings.feedback_open = 0` is the kill switch (`503`);
 a missing row also refuses. (The existing `settings` table only takes numbers, so the switch is
@@ -137,7 +141,8 @@ failure does not ask the model again.
 
 The Worker, not the model, picks the labels and renders the body from a fixed template (the
 summary, numbered steps, expected and actual, a table of area, platforms, app and severity, and a
-footer with the short report ID and, when the person opted in, `Reported by <name>`).
+footer with the short report ID and, when the person opted in, `Reported by <name>` or, for a
+GitHub credit, `Reported by @login`, a real mention).
 
 - Labels: `from-app`, `needs-triage`, `bug`/`enhancement`/`question`, `size:s|m|l`. **`build` is
   never set**: every label passes an allow-list that does not hold it (tested).
@@ -184,7 +189,7 @@ Statuses: `received`, `noise`, `duplicate`, `filed`, `building`, `pr_open`, `mer
   chain stays, so My feedback keeps showing "Released in v0.9.2".
 - **Upload slots** close an hour after the report (`screenshot_state = expired`).
 - **`DELETE /v1/feedback/<id>`** removes the row, its events and the screenshot, and edits the
-  "Reported by" credit out of the issue (the issue itself stays: it holds no raw words). The edit
+  "Reported by" credit (a name or an `@login`) out of the issue (the issue itself stays: it holds no raw words). The edit
   is queued in `feedback_credit_removals` first, so if GitHub is down the cron retries it. GitHub
   keeps an issue's edit history, so if a summary ever leaked something, delete the revision or
   the issue, not just the text.
@@ -301,7 +306,9 @@ real limits are what its job holds and what leaves the job, not which commands i
   with `Reported-by: NAME (in app)` and repeats it in the PR body. `cliff.toml` turns that into
   ", reported by NAME" in the release notes: a plain name, never an `@`-mention, and only when
   NAME passes the Worker's own credit-name rule (letters, digits, space, `. _ -`, 1 to 39);
-  anything else prints no credit, because any commit can carry a trailer. Merge the PR with a
+  anything else prints no credit, because any commit can carry a trailer. A footer that says
+  `Reported by @login` gets no trailer and no release-notes credit: the issue's mention is the
+  thanks. Merge the PR with a
   merge commit; a squash drops the trailer. A merged trailer is permanent: deleting the report
   or the account later takes the name off the issue, not out of git history or published
   release notes (the privacy page says so).

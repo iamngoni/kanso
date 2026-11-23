@@ -26,9 +26,11 @@ import '../../models/data/feedback_kind.dart';
 import '../../models/data/feedback_result.dart';
 import '../../state/send_feedback/send_feedback_bloc.dart';
 import '../../utils/feedback_labels.dart';
+import 'feedback_credit_picker.dart';
 
 /// Settings › Send feedback: the kind, the words, an optional screenshot, the
-/// app info (on, and shown exactly as sent) and an optional credit name.
+/// app info (on, and shown exactly as sent) and an optional credit: a name,
+/// or a GitHub username picked from a search.
 /// Send is pinned at the bottom and stays off until there are 10 characters.
 /// It needs a [SendFeedbackBloc] above it. **No note is ever read.**
 class SendFeedbackPane extends StatefulWidget {
@@ -41,11 +43,13 @@ class SendFeedbackPane extends StatefulWidget {
 class _SendFeedbackPaneState extends State<SendFeedbackPane> {
   final TextEditingController _text = TextEditingController();
   final TextEditingController _name = TextEditingController();
+  final TextEditingController _search = TextEditingController();
 
   @override
   void dispose() {
     _text.dispose();
     _name.dispose();
+    _search.dispose();
     super.dispose();
   }
 
@@ -194,26 +198,7 @@ class _SendFeedbackPaneState extends State<SendFeedbackPane> {
                                 ),
                         ),
                         if (draft.credit)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              KansoSpacing.md,
-                              0,
-                              KansoSpacing.md,
-                              KansoSpacing.md,
-                            ),
-                            child: KansoTextField(
-                              controller: _name,
-                              hint: l10n.feedbackCreditName,
-                              semanticLabel: l10n.feedbackCreditName,
-                              invalid:
-                                  draft.creditName.isNotEmpty &&
-                                  !draft.creditNameValid,
-                              enabled: !state.sending,
-                              onChanged: (name) => bloc.add(
-                                SendFeedbackEvent.creditNameChanged(name),
-                              ),
-                            ),
-                          ),
+                          FeedbackCreditPicker(name: _name, search: _search),
                       ],
                     ),
                     const SizedBox(height: KansoSpacing.md),

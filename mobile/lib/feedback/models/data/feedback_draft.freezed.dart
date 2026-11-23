@@ -276,8 +276,10 @@ as String,
 /// @nodoc
 mixin _$FeedbackDraft {
 
- FeedbackKind get kind; String get text;/// Whether "Credit me by name" is on.
- bool get credit; String get creditName; bool get includeApp; FeedbackScreenshot? get screenshot;
+ FeedbackKind get kind; String get text;/// Whether "Credit me" is on.
+ bool get credit;/// Which credit: a plain name, or a GitHub username.
+ FeedbackCreditKind get creditKind; String get creditName;/// The GitHub user picked from the search, for [FeedbackCreditKind.github].
+ FeedbackGithubUser? get githubUser; bool get includeApp; FeedbackScreenshot? get screenshot;
 /// Create a copy of FeedbackDraft
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -288,16 +290,16 @@ $FeedbackDraftCopyWith<FeedbackDraft> get copyWith => _$FeedbackDraftCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedbackDraft&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.text, text) || other.text == text)&&(identical(other.credit, credit) || other.credit == credit)&&(identical(other.creditName, creditName) || other.creditName == creditName)&&(identical(other.includeApp, includeApp) || other.includeApp == includeApp)&&(identical(other.screenshot, screenshot) || other.screenshot == screenshot));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedbackDraft&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.text, text) || other.text == text)&&(identical(other.credit, credit) || other.credit == credit)&&(identical(other.creditKind, creditKind) || other.creditKind == creditKind)&&(identical(other.creditName, creditName) || other.creditName == creditName)&&(identical(other.githubUser, githubUser) || other.githubUser == githubUser)&&(identical(other.includeApp, includeApp) || other.includeApp == includeApp)&&(identical(other.screenshot, screenshot) || other.screenshot == screenshot));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,kind,text,credit,creditName,includeApp,screenshot);
+int get hashCode => Object.hash(runtimeType,kind,text,credit,creditKind,creditName,githubUser,includeApp,screenshot);
 
 @override
 String toString() {
-  return 'FeedbackDraft(kind: $kind, text: $text, credit: $credit, creditName: $creditName, includeApp: $includeApp, screenshot: $screenshot)';
+  return 'FeedbackDraft(kind: $kind, text: $text, credit: $credit, creditKind: $creditKind, creditName: $creditName, githubUser: $githubUser, includeApp: $includeApp, screenshot: $screenshot)';
 }
 
 
@@ -308,11 +310,11 @@ abstract mixin class $FeedbackDraftCopyWith<$Res>  {
   factory $FeedbackDraftCopyWith(FeedbackDraft value, $Res Function(FeedbackDraft) _then) = _$FeedbackDraftCopyWithImpl;
 @useResult
 $Res call({
- FeedbackKind kind, String text, bool credit, String creditName, bool includeApp, FeedbackScreenshot? screenshot
+ FeedbackKind kind, String text, bool credit, FeedbackCreditKind creditKind, String creditName, FeedbackGithubUser? githubUser, bool includeApp, FeedbackScreenshot? screenshot
 });
 
 
-$FeedbackScreenshotCopyWith<$Res>? get screenshot;
+$FeedbackGithubUserCopyWith<$Res>? get githubUser;$FeedbackScreenshotCopyWith<$Res>? get screenshot;
 
 }
 /// @nodoc
@@ -325,18 +327,32 @@ class _$FeedbackDraftCopyWithImpl<$Res>
 
 /// Create a copy of FeedbackDraft
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? kind = null,Object? text = null,Object? credit = null,Object? creditName = null,Object? includeApp = null,Object? screenshot = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? kind = null,Object? text = null,Object? credit = null,Object? creditKind = null,Object? creditName = null,Object? githubUser = freezed,Object? includeApp = null,Object? screenshot = freezed,}) {
   return _then(_self.copyWith(
 kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
 as FeedbackKind,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,credit: null == credit ? _self.credit : credit // ignore: cast_nullable_to_non_nullable
-as bool,creditName: null == creditName ? _self.creditName : creditName // ignore: cast_nullable_to_non_nullable
-as String,includeApp: null == includeApp ? _self.includeApp : includeApp // ignore: cast_nullable_to_non_nullable
+as bool,creditKind: null == creditKind ? _self.creditKind : creditKind // ignore: cast_nullable_to_non_nullable
+as FeedbackCreditKind,creditName: null == creditName ? _self.creditName : creditName // ignore: cast_nullable_to_non_nullable
+as String,githubUser: freezed == githubUser ? _self.githubUser : githubUser // ignore: cast_nullable_to_non_nullable
+as FeedbackGithubUser?,includeApp: null == includeApp ? _self.includeApp : includeApp // ignore: cast_nullable_to_non_nullable
 as bool,screenshot: freezed == screenshot ? _self.screenshot : screenshot // ignore: cast_nullable_to_non_nullable
 as FeedbackScreenshot?,
   ));
 }
 /// Create a copy of FeedbackDraft
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$FeedbackGithubUserCopyWith<$Res>? get githubUser {
+    if (_self.githubUser == null) {
+    return null;
+  }
+
+  return $FeedbackGithubUserCopyWith<$Res>(_self.githubUser!, (value) {
+    return _then(_self.copyWith(githubUser: value));
+  });
+}/// Create a copy of FeedbackDraft
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')
@@ -430,10 +446,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( FeedbackKind kind,  String text,  bool credit,  String creditName,  bool includeApp,  FeedbackScreenshot? screenshot)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( FeedbackKind kind,  String text,  bool credit,  FeedbackCreditKind creditKind,  String creditName,  FeedbackGithubUser? githubUser,  bool includeApp,  FeedbackScreenshot? screenshot)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _FeedbackDraft() when $default != null:
-return $default(_that.kind,_that.text,_that.credit,_that.creditName,_that.includeApp,_that.screenshot);case _:
+return $default(_that.kind,_that.text,_that.credit,_that.creditKind,_that.creditName,_that.githubUser,_that.includeApp,_that.screenshot);case _:
   return orElse();
 
 }
@@ -451,10 +467,10 @@ return $default(_that.kind,_that.text,_that.credit,_that.creditName,_that.includ
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( FeedbackKind kind,  String text,  bool credit,  String creditName,  bool includeApp,  FeedbackScreenshot? screenshot)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( FeedbackKind kind,  String text,  bool credit,  FeedbackCreditKind creditKind,  String creditName,  FeedbackGithubUser? githubUser,  bool includeApp,  FeedbackScreenshot? screenshot)  $default,) {final _that = this;
 switch (_that) {
 case _FeedbackDraft():
-return $default(_that.kind,_that.text,_that.credit,_that.creditName,_that.includeApp,_that.screenshot);case _:
+return $default(_that.kind,_that.text,_that.credit,_that.creditKind,_that.creditName,_that.githubUser,_that.includeApp,_that.screenshot);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -471,10 +487,10 @@ return $default(_that.kind,_that.text,_that.credit,_that.creditName,_that.includ
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( FeedbackKind kind,  String text,  bool credit,  String creditName,  bool includeApp,  FeedbackScreenshot? screenshot)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( FeedbackKind kind,  String text,  bool credit,  FeedbackCreditKind creditKind,  String creditName,  FeedbackGithubUser? githubUser,  bool includeApp,  FeedbackScreenshot? screenshot)?  $default,) {final _that = this;
 switch (_that) {
 case _FeedbackDraft() when $default != null:
-return $default(_that.kind,_that.text,_that.credit,_that.creditName,_that.includeApp,_that.screenshot);case _:
+return $default(_that.kind,_that.text,_that.credit,_that.creditKind,_that.creditName,_that.githubUser,_that.includeApp,_that.screenshot);case _:
   return null;
 
 }
@@ -486,14 +502,18 @@ return $default(_that.kind,_that.text,_that.credit,_that.creditName,_that.includ
 
 
 class _FeedbackDraft extends FeedbackDraft {
-  const _FeedbackDraft({this.kind = FeedbackKind.bug, this.text = '', this.credit = false, this.creditName = '', this.includeApp = true, this.screenshot}): super._();
+  const _FeedbackDraft({this.kind = FeedbackKind.bug, this.text = '', this.credit = false, this.creditKind = FeedbackCreditKind.name, this.creditName = '', this.githubUser, this.includeApp = true, this.screenshot}): super._();
   
 
 @override@JsonKey() final  FeedbackKind kind;
 @override@JsonKey() final  String text;
-/// Whether "Credit me by name" is on.
+/// Whether "Credit me" is on.
 @override@JsonKey() final  bool credit;
+/// Which credit: a plain name, or a GitHub username.
+@override@JsonKey() final  FeedbackCreditKind creditKind;
 @override@JsonKey() final  String creditName;
+/// The GitHub user picked from the search, for [FeedbackCreditKind.github].
+@override final  FeedbackGithubUser? githubUser;
 @override@JsonKey() final  bool includeApp;
 @override final  FeedbackScreenshot? screenshot;
 
@@ -507,16 +527,16 @@ _$FeedbackDraftCopyWith<_FeedbackDraft> get copyWith => __$FeedbackDraftCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FeedbackDraft&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.text, text) || other.text == text)&&(identical(other.credit, credit) || other.credit == credit)&&(identical(other.creditName, creditName) || other.creditName == creditName)&&(identical(other.includeApp, includeApp) || other.includeApp == includeApp)&&(identical(other.screenshot, screenshot) || other.screenshot == screenshot));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FeedbackDraft&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.text, text) || other.text == text)&&(identical(other.credit, credit) || other.credit == credit)&&(identical(other.creditKind, creditKind) || other.creditKind == creditKind)&&(identical(other.creditName, creditName) || other.creditName == creditName)&&(identical(other.githubUser, githubUser) || other.githubUser == githubUser)&&(identical(other.includeApp, includeApp) || other.includeApp == includeApp)&&(identical(other.screenshot, screenshot) || other.screenshot == screenshot));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,kind,text,credit,creditName,includeApp,screenshot);
+int get hashCode => Object.hash(runtimeType,kind,text,credit,creditKind,creditName,githubUser,includeApp,screenshot);
 
 @override
 String toString() {
-  return 'FeedbackDraft(kind: $kind, text: $text, credit: $credit, creditName: $creditName, includeApp: $includeApp, screenshot: $screenshot)';
+  return 'FeedbackDraft(kind: $kind, text: $text, credit: $credit, creditKind: $creditKind, creditName: $creditName, githubUser: $githubUser, includeApp: $includeApp, screenshot: $screenshot)';
 }
 
 
@@ -527,11 +547,11 @@ abstract mixin class _$FeedbackDraftCopyWith<$Res> implements $FeedbackDraftCopy
   factory _$FeedbackDraftCopyWith(_FeedbackDraft value, $Res Function(_FeedbackDraft) _then) = __$FeedbackDraftCopyWithImpl;
 @override @useResult
 $Res call({
- FeedbackKind kind, String text, bool credit, String creditName, bool includeApp, FeedbackScreenshot? screenshot
+ FeedbackKind kind, String text, bool credit, FeedbackCreditKind creditKind, String creditName, FeedbackGithubUser? githubUser, bool includeApp, FeedbackScreenshot? screenshot
 });
 
 
-@override $FeedbackScreenshotCopyWith<$Res>? get screenshot;
+@override $FeedbackGithubUserCopyWith<$Res>? get githubUser;@override $FeedbackScreenshotCopyWith<$Res>? get screenshot;
 
 }
 /// @nodoc
@@ -544,19 +564,33 @@ class __$FeedbackDraftCopyWithImpl<$Res>
 
 /// Create a copy of FeedbackDraft
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? kind = null,Object? text = null,Object? credit = null,Object? creditName = null,Object? includeApp = null,Object? screenshot = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? kind = null,Object? text = null,Object? credit = null,Object? creditKind = null,Object? creditName = null,Object? githubUser = freezed,Object? includeApp = null,Object? screenshot = freezed,}) {
   return _then(_FeedbackDraft(
 kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
 as FeedbackKind,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,credit: null == credit ? _self.credit : credit // ignore: cast_nullable_to_non_nullable
-as bool,creditName: null == creditName ? _self.creditName : creditName // ignore: cast_nullable_to_non_nullable
-as String,includeApp: null == includeApp ? _self.includeApp : includeApp // ignore: cast_nullable_to_non_nullable
+as bool,creditKind: null == creditKind ? _self.creditKind : creditKind // ignore: cast_nullable_to_non_nullable
+as FeedbackCreditKind,creditName: null == creditName ? _self.creditName : creditName // ignore: cast_nullable_to_non_nullable
+as String,githubUser: freezed == githubUser ? _self.githubUser : githubUser // ignore: cast_nullable_to_non_nullable
+as FeedbackGithubUser?,includeApp: null == includeApp ? _self.includeApp : includeApp // ignore: cast_nullable_to_non_nullable
 as bool,screenshot: freezed == screenshot ? _self.screenshot : screenshot // ignore: cast_nullable_to_non_nullable
 as FeedbackScreenshot?,
   ));
 }
 
 /// Create a copy of FeedbackDraft
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$FeedbackGithubUserCopyWith<$Res>? get githubUser {
+    if (_self.githubUser == null) {
+    return null;
+  }
+
+  return $FeedbackGithubUserCopyWith<$Res>(_self.githubUser!, (value) {
+    return _then(_self.copyWith(githubUser: value));
+  });
+}/// Create a copy of FeedbackDraft
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')

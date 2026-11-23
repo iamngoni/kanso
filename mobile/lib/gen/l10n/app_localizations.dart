@@ -11398,23 +11398,95 @@ abstract class AppLocalizations {
   /// **'The report appears here once it has at least 10 characters.'**
   String get feedbackSentEmpty;
 
-  /// The switch for being named when a report is fixed.
+  /// The switch for being credited when a report is fixed.
   ///
   /// In en, this message translates to:
-  /// **'Credit me by name'**
+  /// **'Credit me if this is fixed'**
   String get feedbackCredit;
 
   /// The detail under the credit switch.
   ///
   /// In en, this message translates to:
-  /// **'If this is fixed, your name is in the release notes. Never a link to you.'**
+  /// **'You choose how: by name, or by GitHub username.'**
   String get feedbackCreditDetail;
+
+  /// The accessibility label of the choice between crediting a name and a GitHub username.
+  ///
+  /// In en, this message translates to:
+  /// **'How to credit you'**
+  String get feedbackCreditKindLabel;
+
+  /// The choice to be credited by a plain name.
+  ///
+  /// In en, this message translates to:
+  /// **'My name'**
+  String get feedbackCreditKindName;
+
+  /// The choice to be credited by a GitHub username, picked from a search.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub username'**
+  String get feedbackCreditKindGithub;
 
   /// The hint in the field for the name to credit.
   ///
   /// In en, this message translates to:
   /// **'Your name'**
   String get feedbackCreditName;
+
+  /// The detail under the name field.
+  ///
+  /// In en, this message translates to:
+  /// **'Your name goes in the issue and the release notes. Never a link to you.'**
+  String get feedbackCreditNameDetail;
+
+  /// The detail under the GitHub username picker.
+  ///
+  /// In en, this message translates to:
+  /// **'The public issue will mention you by username, so GitHub notifies you and links to your profile.'**
+  String get feedbackCreditGithubDetail;
+
+  /// The hint in the field that searches GitHub users to credit.
+  ///
+  /// In en, this message translates to:
+  /// **'Search GitHub users'**
+  String get feedbackGithubSearchHint;
+
+  /// Shown while GitHub users are being searched.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching…'**
+  String get feedbackGithubSearching;
+
+  /// Shown when the search finds no GitHub user.
+  ///
+  /// In en, this message translates to:
+  /// **'No GitHub users found.'**
+  String get feedbackGithubNoneFound;
+
+  /// Shown when the GitHub user search could not be made.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t search GitHub just now. Try again, or credit your name instead.'**
+  String get feedbackGithubUnavailable;
+
+  /// The button that takes back the chosen GitHub user, to search again.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get feedbackGithubChange;
+
+  /// The accessibility label of a GitHub user in the results.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub user {login}'**
+  String feedbackGithubUserSemantics(String login);
+
+  /// Why a GitHub credit can not be sent: nobody was picked.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick your GitHub username from the list.'**
+  String get feedbackErrorGithubUser;
 
   /// The line under the feedback form that says what happens to a report.
   ///

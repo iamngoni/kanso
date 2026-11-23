@@ -3,6 +3,7 @@
 // with the secret unset none of them exists (404), so a server without it has no admin surface.
 import type { Env } from "./env";
 import { screenshotKey } from "./feedback";
+import { parseCredit } from "./feedback_credit";
 import { runTriage } from "./feedback_triage";
 
 const encoder = new TextEncoder();
@@ -78,6 +79,13 @@ export async function list(request: Request, env: Env): Promise<Response> {
 	});
 }
 
+/** The tagged credit of a stored report (`{kind, ...}`), or null; reads rows stored before the tagged form. */
+const creditOfReport = (report: unknown): unknown => {
+	const raw = typeof report === "object" && report !== null ? (report as { credit?: unknown }).credit : null;
+	const credit = parseCredit(raw ?? null);
+	return credit.ok ? credit.value : null;
+};
+
 /** GET /v1/admin/feedback/<id>: the validated raw report, triage and status chain. */
 export function show(id: string): (request: Request, env: Env, now: number) => Promise<Response> {
 	return async (request, env) => {
@@ -95,6 +103,7 @@ export function show(id: string): (request: Request, env: Env, now: number) => P
 		const events = await env.DB.prepare("SELECT at, status, detail FROM feedback_events WHERE feedback_id = ?1 ORDER BY at, status")
 			.bind(id)
 			.all<Record<string, unknown>>();
+		const report = parsed(row.report);
 		return json(200, {
 			id: row.id,
 			created_at: Number(row.created_at),
@@ -105,10 +114,11 @@ export function show(id: string): (request: Request, env: Env, now: number) => P
 			pr: row.pr === null ? null : Number(row.pr),
 			release: row.release ?? null,
 			credit_name: row.credit_name ?? null,
+			credit: creditOfReport(report),
 			screenshot_state: String(row.screenshot_state),
 			triage_attempts: Number(row.triage_attempts),
 			purged_at: row.purged_at === null ? null : Number(row.purged_at),
-			report: parsed(row.report),
+			report,
 			triage: parsed(row.triage),
 			history: events.results.map((e) => ({ at: Number(e.at), status: String(e.status), detail: e.detail ?? null })),
 		});

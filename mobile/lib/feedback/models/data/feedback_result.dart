@@ -33,6 +33,7 @@ enum FeedbackProblem {
   tooLong,
   badCharacter,
   badCredit,
+  badGithubUser,
   badScreenshot,
   other,
 }

@@ -2,6 +2,7 @@
 // Created 2026-11-04.
 // Licensed under AGPL-3.0-or-later (see LICENSE).
 
+import '../../data/feedback_credit.dart';
 import '../../data/feedback_draft.dart';
 import '../../data/feedback_entry.dart';
 import '../../data/feedback_result.dart';
@@ -12,6 +13,12 @@ abstract interface class FeedbackRepository {
   /// The exact JSON a send would carry, or why there is none yet.
   /// [screen] is one of the fixed screens (`settings`, `editor`…).
   Future<FeedbackPayload> preview(FeedbackDraft draft, {String screen});
+
+  /// GitHub users whose login contains [query], through Kanso's Worker (not
+  /// GitHub), at most 8. A query too short, or with characters a login can't
+  /// have, finds nothing without asking. Null when the search could not be
+  /// made (offline, rate limited, GitHub down).
+  Future<List<FeedbackGithubUser>?> searchGithubUsers(String query);
 
   /// Saves the report on the phone, then tries to send it.
   Future<FeedbackSendResult> send(FeedbackDraft draft, {String screen});

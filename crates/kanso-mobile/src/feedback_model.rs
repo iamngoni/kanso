@@ -23,14 +23,40 @@ pub struct FeedbackContext {
     pub crash_types: Vec<String>,
 }
 
+/// How the person asked to be credited if their report is fixed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FeedbackCredit {
+    /// A plain name, written as itself in the issue. Never a mention.
+    Name { name: String },
+    /// A GitHub login picked from the search; the issue mentions `@login`.
+    Github { login: String },
+}
+
+/// A GitHub user the picker offers.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FeedbackGithubUser {
+    pub login: String,
+    /// An https avatar URL on GitHub's avatar host.
+    pub avatar_url: String,
+}
+
+/// How a GitHub user search went.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FeedbackUsers {
+    /// The users found, at most 8 (none for a query too short to ask).
+    Found { users: Vec<FeedbackGithubUser> },
+    /// The search couldn't be made (offline, rate limited, GitHub down).
+    Unavailable,
+}
+
 /// A report as the person filled it in.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FeedbackInput {
     /// `bug`, `idea` or `question`.
     pub kind: String,
     pub text: String,
-    /// `Some` when "Credit me by name" is on.
-    pub credit_name: Option<String>,
+    /// `Some` when "Credit me" is on.
+    pub credit: Option<FeedbackCredit>,
     /// Whether "Include app info" is on.
     pub include_app: bool,
     /// The chosen image's bytes (PNG or JPEG).
@@ -45,6 +71,7 @@ pub enum FeedbackProblem {
     TooLong,
     BadCharacter,
     BadCredit,
+    BadGithubUser,
     BadScreenshot,
     Other,
 }

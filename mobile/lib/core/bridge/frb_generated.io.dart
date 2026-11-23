@@ -1178,6 +1178,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  FeedbackCredit dco_decode_box_autoadd_feedback_credit(dynamic raw);
+
+  @protected
   FeedbackInput dco_decode_box_autoadd_feedback_input(dynamic raw);
 
   @protected
@@ -1658,6 +1661,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   FeedbackContext dco_decode_feedback_context(dynamic raw);
 
   @protected
+  FeedbackCredit dco_decode_feedback_credit(dynamic raw);
+
+  @protected
+  FeedbackGithubUser dco_decode_feedback_github_user(dynamic raw);
+
+  @protected
   FeedbackInput dco_decode_feedback_input(dynamic raw);
 
   @protected
@@ -1671,6 +1680,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   FeedbackSent dco_decode_feedback_sent(dynamic raw);
+
+  @protected
+  FeedbackUsers dco_decode_feedback_users(dynamic raw);
 
   @protected
   FilesMigration dco_decode_files_migration(dynamic raw);
@@ -1944,6 +1956,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<EditorRun> dco_decode_list_editor_run(dynamic raw);
+
+  @protected
+  List<FeedbackGithubUser> dco_decode_list_feedback_github_user(dynamic raw);
 
   @protected
   List<FeedbackReport> dco_decode_list_feedback_report(dynamic raw);
@@ -2621,6 +2636,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
+
+  @protected
+  FeedbackCredit? dco_decode_opt_box_autoadd_feedback_credit(dynamic raw);
 
   @protected
   FeedbackProblem? dco_decode_opt_box_autoadd_feedback_problem(dynamic raw);
@@ -4540,6 +4558,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  FeedbackCredit sse_decode_box_autoadd_feedback_credit(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   FeedbackInput sse_decode_box_autoadd_feedback_input(
     SseDeserializer deserializer,
   );
@@ -5102,6 +5125,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   FeedbackContext sse_decode_feedback_context(SseDeserializer deserializer);
 
   @protected
+  FeedbackCredit sse_decode_feedback_credit(SseDeserializer deserializer);
+
+  @protected
+  FeedbackGithubUser sse_decode_feedback_github_user(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   FeedbackInput sse_decode_feedback_input(SseDeserializer deserializer);
 
   @protected
@@ -5115,6 +5146,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   FeedbackSent sse_decode_feedback_sent(SseDeserializer deserializer);
+
+  @protected
+  FeedbackUsers sse_decode_feedback_users(SseDeserializer deserializer);
 
   @protected
   FilesMigration sse_decode_files_migration(SseDeserializer deserializer);
@@ -5420,6 +5454,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   List<EditorRun> sse_decode_list_editor_run(SseDeserializer deserializer);
+
+  @protected
+  List<FeedbackGithubUser> sse_decode_list_feedback_github_user(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<FeedbackReport> sse_decode_list_feedback_report(
@@ -6261,6 +6300,11 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
+  FeedbackCredit? sse_decode_opt_box_autoadd_feedback_credit(
+    SseDeserializer deserializer,
+  );
 
   @protected
   FeedbackProblem? sse_decode_opt_box_autoadd_feedback_problem(
@@ -8518,6 +8562,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_feedback_credit(
+    FeedbackCredit self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_feedback_input(
     FeedbackInput self,
     SseSerializer serializer,
@@ -9271,6 +9321,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_feedback_credit(
+    FeedbackCredit self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_feedback_github_user(
+    FeedbackGithubUser self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_feedback_input(FeedbackInput self, SseSerializer serializer);
 
   @protected
@@ -9293,6 +9355,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_feedback_sent(FeedbackSent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_feedback_users(FeedbackUsers self, SseSerializer serializer);
 
   @protected
   void sse_encode_files_migration(
@@ -9687,6 +9752,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_list_editor_run(
     List<EditorRun> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_feedback_github_user(
+    List<FeedbackGithubUser> self,
     SseSerializer serializer,
   );
 
@@ -10800,6 +10871,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_feedback_credit(
+    FeedbackCredit? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_feedback_problem(

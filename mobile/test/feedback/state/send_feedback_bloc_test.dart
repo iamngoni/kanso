@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/feedback/models/data/feedback_credit.dart';
 import 'package:kanso/feedback/models/data/feedback_draft.dart';
 import 'package:kanso/feedback/models/data/feedback_kind.dart';
 import 'package:kanso/feedback/models/data/feedback_result.dart';
@@ -170,6 +171,98 @@ void main() {
         expect(bloc.state.screenshotTooBig, isTrue);
         expect(bloc.state.draft.screenshot, isNull);
       },
+    );
+  });
+
+  group('SendFeedbackBloc GitHub credit', () {
+    const octocat = FeedbackGithubUser(
+      login: 'octocat',
+      avatarUrl: 'https://avatars.githubusercontent.com/u/583231?v=4',
+    );
+    const wait = Duration(milliseconds: 450);
+
+    blocTest<SendFeedbackBloc, SendFeedbackState>(
+      'typing searches once, after the pause, and shows the users',
+      build: () {
+        repository.users = const <FeedbackGithubUser>[octocat];
+        return build();
+      },
+      act: (bloc) {
+        bloc
+          ..add(const SendFeedbackEvent.githubQueryChanged('oc'))
+          ..add(const SendFeedbackEvent.githubQueryChanged('octo'));
+      },
+      wait: wait,
+      verify: (bloc) {
+        expect(repository.searches, <String>['octo']);
+        expect(
+          bloc.state.githubSearch,
+          const FeedbackGithubSearch.found(<FeedbackGithubUser>[octocat]),
+        );
+      },
+    );
+
+    blocTest<SendFeedbackBloc, SendFeedbackState>(
+      'a query too short to search asks nothing',
+      build: build,
+      act: (bloc) => bloc.add(const SendFeedbackEvent.githubQueryChanged('o')),
+      wait: wait,
+      verify: (bloc) {
+        expect(repository.searches, isEmpty);
+        expect(bloc.state.githubSearch, const FeedbackGithubSearch.idle());
+      },
+    );
+
+    blocTest<SendFeedbackBloc, SendFeedbackState>(
+      'a search that cannot be made says unavailable',
+      build: () {
+        repository.users = null;
+        return build();
+      },
+      act: (bloc) =>
+          bloc.add(const SendFeedbackEvent.githubQueryChanged('octo')),
+      wait: wait,
+      verify: (bloc) => expect(
+        bloc.state.githubSearch,
+        const FeedbackGithubSearch.unavailable(),
+      ),
+    );
+
+    blocTest<SendFeedbackBloc, SendFeedbackState>(
+      'a GitHub credit waits for a pick, then sends the login',
+      build: build,
+      act: (bloc) async {
+        bloc
+          ..add(const SendFeedbackEvent.textChanged('Export cuts off tables'))
+          ..add(const SendFeedbackEvent.creditToggled(on: true))
+          ..add(
+            const SendFeedbackEvent.creditKindChanged(
+              FeedbackCreditKind.github,
+            ),
+          );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(bloc.state.draft.canSend, isFalse);
+        bloc
+          ..add(const SendFeedbackEvent.githubUserPicked(octocat))
+          ..add(const SendFeedbackEvent.sendRequested());
+      },
+      wait: const Duration(milliseconds: 40),
+      verify: (bloc) {
+        expect(repository.sent, hasLength(1));
+        expect(repository.sent.single.creditKind, FeedbackCreditKind.github);
+        expect(repository.sent.single.githubUser?.login, 'octocat');
+        expect(bloc.state.githubSearch, const FeedbackGithubSearch.idle());
+      },
+    );
+
+    blocTest<SendFeedbackBloc, SendFeedbackState>(
+      'Change takes the chosen user back',
+      build: build,
+      act: (bloc) => bloc
+        ..add(const SendFeedbackEvent.githubUserPicked(octocat))
+        ..add(const SendFeedbackEvent.githubUserCleared()),
+      wait: const Duration(milliseconds: 20),
+      verify: (bloc) => expect(bloc.state.draft.githubUser, isNull),
     );
   });
 }

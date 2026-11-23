@@ -99,6 +99,8 @@ export interface Network {
 	commits: Record<string, string[]>;
 	/** Make these GitHub paths (substrings) answer 500. */
 	failing: string[];
+	/** The raw `items` GitHub's user search answers with. */
+	users: unknown[];
 }
 
 const jsonResponse = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
@@ -107,7 +109,7 @@ const jsonResponse = (value: unknown, status = 200) => new Response(JSON.stringi
 export function fakeNetwork(): Network & { restore: () => void } {
 	const real = outbound.fetch;
 	resetTokenCache();
-	const net: Network & { restore: () => void } = { sent: [], gateway: [], issues: [], nextIssue: 301, issueBodies: new Map(), releases: [], commits: {}, failing: [], restore: () => undefined };
+	const net: Network & { restore: () => void } = { sent: [], gateway: [], issues: [], nextIssue: 301, issueBodies: new Map(), releases: [], commits: {}, failing: [], users: [], restore: () => undefined };
 	let gatewayCalls = 0;
 	outbound.fetch = async (url, init) => {
 		const headers = new Headers(init.headers);
@@ -120,6 +122,7 @@ export function fakeNetwork(): Network & { restore: () => void } {
 		}
 		const path = new URL(url).pathname + new URL(url).search;
 		if (net.failing.some((f) => `${sent.method} ${path}`.includes(f))) return jsonResponse({ message: "boom" }, 500);
+		if (path.startsWith("/search/users?")) return jsonResponse({ total_count: net.users.length, items: net.users });
 		if (path === `/repos/${REPO}/installation`) return jsonResponse({ id: 77 });
 		if (path === "/app/installations/77/access_tokens") return jsonResponse({ token: "ghs_test", expires_at: new Date(START + 3 * 3_600_000).toISOString() });
 		if (path.startsWith(`/repos/${REPO}/issues?`)) return jsonResponse(net.issues.map((i) => ({ ...i, labels: i.labels.map((name) => ({ name })) })));

@@ -23,6 +23,22 @@ sealed class SendFeedbackEvent with _$SendFeedbackEvent {
   const factory SendFeedbackEvent.creditNameChanged(String name) =
       SendFeedbackCreditNameChangedEvent;
 
+  /// The credit choice changed between a plain name and a GitHub username.
+  const factory SendFeedbackEvent.creditKindChanged(FeedbackCreditKind kind) =
+      SendFeedbackCreditKindChangedEvent;
+
+  /// The GitHub search box changed; the search waits out the typing.
+  const factory SendFeedbackEvent.githubQueryChanged(String query) =
+      SendFeedbackGithubQueryChangedEvent;
+
+  /// A user was chosen from the search results.
+  const factory SendFeedbackEvent.githubUserPicked(FeedbackGithubUser user) =
+      SendFeedbackGithubUserPickedEvent;
+
+  /// Change was pressed on the chosen user, to search again.
+  const factory SendFeedbackEvent.githubUserCleared() =
+      SendFeedbackGithubUserClearedEvent;
+
   const factory SendFeedbackEvent.appInfoToggled({required bool on}) =
       SendFeedbackAppInfoToggledEvent;
 

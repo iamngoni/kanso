@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/core/views/widgets/kanso_switch.dart';
 import 'package:kanso/feedback/models/data/feedback_entry.dart';
 import 'package:kanso/feedback/models/data/feedback_result.dart';
 import 'package:kanso/feedback/state/my_feedback/my_feedback_bloc.dart';
@@ -93,11 +94,23 @@ void main() {
       expect(find.textContaining('Export cuts off tables'), findsWidgets);
     });
 
-    testWidgets('the credit name shows only when credit is on', (
+    testWidgets('the credit choices show only when credit is on', (
       tester,
     ) async {
       await _pumpSend(tester);
-      expect(find.text('Credit me by name'), findsOneWidget);
+      expect(find.text('Credit me if this is fixed'), findsOneWidget);
+      expect(find.text('My name'), findsNothing);
+
+      // The credit switch is the pane's second: "Include app info" is first.
+      await tester.tap(find.byType(KansoSwitch).at(1));
+      await tester.pumpAndSettle();
+      expect(find.text('My name'), findsOneWidget);
+      expect(find.text('GitHub username'), findsOneWidget);
+      expect(find.text('Your name'), findsOneWidget);
+
+      await tester.tap(find.text('GitHub username'));
+      await tester.pumpAndSettle();
+      expect(find.text('Search GitHub users'), findsOneWidget);
       expect(find.text('Your name'), findsNothing);
     });
   });

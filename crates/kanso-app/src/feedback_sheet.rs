@@ -2,7 +2,9 @@
 //! palette's "Send feedback…".
 //!
 //! A kind, the words, an optional screenshot, the app info (on, and shown
-//! exactly as sent under "Show what's sent") and an optional credit name.
+//! exactly as sent under "Show what's sent") and an optional credit: a plain
+//! name, or a GitHub username picked from a search (the issue then mentions
+//! them, so GitHub notifies them).
 //! **No note is ever read.** The payload comes from
 //! `kanso_engine::feedback::build_payload`, and the screenshot is a file the
 //! person chose or a capture of Kanso's window they can look at and remove
@@ -11,6 +13,7 @@
 //! Send saves the report to the outbox first, then tries the network off the
 //! main thread. Offline, the report waits and goes when it can.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -24,9 +27,11 @@ use gpui_kit::component::{
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 use kanso_engine::feedback::{
-    self, AppInfo, Draft, DraftError, Kind, MAX_SCREENSHOT, MAX_TEXT, Screen, ScreenshotDecl,
+    self, AppInfo, Credit, Draft, DraftError, GithubUser, Kind, MAX_SCREENSHOT, MAX_TEXT, Screen,
+    ScreenshotDecl, search_query,
 };
 use kanso_engine::feedback_flow::{self, Picture, Sent};
+use kanso_sync::feedback::{FeedbackError, fetch_avatar};
 
 use crate::feedback_app::{self, Env};
 use crate::theme::Colors;
@@ -55,11 +60,46 @@ pub fn counter(chars: usize) -> Option<String> {
     feedback::shows_counter(chars).then(|| format!("{chars} / {MAX_TEXT}"))
 }
 
+/// Which credit the person is choosing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CreditKind {
+    /// A plain name.
+    Name,
+    /// A GitHub username picked from the search.
+    Github,
+}
+
+/// What the GitHub picker shows under its search box.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Lookup {
+    /// Nothing typed yet, or too little to search.
+    Idle,
+    /// Waiting for the pause after typing, or for GitHub.
+    Searching,
+    /// The users found (possibly none).
+    Found(Vec<GithubUser>),
+    /// The search couldn't be made.
+    Unavailable,
+}
+
+/// How long typing must pause before the search is made.
+pub const SEARCH_DEBOUNCE: Duration = Duration::from_millis(300);
+
+/// The credit the form asks for, or `None` when it is off. GitHub with
+/// nobody picked is a credit that can't be sent yet (an empty login), so
+/// Send stays off and the person is told to pick. Pure.
+pub fn credit_of(on: bool, kind: CreditKind, name: &str, picked: Option<&str>) -> Option<Credit> {
+    on.then(|| match kind {
+        CreditKind::Name => Credit::Name(name.to_owned()),
+        CreditKind::Github => Credit::Github(picked.unwrap_or_default().to_owned()),
+    })
+}
+
 /// Whether Send is on: the text is long enough and not too long, and a
-/// credit name, if asked for, is valid. Pure.
-pub fn can_send(chars: usize, credit: Option<&str>) -> bool {
+/// credit, if asked for, is valid for its kind. Pure.
+pub fn can_send(chars: usize, credit: Option<&Credit>) -> bool {
     (feedback::MIN_TEXT..=MAX_TEXT).contains(&chars)
-        && credit.is_none_or(|name| feedback::clean_credit_name(name).is_ok())
+        && credit.is_none_or(|credit| feedback::credit_json(credit).is_ok())
 }
 
 /// A picked file as a screenshot, or the line that says why not. Pure.
@@ -143,11 +183,21 @@ pub struct FeedbackSheet {
     /// The text area's placeholder now.
     pub(crate) hint: &'static str,
     pub(crate) text: Entity<TextareaState>,
-    name: Entity<InputState>,
+    pub(crate) name: Entity<InputState>,
+    /// The GitHub search box.
+    pub(crate) github: Entity<InputState>,
     sent_view: Entity<TextareaState>,
     shown: String,
     include_app: bool,
-    credit: bool,
+    pub(crate) credit: bool,
+    pub(crate) credit_kind: CreditKind,
+    /// The GitHub user chosen from the list.
+    pub(crate) picked: Option<GithubUser>,
+    pub(crate) lookup: Lookup,
+    /// The pending or running search; dropping it cancels the wait.
+    search: Option<Task<()>>,
+    /// Avatars by login; present once asked for, `None` while loading or when it failed.
+    avatars: HashMap<String, Option<Arc<Image>>>,
     show_sent: bool,
     picture: Option<Chosen>,
     choosing: bool,
@@ -165,14 +215,21 @@ impl FeedbackSheet {
         });
         let signed_in_name = env.as_ref().and_then(Env::username).unwrap_or_default();
         let name = cx.new(|cx| {
-            let mut state = InputState::new(window, cx).placeholder("Your name");
+            let mut state = InputState::new(window, cx).placeholder(feedback_app::CREDIT_NAME_HINT);
             if !signed_in_name.is_empty() {
                 state.set_value(signed_in_name.clone(), window, cx);
             }
             state
         });
+        let github =
+            cx.new(|cx| InputState::new(window, cx).placeholder(feedback_app::GITHUB_SEARCH_HINT));
         let sent_view = cx.new(|cx| TextareaState::new(window, cx));
         let subscriptions = vec![
+            cx.subscribe_in(&github, window, |this, _, event: &InputEvent, _, cx| {
+                if let InputEvent::Change = event {
+                    this.query_changed(cx);
+                }
+            }),
             cx.subscribe_in(&text, window, |_, _, event: &InputEvent, _, cx| {
                 if let InputEvent::Change = event {
                     cx.notify();
@@ -190,10 +247,16 @@ impl FeedbackSheet {
             hint: feedback_app::placeholder(Kind::Bug),
             text,
             name,
+            github,
             sent_view,
             shown: String::new(),
             include_app: true,
             credit: false,
+            credit_kind: CreditKind::Name,
+            picked: None,
+            lookup: Lookup::Idle,
+            search: None,
+            avatars: HashMap::new(),
             show_sent: false,
             picture: None,
             choosing: false,
@@ -229,15 +292,141 @@ impl FeedbackSheet {
         self.text.read(cx).value().chars().count()
     }
 
-    fn credit_name(&self, cx: &App) -> Option<String> {
-        self.credit.then(|| self.name.read(cx).value().to_string())
+    /// The credit the form asks for now, if any.
+    pub(crate) fn credit(&self, cx: &App) -> Option<Credit> {
+        credit_of(
+            self.credit,
+            self.credit_kind,
+            &self.name.read(cx).value(),
+            self.picked.as_ref().map(|user| user.login.as_str()),
+        )
+    }
+
+    /// The search box changed: wait out the typing, then ask the Worker. A
+    /// newer keystroke drops this task, so only the last pause searches.
+    pub(crate) fn query_changed(&mut self, cx: &mut Context<Self>) {
+        self.search = None;
+        let typed = self.github.read(cx).value().to_string();
+        let (Some(query), Some(env)) = (search_query(&typed), self.env.clone()) else {
+            self.lookup = Lookup::Idle;
+            cx.notify();
+            return;
+        };
+        self.lookup = Lookup::Searching;
+        cx.notify();
+        self.search = Some(cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(SEARCH_DEBOUNCE).await;
+            let found = cx
+                .background_executor()
+                .spawn(async move {
+                    let reporter = env.reporter().ok_or(FeedbackError::Offline)?;
+                    env.client().search_users(&reporter, &query)
+                })
+                .await;
+            this.update(cx, |this, cx| {
+                this.lookup = match found {
+                    Ok(users) => {
+                        this.load_avatars(&users, cx);
+                        Lookup::Found(users)
+                    }
+                    Err(_) => Lookup::Unavailable,
+                };
+                cx.notify();
+            })
+            .ok();
+        }));
+    }
+
+    /// Fetches the avatars not asked for yet (the real network only: a
+    /// test's stand-in server has no avatar host).
+    fn load_avatars(&mut self, users: &[GithubUser], cx: &mut Context<Self>) {
+        if !self.env.as_ref().is_some_and(Env::real_network) {
+            return;
+        }
+        for user in users {
+            if self.avatars.contains_key(&user.login) {
+                continue;
+            }
+            self.avatars.insert(user.login.clone(), None);
+            let (login, url) = (user.login.clone(), user.avatar_url.clone());
+            cx.spawn(async move |this, cx| {
+                let image = cx
+                    .background_executor()
+                    .spawn(async move {
+                        let bytes = fetch_avatar(&url).ok()?;
+                        let format = match feedback::sniff_image(&bytes)? {
+                            "image/png" => ImageFormat::Png,
+                            _ => ImageFormat::Jpeg,
+                        };
+                        Some(Arc::new(Image::from_bytes(format, bytes)))
+                    })
+                    .await;
+                this.update(cx, |this, cx| {
+                    this.avatars.insert(login, image);
+                    cx.notify();
+                })
+                .ok();
+            })
+            .detach();
+        }
+    }
+
+    pub(crate) fn set_credit_kind(&mut self, kind: CreditKind, cx: &mut Context<Self>) {
+        self.credit_kind = kind;
+        cx.notify();
+    }
+
+    /// Chooses `user` from the list: the search box gives way to their chip.
+    pub(crate) fn pick(&mut self, user: GithubUser, window: &mut Window, cx: &mut Context<Self>) {
+        self.picked = Some(user);
+        self.github
+            .update(cx, |input, cx| input.set_value("", window, cx));
+        self.search = None;
+        self.lookup = Lookup::Idle;
+        cx.notify();
+    }
+
+    /// Takes the chosen user back, to search again.
+    pub(crate) fn unpick(&mut self, cx: &mut Context<Self>) {
+        self.picked = None;
+        cx.notify();
+    }
+
+    /// A user's avatar: their picture when it has loaded, else a circle with their initial.
+    fn avatar(&self, login: &str, colors: &Colors) -> AnyElement {
+        let size = px(20.);
+        match self.avatars.get(login).and_then(Option::as_ref) {
+            Some(image) => img(ImageSource::Image(image.clone()))
+                .size(size)
+                .rounded_full()
+                .object_fit(ObjectFit::Cover)
+                .into_any_element(),
+            None => div()
+                .size(size)
+                .rounded_full()
+                .bg(colors.divider)
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_size(px(11.))
+                .text_color(colors.text_secondary)
+                .child(
+                    login
+                        .chars()
+                        .next()
+                        .unwrap_or('?')
+                        .to_uppercase()
+                        .to_string(),
+                )
+                .into_any_element(),
+        }
     }
 
     fn draft(&self, cx: &App) -> Draft {
         Draft {
             kind: self.kind,
             text: self.text.read(cx).value().to_string(),
-            credit_name: self.credit_name(cx),
+            credit: self.credit(cx),
             screenshot: self.picture.as_ref().map(|p| p.decl.clone()),
         }
     }
@@ -651,13 +840,13 @@ impl Render for FeedbackSheet {
                     .child(
                         Checkbox::new("feedback-credit")
                             .checked(self.credit)
-                            .label("Credit me by name if this is fixed")
+                            .label(feedback_app::CREDIT_LABEL)
                             .on_click(cx.listener(|this, checked: &bool, _, cx| {
                                 this.credit = *checked;
                                 cx.notify();
                             })),
                     )
-                    .when(self.credit, |el| el.child(Input::new(&self.name))),
+                    .when(self.credit, |el| el.child(self.credit_choice(colors, cx))),
             )
             .child(quiet(feedback_app::FOOTER.into()))
             .when_some(self.error.clone(), |el, error| {
@@ -670,6 +859,138 @@ impl Render for FeedbackSheet {
                         .child(error),
                 )
             })
+    }
+}
+
+impl FeedbackSheet {
+    /// The two ways to be credited, and the field for the one chosen.
+    fn credit_choice(&self, colors: &Colors, cx: &mut Context<Self>) -> impl IntoElement {
+        let quiet = |text: &'static str| {
+            div()
+                .text_size(px(12.5))
+                .line_height(px(18.))
+                .text_color(colors.text_secondary)
+                .child(text)
+        };
+        let kinds = [
+            (CreditKind::Name, feedback_app::CREDIT_NAME_CHOICE),
+            (CreditKind::Github, feedback_app::CREDIT_GITHUB_CHOICE),
+        ];
+        let choice = ButtonGroup::new("feedback-credit-kind")
+            .outline()
+            .small()
+            .disabled(self.busy)
+            .children(kinds.iter().enumerate().map(|(ix, (kind, label))| {
+                let selected = *kind == self.credit_kind;
+                Button::new(("feedback-credit-kind", ix))
+                    .selected(selected)
+                    .debug_selector(move || format!("feedback-credit-kind-{ix}"))
+                    .child(
+                        div()
+                            .px_1()
+                            .text_size(px(12.5))
+                            .when(selected, |el| el.font_medium())
+                            .child(*label),
+                    )
+            }))
+            .on_click(cx.listener(|this, clicked: &Vec<usize>, _, cx| {
+                if let Some(&ix) = clicked.first() {
+                    this.set_credit_kind([CreditKind::Name, CreditKind::Github][ix.min(1)], cx);
+                }
+            }));
+        let body = match self.credit_kind {
+            CreditKind::Name => v_flex()
+                .gap(px(6.))
+                .child(Input::new(&self.name))
+                .child(quiet(feedback_app::CREDIT_NAME_DETAIL))
+                .into_any_element(),
+            CreditKind::Github => self.github_picker(colors, cx).into_any_element(),
+        };
+        v_flex().gap(px(8.)).child(choice).child(body)
+    }
+
+    /// The chosen user's chip, or the search box with the users it found.
+    fn github_picker(&self, colors: &Colors, cx: &mut Context<Self>) -> impl IntoElement {
+        let note = |text: &'static str| {
+            div()
+                .text_size(px(12.5))
+                .line_height(px(18.))
+                .text_color(colors.text_secondary)
+                .child(text)
+        };
+        if let Some(user) = &self.picked {
+            return v_flex()
+                .gap(px(6.))
+                .child(
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .debug_selector(|| "feedback-github-picked".into())
+                        .child(self.avatar(&user.login, colors))
+                        .child(
+                            div()
+                                .text_size(px(13.))
+                                .text_color(colors.text)
+                                .child(format!("@{}", user.login)),
+                        )
+                        .child(
+                            Button::new("feedback-github-change")
+                                .small()
+                                .label("Change")
+                                .disabled(self.busy)
+                                .on_click(cx.listener(|this, _, _, cx| this.unpick(cx))),
+                        ),
+                )
+                .child(note(feedback_app::CREDIT_GITHUB_DETAIL));
+        }
+        let results = match &self.lookup {
+            Lookup::Idle => None,
+            Lookup::Searching => Some(note(feedback_app::GITHUB_SEARCHING).into_any_element()),
+            Lookup::Unavailable => Some(
+                note(feedback_app::GITHUB_UNAVAILABLE)
+                    .debug_selector(|| "feedback-github-unavailable".into())
+                    .into_any_element(),
+            ),
+            Lookup::Found(users) if users.is_empty() => {
+                Some(note(feedback_app::GITHUB_NONE_FOUND).into_any_element())
+            }
+            Lookup::Found(users) => Some(
+                v_flex()
+                    .debug_selector(|| "feedback-github-results".into())
+                    .rounded(px(6.))
+                    .border_1()
+                    .border_color(colors.divider)
+                    .children(users.iter().enumerate().map(|(ix, user)| {
+                        let chosen = user.clone();
+                        Button::new(("feedback-github-user", ix))
+                            .ghost()
+                            .w_full()
+                            .debug_selector(move || format!("feedback-github-user-{ix}"))
+                            .child(
+                                h_flex()
+                                    .w_full()
+                                    .gap_2()
+                                    .items_center()
+                                    .child(self.avatar(&user.login, colors))
+                                    .child(
+                                        div()
+                                            .text_size(px(13.))
+                                            .text_color(colors.text)
+                                            .child(user.login.clone()),
+                                    ),
+                            )
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                this.pick(chosen.clone(), window, cx)
+                            }))
+                    }))
+                    .into_any_element(),
+            ),
+        };
+        v_flex()
+            .gap(px(6.))
+            .child(Input::new(&self.github))
+            .children(results)
+            .child(note(feedback_app::CREDIT_GITHUB_DETAIL))
     }
 }
 
@@ -692,7 +1013,7 @@ impl Render for FeedbackFooter {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let view = self.view.read(cx);
         let busy = view.busy;
-        let ready = can_send(view.chars(cx), view.credit_name(cx).as_deref());
+        let ready = can_send(view.chars(cx), view.credit(cx).as_ref());
         let target = self.view.clone();
         h_flex()
             .w_full()
@@ -832,9 +1153,11 @@ pub fn watch_agent_reports(
 
 #[cfg(test)]
 mod tests {
-    use super::{MAX_SCREENSHOT, can_send, chosen_from_file, counter, size_label};
+    use super::{
+        CreditKind, MAX_SCREENSHOT, can_send, chosen_from_file, counter, credit_of, size_label,
+    };
     use crate::feedback_app;
-    use kanso_engine::feedback;
+    use kanso_engine::feedback::{self, Credit};
     use proptest::prelude::*;
 
     proptest! {
@@ -878,9 +1201,35 @@ mod tests {
         assert!(can_send(10, None));
         assert!(can_send(4000, None));
         assert!(!can_send(4001, None));
-        assert!(can_send(20, Some("tendai")));
-        assert!(!can_send(20, Some("")));
-        assert!(!can_send(20, Some("@x")));
+        let name = |n: &str| Credit::Name(n.into());
+        let github = |l: &str| Credit::Github(l.into());
+        assert!(can_send(20, Some(&name("tendai"))));
+        assert!(!can_send(20, Some(&name(""))));
+        assert!(!can_send(20, Some(&name("@x"))));
+        assert!(can_send(20, Some(&github("octocat"))));
+        // GitHub with nobody picked yet, and a login that is not one.
+        assert!(!can_send(20, Some(&github(""))));
+        assert!(!can_send(20, Some(&github("@octocat"))));
+        assert!(!can_send(20, Some(&github("a--b"))));
+    }
+
+    #[test]
+    fn the_form_makes_the_credit_its_kind_says() {
+        assert_eq!(
+            credit_of(false, CreditKind::Github, "n", Some("octocat")),
+            None
+        );
+        assert_eq!(
+            credit_of(true, CreditKind::Name, "tendai", Some("octocat")),
+            Some(Credit::Name("tendai".into()))
+        );
+        assert_eq!(
+            credit_of(true, CreditKind::Github, "tendai", Some("octocat")),
+            Some(Credit::Github("octocat".into()))
+        );
+        // Nobody picked: not sendable, whatever the name box says.
+        let unpicked = credit_of(true, CreditKind::Github, "tendai", None);
+        assert!(!can_send(20, unpicked.as_ref()));
     }
 
     #[test]
@@ -904,6 +1253,35 @@ mod tests {
         assert_eq!(size_label(482_113), "471 KB");
         assert_eq!(size_label(1), "1 KB");
         assert_eq!(size_label(3 * 1024 * 1024), "3.0 MB");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(256))]
+
+        /// Oracle: with a credit, Send is on exactly when the engine builds a
+        /// payload for it, so the button never promises what the payload refuses.
+        #[test]
+        fn prop_send_agrees_with_the_engine_about_credit(
+            name in "[a-zA-Z0-9 ._@-]{0,45}",
+            picked in proptest::option::of("[a-zA-Z0-9_@-]{0,42}"),
+            kind in prop::sample::select(vec![CreditKind::Name, CreditKind::Github]),
+            on in any::<bool>(),
+        ) {
+            let credit = credit_of(on, kind, &name, picked.as_deref());
+            let draft = feedback::Draft {
+                kind: feedback::Kind::Bug,
+                text: "The export button does nothing at all".into(),
+                credit: credit.clone(),
+                screenshot: None,
+            };
+            let built = feedback::build_payload("fb_01jbx9k2m4n6p8q0r2s4t6v8w0", &draft, None).is_ok();
+            prop_assert_eq!(can_send(37, credit.as_ref()), built);
+            // Off is always fine; a name box never leaks into a GitHub credit.
+            prop_assert_eq!(credit.is_none(), !on);
+            if let (true, CreditKind::Github, Some(Credit::Github(l))) = (on, kind, &credit) {
+                prop_assert_eq!(l.as_str(), picked.as_deref().unwrap_or(""));
+            }
+        }
     }
 
     proptest! {

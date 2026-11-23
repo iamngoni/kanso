@@ -86,7 +86,7 @@ pub fn build(
     let draft = Draft {
         kind: Kind::Bug,
         text: report_text(details, own_words),
-        credit_name: None,
+        credit: None,
         screenshot: None,
     };
     feedback::build_payload(id, &draft, Some(app))

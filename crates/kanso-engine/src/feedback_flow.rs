@@ -512,7 +512,7 @@ mod tests {
         Draft {
             kind: feedback::Kind::Bug,
             text: text.into(),
-            credit_name: None,
+            credit: None,
             screenshot: None,
         }
     }
