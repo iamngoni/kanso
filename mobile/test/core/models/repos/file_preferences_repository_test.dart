@@ -68,6 +68,38 @@ void main() {
       );
     });
 
+    test('every order of the notebooks is kept for the next run', () async {
+      for (final sort in BookSort.values) {
+        await FilePreferencesRepository(folder).update(
+          (current) => current.copyWith(bookSort: sort),
+        );
+        final next = loaded(await FilePreferencesRepository(folder).load());
+        expect(next.bookSort, sort);
+      }
+    });
+
+    test(
+      'the notebooks are in the default order until one is chosen',
+      () async {
+        final repository = FilePreferencesRepository(folder);
+        expect(loaded(await repository.load()).bookSort, BookSort.manual);
+        await repository.update((c) => c.copyWith(descending: false));
+        expect(loaded(await repository.load()).bookSort, BookSort.manual);
+      },
+    );
+
+    test('an order this version does not know is the default order', () async {
+      Directory(folder.path).createSync(recursive: true);
+      file().writeAsStringSync(
+        jsonEncode(<String, Object>{
+          'version': preferencesFileVersion,
+          'bookSort': 'byColour',
+        }),
+      );
+      final saved = loaded(await FilePreferencesRepository(folder).load());
+      expect(saved.bookSort, BookSort.manual);
+    });
+
     test('leaves no temporary file behind', () async {
       final repository = FilePreferencesRepository(folder);
       await repository.update((current) => current);

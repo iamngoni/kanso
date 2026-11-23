@@ -55,7 +55,7 @@ extension LibraryIndexEventPatterns on LibraryIndexEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( LibraryIndexStartedEvent value)?  started,TResult Function( LibraryIndexChangesReceivedEvent value)?  changesReceived,TResult Function( LibraryIndexRetriedEvent value)?  retried,TResult Function( LibraryIndexPlaceChangedEvent value)?  placeChanged,TResult Function( LibraryIndexNotebookFoldedEvent value)?  notebookFolded,TResult Function( LibraryIndexTagToggledEvent value)?  tagToggled,TResult Function( LibraryIndexAllTagsToggledEvent value)?  allTagsToggled,TResult Function( LibraryIndexStatusGroupToggledEvent value)?  statusGroupToggled,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( LibraryIndexStartedEvent value)?  started,TResult Function( LibraryIndexChangesReceivedEvent value)?  changesReceived,TResult Function( LibraryIndexRetriedEvent value)?  retried,TResult Function( LibraryIndexPlaceChangedEvent value)?  placeChanged,TResult Function( LibraryIndexNotebookFoldedEvent value)?  notebookFolded,TResult Function( LibraryIndexBookSortChangedEvent value)?  bookSortChanged,TResult Function( LibraryIndexTagToggledEvent value)?  tagToggled,TResult Function( LibraryIndexAllTagsToggledEvent value)?  allTagsToggled,TResult Function( LibraryIndexStatusGroupToggledEvent value)?  statusGroupToggled,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case LibraryIndexStartedEvent() when started != null:
@@ -63,7 +63,8 @@ return started(_that);case LibraryIndexChangesReceivedEvent() when changesReceiv
 return changesReceived(_that);case LibraryIndexRetriedEvent() when retried != null:
 return retried(_that);case LibraryIndexPlaceChangedEvent() when placeChanged != null:
 return placeChanged(_that);case LibraryIndexNotebookFoldedEvent() when notebookFolded != null:
-return notebookFolded(_that);case LibraryIndexTagToggledEvent() when tagToggled != null:
+return notebookFolded(_that);case LibraryIndexBookSortChangedEvent() when bookSortChanged != null:
+return bookSortChanged(_that);case LibraryIndexTagToggledEvent() when tagToggled != null:
 return tagToggled(_that);case LibraryIndexAllTagsToggledEvent() when allTagsToggled != null:
 return allTagsToggled(_that);case LibraryIndexStatusGroupToggledEvent() when statusGroupToggled != null:
 return statusGroupToggled(_that);case _:
@@ -84,7 +85,7 @@ return statusGroupToggled(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( LibraryIndexStartedEvent value)  started,required TResult Function( LibraryIndexChangesReceivedEvent value)  changesReceived,required TResult Function( LibraryIndexRetriedEvent value)  retried,required TResult Function( LibraryIndexPlaceChangedEvent value)  placeChanged,required TResult Function( LibraryIndexNotebookFoldedEvent value)  notebookFolded,required TResult Function( LibraryIndexTagToggledEvent value)  tagToggled,required TResult Function( LibraryIndexAllTagsToggledEvent value)  allTagsToggled,required TResult Function( LibraryIndexStatusGroupToggledEvent value)  statusGroupToggled,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( LibraryIndexStartedEvent value)  started,required TResult Function( LibraryIndexChangesReceivedEvent value)  changesReceived,required TResult Function( LibraryIndexRetriedEvent value)  retried,required TResult Function( LibraryIndexPlaceChangedEvent value)  placeChanged,required TResult Function( LibraryIndexNotebookFoldedEvent value)  notebookFolded,required TResult Function( LibraryIndexBookSortChangedEvent value)  bookSortChanged,required TResult Function( LibraryIndexTagToggledEvent value)  tagToggled,required TResult Function( LibraryIndexAllTagsToggledEvent value)  allTagsToggled,required TResult Function( LibraryIndexStatusGroupToggledEvent value)  statusGroupToggled,}){
 final _that = this;
 switch (_that) {
 case LibraryIndexStartedEvent():
@@ -92,7 +93,8 @@ return started(_that);case LibraryIndexChangesReceivedEvent():
 return changesReceived(_that);case LibraryIndexRetriedEvent():
 return retried(_that);case LibraryIndexPlaceChangedEvent():
 return placeChanged(_that);case LibraryIndexNotebookFoldedEvent():
-return notebookFolded(_that);case LibraryIndexTagToggledEvent():
+return notebookFolded(_that);case LibraryIndexBookSortChangedEvent():
+return bookSortChanged(_that);case LibraryIndexTagToggledEvent():
 return tagToggled(_that);case LibraryIndexAllTagsToggledEvent():
 return allTagsToggled(_that);case LibraryIndexStatusGroupToggledEvent():
 return statusGroupToggled(_that);}
@@ -109,7 +111,7 @@ return statusGroupToggled(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( LibraryIndexStartedEvent value)?  started,TResult? Function( LibraryIndexChangesReceivedEvent value)?  changesReceived,TResult? Function( LibraryIndexRetriedEvent value)?  retried,TResult? Function( LibraryIndexPlaceChangedEvent value)?  placeChanged,TResult? Function( LibraryIndexNotebookFoldedEvent value)?  notebookFolded,TResult? Function( LibraryIndexTagToggledEvent value)?  tagToggled,TResult? Function( LibraryIndexAllTagsToggledEvent value)?  allTagsToggled,TResult? Function( LibraryIndexStatusGroupToggledEvent value)?  statusGroupToggled,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( LibraryIndexStartedEvent value)?  started,TResult? Function( LibraryIndexChangesReceivedEvent value)?  changesReceived,TResult? Function( LibraryIndexRetriedEvent value)?  retried,TResult? Function( LibraryIndexPlaceChangedEvent value)?  placeChanged,TResult? Function( LibraryIndexNotebookFoldedEvent value)?  notebookFolded,TResult? Function( LibraryIndexBookSortChangedEvent value)?  bookSortChanged,TResult? Function( LibraryIndexTagToggledEvent value)?  tagToggled,TResult? Function( LibraryIndexAllTagsToggledEvent value)?  allTagsToggled,TResult? Function( LibraryIndexStatusGroupToggledEvent value)?  statusGroupToggled,}){
 final _that = this;
 switch (_that) {
 case LibraryIndexStartedEvent() when started != null:
@@ -117,7 +119,8 @@ return started(_that);case LibraryIndexChangesReceivedEvent() when changesReceiv
 return changesReceived(_that);case LibraryIndexRetriedEvent() when retried != null:
 return retried(_that);case LibraryIndexPlaceChangedEvent() when placeChanged != null:
 return placeChanged(_that);case LibraryIndexNotebookFoldedEvent() when notebookFolded != null:
-return notebookFolded(_that);case LibraryIndexTagToggledEvent() when tagToggled != null:
+return notebookFolded(_that);case LibraryIndexBookSortChangedEvent() when bookSortChanged != null:
+return bookSortChanged(_that);case LibraryIndexTagToggledEvent() when tagToggled != null:
 return tagToggled(_that);case LibraryIndexAllTagsToggledEvent() when allTagsToggled != null:
 return allTagsToggled(_that);case LibraryIndexStatusGroupToggledEvent() when statusGroupToggled != null:
 return statusGroupToggled(_that);case _:
@@ -137,14 +140,15 @@ return statusGroupToggled(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( List<String> ids)?  changesReceived,TResult Function()?  retried,TResult Function( ListPlace? place)?  placeChanged,TResult Function( String id)?  notebookFolded,TResult Function( String path)?  tagToggled,TResult Function()?  allTagsToggled,TResult Function()?  statusGroupToggled,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( List<String> ids)?  changesReceived,TResult Function()?  retried,TResult Function( ListPlace? place)?  placeChanged,TResult Function( String id)?  notebookFolded,TResult Function( BookSort sort)?  bookSortChanged,TResult Function( String path)?  tagToggled,TResult Function()?  allTagsToggled,TResult Function()?  statusGroupToggled,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case LibraryIndexStartedEvent() when started != null:
 return started();case LibraryIndexChangesReceivedEvent() when changesReceived != null:
 return changesReceived(_that.ids);case LibraryIndexRetriedEvent() when retried != null:
 return retried();case LibraryIndexPlaceChangedEvent() when placeChanged != null:
 return placeChanged(_that.place);case LibraryIndexNotebookFoldedEvent() when notebookFolded != null:
-return notebookFolded(_that.id);case LibraryIndexTagToggledEvent() when tagToggled != null:
+return notebookFolded(_that.id);case LibraryIndexBookSortChangedEvent() when bookSortChanged != null:
+return bookSortChanged(_that.sort);case LibraryIndexTagToggledEvent() when tagToggled != null:
 return tagToggled(_that.path);case LibraryIndexAllTagsToggledEvent() when allTagsToggled != null:
 return allTagsToggled();case LibraryIndexStatusGroupToggledEvent() when statusGroupToggled != null:
 return statusGroupToggled();case _:
@@ -165,14 +169,15 @@ return statusGroupToggled();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( List<String> ids)  changesReceived,required TResult Function()  retried,required TResult Function( ListPlace? place)  placeChanged,required TResult Function( String id)  notebookFolded,required TResult Function( String path)  tagToggled,required TResult Function()  allTagsToggled,required TResult Function()  statusGroupToggled,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( List<String> ids)  changesReceived,required TResult Function()  retried,required TResult Function( ListPlace? place)  placeChanged,required TResult Function( String id)  notebookFolded,required TResult Function( BookSort sort)  bookSortChanged,required TResult Function( String path)  tagToggled,required TResult Function()  allTagsToggled,required TResult Function()  statusGroupToggled,}) {final _that = this;
 switch (_that) {
 case LibraryIndexStartedEvent():
 return started();case LibraryIndexChangesReceivedEvent():
 return changesReceived(_that.ids);case LibraryIndexRetriedEvent():
 return retried();case LibraryIndexPlaceChangedEvent():
 return placeChanged(_that.place);case LibraryIndexNotebookFoldedEvent():
-return notebookFolded(_that.id);case LibraryIndexTagToggledEvent():
+return notebookFolded(_that.id);case LibraryIndexBookSortChangedEvent():
+return bookSortChanged(_that.sort);case LibraryIndexTagToggledEvent():
 return tagToggled(_that.path);case LibraryIndexAllTagsToggledEvent():
 return allTagsToggled();case LibraryIndexStatusGroupToggledEvent():
 return statusGroupToggled();}
@@ -189,14 +194,15 @@ return statusGroupToggled();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( List<String> ids)?  changesReceived,TResult? Function()?  retried,TResult? Function( ListPlace? place)?  placeChanged,TResult? Function( String id)?  notebookFolded,TResult? Function( String path)?  tagToggled,TResult? Function()?  allTagsToggled,TResult? Function()?  statusGroupToggled,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( List<String> ids)?  changesReceived,TResult? Function()?  retried,TResult? Function( ListPlace? place)?  placeChanged,TResult? Function( String id)?  notebookFolded,TResult? Function( BookSort sort)?  bookSortChanged,TResult? Function( String path)?  tagToggled,TResult? Function()?  allTagsToggled,TResult? Function()?  statusGroupToggled,}) {final _that = this;
 switch (_that) {
 case LibraryIndexStartedEvent() when started != null:
 return started();case LibraryIndexChangesReceivedEvent() when changesReceived != null:
 return changesReceived(_that.ids);case LibraryIndexRetriedEvent() when retried != null:
 return retried();case LibraryIndexPlaceChangedEvent() when placeChanged != null:
 return placeChanged(_that.place);case LibraryIndexNotebookFoldedEvent() when notebookFolded != null:
-return notebookFolded(_that.id);case LibraryIndexTagToggledEvent() when tagToggled != null:
+return notebookFolded(_that.id);case LibraryIndexBookSortChangedEvent() when bookSortChanged != null:
+return bookSortChanged(_that.sort);case LibraryIndexTagToggledEvent() when tagToggled != null:
 return tagToggled(_that.path);case LibraryIndexAllTagsToggledEvent() when allTagsToggled != null:
 return allTagsToggled();case LibraryIndexStatusGroupToggledEvent() when statusGroupToggled != null:
 return statusGroupToggled();case _:
@@ -490,6 +496,72 @@ as String,
 /// @nodoc
 
 
+class LibraryIndexBookSortChangedEvent implements LibraryIndexEvent {
+  const LibraryIndexBookSortChangedEvent(this.sort);
+  
+
+ final  BookSort sort;
+
+/// Create a copy of LibraryIndexEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$LibraryIndexBookSortChangedEventCopyWith<LibraryIndexBookSortChangedEvent> get copyWith => _$LibraryIndexBookSortChangedEventCopyWithImpl<LibraryIndexBookSortChangedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LibraryIndexBookSortChangedEvent&&(identical(other.sort, sort) || other.sort == sort));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,sort);
+
+@override
+String toString() {
+  return 'LibraryIndexEvent.bookSortChanged(sort: $sort)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $LibraryIndexBookSortChangedEventCopyWith<$Res> implements $LibraryIndexEventCopyWith<$Res> {
+  factory $LibraryIndexBookSortChangedEventCopyWith(LibraryIndexBookSortChangedEvent value, $Res Function(LibraryIndexBookSortChangedEvent) _then) = _$LibraryIndexBookSortChangedEventCopyWithImpl;
+@useResult
+$Res call({
+ BookSort sort
+});
+
+
+
+
+}
+/// @nodoc
+class _$LibraryIndexBookSortChangedEventCopyWithImpl<$Res>
+    implements $LibraryIndexBookSortChangedEventCopyWith<$Res> {
+  _$LibraryIndexBookSortChangedEventCopyWithImpl(this._self, this._then);
+
+  final LibraryIndexBookSortChangedEvent _self;
+  final $Res Function(LibraryIndexBookSortChangedEvent) _then;
+
+/// Create a copy of LibraryIndexEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? sort = null,}) {
+  return _then(LibraryIndexBookSortChangedEvent(
+null == sort ? _self.sort : sort // ignore: cast_nullable_to_non_nullable
+as BookSort,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
 class LibraryIndexTagToggledEvent implements LibraryIndexEvent {
   const LibraryIndexTagToggledEvent(this.path);
   
@@ -628,7 +700,9 @@ mixin _$LibraryIndexState {
  List<VisibleNotebook> get visibleNotebooks;/// The tag chips and the rows of the nested tag tree that show.
  TagPlaces get tagPlaces;/// The statuses a note can have, in the desktop's order.
  List<StatusChoice> get statuses;/// The notebooks opened or folded with their arrows.
- FoldState get folds;/// The tag levels opened with their arrows, by lower-case path.
+ FoldState get folds;/// How the notebooks are ordered inside each parent; the person's last
+/// choice, kept in the preferences.
+ BookSort get bookSort;/// The tag levels opened with their arrows, by lower-case path.
  List<String> get openTags;/// Whether every tag shows as a chip, not only the most used few.
  bool get allTags;/// Whether the Status group shows its rows.
  bool get statusOpen;/// The place the library pane is drawing, which keeps the notebooks and
@@ -645,16 +719,16 @@ $LibraryIndexStateCopyWith<LibraryIndexState> get copyWith => _$LibraryIndexStat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LibraryIndexState&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.notebooks, notebooks)&&const DeepCollectionEquality().equals(other.tags, tags)&&(identical(other.overview, overview) || other.overview == overview)&&(identical(other.overdueTasks, overdueTasks) || other.overdueTasks == overdueTasks)&&const DeepCollectionEquality().equals(other.visibleNotebooks, visibleNotebooks)&&(identical(other.tagPlaces, tagPlaces) || other.tagPlaces == tagPlaces)&&const DeepCollectionEquality().equals(other.statuses, statuses)&&(identical(other.folds, folds) || other.folds == folds)&&const DeepCollectionEquality().equals(other.openTags, openTags)&&(identical(other.allTags, allTags) || other.allTags == allTags)&&(identical(other.statusOpen, statusOpen) || other.statusOpen == statusOpen)&&(identical(other.place, place) || other.place == place)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LibraryIndexState&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other.notebooks, notebooks)&&const DeepCollectionEquality().equals(other.tags, tags)&&(identical(other.overview, overview) || other.overview == overview)&&(identical(other.overdueTasks, overdueTasks) || other.overdueTasks == overdueTasks)&&const DeepCollectionEquality().equals(other.visibleNotebooks, visibleNotebooks)&&(identical(other.tagPlaces, tagPlaces) || other.tagPlaces == tagPlaces)&&const DeepCollectionEquality().equals(other.statuses, statuses)&&(identical(other.folds, folds) || other.folds == folds)&&(identical(other.bookSort, bookSort) || other.bookSort == bookSort)&&const DeepCollectionEquality().equals(other.openTags, openTags)&&(identical(other.allTags, allTags) || other.allTags == allTags)&&(identical(other.statusOpen, statusOpen) || other.statusOpen == statusOpen)&&(identical(other.place, place) || other.place == place)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,const DeepCollectionEquality().hash(notebooks),const DeepCollectionEquality().hash(tags),overview,overdueTasks,const DeepCollectionEquality().hash(visibleNotebooks),tagPlaces,const DeepCollectionEquality().hash(statuses),folds,const DeepCollectionEquality().hash(openTags),allTags,statusOpen,place,error);
+int get hashCode => Object.hash(runtimeType,status,const DeepCollectionEquality().hash(notebooks),const DeepCollectionEquality().hash(tags),overview,overdueTasks,const DeepCollectionEquality().hash(visibleNotebooks),tagPlaces,const DeepCollectionEquality().hash(statuses),folds,bookSort,const DeepCollectionEquality().hash(openTags),allTags,statusOpen,place,error);
 
 @override
 String toString() {
-  return 'LibraryIndexState(status: $status, notebooks: $notebooks, tags: $tags, overview: $overview, overdueTasks: $overdueTasks, visibleNotebooks: $visibleNotebooks, tagPlaces: $tagPlaces, statuses: $statuses, folds: $folds, openTags: $openTags, allTags: $allTags, statusOpen: $statusOpen, place: $place, error: $error)';
+  return 'LibraryIndexState(status: $status, notebooks: $notebooks, tags: $tags, overview: $overview, overdueTasks: $overdueTasks, visibleNotebooks: $visibleNotebooks, tagPlaces: $tagPlaces, statuses: $statuses, folds: $folds, bookSort: $bookSort, openTags: $openTags, allTags: $allTags, statusOpen: $statusOpen, place: $place, error: $error)';
 }
 
 
@@ -665,7 +739,7 @@ abstract mixin class $LibraryIndexStateCopyWith<$Res>  {
   factory $LibraryIndexStateCopyWith(LibraryIndexState value, $Res Function(LibraryIndexState) _then) = _$LibraryIndexStateCopyWithImpl;
 @useResult
 $Res call({
- LibraryIndexStatus status, List<NotebookRow> notebooks, List<TagRow> tags, LibraryOverview overview, int overdueTasks, List<VisibleNotebook> visibleNotebooks, TagPlaces tagPlaces, List<StatusChoice> statuses, FoldState folds, List<String> openTags, bool allTags, bool statusOpen, ListPlace? place, ApplicationError? error
+ LibraryIndexStatus status, List<NotebookRow> notebooks, List<TagRow> tags, LibraryOverview overview, int overdueTasks, List<VisibleNotebook> visibleNotebooks, TagPlaces tagPlaces, List<StatusChoice> statuses, FoldState folds, BookSort bookSort, List<String> openTags, bool allTags, bool statusOpen, ListPlace? place, ApplicationError? error
 });
 
 
@@ -682,7 +756,7 @@ class _$LibraryIndexStateCopyWithImpl<$Res>
 
 /// Create a copy of LibraryIndexState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? notebooks = null,Object? tags = null,Object? overview = null,Object? overdueTasks = null,Object? visibleNotebooks = null,Object? tagPlaces = null,Object? statuses = null,Object? folds = null,Object? openTags = null,Object? allTags = null,Object? statusOpen = null,Object? place = freezed,Object? error = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? notebooks = null,Object? tags = null,Object? overview = null,Object? overdueTasks = null,Object? visibleNotebooks = null,Object? tagPlaces = null,Object? statuses = null,Object? folds = null,Object? bookSort = null,Object? openTags = null,Object? allTags = null,Object? statusOpen = null,Object? place = freezed,Object? error = freezed,}) {
   return _then(_self.copyWith(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LibraryIndexStatus,notebooks: null == notebooks ? _self.notebooks : notebooks // ignore: cast_nullable_to_non_nullable
@@ -693,7 +767,8 @@ as int,visibleNotebooks: null == visibleNotebooks ? _self.visibleNotebooks : vis
 as List<VisibleNotebook>,tagPlaces: null == tagPlaces ? _self.tagPlaces : tagPlaces // ignore: cast_nullable_to_non_nullable
 as TagPlaces,statuses: null == statuses ? _self.statuses : statuses // ignore: cast_nullable_to_non_nullable
 as List<StatusChoice>,folds: null == folds ? _self.folds : folds // ignore: cast_nullable_to_non_nullable
-as FoldState,openTags: null == openTags ? _self.openTags : openTags // ignore: cast_nullable_to_non_nullable
+as FoldState,bookSort: null == bookSort ? _self.bookSort : bookSort // ignore: cast_nullable_to_non_nullable
+as BookSort,openTags: null == openTags ? _self.openTags : openTags // ignore: cast_nullable_to_non_nullable
 as List<String>,allTags: null == allTags ? _self.allTags : allTags // ignore: cast_nullable_to_non_nullable
 as bool,statusOpen: null == statusOpen ? _self.statusOpen : statusOpen // ignore: cast_nullable_to_non_nullable
 as bool,place: freezed == place ? _self.place : place // ignore: cast_nullable_to_non_nullable
@@ -807,10 +882,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LibraryIndexStatus status,  List<NotebookRow> notebooks,  List<TagRow> tags,  LibraryOverview overview,  int overdueTasks,  List<VisibleNotebook> visibleNotebooks,  TagPlaces tagPlaces,  List<StatusChoice> statuses,  FoldState folds,  List<String> openTags,  bool allTags,  bool statusOpen,  ListPlace? place,  ApplicationError? error)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LibraryIndexStatus status,  List<NotebookRow> notebooks,  List<TagRow> tags,  LibraryOverview overview,  int overdueTasks,  List<VisibleNotebook> visibleNotebooks,  TagPlaces tagPlaces,  List<StatusChoice> statuses,  FoldState folds,  BookSort bookSort,  List<String> openTags,  bool allTags,  bool statusOpen,  ListPlace? place,  ApplicationError? error)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LibraryIndexState() when $default != null:
-return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.overdueTasks,_that.visibleNotebooks,_that.tagPlaces,_that.statuses,_that.folds,_that.openTags,_that.allTags,_that.statusOpen,_that.place,_that.error);case _:
+return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.overdueTasks,_that.visibleNotebooks,_that.tagPlaces,_that.statuses,_that.folds,_that.bookSort,_that.openTags,_that.allTags,_that.statusOpen,_that.place,_that.error);case _:
   return orElse();
 
 }
@@ -828,10 +903,10 @@ return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.ove
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LibraryIndexStatus status,  List<NotebookRow> notebooks,  List<TagRow> tags,  LibraryOverview overview,  int overdueTasks,  List<VisibleNotebook> visibleNotebooks,  TagPlaces tagPlaces,  List<StatusChoice> statuses,  FoldState folds,  List<String> openTags,  bool allTags,  bool statusOpen,  ListPlace? place,  ApplicationError? error)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LibraryIndexStatus status,  List<NotebookRow> notebooks,  List<TagRow> tags,  LibraryOverview overview,  int overdueTasks,  List<VisibleNotebook> visibleNotebooks,  TagPlaces tagPlaces,  List<StatusChoice> statuses,  FoldState folds,  BookSort bookSort,  List<String> openTags,  bool allTags,  bool statusOpen,  ListPlace? place,  ApplicationError? error)  $default,) {final _that = this;
 switch (_that) {
 case _LibraryIndexState():
-return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.overdueTasks,_that.visibleNotebooks,_that.tagPlaces,_that.statuses,_that.folds,_that.openTags,_that.allTags,_that.statusOpen,_that.place,_that.error);case _:
+return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.overdueTasks,_that.visibleNotebooks,_that.tagPlaces,_that.statuses,_that.folds,_that.bookSort,_that.openTags,_that.allTags,_that.statusOpen,_that.place,_that.error);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -848,10 +923,10 @@ return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.ove
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LibraryIndexStatus status,  List<NotebookRow> notebooks,  List<TagRow> tags,  LibraryOverview overview,  int overdueTasks,  List<VisibleNotebook> visibleNotebooks,  TagPlaces tagPlaces,  List<StatusChoice> statuses,  FoldState folds,  List<String> openTags,  bool allTags,  bool statusOpen,  ListPlace? place,  ApplicationError? error)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LibraryIndexStatus status,  List<NotebookRow> notebooks,  List<TagRow> tags,  LibraryOverview overview,  int overdueTasks,  List<VisibleNotebook> visibleNotebooks,  TagPlaces tagPlaces,  List<StatusChoice> statuses,  FoldState folds,  BookSort bookSort,  List<String> openTags,  bool allTags,  bool statusOpen,  ListPlace? place,  ApplicationError? error)?  $default,) {final _that = this;
 switch (_that) {
 case _LibraryIndexState() when $default != null:
-return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.overdueTasks,_that.visibleNotebooks,_that.tagPlaces,_that.statuses,_that.folds,_that.openTags,_that.allTags,_that.statusOpen,_that.place,_that.error);case _:
+return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.overdueTasks,_that.visibleNotebooks,_that.tagPlaces,_that.statuses,_that.folds,_that.bookSort,_that.openTags,_that.allTags,_that.statusOpen,_that.place,_that.error);case _:
   return null;
 
 }
@@ -863,7 +938,7 @@ return $default(_that.status,_that.notebooks,_that.tags,_that.overview,_that.ove
 
 
 class _LibraryIndexState extends LibraryIndexState {
-  const _LibraryIndexState({this.status = LibraryIndexStatus.loading, final  List<NotebookRow> notebooks = const <NotebookRow>[], final  List<TagRow> tags = const <TagRow>[], this.overview = const LibraryOverview(all: 0, canvases: 0, pinned: 0, recent: 0, trash: 0, byStatus: <StatusCount>[]), this.overdueTasks = 0, final  List<VisibleNotebook> visibleNotebooks = const <VisibleNotebook>[], this.tagPlaces = const TagPlaces(chips: <TagRow>[], more: false, tree: <TagTreeRow>[]), final  List<StatusChoice> statuses = const <StatusChoice>[], this.folds = const FoldState(open: <String>[], folded: <String>[]), final  List<String> openTags = const <String>[], this.allTags = false, this.statusOpen = true, this.place, this.error}): _notebooks = notebooks,_tags = tags,_visibleNotebooks = visibleNotebooks,_statuses = statuses,_openTags = openTags,super._();
+  const _LibraryIndexState({this.status = LibraryIndexStatus.loading, final  List<NotebookRow> notebooks = const <NotebookRow>[], final  List<TagRow> tags = const <TagRow>[], this.overview = const LibraryOverview(all: 0, canvases: 0, pinned: 0, recent: 0, trash: 0, byStatus: <StatusCount>[]), this.overdueTasks = 0, final  List<VisibleNotebook> visibleNotebooks = const <VisibleNotebook>[], this.tagPlaces = const TagPlaces(chips: <TagRow>[], more: false, tree: <TagTreeRow>[]), final  List<StatusChoice> statuses = const <StatusChoice>[], this.folds = const FoldState(open: <String>[], folded: <String>[]), this.bookSort = BookSort.manual, final  List<String> openTags = const <String>[], this.allTags = false, this.statusOpen = true, this.place, this.error}): _notebooks = notebooks,_tags = tags,_visibleNotebooks = visibleNotebooks,_statuses = statuses,_openTags = openTags,super._();
   
 
 @override@JsonKey() final  LibraryIndexStatus status;
@@ -911,6 +986,9 @@ class _LibraryIndexState extends LibraryIndexState {
 
 /// The notebooks opened or folded with their arrows.
 @override@JsonKey() final  FoldState folds;
+/// How the notebooks are ordered inside each parent; the person's last
+/// choice, kept in the preferences.
+@override@JsonKey() final  BookSort bookSort;
 /// The tag levels opened with their arrows, by lower-case path.
  final  List<String> _openTags;
 /// The tag levels opened with their arrows, by lower-case path.
@@ -940,16 +1018,16 @@ _$LibraryIndexStateCopyWith<_LibraryIndexState> get copyWith => __$LibraryIndexS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LibraryIndexState&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._notebooks, _notebooks)&&const DeepCollectionEquality().equals(other._tags, _tags)&&(identical(other.overview, overview) || other.overview == overview)&&(identical(other.overdueTasks, overdueTasks) || other.overdueTasks == overdueTasks)&&const DeepCollectionEquality().equals(other._visibleNotebooks, _visibleNotebooks)&&(identical(other.tagPlaces, tagPlaces) || other.tagPlaces == tagPlaces)&&const DeepCollectionEquality().equals(other._statuses, _statuses)&&(identical(other.folds, folds) || other.folds == folds)&&const DeepCollectionEquality().equals(other._openTags, _openTags)&&(identical(other.allTags, allTags) || other.allTags == allTags)&&(identical(other.statusOpen, statusOpen) || other.statusOpen == statusOpen)&&(identical(other.place, place) || other.place == place)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LibraryIndexState&&(identical(other.status, status) || other.status == status)&&const DeepCollectionEquality().equals(other._notebooks, _notebooks)&&const DeepCollectionEquality().equals(other._tags, _tags)&&(identical(other.overview, overview) || other.overview == overview)&&(identical(other.overdueTasks, overdueTasks) || other.overdueTasks == overdueTasks)&&const DeepCollectionEquality().equals(other._visibleNotebooks, _visibleNotebooks)&&(identical(other.tagPlaces, tagPlaces) || other.tagPlaces == tagPlaces)&&const DeepCollectionEquality().equals(other._statuses, _statuses)&&(identical(other.folds, folds) || other.folds == folds)&&(identical(other.bookSort, bookSort) || other.bookSort == bookSort)&&const DeepCollectionEquality().equals(other._openTags, _openTags)&&(identical(other.allTags, allTags) || other.allTags == allTags)&&(identical(other.statusOpen, statusOpen) || other.statusOpen == statusOpen)&&(identical(other.place, place) || other.place == place)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,const DeepCollectionEquality().hash(_notebooks),const DeepCollectionEquality().hash(_tags),overview,overdueTasks,const DeepCollectionEquality().hash(_visibleNotebooks),tagPlaces,const DeepCollectionEquality().hash(_statuses),folds,const DeepCollectionEquality().hash(_openTags),allTags,statusOpen,place,error);
+int get hashCode => Object.hash(runtimeType,status,const DeepCollectionEquality().hash(_notebooks),const DeepCollectionEquality().hash(_tags),overview,overdueTasks,const DeepCollectionEquality().hash(_visibleNotebooks),tagPlaces,const DeepCollectionEquality().hash(_statuses),folds,bookSort,const DeepCollectionEquality().hash(_openTags),allTags,statusOpen,place,error);
 
 @override
 String toString() {
-  return 'LibraryIndexState(status: $status, notebooks: $notebooks, tags: $tags, overview: $overview, overdueTasks: $overdueTasks, visibleNotebooks: $visibleNotebooks, tagPlaces: $tagPlaces, statuses: $statuses, folds: $folds, openTags: $openTags, allTags: $allTags, statusOpen: $statusOpen, place: $place, error: $error)';
+  return 'LibraryIndexState(status: $status, notebooks: $notebooks, tags: $tags, overview: $overview, overdueTasks: $overdueTasks, visibleNotebooks: $visibleNotebooks, tagPlaces: $tagPlaces, statuses: $statuses, folds: $folds, bookSort: $bookSort, openTags: $openTags, allTags: $allTags, statusOpen: $statusOpen, place: $place, error: $error)';
 }
 
 
@@ -960,7 +1038,7 @@ abstract mixin class _$LibraryIndexStateCopyWith<$Res> implements $LibraryIndexS
   factory _$LibraryIndexStateCopyWith(_LibraryIndexState value, $Res Function(_LibraryIndexState) _then) = __$LibraryIndexStateCopyWithImpl;
 @override @useResult
 $Res call({
- LibraryIndexStatus status, List<NotebookRow> notebooks, List<TagRow> tags, LibraryOverview overview, int overdueTasks, List<VisibleNotebook> visibleNotebooks, TagPlaces tagPlaces, List<StatusChoice> statuses, FoldState folds, List<String> openTags, bool allTags, bool statusOpen, ListPlace? place, ApplicationError? error
+ LibraryIndexStatus status, List<NotebookRow> notebooks, List<TagRow> tags, LibraryOverview overview, int overdueTasks, List<VisibleNotebook> visibleNotebooks, TagPlaces tagPlaces, List<StatusChoice> statuses, FoldState folds, BookSort bookSort, List<String> openTags, bool allTags, bool statusOpen, ListPlace? place, ApplicationError? error
 });
 
 
@@ -977,7 +1055,7 @@ class __$LibraryIndexStateCopyWithImpl<$Res>
 
 /// Create a copy of LibraryIndexState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? notebooks = null,Object? tags = null,Object? overview = null,Object? overdueTasks = null,Object? visibleNotebooks = null,Object? tagPlaces = null,Object? statuses = null,Object? folds = null,Object? openTags = null,Object? allTags = null,Object? statusOpen = null,Object? place = freezed,Object? error = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? notebooks = null,Object? tags = null,Object? overview = null,Object? overdueTasks = null,Object? visibleNotebooks = null,Object? tagPlaces = null,Object? statuses = null,Object? folds = null,Object? bookSort = null,Object? openTags = null,Object? allTags = null,Object? statusOpen = null,Object? place = freezed,Object? error = freezed,}) {
   return _then(_LibraryIndexState(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LibraryIndexStatus,notebooks: null == notebooks ? _self._notebooks : notebooks // ignore: cast_nullable_to_non_nullable
@@ -988,7 +1066,8 @@ as int,visibleNotebooks: null == visibleNotebooks ? _self._visibleNotebooks : vi
 as List<VisibleNotebook>,tagPlaces: null == tagPlaces ? _self.tagPlaces : tagPlaces // ignore: cast_nullable_to_non_nullable
 as TagPlaces,statuses: null == statuses ? _self._statuses : statuses // ignore: cast_nullable_to_non_nullable
 as List<StatusChoice>,folds: null == folds ? _self.folds : folds // ignore: cast_nullable_to_non_nullable
-as FoldState,openTags: null == openTags ? _self._openTags : openTags // ignore: cast_nullable_to_non_nullable
+as FoldState,bookSort: null == bookSort ? _self.bookSort : bookSort // ignore: cast_nullable_to_non_nullable
+as BookSort,openTags: null == openTags ? _self._openTags : openTags // ignore: cast_nullable_to_non_nullable
 as List<String>,allTags: null == allTags ? _self.allTags : allTags // ignore: cast_nullable_to_non_nullable
 as bool,statusOpen: null == statusOpen ? _self.statusOpen : statusOpen // ignore: cast_nullable_to_non_nullable
 as bool,place: freezed == place ? _self.place : place // ignore: cast_nullable_to_non_nullable

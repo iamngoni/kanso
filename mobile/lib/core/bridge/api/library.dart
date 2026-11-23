@@ -682,10 +682,11 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   Future<PhoneNotices> updateNotices({required bool signedInToSync});
 
   /// The notebook rows that show with `folds` applied, around the notebook
-  /// showing.
+  /// showing, the notebooks inside each parent ordered by `sort`.
   Future<List<VisibleNotebook>> visibleNotebooks({
     required FoldState folds,
     String? showing,
+    required BookSort sort,
   });
 
   /// Voice capture: voice notes into the Inbox, the recordings left outside

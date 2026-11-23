@@ -652,6 +652,16 @@ class BookShareProgress {
           total == other.total;
 }
 
+/// How the sidebar orders the notebooks inside each parent: the engine's
+/// `BookSort`, the one the desktop's sort menu uses.
+enum BookSort {
+  manual,
+  nameAsc,
+  nameDesc,
+  updated,
+  created,
+}
+
 enum BookStandingRow {
   member,
   invited,

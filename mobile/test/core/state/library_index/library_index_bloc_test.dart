@@ -10,11 +10,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/library_index_status.dart';
+import 'package:kanso/core/models/data/preferences.dart';
 import 'package:kanso/core/state/library_index/library_index_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../../helpers/library_fixtures.dart';
 import '../../../helpers/mock_repositories.dart';
+import '../../../helpers/seeded_appearance_bloc.dart';
 
 const _overview = LibraryOverview(
   canvases: 0,
@@ -28,6 +30,7 @@ const _failure = ApplicationError.storage(message: 'Disk error.');
 
 void main() {
   late MockLibraryRepository library;
+  late SeededPreferencesRepository preferences;
   late StreamController<List<String>> changes;
   var notebooks = <NotebookRow>[];
   var tags = <TagRow>[];
@@ -37,6 +40,7 @@ void main() {
     registerFallbackValue(
       const FoldState(open: <String>[], folded: <String>[]),
     );
+    registerFallbackValue(BookSort.manual);
   });
 
   setUp(() {
@@ -49,6 +53,7 @@ void main() {
     changes = StreamController<List<String>>.broadcast();
     addTearDown(changes.close);
     library = MockLibraryRepository();
+    preferences = SeededPreferencesRepository(const Preferences());
     when(() => library.changes()).thenAnswer((_) => changes.stream);
     when(() => library.notebooks()).thenAnswer(
       (_) async => Right<ApplicationError, List<NotebookRow>>(notebooks),
@@ -69,7 +74,11 @@ void main() {
     // The bloc reads the tree for whatever it is about to show; the rows
     // themselves are the engine's to decide, so these stay empty here.
     when(
-      () => library.visibleNotebooks(any(), showing: any(named: 'showing')),
+      () => library.visibleNotebooks(
+        any(),
+        sort: any(named: 'sort'),
+        showing: any(named: 'showing'),
+      ),
     ).thenAnswer(
       (_) async => const Right<ApplicationError, List<VisibleNotebook>>(
         <VisibleNotebook>[],
@@ -93,7 +102,7 @@ void main() {
     );
   });
 
-  LibraryIndexBloc build() => LibraryIndexBloc(library);
+  LibraryIndexBloc build() => LibraryIndexBloc(library, preferences);
 
   LibraryIndexState readyState() => LibraryIndexState(
     status: LibraryIndexStatus.ready,
@@ -123,6 +132,133 @@ void main() {
         expect(bloc.state.tag('t_1')?.name, 'todo');
         expect(bloc.state.tag('missing'), isNull);
         expect(bloc.state.overview.pinned, 2);
+      },
+    );
+
+    blocTest<LibraryIndexBloc, LibraryIndexState>(
+      'notebooks start in the default order',
+      build: build,
+      act: (bloc) => bloc.add(const LibraryIndexEvent.started()),
+      verify: (bloc) {
+        expect(bloc.state.bookSort, BookSort.manual);
+        verify(
+          () => library.visibleNotebooks(
+            any(),
+            sort: BookSort.manual,
+            showing: any(named: 'showing'),
+          ),
+        ).called(1);
+      },
+    );
+
+    blocTest<LibraryIndexBloc, LibraryIndexState>(
+      'started reads the notebooks in the order that was last chosen',
+      setUp: () => preferences.current = const Preferences(
+        bookSort: BookSort.nameDesc,
+      ),
+      build: build,
+      act: (bloc) => bloc.add(const LibraryIndexEvent.started()),
+      verify: (bloc) {
+        expect(bloc.state.bookSort, BookSort.nameDesc);
+        verify(
+          () => library.visibleNotebooks(
+            any(),
+            sort: BookSort.nameDesc,
+            showing: any(named: 'showing'),
+          ),
+        ).called(1);
+        verifyNever(
+          () => library.visibleNotebooks(
+            any(),
+            sort: BookSort.manual,
+            showing: any(named: 'showing'),
+          ),
+        );
+      },
+    );
+
+    blocTest<LibraryIndexBloc, LibraryIndexState>(
+      'a choice in the sort sheet reads the rows in that order and keeps it',
+      build: build,
+      act: (bloc) async {
+        bloc.add(const LibraryIndexEvent.started());
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        bloc.add(const LibraryIndexEvent.bookSortChanged(BookSort.updated));
+      },
+      wait: const Duration(milliseconds: 50),
+      verify: (bloc) {
+        expect(bloc.state.bookSort, BookSort.updated);
+        expect(preferences.current.bookSort, BookSort.updated);
+        verify(
+          () => library.visibleNotebooks(
+            any(),
+            sort: BookSort.updated,
+            showing: any(named: 'showing'),
+          ),
+        ).called(1);
+      },
+    );
+
+    blocTest<LibraryIndexBloc, LibraryIndexState>(
+      'the sort chosen last is the one that is kept',
+      build: build,
+      act: (bloc) async {
+        bloc.add(const LibraryIndexEvent.started());
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        for (final sort in BookSort.values) {
+          bloc.add(LibraryIndexEvent.bookSortChanged(sort));
+        }
+        bloc.add(const LibraryIndexEvent.bookSortChanged(BookSort.manual));
+      },
+      wait: const Duration(milliseconds: 50),
+      verify: (bloc) {
+        expect(bloc.state.bookSort, BookSort.manual);
+        expect(preferences.current.bookSort, BookSort.manual);
+      },
+    );
+
+    blocTest<LibraryIndexBloc, LibraryIndexState>(
+      'choosing the order already in use changes and saves nothing',
+      setUp: () => preferences.current = const Preferences(
+        bookSort: BookSort.created,
+      ),
+      build: build,
+      act: (bloc) async {
+        bloc.add(const LibraryIndexEvent.started());
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        bloc.add(const LibraryIndexEvent.bookSortChanged(BookSort.created));
+      },
+      wait: const Duration(milliseconds: 50),
+      verify: (bloc) {
+        verify(
+          () => library.visibleNotebooks(
+            any(),
+            sort: BookSort.created,
+            showing: any(named: 'showing'),
+          ),
+        ).called(1);
+      },
+    );
+
+    blocTest<LibraryIndexBloc, LibraryIndexState>(
+      'a change to the library reads the rows in the order chosen',
+      build: build,
+      act: (bloc) async {
+        bloc.add(const LibraryIndexEvent.started());
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        bloc.add(const LibraryIndexEvent.bookSortChanged(BookSort.nameAsc));
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        changes.add(<String>['b_1']);
+      },
+      wait: libraryIndexDebounce * 3,
+      verify: (bloc) {
+        verify(
+          () => library.visibleNotebooks(
+            any(),
+            sort: BookSort.nameAsc,
+            showing: any(named: 'showing'),
+          ),
+        ).called(2);
       },
     );
 

@@ -6,7 +6,7 @@ mod common;
 use std::collections::BTreeSet;
 
 use common::*;
-use kanso_mobile::{FoldState, Library, ListPlace, ListQuery, NoteChange};
+use kanso_mobile::{BookSort, FoldState, Library, ListPlace, ListQuery, NoteChange};
 use proptest::prelude::*;
 
 fn names(shown: &[kanso_mobile::VisibleNotebook]) -> Vec<&str> {
@@ -72,20 +72,24 @@ fn notebooks_fold_and_open_around_the_one_showing() {
     let ids = tree(library);
     let folds = FoldState::default();
     // All folded: the top level, each a parent and shut.
-    let shown = library.visible_notebooks(folds.clone(), None).unwrap();
+    let shown = library
+        .visible_notebooks(folds.clone(), None, BookSort::Manual)
+        .unwrap();
     assert_eq!(names(&shown), ["a", "b"]);
     assert!(shown.iter().all(|v| v.parent && !v.open));
     // Opening a with its arrow shows a1 (itself a shut parent).
     let folds = library.toggle_fold(folds, ids["a"].clone(), None).unwrap();
     assert_eq!(folds.open, vec![ids["a"].clone()]);
-    let shown = library.visible_notebooks(folds.clone(), None).unwrap();
+    let shown = library
+        .visible_notebooks(folds.clone(), None, BookSort::Manual)
+        .unwrap();
     assert_eq!(names(&shown), ["a", "a1", "b"]);
     assert_eq!(shown[1].row.depth, 1);
     assert!(shown[0].open && shown[1].parent && !shown[1].open);
     // Showing a1x opens what is around it, with nothing opened by hand.
     let showing = Some(ids["a1x"].clone());
     let shown = library
-        .visible_notebooks(FoldState::default(), showing.clone())
+        .visible_notebooks(FoldState::default(), showing.clone(), BookSort::Manual)
         .unwrap();
     assert_eq!(names(&shown), ["a", "a1", "a1x", "b"]);
     assert!(!shown[2].parent && !shown[2].open);
@@ -96,23 +100,29 @@ fn notebooks_fold_and_open_around_the_one_showing() {
     assert_eq!(folded.folded_at, showing);
     assert_eq!(folded.folded, vec![ids["a"].clone()]);
     let shown = library
-        .visible_notebooks(folded.clone(), showing.clone())
+        .visible_notebooks(folded.clone(), showing.clone(), BookSort::Manual)
         .unwrap();
     assert_eq!(names(&shown), ["a", "b"]);
     // Showing another notebook opens it again.
     let shown = library
-        .visible_notebooks(folded.clone(), Some(ids["b1"].clone()))
+        .visible_notebooks(folded.clone(), Some(ids["b1"].clone()), BookSort::Manual)
         .unwrap();
     assert_eq!(names(&shown), ["a", "b", "b1"]);
     // Tapping it again opens it.
     let reopened = library
         .toggle_fold(folded, ids["a"].clone(), showing.clone())
         .unwrap();
-    let shown = library.visible_notebooks(reopened, showing).unwrap();
+    let shown = library
+        .visible_notebooks(reopened, showing, BookSort::Manual)
+        .unwrap();
     assert_eq!(names(&shown), ["a", "a1", "a1x", "b"]);
     // A notebook that isn't there around nothing.
     let shown = library
-        .visible_notebooks(FoldState::default(), Some("book:nope".into()))
+        .visible_notebooks(
+            FoldState::default(),
+            Some("book:nope".into()),
+            BookSort::Manual,
+        )
         .unwrap();
     assert_eq!(names(&shown), ["a", "b"]);
 }
@@ -143,7 +153,7 @@ proptest! {
         for ix in toggles {
             folds = library.toggle_fold(folds, id(ix), showing.clone()).unwrap();
         }
-        let shown = library.visible_notebooks(folds.clone(), showing.clone()).unwrap();
+        let shown = library.visible_notebooks(folds.clone(), showing.clone(), BookSort::Manual).unwrap();
         let shown_ids: BTreeSet<&str> = shown.iter().map(|v| v.row.id.as_str()).collect();
         for v in &shown {
             if let Some(parent) = &v.row.parent_id {
@@ -171,8 +181,161 @@ proptest! {
         let target = id(0);
         let once = library.toggle_fold(folds.clone(), target.clone(), showing.clone()).unwrap();
         let twice = library.toggle_fold(once, target, showing.clone()).unwrap();
-        let after = library.visible_notebooks(twice, showing.clone()).unwrap();
+        let after = library.visible_notebooks(twice, showing.clone(), BookSort::Manual).unwrap();
         prop_assert_eq!(after, shown);
+    }
+}
+
+/// Every notebook of `ids` open, so every row shows.
+fn all_open(ids: impl IntoIterator<Item = String>) -> FoldState {
+    FoldState {
+        open: ids.into_iter().collect(),
+        ..FoldState::default()
+    }
+}
+
+// no-prop-test: a fixed set of notebooks, one assertion per sort; the
+// invariants over any notebooks are below.
+#[test]
+fn notebooks_sort_inside_each_parent() {
+    let phone = lone_phone();
+    let library = &phone.library;
+    // Made one after another, so the dates differ.
+    let mut ids: Vec<String> = Vec::new();
+    for (name, parent) in [
+        ("Zeta", None),
+        ("écrit", None),
+        ("apple", None),
+        ("Beta", Some(0)),
+        ("alpha", Some(0)),
+    ] {
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        let parent = parent.map(|ix: usize| ids[ix].clone());
+        ids.push(library.create_notebook(name.into(), parent).unwrap().id);
+    }
+    let shown = |sort| {
+        let folds = all_open(ids.clone());
+        let rows = library.visible_notebooks(folds, None, sort).unwrap();
+        rows.iter()
+            .map(|v| (v.row.depth, v.row.name.clone()))
+            .collect::<Vec<_>>()
+    };
+    let at = |depth, name: &str| (depth, name.to_owned());
+    // Names fold case and accents, and children stay under their parent.
+    assert_eq!(
+        shown(BookSort::NameAsc),
+        [
+            at(0, "apple"),
+            at(0, "écrit"),
+            at(0, "Zeta"),
+            at(1, "alpha"),
+            at(1, "Beta")
+        ]
+    );
+    assert_eq!(
+        shown(BookSort::NameDesc),
+        [
+            at(0, "Zeta"),
+            at(1, "Beta"),
+            at(1, "alpha"),
+            at(0, "écrit"),
+            at(0, "apple")
+        ]
+    );
+    // Newest first, among siblings only.
+    assert_eq!(
+        shown(BookSort::Created),
+        [
+            at(0, "apple"),
+            at(0, "écrit"),
+            at(0, "Zeta"),
+            at(1, "alpha"),
+            at(1, "Beta")
+        ]
+    );
+    // Nothing changed a notebook since it was made, so the two dates agree.
+    assert_eq!(shown(BookSort::Updated), shown(BookSort::Created));
+    // The default is the order the sidebar always had.
+    let default: Vec<String> = library
+        .visible_notebooks(all_open(ids.clone()), None, BookSort::Manual)
+        .unwrap()
+        .into_iter()
+        .map(|v| v.row.id)
+        .collect();
+    let listed: Vec<String> = library
+        .notebooks()
+        .unwrap()
+        .into_iter()
+        .map(|row| row.id)
+        .collect();
+    assert_eq!(default, listed);
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(16))]
+
+    /// Invariants over any notebooks and any sort: every notebook shows
+    /// once with its children right after it (one level deeper), name sorts
+    /// put siblings in name order (case-blind), and the default sort is the
+    /// order `notebooks()` lists.
+    #[test]
+    fn prop_sorted_notebooks_show_once_and_in_order(
+        specs in proptest::collection::vec((proptest::option::of(0usize..20), "[a-cA-C]{1,3}"), 1..10),
+        sort in proptest::sample::select(vec![
+            BookSort::Manual,
+            BookSort::NameAsc,
+            BookSort::NameDesc,
+            BookSort::Updated,
+            BookSort::Created,
+        ]),
+    ) {
+        let phone = lone_phone();
+        let library = &phone.library;
+        let mut ids: Vec<String> = Vec::new();
+        for (ix, (parent, name)) in specs.iter().enumerate() {
+            let parent = parent.filter(|p| *p < ix).map(|p| ids[p].clone());
+            ids.push(library.create_notebook(name.clone(), parent).unwrap().id);
+        }
+        let shown = library
+            .visible_notebooks(all_open(ids.iter().cloned()), None, sort)
+            .unwrap();
+        prop_assert_eq!(shown.len(), ids.len());
+        let shown_ids: BTreeSet<&str> = shown.iter().map(|v| v.row.id.as_str()).collect();
+        prop_assert_eq!(shown_ids.len(), ids.len());
+        for (at, v) in shown.iter().enumerate() {
+            match &v.row.parent_id {
+                Some(parent) => {
+                    let above = shown.iter().position(|p| &p.row.id == parent).unwrap();
+                    prop_assert!(above < at);
+                    prop_assert_eq!(v.row.depth, shown[above].row.depth + 1);
+                }
+                None => prop_assert_eq!(v.row.depth, 0),
+            }
+        }
+        // Siblings, in the order shown.
+        let mut by_parent: std::collections::BTreeMap<Option<&str>, Vec<String>> =
+            std::collections::BTreeMap::new();
+        for v in &shown {
+            by_parent
+                .entry(v.row.parent_id.as_deref())
+                .or_default()
+                .push(v.row.name.to_lowercase());
+        }
+        for names in by_parent.values() {
+            for pair in names.windows(2) {
+                match sort {
+                    BookSort::NameAsc => prop_assert!(pair[0] <= pair[1], "{pair:?}"),
+                    BookSort::NameDesc => prop_assert!(pair[0] >= pair[1], "{pair:?}"),
+                    _ => {}
+                }
+            }
+        }
+        if sort == BookSort::Manual {
+            let listed: Vec<String> =
+                library.notebooks().unwrap().into_iter().map(|row| row.id).collect();
+            let shown: Vec<String> = shown.into_iter().map(|v| v.row.id).collect();
+            prop_assert_eq!(shown, listed);
+        }
     }
 }
 

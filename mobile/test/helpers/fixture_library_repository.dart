@@ -398,6 +398,9 @@ class FixtureLibraryRepository implements LibraryRepository {
   /// The notebook folds `visibleNotebooks` and `toggleFold` were asked for.
   final List<FoldState> foldsAsked = <FoldState>[];
 
+  /// The sorts `visibleNotebooks` was asked for, in order.
+  final List<BookSort> sortsAsked = <BookSort>[];
+
   /// The notebook arrows tapped, with the notebook showing then.
   final List<(String, String?)> foldedTaps = <(String, String?)>[];
 
@@ -454,9 +457,11 @@ class FixtureLibraryRepository implements LibraryRepository {
   @override
   Future<Either<ApplicationError, List<VisibleNotebook>>> visibleNotebooks(
     FoldState folds, {
+    required BookSort sort,
     String? showing,
   }) async {
     foldsAsked.add(folds);
+    sortsAsked.add(sort);
     final rows = notebookRows
         .where((row) => row.role != NotebookRole.templates)
         .toList();

@@ -126,7 +126,7 @@ class SettingsBlocs {
     closeBlocLater(sync);
     final fixture = library ?? FixtureLibraryRepository();
     addTearDown(() => unawaited(fixture.close()));
-    final index = LibraryIndexBloc(fixture)
+    final index = LibraryIndexBloc(fixture, ForgetfulPreferencesRepository())
       ..add(const LibraryIndexEvent.started());
     closeBlocLater(index);
     final preferencesRepository = SeededPreferencesRepository(preferences);

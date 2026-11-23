@@ -162,8 +162,10 @@ class BrowseBlocs {
   ]) async {
     final fixture = library ?? FixtureLibraryRepository();
     addTearDown(() => unawaited(fixture.close()));
-    final index = LibraryIndexBloc(fixture)
-      ..add(const LibraryIndexEvent.started());
+    final index = LibraryIndexBloc(
+      fixture,
+      ForgetfulPreferencesRepository(),
+    )..add(const LibraryIndexEvent.started());
     final tabs = TabsBloc(fixture, ForgetfulPreferencesRepository());
     final history = NavigationHistoryBloc(fixture, tabs);
     closeBlocLater(index);

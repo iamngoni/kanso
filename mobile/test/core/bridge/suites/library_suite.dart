@@ -1358,6 +1358,46 @@ void librarySuite(OpenLibrary open) {
       expect((await library.overview()).trash, 0);
     });
 
+    test('the sidebar orders the notebooks inside each parent', () async {
+      final library = await open();
+      final zed = await library.createNotebook(name: 'Zed');
+      final apple = await library.createNotebook(name: 'apple');
+      final ecrit = await library.createNotebook(name: 'écrit');
+      final inner = await library.createNotebook(
+        name: 'Inner',
+        parentId: zed.id,
+      );
+      final all = FoldState(
+        open: <String>[zed.id, apple.id, ecrit.id, inner.id],
+        folded: const <String>[],
+      );
+      Future<List<String>> names(BookSort sort) async => <String>[
+        for (final row in await library.visibleNotebooks(
+          folds: all,
+          sort: sort,
+        ))
+          row.row.name,
+      ];
+      // Names fold case and accents; a notebook's children stay under it.
+      expect(await names(BookSort.nameAsc), <String>[
+        'apple',
+        'écrit',
+        'Zed',
+        'Inner',
+      ]);
+      expect(await names(BookSort.nameDesc), <String>[
+        'Zed',
+        'Inner',
+        'écrit',
+        'apple',
+      ]);
+      // The default order is the one the library always had.
+      expect(
+        await names(BookSort.manual),
+        (await library.notebooks()).map((row) => row.name),
+      );
+    });
+
     test('the sidebar folds notebooks and lists the tags', () async {
       final library = await open();
       final garden = await library.createNotebook(name: 'Garden');
@@ -1368,7 +1408,10 @@ void librarySuite(OpenLibrary open) {
       await makeNote(library, 'Seed', '#veg');
 
       const closed = FoldState(open: <String>[], folded: <String>[]);
-      var rows = await library.visibleNotebooks(folds: closed);
+      var rows = await library.visibleNotebooks(
+        folds: closed,
+        sort: BookSort.manual,
+      );
       expect(rows.map((row) => row.row.id), <String>[garden.id]);
       expect(rows.single.parent, isTrue);
       expect(rows.single.open, isFalse);
@@ -1376,13 +1419,19 @@ void librarySuite(OpenLibrary open) {
       // A tap on the arrow opens it; another folds it again.
       final opened = await library.toggleFold(folds: closed, id: garden.id);
       expect(opened.open, contains(garden.id));
-      rows = await library.visibleNotebooks(folds: opened);
+      rows = await library.visibleNotebooks(
+        folds: opened,
+        sort: BookSort.manual,
+      );
       expect(rows.map((row) => row.row.id), <String>[garden.id, bed.id]);
       expect(rows.first.open, isTrue);
       final folded = await library.toggleFold(folds: opened, id: garden.id);
       expect(folded.open, isNot(contains(garden.id)));
       expect(
-        (await library.visibleNotebooks(folds: folded)).map(
+        (await library.visibleNotebooks(
+          folds: folded,
+          sort: BookSort.manual,
+        )).map(
           (row) => row.row.id,
         ),
         <String>[garden.id],
@@ -1392,6 +1441,7 @@ void librarySuite(OpenLibrary open) {
       final around = await library.visibleNotebooks(
         folds: closed,
         showing: bed.id,
+        sort: BookSort.manual,
       );
       expect(around.map((row) => row.row.id), <String>[garden.id, bed.id]);
 
