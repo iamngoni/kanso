@@ -38,6 +38,16 @@ fi
 # The toolchain and the iOS targets mobile/rust/rust-toolchain.toml names.
 (cd mobile/rust && rustup toolchain install)
 
+# The Opus audio library (opusic-sys) builds its C code with CMake, which
+# an Xcode Cloud runner lacks. It goes beside cargo in ~/.cargo/bin, the one
+# tool directory Xcode's build PATH is given.
+echo "ci_post_clone: CMake"
+if ! command -v cmake >/dev/null 2>&1; then
+	brew install cmake
+fi
+ln -sf "$(command -v cmake)" "$HOME/.cargo/bin/cmake"
+cmake --version
+
 echo "ci_post_clone: Flutter $flutter_version"
 if [ ! -d "$HOME/flutter" ]; then
 	git clone --depth 1 --branch "$flutter_version" https://github.com/flutter/flutter.git "$HOME/flutter"
