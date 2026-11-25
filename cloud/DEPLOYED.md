@@ -68,3 +68,8 @@ Live tailing can't be switched off. While someone with access to the Cloudflare 
 the connection, such as the country it came from. Cloudflare redacts some values, such as the
 `Authorization` header, by heuristic rather than by guarantee. A tail stores nothing unless its
 viewer saves the output, so tail only to debug, and don't keep what it prints.
+
+Since 2026-11-25 it runs migration `0023_auth_flow_app_scheme` and everything merged up to then,
+including the feedback sheet's GitHub user search and credit (#499, `GET /v1/feedback/users`),
+deployed as Worker version `8e598b00-6103-405a-bac5-054168fa2c20`. Before this, the Worker lagged
+master and the apps' search and credited reports failed (#499 was merged without a deploy).
