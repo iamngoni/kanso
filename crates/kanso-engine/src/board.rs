@@ -365,6 +365,17 @@ pub fn write_move_undoable(
     mv: &Move,
     now_ms: i64,
 ) -> Result<(Written, Option<MoveUndo>), StoreError> {
+    write_move_undoable_linked(store, mv, now_ms, false)
+}
+
+/// [`write_move_undoable`], linking nested tasks when a task card moves
+/// between To do and Done and `link` is set.
+pub fn write_move_undoable_linked(
+    store: &Store,
+    mv: &Move,
+    now_ms: i64,
+    link: bool,
+) -> Result<(Written, Option<MoveUndo>), StoreError> {
     match (&mv.id, &mv.to, &mv.property) {
         (CardId::Note(id), Lane::Value(_) | Lane::Unset, Some(key)) => {
             // "No value" is the property left empty, as a template has it.
@@ -376,7 +387,7 @@ pub fn write_move_undoable(
             let undo = edit.changed.then_some(MoveUndo { edit });
             Ok((Written::Done, undo))
         }
-        _ => write_plain_move(store, mv, now_ms).map(|written| (written, None)),
+        _ => write_plain_move(store, mv, now_ms, link).map(|written| (written, None)),
     }
 }
 
@@ -386,7 +397,12 @@ pub fn undo_move(store: &Store, undo: &MoveUndo) -> Result<bool, StoreError> {
     store.undo_note_property(&undo.edit, Origin::Ui)
 }
 
-fn write_plain_move(store: &Store, mv: &Move, now_ms: i64) -> Result<Written, StoreError> {
+fn write_plain_move(
+    store: &Store,
+    mv: &Move,
+    now_ms: i64,
+    link: bool,
+) -> Result<Written, StoreError> {
     match (&mv.id, &mv.to) {
         (CardId::Note(id), Lane::Status(status)) => {
             store.put(
@@ -399,13 +415,14 @@ fn write_plain_move(store: &Store, mv: &Move, now_ms: i64) -> Result<Written, St
         }
         (CardId::Task(task), Lane::Todo | Lane::Done) => {
             let checked = mv.to == Lane::Done;
-            match store.set_task_checked(
+            match store.set_task_checked_linked(
                 &task.note_id,
                 task.line,
                 &task.text,
                 checked,
                 now_ms,
                 Origin::Ui,
+                link,
             ) {
                 Ok(CheckOff::Changed { .. } | CheckOff::Unchanged) => Ok(Written::Done),
                 Ok(CheckOff::Missing) | Err(StoreError::NotFound) => Ok(Written::Moved),
@@ -777,5 +794,39 @@ mod tests {
             property: None,
         };
         assert_eq!(write_move(&store, &mv, 1).unwrap(), Written::Moved);
+    }
+
+    #[test]
+    fn linked_task_move_ticks_nested_children() {
+        let (_dir, store) = store_with_notes(&[0]);
+        store
+            .put(
+                DocType::Note,
+                json!({"_id": "note:n0", "body": "- [ ] parent\n  - [ ] child\n"}),
+                Put::Merge,
+                Origin::Ui,
+            )
+            .unwrap();
+        let rows = store
+            .tasks(&TaskQuery {
+                include_done: true,
+                ..Default::default()
+            })
+            .unwrap();
+        let parent = crate::tasks::TaskId::of(&rows[0]);
+        let mv = Move {
+            id: CardId::Task(parent),
+            from: Lane::Todo,
+            to: Lane::Done,
+            property: None,
+        };
+        assert_eq!(
+            super::write_move_undoable_linked(&store, &mv, 9, true).unwrap(),
+            (Written::Done, None)
+        );
+        assert_eq!(
+            store.note("note:n0").unwrap().unwrap().body,
+            "- [x] parent\n  - [x] child\n"
+        );
     }
 }

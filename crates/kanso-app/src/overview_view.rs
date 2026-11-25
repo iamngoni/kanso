@@ -62,6 +62,7 @@ pub(crate) struct Undo {
     pub line: u32,
     pub raw: String,
     pub title: String,
+    pub undo: Option<kanso_store::TickUndo>,
 }
 
 /// What the Overview page needs besides the digest view's own state.
@@ -355,18 +356,52 @@ impl DigestView {
                 ))),
             }
         } else {
-            match self.store.set_task_checked(
-                &row.note_id,
-                row.line,
-                &row.raw,
-                true,
-                Clock::now_ms(cx),
-                Origin::Ui,
-            ) {
-                Ok(CheckOff::Missing) => cx.emit(DigestEvent::Notice(
+            let now_ms = Clock::now_ms(cx);
+            let today = kanso_store::local_today(now_ms);
+            let store = self.store.clone();
+            let asked = row.clone();
+            let link = crate::tick_link::link_or_ask(
+                cx,
+                || {
+                    crate::tick_link::store_cascades(
+                        &store,
+                        &row.note_id,
+                        row.line,
+                        &row.raw,
+                        true,
+                        today,
+                    )
+                },
+                move |this, link, cx| this.tick_agenda_task(&asked, link, cx),
+            );
+            if let Some(link) = link {
+                self.tick_agenda_task(row, link, cx);
+            }
+            return;
+        }
+        self.reload(cx);
+    }
+
+    /// [`Self::tick_agenda`] for a task, once it is known whether nested
+    /// tasks follow.
+    fn tick_agenda_task(&mut self, row: &AgendaRow, link: bool, cx: &mut Context<Self>) {
+        let now_ms = Clock::now_ms(cx);
+        let today = kanso_store::local_today(now_ms);
+        match self.store.tick_task_linked(
+            &row.note_id,
+            row.line,
+            &row.raw,
+            true,
+            today,
+            now_ms,
+            Origin::Ui,
+            link,
+        ) {
+            Ok(result) => match result.off {
+                CheckOff::Missing => cx.emit(DigestEvent::Notice(
                     "That task changed in its note. The page is up to date now.".into(),
                 )),
-                Ok(_) => {
+                CheckOff::Changed { .. } | CheckOff::Unchanged => {
                     crate::metrics::record(cx, crate::metrics::Feature::TaskToggled);
                     self.set_undo(
                         Undo {
@@ -374,14 +409,15 @@ impl DigestView {
                             line: row.line,
                             raw: row.raw.clone(),
                             title: row.title.clone(),
+                            undo: result.undo,
                         },
                         cx,
                     );
                 }
-                Err(err) => cx.emit(DigestEvent::Notice(format!(
-                    "Couldn't change the task: {err}"
-                ))),
-            }
+            },
+            Err(err) => cx.emit(DigestEvent::Notice(format!(
+                "Couldn't change the task: {err}"
+            ))),
         }
         self.reload(cx);
     }
@@ -404,14 +440,21 @@ impl DigestView {
         };
         self.undo_task = None;
         self.editor.update(cx, |editor, cx| editor.flush(cx));
-        if let Err(err) = self.store.set_task_checked(
-            &undo.note_id,
-            undo.line,
-            &undo.raw,
-            false,
-            Clock::now_ms(cx),
-            Origin::Ui,
-        ) {
+        let now_ms = Clock::now_ms(cx);
+        let result = match &undo.undo {
+            Some(tick_undo) => self
+                .store
+                .undo_tick(&undo.note_id, tick_undo, now_ms, Origin::Ui),
+            None => self.store.set_task_checked(
+                &undo.note_id,
+                undo.line,
+                &undo.raw,
+                false,
+                now_ms,
+                Origin::Ui,
+            ),
+        };
+        if let Err(err) = result {
             cx.emit(DigestEvent::Notice(format!("Couldn't undo: {err}")));
         }
         self.reload(cx);
@@ -424,20 +467,57 @@ impl DigestView {
         }
         self.editor.update(cx, |editor, cx| editor.flush(cx));
         let now = Clock::now_ms(cx);
-        let result = if row.kind == RowKind::WaitingLoop {
+        if row.kind == RowKind::WaitingLoop {
             let mark = Self::mark_in_note(cx);
-            self.store.close_loop(
+            let result = self.store.close_loop(
                 &row.note_id,
                 &row.key,
                 row.line,
                 LoopClose::Done { mark_in_note: mark },
                 now,
                 Origin::Ui,
-            )
+            );
+            if let Err(err) = result {
+                cx.emit(DigestEvent::Notice(format!("Couldn't change that: {err}")));
+            }
+            self.reload(cx);
         } else {
-            self.store
-                .set_task_checked(&row.note_id, row.line, &row.raw, true, now, Origin::Ui)
-        };
+            let today = kanso_store::local_today(now);
+            let store = self.store.clone();
+            let asked = row.clone();
+            let link = crate::tick_link::link_or_ask(
+                cx,
+                || {
+                    crate::tick_link::store_cascades(
+                        &store,
+                        &row.note_id,
+                        row.line,
+                        &row.raw,
+                        true,
+                        today,
+                    )
+                },
+                move |this, link, cx| this.done_waiting_task(&asked, link, cx),
+            );
+            if let Some(link) = link {
+                self.done_waiting_task(row, link, cx);
+            }
+        }
+    }
+
+    /// [`Self::done_waiting`] for a task, once it is known whether nested
+    /// tasks follow.
+    fn done_waiting_task(&mut self, row: &ListRow, link: bool, cx: &mut Context<Self>) {
+        let now = Clock::now_ms(cx);
+        let result = self.store.set_task_checked_linked(
+            &row.note_id,
+            row.line,
+            &row.raw,
+            true,
+            now,
+            Origin::Ui,
+            link,
+        );
         if let Err(err) = result {
             cx.emit(DigestEvent::Notice(format!("Couldn't change that: {err}")));
         }

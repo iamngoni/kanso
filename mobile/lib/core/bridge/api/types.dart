@@ -7386,6 +7386,12 @@ class ThemedIcon {
           svg == other.svg;
 }
 
+enum TickNested {
+  ask,
+  always,
+  never,
+}
+
 @freezed
 sealed class Ticked with _$Ticked {
   const Ticked._();

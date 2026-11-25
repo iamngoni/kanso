@@ -135,6 +135,21 @@ class FixtureLibraryRepository implements LibraryRepository {
     return Right<ApplicationError, int?>(goal);
   }
 
+  /// What `tickNested` answers.
+  TickNested tickNestedValue = TickNested.ask;
+
+  @override
+  Future<Either<ApplicationError, TickNested>> tickNested() async =>
+      Right<ApplicationError, TickNested>(tickNestedValue);
+
+  @override
+  Future<Either<ApplicationError, TickNested>> setTickNested(
+    TickNested setting,
+  ) async {
+    tickNestedValue = setting;
+    return Right<ApplicationError, TickNested>(setting);
+  }
+
   @override
   Future<Either<ApplicationError, GoalSetting>> noteWordGoal(String id) async =>
       Right<ApplicationError, GoalSetting>(noteWordGoalValue);

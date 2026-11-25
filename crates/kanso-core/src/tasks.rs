@@ -321,6 +321,19 @@ pub enum TaskEdit {
 /// what [`task_items`] gives. `today` is the local day: ticking an open
 /// repeating task writes its next one ([`crate::tick`]).
 pub fn set_task_checked(body: &str, line: u32, text: &str, checked: bool, today: Date) -> TaskEdit {
+    set_task_checked_linked(body, line, text, checked, today, false)
+}
+
+/// [`set_task_checked`], and with `link` set the tasks nested under or over
+/// the one changed follow it ([`crate::tick::tick_task_linked`]).
+pub fn set_task_checked_linked(
+    body: &str,
+    line: u32,
+    text: &str,
+    checked: bool,
+    today: Date,
+    link: bool,
+) -> TaskEdit {
     let items = task_items(body);
     let target = items
         .iter()
@@ -338,9 +351,10 @@ pub fn set_task_checked(body: &str, line: u32, text: &str, checked: bool, today:
     if items[index].checked == checked {
         return TaskEdit::Unchanged;
     }
-    // Clearing only flips the box; ticking is the one engine function.
-    let edited = if checked {
-        crate::tick::tick_task_at(body, index, today)
+    // Clearing only flips the box (and the ticked tasks above it, linked);
+    // ticking is the one engine function.
+    let edited = if checked || link {
+        crate::tick::tick_task_linked(body, index, today, link)
     } else {
         toggle_task(body, index)
     };

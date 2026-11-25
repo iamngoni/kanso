@@ -5755,6 +5755,17 @@
   "editorWritingSection": "Writing",
   "editorDefaultWordGoal": "Default word goal",
   "editorDefaultWordGoalDetail": "Notes without their own goal use this. A note’s progress appears in its editor footer.",
+  "editorTickNested": "Tick nested tasks together",
+  "@editorTickNested": {
+    "description": "Settings row: whether ticking a task also ticks the tasks indented under it."
+  },
+  "editorTickNestedDetail": "Ticking a task also ticks the tasks indented under it, and ticking the last of them ticks the parent. Clearing one reopens the parents above it.",
+  "tickNestedAsk": "Ask",
+  "tickNestedAlways": "Always",
+  "tickNestedNever": "Never",
+  "tickNestedNotNow": "Not now",
+  "tickNestedQuestionTitle": "Tick the tasks under it too?",
+  "tickNestedQuestionBody": "Ticking a task can tick the tasks nested under it, and the parent once its last one is done. You can change this in Settings under Editor.",
   "editorFocusLivePreview": "Live Preview in focus mode",
   "@editorFocusLivePreview": {
     "description": "Turns on showing the open note in Live while focus mode is on."

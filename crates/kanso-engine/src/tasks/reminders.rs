@@ -278,15 +278,29 @@ impl Answer {
 /// changed or gone since leaves nothing to do. Opening the task is the
 /// caller's.
 pub fn acknowledge(store: &Store, shown: &Shown, key: &str, answer: Answer, now_ms: i64) {
+    acknowledge_linked(store, shown, key, answer, now_ms, false);
+}
+
+/// [`acknowledge`], also ticking nested tasks when `link` is set
+/// (`kanso_core::tick::tick_task_linked`).
+pub fn acknowledge_linked(
+    store: &Store,
+    shown: &Shown,
+    key: &str,
+    answer: Answer,
+    now_ms: i64,
+    link: bool,
+) {
     if answer == Answer::MarkDone {
         store
-            .set_task_checked(
+            .set_task_checked_linked(
                 &shown.note_id,
                 shown.line,
                 &shown.text,
                 true,
                 now_ms,
                 Origin::Ui,
+                link,
             )
             .ok();
     }
@@ -762,6 +776,9 @@ mod tests {
         ) {
             let utc = local("2026-10-22T00:00") + minutes * 60_000;
             let written = kanso_core::zoned::from_utc_ms(utc, "Europe/London").unwrap();
+            // The hour the clocks go back reads the same twice; the text
+            // can't say which, so it isn't a lift instant worth asserting.
+            prop_assume!(written.utc_ms() == Some(utc));
             let embargo = kanso_core::embargo::from_value(
                 &kanso_core::properties::Value::DateTimeZone(written.text()),
             )
@@ -785,5 +802,41 @@ mod tests {
             prop_assert!(due(&tasks, &BTreeMap::new(), at - 1).is_empty());
             prop_assert_eq!(due(&tasks, &BTreeMap::new(), at).len(), 1);
         }
+    }
+
+    #[test]
+    fn mark_done_linked_ticks_nested_children() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path().join("kanso.db")).unwrap();
+        store
+            .put(
+                DocType::Book,
+                json!({"_id": "book:a", "name": "A"}),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+        store
+            .put(
+                DocType::Note,
+                json!({
+                    "_id": "note:a",
+                    "title": "Plans",
+                    "bookId": "book:a",
+                    "body": "- [ ] Ship @2026-10-22T09:00\n  - [ ] Build\n  - [ ] Tag\n",
+                }),
+                Put::Upsert,
+                Origin::Ui,
+            )
+            .unwrap();
+        let tasks = store.reminder_tasks().unwrap();
+        let parent = tasks.iter().find(|t| t.line == 0).unwrap();
+        let shown = Shown::new(parent, NOW);
+        super::acknowledge_linked(&store, &shown, &parent.key, Answer::MarkDone, NOW, true);
+        let body = store.note("note:a").unwrap().unwrap().body;
+        assert_eq!(
+            body,
+            "- [x] Ship @2026-10-22T09:00\n  - [x] Build\n  - [x] Tag\n"
+        );
     }
 }

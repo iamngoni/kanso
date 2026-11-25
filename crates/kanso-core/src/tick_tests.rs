@@ -305,3 +305,202 @@ proptest! {
         prop_assert_eq!(stop_repeating(&out, line), None);
     }
 }
+
+// MARK: Linked nested tasks
+
+const TREE: &str = "- [ ] parent\n  - [ ] one\n    - [ ] deep\n  - [ ] two\n- [ ] other\n";
+
+#[test]
+fn ticking_a_parent_ticks_everything_under_it() {
+    assert_eq!(
+        tick_task_linked(TREE, 0, TODAY, true).unwrap(),
+        "- [x] parent\n  - [x] one\n    - [x] deep\n  - [x] two\n- [ ] other\n"
+    );
+}
+
+#[test]
+fn ticking_the_last_child_ticks_the_parent_up_the_tree() {
+    let body = "- [ ] parent\n  - [x] one\n    - [ ] deep\n  - [x] two\n";
+    assert_eq!(
+        tick_task_linked(body, 2, TODAY, true).unwrap(),
+        "- [x] parent\n  - [x] one\n    - [x] deep\n  - [x] two\n"
+    );
+    // One child still open: the parent stays open.
+    let open = "- [ ] parent\n  - [ ] one\n  - [ ] two\n";
+    assert_eq!(
+        tick_task_linked(open, 1, TODAY, true).unwrap(),
+        "- [ ] parent\n  - [x] one\n  - [ ] two\n"
+    );
+}
+
+#[test]
+fn clearing_a_child_reopens_its_ancestors_and_leaves_its_children() {
+    let body = "- [x] parent\n  - [x] one\n    - [x] deep\n  - [x] two\n";
+    assert_eq!(
+        tick_task_linked(body, 1, TODAY, true).unwrap(),
+        "- [ ] parent\n  - [ ] one\n    - [x] deep\n  - [x] two\n"
+    );
+    // Clearing a parent leaves its children alone.
+    assert_eq!(
+        tick_task_linked(body, 0, TODAY, true).unwrap(),
+        "- [ ] parent\n  - [x] one\n    - [x] deep\n  - [x] two\n"
+    );
+}
+
+#[test]
+fn a_repeating_child_is_never_cascaded_and_counts_as_open() {
+    let body = "- [ ] parent\n  - [ ] plain\n  - [ ] water @2026-11-14 every day\n";
+    assert_eq!(
+        tick_task_linked(body, 0, TODAY, true).unwrap(),
+        "- [x] parent\n  - [x] plain\n  - [ ] water @2026-11-14 every day\n"
+    );
+    // The plain child is the last one done, but the repeating one is open.
+    assert_eq!(
+        tick_task_linked(body, 1, TODAY, true).unwrap(),
+        "- [ ] parent\n  - [x] plain\n  - [ ] water @2026-11-14 every day\n"
+    );
+}
+
+#[test]
+fn ticking_a_repeating_child_cascades_on_the_body_it_wrote() {
+    // The next one goes above; the log line is the one that is ticked, and
+    // the new open repeating line keeps the parent open.
+    let body = "- [ ] parent\n  - [ ] water @2026-11-14 every day\n    - [ ] sub\n";
+    assert_eq!(
+        tick_task_linked(body, 1, TODAY, true).unwrap(),
+        "- [ ] parent\n  - [ ] water @2026-11-15 every day\n  - [x] water @2026-11-14\n    - [x] sub\n"
+    );
+}
+
+#[test]
+fn code_fences_and_other_lines_are_not_part_of_the_tree() {
+    let body = "- [ ] parent\n```\n  - [ ] in fence\n```\n  - [ ] child\ntext\n";
+    assert_eq!(
+        tick_task_linked(body, 0, TODAY, true).unwrap(),
+        "- [x] parent\n```\n  - [ ] in fence\n```\n  - [x] child\ntext\n"
+    );
+}
+
+#[test]
+fn would_cascade_is_true_only_when_the_link_changes_the_tick() {
+    assert!(would_cascade(TREE, 0, TODAY));
+    assert!(!would_cascade(TREE, 4, TODAY));
+    assert!(!would_cascade(TREE, 9, TODAY));
+    // The only child ticks the parent.
+    assert!(would_cascade("- [ ] a\n  - [ ] b\n", 1, TODAY));
+}
+
+fn gen_tree_line() -> impl Strategy<Value = String> {
+    (
+        prop_oneof![Just(""), Just("  "), Just("    "), Just("\t")],
+        prop_oneof![Just("[ ]"), Just("[x]")],
+        "[a-z]{1,5}",
+        prop::option::of(gen_rule()),
+    )
+        .prop_map(|(lead, boxed, words, rule)| match rule {
+            Some(rule) => format!("{lead}- {boxed} {words} @2026-11-14 {rule}"),
+            None => format!("{lead}- {boxed} {words}"),
+        })
+}
+
+fn gen_tree() -> impl Strategy<Value = String> {
+    prop::collection::vec(
+        prop_oneof![
+            4 => gen_tree_line(),
+            1 => Just("plain".to_owned()),
+            1 => Just("```".to_owned()),
+        ],
+        1..9,
+    )
+    .prop_map(|lines| lines.join("\n") + "\n")
+}
+
+/// The body with every task's box blanked, to compare what is not a box.
+fn without_boxes(body: &str) -> String {
+    body.lines()
+        .map(|line| {
+            if crate::tasks::task_marker(line).is_some() {
+                line.replacen("[x]", "[ ]", 1).replacen("[X]", "[ ]", 1)
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// Unlinked is the plain tick, whatever the tree looks like.
+    #[test]
+    fn prop_unlinked_equals_the_plain_tick(body in gen_tree(), today in (-20_000i64..60_000).prop_map(Date::from_days)) {
+        for ix in 0..=task_items(&body).len() {
+            prop_assert_eq!(tick_task_linked(&body, ix, today, false), tick_task_at(&body, ix, today));
+        }
+    }
+
+    /// Linking changes only boxes: apart from them the body is the plain
+    /// tick's, and the lines that are not tasks are byte for byte the same.
+    #[test]
+    fn prop_linking_only_changes_boxes(body in gen_tree(), today in (-20_000i64..60_000).prop_map(Date::from_days)) {
+        for ix in 0..task_items(&body).len() {
+            let plain = tick_task_at(&body, ix, today).unwrap();
+            let linked = tick_task_linked(&body, ix, today, true).unwrap();
+            prop_assert_eq!(without_boxes(&linked), without_boxes(&plain));
+            prop_assert_eq!(linked.ends_with('\n'), plain.ends_with('\n'));
+            let others = |s: &str| -> Vec<String> {
+                s.lines().filter(|l| crate::tasks::task_marker(l).is_none()).map(str::to_owned).collect()
+            };
+            prop_assert_eq!(others(&linked), others(&plain));
+        }
+    }
+
+    /// After ticking an open parent, every non-repeating task under it is done.
+    #[test]
+    fn prop_ticking_a_parent_ticks_its_descendants(body in gen_tree(), today in (-20_000i64..60_000).prop_map(Date::from_days)) {
+        let before = task_items(&body);
+        let depth = indents(&body, &before);
+        for ix in 0..before.len() {
+            if before[ix].checked || before[ix].repeat.is_some() {
+                continue;
+            }
+            let out = tick_task_linked(&body, ix, today, true).unwrap();
+            let after = task_items(&out);
+            prop_assert_eq!(after.len(), before.len());
+            prop_assert!(after[ix].checked);
+            for j in ix + 1..before.len() {
+                if depth[j] <= depth[ix] {
+                    break;
+                }
+                prop_assert!(after[j].checked || after[j].repeat.is_some());
+            }
+        }
+    }
+
+    /// Ticking an open leaf and then clearing it, both linked, leaves the
+    /// leaf and every task above it open.
+    #[test]
+    fn prop_clearing_a_leaf_reopens_the_ancestors(body in gen_tree(), today in (-20_000i64..60_000).prop_map(Date::from_days)) {
+        let before = task_items(&body);
+        let depth = indents(&body, &before);
+        for ix in 0..before.len() {
+            let leaf = before[ix].repeat.is_none()
+                && !before[ix].checked
+                && (ix + 1 == before.len() || depth[ix + 1] <= depth[ix]);
+            if !leaf {
+                continue;
+            }
+            let ticked = tick_task_linked(&body, ix, today, true).unwrap();
+            let cleared = tick_task_linked(&ticked, ix, today, true).unwrap();
+            let items = task_items(&cleared);
+            let depth_after = indents(&cleared, &items);
+            prop_assert!(!items[ix].checked);
+            let mut child = ix;
+            while let Some(parent) = parent_of(&depth_after, child) {
+                prop_assert!(!items[parent].checked);
+                child = parent;
+            }
+        }
+    }
+}

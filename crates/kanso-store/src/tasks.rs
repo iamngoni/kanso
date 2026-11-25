@@ -8,7 +8,7 @@ use kanso_core::embargo;
 use kanso_core::model::LOCK_FIELD;
 use kanso_core::reminders::{ACK_FIELD, Acks, acknowledge, acks_value, read_acks, task_key};
 use kanso_core::reschedule::set_task_due;
-use kanso_core::tasks::{TaskEdit, set_task_checked, task_items};
+use kanso_core::tasks::{TaskEdit, set_task_checked_linked, task_items};
 use rusqlite::params;
 use rusqlite::types::Value as SqlValue;
 use serde_json::Value;
@@ -207,6 +207,26 @@ impl Store {
             .off)
     }
 
+    /// [`Store::set_task_checked`] with `link` set: the tasks nested under
+    /// or over the one changed follow it
+    /// ([`kanso_core::tick::tick_task_linked`]).
+    #[allow(clippy::too_many_arguments)]
+    pub fn set_task_checked_linked(
+        &self,
+        id: &str,
+        line: u32,
+        text: &str,
+        checked: bool,
+        now_ms: i64,
+        origin: Origin,
+        link: bool,
+    ) -> Result<CheckOff> {
+        let today = local_today(now_ms);
+        Ok(self
+            .tick_task_linked(id, line, text, checked, today, now_ms, origin, link)?
+            .off)
+    }
+
     /// [`Store::set_task_checked`] on the local day `today`, with what takes
     /// a repeating task's tick back.
     #[allow(clippy::too_many_arguments)]
@@ -220,18 +240,40 @@ impl Store {
         now_ms: i64,
         origin: Origin,
     ) -> Result<TickResult> {
+        self.tick_task_linked(id, line, text, checked, today, now_ms, origin, false)
+    }
+
+    /// [`Store::tick_task`], linking nested tasks when `link` is set. The
+    /// undo is also given when the link changed more than one line.
+    #[allow(clippy::too_many_arguments)]
+    pub fn tick_task_linked(
+        &self,
+        id: &str,
+        line: u32,
+        text: &str,
+        checked: bool,
+        today: Date,
+        now_ms: i64,
+        origin: Origin,
+        link: bool,
+    ) -> Result<TickResult> {
         self.write(|tx, changes| {
             let row = load_row(tx, id)?
                 .filter(|r| !r.deleted)
                 .ok_or(StoreError::NotFound)?;
             let body = row.fields.get("body").and_then(Value::as_str).unwrap_or("");
             let plain = |off| TickResult { off, undo: None };
-            match set_task_checked(body, line, text, checked, today) {
+            match set_task_checked_linked(body, line, text, checked, today, link) {
                 TaskEdit::Missing => Ok(plain(CheckOff::Missing)),
                 TaskEdit::Unchanged => Ok(plain(CheckOff::Unchanged)),
                 TaskEdit::Changed(after) => {
                     let wrote_next = after.lines().count() > body.lines().count();
-                    let undo = wrote_next.then(|| TickUndo {
+                    let moved = after
+                        .lines()
+                        .zip(body.lines())
+                        .filter(|(new, old)| new != old)
+                        .count();
+                    let undo = (wrote_next || moved > 1).then(|| TickUndo {
                         before: body.to_owned(),
                         after: after.clone(),
                     });

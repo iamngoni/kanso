@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 
 use kanso_core::dates::DateTime;
 use kanso_core::tasks::{Due, TaskGroup, task_group};
-use kanso_store::{CheckOff, Origin, Store, StoreError, TaskRow};
+use kanso_store::{CheckOff, Origin, Store, StoreError, TaskRow, TickUndo};
 
 pub use super::board_model::{CheckedOff, Entry, TaskId, Toggled};
 
@@ -26,6 +26,9 @@ pub struct Board {
     /// struck through, rather than vanish under the pointer.
     pub kept: HashSet<TaskId>,
     pub last: Option<CheckedOff>,
+    /// Whole-body restore for [`Board::last`] when the tick changed more
+    /// than one line (linked nested tasks or a repeating task).
+    pub last_undo: Option<TickUndo>,
 }
 
 impl Board {
@@ -135,13 +138,26 @@ impl Board {
     /// Ticks the task (or clears it) in its note, in one write, and
     /// remembers it for [`Board::undo`].
     pub fn toggle(&mut self, id: &TaskId, store: &Store, now_ms: i64) -> Toggled {
+        self.toggle_linked(id, store, now_ms, false)
+    }
+
+    /// [`Board::toggle`], also ticking nested tasks when `link` is set.
+    pub fn toggle_linked(
+        &mut self,
+        id: &TaskId,
+        store: &Store,
+        now_ms: i64,
+        link: bool,
+    ) -> Toggled {
         let Some(row) = self.rows.iter().find(|row| TaskId::of(row) == *id) else {
             return Toggled::Nothing;
         };
         let checked = !row.checked;
-        match self.set(id, checked, store, now_ms) {
+        let (outcome, undo) = self.set_linked(id, checked, store, now_ms, link);
+        match outcome {
             Toggled::Done(done) => {
                 self.last = Some(done.clone());
+                self.last_undo = undo;
                 Toggled::Done(done)
             }
             other => other,
@@ -153,26 +169,70 @@ impl Board {
         let Some(last) = self.last.take() else {
             return Toggled::Nothing;
         };
-        self.set(&last.id, !last.checked, store, now_ms)
+        if let Some(undo) = self.last_undo.take() {
+            return match store.undo_tick(&last.id.note_id, &undo, now_ms, Origin::Ui) {
+                Ok(CheckOff::Changed { .. }) => {
+                    for row in self
+                        .rows
+                        .iter_mut()
+                        .filter(|row| TaskId::of(row) == last.id)
+                    {
+                        row.checked = !last.checked;
+                    }
+                    Toggled::Done(CheckedOff {
+                        id: last.id,
+                        checked: !last.checked,
+                    })
+                }
+                Ok(CheckOff::Unchanged) => Toggled::Nothing,
+                Ok(CheckOff::Missing) | Err(StoreError::NotFound) => Toggled::Moved,
+                Err(err) => Toggled::Failed(err.to_string()),
+            };
+        }
+        self.set_linked(&last.id, !last.checked, store, now_ms, false)
+            .0
     }
 
-    fn set(&mut self, id: &TaskId, checked: bool, store: &Store, now_ms: i64) -> Toggled {
-        match store.set_task_checked(&id.note_id, id.line, &id.text, checked, now_ms, Origin::Ui) {
-            Ok(CheckOff::Changed { .. }) => {
-                for row in self.rows.iter_mut().filter(|row| TaskId::of(row) == *id) {
-                    row.checked = checked;
+    fn set_linked(
+        &mut self,
+        id: &TaskId,
+        checked: bool,
+        store: &Store,
+        now_ms: i64,
+        link: bool,
+    ) -> (Toggled, Option<TickUndo>) {
+        let today = kanso_store::local_today(now_ms);
+        match store.tick_task_linked(
+            &id.note_id,
+            id.line,
+            &id.text,
+            checked,
+            today,
+            now_ms,
+            Origin::Ui,
+            link,
+        ) {
+            Ok(result) => match result.off {
+                CheckOff::Changed { .. } => {
+                    for row in self.rows.iter_mut().filter(|row| TaskId::of(row) == *id) {
+                        row.checked = checked;
+                    }
+                    if checked {
+                        self.kept.insert(id.clone());
+                    }
+                    (
+                        Toggled::Done(CheckedOff {
+                            id: id.clone(),
+                            checked,
+                        }),
+                        result.undo,
+                    )
                 }
-                if checked {
-                    self.kept.insert(id.clone());
-                }
-                Toggled::Done(CheckedOff {
-                    id: id.clone(),
-                    checked,
-                })
-            }
-            Ok(CheckOff::Unchanged) => Toggled::Nothing,
-            Ok(CheckOff::Missing) | Err(StoreError::NotFound) => Toggled::Moved,
-            Err(err) => Toggled::Failed(err.to_string()),
+                CheckOff::Unchanged => (Toggled::Nothing, None),
+                CheckOff::Missing => (Toggled::Moved, None),
+            },
+            Err(StoreError::NotFound) => (Toggled::Moved, None),
+            Err(err) => (Toggled::Failed(err.to_string()), None),
         }
     }
 }
@@ -546,5 +606,32 @@ mod tests {
             fresh.set_rows(board.rows.clone());
             prop_assert!(!fresh.listed(&fresh.rows[ix]));
         }
+    }
+
+    #[test]
+    fn toggle_linked_ticks_children_and_undo_restores_all() {
+        let (_dir, store) = store_with(&["- [ ] parent\n  - [ ] child\n"]);
+        let rows = store
+            .tasks(&TaskQuery {
+                include_done: true,
+                ..Default::default()
+            })
+            .unwrap();
+        let mut board = Board::default();
+        board.set_rows(rows);
+        let parent = TaskId::of(&board.rows[0]);
+        assert!(matches!(
+            board.toggle_linked(&parent, &store, 100, true),
+            Toggled::Done(_)
+        ));
+        assert_eq!(
+            store.note("note:n0").unwrap().unwrap().body,
+            "- [x] parent\n  - [x] child\n"
+        );
+        assert!(matches!(board.undo(&store, 200), Toggled::Done(_)));
+        assert_eq!(
+            store.note("note:n0").unwrap().unwrap().body,
+            "- [ ] parent\n  - [ ] child\n"
+        );
     }
 }

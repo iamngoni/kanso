@@ -20,7 +20,7 @@ use kanso_store::{CheckOff, Origin, TickUndo};
 use crate::boundary::{guard, held};
 use crate::errors::KansoError;
 use crate::library::Library;
-use crate::model::Ticked;
+use crate::model::{TickNested, Ticked};
 
 /// How many changes are kept for Undo.
 const KEPT: usize = 16;
@@ -89,6 +89,9 @@ impl Library {
     /// desktop's Tasks view and preview do; when the line moved, the one
     /// task with that text is changed. A locked note that is open is sealed
     /// again; a closed one refuses with [`KansoError::Locked`].
+    ///
+    /// With "Tick nested tasks together" set to Always the tasks nested
+    /// under or over it follow (see [`Library::set_task_linked`]).
     pub fn set_task(
         &self,
         note_id: &str,
@@ -96,8 +99,25 @@ impl Library {
         text: &str,
         checked: bool,
     ) -> Result<Ticked, KansoError> {
+        let link = self.tick_nested()? == TickNested::Always;
+        self.set_task_linked(note_id, line, text, checked, link)
+    }
+
+    /// [`Library::set_task`] with `link` said outright: when set, ticking
+    /// also ticks the open tasks nested under it and the parent once its
+    /// last child is done, and clearing reopens the ticked parents above
+    /// ([`kanso_core::tick::tick_task_linked`]). The ticket takes it all
+    /// back in one write.
+    pub fn set_task_linked(
+        &self,
+        note_id: &str,
+        line: u32,
+        text: &str,
+        checked: bool,
+        link: bool,
+    ) -> Result<Ticked, KansoError> {
         guard(|| {
-            let ticked = self.write_task(note_id, line, text, checked)?;
+            let ticked = self.write_task(note_id, line, text, checked, link)?;
             Ok(match ticked {
                 Written::Changed(rev, restore) => Ticked::Changed {
                     rev,
@@ -184,10 +204,12 @@ impl Library {
                     if let Some(restore) = restore {
                         return self.restore_tick(&note_id, &restore);
                     }
-                    Ok(match self.write_task(&note_id, line, &text, checked)? {
-                        Written::Changed(..) => 1,
-                        Written::Unchanged | Written::Missing => 0,
-                    })
+                    Ok(
+                        match self.write_task(&note_id, line, &text, checked, false)? {
+                            Written::Changed(..) => 1,
+                            Written::Unchanged | Written::Missing => 0,
+                        },
+                    )
                 }
             }
         })
@@ -223,11 +245,12 @@ impl Library {
         line: u32,
         text: &str,
         checked: bool,
+        link: bool,
     ) -> Result<Written, KansoError> {
         let store = &self.inner.store;
         if !store.note_is_locked(note_id)? {
             let now = kanso_core::now_ms();
-            let tick = store.tick_task(
+            let tick = store.tick_task_linked(
                 note_id,
                 line,
                 text,
@@ -235,6 +258,7 @@ impl Library {
                 kanso_store::local_today(now),
                 now,
                 Origin::Ui,
+                link,
             )?;
             return Ok(match tick.off {
                 CheckOff::Changed { rev } => Written::Changed(rev, tick.undo),
@@ -246,13 +270,19 @@ impl Library {
         // saving seals it again.
         let (note, body) = self.readable_text(note_id)?.ok_or(KansoError::Locked)?;
         let today = kanso_store::local_today(kanso_core::now_ms());
-        match kanso_core::tasks::set_task_checked(&body, line, text, checked, today) {
+        match kanso_core::tasks::set_task_checked_linked(&body, line, text, checked, today, link) {
             TaskEdit::Changed(after) => {
                 let rev = note.rev.unwrap_or_default();
-                let restore = (after.lines().count() > body.lines().count()).then(|| TickUndo {
-                    before: body.clone(),
-                    after: after.clone(),
-                });
+                let moved = after
+                    .lines()
+                    .zip(body.lines())
+                    .filter(|(a, b)| a != b)
+                    .count();
+                let restore =
+                    (after.lines().count() > body.lines().count() || moved > 1).then(|| TickUndo {
+                        before: body.clone(),
+                        after: after.clone(),
+                    });
                 Ok(Written::Changed(
                     self.save(note_id, &rev, after)?.rev,
                     restore,

@@ -373,6 +373,44 @@ impl Library {
         index: u32,
         base_rev: &str,
     ) -> Result<Ticked, KansoError> {
+        self.toggle_task_with(note_id, index, base_rev, None)
+    }
+
+    /// [`Library::toggle_task_at`] with `link` said outright (nested tasks
+    /// follow when set), as the page does after asking
+    /// ([`Library::set_task_linked`]).
+    pub fn toggle_task_at_linked(
+        &self,
+        note_id: &str,
+        index: u32,
+        base_rev: &str,
+        link: bool,
+    ) -> Result<Ticked, KansoError> {
+        self.toggle_task_with(note_id, index, base_rev, Some(link))
+    }
+
+    /// Whether ticking the `index`-th task box of note `note_id` with the
+    /// link would write more than the plain tick: the page asks first when
+    /// it would.
+    pub fn toggle_task_would_cascade(&self, note_id: &str, index: u32) -> Result<bool, KansoError> {
+        guard(|| {
+            let (_, text) = self.readable_text(note_id)?.ok_or(KansoError::Locked)?;
+            let today = kanso_store::local_today(kanso_core::now_ms());
+            Ok(kanso_core::tick::would_cascade(
+                &text,
+                index as usize,
+                today,
+            ))
+        })
+    }
+
+    fn toggle_task_with(
+        &self,
+        note_id: &str,
+        index: u32,
+        base_rev: &str,
+        link: Option<bool>,
+    ) -> Result<Ticked, KansoError> {
         guard(|| {
             let (note, text) = self.readable_text(note_id)?.ok_or(KansoError::Locked)?;
             if note.rev.as_deref() != Some(base_rev) {
@@ -384,7 +422,12 @@ impl Library {
             let Some(item) = items.get(index as usize) else {
                 return Ok(Ticked::Missing);
             };
-            let ticked = self.set_task(note_id, item.line, &item.text, !item.checked)?;
+            let ticked = match link {
+                Some(link) => {
+                    self.set_task_linked(note_id, item.line, &item.text, !item.checked, link)?
+                }
+                None => self.set_task(note_id, item.line, &item.text, !item.checked)?,
+            };
             self.inner
                 .metrics()
                 .count(crate::metrics::Feature::TaskToggled);

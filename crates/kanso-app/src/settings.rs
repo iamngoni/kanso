@@ -34,7 +34,8 @@ use gpui_kit::*;
 use crate::account_page::AccountPage;
 use crate::clock::Clock;
 use crate::config::{
-    DEFAULT_FONT_SIZE, DiagramRenderer, EditorFont, EditorSettings, SyncSettings, Typewriter,
+    DEFAULT_FONT_SIZE, DiagramRenderer, EditorFont, EditorSettings, SyncSettings, TickNested,
+    Typewriter,
 };
 use crate::flavour;
 use crate::layout::{BOTTOM_BAND_HEIGHT, TOP_BAND_HEIGHT};
@@ -1394,6 +1395,19 @@ fn writing_section(cx: &mut Context<SettingsView>) -> AnyElement {
             Row::new(Lucide::Hash, "Tags from #words")
                 .detail("A #word in a note's text becomes one of its tags when the note is saved; #work/clients nests. Not in code, links or headings, and tags added by hand stay.")
                 .trailing(switch("inline-tags", writing.inline_tags, |e, on| e.inline_tags = on)),
+            Row::new(Lucide::ListChecks, "Tick nested tasks together")
+                .detail("Ticking a task also ticks the tasks indented under it, and ticking the last of them ticks the parent. Unticking one reopens the parents above it.")
+                .trailing(segmented(
+                    "tick-nested",
+                    [
+                        ("Ask", TickNested::Ask),
+                        ("Always", TickNested::Always),
+                        ("Never", TickNested::Never),
+                    ],
+                    writing.tick_nested,
+                    |value, _, cx| set_tick_nested(cx, value),
+                    colors,
+                )),
             Row::new(Lucide::Keyboard, "Vim keys")
                 .detail(format!(
                     "Normal, Insert and Visual modes in the note's text, shown in its footer. {} shortcuts work as always.",
@@ -1497,6 +1511,11 @@ fn keys_label(keys: &str) -> String {
 fn set_writing(cx: &mut App, change: impl FnOnce(&mut EditorSettings)) {
     AppState::update_config(cx, |config| change(&mut config.editor));
     update_editors(cx);
+}
+
+/// Sets "Tick nested tasks together", as the first-time question does.
+pub(crate) fn set_tick_nested(cx: &mut App, value: crate::config::TickNested) {
+    set_writing(cx, |editor| editor.tick_nested = value);
 }
 
 fn api_page(

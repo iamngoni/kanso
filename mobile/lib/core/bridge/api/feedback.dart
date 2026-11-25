@@ -102,17 +102,22 @@ class FeedbackContext {
 sealed class FeedbackCredit with _$FeedbackCredit {
   const FeedbackCredit._();
 
-  const factory FeedbackCredit.name({required String name}) =
-      FeedbackCredit_Name;
-  const factory FeedbackCredit.github({required String login}) =
-      FeedbackCredit_Github;
+  const factory FeedbackCredit.name({
+    required String name,
+  }) = FeedbackCredit_Name;
+  const factory FeedbackCredit.github({
+    required String login,
+  }) = FeedbackCredit_Github;
 }
 
 class FeedbackGithubUser {
   final String login;
   final String avatarUrl;
 
-  const FeedbackGithubUser({required this.login, required this.avatarUrl});
+  const FeedbackGithubUser({
+    required this.login,
+    required this.avatarUrl,
+  });
 
   @override
   int get hashCode => login.hashCode ^ avatarUrl.hashCode;

@@ -140,6 +140,7 @@ import 'core/services/external_changes.dart' as _i825;
 import 'core/services/library_folder_migration.dart' as _i846;
 import 'core/services/preview_theme_fitter.dart' as _i550;
 import 'core/services/review_prompt.dart' as _i849;
+import 'core/services/tick_nested_prompt.dart' as _i312;
 import 'core/services/widget_reloader.dart' as _i608;
 import 'core/state/account/account_bloc.dart' as _i168;
 import 'core/state/appearance/appearance_bloc.dart' as _i551;
@@ -395,6 +396,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i909.PatchRepository>(
       () => _i989.ShorebirdPatchRepository(),
     );
+    gh.lazySingleton<_i312.TickNestedPrompt>(
+      () => _i312.DialogTickNestedPrompt(),
+    );
     gh.lazySingleton<_i690.StoreReviewRepository>(
       () => _i155.InAppStoreReviewRepository(),
     );
@@ -510,12 +514,7 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i152.RustLibraryRepository(
         gh<_i455.KansoLibrary>(),
         gh<_i825.ExternalChanges>(),
-      ),
-    );
-    gh.lazySingleton<_i985.UndoNoticeBloc>(
-      () => _i985.UndoNoticeBloc(
-        gh<_i38.LibraryRepository>(),
-        gh<_i1056.HapticsRepository>(),
+        gh<_i312.TickNestedPrompt>(),
       ),
     );
     gh.lazySingleton<_i727.CanvasRepository>(
@@ -705,13 +704,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i38.LibraryRepository>(),
       ),
     );
-    gh.factory<_i1007.TriageBloc>(
-      () => _i1007.TriageBloc(
-        gh<_i731.TriageRepository>(),
-        gh<_i985.UndoNoticeBloc>(),
-        gh<_i1056.HapticsRepository>(),
-      ),
-    );
     gh.lazySingleton<_i367.PdfReaderRepository>(
       () => _i758.RustPdfReaderRepository(gh<_i455.KansoLibrary>()),
     );
@@ -773,14 +765,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i608.ReplaceRepository>(
       () => _i1.RustReplaceRepository(gh<_i455.KansoLibrary>()),
-    );
-    gh.factory<_i351.NoteListBloc>(
-      () => _i351.NoteListBloc(
-        gh<_i38.LibraryRepository>(),
-        gh<_i384.PreferencesRepository>(),
-        gh<_i1056.HapticsRepository>(),
-        gh<_i985.UndoNoticeBloc>(),
-      ),
     );
     gh.lazySingleton<_i1002.BackupsRepository>(
       () => _i270.RustBackupsRepository(gh<_i455.KansoLibrary>()),
@@ -855,13 +839,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i919.NoticesCubit>(
       () => _i919.NoticesCubit(gh<_i691.NoticesRepository>()),
     );
-    gh.factory<_i470.TasksBloc>(
-      () => _i470.TasksBloc(
-        gh<_i38.LibraryRepository>(),
-        gh<_i1056.HapticsRepository>(),
-        gh<_i985.UndoNoticeBloc>(),
-      ),
-    );
     gh.lazySingleton<_i755.PeopleRepository>(
       () => _i1053.RustPeopleRepository(gh<_i455.KansoLibrary>()),
     );
@@ -886,6 +863,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i214.AgentTasksRepository>(
       () => _i770.RustAgentTasksRepository(gh<_i35.KansoAi>()),
+    );
+    gh.lazySingleton<_i985.UndoNoticeBloc>(
+      () => _i985.UndoNoticeBloc(
+        gh<_i38.LibraryRepository>(),
+        gh<_i1056.HapticsRepository>(),
+      ),
     );
     gh.lazySingleton<_i601.SyncRepository>(
       () => _i564.RustSyncRepository(gh<_i591.KansoSync>()),
@@ -1004,6 +987,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1027.VoiceSettingsRepository>(),
       ),
     );
+    gh.factory<_i1007.TriageBloc>(
+      () => _i1007.TriageBloc(
+        gh<_i731.TriageRepository>(),
+        gh<_i985.UndoNoticeBloc>(),
+        gh<_i1056.HapticsRepository>(),
+      ),
+    );
     gh.factory<_i519.MyFeedbackBloc>(
       () => _i519.MyFeedbackBloc(gh<_i15.FeedbackRepository>()),
     );
@@ -1064,6 +1054,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i168.AccountBloc>(
       () => _i168.AccountBloc(gh<_i1035.AccountRepository>()),
     );
+    gh.factory<_i351.NoteListBloc>(
+      () => _i351.NoteListBloc(
+        gh<_i38.LibraryRepository>(),
+        gh<_i384.PreferencesRepository>(),
+        gh<_i1056.HapticsRepository>(),
+        gh<_i985.UndoNoticeBloc>(),
+      ),
+    );
     gh.factory<_i869.NotebookSharingBloc>(
       () => _i869.NotebookSharingBloc(
         gh<_i564.SharedNotebooksRepository>(),
@@ -1121,6 +1119,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i750.BookNoticeInbox>(
       () => _i750.BookNoticeInbox(gh<_i374.SharedNotesRepository>()),
+    );
+    gh.factory<_i470.TasksBloc>(
+      () => _i470.TasksBloc(
+        gh<_i38.LibraryRepository>(),
+        gh<_i1056.HapticsRepository>(),
+        gh<_i985.UndoNoticeBloc>(),
+      ),
     );
     gh.factory<_i54.AgentReviewBloc>(
       () => _i54.AgentReviewBloc(gh<_i214.AgentTasksRepository>()),

@@ -384,9 +384,36 @@ impl ScheduleView {
             return;
         }
         let checked = !item.done;
+        let today = crate::journal::now(cx).date;
+        let store = self.store.clone();
+        let asked = item.clone();
+        let link = crate::tick_link::link_or_ask(
+            cx,
+            || {
+                crate::tick_link::store_cascades(
+                    &store,
+                    &item.note_id,
+                    line,
+                    &item.text,
+                    checked,
+                    today,
+                )
+            },
+            move |this, link, cx| this.tick_item(&asked, link, cx),
+        );
+        if let Some(link) = link {
+            self.tick_item(&item, link, cx);
+        }
+    }
+
+    /// [`Self::tick`] once it is known whether nested tasks follow.
+    fn tick_item(&mut self, item: &ScheduleItem, link: bool, cx: &mut Context<Self>) {
+        let Some(line) = item.line else { return };
+        let checked = !item.done;
         let now_ms = Clock::now_ms(cx);
         let today = crate::journal::now(cx).date;
-        match self.store.tick_task(
+        let item = item.clone();
+        match self.store.tick_task_linked(
             &item.note_id,
             line,
             &item.text,
@@ -394,6 +421,7 @@ impl ScheduleView {
             today,
             now_ms,
             Origin::Ui,
+            link,
         ) {
             Ok(result) => match result.off {
                 CheckOff::Changed { .. } => {

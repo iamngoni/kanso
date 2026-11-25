@@ -617,13 +617,39 @@ impl NotebookHomeView {
         {
             return;
         }
-        match self.store.set_task_checked(
-            &task.note_id,
-            task.line,
-            &task.text,
+        let (id, line, text) = (task.note_id.clone(), task.line, task.text.clone());
+        let now_ms = crate::clock::Clock::now_ms(cx);
+        let today = kanso_store::local_today(now_ms);
+        let store = self.store.clone();
+        let asked = (id.clone(), text.clone());
+        let link = crate::tick_link::link_or_ask(
+            cx,
+            || crate::tick_link::store_cascades(&store, &id, line, &text, checked, today),
+            move |this, link, cx| this.tick_now(&asked.0, line, &asked.1, checked, link, cx),
+        );
+        if let Some(link) = link {
+            self.tick_now(&id, line, &text, checked, link, cx);
+        }
+    }
+
+    /// [`Self::tick`] once it is known whether nested tasks follow.
+    fn tick_now(
+        &mut self,
+        id: &str,
+        line: u32,
+        text: &str,
+        checked: bool,
+        link: bool,
+        cx: &mut Context<Self>,
+    ) {
+        match self.store.set_task_checked_linked(
+            id,
+            line,
+            text,
             checked,
             crate::clock::Clock::now_ms(cx),
             Origin::Ui,
+            link,
         ) {
             Ok(CheckOff::Missing) => cx.emit(HomeEvent::Notice(
                 "That task changed in its note. The page is up to date now.".into(),

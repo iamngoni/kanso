@@ -52,12 +52,13 @@ extension WordGoalSettingsEventPatterns on WordGoalSettingsEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( WordGoalSettingsStartedEvent value)?  started,TResult Function( WordGoalDefaultChangedEvent value)?  defaultChanged,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( WordGoalSettingsStartedEvent value)?  started,TResult Function( WordGoalDefaultChangedEvent value)?  defaultChanged,TResult Function( TickNestedChangedEvent value)?  tickNestedChanged,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case WordGoalSettingsStartedEvent() when started != null:
 return started(_that);case WordGoalDefaultChangedEvent() when defaultChanged != null:
-return defaultChanged(_that);case _:
+return defaultChanged(_that);case TickNestedChangedEvent() when tickNestedChanged != null:
+return tickNestedChanged(_that);case _:
   return orElse();
 
 }
@@ -75,12 +76,13 @@ return defaultChanged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( WordGoalSettingsStartedEvent value)  started,required TResult Function( WordGoalDefaultChangedEvent value)  defaultChanged,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( WordGoalSettingsStartedEvent value)  started,required TResult Function( WordGoalDefaultChangedEvent value)  defaultChanged,required TResult Function( TickNestedChangedEvent value)  tickNestedChanged,}){
 final _that = this;
 switch (_that) {
 case WordGoalSettingsStartedEvent():
 return started(_that);case WordGoalDefaultChangedEvent():
-return defaultChanged(_that);}
+return defaultChanged(_that);case TickNestedChangedEvent():
+return tickNestedChanged(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -94,12 +96,13 @@ return defaultChanged(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( WordGoalSettingsStartedEvent value)?  started,TResult? Function( WordGoalDefaultChangedEvent value)?  defaultChanged,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( WordGoalSettingsStartedEvent value)?  started,TResult? Function( WordGoalDefaultChangedEvent value)?  defaultChanged,TResult? Function( TickNestedChangedEvent value)?  tickNestedChanged,}){
 final _that = this;
 switch (_that) {
 case WordGoalSettingsStartedEvent() when started != null:
 return started(_that);case WordGoalDefaultChangedEvent() when defaultChanged != null:
-return defaultChanged(_that);case _:
+return defaultChanged(_that);case TickNestedChangedEvent() when tickNestedChanged != null:
+return tickNestedChanged(_that);case _:
   return null;
 
 }
@@ -116,11 +119,12 @@ return defaultChanged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( int? words)?  defaultChanged,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( int? words)?  defaultChanged,TResult Function( TickNested setting)?  tickNestedChanged,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case WordGoalSettingsStartedEvent() when started != null:
 return started();case WordGoalDefaultChangedEvent() when defaultChanged != null:
-return defaultChanged(_that.words);case _:
+return defaultChanged(_that.words);case TickNestedChangedEvent() when tickNestedChanged != null:
+return tickNestedChanged(_that.setting);case _:
   return orElse();
 
 }
@@ -138,11 +142,12 @@ return defaultChanged(_that.words);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( int? words)  defaultChanged,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( int? words)  defaultChanged,required TResult Function( TickNested setting)  tickNestedChanged,}) {final _that = this;
 switch (_that) {
 case WordGoalSettingsStartedEvent():
 return started();case WordGoalDefaultChangedEvent():
-return defaultChanged(_that.words);}
+return defaultChanged(_that.words);case TickNestedChangedEvent():
+return tickNestedChanged(_that.setting);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -156,11 +161,12 @@ return defaultChanged(_that.words);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( int? words)?  defaultChanged,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( int? words)?  defaultChanged,TResult? Function( TickNested setting)?  tickNestedChanged,}) {final _that = this;
 switch (_that) {
 case WordGoalSettingsStartedEvent() when started != null:
 return started();case WordGoalDefaultChangedEvent() when defaultChanged != null:
-return defaultChanged(_that.words);case _:
+return defaultChanged(_that.words);case TickNestedChangedEvent() when tickNestedChanged != null:
+return tickNestedChanged(_that.setting);case _:
   return null;
 
 }
@@ -233,9 +239,41 @@ String toString() {
 
 
 /// @nodoc
+
+
+class TickNestedChangedEvent implements WordGoalSettingsEvent {
+  const TickNestedChangedEvent(this.setting);
+  
+
+ final  TickNested setting;
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TickNestedChangedEvent&&(identical(other.setting, setting) || other.setting == setting));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,setting);
+
+@override
+String toString() {
+  return 'WordGoalSettingsEvent.tickNestedChanged(setting: $setting)';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$WordGoalSettingsState {
 
- LoadStatus get status; int? get words; ApplicationError? get error;
+ LoadStatus get status; int? get words; TickNested get tickNested; ApplicationError? get error;
 /// Create a copy of WordGoalSettingsState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -246,16 +284,16 @@ $WordGoalSettingsStateCopyWith<WordGoalSettingsState> get copyWith => _$WordGoal
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is WordGoalSettingsState&&(identical(other.status, status) || other.status == status)&&(identical(other.words, words) || other.words == words)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is WordGoalSettingsState&&(identical(other.status, status) || other.status == status)&&(identical(other.words, words) || other.words == words)&&(identical(other.tickNested, tickNested) || other.tickNested == tickNested)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,words,error);
+int get hashCode => Object.hash(runtimeType,status,words,tickNested,error);
 
 @override
 String toString() {
-  return 'WordGoalSettingsState(status: $status, words: $words, error: $error)';
+  return 'WordGoalSettingsState(status: $status, words: $words, tickNested: $tickNested, error: $error)';
 }
 
 
@@ -266,7 +304,7 @@ abstract mixin class $WordGoalSettingsStateCopyWith<$Res>  {
   factory $WordGoalSettingsStateCopyWith(WordGoalSettingsState value, $Res Function(WordGoalSettingsState) _then) = _$WordGoalSettingsStateCopyWithImpl;
 @useResult
 $Res call({
- LoadStatus status, int? words, ApplicationError? error
+ LoadStatus status, int? words, TickNested tickNested, ApplicationError? error
 });
 
 
@@ -283,11 +321,12 @@ class _$WordGoalSettingsStateCopyWithImpl<$Res>
 
 /// Create a copy of WordGoalSettingsState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? words = freezed,Object? error = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? words = freezed,Object? tickNested = null,Object? error = freezed,}) {
   return _then(_self.copyWith(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LoadStatus,words: freezed == words ? _self.words : words // ignore: cast_nullable_to_non_nullable
-as int?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as int?,tickNested: null == tickNested ? _self.tickNested : tickNested // ignore: cast_nullable_to_non_nullable
+as TickNested,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ApplicationError?,
   ));
 }
@@ -385,10 +424,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LoadStatus status,  int? words,  ApplicationError? error)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( LoadStatus status,  int? words,  TickNested tickNested,  ApplicationError? error)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _WordGoalSettingsState() when $default != null:
-return $default(_that.status,_that.words,_that.error);case _:
+return $default(_that.status,_that.words,_that.tickNested,_that.error);case _:
   return orElse();
 
 }
@@ -406,10 +445,10 @@ return $default(_that.status,_that.words,_that.error);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LoadStatus status,  int? words,  ApplicationError? error)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( LoadStatus status,  int? words,  TickNested tickNested,  ApplicationError? error)  $default,) {final _that = this;
 switch (_that) {
 case _WordGoalSettingsState():
-return $default(_that.status,_that.words,_that.error);case _:
+return $default(_that.status,_that.words,_that.tickNested,_that.error);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -426,10 +465,10 @@ return $default(_that.status,_that.words,_that.error);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LoadStatus status,  int? words,  ApplicationError? error)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( LoadStatus status,  int? words,  TickNested tickNested,  ApplicationError? error)?  $default,) {final _that = this;
 switch (_that) {
 case _WordGoalSettingsState() when $default != null:
-return $default(_that.status,_that.words,_that.error);case _:
+return $default(_that.status,_that.words,_that.tickNested,_that.error);case _:
   return null;
 
 }
@@ -441,11 +480,12 @@ return $default(_that.status,_that.words,_that.error);case _:
 
 
 class _WordGoalSettingsState implements WordGoalSettingsState {
-  const _WordGoalSettingsState({this.status = LoadStatus.loading, this.words, this.error});
+  const _WordGoalSettingsState({this.status = LoadStatus.loading, this.words, this.tickNested = TickNested.ask, this.error});
   
 
 @override@JsonKey() final  LoadStatus status;
 @override final  int? words;
+@override@JsonKey() final  TickNested tickNested;
 @override final  ApplicationError? error;
 
 /// Create a copy of WordGoalSettingsState
@@ -458,16 +498,16 @@ _$WordGoalSettingsStateCopyWith<_WordGoalSettingsState> get copyWith => __$WordG
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WordGoalSettingsState&&(identical(other.status, status) || other.status == status)&&(identical(other.words, words) || other.words == words)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WordGoalSettingsState&&(identical(other.status, status) || other.status == status)&&(identical(other.words, words) || other.words == words)&&(identical(other.tickNested, tickNested) || other.tickNested == tickNested)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,words,error);
+int get hashCode => Object.hash(runtimeType,status,words,tickNested,error);
 
 @override
 String toString() {
-  return 'WordGoalSettingsState(status: $status, words: $words, error: $error)';
+  return 'WordGoalSettingsState(status: $status, words: $words, tickNested: $tickNested, error: $error)';
 }
 
 
@@ -478,7 +518,7 @@ abstract mixin class _$WordGoalSettingsStateCopyWith<$Res> implements $WordGoalS
   factory _$WordGoalSettingsStateCopyWith(_WordGoalSettingsState value, $Res Function(_WordGoalSettingsState) _then) = __$WordGoalSettingsStateCopyWithImpl;
 @override @useResult
 $Res call({
- LoadStatus status, int? words, ApplicationError? error
+ LoadStatus status, int? words, TickNested tickNested, ApplicationError? error
 });
 
 
@@ -495,11 +535,12 @@ class __$WordGoalSettingsStateCopyWithImpl<$Res>
 
 /// Create a copy of WordGoalSettingsState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? words = freezed,Object? error = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? words = freezed,Object? tickNested = null,Object? error = freezed,}) {
   return _then(_WordGoalSettingsState(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as LoadStatus,words: freezed == words ? _self.words : words // ignore: cast_nullable_to_non_nullable
-as int?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as int?,tickNested: null == tickNested ? _self.tickNested : tickNested // ignore: cast_nullable_to_non_nullable
+as TickNested,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as ApplicationError?,
   ));
 }

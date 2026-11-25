@@ -15,7 +15,7 @@
 
 use kanso_core::dates::Date;
 use kanso_core::tasks::task_items;
-use kanso_core::tick::tick_task_at;
+use kanso_core::tick::tick_task_linked;
 use kanso_render::html::{TaskSlot, task_boxes};
 
 use crate::preview_chunks::parse_options;
@@ -57,12 +57,25 @@ pub fn tick_at(note: &str, offset: usize) -> Option<TaskTick> {
 
 /// `body` with the task of `tick` toggled, or `None` when `body` no longer
 /// has that task at that place: the note changed since the click was read.
+#[cfg(test)]
 pub fn toggled(body: &str, tick: &TaskTick, today: Date) -> Option<String> {
+    toggled_linked(body, tick, today, false)
+}
+
+/// [`toggled`], with the tasks nested under or over the one ticked following
+/// it when `link` is set ([`tick_task_linked`]).
+pub fn toggled_linked(body: &str, tick: &TaskTick, today: Date, link: bool) -> Option<String> {
     let item = task_items(body).into_iter().nth(tick.index)?;
     let same = item.line == tick.line && item.checked == tick.checked;
     // The one engine function: an open repeating task writes its next one.
-    same.then(|| tick_task_at(body, tick.index, today))
+    same.then(|| tick_task_linked(body, tick.index, today, link))
         .flatten()
+}
+
+/// Whether linking nested tasks would change this tick: what decides if the
+/// editor asks.
+pub fn cascades(body: &str, tick: &TaskTick, today: Date) -> bool {
+    toggled_linked(body, tick, today, true) != toggled_linked(body, tick, today, false)
 }
 
 #[cfg(test)]
@@ -139,6 +152,26 @@ mod tests {
 
     /// A box written with an uppercase `X` comes back with a lowercase one,
     /// the one form Kanso writes.
+    #[test]
+    fn a_linked_tick_follows_the_nesting_and_only_asks_when_it_matters() {
+        let note = "- [ ] a\n  - [ ] b\n- [ ] c\n";
+        let parent = tick_at(note, 0).unwrap();
+        assert!(cascades(note, &parent, TODAY));
+        assert_eq!(
+            toggled_linked(note, &parent, TODAY, true).unwrap(),
+            "- [x] a\n  - [x] b\n- [ ] c\n"
+        );
+        assert_eq!(
+            toggled_linked(note, &parent, TODAY, false).unwrap(),
+            "- [x] a\n  - [ ] b\n- [ ] c\n"
+        );
+        let lone = tick_at(note, note.find("- [ ] c").unwrap()).unwrap();
+        assert!(!cascades(note, &lone, TODAY));
+        // A tick for a task that moved cascades nothing.
+        let moved = "new\n- [ ] a\n  - [ ] b\n";
+        assert!(!cascades(moved, &parent, TODAY));
+    }
+
     #[test]
     fn an_uppercase_x_comes_back_lowercase() {
         let note = "1. [X] done\n";

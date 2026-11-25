@@ -10,11 +10,27 @@ import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/repos/impl/rust_library_repository.dart';
 import 'package:kanso/core/models/repos/impl/rust_session_repository.dart';
+import 'package:kanso/core/services/tick_nested_prompt.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockLibrary extends Mock implements KansoLibrary {}
 
 class _MockLocks extends Mock implements KansoLocks {}
+
+class _Prompt implements TickNestedPrompt {
+  _Prompt({required this.answer});
+
+  final bool answer;
+  int asked = 0;
+
+  @override
+  Future<bool> ask() async {
+    asked++;
+    return answer;
+  }
+}
+
+const _ticked = Ticked.changed(rev: 'r2', undo: 7, message: 'Ticked');
 
 const _query = ListQuery(
   place: ListPlace.all(),
@@ -175,6 +191,106 @@ void main() {
         (_) => Stream<List<String>>.value(const <String>['n_1']),
       );
       expect(await repository.changes().first, <String>['n_1']);
+    });
+  });
+
+  group('RustLibraryRepository ticking nested tasks', () {
+    late _MockLibrary library;
+
+    setUpAll(() => registerFallbackValue(TickNested.ask));
+
+    setUp(() {
+      library = _MockLibrary();
+      when(
+        () => library.setTaskLinked(
+          noteId: any(named: 'noteId'),
+          line: any(named: 'line'),
+          text: any(named: 'text'),
+          checked: any(named: 'checked'),
+          link: any(named: 'link'),
+        ),
+      ).thenAnswer((_) async => _ticked);
+      when(
+        () => library.taskWouldCascade(
+          noteId: any(named: 'noteId'),
+          line: any(named: 'line'),
+          text: any(named: 'text'),
+          checked: any(named: 'checked'),
+        ),
+      ).thenAnswer((_) async => true);
+      when(
+        () => library.setTickNested(setting: any(named: 'setting')),
+      ).thenAnswer((_) async => TickNested.always);
+    });
+
+    Future<void> tick(RustLibraryRepository repository) => repository.setTask(
+      noteId: 'n_1',
+      line: 0,
+      text: 'ship',
+      checked: true,
+    );
+
+    void verifyLink({required bool link, int times = 1}) => verify(
+      () => library.setTaskLinked(
+        noteId: 'n_1',
+        line: 0,
+        text: 'ship',
+        checked: true,
+        link: link,
+      ),
+    ).called(times);
+
+    test('Always links without asking', () async {
+      when(library.tickNested).thenAnswer((_) async => TickNested.always);
+      final prompt = _Prompt(answer: false);
+      await tick(RustLibraryRepository(library, null, prompt));
+      verifyLink(link: true);
+      expect(prompt.asked, 0);
+    });
+
+    test('Never ticks the one task without asking', () async {
+      when(library.tickNested).thenAnswer((_) async => TickNested.never);
+      final prompt = _Prompt(answer: true);
+      await tick(RustLibraryRepository(library, null, prompt));
+      verifyLink(link: false);
+      expect(prompt.asked, 0);
+    });
+
+    test('Ask: Always links and keeps the setting', () async {
+      when(library.tickNested).thenAnswer((_) async => TickNested.ask);
+      final prompt = _Prompt(answer: true);
+      await tick(RustLibraryRepository(library, null, prompt));
+      verifyLink(link: true);
+      verify(
+        () => library.setTickNested(setting: TickNested.always),
+      ).called(1);
+    });
+
+    test('Ask: Not now ticks one task and does not ask again', () async {
+      when(library.tickNested).thenAnswer((_) async => TickNested.ask);
+      final prompt = _Prompt(answer: false);
+      final repository = RustLibraryRepository(library, null, prompt);
+      await tick(repository);
+      await tick(repository);
+      verifyLink(link: false, times: 2);
+      expect(prompt.asked, 1);
+      verifyNever(() => library.setTickNested(setting: any(named: 'setting')));
+    });
+
+    test('Ask does not ask when linking changes nothing', () async {
+      when(library.tickNested).thenAnswer((_) async => TickNested.ask);
+      when(
+        () => library.taskWouldCascade(
+          noteId: any(named: 'noteId'),
+          line: any(named: 'line'),
+          text: any(named: 'text'),
+          checked: any(named: 'checked'),
+        ),
+      ).thenAnswer((_) async => false);
+      final prompt = _Prompt(answer: true);
+      await tick(RustLibraryRepository(library, null, prompt));
+      verifyLink(link: false);
+      expect(prompt.asked, 0);
     });
   });
 

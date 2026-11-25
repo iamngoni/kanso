@@ -123,7 +123,7 @@ class KansoCore
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -263973626;
+  int get rustContentHash => 1519767213;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1810,6 +1810,20 @@ abstract class KansoCoreApi extends BaseApi {
     required bool checked,
   });
 
+  Future<Ticked> crateApiLibraryKansoLibrarySetTaskLinked({
+    required KansoLibrary that,
+    required String noteId,
+    required int line,
+    required String text,
+    required bool checked,
+    required bool link,
+  });
+
+  Future<TickNested> crateApiLibraryKansoLibrarySetTickNested({
+    required KansoLibrary that,
+    required TickNested setting,
+  });
+
   Future<void> crateApiLibraryKansoLibrarySetVoiceSettings({
     required KansoLibrary that,
     required VoiceSettings settings,
@@ -1862,6 +1876,14 @@ abstract class KansoCoreApi extends BaseApi {
     required String noteId,
   });
 
+  Future<bool> crateApiLibraryKansoLibraryTaskWouldCascade({
+    required KansoLibrary that,
+    required String noteId,
+    required int line,
+    required String text,
+    required bool checked,
+  });
+
   Future<TaskBoard> crateApiLibraryKansoLibraryTasks({
     required KansoLibrary that,
     required TaskListQuery query,
@@ -1877,6 +1899,10 @@ abstract class KansoCoreApi extends BaseApi {
   });
 
   KansoThemes crateApiLibraryKansoLibraryThemes({required KansoLibrary that});
+
+  Future<TickNested> crateApiLibraryKansoLibraryTickNested({
+    required KansoLibrary that,
+  });
 
   Future<String> crateApiLibraryKansoLibraryTodayNote({
     required KansoLibrary that,
@@ -1895,6 +1921,20 @@ abstract class KansoCoreApi extends BaseApi {
     required String noteId,
     required int index,
     required String baseRev,
+  });
+
+  Future<Ticked> crateApiLibraryKansoLibraryToggleTaskAtLinked({
+    required KansoLibrary that,
+    required String noteId,
+    required int index,
+    required String baseRev,
+    required bool link,
+  });
+
+  Future<bool> crateApiLibraryKansoLibraryToggleTaskWouldCascade({
+    required KansoLibrary that,
+    required String noteId,
+    required int index,
   });
 
   Future<void> crateApiLibraryKansoLibraryTrash({
@@ -16329,6 +16369,90 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<Ticked> crateApiLibraryKansoLibrarySetTaskLinked({
+    required KansoLibrary that,
+    required String noteId,
+    required int line,
+    required String text,
+    required bool checked,
+    required bool link,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
+            that,
+            serializer,
+          );
+          sse_encode_String(noteId, serializer);
+          sse_encode_u_32(line, serializer);
+          sse_encode_String(text, serializer);
+          sse_encode_bool(checked, serializer);
+          sse_encode_bool(link, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 329,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_ticked,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiLibraryKansoLibrarySetTaskLinkedConstMeta,
+        argValues: [that, noteId, line, text, checked, link],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryKansoLibrarySetTaskLinkedConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoLibrary_set_task_linked",
+        argNames: ["that", "noteId", "line", "text", "checked", "link"],
+      );
+
+  @override
+  Future<TickNested> crateApiLibraryKansoLibrarySetTickNested({
+    required KansoLibrary that,
+    required TickNested setting,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
+            that,
+            serializer,
+          );
+          sse_encode_tick_nested(setting, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 330,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_tick_nested,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiLibraryKansoLibrarySetTickNestedConstMeta,
+        argValues: [that, setting],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryKansoLibrarySetTickNestedConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoLibrary_set_tick_nested",
+        argNames: ["that", "setting"],
+      );
+
+  @override
   Future<void> crateApiLibraryKansoLibrarySetVoiceSettings({
     required KansoLibrary that,
     required VoiceSettings settings,
@@ -16345,7 +16469,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 329,
+            funcId: 331,
             port: port_,
           );
         },
@@ -16379,7 +16503,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 330,
+            funcId: 332,
           )!;
         },
         codec: SseCodec(
@@ -16419,7 +16543,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 331,
+            funcId: 333,
             port: port_,
           );
         },
@@ -16466,7 +16590,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 332,
+            funcId: 334,
             port: port_,
           );
         },
@@ -16496,7 +16620,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 333,
+            funcId: 335,
           )!;
         },
         codec: SseCodec(
@@ -16537,7 +16661,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 334,
+            funcId: 336,
             port: port_,
           );
         },
@@ -16571,7 +16695,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 335,
+            funcId: 337,
           )!;
         },
         codec: SseCodec(
@@ -16601,7 +16725,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 336,
+            funcId: 338,
           )!;
         },
         codec: SseCodec(
@@ -16644,7 +16768,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 337,
+            funcId: 339,
             port: port_,
           );
         },
@@ -16680,7 +16804,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 338,
+            funcId: 340,
             port: port_,
           );
         },
@@ -16718,7 +16842,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 339,
+            funcId: 341,
           )!;
         },
         codec: SseCodec(
@@ -16739,6 +16863,50 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<bool> crateApiLibraryKansoLibraryTaskWouldCascade({
+    required KansoLibrary that,
+    required String noteId,
+    required int line,
+    required String text,
+    required bool checked,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
+            that,
+            serializer,
+          );
+          sse_encode_String(noteId, serializer);
+          sse_encode_u_32(line, serializer);
+          sse_encode_String(text, serializer);
+          sse_encode_bool(checked, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 342,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiLibraryKansoLibraryTaskWouldCascadeConstMeta,
+        argValues: [that, noteId, line, text, checked],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryKansoLibraryTaskWouldCascadeConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoLibrary_task_would_cascade",
+        argNames: ["that", "noteId", "line", "text", "checked"],
+      );
+
+  @override
   Future<TaskBoard> crateApiLibraryKansoLibraryTasks({
     required KansoLibrary that,
     required TaskListQuery query,
@@ -16755,7 +16923,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 340,
+            funcId: 343,
             port: port_,
           );
         },
@@ -16791,7 +16959,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 341,
+            funcId: 344,
             port: port_,
           );
         },
@@ -16829,7 +16997,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 342,
+            funcId: 345,
             port: port_,
           );
         },
@@ -16863,7 +17031,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 343,
+            funcId: 346,
           )!;
         },
         codec: SseCodec(
@@ -16885,6 +17053,42 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<TickNested> crateApiLibraryKansoLibraryTickNested({
+    required KansoLibrary that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 347,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_tick_nested,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiLibraryKansoLibraryTickNestedConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryKansoLibraryTickNestedConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoLibrary_tick_nested",
+        argNames: ["that"],
+      );
+
+  @override
   Future<String> crateApiLibraryKansoLibraryTodayNote({
     required KansoLibrary that,
     required LocalTime now,
@@ -16901,7 +17105,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 344,
+            funcId: 348,
             port: port_,
           );
         },
@@ -16943,7 +17147,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 345,
+            funcId: 349,
             port: port_,
           );
         },
@@ -16985,7 +17189,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 346,
+            funcId: 350,
             port: port_,
           );
         },
@@ -17007,6 +17211,91 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       );
 
   @override
+  Future<Ticked> crateApiLibraryKansoLibraryToggleTaskAtLinked({
+    required KansoLibrary that,
+    required String noteId,
+    required int index,
+    required String baseRev,
+    required bool link,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
+            that,
+            serializer,
+          );
+          sse_encode_String(noteId, serializer);
+          sse_encode_u_32(index, serializer);
+          sse_encode_String(baseRev, serializer);
+          sse_encode_bool(link, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 351,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_ticked,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiLibraryKansoLibraryToggleTaskAtLinkedConstMeta,
+        argValues: [that, noteId, index, baseRev, link],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryKansoLibraryToggleTaskAtLinkedConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoLibrary_toggle_task_at_linked",
+        argNames: ["that", "noteId", "index", "baseRev", "link"],
+      );
+
+  @override
+  Future<bool> crateApiLibraryKansoLibraryToggleTaskWouldCascade({
+    required KansoLibrary that,
+    required String noteId,
+    required int index,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerKansoLibrary(
+            that,
+            serializer,
+          );
+          sse_encode_String(noteId, serializer);
+          sse_encode_u_32(index, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 352,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_kanso_error,
+        ),
+        constMeta: kCrateApiLibraryKansoLibraryToggleTaskWouldCascadeConstMeta,
+        argValues: [that, noteId, index],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryKansoLibraryToggleTaskWouldCascadeConstMeta =>
+      const TaskConstMeta(
+        debugName: "KansoLibrary_toggle_task_would_cascade",
+        argNames: ["that", "noteId", "index"],
+      );
+
+  @override
   Future<void> crateApiLibraryKansoLibraryTrash({
     required KansoLibrary that,
     required String id,
@@ -17023,7 +17312,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 347,
+            funcId: 353,
             port: port_,
           );
         },
@@ -17057,7 +17346,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 348,
+            funcId: 354,
           )!;
         },
         codec: SseCodec(
@@ -17095,7 +17384,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 349,
+            funcId: 355,
             port: port_,
           );
         },
@@ -17133,7 +17422,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 350,
+            funcId: 356,
             port: port_,
           );
         },
@@ -17175,7 +17464,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 351,
+            funcId: 357,
             port: port_,
           );
         },
@@ -17211,7 +17500,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 352,
+            funcId: 358,
           )!;
         },
         codec: SseCodec(
@@ -17247,7 +17536,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 353,
+            funcId: 359,
             port: port_,
           );
         },
@@ -17285,7 +17574,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 354,
+            funcId: 360,
             port: port_,
           );
         },
@@ -17315,7 +17604,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 355,
+            funcId: 361,
             port: port_,
           );
         },
@@ -17353,7 +17642,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 356,
+            funcId: 362,
             port: port_,
           );
         },
@@ -17393,7 +17682,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 357,
+            funcId: 363,
           )!;
         },
         codec: SseCodec(
@@ -17434,7 +17723,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 358,
+            funcId: 364,
             port: port_,
           );
         },
@@ -17472,7 +17761,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 359,
+            funcId: 365,
           )!;
         },
         codec: SseCodec(
@@ -17511,7 +17800,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 360,
+            funcId: 366,
             port: port_,
           );
         },
@@ -17551,7 +17840,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 361,
+            funcId: 367,
             port: port_,
           );
         },
@@ -17589,7 +17878,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 362,
+            funcId: 368,
             port: port_,
           );
         },
@@ -17625,7 +17914,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 363,
+            funcId: 369,
             port: port_,
           );
         },
@@ -17661,7 +17950,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 364,
+            funcId: 370,
             port: port_,
           );
         },
@@ -17695,7 +17984,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 365,
+            funcId: 371,
             port: port_,
           );
         },
@@ -17729,7 +18018,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 366,
+            funcId: 372,
             port: port_,
           );
         },
@@ -17769,7 +18058,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 367,
+            funcId: 373,
             port: port_,
           );
         },
@@ -17805,7 +18094,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 368,
+            funcId: 374,
             port: port_,
           );
         },
@@ -17845,7 +18134,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 369,
+            funcId: 375,
             port: port_,
           );
         },
@@ -17883,7 +18172,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 370,
+            funcId: 376,
             port: port_,
           );
         },
@@ -17921,7 +18210,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 371,
+            funcId: 377,
             port: port_,
           );
         },
@@ -17955,7 +18244,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 372,
+            funcId: 378,
             port: port_,
           );
         },
@@ -17989,7 +18278,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 373,
+            funcId: 379,
             port: port_,
           );
         },
@@ -18023,7 +18312,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 374,
+            funcId: 380,
             port: port_,
           );
         },
@@ -18062,7 +18351,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 375,
+              funcId: 381,
               port: port_,
             );
           },
@@ -18100,7 +18389,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 376,
+            funcId: 382,
             port: port_,
           );
         },
@@ -18140,7 +18429,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 377,
+            funcId: 383,
             port: port_,
           );
         },
@@ -18178,7 +18467,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 378,
+            funcId: 384,
             port: port_,
           );
         },
@@ -18218,7 +18507,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 379,
+            funcId: 385,
             port: port_,
           );
         },
@@ -18257,7 +18546,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 380,
+              funcId: 386,
               port: port_,
             );
           },
@@ -18295,7 +18584,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 381,
+            funcId: 387,
             port: port_,
           );
         },
@@ -18333,7 +18622,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 382,
+            funcId: 388,
             port: port_,
           );
         },
@@ -18371,7 +18660,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 383,
+            funcId: 389,
             port: port_,
           );
         },
@@ -18409,7 +18698,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 384,
+            funcId: 390,
             port: port_,
           );
         },
@@ -18445,7 +18734,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 385,
+            funcId: 391,
             port: port_,
           );
         },
@@ -18483,7 +18772,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 386,
+            funcId: 392,
             port: port_,
           );
         },
@@ -18521,7 +18810,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 387,
+            funcId: 393,
             port: port_,
           );
         },
@@ -18559,7 +18848,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 388,
+            funcId: 394,
             port: port_,
           );
         },
@@ -18595,7 +18884,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 389,
+            funcId: 395,
             port: port_,
           );
         },
@@ -18631,7 +18920,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 390,
+            funcId: 396,
             port: port_,
           );
         },
@@ -18667,7 +18956,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 391,
+            funcId: 397,
             port: port_,
           );
         },
@@ -18703,7 +18992,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 392,
+            funcId: 398,
             port: port_,
           );
         },
@@ -18741,7 +19030,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 393,
+            funcId: 399,
             port: port_,
           );
         },
@@ -18781,7 +19070,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 394,
+            funcId: 400,
             port: port_,
           );
         },
@@ -18819,7 +19108,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 395,
+            funcId: 401,
             port: port_,
           );
         },
@@ -18859,7 +19148,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 396,
+            funcId: 402,
             port: port_,
           );
         },
@@ -18899,7 +19188,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 397,
+            funcId: 403,
             port: port_,
           );
         },
@@ -18937,7 +19226,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 398,
+            funcId: 404,
             port: port_,
           );
         },
@@ -18973,7 +19262,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 399,
+            funcId: 405,
             port: port_,
           );
         },
@@ -19009,7 +19298,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 400,
+            funcId: 406,
             port: port_,
           );
         },
@@ -19045,7 +19334,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 401,
+            funcId: 407,
             port: port_,
           );
         },
@@ -19083,7 +19372,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 402,
+            funcId: 408,
             port: port_,
           );
         },
@@ -19131,7 +19420,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 403,
+            funcId: 409,
             port: port_,
           );
         },
@@ -19177,7 +19466,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 404,
+            funcId: 410,
             port: port_,
           );
         },
@@ -19215,7 +19504,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 405,
+            funcId: 411,
             port: port_,
           );
         },
@@ -19253,7 +19542,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 406,
+            funcId: 412,
             port: port_,
           );
         },
@@ -19293,7 +19582,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 407,
+            funcId: 413,
             port: port_,
           );
         },
@@ -19331,7 +19620,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 408,
+            funcId: 414,
             port: port_,
           );
         },
@@ -19371,7 +19660,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 409,
+            funcId: 415,
             port: port_,
           );
         },
@@ -19414,7 +19703,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 410,
+            funcId: 416,
             port: port_,
           );
         },
@@ -19456,7 +19745,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 411,
+            funcId: 417,
             port: port_,
           );
         },
@@ -19494,7 +19783,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 412,
+            funcId: 418,
             port: port_,
           );
         },
@@ -19532,7 +19821,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 413,
+            funcId: 419,
             port: port_,
           );
         },
@@ -19574,7 +19863,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 414,
+            funcId: 420,
             port: port_,
           );
         },
@@ -19612,7 +19901,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 415,
+            funcId: 421,
             port: port_,
           );
         },
@@ -19654,7 +19943,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 416,
+            funcId: 422,
             port: port_,
           );
         },
@@ -19692,7 +19981,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 417,
+            funcId: 423,
             port: port_,
           );
         },
@@ -19732,7 +20021,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 418,
+            funcId: 424,
             port: port_,
           );
         },
@@ -19772,7 +20061,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 419,
+            funcId: 425,
             port: port_,
           );
         },
@@ -19813,7 +20102,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 420,
+            funcId: 426,
             port: port_,
           );
         },
@@ -19854,7 +20143,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 421,
+            funcId: 427,
             port: port_,
           );
         },
@@ -19892,7 +20181,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 422,
+            funcId: 428,
             port: port_,
           );
         },
@@ -19929,7 +20218,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 423,
+            funcId: 429,
             port: port_,
           );
         },
@@ -19969,7 +20258,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 424,
+            funcId: 430,
             port: port_,
           );
         },
@@ -20007,7 +20296,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 425,
+            funcId: 431,
             port: port_,
           );
         },
@@ -20043,7 +20332,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 426,
+            funcId: 432,
             port: port_,
           );
         },
@@ -20089,7 +20378,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 427,
+            funcId: 433,
             port: port_,
           );
         },
@@ -20131,7 +20420,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 428,
+            funcId: 434,
             port: port_,
           );
         },
@@ -20165,7 +20454,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 429,
+            funcId: 435,
           )!;
         },
         codec: SseCodec(
@@ -20208,7 +20497,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 430,
+            funcId: 436,
             port: port_,
           );
         },
@@ -20248,7 +20537,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 431,
+            funcId: 437,
             port: port_,
           );
         },
@@ -20290,7 +20579,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 432,
+            funcId: 438,
             port: port_,
           );
         },
@@ -20332,7 +20621,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 433,
+            funcId: 439,
             port: port_,
           );
         },
@@ -20372,7 +20661,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 434,
+            funcId: 440,
             port: port_,
           );
         },
@@ -20414,7 +20703,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 435,
+            funcId: 441,
             port: port_,
           );
         },
@@ -20454,7 +20743,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 436,
+            funcId: 442,
             port: port_,
           );
         },
@@ -20495,7 +20784,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 437,
+            funcId: 443,
             port: port_,
           );
         },
@@ -20534,7 +20823,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 438,
+            funcId: 444,
             port: port_,
           );
         },
@@ -20574,7 +20863,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 439,
+            funcId: 445,
             port: port_,
           );
         },
@@ -20614,7 +20903,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 440,
+            funcId: 446,
             port: port_,
           );
         },
@@ -20656,7 +20945,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 441,
+            funcId: 447,
             port: port_,
           );
         },
@@ -20694,7 +20983,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 442,
+            funcId: 448,
             port: port_,
           );
         },
@@ -20730,7 +21019,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 443,
+            funcId: 449,
             port: port_,
           );
         },
@@ -20770,7 +21059,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 444,
+            funcId: 450,
             port: port_,
           );
         },
@@ -20806,7 +21095,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 445,
+            funcId: 451,
             port: port_,
           );
         },
@@ -20848,7 +21137,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 446,
+            funcId: 452,
             port: port_,
           );
         },
@@ -20888,7 +21177,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 447,
+            funcId: 453,
             port: port_,
           );
         },
@@ -20930,7 +21219,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 448,
+            funcId: 454,
             port: port_,
           );
         },
@@ -20968,7 +21257,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 449,
+            funcId: 455,
             port: port_,
           );
         },
@@ -21004,7 +21293,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 450,
+            funcId: 456,
             port: port_,
           );
         },
@@ -21046,7 +21335,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 451,
+            funcId: 457,
             port: port_,
           );
         },
@@ -21084,7 +21373,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 452,
+            funcId: 458,
             port: port_,
           );
         },
@@ -21124,7 +21413,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 453,
+            funcId: 459,
             port: port_,
           );
         },
@@ -21164,7 +21453,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 454,
+            funcId: 460,
             port: port_,
           );
         },
@@ -21202,7 +21491,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 455,
+            funcId: 461,
             port: port_,
           );
         },
@@ -21238,7 +21527,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 456,
+            funcId: 462,
             port: port_,
           );
         },
@@ -21278,7 +21567,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 457,
+            funcId: 463,
             port: port_,
           );
         },
@@ -21316,7 +21605,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 458,
+            funcId: 464,
             port: port_,
           );
         },
@@ -21352,7 +21641,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 459,
+            funcId: 465,
             port: port_,
           );
         },
@@ -21390,7 +21679,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 460,
+            funcId: 466,
             port: port_,
           );
         },
@@ -21426,7 +21715,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 461,
+            funcId: 467,
             port: port_,
           );
         },
@@ -21460,7 +21749,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 462,
+            funcId: 468,
           )!;
         },
         codec: SseCodec(
@@ -21493,7 +21782,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 463,
+            funcId: 469,
           )!;
         },
         codec: SseCodec(
@@ -21530,7 +21819,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 464,
+            funcId: 470,
           )!;
         },
         codec: SseCodec(
@@ -21567,7 +21856,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 465,
+            funcId: 471,
           )!;
         },
         codec: SseCodec(
@@ -21604,7 +21893,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 466,
+            funcId: 472,
           )!;
         },
         codec: SseCodec(
@@ -21641,7 +21930,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 467,
+            funcId: 473,
           )!;
         },
         codec: SseCodec(
@@ -21674,7 +21963,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 468,
+            funcId: 474,
           )!;
         },
         codec: SseCodec(
@@ -21707,7 +21996,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 469,
+            funcId: 475,
           )!;
         },
         codec: SseCodec(
@@ -21744,7 +22033,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 470,
+            funcId: 476,
             port: port_,
           );
         },
@@ -21782,7 +22071,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 471,
+            funcId: 477,
             port: port_,
           );
         },
@@ -21821,7 +22110,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 472,
+            funcId: 478,
           )!;
         },
         codec: SseCodec(
@@ -21851,7 +22140,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 473,
+            funcId: 479,
             port: port_,
           );
         },
@@ -21889,7 +22178,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 474,
+            funcId: 480,
             port: port_,
           );
         },
@@ -21927,7 +22216,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 475,
+            funcId: 481,
             port: port_,
           );
         },
@@ -21971,7 +22260,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 476,
+            funcId: 482,
             port: port_,
           );
         },
@@ -22015,7 +22304,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 477,
+            funcId: 483,
             port: port_,
           );
         },
@@ -22053,7 +22342,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 478,
+            funcId: 484,
             port: port_,
           );
         },
@@ -22091,7 +22380,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 479,
+            funcId: 485,
             port: port_,
           );
         },
@@ -22131,7 +22420,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 480,
+            funcId: 486,
             port: port_,
           );
         },
@@ -22169,7 +22458,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 481,
+            funcId: 487,
             port: port_,
           );
         },
@@ -22209,7 +22498,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 482,
+            funcId: 488,
             port: port_,
           );
         },
@@ -22249,7 +22538,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 483,
+            funcId: 489,
             port: port_,
           );
         },
@@ -22289,7 +22578,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 484,
+            funcId: 490,
             port: port_,
           );
         },
@@ -22332,7 +22621,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 485,
+            funcId: 491,
             port: port_,
           );
         },
@@ -22376,7 +22665,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 486,
+            funcId: 492,
             port: port_,
           );
         },
@@ -22415,7 +22704,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 487,
+            funcId: 493,
             port: port_,
           );
         },
@@ -22460,7 +22749,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 488,
+            funcId: 494,
             port: port_,
           );
         },
@@ -22498,7 +22787,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 489,
+            funcId: 495,
             port: port_,
           );
         },
@@ -22532,7 +22821,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 490,
+            funcId: 496,
           )!;
         },
         codec: SseCodec(
@@ -22565,7 +22854,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 491,
+            funcId: 497,
           )!;
         },
         codec: SseCodec(
@@ -22600,7 +22889,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 492,
+            funcId: 498,
           )!;
         },
         codec: SseCodec(
@@ -22635,7 +22924,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 493,
+            funcId: 499,
             port: port_,
           );
         },
@@ -22668,7 +22957,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 494,
+            funcId: 500,
             port: port_,
           );
         },
@@ -22698,7 +22987,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 495,
+            funcId: 501,
             port: port_,
           );
         },
@@ -22738,7 +23027,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 496,
+            funcId: 502,
             port: port_,
           );
         },
@@ -22768,7 +23057,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 497,
+            funcId: 503,
             port: port_,
           );
         },
@@ -22805,7 +23094,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 498,
+            funcId: 504,
             port: port_,
           );
         },
@@ -22842,7 +23131,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 499,
+            funcId: 505,
             port: port_,
           );
         },
@@ -22875,7 +23164,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 500,
+            funcId: 506,
             port: port_,
           );
         },
@@ -22905,7 +23194,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 501,
+            funcId: 507,
             port: port_,
           );
         },
@@ -22945,7 +23234,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 502,
+            funcId: 508,
             port: port_,
           );
         },
@@ -22982,7 +23271,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 503,
+            funcId: 509,
             port: port_,
           );
         },
@@ -23024,7 +23313,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 504,
+            funcId: 510,
             port: port_,
           );
         },
@@ -23066,7 +23355,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 505,
+            funcId: 511,
             port: port_,
           );
         },
@@ -23108,7 +23397,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 506,
+            funcId: 512,
             port: port_,
           );
         },
@@ -23153,7 +23442,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 507,
+            funcId: 513,
             port: port_,
           );
         },
@@ -23194,7 +23483,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 508,
+            funcId: 514,
             port: port_,
           );
         },
@@ -23236,7 +23525,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 509,
+            funcId: 515,
             port: port_,
           );
         },
@@ -23269,7 +23558,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 510,
+            funcId: 516,
             port: port_,
           );
         },
@@ -23302,7 +23591,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 511,
+            funcId: 517,
             port: port_,
           );
         },
@@ -23341,7 +23630,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 512,
+            funcId: 518,
             port: port_,
           );
         },
@@ -23374,7 +23663,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 513,
+            funcId: 519,
             port: port_,
           );
         },
@@ -23412,7 +23701,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 514,
+            funcId: 520,
             port: port_,
           );
         },
@@ -23450,7 +23739,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 515,
+            funcId: 521,
             port: port_,
           );
         },
@@ -23490,7 +23779,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 516,
+            funcId: 522,
             port: port_,
           );
         },
@@ -23534,7 +23823,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 517,
+            funcId: 523,
             port: port_,
           );
         },
@@ -23574,7 +23863,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 518,
+            funcId: 524,
             port: port_,
           );
         },
@@ -23612,7 +23901,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 519,
+            funcId: 525,
             port: port_,
           );
         },
@@ -23650,7 +23939,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 520,
+            funcId: 526,
             port: port_,
           );
         },
@@ -23686,7 +23975,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 521,
+            funcId: 527,
             port: port_,
           );
         },
@@ -23725,7 +24014,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 522,
+              funcId: 528,
               port: port_,
             );
           },
@@ -23765,7 +24054,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 523,
+            funcId: 529,
             port: port_,
           );
         },
@@ -23799,7 +24088,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 524,
+            funcId: 530,
           )!;
         },
         codec: SseCodec(
@@ -23838,7 +24127,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 525,
+            funcId: 531,
           )!;
         },
         codec: SseCodec(
@@ -23875,7 +24164,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 526,
+            funcId: 532,
             port: port_,
           );
         },
@@ -23913,7 +24202,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 527,
+            funcId: 533,
             port: port_,
           );
         },
@@ -23953,7 +24242,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 528,
+            funcId: 534,
             port: port_,
           );
         },
@@ -23991,7 +24280,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 529,
+            funcId: 535,
             port: port_,
           );
         },
@@ -24029,7 +24318,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 530,
+            funcId: 536,
             port: port_,
           );
         },
@@ -24067,7 +24356,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 531,
+            funcId: 537,
             port: port_,
           );
         },
@@ -24109,7 +24398,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 532,
+            funcId: 538,
             port: port_,
           );
         },
@@ -24147,7 +24436,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 533,
+            funcId: 539,
             port: port_,
           );
         },
@@ -24185,7 +24474,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 534,
+            funcId: 540,
             port: port_,
           );
         },
@@ -24225,7 +24514,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 535,
+            funcId: 541,
             port: port_,
           );
         },
@@ -24265,7 +24554,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 536,
+            funcId: 542,
             port: port_,
           );
         },
@@ -24303,7 +24592,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 537,
+            funcId: 543,
             port: port_,
           );
         },
@@ -24345,7 +24634,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 538,
+            funcId: 544,
             port: port_,
           );
         },
@@ -24384,7 +24673,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 539,
+              funcId: 545,
               port: port_,
             );
           },
@@ -24424,7 +24713,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 540,
+            funcId: 546,
             port: port_,
           );
         },
@@ -24460,7 +24749,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 541,
+            funcId: 547,
             port: port_,
           );
         },
@@ -24502,7 +24791,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 542,
+            funcId: 548,
             port: port_,
           );
         },
@@ -24544,7 +24833,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 543,
+            funcId: 549,
             port: port_,
           );
         },
@@ -24582,7 +24871,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 544,
+            funcId: 550,
             port: port_,
           );
         },
@@ -24620,7 +24909,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 545,
+            funcId: 551,
             port: port_,
           );
         },
@@ -24658,7 +24947,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 546,
+            funcId: 552,
             port: port_,
           );
         },
@@ -24696,7 +24985,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 547,
+            funcId: 553,
             port: port_,
           );
         },
@@ -24734,7 +25023,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 548,
+            funcId: 554,
             port: port_,
           );
         },
@@ -24772,7 +25061,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 549,
+            funcId: 555,
             port: port_,
           );
         },
@@ -24810,7 +25099,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 550,
+            funcId: 556,
             port: port_,
           );
         },
@@ -24850,7 +25139,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 551,
+            funcId: 557,
             port: port_,
           );
         },
@@ -24890,7 +25179,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 552,
+            funcId: 558,
             port: port_,
           );
         },
@@ -24932,7 +25221,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 553,
+            funcId: 559,
             port: port_,
           );
         },
@@ -24974,7 +25263,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 554,
+            funcId: 560,
             port: port_,
           );
         },
@@ -25016,7 +25305,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 555,
+            funcId: 561,
             port: port_,
           );
         },
@@ -25056,7 +25345,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 556,
+            funcId: 562,
             port: port_,
           );
         },
@@ -25096,7 +25385,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 557,
+            funcId: 563,
             port: port_,
           );
         },
@@ -25132,7 +25421,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 558,
+            funcId: 564,
             port: port_,
           );
         },
@@ -25170,7 +25459,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 559,
+            funcId: 565,
             port: port_,
           );
         },
@@ -25208,7 +25497,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 560,
+            funcId: 566,
             port: port_,
           );
         },
@@ -25244,7 +25533,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 561,
+            funcId: 567,
             port: port_,
           );
         },
@@ -25282,7 +25571,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 562,
+            funcId: 568,
             port: port_,
           );
         },
@@ -25320,7 +25609,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 563,
+            funcId: 569,
             port: port_,
           );
         },
@@ -25350,7 +25639,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 564,
+            funcId: 570,
             port: port_,
           );
         },
@@ -25381,7 +25670,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 565,
+            funcId: 571,
           )!;
         },
         codec: SseCodec(
@@ -25410,7 +25699,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 566,
+            funcId: 572,
           )!;
         },
         codec: SseCodec(
@@ -25440,7 +25729,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 567,
+            funcId: 573,
           )!;
         },
         codec: SseCodec(
@@ -25473,7 +25762,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 568,
+            funcId: 574,
             port: port_,
           );
         },
@@ -25507,7 +25796,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 569,
+            funcId: 575,
             port: port_,
           );
         },
@@ -25545,7 +25834,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 570,
+            funcId: 576,
             port: port_,
           );
         },
@@ -25583,7 +25872,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 571,
+            funcId: 577,
             port: port_,
           );
         },
@@ -25625,7 +25914,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 572,
+            funcId: 578,
             port: port_,
           );
         },
@@ -25665,7 +25954,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 573,
+            funcId: 579,
             port: port_,
           );
         },
@@ -25701,7 +25990,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 574,
+            funcId: 580,
             port: port_,
           );
         },
@@ -25745,7 +26034,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 575,
+            funcId: 581,
             port: port_,
           );
         },
@@ -25779,7 +26068,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 576,
+            funcId: 582,
             port: port_,
           );
         },
@@ -25813,7 +26102,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 577,
+            funcId: 583,
             port: port_,
           );
         },
@@ -25852,7 +26141,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 578,
+            funcId: 584,
           )!;
         },
         codec: SseCodec(
@@ -25890,7 +26179,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 579,
+              funcId: 585,
               port: port_,
             );
           },
@@ -25928,7 +26217,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 580,
+            funcId: 586,
             port: port_,
           );
         },
@@ -25970,7 +26259,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 581,
+            funcId: 587,
             port: port_,
           );
         },
@@ -26006,7 +26295,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 582,
+            funcId: 588,
             port: port_,
           );
         },
@@ -26044,7 +26333,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 583,
+            funcId: 589,
             port: port_,
           );
         },
@@ -26082,7 +26371,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 584,
+            funcId: 590,
             port: port_,
           );
         },
@@ -26118,7 +26407,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 585,
+            funcId: 591,
             port: port_,
           );
         },
@@ -26154,7 +26443,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 586,
+            funcId: 592,
             port: port_,
           );
         },
@@ -26200,7 +26489,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 587,
+            funcId: 593,
             port: port_,
           );
         },
@@ -26238,7 +26527,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 588,
+            funcId: 594,
             port: port_,
           );
         },
@@ -26276,7 +26565,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 589,
+            funcId: 595,
             port: port_,
           );
         },
@@ -26314,7 +26603,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 590,
+            funcId: 596,
             port: port_,
           );
         },
@@ -26352,7 +26641,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 591,
+            funcId: 597,
             port: port_,
           );
         },
@@ -26390,7 +26679,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 592,
+            funcId: 598,
             port: port_,
           );
         },
@@ -26432,7 +26721,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 593,
+            funcId: 599,
             port: port_,
           );
         },
@@ -26472,7 +26761,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 594,
+            funcId: 600,
             port: port_,
           );
         },
@@ -26510,7 +26799,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 595,
+            funcId: 601,
             port: port_,
           );
         },
@@ -26546,7 +26835,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 596,
+            funcId: 602,
             port: port_,
           );
         },
@@ -26582,7 +26871,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 597,
+            funcId: 603,
             port: port_,
           );
         },
@@ -26624,7 +26913,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 598,
+            funcId: 604,
             port: port_,
           );
         },
@@ -26664,7 +26953,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 599,
+            funcId: 605,
             port: port_,
           );
         },
@@ -26703,7 +26992,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 600,
+            funcId: 606,
             port: port_,
           );
         },
@@ -26741,7 +27030,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 601,
+            funcId: 607,
             port: port_,
           );
         },
@@ -26781,7 +27070,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 602,
+            funcId: 608,
             port: port_,
           );
         },
@@ -26821,7 +27110,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 603,
+            funcId: 609,
             port: port_,
           );
         },
@@ -26865,7 +27154,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 604,
+            funcId: 610,
             port: port_,
           );
         },
@@ -26906,7 +27195,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 605,
+            funcId: 611,
             port: port_,
           );
         },
@@ -26951,7 +27240,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 606,
+            funcId: 612,
             port: port_,
           );
         },
@@ -26982,7 +27271,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 607,
+            funcId: 613,
             port: port_,
           );
         },
@@ -27012,7 +27301,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 608,
+            funcId: 614,
           )!;
         },
         codec: SseCodec(
@@ -27046,7 +27335,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 609,
+            funcId: 615,
           )!;
         },
         codec: SseCodec(
@@ -27082,7 +27371,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 610,
+            funcId: 616,
           )!;
         },
         codec: SseCodec(
@@ -27116,7 +27405,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 611,
+            funcId: 617,
           )!;
         },
         codec: SseCodec(
@@ -27153,7 +27442,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 612,
+            funcId: 618,
           )!;
         },
         codec: SseCodec(
@@ -27182,7 +27471,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 613,
+            funcId: 619,
           )!;
         },
         codec: SseCodec(
@@ -27211,7 +27500,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 614,
+            funcId: 620,
           )!;
         },
         codec: SseCodec(
@@ -27240,7 +27529,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 615,
+            funcId: 621,
           )!;
         },
         codec: SseCodec(
@@ -27270,7 +27559,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 616,
+            funcId: 622,
           )!;
         },
         codec: SseCodec(
@@ -27300,7 +27589,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 617,
+            funcId: 623,
             port: port_,
           );
         },
@@ -27330,7 +27619,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 618,
+            funcId: 624,
             port: port_,
           );
         },
@@ -27365,7 +27654,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 619,
+            funcId: 625,
           )!;
         },
         codec: SseCodec(
@@ -27394,7 +27683,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 620,
+            funcId: 626,
             port: port_,
           );
         },
@@ -27424,7 +27713,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 621,
+            funcId: 627,
           )!;
         },
         codec: SseCodec(
@@ -27453,7 +27742,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 622,
+            funcId: 628,
             port: port_,
           );
         },
@@ -27483,7 +27772,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 623,
+            funcId: 629,
             port: port_,
           );
         },
@@ -27519,7 +27808,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 624,
+            funcId: 630,
           )!;
         },
         codec: SseCodec(
@@ -27548,7 +27837,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 625,
+            funcId: 631,
           )!;
         },
         codec: SseCodec(
@@ -27582,7 +27871,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 626,
+            funcId: 632,
           )!;
         },
         codec: SseCodec(
@@ -27612,7 +27901,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 627,
+            funcId: 633,
           )!;
         },
         codec: SseCodec(
@@ -27641,7 +27930,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 628,
+            funcId: 634,
           )!;
         },
         codec: SseCodec(
@@ -27675,7 +27964,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 629,
+            funcId: 635,
           )!;
         },
         codec: SseCodec(
@@ -27705,7 +27994,7 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 630,
+            funcId: 636,
           )!;
         },
         codec: SseCodec(
@@ -31581,9 +31870,13 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
-        return FeedbackCredit_Name(name: dco_decode_String(raw[1]));
+        return FeedbackCredit_Name(
+          name: dco_decode_String(raw[1]),
+        );
       case 1:
-        return FeedbackCredit_Github(login: dco_decode_String(raw[1]));
+        return FeedbackCredit_Github(
+          login: dco_decode_String(raw[1]),
+        );
       default:
         throw Exception("unreachable");
     }
@@ -38147,6 +38440,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
       name: dco_decode_String(arr[0]),
       svg: dco_decode_opt_String(arr[1]),
     );
+  }
+
+  @protected
+  TickNested dco_decode_tick_nested(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return TickNested.values[raw as int];
   }
 
   @protected
@@ -51198,6 +51497,13 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  TickNested sse_decode_tick_nested(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return TickNested.values[inner];
+  }
+
+  @protected
   Ticked sse_decode_ticked(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -62716,6 +63022,12 @@ class KansoCoreApiImpl extends KansoCoreApiImplPlatform
   }
 
   @protected
+  void sse_encode_tick_nested(TickNested self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_ticked(Ticked self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
@@ -64660,11 +64972,10 @@ class KansoFeedbackImpl extends RustOpaque implements KansoFeedback {
       );
 
   /// GitHub users whose login contains `query`, through Kanso's Worker.
-  Future<FeedbackUsers> searchUsers({required String query}) =>
-      KansoCore.instance.api.crateApiFeedbackKansoFeedbackSearchUsers(
-        that: this,
-        query: query,
-      );
+  Future<FeedbackUsers> searchUsers({required String query}) => KansoCore
+      .instance
+      .api
+      .crateApiFeedbackKansoFeedbackSearchUsers(that: this, query: query);
 
   /// Saves the report to the outbox and tries to send it.
   Future<FeedbackSent> send({required FeedbackInput input}) => KansoCore
@@ -65693,6 +66004,28 @@ class KansoLibraryImpl extends RustOpaque implements KansoLibrary {
     checked: checked,
   );
 
+  /// [`Self::set_task`] with the link said outright: nested tasks follow
+  /// when `link` is set.
+  Future<Ticked> setTaskLinked({
+    required String noteId,
+    required int line,
+    required String text,
+    required bool checked,
+    required bool link,
+  }) => KansoCore.instance.api.crateApiLibraryKansoLibrarySetTaskLinked(
+    that: this,
+    noteId: noteId,
+    line: line,
+    text: text,
+    checked: checked,
+    link: link,
+  );
+
+  Future<TickNested> setTickNested({required TickNested setting}) => KansoCore
+      .instance
+      .api
+      .crateApiLibraryKansoLibrarySetTickNested(that: this, setting: setting);
+
   /// Saves voice dictation settings beside the library database.
   Future<void> setVoiceSettings({required VoiceSettings settings}) =>
       KansoCore.instance.api.crateApiLibraryKansoLibrarySetVoiceSettings(
@@ -65776,6 +66109,21 @@ class KansoLibraryImpl extends RustOpaque implements KansoLibrary {
   bool takesSketches({required String noteId}) => KansoCore.instance.api
       .crateApiLibraryKansoLibraryTakesSketches(that: this, noteId: noteId);
 
+  /// Whether ticking a task with the link would write more than the plain
+  /// tick: the app asks first when it would.
+  Future<bool> taskWouldCascade({
+    required String noteId,
+    required int line,
+    required String text,
+    required bool checked,
+  }) => KansoCore.instance.api.crateApiLibraryKansoLibraryTaskWouldCascade(
+    that: this,
+    noteId: noteId,
+    line: line,
+    text: text,
+    checked: checked,
+  );
+
   /// The Tasks place: open tasks across the notes, in groups; locked
   /// notes are left out.
   Future<TaskBoard> tasks({required TaskListQuery query}) => KansoCore
@@ -65797,6 +66145,12 @@ class KansoLibraryImpl extends RustOpaque implements KansoLibrary {
 
   KansoThemes themes() =>
       KansoCore.instance.api.crateApiLibraryKansoLibraryThemes(
+        that: this,
+      );
+
+  /// "Tick nested tasks together": Ask until set otherwise.
+  Future<TickNested> tickNested() =>
+      KansoCore.instance.api.crateApiLibraryKansoLibraryTickNested(
         that: this,
       );
 
@@ -65829,6 +66183,32 @@ class KansoLibraryImpl extends RustOpaque implements KansoLibrary {
     index: index,
     baseRev: baseRev,
   );
+
+  /// [`Self::toggle_task_at`] with the link said outright.
+  Future<Ticked> toggleTaskAtLinked({
+    required String noteId,
+    required int index,
+    required String baseRev,
+    required bool link,
+  }) => KansoCore.instance.api.crateApiLibraryKansoLibraryToggleTaskAtLinked(
+    that: this,
+    noteId: noteId,
+    index: index,
+    baseRev: baseRev,
+    link: link,
+  );
+
+  /// Whether ticking the `index`-th task box with the link would write
+  /// more than the plain tick.
+  Future<bool> toggleTaskWouldCascade({
+    required String noteId,
+    required int index,
+  }) =>
+      KansoCore.instance.api.crateApiLibraryKansoLibraryToggleTaskWouldCascade(
+        that: this,
+        noteId: noteId,
+        index: index,
+      );
 
   Future<void> trash({required String id}) => KansoCore.instance.api
       .crateApiLibraryKansoLibraryTrash(that: this, id: id);

@@ -10,6 +10,7 @@ import 'package:injectable/injectable.dart';
 import '../../../bridge/api/library.dart';
 import '../../../bridge/api/types.dart';
 import '../../../services/external_changes.dart';
+import '../../../services/tick_nested_prompt.dart';
 import '../../../utils/cancelable_stream.dart';
 import '../../../utils/kanso_error_mapping.dart';
 import '../../data/application_error.dart';
@@ -20,11 +21,54 @@ import '../abs/library_repository.dart';
 class RustLibraryRepository implements LibraryRepository {
   /// [external] says when another process may have written; without it
   /// only the library's own changes are reported.
-  RustLibraryRepository(this._library, [ExternalChanges? external])
-    : _external = external ?? ExternalChanges();
+  ///
+  /// [prompt] asks "Tick the tasks under it too?"; without it a tick under
+  /// Ask ticks the one task.
+  RustLibraryRepository(
+    this._library, [
+    ExternalChanges? external,
+    TickNestedPrompt? prompt,
+  ]) : _external = external ?? ExternalChanges(),
+       _prompt = prompt;
 
   final KansoLibrary _library;
   final ExternalChanges _external;
+  final TickNestedPrompt? _prompt;
+
+  /// Whether the question was put in this session: it is asked once.
+  bool _asked = false;
+
+  @override
+  Future<Either<ApplicationError, TickNested>> tickNested() =>
+      attempt(_library.tickNested);
+
+  @override
+  Future<Either<ApplicationError, TickNested>> setTickNested(
+    TickNested setting,
+  ) => attempt(() => _library.setTickNested(setting: setting));
+
+  /// Whether a tick links nested tasks: by the setting, and under Ask by the
+  /// answer to the question, put once a session and only when linking would
+  /// change the tick ([wouldCascade]).
+  Future<bool> _link(Future<bool> Function() wouldCascade) async {
+    final prompt = _prompt;
+    switch (await _library.tickNested()) {
+      case TickNested.always:
+        return true;
+      case TickNested.never:
+        return false;
+      case TickNested.ask:
+        if (prompt == null || _asked || !await wouldCascade()) {
+          return false;
+        }
+        _asked = true;
+        if (await prompt.ask()) {
+          await _library.setTickNested(setting: TickNested.always);
+          return true;
+        }
+        return false;
+    }
+  }
 
   @override
   Future<Either<ApplicationError, int?>> defaultWordGoal() =>
@@ -321,23 +365,40 @@ class RustLibraryRepository implements LibraryRepository {
     required int line,
     required String text,
     required bool checked,
-  }) => attempt(
-    () => _library.setTask(
+  }) => attempt(() async {
+    final link = await _link(
+      () => _library.taskWouldCascade(
+        noteId: noteId,
+        line: line,
+        text: text,
+        checked: checked,
+      ),
+    );
+    return _library.setTaskLinked(
       noteId: noteId,
       line: line,
       text: text,
       checked: checked,
-    ),
-  );
+      link: link,
+    );
+  });
 
   @override
   Future<Either<ApplicationError, Ticked>> toggleTaskAt({
     required String noteId,
     required int index,
     required String baseRev,
-  }) => attempt(
-    () => _library.toggleTaskAt(noteId: noteId, index: index, baseRev: baseRev),
-  );
+  }) => attempt(() async {
+    final link = await _link(
+      () => _library.toggleTaskWouldCascade(noteId: noteId, index: index),
+    );
+    return _library.toggleTaskAtLinked(
+      noteId: noteId,
+      index: index,
+      baseRev: baseRev,
+      link: link,
+    );
+  });
 
   @override
   Future<Either<ApplicationError, Ticked>> stopRepeatingAt({

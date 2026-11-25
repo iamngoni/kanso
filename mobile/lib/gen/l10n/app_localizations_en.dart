@@ -4510,6 +4510,32 @@ class AppLocalizationsEn extends AppLocalizations {
       'Notes without their own goal use this. A note’s progress appears in its editor footer.';
 
   @override
+  String get editorTickNested => 'Tick nested tasks together';
+
+  @override
+  String get editorTickNestedDetail =>
+      'Ticking a task also ticks the tasks indented under it, and ticking the last of them ticks the parent. Clearing one reopens the parents above it.';
+
+  @override
+  String get tickNestedAsk => 'Ask';
+
+  @override
+  String get tickNestedAlways => 'Always';
+
+  @override
+  String get tickNestedNever => 'Never';
+
+  @override
+  String get tickNestedNotNow => 'Not now';
+
+  @override
+  String get tickNestedQuestionTitle => 'Tick the tasks under it too?';
+
+  @override
+  String get tickNestedQuestionBody =>
+      'Ticking a task can tick the tasks nested under it, and the parent once its last one is done. You can change this in Settings under Editor.';
+
+  @override
   String get editorFocusLivePreview => 'Live Preview in focus mode';
 
   @override

@@ -3870,10 +3870,41 @@ impl NoteEditor {
         if !self.takes_preview_edits(cx) {
             return;
         }
+        let today = kanso_core::dates::Date::from_local_ms(Clock::local_ms(cx, Clock::now_ms(cx)));
+        let text = self.body.read(cx).value();
+        let link = crate::tick_link::link_for(cx, || preview_tasks::cascades(&text, tick, today));
+        match link {
+            crate::tick_link::Link::Plain => self.tick_task_now(tick, false, window, cx),
+            crate::tick_link::Link::Linked => self.tick_task_now(tick, true, window, cx),
+            crate::tick_link::Link::Ask => {
+                let editor = cx.entity().downgrade();
+                let tick = tick.clone();
+                crate::tick_link::ask(window, cx, move |link, window, cx| {
+                    editor
+                        .update(cx, |editor, cx| {
+                            editor.tick_task_now(&tick, link, window, cx)
+                        })
+                        .ok();
+                });
+            }
+        }
+    }
+
+    /// [`Self::tick_task`] once it is known whether nested tasks follow.
+    fn tick_task_now(
+        &mut self,
+        tick: &TaskTick,
+        link: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.takes_preview_edits(cx) {
+            return;
+        }
         let mut ticked = false;
         let today = kanso_core::dates::Date::from_local_ms(Clock::local_ms(cx, Clock::now_ms(cx)));
         self.smart_edit(window, cx, |_, text, selection| {
-            let toggled = preview_tasks::toggled(text, tick, today)?;
+            let toggled = preview_tasks::toggled_linked(text, tick, today, link)?;
             ticked = true;
             body_edit(text, &toggled, selection)
         });
@@ -8818,6 +8849,43 @@ mod writing_tests {
             open.text(cx).0,
             TICK_NOTE.replace("- [ ] three", "- [x] three")
         );
+    }
+
+    /// "Tick nested tasks together" set to Always: ticking a parent in the
+    /// preview ticks the tasks under it; set to Never, it ticks one box.
+    // no-prop-test: drives the editor; `tick_link` and `kanso_core::tick`
+    // have the properties.
+    #[gpui_kit::test]
+    fn ticking_a_parent_follows_the_setting(cx: &mut TestAppContext) {
+        use crate::config::TickNested;
+        use crate::preview_tasks::tick_at;
+        const NOTE: &str = "- [ ] a\n  - [ ] b\n";
+        let open = Open::new(cx, NOTE);
+        let tick = tick_at(NOTE, 0).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let store = open.store.clone();
+        cx.update(|cx| {
+            cx.set_global(crate::workspace::AppState {
+                store,
+                data_dir: dir.path().to_path_buf(),
+                config: crate::config::AppConfig::default(),
+            });
+        });
+        open.with(cx, |editor, window, cx| {
+            crate::workspace::AppState::update_config(cx, |config| {
+                config.editor.tick_nested = TickNested::Never
+            });
+            editor.tick_task(&tick, window, cx);
+        });
+        assert_eq!(open.text(cx).0, "- [x] a\n  - [ ] b\n");
+        open.with(cx, |editor, window, cx| {
+            crate::workspace::AppState::update_config(cx, |config| {
+                config.editor.tick_nested = TickNested::Always
+            });
+            editor.edit_for_test(NOTE, window, cx);
+            editor.tick_task(&tick, window, cx);
+        });
+        assert_eq!(open.text(cx).0, "- [x] a\n  - [x] b\n");
     }
 
     /// A tick that no longer matches the note (typed above it since the

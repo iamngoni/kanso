@@ -119,6 +119,10 @@ class KansoRouter {
   /// The router the app runs with.
   late final GoRouter config;
 
+  /// A context above every page, for dialogs asked from outside the tree;
+  /// null before the first frame.
+  BuildContext? get rootContext => _rootKey.currentContext;
+
   /// Whether the first address has been looked at.
   bool _launched = false;
 

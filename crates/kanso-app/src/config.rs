@@ -7,7 +7,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 pub use kanso_engine::editor_settings::{
-    DEFAULT_SPLIT_RATIO, EditorFont, EditorSettings, Typewriter, ViewMode,
+    DEFAULT_SPLIT_RATIO, EditorFont, EditorSettings, TickNested, Typewriter, ViewMode,
 };
 
 pub const DEFAULT_PORT: u16 = 19840;
@@ -1464,6 +1464,7 @@ mod tests {
             any::<bool>(),
             any::<bool>(),
             any::<bool>(),
+            prop::sample::select(vec![TickNested::Ask, TickNested::Always, TickNested::Never]),
         )
             .prop_map(
                 |(
@@ -1476,6 +1477,7 @@ mod tests {
                     vim,
                     spellcheck,
                     live_preview_in_focus,
+                    tick_nested,
                 )| {
                     EditorSettings {
                         auto_pair,
@@ -1487,6 +1489,7 @@ mod tests {
                         vim,
                         spellcheck,
                         live_preview_in_focus,
+                        tick_nested,
                     }
                 },
             )

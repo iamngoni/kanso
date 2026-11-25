@@ -6,6 +6,7 @@ import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../core/bridge/api/types.dart';
 import '../../../core/models/data/application_error.dart';
 import '../../../core/models/data/load_status.dart';
 import '../../../core/models/repos/abs/library_repository.dart';
@@ -23,6 +24,10 @@ class WordGoalSettingsBloc
       (event, emit) => switch (event) {
         WordGoalSettingsStartedEvent() => _start(emit),
         WordGoalDefaultChangedEvent(:final words) => _change(words, emit),
+        TickNestedChangedEvent(:final setting) => _changeTickNested(
+          setting,
+          emit,
+        ),
       },
       transformer: sequential(),
     );
@@ -32,11 +37,33 @@ class WordGoalSettingsBloc
 
   Future<void> _start(Emitter<WordGoalSettingsState> emit) async {
     final result = await _library.defaultWordGoal();
+    final tick = await _library.tickNested();
     emit(
       result.fold(
         (error) => state.copyWith(status: LoadStatus.failed, error: error),
-        (words) =>
-            WordGoalSettingsState(status: LoadStatus.ready, words: words),
+        (words) => WordGoalSettingsState(
+          status: LoadStatus.ready,
+          words: words,
+          tickNested: tick.getOrElse(() => TickNested.ask),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _changeTickNested(
+    TickNested setting,
+    Emitter<WordGoalSettingsState> emit,
+  ) async {
+    final before = state.tickNested;
+    if (state.status != LoadStatus.ready || before == setting) {
+      return;
+    }
+    emit(state.copyWith(tickNested: setting, error: null));
+    final saved = await _library.setTickNested(setting);
+    emit(
+      saved.fold(
+        (error) => state.copyWith(tickNested: before, error: error),
+        (stored) => state.copyWith(tickNested: stored, error: null),
       ),
     );
   }

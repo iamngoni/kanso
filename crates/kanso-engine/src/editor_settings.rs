@@ -154,6 +154,48 @@ impl Typewriter {
     }
 }
 
+/// Whether ticking a task also ticks the tasks nested under it, and the
+/// parent once its last child is done (`kanso_core::tick::tick_task_linked`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TickNested {
+    /// Ask the first time it would matter, each session.
+    #[default]
+    Ask,
+    /// Always tick them together.
+    Always,
+    /// Tick the one task only.
+    Never,
+}
+
+impl TickNested {
+    /// The word the setting is kept under outside `config.json`.
+    pub fn key(self) -> &'static str {
+        match self {
+            TickNested::Ask => "ask",
+            TickNested::Always => "always",
+            TickNested::Never => "never",
+        }
+    }
+
+    /// The setting a [`TickNested::key`] names.
+    pub fn from_key(key: &str) -> Option<TickNested> {
+        [TickNested::Ask, TickNested::Always, TickNested::Never]
+            .into_iter()
+            .find(|setting| setting.key() == key)
+    }
+
+    /// Whether a tick links nested tasks: `Always` does, and so does `Ask`
+    /// once `agreed` (the person said yes to this very tick).
+    pub fn links(self, agreed: bool) -> bool {
+        match self {
+            TickNested::Always => true,
+            TickNested::Ask => agreed,
+            TickNested::Never => false,
+        }
+    }
+}
+
 /// How the editor helps with writing (Settings › Editor).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -181,6 +223,9 @@ pub struct EditorSettings {
     /// the mode it was in, without changing the view mode kept for next
     /// time. Off unless turned on.
     pub live_preview_in_focus: bool,
+    /// Ticking a task ticks the tasks nested under it too (and the parent
+    /// when its last child is done). Asks first, by default.
+    pub tick_nested: TickNested,
 }
 
 impl Default for EditorSettings {
@@ -195,6 +240,7 @@ impl Default for EditorSettings {
             vim: false,
             spellcheck: true,
             live_preview_in_focus: false,
+            tick_nested: TickNested::Ask,
         }
     }
 }
@@ -222,6 +268,7 @@ mod tests {
                 Typewriter::Always,
             ]),
             prop::option::of(any::<u32>()),
+            prop::sample::select(vec![TickNested::Ask, TickNested::Always, TickNested::Never]),
         )
             .prop_map(
                 |(
@@ -235,6 +282,7 @@ mod tests {
                     ],
                     typewriter,
                     word_goal,
+                    tick_nested,
                 )| {
                     EditorSettings {
                         auto_pair,
@@ -246,6 +294,7 @@ mod tests {
                         vim,
                         spellcheck: !vim,
                         live_preview_in_focus,
+                        tick_nested,
                     }
                 },
             )
@@ -268,6 +317,11 @@ mod tests {
             "vim": settings.vim,
             "spellcheck": settings.spellcheck,
             "livePreviewInFocus": settings.live_preview_in_focus,
+            "tickNested": match settings.tick_nested {
+                TickNested::Ask => "ask",
+                TickNested::Always => "always",
+                TickNested::Never => "never",
+            },
         })
     }
 
@@ -288,7 +342,18 @@ mod tests {
         /// Defaults: a key missing from an older file is the default for it,
         /// and the others are kept.
         #[test]
-        fn prop_missing_keys_take_their_defaults(settings in gen_settings(), drop in 0usize..9) {
+        fn prop_tick_nested_keys_round_trip(setting in prop::sample::select(vec![TickNested::Ask, TickNested::Always, TickNested::Never]), junk in "[a-z]{0,8}") {
+            prop_assert_eq!(TickNested::from_key(setting.key()), Some(setting));
+            // The key is the word the config file writes.
+            let written = serde_json::to_value(setting).unwrap();
+            prop_assert_eq!(written.as_str(), Some(setting.key()));
+            if !["ask", "always", "never"].contains(&junk.as_str()) {
+                prop_assert_eq!(TickNested::from_key(&junk), None);
+            }
+        }
+
+        #[test]
+        fn prop_missing_keys_take_their_defaults(settings in gen_settings(), drop in 0usize..10) {
             let mut old = written(&settings);
             let object = old.as_object_mut().unwrap();
             let key = object.keys().nth(drop).unwrap().clone();
@@ -404,6 +469,7 @@ mod tests {
                 "autoPair": true, "formatTables": true, "smartPaste": true,
                 "typewriter": "focusMode", "wordGoal": null, "inlineTags": false,
                 "vim": false, "spellcheck": true, "livePreviewInFocus": false,
+                "tickNested": "ask",
             })
         );
         assert_eq!(

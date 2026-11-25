@@ -8,6 +8,7 @@ abstract class WordGoalSettingsState with _$WordGoalSettingsState {
   const factory WordGoalSettingsState({
     @Default(LoadStatus.loading) LoadStatus status,
     int? words,
+    @Default(TickNested.ask) TickNested tickNested,
     ApplicationError? error,
   }) = _WordGoalSettingsState;
 }

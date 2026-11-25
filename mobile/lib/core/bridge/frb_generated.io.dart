@@ -3471,6 +3471,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   ThemedIcon dco_decode_themed_icon(dynamic raw);
 
   @protected
+  TickNested dco_decode_tick_nested(dynamic raw);
+
+  @protected
   Ticked dco_decode_ticked(dynamic raw);
 
   @protected
@@ -7247,6 +7250,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   ThemedIcon sse_decode_themed_icon(SseDeserializer deserializer);
+
+  @protected
+  TickNested sse_decode_tick_nested(SseDeserializer deserializer);
 
   @protected
   Ticked sse_decode_ticked(SseDeserializer deserializer);
@@ -12047,6 +12053,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_themed_icon(ThemedIcon self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_tick_nested(TickNested self, SseSerializer serializer);
 
   @protected
   void sse_encode_ticked(Ticked self, SseSerializer serializer);

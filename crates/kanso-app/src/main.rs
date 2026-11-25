@@ -260,6 +260,7 @@ mod speakers;
 mod spellcheck;
 #[cfg(target_os = "macos")]
 mod system_calendar_macos;
+mod tick_link;
 // Tests check with a word list instead.
 mod card_marks;
 mod flashcards_model;

@@ -179,6 +179,14 @@ export const TOPICS: readonly Topic[] = [
           a repeating one reminds you each time, and ticking it from the reminder writes the next one too.
         </p>
         <p>
+          Tasks nest by indentation: a task indented under another is its child. With <strong>Tick nested tasks together</strong>{" "}
+          (Settings › Editor), ticking a parent also ticks the open tasks under it, ticking the last child ticks the parent, and
+          clearing a child reopens the parents above it. Clearing a parent leaves its children as they are, and a repeating task
+          is never ticked this way. The first time it would matter, Kanso asks "Tick the tasks under it too?": <strong>Always</strong>{" "}
+          turns it on, <strong>Not now</strong> ticks just that task and doesn't ask again until you next open Kanso. You can set
+          it to Ask, Always or Never in Settings. Ticking a task through the API or an agent always ticks only that task.
+        </p>
+        <p>
           Quick Capture (<strong>⌃⌥Space</strong> on a computer, the capture sheet on a phone) has a <strong>Note | Task</strong>{" "}
           switch. In Task mode the whole text is one task, with the same hint under the field. Tasks go to today's daily note, or
           to the Inbox if you choose that under <strong>Captured tasks go to</strong> (Settings › General › Quick capture on a

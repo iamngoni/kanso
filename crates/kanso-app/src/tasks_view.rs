@@ -243,10 +243,45 @@ impl TasksView {
             ));
             return;
         }
+        let Some(row) = self.board.rows.iter().find(|row| TaskId::of(row) == *id) else {
+            return;
+        };
+        let checked = !row.checked;
         self.editor.update(cx, |editor, cx| editor.flush(cx));
-        let outcome = self.board.toggle(id, &self.store, Clock::now_ms(cx));
+        let now_ms = Clock::now_ms(cx);
+        let today = kanso_store::local_today(now_ms);
+        let store = self.store.clone();
+        let id = id.clone();
+        let asked = id.clone();
+        let link = crate::tick_link::link_or_ask(
+            cx,
+            || {
+                crate::tick_link::store_cascades(
+                    &store,
+                    &id.note_id,
+                    id.line,
+                    &id.text,
+                    checked,
+                    today,
+                )
+            },
+            move |this, link, cx| this.toggle_now(&asked, link, cx),
+        );
+        if let Some(link) = link {
+            self.toggle_now(&id, link, cx);
+        }
+    }
+
+    /// [`Self::toggle`] once it is known whether nested tasks follow.
+    fn toggle_now(&mut self, id: &TaskId, link: bool, cx: &mut Context<Self>) {
+        let outcome = self
+            .board
+            .toggle_linked(id, &self.store, Clock::now_ms(cx), link);
         if matches!(outcome, Toggled::Done(_)) {
             crate::metrics::record(cx, crate::metrics::Feature::TaskToggled);
+            if link {
+                self.reload(cx);
+            }
         }
         self.after(outcome, cx);
     }
@@ -257,6 +292,9 @@ impl TasksView {
         }
         self.editor.update(cx, |editor, cx| editor.flush(cx));
         let outcome = self.board.undo(&self.store, Clock::now_ms(cx));
+        if matches!(outcome, Toggled::Done(_)) {
+            self.reload(cx);
+        }
         self.after(outcome, cx);
     }
 

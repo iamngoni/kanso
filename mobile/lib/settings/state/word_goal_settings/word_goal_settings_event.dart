@@ -9,4 +9,7 @@ sealed class WordGoalSettingsEvent with _$WordGoalSettingsEvent {
 
   const factory WordGoalSettingsEvent.defaultChanged(int? words) =
       WordGoalDefaultChangedEvent;
+
+  const factory WordGoalSettingsEvent.tickNestedChanged(TickNested setting) =
+      TickNestedChangedEvent;
 }

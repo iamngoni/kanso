@@ -12,6 +12,7 @@ use crate::sync_model::{QuotaLimit, SignOutReasonKind, SyncAccount};
 
 /// A note's own word-goal setting: use the library default, turn the goal
 /// off, or set a note-specific word count.
+pub use kanso_engine::editor_settings::TickNested;
 pub use kanso_engine::word_goal::GoalSetting;
 
 /// One note in a list.

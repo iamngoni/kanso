@@ -7696,6 +7696,54 @@ abstract class AppLocalizations {
   /// **'Notes without their own goal use this. A note’s progress appears in its editor footer.'**
   String get editorDefaultWordGoalDetail;
 
+  /// Settings row: whether ticking a task also ticks the tasks indented under it.
+  ///
+  /// In en, this message translates to:
+  /// **'Tick nested tasks together'**
+  String get editorTickNested;
+
+  /// No description provided for @editorTickNestedDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticking a task also ticks the tasks indented under it, and ticking the last of them ticks the parent. Clearing one reopens the parents above it.'**
+  String get editorTickNestedDetail;
+
+  /// No description provided for @tickNestedAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get tickNestedAsk;
+
+  /// No description provided for @tickNestedAlways.
+  ///
+  /// In en, this message translates to:
+  /// **'Always'**
+  String get tickNestedAlways;
+
+  /// No description provided for @tickNestedNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get tickNestedNever;
+
+  /// No description provided for @tickNestedNotNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get tickNestedNotNow;
+
+  /// No description provided for @tickNestedQuestionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tick the tasks under it too?'**
+  String get tickNestedQuestionTitle;
+
+  /// No description provided for @tickNestedQuestionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticking a task can tick the tasks nested under it, and the parent once its last one is done. You can change this in Settings under Editor.'**
+  String get tickNestedQuestionBody;
+
   /// Turns on showing the open note in Live while focus mode is on.
   ///
   /// In en, this message translates to:

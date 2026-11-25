@@ -20,6 +20,15 @@ abstract interface class LibraryRepository {
   /// Sets the library's default word goal (or clears it with null).
   Future<Either<ApplicationError, int?>> setDefaultWordGoal(int? goal);
 
+  /// Whether ticking a task also ticks the tasks nested under it (Ask until
+  /// the person picks Always or Never).
+  Future<Either<ApplicationError, TickNested>> tickNested();
+
+  /// Sets [tickNested].
+  Future<Either<ApplicationError, TickNested>> setTickNested(
+    TickNested setting,
+  );
+
   /// A note's own choice, kept separate from the library default.
   Future<Either<ApplicationError, GoalSetting>> noteWordGoal(String id);
 
@@ -108,6 +117,10 @@ abstract interface class LibraryRepository {
   /// in the note is [text] (a task's `sourceText`), in one write. The result
   /// says whether the note changed (with the ticket for [undo]), already was
   /// so, or no longer has that task.
+  ///
+  /// The tasks nested under it follow when [tickNested] is Always, or when
+  /// it is Ask and the person says yes to the question put the first time
+  /// it would matter in a session.
   Future<Either<ApplicationError, Ticked>> setTask({
     required String noteId,
     required int line,

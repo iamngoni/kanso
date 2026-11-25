@@ -3,6 +3,7 @@
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanso/core/bridge/api/types.dart';
 import 'package:kanso/core/models/data/application_error.dart';
 import 'package:kanso/core/models/data/load_status.dart';
 import 'package:kanso/settings/state/word_goal_settings/word_goal_settings_bloc.dart';
@@ -17,6 +18,37 @@ void main() {
   WordGoalSettingsBloc build() => WordGoalSettingsBloc(library);
 
   group('WordGoalSettingsBloc', () {
+    blocTest<WordGoalSettingsBloc, WordGoalSettingsState>(
+      'started reads how nested tasks are ticked',
+      build: () {
+        library.tickNestedValue = TickNested.always;
+        return build();
+      },
+      act: (bloc) => bloc.add(const WordGoalSettingsEvent.started()),
+      expect: () => const <WordGoalSettingsState>[
+        WordGoalSettingsState(
+          status: LoadStatus.ready,
+          tickNested: TickNested.always,
+        ),
+      ],
+    );
+
+    blocTest<WordGoalSettingsBloc, WordGoalSettingsState>(
+      'choosing how nested tasks are ticked is kept',
+      build: build,
+      seed: () => const WordGoalSettingsState(status: LoadStatus.ready),
+      act: (bloc) => bloc.add(
+        const WordGoalSettingsEvent.tickNestedChanged(TickNested.never),
+      ),
+      expect: () => const <WordGoalSettingsState>[
+        WordGoalSettingsState(
+          status: LoadStatus.ready,
+          tickNested: TickNested.never,
+        ),
+      ],
+      verify: (_) => expect(library.tickNestedValue, TickNested.never),
+    );
+
     blocTest<WordGoalSettingsBloc, WordGoalSettingsState>(
       'started reads the library default',
       build: () {

@@ -29,7 +29,7 @@ use kanso_core::tasks::Due;
 use kanso_engine::board::MoveUndo;
 use kanso_engine::board::{
     Board, BoardKind, Card, CardId, Lane, Move, PropertyBoard, Written, cards, placements,
-    property_board, undo_move, write_move_undoable,
+    property_board, undo_move, write_move_undoable_linked,
 };
 use kanso_engine::board_settings::{SettingsUndo, grouped_spec, undo_lane_edit};
 use kanso_store::{NoteSummary, Origin, Sort, Store, TaskQuery};
@@ -1103,13 +1103,61 @@ impl Workspace {
             return;
         }
         self.flush(cx);
+        if let (CardId::Task(task), Lane::Todo | Lane::Done) = (&mv.id, &mv.to) {
+            let checked = mv.to == Lane::Done;
+            let now = Clock::now_ms(cx);
+            let today = kanso_store::local_today(now);
+            let store = self.store.clone();
+            match crate::tick_link::link_for(cx, || {
+                crate::tick_link::store_cascades(
+                    &store,
+                    &task.note_id,
+                    task.line,
+                    &task.text,
+                    checked,
+                    today,
+                )
+            }) {
+                crate::tick_link::Link::Plain => {
+                    self.write_board_move_now(mv, false, window, cx);
+                }
+                crate::tick_link::Link::Linked => {
+                    self.write_board_move_now(mv, true, window, cx);
+                }
+                crate::tick_link::Link::Ask => {
+                    let workspace = cx.entity().downgrade();
+                    let mv = mv.clone();
+                    crate::tick_link::ask(window, cx, move |link, window, cx| {
+                        workspace
+                            .update(cx, |this, cx| {
+                                this.write_board_move_now(&mv, link, window, cx)
+                            })
+                            .ok();
+                    });
+                }
+            }
+            return;
+        }
+        self.write_board_move_now(mv, false, window, cx);
+    }
+
+    /// [`Self::write_board_move`] once it is known whether nested tasks follow.
+    fn write_board_move_now(
+        &mut self,
+        mv: &Move,
+        link: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let now = Clock::now_ms(cx);
-        match write_move_undoable(&self.store, mv, now) {
+        match write_move_undoable_linked(&self.store, mv, now, link) {
             Ok((Written::Done, undo)) => {
                 if let Some(undo) = undo {
                     self.board_undo = Some(BoardUndo::Move(undo));
                     let words = self.move_words(mv, cx);
                     self.say_board_change(words, window, cx);
+                } else if link {
+                    self.reload_board(cx);
                 }
             }
             Ok((Written::Moved, _)) => {

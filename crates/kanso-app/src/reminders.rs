@@ -206,7 +206,8 @@ fn respond(response: SystemNotificationResponse, cx: &mut App) {
     let open_window = reminders.open_window;
     let now_ms = Clock::now_ms(cx);
     let answer = Answer::from_action(response.action_id.as_deref());
-    reminders::acknowledge(&store, &shown, &key, answer, now_ms);
+    let link = crate::tick_link::always(cx);
+    reminders::acknowledge_linked(&store, &shown, &key, answer, now_ms, link);
     if answer == Answer::Open {
         open_task(&shown.note_id, shown.line, open_window, cx);
     }

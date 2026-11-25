@@ -586,6 +586,18 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required bool checked,
   });
 
+  /// [`Self::set_task`] with the link said outright: nested tasks follow
+  /// when `link` is set.
+  Future<Ticked> setTaskLinked({
+    required String noteId,
+    required int line,
+    required String text,
+    required bool checked,
+    required bool link,
+  });
+
+  Future<TickNested> setTickNested({required TickNested setting});
+
   /// Saves voice dictation settings beside the library database.
   Future<void> setVoiceSettings({required VoiceSettings settings});
 
@@ -641,6 +653,15 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   /// shared note, one in the trash or a canvas.
   bool takesSketches({required String noteId});
 
+  /// Whether ticking a task with the link would write more than the plain
+  /// tick: the app asks first when it would.
+  Future<bool> taskWouldCascade({
+    required String noteId,
+    required int line,
+    required String text,
+    required bool checked,
+  });
+
   /// The Tasks place: open tasks across the notes, in groups; locked
   /// notes are left out.
   Future<TaskBoard> tasks({required TaskListQuery query});
@@ -651,6 +672,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
   Future<List<TemplateRow>> templatesFor({String? notebookId});
 
   KansoThemes themes();
+
+  /// "Tick nested tasks together": Ask until set otherwise.
+  Future<TickNested> tickNested();
 
   /// The ID of today's daily note at the phone's local time `now`, made
   /// if it isn't there.
@@ -669,6 +693,21 @@ abstract class KansoLibrary implements RustOpaqueInterface {
     required String noteId,
     required int index,
     required String baseRev,
+  });
+
+  /// [`Self::toggle_task_at`] with the link said outright.
+  Future<Ticked> toggleTaskAtLinked({
+    required String noteId,
+    required int index,
+    required String baseRev,
+    required bool link,
+  });
+
+  /// Whether ticking the `index`-th task box with the link would write
+  /// more than the plain tick.
+  Future<bool> toggleTaskWouldCascade({
+    required String noteId,
+    required int index,
   });
 
   Future<void> trash({required String id});

@@ -47,7 +47,7 @@ pub use kanso_mobile::{
     SyncPhase, SyncProblemKind, SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine,
     SyncTone, SyntaxStyleRow, Table, TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard,
     TaskCaptured, TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection, TemplateRow,
-    TextChange, ThemeTokens, ThemedIcon, Ticked, TwinRow, VisibleNotebook, ZoneRow,
+    TextChange, ThemeTokens, ThemedIcon, TickNested, Ticked, TwinRow, VisibleNotebook, ZoneRow,
 };
 pub use kanso_mobile::{
     BookEndedRow, BookInvitationRow, BookMemberRow, BookRole, BookShareCheck, BookShareInfo,
@@ -225,6 +225,13 @@ pub struct _TaskSection {
 #[frb(mirror(TaskBoard))]
 pub struct _TaskBoard {
     pub groups: Vec<TaskSection>,
+}
+
+#[frb(mirror(TickNested))]
+pub enum _TickNested {
+    Ask,
+    Always,
+    Never,
 }
 
 #[frb(mirror(Ticked))]

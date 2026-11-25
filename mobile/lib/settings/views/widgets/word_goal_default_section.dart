@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/bridge/api/types.dart';
 import '../../../core/bridge/api/word_goal.dart';
 import '../../../core/configs/kanso_icons.dart';
 import '../../../core/configs/kanso_spacing.dart';
@@ -57,6 +58,15 @@ class WordGoalDefaultSection extends StatelessWidget {
                       ? () => _choose(context, state.words)
                       : null,
                 ),
+                KansoSettingsRow(
+                  icon: KansoIcons.target,
+                  label: l10n.editorTickNested,
+                  value: _tickLabel(context, state.tickNested),
+                  chevron: true,
+                  onTap: state.status == LoadStatus.ready
+                      ? () => _chooseTick(context, state.tickNested)
+                      : null,
+                ),
               ],
             ),
             if (state.error case final error?) ...<Widget>[
@@ -81,6 +91,37 @@ class WordGoalDefaultSection extends StatelessWidget {
       return true;
     } on ProviderNotFoundException {
       return false;
+    }
+  }
+
+  String _tickLabel(BuildContext context, TickNested setting) =>
+      switch (setting) {
+        TickNested.ask => context.l10n.tickNestedAsk,
+        TickNested.always => context.l10n.tickNestedAlways,
+        TickNested.never => context.l10n.tickNestedNever,
+      };
+
+  Future<void> _chooseTick(BuildContext context, TickNested current) async {
+    final picked = await PaletteChoiceSheet.show(
+      context,
+      title: context.l10n.editorTickNested,
+      choices: <PaletteChoice>[
+        for (final setting in TickNested.values)
+          PaletteChoice(
+            label: _tickLabel(context, setting),
+            value: setting.name,
+            checked: current == setting,
+          ),
+      ],
+    );
+    if (picked == null || !context.mounted) {
+      return;
+    }
+    final setting = TickNested.values.asNameMap()[picked];
+    if (setting != null) {
+      context.read<WordGoalSettingsBloc>().add(
+        WordGoalSettingsEvent.tickNestedChanged(setting),
+      );
     }
   }
 

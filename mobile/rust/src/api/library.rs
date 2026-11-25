@@ -9,8 +9,8 @@ use kanso_mobile::{
     DropsSaved, FoldState, GoalSetting, Hit, IconChoice, ImportEvent, KansoError, Library,
     LibraryOverview, ListQuery, LocalTime, NewNote, NewNotebookKind, NoteChange, NoteList,
     NoteView, NotebookRow, OpenedDocuments, OpenedFile, Property, Saved, SearchScope, Share,
-    StatusChoice, Table, TagPlaces, TagRow, TaskBoard, TaskCaptured, TaskListQuery, Ticked,
-    VisibleNotebook,
+    StatusChoice, Table, TagPlaces, TagRow, TaskBoard, TaskCaptured, TaskListQuery, TickNested,
+    Ticked, VisibleNotebook,
 };
 use kanso_mobile::{PdfEdited, PdfHighlightChange, PdfNotes};
 // A note's history, Replace in all notes and the backups.
@@ -175,6 +175,40 @@ impl KansoLibrary {
         self.0.set_task(&note_id, line, &text, checked)
     }
 
+    /// [`Self::set_task`] with the link said outright: nested tasks follow
+    /// when `link` is set.
+    pub fn set_task_linked(
+        &self,
+        note_id: String,
+        line: u32,
+        text: String,
+        checked: bool,
+        link: bool,
+    ) -> Result<Ticked, KansoError> {
+        self.0.set_task_linked(&note_id, line, &text, checked, link)
+    }
+
+    /// Whether ticking a task with the link would write more than the plain
+    /// tick: the app asks first when it would.
+    pub fn task_would_cascade(
+        &self,
+        note_id: String,
+        line: u32,
+        text: String,
+        checked: bool,
+    ) -> Result<bool, KansoError> {
+        self.0.task_would_cascade(&note_id, line, &text, checked)
+    }
+
+    /// "Tick nested tasks together": Ask until set otherwise.
+    pub fn tick_nested(&self) -> Result<TickNested, KansoError> {
+        self.0.tick_nested()
+    }
+
+    pub fn set_tick_nested(&self, setting: TickNested) -> Result<TickNested, KansoError> {
+        self.0.set_tick_nested(setting)
+    }
+
     pub fn note(&self, id: String) -> Result<NoteView, KansoError> {
         self.0.note(&id)
     }
@@ -201,6 +235,28 @@ impl KansoLibrary {
         base_rev: String,
     ) -> Result<Ticked, KansoError> {
         self.0.toggle_task_at(&note_id, index, &base_rev)
+    }
+
+    /// [`Self::toggle_task_at`] with the link said outright.
+    pub fn toggle_task_at_linked(
+        &self,
+        note_id: String,
+        index: u32,
+        base_rev: String,
+        link: bool,
+    ) -> Result<Ticked, KansoError> {
+        self.0
+            .toggle_task_at_linked(&note_id, index, &base_rev, link)
+    }
+
+    /// Whether ticking the `index`-th task box with the link would write
+    /// more than the plain tick.
+    pub fn toggle_task_would_cascade(
+        &self,
+        note_id: String,
+        index: u32,
+    ) -> Result<bool, KansoError> {
+        self.0.toggle_task_would_cascade(&note_id, index)
     }
 
     /// "Stop repeating" from a due chip's menu: the `index`-th task of a

@@ -39,6 +39,102 @@ pub fn tick_task_at(body: &str, index: usize, today: Date) -> Option<String> {
     toggle_task(body, index)
 }
 
+/// [`tick_task_at`], and when `link` is set, the tasks nested under or over
+/// it follow (nesting is the indentation of task-list lines):
+///
+/// - Ticking an open task also ticks every open, non-repeating task under
+///   it; then, if every task directly under its parent is done, the parent
+///   (when it does not repeat) is ticked too, and so up the tree.
+/// - Clearing a task also clears each ticked task above it; the tasks under
+///   it stay as they are.
+///
+/// A repeating task is never ticked by a cascade, and counts as open when
+/// the "all done" check looks at a parent's children. With `link` unset
+/// this is exactly [`tick_task_at`].
+pub fn tick_task_linked(body: &str, index: usize, today: Date, link: bool) -> Option<String> {
+    if !link {
+        return tick_task_at(body, index, today);
+    }
+    let before = task_items(body);
+    let was_checked = before.get(index)?.checked;
+    let mut out = tick_task_at(body, index, today)?;
+    // A repeating tick writes its next one above: the ticked line moves down.
+    let at = index + usize::from(task_items(&out).len() > before.len());
+    let items = task_items(&out);
+    let depth = indents(&out, &items);
+    let mut flips: Vec<usize> = Vec::new();
+    if was_checked {
+        let mut child = at;
+        while let Some(parent) = parent_of(&depth, child) {
+            if items[parent].checked {
+                flips.push(parent);
+            }
+            child = parent;
+        }
+    } else {
+        let end = (at + 1..items.len())
+            .find(|&j| depth[j] <= depth[at])
+            .unwrap_or(items.len());
+        flips.extend((at + 1..end).filter(|&j| !items[j].checked && items[j].repeat.is_none()));
+        let mut checked: Vec<bool> = items.iter().map(|t| t.checked).collect();
+        for &j in &flips {
+            checked[j] = true;
+        }
+        let mut child = at;
+        while let Some(parent) = parent_of(&depth, child) {
+            if checked[parent] {
+                // Already done: what is above it may be waiting on it.
+                child = parent;
+                continue;
+            }
+            if items[parent].repeat.is_some() {
+                break;
+            }
+            let all_done = (parent + 1..items.len())
+                .take_while(|&j| depth[j] > depth[parent])
+                .filter(|&j| parent_of(&depth, j) == Some(parent))
+                .all(|j| checked[j] && items[j].repeat.is_none());
+            if !all_done {
+                break;
+            }
+            checked[parent] = true;
+            flips.push(parent);
+            child = parent;
+        }
+    }
+    for j in flips {
+        out = toggle_task(&out, j)?;
+    }
+    Some(out)
+}
+
+/// Whether ticking the `index`-th task with `link` set writes something
+/// other than the plain tick: the UI asks before it does.
+pub fn would_cascade(body: &str, index: usize, today: Date) -> bool {
+    tick_task_linked(body, index, today, true) != tick_task_at(body, index, today)
+}
+
+/// The indentation width of each task's line (a tab counts four).
+fn indents(body: &str, items: &[TaskItem]) -> Vec<usize> {
+    let lines: Vec<&str> = body.lines().collect();
+    items
+        .iter()
+        .map(|item| {
+            lines[item.line as usize]
+                .chars()
+                .take_while(|c| matches!(c, ' ' | '\t'))
+                .map(|c| if c == '\t' { 4 } else { 1 })
+                .sum()
+        })
+        .collect()
+}
+
+/// The task (by index) a task is nested under: the nearest one above it
+/// that is indented less.
+fn parent_of(depth: &[usize], child: usize) -> Option<usize> {
+    (0..child).rev().find(|&j| depth[j] < depth[child])
+}
+
 /// The body with `item` (open, repeating) ticked and its next one above,
 /// or `None` when it is not a repeating task with a real due date.
 fn tick_repeating(body: &str, item: &TaskItem, today: Date) -> Option<String> {

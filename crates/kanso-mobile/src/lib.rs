@@ -195,6 +195,7 @@ mod themes;
 mod themes_icons;
 mod themes_icons_model;
 mod themes_model;
+mod tick_nested;
 mod triage;
 mod triage_model;
 mod undo;

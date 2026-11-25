@@ -232,3 +232,56 @@ proptest! {
         prop_assert_eq!(body(&store), original);
     }
 }
+
+// MARK: Linked nested tasks (#509)
+
+const NESTED: &str = "- [ ] ship\n  - [ ] build\n  - [ ] test\n";
+
+#[test]
+fn a_linked_tick_writes_the_children_too_and_undo_restores_the_text() {
+    let (_dir, store) = temp_store(NESTED);
+    let tick = store
+        .tick_task_linked("note:r", 0, "ship", true, TODAY, 5000, Origin::Ui, true)
+        .unwrap();
+    assert!(matches!(tick.off, CheckOff::Changed { .. }));
+    assert_eq!(body(&store), "- [x] ship\n  - [x] build\n  - [x] test\n");
+    store
+        .undo_tick("note:r", &tick.undo.unwrap(), 6000, Origin::Ui)
+        .unwrap();
+    assert_eq!(body(&store), NESTED);
+}
+
+#[test]
+fn an_unlinked_tick_writes_one_box() {
+    let (_dir, store) = temp_store(NESTED);
+    let tick = store
+        .tick_task_linked("note:r", 0, "ship", true, TODAY, 5000, Origin::Ui, false)
+        .unwrap();
+    assert!(tick.undo.is_none());
+    assert_eq!(body(&store), "- [x] ship\n  - [ ] build\n  - [ ] test\n");
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// With `link` unset the store writes what `tick_task` always wrote.
+    #[test]
+    fn prop_unlinked_is_the_plain_tick(
+        lines in prop::collection::vec((0usize..3, "[a-z]{1,6}"), 1..6),
+        pick in any::<prop::sample::Index>(),
+    ) {
+        let original: String = lines
+            .iter()
+            .map(|(depth, word)| format!("{}- [ ] {word}\n", "  ".repeat(*depth)))
+            .collect();
+        let items = kanso_core::tasks::task_items(&original);
+        let item = &items[pick.index(items.len())];
+        let (_dir_a, plain) = temp_store(&original);
+        let (_dir_b, linked) = temp_store(&original);
+        plain.tick_task("note:r", item.line, &item.text, true, TODAY, 5000, Origin::Ui).unwrap();
+        linked
+            .tick_task_linked("note:r", item.line, &item.text, true, TODAY, 5000, Origin::Ui, false)
+            .unwrap();
+        prop_assert_eq!(body(&plain), body(&linked));
+    }
+}

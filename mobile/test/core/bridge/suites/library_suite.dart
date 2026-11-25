@@ -1161,6 +1161,63 @@ void librarySuite(OpenLibrary open) {
       );
     });
 
+    test(
+      'linked nested ticks follow the setting and cascade cleanly',
+      () async {
+      final library = await open();
+      expect(await library.tickNested(), TickNested.ask);
+      expect(
+        await library.setTickNested(setting: TickNested.always),
+        TickNested.always,
+      );
+      expect(await library.tickNested(), TickNested.always);
+
+      final id = await makeNote(
+        library,
+        'Nested',
+        '- [ ] Parent\n  - [ ] Child\n',
+      );
+      expect(
+        await library.taskWouldCascade(
+          noteId: id,
+          line: 0,
+          text: 'Parent',
+          checked: true,
+        ),
+        isTrue,
+      );
+      expect(
+        await library.toggleTaskWouldCascade(noteId: id, index: 0),
+        isTrue,
+      );
+
+      final ticked = await library.setTaskLinked(
+        noteId: id,
+        line: 0,
+        text: 'Parent',
+        checked: true,
+        link: true,
+      );
+      expect(ticked, isA<Ticked_Changed>());
+      expect(
+        (await library.note(id: id)).body,
+        '- [x] Parent\n  - [x] Child\n',
+      );
+
+      final rev = (ticked as Ticked_Changed).rev;
+      final toggled = await library.toggleTaskAtLinked(
+        noteId: id,
+        index: 1,
+        baseRev: rev,
+        link: true,
+      );
+      expect(toggled, isA<Ticked_Changed>());
+      expect(
+        (await library.note(id: id)).body,
+        '- [ ] Parent\n  - [ ] Child\n',
+      );
+    });
+
     test('"Stop repeating" drops the every words, keeps the date, and '
         'Undo puts them back', () async {
       final library = await open();
