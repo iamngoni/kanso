@@ -73,3 +73,6 @@ Since 2026-11-25 it runs migration `0023_auth_flow_app_scheme` and everything me
 including the feedback sheet's GitHub user search and credit (#499, `GET /v1/feedback/users`),
 deployed as Worker version `8e598b00-6103-405a-bac5-054168fa2c20`. Before this, the Worker lagged
 master and the apps' search and credited reports failed (#499 was merged without a deploy).
+
+Since 2026-11-25 (later) it runs the fuller feedback triage (#507: longer summaries, a Screenshot
+line), deployed as Worker version `089f046f-9e92-46ad-85a9-ba3994d14524`.
