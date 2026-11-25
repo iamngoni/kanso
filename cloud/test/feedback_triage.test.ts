@@ -79,7 +79,7 @@ describe("the gateway request", () => {
 		expect(JSON.parse(sent.headers.get("cf-aig-metadata")!)).toEqual({ feedback: r.id, kind: "bug" });
 		expect(sent.body).toMatchObject({
 			model: "claude-haiku-5-5",
-			max_tokens: 1200,
+			max_tokens: 3000,
 			system: TRIAGE_SYSTEM,
 			tools: [TRIAGE_TOOL],
 			tool_choice: { type: "tool", name: "file_triage" },
@@ -409,11 +409,14 @@ describe("validateTriage", () => {
 		["a bad size", good({ size: "xl" }), "size"],
 		["an empty title", good({ title: " " }), "title"],
 		["a title over 80 characters", good({ title: "t".repeat(81) }), "title"],
-		["a summary over 600 characters", good({ summary: "s ".repeat(301) }), "summary"],
-		["an expected over 200 characters", good({ expected: "e".repeat(201) }), "expected"],
+		["a summary over 1500 characters", good({ summary: "s ".repeat(751) }), "summary"],
+		["an expected over 400 characters", good({ expected: "e".repeat(401) }), "expected"],
 		["an actual that is not a string", good({ actual: 3 }), "actual"],
-		["9 steps", good({ steps: Array(9).fill("step") }), "steps"],
-		["a step over 160 characters", good({ steps: ["s".repeat(161)] }), "steps[0]"],
+		["13 steps", good({ steps: Array(13).fill("step") }), "steps"],
+		["a step over 240 characters", good({ steps: ["s".repeat(241)] }), "steps[0]"],
+		["a screenshot over 600 characters", good({ screenshot: "s".repeat(601) }), "screenshot"],
+		["a screenshot that is not a string", good({ screenshot: null }), "screenshot"],
+		["a screenshot with a link", good({ screenshot: "see example.com" }), "screenshot"],
 		["an empty step", good({ steps: [""] }), "steps[0]"],
 		["a platform outside the enum", good({ platforms: ["beos"] }), "platforms"],
 		["a repeated platform", good({ platforms: ["macos", "macos"] }), "platforms"],
@@ -481,6 +484,16 @@ describe("validateTriage", () => {
 	});
 });
 
+describe("the screenshot line", () => {
+	it("shows what the screenshot holds after Expected and Actual, and nothing when it is empty or missing", () => {
+		const shot = renderIssue({ ...TRIAGE_OK, screenshot: "The export dialog with the table clipped at the right margin." } as any, report() as Report).body;
+		expect(shot).toContain("**Actual.** The right side of the table is cut off\n\n**Screenshot.** The export dialog with the table clipped at the right margin.");
+		expect(renderIssue(TRIAGE_OK as any, report() as Report).body).not.toContain("**Screenshot.**");
+		const { screenshot: _, ...old } = TRIAGE_OK;
+		expect(renderIssue(old as any, report() as Report).body).not.toContain("**Screenshot.**");
+	});
+});
+
 describe("properties", () => {
 	const text = fc.string({ maxLength: 120 });
 	const answer = fc.record({
@@ -490,6 +503,7 @@ describe("properties", () => {
 		steps: fc.array(text, { maxLength: 8 }),
 		expected: text,
 		actual: text,
+		screenshot: text,
 		area: fc.constantFrom("editor", "sync", "other"),
 		platforms: fc.constant(["macos"]),
 		severity: fc.constantFrom("crash", "broken", "n/a"),

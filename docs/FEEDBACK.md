@@ -111,7 +111,7 @@ so there is no Anthropic key anywhere. The gateway's rate limit, spend limit and
 | `cf-aig-skip-cache: true` | every report is unique |
 | `cf-aig-metadata` | `{feedback, kind}` |
 
-The model is the `TRIAGE_MODEL` var (`claude-haiku-5-5`), `max_tokens: 1200` (no `temperature`: Haiku 5.5 refuses it),
+The model is the `TRIAGE_MODEL` var (`claude-haiku-5-5`), `max_tokens: 3000` (no `temperature`: Haiku 5.5 refuses it),
 `tool_choice` forced to the one tool `file_triage`, whose `input_schema` is strict
 (`additionalProperties: false`, every field required, enums for category, area, platform,
 severity and size). The system prompt (`TRIAGE_SYSTEM`, `src/feedback_triage.ts`) tells the model
@@ -120,6 +120,13 @@ entity-encoded (so nothing can close `</report>`), the app info, and the 50 most
 open issues labelled `from-app`, `bug` or `enhancement` as `#N: title` only. If the person
 attached a screenshot it is sent as an image block (up to 3.5 MB; larger ones go without it; the
 Worker does not resize).
+
+The prompt asks for a detailed write-up a developer can fix from without the report: a
+several-sentence summary (up to 1,500 characters: what the person was doing, where in the app,
+how often, what they tried, any workaround or error), up to 12 steps of 240 characters, expected
+and actual up to 400 each, and `screenshot`, up to 600 characters describing what the attached
+image shows (`""` when there is none), rendered as a **Screenshot.** line. It is still a
+paraphrase: every field goes through the checks below.
 
 **The Worker does not trust the answer.** `validateTriage` (pure) re-checks every field:
 
