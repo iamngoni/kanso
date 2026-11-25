@@ -187,6 +187,28 @@ fn the_palette_command_and_the_sidebar_open_the_schedule_with_its_days(cx: &mut 
     );
 }
 
+// no-prop-test: drives one window; the highlight is one flag.
+#[gpui_kit::test]
+fn the_sidebar_highlights_the_schedule_while_it_is_open(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    let mut vcx = gpui_kit::VisualTestContext::from_window(f.window, cx);
+    open(&f, &mut vcx);
+    let selected = |vcx: &mut gpui_kit::VisualTestContext| {
+        vcx.read(|cx| {
+            f.workspace
+                .read(cx)
+                .sidebar
+                .read(cx)
+                .schedule_selected_for_test()
+        })
+    };
+    assert!(selected(&mut vcx));
+    f.workspace
+        .update_in(&mut vcx, |ws, window, cx| ws.close_schedule(window, cx));
+    settle(&f, &mut vcx);
+    assert!(!selected(&mut vcx));
+}
+
 // no-prop-test: drives one window with the pointer.
 #[gpui_kit::test]
 fn clicking_a_task_ticks_it_and_clicking_a_done_one_opens_it_again(cx: &mut TestAppContext) {
