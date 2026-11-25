@@ -161,6 +161,7 @@ export const TRIAGE_OK = {
 	steps: ["Open a note with a wide table", "Export it to PDF"],
 	expected: "The table wraps or shrinks to fit the page",
 	actual: "The right side of the table is cut off",
+	screenshot: "",
 	area: "export",
 	platforms: ["macos"],
 	severity: "broken",
