@@ -114,6 +114,9 @@ pub struct Sidebar {
     /// Settings fill the window beside the sidebar: the gear is the place
     /// shown, not the filter.
     settings_open: bool,
+    /// The Schedule fills the window beside the sidebar: its row is the
+    /// place shown, not the filter.
+    schedule_open: bool,
     user: SharedString,
     /// "DEV" in Kanso Dev, beside the name, so it is never taken for the
     /// Kanso installed from a release.
@@ -194,6 +197,7 @@ impl Sidebar {
             book_sort,
             collapsed: false,
             settings_open: false,
+            schedule_open: false,
             user: user.into(),
             badge: crate::flavour::CURRENT.badge,
             #[cfg(test)]
@@ -288,6 +292,7 @@ impl Sidebar {
     fn schedule_row(&self, cx: &mut Context<Self>) -> Stateful<Div> {
         let colors = Colors::get(cx);
         let icon = self.icon(Icon::new(Lucide::CalendarDays), cx);
+        let selected = self.schedule_open && !self.settings_open;
         div()
             .id("schedule")
             .debug_selector(|| "schedule-row".into())
@@ -302,7 +307,8 @@ impl Sidebar {
             .rounded(px(6.))
             .text_size(px(13.5))
             .cursor_pointer()
-            .hover(|el| el.bg(colors.sidebar_hover))
+            .when(selected, |el| el.bg(colors.sidebar_active))
+            .when(!selected, |el| el.hover(|el| el.bg(colors.sidebar_hover)))
             .child(icon)
             .child(div().flex_1().min_w_0().truncate().child("Schedule"))
             .on_click(|_, window, cx| {
@@ -323,6 +329,24 @@ impl Sidebar {
             self.settings_open = open;
             cx.notify();
         }
+    }
+
+    pub fn set_schedule_open(&mut self, open: bool, cx: &mut Context<Self>) {
+        if self.schedule_open != open {
+            self.schedule_open = open;
+            cx.notify();
+        }
+    }
+
+    /// Whether the library filter is the place shown, so its row is the
+    /// one highlighted (not while Settings or the Schedule cover it).
+    fn filter_shown(&self) -> bool {
+        !self.settings_open && !self.schedule_open
+    }
+
+    #[cfg(test)]
+    pub fn schedule_selected_for_test(&self) -> bool {
+        self.schedule_open && !self.settings_open
     }
 
     /// Whether the Status group shows its rows now.
@@ -516,7 +540,7 @@ impl Sidebar {
             depth,
             color,
         } = entry;
-        let selected = !self.settings_open && self.library.read(cx).filter == filter;
+        let selected = self.filter_shown() && self.library.read(cx).filter == filter;
         // Overview has nothing to count.
         let counted = !matches!(filter, Filter::Overview);
         let colors = Colors::get(cx);
@@ -584,7 +608,7 @@ impl Sidebar {
     // no-prop-test: drawing; the Tasks snapshots show it.
     fn tasks_row(&self, cx: &mut Context<Self>) -> Stateful<Div> {
         let overdue = self.library.read(cx).overdue;
-        let selected = !self.settings_open && self.library.read(cx).filter == Filter::Tasks;
+        let selected = self.filter_shown() && self.library.read(cx).filter == Filter::Tasks;
         let colors = Colors::get(cx);
         let icon = self.icon(library_icon(Slot::Tasks), cx);
         let library = self.library.clone();
@@ -644,7 +668,7 @@ impl Sidebar {
             return None;
         }
         let count = self.library.read(cx).shared;
-        let selected = !self.settings_open && self.library.read(cx).filter == Filter::Shared;
+        let selected = self.filter_shown() && self.library.read(cx).filter == Filter::Shared;
         let colors = Colors::get(cx);
         let icon = self.icon(library_icon(Slot::Shared), cx);
         let library = self.library.clone();
@@ -997,7 +1021,7 @@ impl Sidebar {
             let view = cx.entity();
             let library = self.library.clone();
             let filter = Filter::Tag(id.clone());
-            let selected = !self.settings_open && self.library.read(cx).filter == filter;
+            let selected = self.filter_shown() && self.library.read(cx).filter == filter;
             let tag_id = id.clone();
             let chip = div()
                 .id(SharedString::from(format!("tag-{id}")))
@@ -1492,7 +1516,7 @@ impl Sidebar {
         filter: Filter,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
-        let active = !self.settings_open && self.library.read(cx).filter == filter;
+        let active = self.filter_shown() && self.library.read(cx).filter == filter;
         let library = self.library.clone();
         self.rail_button(id, icon, label, None, active, cx)
             .on_click(move |_, _, cx| {
@@ -1552,7 +1576,7 @@ impl Sidebar {
                 library_icon(Slot::Notebooks),
                 "Notebooks",
                 None,
-                !self.settings_open && matches!(filter, Filter::Book(_)),
+                self.filter_shown() && matches!(filter, Filter::Book(_)),
                 cx,
             )
             .on_click(cx.listener(|_, _, _, cx| cx.emit(SidebarEvent::GoToNotebook)));
@@ -1562,7 +1586,7 @@ impl Sidebar {
                 library_icon(Slot::Tags),
                 "Tags",
                 None,
-                !self.settings_open && matches!(filter, Filter::Tag(_)),
+                self.filter_shown() && matches!(filter, Filter::Tag(_)),
                 cx,
             )
             .on_click(cx.listener(|_, _, _, cx| cx.emit(SidebarEvent::GoToTag)));
@@ -1910,7 +1934,9 @@ impl Render for Sidebar {
                 !c.books.is_empty() || !c.book_invitations.is_empty() || c.book_update_needed
             })
         {
-            let selected = (!self.settings_open).then(|| self.library.read(cx).filter.clone());
+            let selected = self
+                .filter_shown()
+                .then(|| self.library.read(cx).filter.clone());
             let section = crate::shared_books::render_section(
                 &cx.entity(),
                 &self.library,

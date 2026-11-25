@@ -1149,6 +1149,8 @@ impl Workspace {
         };
         view.update(cx, |view, cx| view.show(cx));
         self.schedule_open = true;
+        self.sidebar
+            .update(cx, |sidebar, cx| sidebar.set_schedule_open(true, cx));
         window.focus(&view.focus_handle(cx), cx);
         cx.notify();
     }
@@ -1158,6 +1160,8 @@ impl Workspace {
             return;
         }
         self.schedule_open = false;
+        self.sidebar
+            .update(cx, |sidebar, cx| sidebar.set_schedule_open(false, cx));
         if let Some(view) = &self.schedule {
             view.update(cx, |view, _| view.visible = false);
         }
