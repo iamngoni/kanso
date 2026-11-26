@@ -3,6 +3,25 @@
 Every release of Kanso, newest first. Each entry links its commit, and each
 heading compares the release with the one before.
 
+## [0.10.13](https://github.com/iamngoni/kanso/compare/v0.10.12...v0.10.13) - 2026-11-26
+
+### New
+
+- **feedback:** Fuller triage write-ups with a screenshot description ([#507](https://github.com/iamngoni/kanso/pull/507)) ([b02cebb](https://github.com/iamngoni/kanso/commit/b02cebbed74a8283682a33b09eb9a9b5e3061ce5))
+- **tasks:** Tick nested tasks together on desktop and mobile ([#509](https://github.com/iamngoni/kanso/pull/509)) ([6b86187](https://github.com/iamngoni/kanso/commit/6b86187c334600ec02e0342b5012467e38cfd490))
+- **desktop:** Add six-page Welcome Tour first-run setup ([#510](https://github.com/iamngoni/kanso/pull/510)) ([20294a8](https://github.com/iamngoni/kanso/commit/20294a8e75a6d2ee1820151d9863fa22522798b6))
+
+### Fixed
+
+- **mobile:** Build CMake C libraries for Android with the NDK's toolchain file ([#503](https://github.com/iamngoni/kanso/pull/503)) ([26bae32](https://github.com/iamngoni/kanso/commit/26bae32eaf771c888631e09c96103ee1ed55b045))
+- **mobile:** Install CMake for the iOS build in Xcode Cloud ([#504](https://github.com/iamngoni/kanso/pull/504)) ([66b64ce](https://github.com/iamngoni/kanso/commit/66b64ceb943d0878fca6bce3d54522aae5134708))
+- **desktop:** Highlight Schedule in the sidebar while it is open ([#496](https://github.com/iamngoni/kanso/pull/496)) ([#505](https://github.com/iamngoni/kanso/pull/505)) ([26606d4](https://github.com/iamngoni/kanso/commit/26606d403d65c0ac8511046c12810de1b3a195dd))
+
+### Under the hood
+
+- **cloud:** Record the 2026-11-25 Worker deploy ([#506](https://github.com/iamngoni/kanso/pull/506)) ([cc6135c](https://github.com/iamngoni/kanso/commit/cc6135c380ed9568159239e14c6310bfda902742))
+- **cloud:** Record the #507 Worker deploy ([3dd0358](https://github.com/iamngoni/kanso/commit/3dd035880ed61ad35d8828b7eafec9ee5399df9c))
+
 ## [0.10.12](https://github.com/iamngoni/kanso/compare/v0.10.11...v0.10.12) - 2026-11-23
 
 ### New
