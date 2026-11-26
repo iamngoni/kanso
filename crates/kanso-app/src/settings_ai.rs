@@ -46,6 +46,17 @@ pub fn write_key(cx: &App, provider: Provider, key: &str) -> Result<(), String> 
     write_to(secrets.as_ref(), provider, key)
 }
 
+/// Picks `provider` (updating default base URL and model), same as Settings › AI.
+pub(crate) fn choose_provider(provider: Provider, cx: &mut App) {
+    AppState::update_config(cx, |config| config.ai.choose(provider));
+}
+
+/// Turns AI on or off and updates menus/inspector, same as Settings › AI.
+pub(crate) fn set_ai_enabled(on: bool, cx: &mut App) {
+    AppState::update_config(cx, |config| config.ai.enabled = on);
+    ai_changed(cx);
+}
+
 fn secrets(cx: &App) -> Option<Arc<dyn SecretStore>> {
     cx.try_global::<Services>()?.secrets.clone()
 }

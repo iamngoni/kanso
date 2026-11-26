@@ -372,8 +372,7 @@ impl FontPickers {
                 move |_, _, event: &SelectEvent<SearchableVec<SharedString>>, cx| {
                     let SelectEvent::Confirm(entry) = event;
                     let family = entry.as_deref().and_then(crate::fonts::picked);
-                    AppState::update_config(cx, |config| slot.set(&mut config.appearance, family));
-                    update_editors(cx);
+                    set_font_family(slot, family, cx);
                 },
             ));
             state
@@ -386,10 +385,7 @@ impl FontPickers {
             &google,
             window,
             |this: &mut SettingsView, _, GoogleFontAdded(family), window, cx| {
-                AppState::update_config(cx, |config| {
-                    config.appearance.add_google_font(family.as_str());
-                });
-                update_editors(cx);
+                add_google_font(family.as_str(), cx);
                 if let Some(fonts) = &this.fonts {
                     fonts.reload(window, cx);
                 }
@@ -404,10 +400,7 @@ impl FontPickers {
                 // any font choice naming it. The text system can't unload
                 // it (GPUI has no call for that), so it can stay listed
                 // below until the next launch, but no setting selects it.
-                AppState::update_config(cx, |config| {
-                    config.appearance.remove_google_font(family);
-                });
-                update_editors(cx);
+                remove_google_font(family, cx);
                 if let Some(fonts) = &this.fonts {
                     fonts.reload(window, cx);
                 }
@@ -502,12 +495,50 @@ fn update_editors(cx: &mut App) {
     });
 }
 
+fn set_font_family(slot: FontSlot, family: Option<String>, cx: &mut App) {
+    AppState::update_config(cx, |config| slot.set(&mut config.appearance, family));
+    update_editors(cx);
+}
+
+/// Sets the editor writing font family and updates all open editors.
+pub(crate) fn set_editor_font_family(family: Option<String>, cx: &mut App) {
+    set_font_family(FontSlot::Writing, family, cx);
+}
+
+/// Records a newly downloaded Google Font as the writing and preview font
+/// and updates all open editors.
+pub(crate) fn add_google_font(family: &str, cx: &mut App) {
+    AppState::update_config(cx, |config| {
+        config.appearance.add_google_font(family);
+    });
+    update_editors(cx);
+}
+
+/// Removes a Google Font from config and updates all open editors.
+pub(crate) fn remove_google_font(family: &str, cx: &mut App) {
+    AppState::update_config(cx, |config| {
+        config.appearance.remove_google_font(family);
+    });
+    update_editors(cx);
+}
+
+/// Sets the default editor view mode (Edit / Split / Preview) and updates
+/// every open workspace's editor.
+pub(crate) fn set_view_mode(mode: crate::config::ViewMode, cx: &mut App) {
+    AppState::update_config(cx, |config| config.appearance.view_mode = mode);
+    cx.defer(move |cx| {
+        crate::workspace::for_each_editor(cx, |editor, cx| {
+            editor.set_view_mode(mode, cx);
+        });
+    });
+}
+
 fn set_editor_font(font: EditorFont, cx: &mut App) {
     AppState::update_config(cx, |config| config.appearance.editor_font = font);
     update_editors(cx);
 }
 
-fn step_editor_size(step: i32, cx: &mut App) {
+pub(crate) fn step_editor_size(step: i32, cx: &mut App) {
     let size = step_font_size(config(cx).appearance.editor_font_size, step);
     AppState::update_config(cx, |config| config.appearance.editor_font_size = size);
     update_editors(cx);
@@ -528,7 +559,7 @@ fn step_preview_size(step: i32, cx: &mut App) {
 /// A text size with a smaller and a larger button either side, as Settings
 /// › Editor shows the editor's and the preview's.
 // no-prop-test: layout; `step_font_size` has the properties.
-fn size_stepper(
+pub(crate) fn size_stepper(
     (smaller, larger): (&'static str, &'static str),
     size: f32,
     step: fn(i32, &mut App),
@@ -608,7 +639,7 @@ fn set_line_numbers(on: bool, cx: &mut App) {
     update_editors(cx);
 }
 
-fn set_readable_width(on: bool, cx: &mut App) {
+pub(crate) fn set_readable_width(on: bool, cx: &mut App) {
     AppState::update_config(cx, |config| config.appearance.readable_width = on);
     update_editors(cx);
 }
@@ -625,6 +656,12 @@ fn set_launch_at_login(on: bool, window: &mut Window, cx: &mut App) {
             );
         }
     }
+}
+
+/// Turns the local REST and MCP server on or off and applies it immediately.
+pub(crate) fn set_server_enabled(on: bool, cx: &mut App) {
+    AppState::update_config(cx, |config| config.server.enabled = on);
+    services::apply_server_settings(cx);
 }
 
 fn apply_address(value: String, cx: &mut App) -> Result<(), String> {
@@ -652,7 +689,7 @@ pub fn parse_port(value: &str) -> Result<u16, String> {
     }
 }
 
-fn copy_to_clipboard(
+pub(crate) fn copy_to_clipboard(
     text: String,
     message: impl Into<SharedString>,
     window: &mut Window,
@@ -1539,11 +1576,7 @@ fn api_page(
                 Row::new(Lucide::Plug, "Enable the local API")
                     .detail("REST and MCP for local agents. It speaks a widely used local-server REST API, so clients written for that API work too.")
                     .trailing(Switch::new("api-enabled").checked(server.enabled).on_click(
-                        |on, _, cx| {
-                            let on = *on;
-                            AppState::update_config(cx, |config| config.server.enabled = on);
-                            services::apply_server_settings(cx);
-                        },
+                        |on, _, cx| set_server_enabled(*on, cx),
                     )),
                 Row::new(Lucide::Network, "Address")
                     .detail("127.0.0.1 keeps the API on this device.")

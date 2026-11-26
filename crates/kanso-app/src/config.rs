@@ -985,6 +985,11 @@ pub struct AppConfig {
     /// install's ID and what was counted today. A damaged entry reads as
     /// empty, never as an unreadable file.
     pub metrics: kanso_metrics::Ledger,
+    /// Whether the first-run welcome tour has been shown and dismissed or
+    /// finished (issue #510). Absent in older files: `false`, so existing
+    /// users see it once on update.
+    #[serde(default)]
+    pub welcome_tour_seen: bool,
 }
 
 /// What Kanso has told someone about, so it says it once.
@@ -1040,6 +1045,7 @@ impl Default for AppConfig {
             notices: Default::default(),
             linux: LinuxSettings::default(),
             metrics: kanso_metrics::Ledger::default(),
+            welcome_tour_seen: false,
         }
     }
 }
@@ -1767,6 +1773,7 @@ mod tests {
                         }
                         ledger
                     },
+                    welcome_tour_seen: version % 2 == 1,
                 },
             )
     }
@@ -2620,5 +2627,33 @@ mod tests {
             std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
             0o600
         );
+    }
+
+    /// Issue #510: older configs without `welcomeTourSeen` deserialize as
+    /// `false` so existing users see the tour once.
+    #[test]
+    fn older_files_default_welcome_tour_seen_to_false() {
+        let old: AppConfig = serde_json::from_str("{}").unwrap();
+        assert!(!old.welcome_tour_seen);
+        let seen: AppConfig = serde_json::from_str(r#"{"welcomeTourSeen":true}"#).unwrap();
+        assert!(seen.welcome_tour_seen);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            rng_seed: proptest::test_runner::RngSeed::Fixed(20_261_017),
+            ..ProptestConfig::with_cases(16)
+        })]
+
+        #[test]
+        fn prop_welcome_tour_seen_roundtrips(seen in any::<bool>()) {
+            let config = AppConfig {
+                welcome_tour_seen: seen,
+                ..AppConfig::default()
+            };
+            let json = serde_json::to_string(&config).unwrap();
+            let loaded: AppConfig = serde_json::from_str(&json).unwrap();
+            prop_assert_eq!(loaded.welcome_tour_seen, seen);
+        }
     }
 }

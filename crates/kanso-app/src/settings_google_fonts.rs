@@ -122,6 +122,11 @@ impl GoogleFonts {
         }
     }
 
+    /// Whether the Google Fonts text field currently has keyboard focus.
+    pub(crate) fn is_focused(&self, window: &Window, cx: &App) -> bool {
+        window.focused(cx) == Some(self.input.focus_handle(cx))
+    }
+
     /// Downloads the family in the field, unless one is downloading.
     // no-prop-test: starts a task on the network; the steps are `State`'s
     // and the download is `kanso_engine::google_fonts::load`'s.

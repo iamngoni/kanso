@@ -1719,6 +1719,24 @@ static COMMANDS: &[Command] = &[
     },
     // App.
     Command {
+        id: "welcome-tour",
+        label: "Welcome tour",
+        label_when_pinned: None,
+        description: "Opens the six-step setup guide for themes, writing, sync, AI, voice and local agents.",
+        icon: IconName::Compass,
+        keywords: &[
+            "welcome",
+            "tour",
+            "setup",
+            "onboarding",
+            "getting started",
+            "first run",
+        ],
+        group: Group::App,
+        run: action!(crate::welcome_tour::ShowWelcomeTour),
+        needs: Needs::Nothing,
+    },
+    Command {
         id: "whats-new",
         label: "What's new in Kanso",
         label_when_pinned: None,

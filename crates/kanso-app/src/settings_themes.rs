@@ -117,8 +117,25 @@ pub fn select_installed(name: &str, dark: bool, cx: &mut App) {
     themes::apply(None, cx);
 }
 
+/// Selects a UI theme by name, saving and applying it immediately.
+pub(crate) fn pick_ui(name: &str, dark: bool, window: &mut Window, cx: &mut App) {
+    update(window, cx, |s| pick(s, Kind::Ui, Some(name), dark));
+}
+
+/// Switches between System, Light, and Dark appearance modes, keeping the
+/// chosen light and dark themes intact and applying immediately.
+pub(crate) fn apply_mode(mode: ThemePreference, window: &mut Window, cx: &mut App) {
+    update(window, cx, |s| {
+        crate::welcome_tour_model::apply_theme_mode(s, mode)
+    });
+}
+
 /// Changes the theme settings, saves them, and shows the result everywhere.
-fn update(window: &mut Window, cx: &mut App, change: impl FnOnce(&ThemeSettings) -> ThemeSettings) {
+pub(crate) fn update(
+    window: &mut Window,
+    cx: &mut App,
+    change: impl FnOnce(&ThemeSettings) -> ThemeSettings,
+) {
     let next = change(&cx.global::<AppState>().config.appearance.themes);
     let legacy = if next.follow_system {
         ThemePreference::System

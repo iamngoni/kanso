@@ -71,6 +71,7 @@ mod recording_summary;
 mod rename_speakers;
 mod schedule;
 mod voice;
+mod welcome_tour;
 
 /// The demo's "now": Thursday 28 May 2026, 09:45 in a zone two hours ahead
 /// of UTC.
@@ -7629,6 +7630,7 @@ fn snapshots() {
         .chain(plugins_panel::SHOTS)
         .chain(inspector_properties::SHOTS)
         .chain(new_notebook::SHOTS)
+        .chain(welcome_tour::SHOTS)
     {
         let theme = if name.starts_with("dark-") {
             Dark

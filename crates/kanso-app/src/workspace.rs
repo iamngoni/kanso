@@ -388,6 +388,7 @@ pub fn set_menus(cx: &mut App) {
         ]),
         Menu::new("View").items(view_menu(cx)),
         Menu::new("Help").items([
+            MenuItem::action("Welcome Tour", crate::welcome_tour::ShowWelcomeTour),
             MenuItem::action("What's New in Kanso", crate::updates::ShowWhatsNew),
             MenuItem::separator(),
             MenuItem::action("Send Feedback…", crate::feedback_sheet::SendFeedback),
@@ -3545,6 +3546,7 @@ impl Render for Workspace {
             .map(|el| crate::updates::on_actions(el, cx))
             .map(|el| crate::notice_views::on_actions(el, cx))
             .map(|el| crate::feedback_sheet::on_actions(el, cx))
+            .map(|el| crate::welcome_tour::on_actions(el, cx))
             .map(|el| crate::graph_view::on_actions(el, cx))
             .map(|el| crate::board_view::on_actions(el, cx))
             .map(|el| crate::triage_view::on_actions(el, cx))

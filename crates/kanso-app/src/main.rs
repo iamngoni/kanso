@@ -312,6 +312,10 @@ mod voice;
 mod voice_commands;
 mod voice_state;
 mod voice_tidy;
+mod welcome_tour;
+mod welcome_tour_model;
+#[cfg(test)]
+mod welcome_tour_tests;
 mod when_hint;
 mod when_hint_model;
 mod wikilinks;
@@ -1002,12 +1006,14 @@ fn open_main_window(cx: &mut App) {
                     let editor = view.read(cx).editor.clone();
                     view.update(cx, |workspace, cx| workspace.launch_to_overview(window, cx));
                     window.on_window_should_close(cx, move |window, cx| {
+                        welcome_tour::on_window_close(cx);
                         // A sketch's ink from the last two seconds included.
                         editor.update(cx, |editor, cx| editor.flush_with_sketches(window, cx));
                         true
                     });
                     updates::announce(window, cx);
                     metrics::show_notice(window, cx);
+                    welcome_tour::offer_at_launch(window, cx);
                     library_key_sheet::offer_at_launch(window, cx);
                     nightly_notice(window, cx);
                 })
