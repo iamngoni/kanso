@@ -102,10 +102,15 @@ Future<List<String>> _checkBar(WidgetTester tester, double width) async {
   expect(tester.takeException(), isNull);
   final buttons = _barButtons.evaluate().toList();
   expect(buttons, isNotEmpty);
+  // The first button of the bar: Back on a phone, and on a tablet the
+  // button that puts the library and the list away.
+  final firstLabel = _inBar(tester, 'Hide sidebar and list')
+      ? 'Hide sidebar and list'
+      : 'Back';
   final back = tester.getRect(
     find.descendant(
       of: find.byType(NoteTopBar),
-      matching: find.bySemanticsLabel('Back'),
+      matching: find.bySemanticsLabel(firstLabel),
     ),
   );
   for (final button in buttons) {
@@ -209,8 +214,13 @@ void main() {
     expect(hidden, isNotEmpty);
   });
 
-  testWidgets('on a wide tablet nothing gives way', (tester) async {
+  testWidgets('on a wide tablet only the note info gives way, and with the '
+      'library and list put away nothing does', (tester) async {
     await _pump(tester, 1180, tablet: true);
+    expect(tester.takeException(), isNull);
+    expect(_hidden(tester), <String>['Note info']);
+    await tester.tap(find.bySemanticsLabel('Hide sidebar and list'));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(_hidden(tester), isEmpty);
   });

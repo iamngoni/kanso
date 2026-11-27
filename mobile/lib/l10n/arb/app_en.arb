@@ -5748,6 +5748,14 @@
   "@paletteCommands": {
     "description": "The library's way into the command palette."
   },
+  "notePanesHide": "Hide sidebar and list",
+  "@notePanesHide": {
+    "description": "Tablet note bar button: put the library and the note list away so the note has the whole width."
+  },
+  "notePanesShow": "Show sidebar and list",
+  "@notePanesShow": {
+    "description": "Tablet note bar button: bring back the library and the note list."
+  },
   "focusModeExit": "Leave focus mode",
   "@focusModeExit": {
     "description": "Leaves focus mode and brings back the sidebar and bars."
