@@ -4497,6 +4497,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paletteCommands => 'Commands';
 
   @override
+  String get notePanesHide => 'Hide sidebar and list';
+
+  @override
+  String get notePanesShow => 'Show sidebar and list';
+
+  @override
   String get focusModeExit => 'Leave focus mode';
 
   @override

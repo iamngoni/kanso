@@ -55,11 +55,12 @@ extension LibraryPaneEventPatterns on LibraryPaneEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( LibraryPaneToggledEvent value)?  toggled,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( LibraryPaneToggledEvent value)?  toggled,TResult Function( LibraryPanesToggledEvent value)?  panesToggled,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case LibraryPaneToggledEvent() when toggled != null:
-return toggled(_that);case _:
+return toggled(_that);case LibraryPanesToggledEvent() when panesToggled != null:
+return panesToggled(_that);case _:
   return orElse();
 
 }
@@ -77,11 +78,12 @@ return toggled(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( LibraryPaneToggledEvent value)  toggled,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( LibraryPaneToggledEvent value)  toggled,required TResult Function( LibraryPanesToggledEvent value)  panesToggled,}){
 final _that = this;
 switch (_that) {
 case LibraryPaneToggledEvent():
-return toggled(_that);}
+return toggled(_that);case LibraryPanesToggledEvent():
+return panesToggled(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -95,11 +97,12 @@ return toggled(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( LibraryPaneToggledEvent value)?  toggled,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( LibraryPaneToggledEvent value)?  toggled,TResult? Function( LibraryPanesToggledEvent value)?  panesToggled,}){
 final _that = this;
 switch (_that) {
 case LibraryPaneToggledEvent() when toggled != null:
-return toggled(_that);case _:
+return toggled(_that);case LibraryPanesToggledEvent() when panesToggled != null:
+return panesToggled(_that);case _:
   return null;
 
 }
@@ -116,10 +119,11 @@ return toggled(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  toggled,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  toggled,TResult Function()?  panesToggled,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case LibraryPaneToggledEvent() when toggled != null:
-return toggled();case _:
+return toggled();case LibraryPanesToggledEvent() when panesToggled != null:
+return panesToggled();case _:
   return orElse();
 
 }
@@ -137,10 +141,11 @@ return toggled();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  toggled,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  toggled,required TResult Function()  panesToggled,}) {final _that = this;
 switch (_that) {
 case LibraryPaneToggledEvent():
-return toggled();}
+return toggled();case LibraryPanesToggledEvent():
+return panesToggled();}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -154,10 +159,11 @@ return toggled();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  toggled,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  toggled,TResult? Function()?  panesToggled,}) {final _that = this;
 switch (_that) {
 case LibraryPaneToggledEvent() when toggled != null:
-return toggled();case _:
+return toggled();case LibraryPanesToggledEvent() when panesToggled != null:
+return panesToggled();case _:
   return null;
 
 }
@@ -198,10 +204,44 @@ String toString() {
 
 
 /// @nodoc
+
+
+class LibraryPanesToggledEvent implements LibraryPaneEvent {
+  const LibraryPanesToggledEvent();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LibraryPanesToggledEvent);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'LibraryPaneEvent.panesToggled()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$LibraryPaneState {
 
 /// Whether the pane is shown beside the list.
- bool get visible;
+ bool get visible;/// Whether the library and the list are both put away while a note is
+/// open, so the note has the whole width of a tablet to write in.
+ bool get panesHidden;
 /// Create a copy of LibraryPaneState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -212,16 +252,16 @@ $LibraryPaneStateCopyWith<LibraryPaneState> get copyWith => _$LibraryPaneStateCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LibraryPaneState&&(identical(other.visible, visible) || other.visible == visible));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LibraryPaneState&&(identical(other.visible, visible) || other.visible == visible)&&(identical(other.panesHidden, panesHidden) || other.panesHidden == panesHidden));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,visible);
+int get hashCode => Object.hash(runtimeType,visible,panesHidden);
 
 @override
 String toString() {
-  return 'LibraryPaneState(visible: $visible)';
+  return 'LibraryPaneState(visible: $visible, panesHidden: $panesHidden)';
 }
 
 
@@ -232,7 +272,7 @@ abstract mixin class $LibraryPaneStateCopyWith<$Res>  {
   factory $LibraryPaneStateCopyWith(LibraryPaneState value, $Res Function(LibraryPaneState) _then) = _$LibraryPaneStateCopyWithImpl;
 @useResult
 $Res call({
- bool visible
+ bool visible, bool panesHidden
 });
 
 
@@ -249,9 +289,10 @@ class _$LibraryPaneStateCopyWithImpl<$Res>
 
 /// Create a copy of LibraryPaneState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? visible = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? visible = null,Object? panesHidden = null,}) {
   return _then(_self.copyWith(
 visible: null == visible ? _self.visible : visible // ignore: cast_nullable_to_non_nullable
+as bool,panesHidden: null == panesHidden ? _self.panesHidden : panesHidden // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
@@ -337,10 +378,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool visible)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool visible,  bool panesHidden)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LibraryPaneState() when $default != null:
-return $default(_that.visible);case _:
+return $default(_that.visible,_that.panesHidden);case _:
   return orElse();
 
 }
@@ -358,10 +399,10 @@ return $default(_that.visible);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool visible)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool visible,  bool panesHidden)  $default,) {final _that = this;
 switch (_that) {
 case _LibraryPaneState():
-return $default(_that.visible);case _:
+return $default(_that.visible,_that.panesHidden);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -378,10 +419,10 @@ return $default(_that.visible);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool visible)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool visible,  bool panesHidden)?  $default,) {final _that = this;
 switch (_that) {
 case _LibraryPaneState() when $default != null:
-return $default(_that.visible);case _:
+return $default(_that.visible,_that.panesHidden);case _:
   return null;
 
 }
@@ -393,11 +434,14 @@ return $default(_that.visible);case _:
 
 
 class _LibraryPaneState implements LibraryPaneState {
-  const _LibraryPaneState({this.visible = true});
+  const _LibraryPaneState({this.visible = true, this.panesHidden = false});
   
 
 /// Whether the pane is shown beside the list.
 @override@JsonKey() final  bool visible;
+/// Whether the library and the list are both put away while a note is
+/// open, so the note has the whole width of a tablet to write in.
+@override@JsonKey() final  bool panesHidden;
 
 /// Create a copy of LibraryPaneState
 /// with the given fields replaced by the non-null parameter values.
@@ -409,16 +453,16 @@ _$LibraryPaneStateCopyWith<_LibraryPaneState> get copyWith => __$LibraryPaneStat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LibraryPaneState&&(identical(other.visible, visible) || other.visible == visible));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LibraryPaneState&&(identical(other.visible, visible) || other.visible == visible)&&(identical(other.panesHidden, panesHidden) || other.panesHidden == panesHidden));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,visible);
+int get hashCode => Object.hash(runtimeType,visible,panesHidden);
 
 @override
 String toString() {
-  return 'LibraryPaneState(visible: $visible)';
+  return 'LibraryPaneState(visible: $visible, panesHidden: $panesHidden)';
 }
 
 
@@ -429,7 +473,7 @@ abstract mixin class _$LibraryPaneStateCopyWith<$Res> implements $LibraryPaneSta
   factory _$LibraryPaneStateCopyWith(_LibraryPaneState value, $Res Function(_LibraryPaneState) _then) = __$LibraryPaneStateCopyWithImpl;
 @override @useResult
 $Res call({
- bool visible
+ bool visible, bool panesHidden
 });
 
 
@@ -446,9 +490,10 @@ class __$LibraryPaneStateCopyWithImpl<$Res>
 
 /// Create a copy of LibraryPaneState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? visible = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? visible = null,Object? panesHidden = null,}) {
   return _then(_LibraryPaneState(
 visible: null == visible ? _self.visible : visible // ignore: cast_nullable_to_non_nullable
+as bool,panesHidden: null == panesHidden ? _self.panesHidden : panesHidden // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
