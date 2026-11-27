@@ -11,6 +11,14 @@ pub const BOARD_FIELD: &str = "kansoBoard";
 /// the Templates notebook, listed first when this notebook is the current one.
 pub const TEMPLATES_FIELD: &str = "kansoTemplates";
 
+/// The note field (in `extra`) that marks a template a notebook starter made,
+/// by a short key such as `"product/bug-report"` (at most 64 characters of
+/// `[a-z0-9/-]`). A starter finds its template again by this key and reuses it.
+pub const STARTER_TEMPLATE_FIELD: &str = "kansoStarterTemplate";
+
+/// Longest starter template key.
+pub const MAX_STARTER_KEY_LEN: usize = 64;
+
 /// Most templates a notebook can name.
 pub const MAX_TEMPLATES: usize = 100;
 

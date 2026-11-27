@@ -129,7 +129,7 @@ pub use plugin::{
     BatchWriter, PLUGIN_DATA_FIELD, PluginCreate, PluginEdit, PluginReport, PluginWriter,
     agent_batch_id, plugin_data, set_plugin_data,
 };
-pub use preset_model::{NotebookPreset, PresetMade, PresetTemplate};
+pub use preset_model::{NotebookPreset, PresetMade, PresetNote, PresetTag, PresetTemplate};
 pub use query_view::QueryNoteRow;
 pub use read::{AttachmentState, NoteSummary, Revision, SearchParams, Sort, StatusCounts};
 pub use read_only::ReadOnlyStore;

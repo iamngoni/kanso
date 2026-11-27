@@ -131,6 +131,15 @@ fn normalize_note(id: &str, f: &mut Map<String, Value>, now: i64, refs: Refs) ->
     }
     f.insert("tags".into(), tags.into());
 
+    if let Some(key) = f.get(kanso_core::schema::STARTER_TEMPLATE_FIELD)
+        && !key.is_null()
+        && !key.as_str().is_some_and(starter_key_ok)
+    {
+        return invalid(format!(
+            "The note '{id}' has an invalid starter template key."
+        ));
+    }
+
     let status = string_or(f, "status", "none")?;
     let Some(status) = NoteStatus::parse(&status) else {
         return invalid(format!("The note '{id}' has an invalid status '{status}'."));
@@ -300,6 +309,15 @@ fn timestamp(f: &Map<String, Value>, key: &str) -> Result<Option<i64>> {
             .map(Some)
             .ok_or_else(|| StoreError::Invalid(format!("'{key}' must be a timestamp."))),
     }
+}
+
+/// Whether `key` is a starter template key: 1 to 64 of `[a-z0-9/-]`.
+pub(crate) fn starter_key_ok(key: &str) -> bool {
+    !key.is_empty()
+        && key.len() <= kanso_core::schema::MAX_STARTER_KEY_LEN
+        && key
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'/' || b == b'-')
 }
 
 fn invalid<T>(message: String) -> Result<T> {
