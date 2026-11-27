@@ -80,12 +80,18 @@ abstract interface class LibraryRepository {
 
   /// Makes a notebook, inside [parentId] if given. A [kind] of
   /// [NewNotebookKind.videoStudio] comes with its stage board, properties and
-  /// two templates.
-  Future<Either<ApplicationError, NotebookRow>> createNotebook(
+  /// two templates; a starter with its notebooks, tags, templates and first
+  /// notes. A starter that makes notes is refused inside a locked notebook
+  /// ([InvalidError]). The result says which note was made first, if any.
+  Future<Either<ApplicationError, MadeNotebook>> createNotebook(
     String name, {
     String? parentId,
     NewNotebookKind kind = NewNotebookKind.blank,
   });
+
+  /// The starters a new notebook can be made from, in order, with the words
+  /// and the layout each makes.
+  List<StarterInfo> notebookStarters();
 
   Future<Either<ApplicationError, List<TagRow>>> tags();
 

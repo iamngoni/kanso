@@ -2320,6 +2320,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   List<SpeakerNameView> dco_decode_list_speaker_name_view(dynamic raw);
 
   @protected
+  List<StarterInfo> dco_decode_list_starter_info(dynamic raw);
+
+  @protected
+  List<StarterTagInfo> dco_decode_list_starter_tag_info(dynamic raw);
+
+  @protected
   List<StatusChoice> dco_decode_list_status_choice(dynamic raw);
 
   @protected
@@ -2483,6 +2489,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   MadeNote dco_decode_made_note(dynamic raw);
+
+  @protected
+  MadeNotebook dco_decode_made_notebook(dynamic raw);
 
   @protected
   MeaningResult dco_decode_meaning_result(dynamic raw);
@@ -3334,6 +3343,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   SpeakersRenamed dco_decode_speakers_renamed(dynamic raw);
+
+  @protected
+  StarterInfo dco_decode_starter_info(dynamic raw);
+
+  @protected
+  StarterTagInfo dco_decode_starter_tag_info(dynamic raw);
 
   @protected
   StatusChoice dco_decode_status_choice(dynamic raw);
@@ -5943,6 +5958,14 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  List<StarterInfo> sse_decode_list_starter_info(SseDeserializer deserializer);
+
+  @protected
+  List<StarterTagInfo> sse_decode_list_starter_tag_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<StatusChoice> sse_decode_list_status_choice(
     SseDeserializer deserializer,
   );
@@ -6126,6 +6149,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   MadeNote sse_decode_made_note(SseDeserializer deserializer);
+
+  @protected
+  MadeNotebook sse_decode_made_notebook(SseDeserializer deserializer);
 
   @protected
   MeaningResult sse_decode_meaning_result(SseDeserializer deserializer);
@@ -7113,6 +7139,12 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   SpeakersRenamed sse_decode_speakers_renamed(SseDeserializer deserializer);
+
+  @protected
+  StarterInfo sse_decode_starter_info(SseDeserializer deserializer);
+
+  @protected
+  StarterTagInfo sse_decode_starter_tag_info(SseDeserializer deserializer);
 
   @protected
   StatusChoice sse_decode_status_choice(SseDeserializer deserializer);
@@ -10419,6 +10451,18 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   );
 
   @protected
+  void sse_encode_list_starter_info(
+    List<StarterInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_starter_tag_info(
+    List<StarterTagInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_status_choice(
     List<StatusChoice> self,
     SseSerializer serializer,
@@ -10660,6 +10704,9 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
 
   @protected
   void sse_encode_made_note(MadeNote self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_made_notebook(MadeNotebook self, SseSerializer serializer);
 
   @protected
   void sse_encode_meaning_result(MeaningResult self, SseSerializer serializer);
@@ -11892,6 +11939,15 @@ abstract class KansoCoreApiImplPlatform extends BaseApiImpl<KansoCoreWire> {
   @protected
   void sse_encode_speakers_renamed(
     SpeakersRenamed self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_starter_info(StarterInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_starter_tag_info(
+    StarterTagInfo self,
     SseSerializer serializer,
   );
 

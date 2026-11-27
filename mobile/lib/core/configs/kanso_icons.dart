@@ -241,4 +241,15 @@ enum KansoIcons {
 
   /// Where the bundled SVG of the Lucide icon [name] is.
   static String assetPathOf(String name) => 'assets/icons/lucide/$name.svg';
+
+  static final Map<String, KansoIcons> _byLucideName = <String, KansoIcons>{
+    for (final icon in values) icon.lucideName: icon,
+  };
+
+  /// The icon with the Lucide name [name], as the library names a notebook's
+  /// or a starter's icon; [fallback] for a name this app doesn't bundle.
+  static KansoIcons named(
+    String name, {
+    KansoIcons fallback = KansoIcons.book,
+  }) => _byLucideName[name] ?? fallback;
 }

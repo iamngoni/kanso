@@ -34,11 +34,11 @@ fn a_studio_has_five_lanes_and_both_templates_first() {
         .library
         .create_notebook_as("Channel".into(), None, NewNotebookKind::VideoStudio)
         .unwrap();
-    assert_eq!(made.name, "Channel");
+    assert_eq!(made.notebook.name, "Channel");
 
     let board = phone
         .library
-        .board(BoardKind::Notes, in_book(&made.id))
+        .board(BoardKind::Notes, in_book(&made.notebook.id))
         .unwrap();
     let lanes: Vec<(&BoardLane, &str)> = board
         .columns
@@ -53,7 +53,10 @@ fn a_studio_has_five_lanes_and_both_templates_first() {
     let expected: Vec<(&BoardLane, &str)> = expected.iter().map(|(l, s)| (l, s.as_str())).collect();
     assert_eq!(lanes, expected);
 
-    let listed = phone.library.templates_for(Some(made.id.clone())).unwrap();
+    let listed = phone
+        .library
+        .templates_for(Some(made.notebook.id.clone()))
+        .unwrap();
     let shape: Vec<(&str, bool)> = listed
         .iter()
         .map(|t| (t.title.as_str(), t.in_notebook))
@@ -73,7 +76,10 @@ fn a_blank_notebook_has_no_templates_of_its_own() {
         .library
         .create_notebook_as("Notes".into(), None, NewNotebookKind::Blank)
         .unwrap();
-    let for_blank = phone.library.templates_for(Some(blank.id)).unwrap();
+    let for_blank = phone
+        .library
+        .templates_for(Some(blank.notebook.id))
+        .unwrap();
     assert_eq!(for_blank.len(), 2);
     assert!(for_blank.iter().all(|t| !t.in_notebook));
     // The plain list is the same two, none marked.
@@ -83,7 +89,7 @@ fn a_blank_notebook_has_no_templates_of_its_own() {
     // And a template from the studio's list makes a note in the studio.
     let first = phone
         .library
-        .templates_for(Some(studio.id.clone()))
+        .templates_for(Some(studio.notebook.id.clone()))
         .unwrap()
         .remove(0);
     let now = kanso_mobile::LocalTime {
@@ -96,10 +102,10 @@ fn a_blank_notebook_has_no_templates_of_its_own() {
     };
     let made = phone
         .library
-        .new_from_template(&first.id, Some(studio.id.clone()), now)
+        .new_from_template(&first.id, Some(studio.notebook.id.clone()), now)
         .unwrap();
     let note = phone.library.note(&made.id).unwrap();
-    assert_eq!(note.notebook_id, studio.id);
+    assert_eq!(note.notebook_id, studio.notebook.id);
 }
 
 // no-prop-test: refusals are fixed cases.
@@ -133,7 +139,7 @@ proptest! {
                 .library
                 .create_notebook_as(name.clone(), None, NewNotebookKind::VideoStudio)
                 .unwrap();
-            let listed = phone.library.templates_for(Some(made.id)).unwrap();
+            let listed = phone.library.templates_for(Some(made.notebook.id)).unwrap();
             prop_assert_eq!(listed.len(), 2 * (made_so_far + 1));
             prop_assert!(listed[0].in_notebook && listed[1].in_notebook);
             prop_assert!(listed.iter().skip(2).all(|t| !t.in_notebook));

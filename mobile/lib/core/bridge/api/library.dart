@@ -145,8 +145,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
 
   Future<NotebookRow> createNotebook({required String name, String? parentId});
 
-  /// [`Self::create_notebook`] as a blank notebook or a Video studio.
-  Future<NotebookRow> createNotebookAs({
+  /// [`Self::create_notebook`] as a blank notebook, a starter or a Video
+  /// studio.
+  Future<MadeNotebook> createNotebookAs({
     required String name,
     String? parentId,
     required NewNotebookKind kind,
@@ -348,6 +349,9 @@ abstract class KansoLibrary implements RustOpaqueInterface {
       .instance
       .api
       .crateApiLibraryKansoLibraryNotebookIcons(query: query);
+
+  /// The starters New notebook offers, in order.
+  List<StarterInfo> notebookStarters();
 
   Future<List<NotebookRow>> notebooks();
 

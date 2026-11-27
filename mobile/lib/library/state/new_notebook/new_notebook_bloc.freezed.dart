@@ -14,62 +14,30 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$NewNotebookEvent {
 
- String get name; NewNotebookKind get kind;
-/// Create a copy of NewNotebookEvent
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$NewNotebookEventCopyWith<NewNotebookEvent> get copyWith => _$NewNotebookEventCopyWithImpl<NewNotebookEvent>(this as NewNotebookEvent, _$identity);
+
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NewNotebookEvent&&(identical(other.name, name) || other.name == name)&&(identical(other.kind, kind) || other.kind == kind));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NewNotebookEvent);
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,name,kind);
+int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'NewNotebookEvent(name: $name, kind: $kind)';
+  return 'NewNotebookEvent()';
 }
 
 
 }
 
 /// @nodoc
-abstract mixin class $NewNotebookEventCopyWith<$Res>  {
-  factory $NewNotebookEventCopyWith(NewNotebookEvent value, $Res Function(NewNotebookEvent) _then) = _$NewNotebookEventCopyWithImpl;
-@useResult
-$Res call({
- String name, NewNotebookKind kind
-});
-
-
-
-
-}
-/// @nodoc
-class _$NewNotebookEventCopyWithImpl<$Res>
-    implements $NewNotebookEventCopyWith<$Res> {
-  _$NewNotebookEventCopyWithImpl(this._self, this._then);
-
-  final NewNotebookEvent _self;
-  final $Res Function(NewNotebookEvent) _then;
-
-/// Create a copy of NewNotebookEvent
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? kind = null,}) {
-  return _then(_self.copyWith(
-name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
-as NewNotebookKind,
-  ));
-}
-
+class $NewNotebookEventCopyWith<$Res>  {
+$NewNotebookEventCopyWith(NewNotebookEvent _, $Res Function(NewNotebookEvent) __);
 }
 
 
@@ -87,10 +55,11 @@ extension NewNotebookEventPatterns on NewNotebookEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( NewNotebookSubmittedEvent value)?  submitted,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( NewNotebookOpenedEvent value)?  opened,TResult Function( NewNotebookSubmittedEvent value)?  submitted,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
-case NewNotebookSubmittedEvent() when submitted != null:
+case NewNotebookOpenedEvent() when opened != null:
+return opened(_that);case NewNotebookSubmittedEvent() when submitted != null:
 return submitted(_that);case _:
   return orElse();
 
@@ -109,10 +78,11 @@ return submitted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( NewNotebookSubmittedEvent value)  submitted,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( NewNotebookOpenedEvent value)  opened,required TResult Function( NewNotebookSubmittedEvent value)  submitted,}){
 final _that = this;
 switch (_that) {
-case NewNotebookSubmittedEvent():
+case NewNotebookOpenedEvent():
+return opened(_that);case NewNotebookSubmittedEvent():
 return submitted(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -127,10 +97,11 @@ return submitted(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( NewNotebookSubmittedEvent value)?  submitted,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( NewNotebookOpenedEvent value)?  opened,TResult? Function( NewNotebookSubmittedEvent value)?  submitted,}){
 final _that = this;
 switch (_that) {
-case NewNotebookSubmittedEvent() when submitted != null:
+case NewNotebookOpenedEvent() when opened != null:
+return opened(_that);case NewNotebookSubmittedEvent() when submitted != null:
 return submitted(_that);case _:
   return null;
 
@@ -148,9 +119,10 @@ return submitted(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String name,  NewNotebookKind kind)?  submitted,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String? parentId)?  opened,TResult Function( String name,  NewNotebookKind kind)?  submitted,required TResult orElse(),}) {final _that = this;
 switch (_that) {
-case NewNotebookSubmittedEvent() when submitted != null:
+case NewNotebookOpenedEvent() when opened != null:
+return opened(_that.parentId);case NewNotebookSubmittedEvent() when submitted != null:
 return submitted(_that.name,_that.kind);case _:
   return orElse();
 
@@ -169,9 +141,10 @@ return submitted(_that.name,_that.kind);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String name,  NewNotebookKind kind)  submitted,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String? parentId)  opened,required TResult Function( String name,  NewNotebookKind kind)  submitted,}) {final _that = this;
 switch (_that) {
-case NewNotebookSubmittedEvent():
+case NewNotebookOpenedEvent():
+return opened(_that.parentId);case NewNotebookSubmittedEvent():
 return submitted(_that.name,_that.kind);}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -186,9 +159,10 @@ return submitted(_that.name,_that.kind);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String name,  NewNotebookKind kind)?  submitted,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String? parentId)?  opened,TResult? Function( String name,  NewNotebookKind kind)?  submitted,}) {final _that = this;
 switch (_that) {
-case NewNotebookSubmittedEvent() when submitted != null:
+case NewNotebookOpenedEvent() when opened != null:
+return opened(_that.parentId);case NewNotebookSubmittedEvent() when submitted != null:
 return submitted(_that.name,_that.kind);case _:
   return null;
 
@@ -200,16 +174,82 @@ return submitted(_that.name,_that.kind);case _:
 /// @nodoc
 
 
+class NewNotebookOpenedEvent implements NewNotebookEvent {
+  const NewNotebookOpenedEvent({this.parentId});
+  
+
+ final  String? parentId;
+
+/// Create a copy of NewNotebookEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$NewNotebookOpenedEventCopyWith<NewNotebookOpenedEvent> get copyWith => _$NewNotebookOpenedEventCopyWithImpl<NewNotebookOpenedEvent>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NewNotebookOpenedEvent&&(identical(other.parentId, parentId) || other.parentId == parentId));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,parentId);
+
+@override
+String toString() {
+  return 'NewNotebookEvent.opened(parentId: $parentId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $NewNotebookOpenedEventCopyWith<$Res> implements $NewNotebookEventCopyWith<$Res> {
+  factory $NewNotebookOpenedEventCopyWith(NewNotebookOpenedEvent value, $Res Function(NewNotebookOpenedEvent) _then) = _$NewNotebookOpenedEventCopyWithImpl;
+@useResult
+$Res call({
+ String? parentId
+});
+
+
+
+
+}
+/// @nodoc
+class _$NewNotebookOpenedEventCopyWithImpl<$Res>
+    implements $NewNotebookOpenedEventCopyWith<$Res> {
+  _$NewNotebookOpenedEventCopyWithImpl(this._self, this._then);
+
+  final NewNotebookOpenedEvent _self;
+  final $Res Function(NewNotebookOpenedEvent) _then;
+
+/// Create a copy of NewNotebookEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? parentId = freezed,}) {
+  return _then(NewNotebookOpenedEvent(
+parentId: freezed == parentId ? _self.parentId : parentId // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
 class NewNotebookSubmittedEvent implements NewNotebookEvent {
   const NewNotebookSubmittedEvent(this.name, {this.kind = NewNotebookKind.blank});
   
 
-@override final  String name;
-@override@JsonKey() final  NewNotebookKind kind;
+ final  String name;
+@JsonKey() final  NewNotebookKind kind;
 
 /// Create a copy of NewNotebookEvent
 /// with the given fields replaced by the non-null parameter values.
-@override @JsonKey(includeFromJson: false, includeToJson: false)
+@JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $NewNotebookSubmittedEventCopyWith<NewNotebookSubmittedEvent> get copyWith => _$NewNotebookSubmittedEventCopyWithImpl<NewNotebookSubmittedEvent>(this, _$identity);
 
@@ -235,7 +275,7 @@ String toString() {
 /// @nodoc
 abstract mixin class $NewNotebookSubmittedEventCopyWith<$Res> implements $NewNotebookEventCopyWith<$Res> {
   factory $NewNotebookSubmittedEventCopyWith(NewNotebookSubmittedEvent value, $Res Function(NewNotebookSubmittedEvent) _then) = _$NewNotebookSubmittedEventCopyWithImpl;
-@override @useResult
+@useResult
 $Res call({
  String name, NewNotebookKind kind
 });
@@ -254,7 +294,7 @@ class _$NewNotebookSubmittedEventCopyWithImpl<$Res>
 
 /// Create a copy of NewNotebookEvent
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? name = null,Object? kind = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? name = null,Object? kind = null,}) {
   return _then(NewNotebookSubmittedEvent(
 null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
@@ -268,9 +308,14 @@ as NewNotebookKind,
 /// @nodoc
 mixin _$NewNotebookState {
 
-/// Whether the notebook is being made.
+/// What a notebook can be made from, in order; empty until the sheet
+/// has opened.
+ List<StarterInfo> get starters;/// The notebook the new one is made inside, if any.
+ String? get parentId;/// Whether [parentId] is locked, or inside a locked notebook: the
+/// starters that make notes can't be made there.
+ bool get parentLocked;/// Whether the notebook is being made.
  bool get creating;/// The notebook made, once it is.
- NotebookRow? get created;/// Why none was made.
+ MadeNotebook? get created;/// Why none was made.
  NewNotebookFailure? get failure;
 /// Create a copy of NewNotebookState
 /// with the given fields replaced by the non-null parameter values.
@@ -282,16 +327,16 @@ $NewNotebookStateCopyWith<NewNotebookState> get copyWith => _$NewNotebookStateCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NewNotebookState&&(identical(other.creating, creating) || other.creating == creating)&&(identical(other.created, created) || other.created == created)&&(identical(other.failure, failure) || other.failure == failure));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NewNotebookState&&const DeepCollectionEquality().equals(other.starters, starters)&&(identical(other.parentId, parentId) || other.parentId == parentId)&&(identical(other.parentLocked, parentLocked) || other.parentLocked == parentLocked)&&(identical(other.creating, creating) || other.creating == creating)&&(identical(other.created, created) || other.created == created)&&(identical(other.failure, failure) || other.failure == failure));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,creating,created,failure);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(starters),parentId,parentLocked,creating,created,failure);
 
 @override
 String toString() {
-  return 'NewNotebookState(creating: $creating, created: $created, failure: $failure)';
+  return 'NewNotebookState(starters: $starters, parentId: $parentId, parentLocked: $parentLocked, creating: $creating, created: $created, failure: $failure)';
 }
 
 
@@ -302,7 +347,7 @@ abstract mixin class $NewNotebookStateCopyWith<$Res>  {
   factory $NewNotebookStateCopyWith(NewNotebookState value, $Res Function(NewNotebookState) _then) = _$NewNotebookStateCopyWithImpl;
 @useResult
 $Res call({
- bool creating, NotebookRow? created, NewNotebookFailure? failure
+ List<StarterInfo> starters, String? parentId, bool parentLocked, bool creating, MadeNotebook? created, NewNotebookFailure? failure
 });
 
 
@@ -319,11 +364,14 @@ class _$NewNotebookStateCopyWithImpl<$Res>
 
 /// Create a copy of NewNotebookState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? creating = null,Object? created = freezed,Object? failure = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? starters = null,Object? parentId = freezed,Object? parentLocked = null,Object? creating = null,Object? created = freezed,Object? failure = freezed,}) {
   return _then(_self.copyWith(
-creating: null == creating ? _self.creating : creating // ignore: cast_nullable_to_non_nullable
+starters: null == starters ? _self.starters : starters // ignore: cast_nullable_to_non_nullable
+as List<StarterInfo>,parentId: freezed == parentId ? _self.parentId : parentId // ignore: cast_nullable_to_non_nullable
+as String?,parentLocked: null == parentLocked ? _self.parentLocked : parentLocked // ignore: cast_nullable_to_non_nullable
+as bool,creating: null == creating ? _self.creating : creating // ignore: cast_nullable_to_non_nullable
 as bool,created: freezed == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
-as NotebookRow?,failure: freezed == failure ? _self.failure : failure // ignore: cast_nullable_to_non_nullable
+as MadeNotebook?,failure: freezed == failure ? _self.failure : failure // ignore: cast_nullable_to_non_nullable
 as NewNotebookFailure?,
   ));
 }
@@ -409,10 +457,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool creating,  NotebookRow? created,  NewNotebookFailure? failure)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<StarterInfo> starters,  String? parentId,  bool parentLocked,  bool creating,  MadeNotebook? created,  NewNotebookFailure? failure)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _NewNotebookState() when $default != null:
-return $default(_that.creating,_that.created,_that.failure);case _:
+return $default(_that.starters,_that.parentId,_that.parentLocked,_that.creating,_that.created,_that.failure);case _:
   return orElse();
 
 }
@@ -430,10 +478,10 @@ return $default(_that.creating,_that.created,_that.failure);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool creating,  NotebookRow? created,  NewNotebookFailure? failure)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<StarterInfo> starters,  String? parentId,  bool parentLocked,  bool creating,  MadeNotebook? created,  NewNotebookFailure? failure)  $default,) {final _that = this;
 switch (_that) {
 case _NewNotebookState():
-return $default(_that.creating,_that.created,_that.failure);case _:
+return $default(_that.starters,_that.parentId,_that.parentLocked,_that.creating,_that.created,_that.failure);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -450,10 +498,10 @@ return $default(_that.creating,_that.created,_that.failure);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool creating,  NotebookRow? created,  NewNotebookFailure? failure)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<StarterInfo> starters,  String? parentId,  bool parentLocked,  bool creating,  MadeNotebook? created,  NewNotebookFailure? failure)?  $default,) {final _that = this;
 switch (_that) {
 case _NewNotebookState() when $default != null:
-return $default(_that.creating,_that.created,_that.failure);case _:
+return $default(_that.starters,_that.parentId,_that.parentLocked,_that.creating,_that.created,_that.failure);case _:
   return null;
 
 }
@@ -465,13 +513,29 @@ return $default(_that.creating,_that.created,_that.failure);case _:
 
 
 class _NewNotebookState implements NewNotebookState {
-  const _NewNotebookState({this.creating = false, this.created, this.failure});
+  const _NewNotebookState({final  List<StarterInfo> starters = const <StarterInfo>[], this.parentId, this.parentLocked = false, this.creating = false, this.created, this.failure}): _starters = starters;
   
 
+/// What a notebook can be made from, in order; empty until the sheet
+/// has opened.
+ final  List<StarterInfo> _starters;
+/// What a notebook can be made from, in order; empty until the sheet
+/// has opened.
+@override@JsonKey() List<StarterInfo> get starters {
+  if (_starters is EqualUnmodifiableListView) return _starters;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_starters);
+}
+
+/// The notebook the new one is made inside, if any.
+@override final  String? parentId;
+/// Whether [parentId] is locked, or inside a locked notebook: the
+/// starters that make notes can't be made there.
+@override@JsonKey() final  bool parentLocked;
 /// Whether the notebook is being made.
 @override@JsonKey() final  bool creating;
 /// The notebook made, once it is.
-@override final  NotebookRow? created;
+@override final  MadeNotebook? created;
 /// Why none was made.
 @override final  NewNotebookFailure? failure;
 
@@ -485,16 +549,16 @@ _$NewNotebookStateCopyWith<_NewNotebookState> get copyWith => __$NewNotebookStat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NewNotebookState&&(identical(other.creating, creating) || other.creating == creating)&&(identical(other.created, created) || other.created == created)&&(identical(other.failure, failure) || other.failure == failure));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NewNotebookState&&const DeepCollectionEquality().equals(other._starters, _starters)&&(identical(other.parentId, parentId) || other.parentId == parentId)&&(identical(other.parentLocked, parentLocked) || other.parentLocked == parentLocked)&&(identical(other.creating, creating) || other.creating == creating)&&(identical(other.created, created) || other.created == created)&&(identical(other.failure, failure) || other.failure == failure));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,creating,created,failure);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_starters),parentId,parentLocked,creating,created,failure);
 
 @override
 String toString() {
-  return 'NewNotebookState(creating: $creating, created: $created, failure: $failure)';
+  return 'NewNotebookState(starters: $starters, parentId: $parentId, parentLocked: $parentLocked, creating: $creating, created: $created, failure: $failure)';
 }
 
 
@@ -505,7 +569,7 @@ abstract mixin class _$NewNotebookStateCopyWith<$Res> implements $NewNotebookSta
   factory _$NewNotebookStateCopyWith(_NewNotebookState value, $Res Function(_NewNotebookState) _then) = __$NewNotebookStateCopyWithImpl;
 @override @useResult
 $Res call({
- bool creating, NotebookRow? created, NewNotebookFailure? failure
+ List<StarterInfo> starters, String? parentId, bool parentLocked, bool creating, MadeNotebook? created, NewNotebookFailure? failure
 });
 
 
@@ -522,11 +586,14 @@ class __$NewNotebookStateCopyWithImpl<$Res>
 
 /// Create a copy of NewNotebookState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? creating = null,Object? created = freezed,Object? failure = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? starters = null,Object? parentId = freezed,Object? parentLocked = null,Object? creating = null,Object? created = freezed,Object? failure = freezed,}) {
   return _then(_NewNotebookState(
-creating: null == creating ? _self.creating : creating // ignore: cast_nullable_to_non_nullable
+starters: null == starters ? _self._starters : starters // ignore: cast_nullable_to_non_nullable
+as List<StarterInfo>,parentId: freezed == parentId ? _self.parentId : parentId // ignore: cast_nullable_to_non_nullable
+as String?,parentLocked: null == parentLocked ? _self.parentLocked : parentLocked // ignore: cast_nullable_to_non_nullable
+as bool,creating: null == creating ? _self.creating : creating // ignore: cast_nullable_to_non_nullable
 as bool,created: freezed == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
-as NotebookRow?,failure: freezed == failure ? _self.failure : failure // ignore: cast_nullable_to_non_nullable
+as MadeNotebook?,failure: freezed == failure ? _self.failure : failure // ignore: cast_nullable_to_non_nullable
 as NewNotebookFailure?,
   ));
 }

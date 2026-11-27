@@ -7,10 +7,10 @@ use flutter_rust_bridge::frb;
 use kanso_mobile::{
     AttachmentFile, BookSort, CaptureOutcome, CaptureTarget, Changed, ColorChoice, CopiedLink,
     DropsSaved, FoldState, GoalSetting, Hit, IconChoice, ImportEvent, KansoError, Library,
-    LibraryOverview, ListQuery, LocalTime, NewNote, NewNotebookKind, NoteChange, NoteList,
-    NoteView, NotebookRow, OpenedDocuments, OpenedFile, Property, Saved, SearchScope, Share,
-    StatusChoice, Table, TagPlaces, TagRow, TaskBoard, TaskCaptured, TaskListQuery, TickNested,
-    Ticked, VisibleNotebook,
+    LibraryOverview, ListQuery, LocalTime, MadeNotebook, NewNote, NewNotebookKind, NoteChange,
+    NoteList, NoteView, NotebookRow, OpenedDocuments, OpenedFile, Property, Saved, SearchScope,
+    Share, StarterInfo, StatusChoice, Table, TagPlaces, TagRow, TaskBoard, TaskCaptured,
+    TaskListQuery, TickNested, Ticked, VisibleNotebook,
 };
 use kanso_mobile::{PdfEdited, PdfHighlightChange, PdfNotes};
 // A note's history, Replace in all notes and the backups.
@@ -343,14 +343,21 @@ impl KansoLibrary {
         self.0.create_notebook(name, parent_id)
     }
 
-    /// [`Self::create_notebook`] as a blank notebook or a Video studio.
+    /// [`Self::create_notebook`] as a blank notebook, a starter or a Video
+    /// studio.
     pub fn create_notebook_as(
         &self,
         name: String,
         parent_id: Option<String>,
         kind: NewNotebookKind,
-    ) -> Result<NotebookRow, KansoError> {
+    ) -> Result<MadeNotebook, KansoError> {
         self.0.create_notebook_as(name, parent_id, kind)
+    }
+
+    /// The starters New notebook offers, in order.
+    #[frb(sync)]
+    pub fn notebook_starters(&self) -> Vec<StarterInfo> {
+        self.0.notebook_starters()
     }
 
     pub fn tags(&self) -> Result<Vec<TagRow>, KansoError> {

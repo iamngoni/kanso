@@ -47,6 +47,25 @@ void templatesSuite(OpenLibrary open) {
       await editor.close();
     }
 
+    test('the starters come in order, each with what it makes', () async {
+      final library = await open();
+      final starters = library.notebookStarters();
+      expect(starters.map((s) => s.kind), NewNotebookKind.values);
+      expect(starters.first.label, 'Blank notebook');
+      expect(starters.first.makesNotes, isFalse);
+      final product = starters[1];
+      expect(product.icon, 'rocket');
+      expect(product.subNotebooks.first, 'Features');
+      expect(product.tags.map((t) => t.name), contains('security'));
+      expect(product.makesNotes, isTrue);
+
+      final made = await library.createNotebookAs(
+        name: 'Kanso',
+        kind: NewNotebookKind.product,
+      );
+      expect(made.firstNoteId, isNotNull);
+    });
+
     test('a Video studio lists its own two templates first', () async {
       final library = await open();
       final studio = await library.createNotebookAs(
@@ -57,12 +76,14 @@ void templatesSuite(OpenLibrary open) {
         name: 'Notes',
         kind: NewNotebookKind.blank,
       );
-      final own = await library.templatesFor(notebookId: studio.id);
+      final own = await library.templatesFor(notebookId: studio.notebook.id);
       expect(
         own.map((row) => (row.title, row.inNotebook)),
         <(String, bool)>[('Video brief', true), ('Shot list', true)],
       );
-      final elsewhere = await library.templatesFor(notebookId: plain.id);
+      final elsewhere = await library.templatesFor(
+        notebookId: plain.notebook.id,
+      );
       expect(elsewhere.map((row) => row.inNotebook), <bool>[false, false]);
       expect(
         (await library.templatesFor()).map((row) => row.title),
@@ -71,11 +92,11 @@ void templatesSuite(OpenLibrary open) {
 
       final made = await library.newFromTemplate(
         templateId: own.first.id,
-        bookId: studio.id,
+        bookId: studio.notebook.id,
         now: now,
       );
       final note = await library.note(id: made.id);
-      expect(note.notebookId, studio.id);
+      expect(note.notebookId, studio.notebook.id);
       expect(note.body, contains('stage: Idea'));
     });
 

@@ -1118,13 +1118,59 @@ pub struct TemplateRow {
     pub in_notebook: bool,
 }
 
-/// What a new notebook starts as.
+/// What a new notebook starts as, in the order New notebook lists them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NewNotebookKind {
     /// Nothing set up.
     Blank,
+    /// Sub-notebooks for features, bugs and the rest of one product's work.
+    Product,
+    /// Learning, research, fixes, tools and architecture.
+    Knowledge,
+    /// A first project and a place for ideas.
+    SideProjects,
+    /// A notebook for the year, with today's entry.
+    Journal,
+    /// Books and articles.
+    Reading,
+    /// Ideas, posts, videos, numbers and resources.
+    Publishing,
     /// A stage board, dates and two templates.
     VideoStudio,
+}
+
+/// A starter as its card shows it: the words and the layout it makes, from
+/// the one catalogue the desktop and the API read too.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StarterInfo {
+    pub kind: NewNotebookKind,
+    pub label: String,
+    pub description: String,
+    /// The notebook's icon, by its Lucide name.
+    pub icon: String,
+    /// The notebooks it makes inside, in order; empty for none.
+    pub sub_notebooks: Vec<String>,
+    /// The tags it makes, in order.
+    pub tags: Vec<StarterTagInfo>,
+    /// Whether it makes notes, which a locked notebook can't take unsealed.
+    pub makes_notes: bool,
+}
+
+/// A tag a starter makes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StarterTagInfo {
+    pub name: String,
+    /// `0xRRGGBB`.
+    pub color: u32,
+}
+
+/// A notebook made from a starter.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MadeNotebook {
+    pub notebook: NotebookRow,
+    /// The first note a starter made, to open after the notebook; `None` for
+    /// a notebook with no notes.
+    pub first_note_id: Option<String>,
 }
 
 /// What a board lays out.

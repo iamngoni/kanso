@@ -1315,23 +1315,11 @@
   },
   "newNotebookKindLabel": "Start from",
   "@newNotebookKindLabel": {
-    "description": "The label of the choice between a blank notebook and a Video studio, on the sheet that makes a notebook."
+    "description": "The label of the choice of what a new notebook starts as, on the sheet that makes a notebook."
   },
-  "newNotebookKindBlank": "Blank notebook",
-  "@newNotebookKindBlank": {
-    "description": "The choice of a notebook with nothing set up."
-  },
-  "newNotebookKindBlankHint": "An empty notebook for notes.",
-  "@newNotebookKindBlankHint": {
-    "description": "The line under the Blank notebook choice."
-  },
-  "newNotebookKindStudio": "Video studio",
-  "@newNotebookKindStudio": {
-    "description": "The choice of a notebook set up for making videos."
-  },
-  "newNotebookKindStudioHint": "Sets up a board (Idea \u2192 Scripting \u2192 Shooting \u2192 Editing \u2192 Published), a Schedule, and two templates: Video brief and Shot list. You can rename or change any of it later.",
-  "@newNotebookKindStudioHint": {
-    "description": "The line under the Video studio choice: what the preset sets up."
+  "newNotebookStarterLocked": "Starters can't be made inside a locked notebook. Make it at the top level, then move it in.",
+  "@newNotebookStarterLocked": {
+    "description": "The line under a starter that can't be chosen because the new notebook is inside a locked notebook, and the error if one is made anyway."
   },
   "newNotebookInvalid": "Give the notebook a name.",
   "@newNotebookInvalid": {

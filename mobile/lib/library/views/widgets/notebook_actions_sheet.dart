@@ -13,6 +13,8 @@ import '../../../core/state/library_index/library_index_bloc.dart';
 import '../../../core/utils/context_extensions.dart';
 import '../../../core/views/widgets/kanso_bottom_sheet_route.dart';
 import '../../../core/views/widgets/kanso_confirm_sheet.dart';
+import '../../../core/views/widgets/kanso_drawer_controller.dart';
+import '../../../core/views/widgets/kanso_drawer_scope.dart';
 import '../../../core/views/widgets/kanso_settings_row.dart';
 import '../../../core/views/widgets/kanso_sheet_group.dart';
 import '../../../draft/views/widgets/draft_from_group.dart';
@@ -23,6 +25,7 @@ import '../../../sharing/views/widgets/share_notebook_sheet.dart';
 import 'library_actions.dart';
 import 'library_color_sheets.dart';
 import 'library_text_prompt_sheet.dart';
+import 'new_notebook_sheet.dart';
 import 'notebook_icon_sheet.dart';
 import 'notebook_lock_actions.dart';
 
@@ -51,6 +54,7 @@ class NotebookActionsSheet extends StatelessWidget {
     required this.notebook,
     required this.index,
     required this.host,
+    this.drawer,
     super.key,
   });
 
@@ -63,11 +67,16 @@ class NotebookActionsSheet extends StatelessWidget {
   /// choice shows are opened from it, after the menu has closed.
   final BuildContext host;
 
+  /// The library's drawer, which a notebook made from here closes as it is
+  /// opened.
+  final KansoDrawerController? drawer;
+
   /// Shows the menu of [notebook] over the whole app.
   static Future<void> show(BuildContext context, NotebookRow notebook) {
     final index = context.read<LibraryIndexBloc>();
     final status = context.read<LockStatusBloc>();
     final host = Navigator.of(context, rootNavigator: true).overlay!.context;
+    final drawer = KansoDrawerScope.maybeOf(context);
     return showKansoBottomSheet<void>(
       context,
       builder: (_) => MultiBlocProvider(
@@ -79,6 +88,7 @@ class NotebookActionsSheet extends StatelessWidget {
           notebook: notebook,
           index: index,
           host: host,
+          drawer: drawer,
         ),
       ),
     );
@@ -94,26 +104,12 @@ class NotebookActionsSheet extends StatelessWidget {
       action();
     }
 
-    Future<void> newInside() async {
-      final name = await LibraryTextPromptSheet.show(
-        host,
-        title: l10n.newNotebookTitle,
-        confirmLabel: l10n.newNotebookCreate,
-        hint: l10n.libraryNotebookNameHint,
-      );
-      if (name == null) {
-        return;
-      }
-      await runLibraryAction(
-        host,
-        index: index,
-        action: () => getIt<LibraryRepository>().createNotebook(
-          name,
-          parentId: notebook.id,
-        ),
-        changed: <String>[notebook.id],
-      );
-    }
+    Future<void> newInside() => NewNotebookSheet.open(
+      host,
+      parent: notebook,
+      index: index,
+      drawer: drawer,
+    );
 
     Future<void> rename() async {
       final name = await LibraryTextPromptSheet.show(

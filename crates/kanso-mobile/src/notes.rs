@@ -28,11 +28,42 @@ use crate::errors::KansoError;
 use crate::library::Library;
 use crate::matching::ranges;
 use crate::model::{
-    Changed, DateField, Hit, LibraryOverview, ListPlace, ListQuery, ListShape, LockState, NewNote,
-    NewNotebookKind, NoteChange, NoteList, NoteRow, NoteView, NotebookRole, NotebookRow, Property,
-    Saved, SearchScope, SortKey, StatusCount, Table, TableRow, TagRow,
+    Changed, DateField, Hit, LibraryOverview, ListPlace, ListQuery, ListShape, LockState,
+    MadeNotebook, NewNote, NewNotebookKind, NoteChange, NoteList, NoteRow, NoteView, NotebookRole,
+    NotebookRow, Property, Saved, SearchScope, SortKey, StarterInfo, StarterTagInfo, StatusCount,
+    Table, TableRow, TagRow,
 };
 use crate::undo::Undoable;
+
+impl From<NewNotebookKind> for NotebookKind {
+    fn from(kind: NewNotebookKind) -> NotebookKind {
+        match kind {
+            NewNotebookKind::Blank => NotebookKind::Blank,
+            NewNotebookKind::Product => NotebookKind::Product,
+            NewNotebookKind::Knowledge => NotebookKind::Knowledge,
+            NewNotebookKind::SideProjects => NotebookKind::SideProjects,
+            NewNotebookKind::Journal => NotebookKind::Journal,
+            NewNotebookKind::Reading => NotebookKind::Reading,
+            NewNotebookKind::Publishing => NotebookKind::Publishing,
+            NewNotebookKind::VideoStudio => NotebookKind::VideoStudio,
+        }
+    }
+}
+
+impl From<NotebookKind> for NewNotebookKind {
+    fn from(kind: NotebookKind) -> NewNotebookKind {
+        match kind {
+            NotebookKind::Blank => NewNotebookKind::Blank,
+            NotebookKind::Product => NewNotebookKind::Product,
+            NotebookKind::Knowledge => NewNotebookKind::Knowledge,
+            NotebookKind::SideProjects => NewNotebookKind::SideProjects,
+            NotebookKind::Journal => NewNotebookKind::Journal,
+            NotebookKind::Reading => NewNotebookKind::Reading,
+            NotebookKind::Publishing => NewNotebookKind::Publishing,
+            NotebookKind::VideoStudio => NewNotebookKind::VideoStudio,
+        }
+    }
+}
 
 impl Library {
     /// The notes a place lists, with the layout the desktop gives that list:
@@ -323,17 +354,23 @@ impl Library {
         name: String,
         parent_id: Option<String>,
     ) -> Result<NotebookRow, KansoError> {
-        self.create_notebook_as(name, parent_id, NewNotebookKind::Blank)
+        Ok(self
+            .create_notebook_as(name, parent_id, NewNotebookKind::Blank)?
+            .notebook)
     }
 
-    /// [`Library::create_notebook`] as `kind`: a Video studio comes with its
-    /// properties, its stage board and its two templates, made whole.
+    /// [`Library::create_notebook`] as `kind`: a starter comes with its
+    /// notebooks, tags, templates and first notes, a Video studio with its
+    /// properties, its stage board and its two templates, made whole. A
+    /// starter that makes notes is refused inside a locked notebook
+    /// ([`KansoError::Invalid`], with the store's words). The result says
+    /// which note a starter made first, to open after the notebook.
     pub fn create_notebook_as(
         &self,
         name: String,
         parent_id: Option<String>,
         kind: NewNotebookKind,
-    ) -> Result<NotebookRow, KansoError> {
+    ) -> Result<MadeNotebook, KansoError> {
         guard(|| {
             let name = name.trim();
             if name.is_empty() {
@@ -353,20 +390,55 @@ impl Library {
                 &self.inner.store,
                 name,
                 parent_id,
-                match kind {
-                    NewNotebookKind::Blank => NotebookKind::Blank,
-                    NewNotebookKind::VideoStudio => NotebookKind::VideoStudio,
-                },
+                kind.into(),
                 Origin::Ui,
             )?;
             self.inner
                 .metrics()
                 .count(crate::metrics::Feature::NotebookCreated);
-            notebook_rows(&self.inner.store.books()?)
+            let notebook = notebook_rows(&self.inner.store.books()?)
                 .into_iter()
                 .find(|row| row.id == made.book_id)
-                .ok_or(KansoError::NotFound)
+                .ok_or(KansoError::NotFound)?;
+            Ok(MadeNotebook {
+                notebook,
+                first_note_id: made.note_ids.into_iter().next(),
+            })
         })
+    }
+
+    /// The starters New notebook offers, in order, with what each makes.
+    pub fn notebook_starters(&self) -> Vec<StarterInfo> {
+        let today = chrono::Local::now().date_naive();
+        NotebookKind::ALL
+            .into_iter()
+            .map(|kind| {
+                let starter = kind.starter(today);
+                StarterInfo {
+                    kind: kind.into(),
+                    label: kind.label().to_owned(),
+                    description: kind.description().to_owned(),
+                    icon: kind.icon().to_owned(),
+                    sub_notebooks: starter
+                        .as_ref()
+                        .map(|s| s.children.iter().map(|c| c.name.clone()).collect())
+                        .unwrap_or_default(),
+                    tags: starter
+                        .as_ref()
+                        .map(|s| {
+                            s.tags
+                                .iter()
+                                .map(|t| StarterTagInfo {
+                                    name: t.name.to_owned(),
+                                    color: t.color.rgb(),
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    makes_notes: kind.makes_notes(),
+                }
+            })
+            .collect()
     }
 
     /// The tags, by name.
