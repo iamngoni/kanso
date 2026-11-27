@@ -258,6 +258,8 @@ mod smart_paste;
 mod snapshots;
 mod speakers;
 mod spellcheck;
+#[cfg(test)]
+mod studio_new_note_tests;
 #[cfg(target_os = "macos")]
 mod system_calendar_macos;
 mod tick_link;
