@@ -2,7 +2,7 @@
 //! with `{{title}}` and `{{date}}` where they help (see
 //! [`kanso_core::template`]); each `##` heading is followed by a one-line
 //! prompt in a list item, so the note reads as a guide and not as an empty
-//! form. The catalogue that names them is in [`crate::presets_model`].
+//! form. The catalogue that names them is in [`crate::starters_model`].
 
 // MARK: Product development
 

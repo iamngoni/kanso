@@ -194,13 +194,23 @@ plain text. These are refused:
 - a locked note, or one outside the key's notebooks: not found.
 
 A Capture key reads with `read-note`, `search-notes`, `list-notes`, `list-notebooks`,
-`list-templates` and the `kanso-` read tools: tasks, outlines, properties, backlinks,
+`list-templates`, `kanso-list-starters` and the `kanso-` read tools: tasks, outlines, properties, backlinks,
 links, mentions, open loops, tags, versions, related notes, query views, canvases, sync
 status and the Ask tools. It doesn't have `read-backlinks`, `list-tags`, `read-tag` or
 `read-book`, or anything to do with attachments, files or PDFs. On REST it has `GET`
 and `HEAD` on the note, notebook and tag routes, and `POST /notes`; every other write is
 `403`. A tool or route added to Kanso later is refused to Capture keys until someone
 decides what Capture may do with it.
+
+## Notebook starters
+
+`POST /books` and the MCP tool `create-book` take an optional `starter`: `blank`, `product`,
+`knowledge`, `side-projects`, `journal`, `reading`, `publishing` or `video-studio`. A starter
+makes the notebook (with `name` and `parentBookId`) with an icon, the notebooks inside it, its
+tags, a template for each kind of note and one note in each notebook, in one transaction. The
+answer is `{ok, id, rev, subBookIds, tagIds, noteIds}`. An unknown value is `400`. A starter that
+makes notes (all but `blank` and `video-studio`) is refused inside a locked notebook. The tool
+`kanso-list-starters` returns the choices. The route version doesn't change: the field is optional.
 
 ## Canvases
 

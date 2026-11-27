@@ -514,6 +514,7 @@ pub(crate) fn check_write(
             }
         }
         DocType::Book => {
+            crate::starters::refuse_locked(store, fields)?;
             if let Some(parent) = fields.get("parentBookId").and_then(Value::as_str)
                 && !vis.book_visible(parent)
                 && store.get_api(parent, None, false).is_ok()

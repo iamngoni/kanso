@@ -82,7 +82,7 @@ include it.
 - `kanso-ask-search`, `kanso-ask-when`: numbered results with `L12|` line prefixes for citing; `when`
   finds notes by date written or changed, and tasks by due date.
 - `kanso-resolve-wikilink` turns `[[Title]]`, `[[Title#Heading]]` into a note.
-- `kanso-list-canvases`, `kanso-search-pdf`, `list-templates`.
+- `kanso-list-canvases`, `kanso-search-pdf`, `list-templates`, `kanso-list-starters`.
 
 **Read a note**
 - `read-note` the whole note, with `_id` and `_rev`. `includeTemplate: true` also returns the template a
@@ -96,6 +96,11 @@ include it.
 **Structure**
 - `list-notebooks`, `read-book`, `list-tags`, `kanso-list-tags`, `read-tag`.
 - `create-book` (nested with `parentBookId`), `update-book`, `create-tag`, `update-tag`.
+- `create-book` also takes an optional `starter` (`blank`, `product`, `knowledge`, `side-projects`,
+  `journal`, `reading`, `publishing` or `video-studio`): sub-notebooks with icons, tags, a template for each
+  kind of note and a first note in each, made whole or not at all. The answer adds `subBookIds`, `tagIds`
+  and `noteIds`. `kanso-list-starters` lists the choices. A starter that makes notes is refused inside a
+  locked notebook. REST `POST /books` takes the same `starter` field.
 
 **Tasks and loops**
 - `kanso-list-tasks` checkbox items (`- [ ]`) across notes; a due date is `@YYYY-MM-DD` or

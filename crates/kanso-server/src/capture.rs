@@ -74,6 +74,7 @@ pub(crate) const TOOLS: &[(&str, Decision)] = &[
     ("kanso-list-attachments", Denied),
     ("kanso-list-backlinks", Read),
     ("kanso-list-canvases", Read),
+    ("kanso-list-starters", Read),
     ("kanso-list-mentions", Read),
     ("kanso-list-note-links", Read),
     ("kanso-list-open-loops", Read),

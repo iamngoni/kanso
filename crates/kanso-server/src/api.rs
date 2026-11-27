@@ -198,6 +198,11 @@ pub(crate) fn app_only_names(doc_type: DocType) -> Vec<&'static str> {
 /// `POST /notes` and friends: create, or replace when `_id` exists.
 pub(crate) fn upsert(store: &Store, doc_type: DocType, body: Value) -> ApiResult<Value> {
     let mut body = body;
+    if doc_type == DocType::Book
+        && let Some(made) = crate::starters::make(store, &mut body)?
+    {
+        return Ok(made);
+    }
     forget_canvas_json(&mut body);
     if doc_type == DocType::Note && body.get("bookId").and_then(Value::as_str) == Some("template") {
         let book = store.role_book(kanso_core::roles::Role::Templates, Origin::Api)?;

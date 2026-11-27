@@ -51,7 +51,7 @@ fn tag(name: &str, color: TagColor) -> PresetTag {
 /// A notebook with two children, each with a keyed template and a note, and
 /// two tags.
 fn tree(name: &str, parent: Option<String>) -> NotebookPreset {
-    let mut child = |name: &str, icon: &str, key: &str| {
+    let child = |name: &str, icon: &str, key: &str| {
         let mut book = NotebookPreset::named(name, None);
         book.icon = Some(icon.into());
         book.templates = vec![template(&format!("{name} template"), Some(key))];
