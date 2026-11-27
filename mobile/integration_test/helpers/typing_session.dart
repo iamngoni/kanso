@@ -29,7 +29,7 @@ Future<String> createLongNote(int words) async {
     (error) => throw StateError('Making the long note failed: $error'),
     (value) => value,
   );
-  final book = made(await library.createNotebook('Long notes'));
+  final book = made(await library.createNotebook('Long notes')).notebook;
   final saved = made(
     await library.create(
       NewNote(

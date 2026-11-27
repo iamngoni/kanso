@@ -1021,17 +1021,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newNotebookKindLabel => 'Start from';
 
   @override
-  String get newNotebookKindBlank => 'Blank notebook';
-
-  @override
-  String get newNotebookKindBlankHint => 'An empty notebook for notes.';
-
-  @override
-  String get newNotebookKindStudio => 'Video studio';
-
-  @override
-  String get newNotebookKindStudioHint =>
-      'Sets up a board (Idea → Scripting → Shooting → Editing → Published), a Schedule, and two templates: Video brief and Shot list. You can rename or change any of it later.';
+  String get newNotebookStarterLocked =>
+      'Starters can\'t be made inside a locked notebook. Make it at the top level, then move it in.';
 
   @override
   String get newNotebookInvalid => 'Give the notebook a name.';

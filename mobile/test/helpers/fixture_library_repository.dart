@@ -369,13 +369,13 @@ class FixtureLibraryRepository implements LibraryRepository {
 
   /// What `createNotebook` answers when it is set; the notebook, appended
   /// to the notebooks, otherwise.
-  Either<ApplicationError, NotebookRow>? createNotebookResult;
+  Either<ApplicationError, MadeNotebook>? createNotebookResult;
 
   /// When set, `createNotebook` waits for it: a notebook still being made.
   Completer<void>? notebookGate;
 
   @override
-  Future<Either<ApplicationError, NotebookRow>> createNotebook(
+  Future<Either<ApplicationError, MadeNotebook>> createNotebook(
     String name, {
     String? parentId,
     NewNotebookKind kind = NewNotebookKind.blank,
@@ -398,8 +398,19 @@ class FixtureLibraryRepository implements LibraryRepository {
     );
     notebookRows = <NotebookRow>[...notebookRows, made];
     changeStream.add(<String>[made.id]);
-    return Right<ApplicationError, NotebookRow>(made);
+    return Right<ApplicationError, MadeNotebook>(
+      MadeNotebook(
+        notebook: made,
+        firstNoteId: kind == NewNotebookKind.blank ? null : 'note:first',
+      ),
+    );
   }
+
+  /// What `notebookStarters` answers: the catalogue as the library has it.
+  List<StarterInfo> starters = mockStarters;
+
+  @override
+  List<StarterInfo> notebookStarters() => starters;
 
   /// The statuses `statuses` answers.
   List<StatusChoice> statusChoices = <StatusChoice>[

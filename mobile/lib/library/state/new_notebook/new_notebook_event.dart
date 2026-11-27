@@ -6,8 +6,13 @@ part of 'new_notebook_bloc.dart';
 
 @freezed
 sealed class NewNotebookEvent with _$NewNotebookEvent {
-  /// The person asked for a notebook named [name], blank or as a Video
-  /// studio.
+  /// The sheet opened: read the starters it offers and whether the notebook
+  /// it was opened inside, [parentId], is locked.
+  const factory NewNotebookEvent.opened({String? parentId}) =
+      NewNotebookOpenedEvent;
+
+  /// The person asked for a notebook named [name], blank, from a starter or
+  /// as a Video studio.
   const factory NewNotebookEvent.submitted(
     String name, {
     @Default(NewNotebookKind.blank) NewNotebookKind kind,

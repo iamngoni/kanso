@@ -667,3 +667,129 @@ const TaskBoard mockTaskBoard = TaskBoard(
     ),
   ],
 );
+
+StarterInfo _starter(
+  NewNotebookKind kind,
+  String label,
+  String description,
+  String icon, {
+  List<String> subNotebooks = const <String>[],
+  List<StarterTagInfo> tags = const <StarterTagInfo>[],
+  bool makesNotes = true,
+}) => StarterInfo(
+  kind: kind,
+  label: label,
+  description: description,
+  icon: icon,
+  subNotebooks: subNotebooks,
+  tags: tags,
+  makesNotes: makesNotes,
+);
+
+StarterTagInfo _tag(String name, int color) =>
+    StarterTagInfo(name: name, color: color);
+
+/// The starters the library offers, as its catalogue words them.
+final List<StarterInfo> mockStarters = <StarterInfo>[
+  _starter(
+    NewNotebookKind.blank,
+    'Blank notebook',
+    'An empty notebook for notes.',
+    'notebook',
+    makesNotes: false,
+  ),
+  _starter(
+    NewNotebookKind.product,
+    'Product development',
+    "Plan features, track bugs and keep one product's work together.",
+    'rocket',
+    subNotebooks: <String>[
+      'Features',
+      'Bugs',
+      'Performance',
+      'Experiments',
+      'Refactoring',
+      'Testing',
+      'Chores',
+      'Release notes',
+      'Decisions',
+    ],
+    tags: <StarterTagInfo>[
+      _tag('web', 0x2185d0),
+      _tag('server', 0x6435c9),
+      _tag('mobile', 0x21ba45),
+      _tag('docs', 0x767676),
+      _tag('security', 0xdb2828),
+      _tag('important', 0xf2711c),
+    ],
+  ),
+  _starter(
+    NewNotebookKind.knowledge,
+    'Knowledge base',
+    'Keep what you learn: lessons, research, fixes and the tools you use.',
+    'brain',
+    subNotebooks: <String>[
+      'Learning',
+      'Research',
+      'Troubleshooting',
+      'Tools',
+      'Architecture',
+    ],
+    tags: <StarterTagInfo>[
+      _tag('important', 0xf2711c),
+      _tag('read-later', 0x00b5ad),
+    ],
+  ),
+  _starter(
+    NewNotebookKind.sideProjects,
+    'Side projects',
+    'One notebook per project, and a place for ideas.',
+    'puzzle',
+    subNotebooks: <String>['My first project', 'Ideas'],
+  ),
+  _starter(
+    NewNotebookKind.journal,
+    'Daily journal',
+    "A short daily entry: what you did, what blocked you, what's next.",
+    'notebook-pen',
+    subNotebooks: <String>['2026'],
+  ),
+  _starter(
+    NewNotebookKind.reading,
+    'Reading',
+    'Notes on the books and articles you read.',
+    'library',
+    subNotebooks: <String>['Books', 'Articles'],
+    tags: <StarterTagInfo>[
+      _tag('to-read', 0x2185d0),
+      _tag('favorite', 0xe03997),
+    ],
+  ),
+  _starter(
+    NewNotebookKind.publishing,
+    'Writing & publishing',
+    'Plan and write posts and videos, from idea to published.',
+    'feather',
+    subNotebooks: <String>[
+      'Ideas',
+      'Posts',
+      'Videos',
+      'Analytics',
+      'Resources',
+    ],
+    tags: <StarterTagInfo>[
+      _tag('draft', 0x767676),
+      _tag('in-review', 0xe5b800),
+      _tag('published', 0x21ba45),
+    ],
+  ),
+  _starter(
+    NewNotebookKind.videoStudio,
+    'Video studio',
+    'Video studio sets up a board (Idea → Scripting → Shooting '
+        '→ Editing → Published), a Schedule, and two templates: '
+        'Video brief and Shot list. You can rename or change any of it later.',
+    'clapperboard',
+    makesNotes: false,
+  ),
+];

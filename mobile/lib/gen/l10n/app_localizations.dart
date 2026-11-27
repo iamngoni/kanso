@@ -1930,35 +1930,17 @@ abstract class AppLocalizations {
   /// **'Create'**
   String get newNotebookCreate;
 
-  /// The label of the choice between a blank notebook and a Video studio, on the sheet that makes a notebook.
+  /// The label of the choice of what a new notebook starts as, on the sheet that makes a notebook.
   ///
   /// In en, this message translates to:
   /// **'Start from'**
   String get newNotebookKindLabel;
 
-  /// The choice of a notebook with nothing set up.
+  /// The line under a starter that can't be chosen because the new notebook is inside a locked notebook, and the error if one is made anyway.
   ///
   /// In en, this message translates to:
-  /// **'Blank notebook'**
-  String get newNotebookKindBlank;
-
-  /// The line under the Blank notebook choice.
-  ///
-  /// In en, this message translates to:
-  /// **'An empty notebook for notes.'**
-  String get newNotebookKindBlankHint;
-
-  /// The choice of a notebook set up for making videos.
-  ///
-  /// In en, this message translates to:
-  /// **'Video studio'**
-  String get newNotebookKindStudio;
-
-  /// The line under the Video studio choice: what the preset sets up.
-  ///
-  /// In en, this message translates to:
-  /// **'Sets up a board (Idea → Scripting → Shooting → Editing → Published), a Schedule, and two templates: Video brief and Shot list. You can rename or change any of it later.'**
-  String get newNotebookKindStudioHint;
+  /// **'Starters can\'t be made inside a locked notebook. Make it at the top level, then move it in.'**
+  String get newNotebookStarterLocked;
 
   /// The line shown when a new notebook's name is empty or not accepted.
   ///

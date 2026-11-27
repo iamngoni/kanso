@@ -27,11 +27,11 @@ pub use kanso_mobile::{
     LiveDocLink, LiveDocLinkKind, LiveDocMarker, LiveDocMarkerKind, LiveDocStyle, LiveDocStyleKind,
     LiveDocWidget, LiveDocument, LiveKind, LiveLine, LiveRun, LiveStatus, LocalTime,
     LockCopyNotice, LockEvent, LockReason, LockState, LockStatus, LockSummary, LockedInfo,
-    LoopAction, LoopProposal, LoopScan, MadeNote, MeaningResult, MemberRow, MentionSpan,
-    MigrationOutcome, Moment, MonthGrid, NewNote, NewNotebookKind, NoteChange, NoteList,
-    NoteMeaning, NoteRow, NoteView, NotebookRole, NotebookRow, OnThisDayRow, OpenLoopItem,
-    OpenLoopKind, OpenLoopsBoard, OpenedDocuments, OpenedFile, PairingCode, PaletteDto,
-    PasskeyFailure, PasskeyRequest, PasskeyRequestKind, PasskeyRow, PdfHighlightChange,
+    LoopAction, LoopProposal, LoopScan, MadeNote, MadeNotebook, MeaningResult, MemberRow,
+    MentionSpan, MigrationOutcome, Moment, MonthGrid, NewNote, NewNotebookKind, NoteChange,
+    NoteList, NoteMeaning, NoteRow, NoteView, NotebookRole, NotebookRow, OnThisDayRow,
+    OpenLoopItem, OpenLoopKind, OpenLoopsBoard, OpenedDocuments, OpenedFile, PairingCode,
+    PaletteDto, PasskeyFailure, PasskeyRequest, PasskeyRequestKind, PasskeyRow, PdfHighlightChange,
     PdfHighlightRow, PdfInkRow, PdfNotes, PersonLookup, PersonRow, PickKind, PickOutcome,
     PlannedNotice, PreviewAlign, PreviewBlock, PreviewCanvasNotice, PreviewCanvasShown,
     PreviewCell, PreviewCodeRun, PreviewFigureKind, PreviewInline, PreviewLink, PreviewListItem,
@@ -43,11 +43,12 @@ pub use kanso_mobile::{
     ReviewWritten, RunBatch, SaveState, Saved, SealPhase, SealProgress, SearchScope, ServerInfo,
     ServerMethods, Share, ShareFile, ShareInfo, ShareLinkRow, ShareRole, SharedEvent,
     ShortcutEntry, ShortcutPlace, ShortcutSection, SignOutReasonKind, SignedUp, SortKey, SpanRow,
-    StatusChoice, StatusCount, StyledRun, SuggestedTag, SvgRow, SyncAccount, SyncIntervalOption,
-    SyncPhase, SyncProblemKind, SyncReportRow, SyncSettingsRow, SyncStatus, SyncStatusLine,
-    SyncTone, SyntaxStyleRow, Table, TableRow, TagPlaces, TagRow, TagTreeRow, TaskBoard,
-    TaskCaptured, TaskGroupKind, TaskItem, TaskListQuery, TaskPlace, TaskSection, TemplateRow,
-    TextChange, ThemeTokens, ThemedIcon, TickNested, Ticked, TwinRow, VisibleNotebook, ZoneRow,
+    StarterInfo, StarterTagInfo, StatusChoice, StatusCount, StyledRun, SuggestedTag, SvgRow,
+    SyncAccount, SyncIntervalOption, SyncPhase, SyncProblemKind, SyncReportRow, SyncSettingsRow,
+    SyncStatus, SyncStatusLine, SyncTone, SyntaxStyleRow, Table, TableRow, TagPlaces, TagRow,
+    TagTreeRow, TaskBoard, TaskCaptured, TaskGroupKind, TaskItem, TaskListQuery, TaskPlace,
+    TaskSection, TemplateRow, TextChange, ThemeTokens, ThemedIcon, TickNested, Ticked, TwinRow,
+    VisibleNotebook, ZoneRow,
 };
 pub use kanso_mobile::{
     BookEndedRow, BookInvitationRow, BookMemberRow, BookRole, BookShareCheck, BookShareInfo,
@@ -2156,7 +2157,36 @@ pub struct _TemplateRow {
 #[frb(mirror(NewNotebookKind))]
 pub enum _NewNotebookKind {
     Blank,
+    Product,
+    Knowledge,
+    SideProjects,
+    Journal,
+    Reading,
+    Publishing,
     VideoStudio,
+}
+
+#[frb(mirror(StarterInfo))]
+pub struct _StarterInfo {
+    pub kind: NewNotebookKind,
+    pub label: String,
+    pub description: String,
+    pub icon: String,
+    pub sub_notebooks: Vec<String>,
+    pub tags: Vec<StarterTagInfo>,
+    pub makes_notes: bool,
+}
+
+#[frb(mirror(StarterTagInfo))]
+pub struct _StarterTagInfo {
+    pub name: String,
+    pub color: u32,
+}
+
+#[frb(mirror(MadeNotebook))]
+pub struct _MadeNotebook {
+    pub notebook: NotebookRow,
+    pub first_note_id: Option<String>,
 }
 
 #[frb(mirror(BoardKind))]

@@ -70,8 +70,8 @@ Future<SeededLibrary> seedLibrary() async {
     return saved.id;
   }
 
-  final work = made(await library.createNotebook('Work')).id;
-  final garden = made(await library.createNotebook('Garden')).id;
+  final work = made(await library.createNotebook('Work')).notebook.id;
+  final garden = made(await library.createNotebook('Garden')).notebook.id;
 
   final sprintPlan = await note(
     'Sprint plan',
@@ -134,7 +134,7 @@ Future<void> seedManyNotes({int notes = 2000, int notebooks = 8}) async {
     books.add(
       book.fold(
         (error) => throw StateError('Seeding the library failed: $error'),
-        (row) => row.id,
+        (row) => row.notebook.id,
       ),
     );
   }

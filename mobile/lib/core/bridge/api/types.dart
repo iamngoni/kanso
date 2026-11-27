@@ -3585,6 +3585,27 @@ class MadeNote {
           titleFirst == other.titleFirst;
 }
 
+class MadeNotebook {
+  final NotebookRow notebook;
+  final String? firstNoteId;
+
+  const MadeNotebook({
+    required this.notebook,
+    this.firstNoteId,
+  });
+
+  @override
+  int get hashCode => notebook.hashCode ^ firstNoteId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MadeNotebook &&
+          runtimeType == other.runtimeType &&
+          notebook == other.notebook &&
+          firstNoteId == other.firstNoteId;
+}
+
 @freezed
 sealed class MeaningResult with _$MeaningResult {
   const MeaningResult._();
@@ -3822,6 +3843,12 @@ class NewNote {
 
 enum NewNotebookKind {
   blank,
+  product,
+  knowledge,
+  sideProjects,
+  journal,
+  reading,
+  publishing,
   videoStudio,
 }
 
@@ -6476,6 +6503,70 @@ class SpanRow {
           runtimeType == other.runtimeType &&
           range == other.range &&
           tokens == other.tokens;
+}
+
+class StarterInfo {
+  final NewNotebookKind kind;
+  final String label;
+  final String description;
+  final String icon;
+  final List<String> subNotebooks;
+  final List<StarterTagInfo> tags;
+  final bool makesNotes;
+
+  const StarterInfo({
+    required this.kind,
+    required this.label,
+    required this.description,
+    required this.icon,
+    required this.subNotebooks,
+    required this.tags,
+    required this.makesNotes,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      label.hashCode ^
+      description.hashCode ^
+      icon.hashCode ^
+      subNotebooks.hashCode ^
+      tags.hashCode ^
+      makesNotes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StarterInfo &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          label == other.label &&
+          description == other.description &&
+          icon == other.icon &&
+          subNotebooks == other.subNotebooks &&
+          tags == other.tags &&
+          makesNotes == other.makesNotes;
+}
+
+class StarterTagInfo {
+  final String name;
+  final int color;
+
+  const StarterTagInfo({
+    required this.name,
+    required this.color,
+  });
+
+  @override
+  int get hashCode => name.hashCode ^ color.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StarterTagInfo &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          color == other.color;
 }
 
 class StatusChoice {

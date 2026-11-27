@@ -159,12 +159,17 @@ void main() {
         depth: 1,
         hasChildren: false,
       );
+      const result = MadeNotebook(notebook: made);
       when(
-        () => library.createNotebook(name: 'Plans', parentId: 'b_1'),
-      ).thenAnswer((_) async => made);
+        () => library.createNotebookAs(
+          name: 'Plans',
+          parentId: 'b_1',
+          kind: NewNotebookKind.blank,
+        ),
+      ).thenAnswer((_) async => result);
       expect(
         await repository.createNotebook('Plans', parentId: 'b_1'),
-        const Right<ApplicationError, NotebookRow>(made),
+        const Right<ApplicationError, MadeNotebook>(result),
       );
     });
 

@@ -7,6 +7,9 @@ enum NewNotebookFailure {
   /// The name was empty, or the library would not take it.
   invalidName,
 
+  /// A starter that makes notes was chosen inside a locked notebook.
+  lockedParent,
+
   /// Anything else.
   failed,
 }
