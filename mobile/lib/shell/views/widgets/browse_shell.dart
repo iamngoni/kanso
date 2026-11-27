@@ -157,6 +157,28 @@ class BrowseShellState extends State<BrowseShell> {
                     );
                   }
 
+                  if (layoutClass != LayoutClass.single && !listOnly) {
+                    // The library and the list can both be put away beside
+                    // an open note: the note has the whole width, and the
+                    // library is still the drawer at the edge.
+                    final hidden = context.select<LibraryPaneBloc, bool>(
+                      (panes) => panes.state.panesHidden,
+                    );
+                    if (hidden) {
+                      return TabsSync(
+                        enabled: true,
+                        location: location,
+                        child: TabActions(
+                          child: drawerAround(
+                            layoutClass,
+                            TabbedNote(child: child!),
+                            KansoSizes.libraryPane,
+                          ),
+                        ),
+                      );
+                    }
+                  }
+
                   final panes = switch (layoutClass) {
                     LayoutClass.single => drawerAround(
                       LayoutClass.single,

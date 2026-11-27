@@ -11,6 +11,7 @@
 use std::collections::{HashMap, HashSet};
 
 use kanso_core::model::TRASH_BOOK_ID;
+use kanso_core::roles::{ROLE_FIELD, Role};
 use kanso_core::{Book, Clause, Field, NoteStatus, Query};
 use kanso_store::{NoteSummary, SearchParams, Sort, Store, StoreError};
 
@@ -459,7 +460,9 @@ pub const FALLBACK_BOOK_NAME: &str = "Notes";
 ///   seals the note, or refuses when the lock is closed).
 /// - Anything else: `preferred`, if it names a notebook that exists and isn't
 ///   locked, otherwise the first notebook, otherwise none (the caller makes
-///   one).
+///   one). The Templates notebook is never chosen this way: a note made
+///   there is a template, so it is only where a new note goes when that
+///   notebook's own list is shown (#513).
 /// - A tag's list tags the note, the pinned list pins it, a status list sets
 ///   the status, and the trash's list is the same as any other that isn't a
 ///   notebook: a note never goes into the trash.
@@ -473,6 +476,11 @@ pub fn new_note_target(
 ) -> NewNoteTarget {
     let real = |book: &&Book| book.id != TRASH_BOOK_ID;
     let existing = |id: &str| books.iter().filter(real).find(|book| book.id == id);
+    // A note made in Templates is a template: never a default.
+    let ordinary = |book: &&Book| {
+        let role = book.extra.get(ROLE_FIELD).and_then(|v| v.as_str());
+        real(book) && Role::of_book(&book.id, role) != Some(Role::Templates)
+    };
     let own = match filter {
         Filter::Book(id) => existing(id).map(|book| book.id.clone()),
         _ => None,
@@ -480,12 +488,12 @@ pub fn new_note_target(
     let preferred = || {
         preferred
             .and_then(existing)
-            .filter(|book| !is_book_locked(&book.id, books))
+            .filter(|book| ordinary(book) && !is_book_locked(&book.id, books))
             .map(|book| book.id.clone())
     };
     let book_id = own
         .or_else(preferred)
-        .or_else(|| books.iter().find(real).map(|book| book.id.clone()));
+        .or_else(|| books.iter().find(ordinary).map(|book| book.id.clone()));
     let mut target = NewNoteTarget {
         book_id,
         status: narrowing.status,
@@ -515,6 +523,52 @@ mod tests {
     use kanso_store::{NoteSummary, Sort};
     use proptest::prelude::*;
     use proptest::test_runner::FileFailurePersistence;
+
+    #[test]
+    fn a_new_note_is_never_a_template_by_default() {
+        // A Video studio brings the Templates notebook, which sorts first.
+        let mut templates = book(0, None, "Templates");
+        templates.id = kanso_core::roles::Role::Templates.book_id().to_owned();
+        let studio = book(1, None, "Video studio");
+        let books = vec![templates.clone(), studio.clone()];
+        for filter in [
+            Filter::All,
+            Filter::Recent,
+            Filter::Overview,
+            Filter::Pinned,
+        ] {
+            let target = new_note_target(&filter, Narrowing::default(), None, &books);
+            assert_eq!(target.book_id, Some(studio.id.clone()), "{filter:?}");
+        }
+        // Not even when it is the preference.
+        let target = new_note_target(
+            &Filter::All,
+            Narrowing::default(),
+            Some(&templates.id),
+            &books,
+        );
+        assert_eq!(target.book_id, Some(studio.id.clone()));
+        // Only its own list makes a template, and with nothing else the
+        // caller makes a notebook.
+        let own = new_note_target(
+            &Filter::Book(templates.id.clone()),
+            Narrowing::default(),
+            None,
+            &books,
+        );
+        assert_eq!(own.book_id, Some(templates.id.clone()));
+        let alone = new_note_target(&Filter::All, Narrowing::default(), None, &[templates]);
+        assert_eq!(alone.book_id, None);
+        // A Templates notebook known by its role field rather than its ID.
+        let mut by_role = book(2, None, "My templates");
+        by_role.extra.insert(
+            kanso_core::roles::ROLE_FIELD.into(),
+            serde_json::json!("templates"),
+        );
+        let books = vec![by_role, studio.clone()];
+        let target = new_note_target(&Filter::All, Narrowing::default(), None, &books);
+        assert_eq!(target.book_id, Some(studio.id));
+    }
 
     #[test]
     fn canvases_have_their_own_place() {
