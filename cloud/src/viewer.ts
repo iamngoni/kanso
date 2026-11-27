@@ -165,6 +165,7 @@ else a.removeAttribute("href");
 });
 var head=doc.head||doc.documentElement.insertBefore(doc.createElement("head"),doc.body);
 var ref=doc.createElement("meta");ref.setAttribute("name","referrer");ref.setAttribute("content","no-referrer");head.insertBefore(ref,head.firstChild);
+css+="@media screen and (min-width:48em){body{max-width:max(40rem,75vw)}}figure svg{width:100%!important;max-width:100%!important;height:auto!important}\\n";
 var link=doc.createElement("link");link.setAttribute("rel","stylesheet");link.setAttribute("href","data:text/css;charset=utf-8,"+encodeURIComponent(css));head.appendChild(link);
 var title=(doc.title||"").trim();
 return {html:"<!doctype html>"+doc.documentElement.outerHTML,title:title};

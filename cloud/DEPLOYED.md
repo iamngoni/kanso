@@ -76,3 +76,7 @@ master and the apps' search and credited reports failed (#499 was merged without
 
 Since 2026-11-25 (later) it runs the fuller feedback triage (#507: longer summaries, a Screenshot
 line), deployed as Worker version `089f046f-9e92-46ad-85a9-ba3994d14524`.
+
+Since 2026-11-26 the viewer page lays published notes out at 75% of the window on screens wider
+than 48em, with diagrams filling the column, for pages published before the renderer did the
+same; deployed as Worker version `c418e031-0062-46db-8e60-0385148e4ceb`.
