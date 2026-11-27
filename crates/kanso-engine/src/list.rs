@@ -11,7 +11,7 @@
 use std::collections::{HashMap, HashSet};
 
 use kanso_core::model::TRASH_BOOK_ID;
-use kanso_core::roles::Role;
+use kanso_core::roles::{ROLE_FIELD, Role};
 use kanso_core::{Book, Clause, Field, NoteStatus, Query};
 use kanso_store::{NoteSummary, SearchParams, Sort, Store, StoreError};
 
@@ -477,7 +477,10 @@ pub fn new_note_target(
     let real = |book: &&Book| book.id != TRASH_BOOK_ID;
     let existing = |id: &str| books.iter().filter(real).find(|book| book.id == id);
     // A note made in Templates is a template: never a default.
-    let ordinary = |book: &&Book| real(book) && book.id != Role::Templates.book_id();
+    let ordinary = |book: &&Book| {
+        let role = book.extra.get(ROLE_FIELD).and_then(|v| v.as_str());
+        real(book) && Role::of_book(&book.id, role) != Some(Role::Templates)
+    };
     let own = match filter {
         Filter::Book(id) => existing(id).map(|book| book.id.clone()),
         _ => None,
@@ -544,7 +547,7 @@ mod tests {
             Some(&templates.id),
             &books,
         );
-        assert_eq!(target.book_id, Some(studio.id));
+        assert_eq!(target.book_id, Some(studio.id.clone()));
         // Only its own list makes a template, and with nothing else the
         // caller makes a notebook.
         let own = new_note_target(
@@ -556,6 +559,15 @@ mod tests {
         assert_eq!(own.book_id, Some(templates.id.clone()));
         let alone = new_note_target(&Filter::All, Narrowing::default(), None, &[templates]);
         assert_eq!(alone.book_id, None);
+        // A Templates notebook known by its role field rather than its ID.
+        let mut by_role = book(2, None, "My templates");
+        by_role.extra.insert(
+            kanso_core::roles::ROLE_FIELD.into(),
+            serde_json::json!("templates"),
+        );
+        let books = vec![by_role, studio.clone()];
+        let target = new_note_target(&Filter::All, Narrowing::default(), None, &books);
+        assert_eq!(target.book_id, Some(studio.id));
     }
 
     #[test]
