@@ -348,10 +348,9 @@ impl NewNotebookSheet {
                     .when(!selected, |el| el.border_color(colors.divider)),
             )
             .when(!disabled, |el| {
-                el.on_click(cx.listener(move |this, _, window, cx| {
-                    this.set_kind(kind, cx);
-                    window.focus(&this.list_focus, cx);
-                }))
+                // The name keeps the keyboard: Tab reaches the list for
+                // Up and Down.
+                el.on_click(cx.listener(move |this, _, _, cx| this.set_kind(kind, cx)))
             })
     }
 }
@@ -371,8 +370,11 @@ impl Render for NewNotebookSheet {
             .gap(px(14.))
             .pb(px(4.))
             .child(
+                // Up and Down choose the starter while the name is typed:
+                // the name is one line, so they have nothing else to do.
                 div()
                     .debug_selector(|| "notebook-name".into())
+                    .capture_key_down(cx.listener(|this, event, _, cx| this.on_key_down(event, cx)))
                     .child(Input::new(&self.name)),
             )
             .child(

@@ -91,17 +91,22 @@ impl Rig {
         cx.run_until_parked();
     }
 
-    /// Presses `key` `times` times with the list of starters focused (a
-    /// click on its first card focuses it).
+    /// Presses `key` `times` times with what has the keyboard.
     fn press(&self, cx: &mut TestAppContext, key: &str, times: usize) {
         self.draw(cx);
         cx.simulate_keystrokes(self.window, &vec![key; times].join(" "));
         cx.run_until_parked();
     }
 
-    /// Chooses starter `ix` with the keyboard: the first card, then Down.
-    fn choose(&self, cx: &mut TestAppContext, ix: usize) {
+    /// Chooses the first card; the keyboard stays in the name, where Up
+    /// and Down move the choice.
+    fn first_card(&self, cx: &mut TestAppContext) {
         self.click(cx, "notebook-kind-0");
+    }
+
+    /// Chooses starter `ix` with the keyboard: the first, then Down.
+    fn choose(&self, cx: &mut TestAppContext, ix: usize) {
+        self.first_card(cx);
         self.press(cx, "down", ix);
     }
 
@@ -333,7 +338,7 @@ fn a_starter_makes_its_layout_and_goes_to_its_first_note(cx: &mut TestAppContext
 fn up_and_down_move_the_choice_and_stop_at_the_ends(cx: &mut TestAppContext) {
     let rig = rig(cx);
     let sheet = rig.open(cx, None);
-    rig.click(cx, "notebook-kind-0");
+    rig.first_card(cx);
     rig.press(cx, "up", 2);
     assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::Blank);
     rig.press(cx, "down", 1);
@@ -375,7 +380,7 @@ fn a_locked_notebook_only_takes_blank_and_video_studio(cx: &mut TestAppContext) 
     // A disabled card doesn't take the choice, by click or by key.
     rig.click(cx, "notebook-kind-1");
     assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::Blank);
-    rig.click(cx, "notebook-kind-0");
+    rig.first_card(cx);
     rig.press(cx, "down", 3);
     assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::VideoStudio);
     rig.click(cx, "notebook-create");
