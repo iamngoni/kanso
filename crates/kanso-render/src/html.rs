@@ -965,7 +965,7 @@ pub fn stylesheet(p: &Palette, options: &PageOptions<'_>) -> String {
 :root{{color-scheme:{scheme}}}
 *{{box-sizing:border-box}}
 html{{background:{bg};-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-body{{margin:0 auto;max-width:calc({width}px + 4rem);padding:3rem 2rem 4rem;background:{bg};color:{text};font:{size}px/{line} {sans};-webkit-font-smoothing:antialiased}}
+body{{margin:0 auto;max-width:max(calc({width}px + 4rem),75vw);padding:3rem 2rem 4rem;background:{bg};color:{text};font:{size}px/{line} {sans};-webkit-font-smoothing:antialiased}}
 header h1{{font-size:2rem;line-height:1.25;margin:0 0 1.5rem;font-weight:700}}
 h1,h2,h3,h4,h5,h6{{font-weight:600;line-height:1.35}}
 h1{{font-size:{h1s}em;line-height:1.25;margin:{h1g}em 0 {bottom}em;font-weight:700}}
@@ -999,7 +999,7 @@ li:has(>input[type=checkbox])>input[type=checkbox]{{appearance:none;-webkit-appe
 li:has(>input[type=checkbox])>input[type=checkbox]:checked{{background:{link} {check} no-repeat center/12px 12px;border-color:{link}}}
 li:has(>input[type=checkbox]:checked){{color:{taskdone}}}
 figure{{margin-left:0;margin-right:0;overflow-x:auto}}
-figure svg{{max-width:100%;height:auto}}
+figure svg{{width:100%!important;max-width:100%!important;height:auto!important}}
 .kanso-math svg{{display:inline-block}}
 .kanso-math-display{{display:block;text-align:center;margin:.4em 0}}
 .kanso-diagram,.kanso-drawing{{display:block}}
@@ -1676,7 +1676,7 @@ mod tests {
         let css = stylesheet(&Palette::LIGHT, &options);
         let width = crate::typography::readable_width(18., false);
         assert!(
-            css.contains(&format!("max-width:calc({width}px + 4rem)")),
+            css.contains(&format!("max-width:max(calc({width}px + 4rem),75vw)")),
             "{css}"
         );
         assert!(css.contains("font:18px/1.65"), "{css}");
@@ -1734,7 +1734,7 @@ mod tests {
             prop_assert!(!css.to_ascii_lowercase().contains("</style"));
             prop_assert!(!css.to_ascii_lowercase().contains("<script"));
             prop_assert_eq!(css.matches('"').count() % 2, 0);
-            prop_assert!(css.contains("max-width:calc("));
+            prop_assert!(css.contains("max-width:max(calc("));
         }
 
         /// Invariants: a highlighted page escapes its code and never emits
