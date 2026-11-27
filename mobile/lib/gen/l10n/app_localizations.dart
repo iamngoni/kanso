@@ -7672,6 +7672,18 @@ abstract class AppLocalizations {
   /// **'Commands'**
   String get paletteCommands;
 
+  /// Tablet note bar button: put the library and the note list away so the note has the whole width.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide sidebar and list'**
+  String get notePanesHide;
+
+  /// Tablet note bar button: bring back the library and the note list.
+  ///
+  /// In en, this message translates to:
+  /// **'Show sidebar and list'**
+  String get notePanesShow;
+
   /// Leaves focus mode and brings back the sidebar and bars.
   ///
   /// In en, this message translates to:

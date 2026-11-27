@@ -187,6 +187,41 @@ void main() {
       expect(find.byType(NotePage), findsOneWidget);
     });
 
+    for (final (name, size) in <(String, Size)>[
+      ('landscape', _landscape),
+      ('portrait', _portrait),
+    ]) {
+      testWidgets('$name: the note bar puts the library and list away and '
+          'brings them back', (tester) async {
+        await _pump(tester, size, at: '/notebooks/b1/note/n1');
+        await tester.tap(find.bySemanticsLabel('Hide sidebar and list'));
+        await tester.pumpAndSettle();
+        expect(find.byType(LibraryNavigation), findsNothing);
+        expect(find.byType(NoteListPage), findsNothing);
+        expect(tester.getSize(find.byType(NotePage)).width, size.width);
+
+        await tester.tap(find.bySemanticsLabel('Show sidebar and list'));
+        await tester.pumpAndSettle();
+        expect(find.byType(NoteListPage), findsOneWidget);
+        expect(find.byType(NotePage), findsOneWidget);
+      });
+    }
+
+    testWidgets('with the panes put away and no note open, the list shows', (
+      tester,
+    ) async {
+      final router = await _pump(
+        tester,
+        _landscape,
+        at: '/notebooks/b1/note/n1',
+      );
+      await tester.tap(find.bySemanticsLabel('Hide sidebar and list'));
+      await tester.pumpAndSettle();
+      router.go('/notebooks/b1');
+      await tester.pumpAndSettle();
+      expect(find.byType(NoteListPage), findsOneWidget);
+    });
+
     testWidgets('one pane: the list, with the note on top of it', (
       tester,
     ) async {

@@ -9,5 +9,9 @@ abstract class LibraryPaneState with _$LibraryPaneState {
   const factory LibraryPaneState({
     /// Whether the pane is shown beside the list.
     @Default(true) bool visible,
+
+    /// Whether the library and the list are both put away while a note is
+    /// open, so the note has the whole width of a tablet to write in.
+    @Default(false) bool panesHidden,
   }) = _LibraryPaneState;
 }

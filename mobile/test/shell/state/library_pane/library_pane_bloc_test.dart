@@ -19,4 +19,18 @@ void main() {
       const LibraryPaneState(visible: false),
     ],
   );
+
+  blocTest<LibraryPaneBloc, LibraryPaneState>(
+    'puts both panes away and back, apart from the library toggle',
+    build: LibraryPaneBloc.new,
+    act: (bloc) => bloc
+      ..add(const LibraryPaneEvent.panesToggled())
+      ..add(const LibraryPaneEvent.toggled())
+      ..add(const LibraryPaneEvent.panesToggled()),
+    expect: () => <LibraryPaneState>[
+      const LibraryPaneState(panesHidden: true),
+      const LibraryPaneState(visible: false, panesHidden: true),
+      const LibraryPaneState(visible: false),
+    ],
+  );
 }
