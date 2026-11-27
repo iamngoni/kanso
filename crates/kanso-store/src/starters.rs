@@ -119,7 +119,7 @@ pub fn starter_preset(
                 .collect();
             if let Some(first) = book.templates.first() {
                 let vars = Vars {
-                    now: when.clone(),
+                    now: when,
                     title: book.note_title.clone(),
                 };
                 child.notes = vec![PresetNote {
