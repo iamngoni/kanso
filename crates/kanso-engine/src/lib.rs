@@ -139,6 +139,7 @@ pub mod schedule;
 mod schedule_model;
 pub mod shortcuts;
 pub mod sidebar;
+pub use kanso_store::starters_text;
 #[cfg(any(test, feature = "test-support"))]
 pub mod strategies;
 pub mod sync;

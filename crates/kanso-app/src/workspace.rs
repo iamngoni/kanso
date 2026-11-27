@@ -2002,7 +2002,13 @@ impl Workspace {
                     .update(cx, |palette, cx| palette.open(mode, window, cx));
             }
             SidebarEvent::NewBook { parent } => {
-                crate::new_notebook_sheet::open(library, parent.clone(), window, cx);
+                crate::new_notebook_sheet::open(
+                    library,
+                    self.sidebar.clone(),
+                    parent.clone(),
+                    window,
+                    cx,
+                );
             }
             SidebarEvent::RenameBook(id) => {
                 let current = self

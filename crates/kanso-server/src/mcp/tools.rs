@@ -76,6 +76,7 @@ pub(crate) fn call(
         ("search-notes", vis) => search_notes(store, vis, &args),
         ("list-notes", vis) => list_notes(store, vis, &args),
         ("kanso-list-canvases", vis) => list_canvases(store, vis, &args),
+        ("kanso-list-starters", _) => result(vec![text(pretty(&crate::starters::catalogue()))]),
         ("kanso-read-canvas", vis) => read_canvas(store, vis, &args),
         ("kanso-search-pdf", Some(vis)) => pdf_search(store, vis, &args),
         ("kanso-read-pdf-page", Some(vis)) => pdf_page(store, vis, &args),
@@ -210,7 +211,17 @@ fn guard_write(
             let id = str_arg(args, "_id");
             keyed::check_write(store, key, vis, DocType::Note, Some(id), args)?;
         }
-        "create-book" => keyed::check_write(store, key, vis, DocType::Book, None, args)?,
+        "create-book" => {
+            // A refused starter says why, not just 400.
+            keyed::check_write(store, key, vis, DocType::Book, None, args).map_err(|err| {
+                if args.contains_key("starter") && err.status == axum::http::StatusCode::BAD_REQUEST
+                {
+                    ToolError(err.reason)
+                } else {
+                    err.into()
+                }
+            })?
+        }
         "update-book" => {
             let id = str_arg(args, "_id");
             keyed::check_write(store, key, vis, DocType::Book, Some(id), args)?;
@@ -355,7 +366,7 @@ fn call_full(state: &AppState, key: &Key, vis: &Visibility, name: &str, args: Ar
         "update-tag" => merge(store, args, false),
         "list-notebooks" => list(keyed::list_docs(store, key, DocType::Book, None, 0)?),
         "read-book" => read(store, key, DocType::Book, &args, "bookId"),
-        "create-book" => upsert(store, DocType::Book, args),
+        "create-book" => create_book(store, args),
         "update-book" => merge(store, args, true),
         "create-file" => create_file(store, &args),
         "read-file" => read_file(store, &args),
@@ -1904,6 +1915,19 @@ fn edit_canvas(state: &AppState, key: &Key, vis: &Visibility, args: &Args) -> To
 fn upsert(store: &Store, doc_type: DocType, args: Args) -> ToolResult {
     let res = api::upsert(store, doc_type, Value::Object(args))?;
     result(vec![text(pretty(&res))])
+}
+
+/// `create-book`: a refused `starter` (unknown, or made inside a locked
+/// notebook) says why, as a tool error, rather than as a bare 400.
+fn create_book(store: &Store, args: Args) -> ToolResult {
+    let starter = args.get("starter").is_some_and(|value| !value.is_null());
+    match api::upsert(store, DocType::Book, Value::Object(args)) {
+        Ok(res) => result(vec![text(pretty(&res))]),
+        Err(err) if starter && err.status == axum::http::StatusCode::BAD_REQUEST => {
+            Err(ToolError(err.reason))
+        }
+        Err(err) => Err(err.into()),
+    }
 }
 
 /// `update-tag` and `update-book`: post the given fields to `/<_id>`.

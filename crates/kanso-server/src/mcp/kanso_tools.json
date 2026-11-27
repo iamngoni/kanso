@@ -743,6 +743,18 @@
     }
   },
   {
+    "name": "kanso-list-starters",
+    "description": "List the notebook starters `create-book` accepts as `starter`: each has its key, label, description, icon, whether it makes notes, the sub-notebooks it makes (with icon and template), its tags (with color) and its template titles. Use it to show the choices before creating a notebook.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
     "name": "kanso-list-tags",
     "description": "List tags used by notes available to this caller. Counts include only notes the caller may see.",
     "inputSchema": {

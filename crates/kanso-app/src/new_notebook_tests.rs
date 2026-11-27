@@ -1,5 +1,6 @@
-//! New Notebook as the person uses it (issue #390, slice 29): the choice of
-//! a blank notebook or a Video studio, typing a name, and Create.
+//! New Notebook as the person uses it (issues #390 slice 29 and #514): the
+//! name, the choice of a blank notebook, a starter or a Video studio, and
+//! Create.
 
 use std::sync::Arc;
 
@@ -90,6 +91,25 @@ impl Rig {
         cx.run_until_parked();
     }
 
+    /// Presses `key` `times` times with what has the keyboard.
+    fn press(&self, cx: &mut TestAppContext, key: &str, times: usize) {
+        self.draw(cx);
+        cx.simulate_keystrokes(self.window, &vec![key; times].join(" "));
+        cx.run_until_parked();
+    }
+
+    /// Chooses the first card; the keyboard stays in the name, where Up
+    /// and Down move the choice.
+    fn first_card(&self, cx: &mut TestAppContext) {
+        self.click(cx, "notebook-kind-0");
+    }
+
+    /// Chooses starter `ix` with the keyboard: the first, then Down.
+    fn choose(&self, cx: &mut TestAppContext, ix: usize) {
+        self.first_card(cx);
+        self.press(cx, "down", ix);
+    }
+
     fn open_from_menu(&self, cx: &mut TestAppContext) {
         self.window
             .update(cx, |_, window, cx| {
@@ -105,7 +125,8 @@ impl Rig {
         let sheet = self
             .window
             .update(cx, |_, window, cx| {
-                crate::new_notebook_sheet::open(library, parent, window, cx)
+                let sidebar = self.workspace.read(cx).sidebar.clone();
+                crate::new_notebook_sheet::open(library, sidebar, parent, window, cx)
             })
             .unwrap();
         cx.run_until_parked();
@@ -126,16 +147,23 @@ impl Rig {
 }
 
 #[gpui_kit::test]
-fn the_menu_item_offers_blank_and_video_studio(cx: &mut TestAppContext) {
+fn the_menu_item_offers_every_starter_after_the_name(cx: &mut TestAppContext) {
     let rig = rig(cx);
     rig.open_from_menu(cx);
-    assert!(
-        rig.drawn(cx, "notebook-kind-0"),
-        "Blank notebook is offered"
-    );
-    assert!(rig.drawn(cx, "notebook-kind-1"), "Video studio is offered");
+    for ix in 0..NotebookKind::ALL.len() {
+        let selector: &'static str = Box::leak(format!("notebook-kind-{ix}").into_boxed_str());
+        assert!(rig.drawn(cx, selector), "{selector} is offered");
+    }
     assert!(rig.drawn(cx, "notebook-name"));
+    assert!(rig.drawn(cx, "notebook-starters"));
     assert!(!rig.drawn(cx, "notebook-error"));
+    // The name comes first, above the list.
+    let mut vcx = VisualTestContext::from_window(rig.window, cx);
+    let name = vcx.debug_bounds("notebook-name").unwrap();
+    let list = vcx.debug_bounds("notebook-starters").unwrap();
+    assert!(name.bottom() <= list.top());
+    // The list scrolls past its largest height.
+    assert!(list.size.height <= gpui_kit::px(crate::new_notebook_sheet::LIST_MAX_HEIGHT + 1.));
 }
 
 #[gpui_kit::test]
@@ -156,8 +184,8 @@ fn create_makes_a_blank_notebook_by_default_and_goes_to_it(cx: &mut TestAppConte
 fn choosing_video_studio_makes_the_board_and_templates(cx: &mut TestAppContext) {
     let rig = rig(cx);
     rig.open_from_menu(cx);
-    rig.click(cx, "notebook-kind-1");
     rig.type_text(cx, "Channel");
+    rig.choose(cx, 7);
     rig.click(cx, "notebook-create");
     let book = rig.book_named("Channel").expect("the studio is made");
     assert_eq!(rig.filter(cx), Filter::Book(book.id.clone()));
@@ -202,11 +230,11 @@ fn the_choice_can_be_changed_back(cx: &mut TestAppContext) {
     let rig = rig(cx);
     let sheet = rig.open(cx, None);
     assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::Blank);
-    rig.click(cx, "notebook-kind-1");
-    assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::VideoStudio);
-    rig.click(cx, "notebook-kind-0");
-    assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::Blank);
     rig.type_text(cx, "Plain");
+    rig.choose(cx, 7);
+    assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::VideoStudio);
+    rig.press(cx, "up", 7);
+    assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::Blank);
     rig.click(cx, "notebook-create");
     let book = rig.book_named("Plain").unwrap();
     assert!(rig.store.notebook_board(&book.id).unwrap().is_none());
@@ -216,8 +244,8 @@ fn the_choice_can_be_changed_back(cx: &mut TestAppContext) {
 fn create_does_nothing_without_a_name(cx: &mut TestAppContext) {
     let rig = rig(cx);
     let sheet = rig.open(cx, None);
-    rig.click(cx, "notebook-kind-1");
     rig.type_text(cx, "   ");
+    rig.choose(cx, 7);
     let target = sheet.clone();
     rig.window
         .update(cx, move |_, window, cx| {
@@ -259,10 +287,103 @@ fn the_sidebar_makes_a_studio_inside_a_notebook(cx: &mut TestAppContext) {
         })
         .unwrap();
     cx.run_until_parked();
-    rig.click(cx, "notebook-kind-1");
     rig.type_text(cx, "Channel");
+    rig.choose(cx, 7);
     rig.click(cx, "notebook-create");
     let book = rig.book_named("Channel").unwrap();
     assert_eq!(book.parent_book_id.as_deref(), Some(parent.as_str()));
     assert!(rig.store.notebook_board(&book.id).unwrap().is_some());
+}
+
+#[gpui_kit::test]
+fn a_starter_makes_its_layout_and_goes_to_its_first_note(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    rig.open_from_menu(cx);
+    rig.type_text(cx, "Acme");
+    rig.click(cx, "notebook-kind-1");
+    rig.click(cx, "notebook-create");
+    let book = rig.book_named("Acme").expect("the notebook is made");
+    assert_eq!(crate::book_icons::chosen(&book).as_deref(), Some("rocket"));
+    let inside: Vec<String> = rig
+        .store
+        .books()
+        .unwrap()
+        .into_iter()
+        .filter(|b| b.parent_book_id.as_deref() == Some(book.id.as_str()))
+        .map(|b| b.name)
+        .collect();
+    assert_eq!(inside.len(), 9);
+    assert_eq!(rig.store.templates().unwrap().len(), 9);
+    assert_eq!(rig.store.tags().unwrap().len(), 6);
+    // The root shows, open in the sidebar, with the first note selected.
+    assert_eq!(rig.filter(cx), Filter::Book(book.id.clone()));
+    let sidebar = cx.read(|cx| rig.workspace.read(cx).sidebar.clone());
+    assert!(cx.read(|cx| sidebar.read(cx).is_book_open(&book.id)));
+    let selected = cx
+        .read(|cx| rig.workspace.read(cx).library.read(cx).selected.clone())
+        .expect("a note is selected");
+    let note = rig.store.note(&selected).unwrap().unwrap();
+    assert_eq!(note.title, "Feature plan");
+    let features = rig
+        .store
+        .books()
+        .unwrap()
+        .into_iter()
+        .find(|b| b.name == "Features")
+        .unwrap();
+    assert_eq!(note.book_id, features.id);
+}
+
+#[gpui_kit::test]
+fn up_and_down_move_the_choice_and_stop_at_the_ends(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let sheet = rig.open(cx, None);
+    rig.first_card(cx);
+    rig.press(cx, "up", 2);
+    assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::Blank);
+    rig.press(cx, "down", 1);
+    assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::Product);
+    rig.press(cx, "down", 20);
+    assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::VideoStudio);
+}
+
+#[gpui_kit::test]
+fn a_locked_notebook_only_takes_blank_and_video_studio(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let secret = rig
+        .store
+        .put(
+            kanso_core::DocType::Book,
+            serde_json::json!({"name": "Secret"}),
+            kanso_store::Put::Upsert,
+            kanso_store::Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let mut book = rig.store.get_api(&secret, None, false).unwrap();
+    book.as_object_mut().unwrap().remove("count");
+    book["kansoLock"] =
+        serde_json::json!({"v": 1, "salt": "c2FsdA", "m": 64, "t": 1, "p": 1, "data": "notebook"});
+    rig.store.lock_book(book, Vec::new()).unwrap();
+    let library = cx.read(|cx| rig.workspace.read(cx).library.clone());
+    library.update(cx, |library, cx| library.reload(cx));
+    cx.run_until_parked();
+
+    let sheet = rig.open(cx, Some(secret.clone()));
+    rig.type_text(cx, "Channel");
+    for ix in 1..=6 {
+        let selector: &'static str = Box::leak(format!("notebook-kind-hint-{ix}").into_boxed_str());
+        assert!(rig.drawn(cx, selector), "{selector} says why");
+    }
+    assert!(!rig.drawn(cx, "notebook-kind-hint-0"));
+    assert!(!rig.drawn(cx, "notebook-kind-hint-7"));
+    // A disabled card doesn't take the choice, by click or by key.
+    rig.click(cx, "notebook-kind-1");
+    assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::Blank);
+    rig.first_card(cx);
+    rig.press(cx, "down", 3);
+    assert_eq!(cx.read(|cx| sheet.read(cx).kind), NotebookKind::VideoStudio);
+    rig.click(cx, "notebook-create");
+    let studio = rig.book_named("Channel").expect("a studio goes in");
+    assert_eq!(studio.parent_book_id.as_deref(), Some(secret.as_str()));
 }

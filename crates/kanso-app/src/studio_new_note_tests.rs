@@ -80,7 +80,14 @@ impl Rig {
             })
             .unwrap();
         cx.run_until_parked();
-        self.click(cx, "notebook-kind-1");
+        // Down from the name to Video studio: it is below the list's fold.
+        let studio = kanso_engine::presets::NotebookKind::ALL
+            .iter()
+            .position(|kind| *kind == kanso_engine::presets::NotebookKind::VideoStudio)
+            .expect("Video studio is offered");
+        self.draw(cx);
+        cx.simulate_keystrokes(self.window, &vec!["down"; studio].join(" "));
+        cx.run_until_parked();
         self.draw(cx);
         cx.simulate_input(self.window, name);
         cx.run_until_parked();

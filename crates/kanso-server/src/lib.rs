@@ -38,6 +38,7 @@ mod proposal;
 mod rest;
 mod review;
 mod scope;
+mod starters;
 mod tokens;
 
 use std::fmt;

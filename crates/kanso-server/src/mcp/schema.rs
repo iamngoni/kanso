@@ -436,6 +436,7 @@ mod tests {
                 "kanso-list-note-links",
                 "kanso-list-open-loops",
                 "kanso-list-pdf-highlights",
+                "kanso-list-starters",
                 "kanso-list-tags",
                 "kanso-list-tasks",
                 "kanso-list-versions",

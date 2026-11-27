@@ -2,11 +2,16 @@
 //! templates, made whole, and the template list that puts them first.
 
 use kanso_core::DocType;
+use kanso_core::TagColor;
 use kanso_core::dates::{Date, DateTime};
 use kanso_core::properties;
 use kanso_core::schema::PropertyType;
 use kanso_engine::board::{Board, Lane, grouped_board, property_board};
-use kanso_engine::presets::{NotebookKind, SHOT_LIST, STUDIO_STAGES, VIDEO_BRIEF, create_notebook};
+use kanso_engine::catalogue::book_icons::CHOICES;
+use kanso_engine::presets::{
+    CreatedNotebook, NotebookKind, SHOT_LIST, STUDIO_STAGES, VIDEO_BRIEF, create_notebook,
+    create_notebook_at,
+};
 use kanso_store::{Origin, Put, Store};
 use proptest::prelude::*;
 use proptest::test_runner::FileFailurePersistence;
@@ -206,6 +211,426 @@ fn a_studio_goes_inside_its_parent() {
         book.parent_book_id.as_deref(),
         Some(parent.book_id.as_str())
     );
+}
+
+// MARK: Starters
+
+fn on(year: i32, month: u32, day: u32) -> chrono::NaiveDateTime {
+    chrono::NaiveDate::from_ymd_opt(year, month, day)
+        .unwrap()
+        .and_hms_opt(9, 30, 0)
+        .unwrap()
+}
+
+fn doc(store: &Store, id: &str) -> serde_json::Value {
+    store.get_api(id, None, false).unwrap()
+}
+
+fn make(store: &Store, name: &str, kind: NotebookKind) -> CreatedNotebook {
+    create_notebook_at(store, name, None, kind, Origin::Ui, on(2026, 11, 27)).unwrap()
+}
+
+fn lock_book(store: &Store, id: &str) {
+    let mut book = doc(store, id);
+    book.as_object_mut().unwrap().remove("count");
+    book["kansoLock"] =
+        json!({"v": 1, "salt": "c2FsdA", "m": 64, "t": 1, "p": 1, "data": "notebook"});
+    store.lock_book(book, Vec::new()).unwrap();
+}
+
+#[test]
+fn the_kinds_are_the_eight_choices_in_order() {
+    let keys: Vec<&str> = NotebookKind::ALL.iter().map(|k| k.key()).collect();
+    assert_eq!(
+        keys,
+        [
+            "blank",
+            "product",
+            "knowledge",
+            "side-projects",
+            "journal",
+            "reading",
+            "publishing",
+            "video-studio"
+        ]
+    );
+    let labels: Vec<&str> = NotebookKind::ALL.iter().map(|k| k.label()).collect();
+    assert_eq!(
+        labels,
+        [
+            "Blank notebook",
+            "Product development",
+            "Knowledge base",
+            "Side projects",
+            "Daily journal",
+            "Reading",
+            "Writing & publishing",
+            "Video studio"
+        ]
+    );
+    assert_eq!(NotebookKind::parse("nope"), None);
+    assert_eq!(NotebookKind::parse(""), None);
+}
+
+#[test]
+fn every_icon_is_one_the_picker_offers() {
+    let names: Vec<&str> = CHOICES.iter().map(|c| c.name).collect();
+    for kind in NotebookKind::ALL {
+        assert!(names.contains(&kind.icon()), "{kind:?}");
+        let Some(starter) = kind.starter(on(2026, 11, 27).date()) else {
+            continue;
+        };
+        for book in &starter.children {
+            assert!(names.contains(&book.icon), "{} in {kind:?}", book.icon);
+        }
+    }
+}
+
+/// What each starter makes: sub-notebooks with icons and templates, then tags.
+type Layout = (
+    NotebookKind,
+    &'static [(&'static str, &'static str, &'static str)],
+    &'static [(&'static str, TagColor)],
+);
+
+const LAYOUTS: &[Layout] = &[
+    (
+        NotebookKind::Product,
+        &[
+            ("Features", "lightbulb", "Feature plan"),
+            ("Bugs", "bug", "Bug report"),
+            ("Performance", "zap", "Performance investigation"),
+            ("Experiments", "flask-conical", "Experiment"),
+            ("Refactoring", "wrench", "Refactoring plan"),
+            ("Testing", "list-checks", "Test plan"),
+            ("Chores", "hammer", "Chore"),
+            ("Release notes", "megaphone", "Release plan"),
+            ("Decisions", "git-branch", "Decision record"),
+        ],
+        &[
+            ("web", TagColor::Blue),
+            ("server", TagColor::Violet),
+            ("mobile", TagColor::Green),
+            ("docs", TagColor::Grey),
+            ("security", TagColor::Red),
+            ("important", TagColor::Orange),
+        ],
+    ),
+    (
+        NotebookKind::Knowledge,
+        &[
+            ("Learning", "graduation-cap", "Lesson"),
+            ("Research", "microscope", "Research note"),
+            ("Troubleshooting", "wrench", "Fix"),
+            ("Tools", "hammer", "Tool note"),
+            ("Architecture", "building-2", "Architecture note"),
+        ],
+        &[
+            ("important", TagColor::Orange),
+            ("read-later", TagColor::Teal),
+        ],
+    ),
+    (
+        NotebookKind::SideProjects,
+        &[
+            ("My first project", "rocket", "Project brief"),
+            ("Ideas", "lightbulb", "Idea"),
+        ],
+        &[],
+    ),
+    (
+        NotebookKind::Journal,
+        &[("2026", "calendar", "Daily entry")],
+        &[],
+    ),
+    (
+        NotebookKind::Reading,
+        &[
+            ("Books", "book-open", "Book notes"),
+            ("Articles", "newspaper", "Article notes"),
+        ],
+        &[("to-read", TagColor::Blue), ("favorite", TagColor::Pink)],
+    ),
+    (
+        NotebookKind::Publishing,
+        &[
+            ("Ideas", "lightbulb", "Idea"),
+            ("Posts", "file-text", "Post outline"),
+            ("Videos", "video", "Video outline"),
+            ("Analytics", "chart-line", "Monthly numbers"),
+            ("Resources", "bookmark", "Resource"),
+        ],
+        &[
+            ("draft", TagColor::Grey),
+            ("in-review", TagColor::Yellow),
+            ("published", TagColor::Green),
+        ],
+    ),
+];
+
+#[test]
+fn each_starter_makes_exactly_its_catalogue() {
+    for (kind, books, tags) in LAYOUTS {
+        let (_dir, store) = store();
+        let made = make(&store, "  Mine ", *kind);
+        let root = doc(&store, &made.book_id);
+        assert_eq!(root["name"], "Mine", "{kind:?}");
+        assert_eq!(root["kansoIcon"], kind.icon(), "{kind:?}");
+
+        assert_eq!(made.child_ids.len(), books.len(), "{kind:?}");
+        assert_eq!(made.note_ids.len(), books.len(), "{kind:?}");
+        assert_eq!(made.template_ids.len(), books.len(), "{kind:?}");
+        for (i, (name, icon, template)) in books.iter().enumerate() {
+            let book = doc(&store, &made.child_ids[i]);
+            assert_eq!(book["name"], *name, "{kind:?}");
+            assert_eq!(book["kansoIcon"], *icon, "{name}");
+            assert_eq!(book["parentBookId"], made.book_id.as_str());
+            // Named template, and its note.
+            assert_eq!(
+                book["kansoTemplates"],
+                json!([made.template_ids[i]]),
+                "{name}"
+            );
+            assert_eq!(doc(&store, &made.template_ids[i])["title"], *template);
+            let note = doc(&store, &made.note_ids[i]);
+            assert_eq!(note["bookId"], made.child_ids[i].as_str());
+            assert_eq!(note["status"], "active");
+            if *kind != NotebookKind::Journal {
+                assert_eq!(note["title"], *template, "{name}");
+            }
+            // Variables are filled in: none of ours is left in the text.
+            let body = note["body"].as_str().unwrap();
+            assert!(!body.contains("{{"), "{name}: {body}");
+            assert!(body.contains("##"), "{name}");
+        }
+
+        assert_eq!(made.tag_ids.len(), tags.len(), "{kind:?}");
+        for (i, (name, color)) in tags.iter().enumerate() {
+            let tag = doc(&store, &made.tag_ids[i]);
+            assert_eq!(tag["name"], *name);
+            assert_eq!(tag["color"], serde_json::to_value(color).unwrap());
+        }
+        assert_eq!(
+            store.list_api(DocType::Tag, None, 0).unwrap().len(),
+            tags.len()
+        );
+        // The root, its children and the Templates notebook, nothing else.
+        assert_eq!(store.books().unwrap().len(), 2 + books.len(), "{kind:?}");
+        // No notes but the starters', and the templates.
+        let notes = store.list_api(DocType::Note, None, 0).unwrap().len();
+        assert_eq!(notes, 2 * books.len(), "{kind:?}");
+    }
+}
+
+#[test]
+fn the_journal_is_a_year_with_todays_entry() {
+    let (_dir, store) = store();
+    let made = make(&store, "Journal", NotebookKind::Journal);
+    assert_eq!(doc(&store, &made.child_ids[0])["name"], "2026");
+    let note = doc(&store, &made.note_ids[0]);
+    assert_eq!(note["title"], "2026-11-27");
+    assert!(note["body"].as_str().unwrap().contains("## What I did"));
+}
+
+#[test]
+fn the_decision_record_is_dated_today() {
+    let (_dir, store) = store();
+    let made = make(&store, "Product", NotebookKind::Product);
+    let decisions = &made.note_ids[8];
+    let body = doc(&store, decisions)["body"].as_str().unwrap().to_owned();
+    assert!(body.starts_with("Status: proposed \u{b7} 2026-11-27\n"));
+    assert!(body.contains("## Alternatives"));
+}
+
+#[test]
+fn a_starter_goes_inside_its_parent() {
+    let (_dir, store) = store();
+    let parent = create_notebook(&store, "Work", None, NotebookKind::Blank, Origin::Ui).unwrap();
+    let made = create_notebook(
+        &store,
+        "Reading",
+        Some(parent.book_id.clone()),
+        NotebookKind::Reading,
+        Origin::Ui,
+    )
+    .unwrap();
+    assert_eq!(
+        doc(&store, &made.book_id)["parentBookId"],
+        parent.book_id.as_str()
+    );
+}
+
+#[test]
+fn a_second_run_reuses_the_templates_and_the_tags() {
+    let (_dir, store) = store();
+    let first = make(&store, "One", NotebookKind::Product);
+    let second = make(&store, "Two", NotebookKind::Product);
+    assert_eq!(first.template_ids, second.template_ids);
+    assert_eq!(first.tag_ids, second.tag_ids);
+    assert_ne!(first.book_id, second.book_id);
+    assert_ne!(first.note_ids, second.note_ids);
+    assert_eq!(store.templates().unwrap().len(), 9);
+    assert_eq!(store.list_api(DocType::Tag, None, 0).unwrap().len(), 6);
+    // The second notebook's subnotebooks name the same templates.
+    assert_eq!(
+        store.notebook_templates(&second.child_ids[1]).unwrap(),
+        [first.template_ids[1].clone()]
+    );
+}
+
+#[test]
+fn the_idea_template_is_shared_between_starters() {
+    let (_dir, store) = store();
+    let side = make(&store, "Side", NotebookKind::SideProjects);
+    let publishing = make(&store, "Writing", NotebookKind::Publishing);
+    assert_eq!(side.template_ids[1], publishing.template_ids[0]);
+    assert_eq!(store.templates().unwrap().len(), 2 + 4);
+}
+
+#[test]
+fn an_existing_tag_keeps_its_color_whatever_its_case() {
+    let (_dir, store) = store();
+    let mine = store
+        .put(
+            DocType::Tag,
+            json!({"name": "Important", "color": "black"}),
+            Put::Upsert,
+            Origin::Ui,
+        )
+        .unwrap()
+        .id;
+    let made = make(&store, "Know", NotebookKind::Knowledge);
+    assert_eq!(made.tag_ids[0], mine);
+    assert_eq!(doc(&store, &mine)["color"], "black");
+    assert_eq!(store.list_api(DocType::Tag, None, 0).unwrap().len(), 2);
+}
+
+#[test]
+fn a_locked_parent_refuses_the_starters_that_make_notes() {
+    let (_dir, store) = store();
+    let secret = create_notebook(&store, "Secret", None, NotebookKind::Blank, Origin::Ui).unwrap();
+    lock_book(&store, &secret.book_id);
+    let books = store.books().unwrap().len();
+    for kind in NotebookKind::ALL.into_iter().filter(|k| k.makes_notes()) {
+        let refused = create_notebook(
+            &store,
+            "Inside",
+            Some(secret.book_id.clone()),
+            kind,
+            Origin::Ui,
+        );
+        assert!(
+            matches!(
+                &refused,
+                Err(kanso_store::StoreError::Invalid(m)) if m
+                    == "Starters can't be made inside a locked notebook. Make it at the top level, then move it in."
+            ),
+            "{kind:?}: {refused:?}"
+        );
+    }
+    assert_eq!(store.books().unwrap().len(), books);
+    assert!(store.templates().unwrap().is_empty());
+    assert!(store.list_api(DocType::Tag, None, 0).unwrap().is_empty());
+    // Blank and Video studio still go in.
+    for kind in [NotebookKind::Blank, NotebookKind::VideoStudio] {
+        create_notebook(
+            &store,
+            "Inside",
+            Some(secret.book_id.clone()),
+            kind,
+            Origin::Ui,
+        )
+        .unwrap();
+    }
+}
+
+#[test]
+fn a_refused_starter_leaves_nothing_behind() {
+    let (_dir, store) = store();
+    for (name, parent) in [("", None), ("  ", None), ("Notes", Some("book:nowhere"))] {
+        let made = create_notebook(
+            &store,
+            name,
+            parent.map(str::to_owned),
+            NotebookKind::Product,
+            Origin::Ui,
+        );
+        assert!(made.is_err(), "{name:?} in {parent:?}");
+    }
+    assert!(store.books().unwrap().is_empty());
+    assert!(store.templates().unwrap().is_empty());
+    assert!(store.list_api(DocType::Tag, None, 0).unwrap().is_empty());
+    assert!(store.list_api(DocType::Note, None, 0).unwrap().is_empty());
+}
+
+#[test]
+fn every_template_text_is_a_guide() {
+    for kind in NotebookKind::ALL {
+        let Some(starter) = kind.starter(on(2026, 11, 27).date()) else {
+            continue;
+        };
+        for template in starter.children.iter().flat_map(|b| &b.templates) {
+            assert!(template.body.contains("## "), "{}", template.title);
+            assert!(template.body.ends_with('\n'), "{}", template.title);
+            // Only variables Kanso knows.
+            for part in template.body.split("{{").skip(1) {
+                let name = part.split("}}").next().unwrap();
+                let name = name.split(':').next().unwrap().trim();
+                assert!(kanso_core::template::KNOWN.contains(&name), "{name}");
+            }
+            assert!(
+                template.key.len() <= 64
+                    && template
+                        .key
+                        .bytes()
+                        .all(|b| b.is_ascii_lowercase() || b == b'/' || b == b'-'),
+                "{}",
+                template.key
+            );
+        }
+    }
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// A key names its kind and back, and nothing else parses.
+    #[test]
+    fn prop_key_and_parse_round_trip(junk in "[a-z-]{0,14}") {
+        for kind in NotebookKind::ALL {
+            prop_assert_eq!(NotebookKind::parse(kind.key()), Some(kind));
+        }
+        let parsed = NotebookKind::parse(&junk);
+        prop_assert_eq!(
+            parsed.is_some(),
+            NotebookKind::ALL.iter().any(|k| k.key() == junk)
+        );
+    }
+
+    /// Whatever day it is, the journal's year and note are that day's, and
+    /// the starters' keys never repeat inside one starter.
+    #[test]
+    fn prop_the_journal_follows_the_date(days in 0i64..80_000) {
+        let date = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap() + chrono::Duration::days(days);
+        let starter = NotebookKind::Journal.starter(date).unwrap();
+        prop_assert_eq!(starter.children.len(), 1);
+        prop_assert_eq!(starter.children[0].name.clone(), date.format("%Y").to_string());
+        prop_assert_eq!(starter.children[0].note_title.clone(), date.format("%Y-%m-%d").to_string());
+    }
+
+    /// However a name is spaced, a starter trims it and makes the same layout.
+    #[test]
+    fn prop_a_starter_trims_its_name(
+        name in "[A-Za-z][A-Za-z0-9]{0,10}",
+        left in " {0,3}",
+        right in " {0,3}",
+    ) {
+        let (_dir, store) = store();
+        let made = make(&store, &format!("{left}{name}{right}"), NotebookKind::Reading);
+        let book = doc(&store, &made.book_id);
+        prop_assert_eq!(book["name"].as_str(), Some(name.as_str()));
+        prop_assert_eq!(made.child_ids.len(), 2);
+    }
 }
 
 proptest! {

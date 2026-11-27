@@ -139,12 +139,13 @@ Retrieve a single book
 
 ### `create-book`
 
-Create a new notebook in the database. To create a nested notebook, pass the parent notebook ID as `parentBookId`. Call `list-notebooks` first to find it.
+Create a new notebook in the database. To create a nested notebook, pass the parent notebook ID as `parentBookId`. Call `list-notebooks` first to find it. To set it up with sub-notebooks, tags, templates and a first note in each, pass a `starter`; `kanso-list-starters` shows the choices. The answer then adds `subBookIds`, `tagIds` and `noteIds`.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `name` | `string` | yes | The notebook name |
 | `parentBookId` | `string` | no | The ID of the parent notebook. Omit it to create the notebook at the root level. |
+| `starter` | `string` | no | What the notebook starts as: one of blank, product, knowledge, side-projects, journal, reading, publishing or video-studio. Omit it for a blank notebook. A starter that makes notes can't be made inside a locked notebook. |
 
 ### `update-book`
 
@@ -409,6 +410,12 @@ List the highlights and comments for a PDF attached to a note you may read.
 |---|---|---|---|
 | `noteId` | `string` | yes | ID of the visible note that owns this PDF. |
 | `fileId` | `string` | yes | ID of the PDF attached to that note. |
+
+### `kanso-list-starters`
+
+List the notebook starters `create-book` accepts as `starter`: each has its key, label, description, icon, whether it makes notes, the sub-notebooks it makes (with icon and template), its tags (with color) and its template titles. Use it to show the choices before creating a notebook.
+
+No parameters.
 
 ### `kanso-list-tags`
 

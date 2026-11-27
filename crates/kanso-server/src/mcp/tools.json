@@ -447,7 +447,7 @@
   },
   {
     "name": "create-book",
-    "description": "Create a new notebook in the database. To create a nested notebook, pass the parent notebook ID as `parentBookId`. Call `list-notebooks` first to find it.",
+    "description": "Create a new notebook in the database. To create a nested notebook, pass the parent notebook ID as `parentBookId`. Call `list-notebooks` first to find it. To set it up with sub-notebooks, tags, templates and a first note in each, pass a `starter`; `kanso-list-starters` shows the choices. The answer then adds `subBookIds`, `tagIds` and `noteIds`.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
@@ -464,6 +464,10 @@
           "minLength": 6,
           "maxLength": 128,
           "pattern": "^book:"
+        },
+        "starter": {
+          "description": "What the notebook starts as: one of blank, product, knowledge, side-projects, journal, reading, publishing or video-studio. Omit it for a blank notebook. A starter that makes notes can't be made inside a locked notebook.",
+          "type": "string"
         }
       },
       "required": [

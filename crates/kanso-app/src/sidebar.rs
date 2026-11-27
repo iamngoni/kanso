@@ -408,6 +408,27 @@ impl Sidebar {
         cx.notify();
     }
 
+    /// Opens notebook `id` so the notebooks inside it show, and keeps it open
+    /// next time (a new starter notebook, say).
+    pub fn open_book(&mut self, id: &str, cx: &mut Context<Self>) {
+        if !self.folds.open.insert(id.to_owned()) {
+            return;
+        }
+        if cx.has_global::<AppState>() {
+            let mut open: Vec<String> = self.folds.open.iter().cloned().collect();
+            open.sort();
+            AppState::update_config_soon(cx, |config| config.layout.open_books = open);
+        }
+        cx.notify();
+    }
+
+    /// Whether notebook `id` was opened with its arrow, or by
+    /// [`Sidebar::open_book`] (tests).
+    #[cfg(test)]
+    pub fn is_book_open(&self, id: &str) -> bool {
+        self.folds.open.contains(id)
+    }
+
     /// The notebook showing, if one is, and the notebooks it is inside.
     fn showing_around(&self, cx: &App) -> (Option<String>, HashSet<String>) {
         let library = self.library.read(cx);

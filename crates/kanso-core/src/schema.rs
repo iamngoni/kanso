@@ -13,8 +13,9 @@ use serde_json::{Map, Value as Json, json};
 use crate::dates::Date;
 use crate::properties::{self, Value};
 pub use crate::schema_model::{
-    BOARD_FIELD, BoardSpec, FIELD, MAX_LANES, MAX_OPTIONS, MAX_PROPERTIES, MAX_TEMPLATES, Mismatch,
-    PropertyDef, PropertyType, SchemaError, TEMPLATES_FIELD, TemplateEntry,
+    BOARD_FIELD, BoardSpec, FIELD, MAX_LANES, MAX_OPTIONS, MAX_PROPERTIES, MAX_STARTER_KEY_LEN,
+    MAX_TEMPLATES, Mismatch, PropertyDef, PropertyType, STARTER_TEMPLATE_FIELD, SchemaError,
+    TEMPLATES_FIELD, TemplateEntry,
 };
 use crate::zoned;
 
